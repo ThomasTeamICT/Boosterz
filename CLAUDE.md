@@ -5,7 +5,7 @@ Boosterz is een volledig client-side leerplatform: React 18 en TypeScript strict
 - Alle tekst in de app en alle rapportage aan de gebruiker in Vlaams Nederlands. Toegankelijkheid telt: labels, toetsenbord, contrast.
 - Nooit API-sleutels of persoonsgegevens in de repo. De AI-functies gebruiken de eigen sleutel van de leerkracht, en de app blijft bruikbaar zonder sleutel.
 - Sync tussen toestellen is nog een concept: zie `docs/KLASKANAAL.md` en `src/lib/sync/types.ts`.
-- Leerplannen sluitend inlezen (minimumdoelen via de officiële API, leerplannen van de netten met een controlepoort): ontwerp in `docs/LEERPLANNEN.md`.
+- Leerplannen sluitend inlezen (minimumdoelen via de officiële API, leerplannen van de netten met een controlepoort): ontwerp én stand van zaken (wat klaar is, wat wacht) bovenaan `docs/LEERPLANNEN.md`. Lees die eerst als het over leerplannen of doelen gaat.
 
 ## Kwaliteitspoort
 

@@ -3,6 +3,19 @@
 *Status: ontwerp (fase 2), nog niet gebouwd. Fase 1 (een echt API-antwoord en per net één echt
 leerplan) moet de punten met "te bevestigen" afvinken vóór het bouwen begint.*
 
+## Stand van zaken (bijgewerkt 4 oktober 2026)
+
+| Wat | Stand |
+|---|---|
+| API-sleutel Onderwijsdoelen-API | **Bestaat.** Aangevraagd via het portaalformulier op 18 december 2025, aangemaakt op 9 januari 2026 door de Centrale cel ICT. De sleutel kwam per mail in de ICT-mailbox van de scholengroep en geldt voor alle open API's van Onderwijs & Vorming. Hij staat nergens in de repo. |
+| Sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` | Nog te doen door de beheerder. Zodra dat gebeurd is: pakket L1 bouwen. |
+| Vragen aan het departement (§ 12) | Nog te stellen. Sinds 24 maart 2026 **alleen via het formulier van TechLoket Onderwijs**, niet meer per mail (Nieuwsbrief API K&C van AHOVOKS). |
+| Vragen aan KOV, GO!, OVSG, POV (§ 12) | Teksten klaar in het aanvraagdossier (Claude Docs, "Aanvraagdossier leerplangegevens"); nog niet verstuurd. |
+| Eerste toepassing | De cursus "Aardrijkskunde: bodem en landschap" (leerplan KOV I-Aar-a) krijgt doelcodes zodra laag 1 en het leerplan erin zitten. |
+
+Wijzigingen in de doelensets worden aangekondigd in de Nieuwsbrief API K&C (onder meer: minimumdoelen
+basisonderwijs gewijzigd in juni 2026, correcties basiseducatie in september 2026).
+
 ## 1. Waarom
 
 Een doelcode is de ruggengraat van Boosterz: secties, vragen, de dekking en het klasoverzicht
@@ -213,15 +226,16 @@ leerplanpagina is al lui geladen; de lezers komen in een eigen chunk.
 
 ## 12. Open vragen
 
-**Aan het Departement Onderwijs en Vorming** (`onderwijs.api@vlaanderen.be`):
-1. Een API-sleutel voor de Onderwijsdoelen-API, voor gebruik vanuit een geplande taak.
+**Aan het Departement Onderwijs en Vorming** (via TechLoket Onderwijs; de sleutel is er al):
+1. Mag de bestaande sleutel ook voor Boosterz gebruikt worden, of is er een sleutel per toepassing nodig?
 2. Onder welke licentie mogen de opgehaalde doelen bewaard en in een publieke webapp getoond
    worden, en met welke naamsvermelding?
 3. Laat de API verzoeken toe vanuit een browser op een ander domein (CORS)? Antwoord bepaalt
    alleen of een latere versie ook rechtstreeks kan ophalen.
 4. Is er een veld of een eindpunt dat de koppeling tussen leerplandoelen en minimumdoelen geeft,
    of beheert elk net die zelf?
-5. Hoe worden nieuwe versies van een set aangekondigd (veld, changelog, nieuwsbrief)?
+5. Is de Nieuwsbrief API K&C de plek waar nieuwe versies van een set aangekondigd worden, of geeft
+   de API zelf ook een versie aan?
 
 **Aan elk net (KOV, GO!, OVSG, POV)**:
 1. Bestaat er een gestructureerde export of API van de leerplandoelen, met de verwijzingen naar
@@ -232,7 +246,7 @@ leerplanpagina is al lui geladen; de lezers komen in een eigen chunk.
    Zo nee, dan leest elke school ze zelf in.
 
 **Voor de beheerder van Boosterz**:
-1. De sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` zetten.
+1. De bestaande sleutel (mail van 9 januari 2026) als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` zetten.
 2. Optioneel: in de cloudomgeving `onderwijs.api.vlaanderen.be`, `www.onderwijsdoelen.be` en de
    sites van de netten toelaten, zodat fase 1 de formaten rechtstreeks kan testen.
 3. De repo heeft geen licentie. Kies er een voordat er overheidsdata met naamsvermelding in komt,
