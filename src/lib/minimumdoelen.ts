@@ -467,6 +467,7 @@ const ENTITEITEN: Record<string, string> = {
  */
 export function htmlNaarTekst(html: string): string {
   let t = html
+    .replace(/\r\n?/g, '\n')
     .replace(/<\s*br\s*\/?>/gi, '\n')
     .replace(/<\s*li\b[^>]*>/gi, '\n\u2022 ')
     .replace(/<\s*\/\s*(p|div|ul|ol|li|h[1-6]|tr|table)\s*>/gi, '\n')

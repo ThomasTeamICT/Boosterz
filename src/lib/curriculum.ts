@@ -2,7 +2,15 @@
 // Basis-CRUD en opzoekhulpen. Uitgebreidere logica (AI-structurering, import
 // uit pdf/tekst, dekking) staat in aiCurriculum.ts en de leerplanpagina.
 
-import type { ControleStatus, Curriculum, CurriculumGoal } from './curriculumTypes';
+import type {
+  ControleStatus,
+  Curriculum,
+  CurriculumControle,
+  CurriculumGoal,
+  CurriculumHerkomst,
+  CurriculumMethode,
+  MinimumdoelRef,
+} from './curriculumTypes';
 import { CURRICULUM_NETS } from './curriculumTypes';
 import { sha256Hex } from './sha256';
 import { notifyChange, reportWriteFailure } from './storage';
@@ -41,7 +49,8 @@ export function getCurriculum(id: string): Curriculum | undefined {
 export function saveCurriculum(cur: Curriculum): boolean {
   const all = read();
   const i = all.findIndex((c) => c.id === cur.id);
-  const updated = { ...cur, updatedAt: Date.now() };
+  // Wie een nagekeken leerplan wijzigt, bewaart het als "gewijzigd": de vingerafdruk beslist.
+  const updated = bewaakControle({ ...cur, updatedAt: Date.now() });
   if (i >= 0) all[i] = updated;
   else all.unshift(updated);
   return write(all);
@@ -167,17 +176,90 @@ function str(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback;
 }
 
+/**
+ * Tekst inkorten tot `max` tekens zonder een tekenpaar (emoji, …) doormidden te knippen, en
+ * opnieuw trimmen. Twee keer toepassen geeft hetzelfde: saneren blijft idempotent.
+ */
+function kap(t: string, max: number): string {
+  if (t.length <= max) return t;
+  let uit = t.slice(0, max);
+  const laatste = uit.charCodeAt(uit.length - 1);
+  if (laatste >= 0xd800 && laatste <= 0xdbff) uit = uit.slice(0, -1);
+  return uit.trim();
+}
+
+/** Getrimde tekst van hoogstens `max` tekens, of `undefined` als er niets overblijft. */
+function tekstVeld(v: unknown, max: number): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  const t = kap(v.trim(), max);
+  return t === '' ? undefined : t;
+}
+
+const SET_ID = /^ODS_\d{1,9}$/;
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+const ISO_DATUM = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_REFS = 50;
+const MAX_SETS = 50;
+const METHODES: readonly CurriculumMethode[] = ['officieel', 'export', 'pdf', 'tekst', 'ai', 'handmatig'];
+const CONTROLE_STATUSSEN: readonly ControleStatus[] = ['niet-gecontroleerd', 'gecontroleerd', 'gewijzigd'];
+
+function isEindig(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v);
+}
+
+/**
+ * Verwijzingen naar minimumdoelen saneren: alleen elementen met een geldige set ("ODS_<getal>"),
+ * een niet-leeg id van hoogstens 64 tekens (een getal wordt tekst) en een code van hoogstens 40
+ * tekens (geen tekst = lege code; een te lange code maakt de verwijzing ongeldig). Ontdubbeld op
+ * set + id, hoogstens 50. Leeg = `undefined`.
+ */
+function sanitizeRefs(raw: unknown): MinimumdoelRef[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const uit: MinimumdoelRef[] = [];
+  const gezien = new Set<string>();
+  for (const item of raw) {
+    if (uit.length >= MAX_REFS) break;
+    if (!item || typeof item !== 'object') continue;
+    const r = item as Record<string, unknown>;
+    const set = typeof r.set === 'string' ? r.set.trim() : '';
+    if (!SET_ID.test(set)) continue;
+    const id = typeof r.id === 'string' ? r.id.trim() : isEindig(r.id) ? String(r.id) : '';
+    if (id === '' || id.length > 64) continue;
+    const code = typeof r.code === 'string' ? r.code.trim() : '';
+    if (code.length > 40) continue;
+    const sleutel = `${set}\u0000${id}`;
+    if (gezien.has(sleutel)) continue;
+    gezien.add(sleutel);
+    uit.push({ set, id, code });
+  }
+  return uit.length > 0 ? uit : undefined;
+}
+
+/**
+ * Tekst met regels: "\r\n" en "\r" worden "\n", per regel witruimte samengevouwen en getrimd, lege
+ * regels weg. Officiële doelen bevatten lijsten en alinea's (na `htmlNaarTekst` gescheiden door
+ * "\n"); die regeleinden horen bij de tekst en dus bij de vingerafdruk. Idempotent.
+ */
+function tekstMetRegels(t: string): string {
+  return t
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((regel) => regel.replace(/\s+/g, ' ').trim())
+    .filter((regel) => regel !== '')
+    .join('\n');
+}
+
 /** Eén doel defensief saneren (JSON-import, AI-antwoord). */
 export function sanitizeGoal(raw: unknown): CurriculumGoal | null {
   if (!raw || typeof raw !== 'object') return null;
   const g = raw as Record<string, unknown>;
-  const text = str(g.text ?? g.doel ?? g.omschrijving).trim().replace(/\s+/g, ' ');
+  const text = tekstMetRegels(str(g.text ?? g.doel ?? g.omschrijving));
   if (!text) return null; // een doel zonder tekst zegt niets
   const code = normalizeGoalCode(str(g.code ?? g.nummer));
   const level = g.level === 'uitbreiding' ? 'uitbreiding' : g.level === 'basis' ? 'basis' : undefined;
   const theme = str(g.theme ?? g.thema ?? g.rubriek).trim();
-  const note = str(g.note ?? g.toelichting).trim();
-  return {
+  const note = tekstMetRegels(str(g.note ?? g.toelichting));
+  const goal: CurriculumGoal = {
     id: str(g.id) || uid(),
     code,
     text,
@@ -185,6 +267,12 @@ export function sanitizeGoal(raw: unknown): CurriculumGoal | null {
     level,
     note: note || undefined,
   };
+  // Versie 2: verwijzingen naar minimumdoelen. Geen lege `refs: []` bewaren.
+  const refs = sanitizeRefs(g.refs);
+  if (refs) goal.refs = refs;
+  const refsBron = tekstVeld(g.refsBron, 500);
+  if (refsBron) goal.refsBron = refsBron;
+  return goal;
 }
 
 /**
@@ -224,7 +312,77 @@ export function sanitizeGoals(raw: unknown, opts: { autoPrefix?: string } = {}):
   return out;
 }
 
-/** Volledig leerplan defensief saneren (JSON-import of gedeeld bestand). */
+/**
+ * Herkomst saneren: alleen met een geldige methode. Tekstvelden getrimd en ingekort; `bronUrl`
+ * alleen als http(s)-adres (een "javascript:"-link uit een gedeeld bestand mag nooit een link in de
+ * app worden); `geldigVanaf` alleen als JJJJ-MM-DD; `bronSha256` alleen als 64 kleine hex-tekens;
+ * `ingelezenOp` een eindig getal, anders het tijdstip waarop het leerplan gemaakt is.
+ */
+function sanitizeHerkomst(raw: unknown, createdAt: number): CurriculumHerkomst | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const h = raw as Record<string, unknown>;
+  const methode = METHODES.find((m) => m === h.methode);
+  if (!methode) return undefined;
+  const uit: CurriculumHerkomst = { methode, ingelezenOp: isEindig(h.ingelezenOp) ? h.ingelezenOp : createdAt };
+  const leerplancode = tekstVeld(h.leerplancode, 80);
+  if (leerplancode) uit.leerplancode = leerplancode;
+  const versie = tekstVeld(h.versie, 80);
+  if (versie) uit.versie = versie;
+  const geldigVanaf = typeof h.geldigVanaf === 'string' ? h.geldigVanaf.trim() : '';
+  if (ISO_DATUM.test(geldigVanaf)) uit.geldigVanaf = geldigVanaf;
+  const bronUrl = typeof h.bronUrl === 'string' ? h.bronUrl.trim() : '';
+  if (bronUrl.length <= 2000 && /^https?:\/\/\S+$/i.test(bronUrl)) uit.bronUrl = bronUrl;
+  const bronNaam = tekstVeld(h.bronNaam, 255);
+  if (bronNaam) uit.bronNaam = bronNaam;
+  if (typeof h.bronSha256 === 'string' && SHA256_HEX.test(h.bronSha256)) uit.bronSha256 = h.bronSha256;
+  return uit;
+}
+
+/** Nakijkstatus saneren: alleen met een geldige status; de andere velden alleen als ze kloppen. */
+function sanitizeControle(raw: unknown): CurriculumControle | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const c = raw as Record<string, unknown>;
+  const status = CONTROLE_STATUSSEN.find((s) => s === c.status);
+  if (!status) return undefined;
+  const uit: CurriculumControle = { status };
+  const door = tekstVeld(c.door, 120);
+  if (door) uit.door = door;
+  if (isEindig(c.op)) uit.op = c.op;
+  if (typeof c.doelenSha256 === 'string' && SHA256_HEX.test(c.doelenSha256)) uit.doelenSha256 = c.doelenSha256;
+  const samenvatting = tekstVeld(c.samenvatting, 500);
+  if (samenvatting) uit.samenvatting = samenvatting;
+  return uit;
+}
+
+/** Lijst sets van laag 1: geldige ids ("ODS_<getal>"), ontdubbeld, hoogstens 50. Leeg = `undefined`. */
+function sanitizeSets(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const uit: string[] = [];
+  for (const item of raw) {
+    if (uit.length >= MAX_SETS) break;
+    const id = typeof item === 'string' ? item.trim() : '';
+    if (SET_ID.test(id) && !uit.includes(id)) uit.push(id);
+  }
+  return uit.length > 0 ? uit : undefined;
+}
+
+/**
+ * Een nagekeken leerplan waarvan de doelen niet meer bij de vingerafdruk passen, is "gewijzigd".
+ * Status "gecontroleerd" zonder vingerafdruk telt ook als gewijzigd: niemand kan dan nog zeggen
+ * welke doelen nagekeken zijn. Geeft een kopie terug (naam, tijdstip en samenvatting blijven) of,
+ * als alles klopt, hetzelfde object. Geen beveiliging, wel eerlijkheid (docs/LEERPLANNEN.md § 8).
+ */
+export function bewaakControle(cur: Curriculum): Curriculum {
+  const controle = cur.controle;
+  if (!controle || controle.status !== 'gecontroleerd') return cur;
+  if (controle.doelenSha256 && controle.doelenSha256 === doelenVingerafdruk(cur.goals)) return cur;
+  return { ...cur, controle: { ...controle, status: 'gewijzigd' } };
+}
+
+/**
+ * Volledig leerplan defensief saneren (JSON-import of gedeeld bestand), versie 1 en 2. Onbekende
+ * velden vallen weg. Saneren is idempotent: twee keer saneren geeft hetzelfde als één keer.
+ */
 export function sanitizeCurriculum(raw: unknown): Curriculum | null {
   if (!raw || typeof raw !== 'object') return null;
   const outer = raw as Record<string, unknown>;
@@ -236,7 +394,8 @@ export function sanitizeCurriculum(raw: unknown): Curriculum | null {
   const goals = sanitizeGoals(c.goals ?? c.doelen, { autoPrefix: str(c.subject).slice(0, 3) || 'DOEL' });
   if (!goals.length) return null;
   const net = CURRICULUM_NETS.some((n) => n.id === c.net) ? (c.net as Curriculum['net']) : 'eigen';
-  return {
+  const createdAt = typeof c.createdAt === 'number' ? c.createdAt : Date.now();
+  const cur: Curriculum = {
     id: str(c.id) || uid(),
     title: str(c.title ?? c.titel).trim() || 'Leerplan',
     net,
@@ -245,9 +404,18 @@ export function sanitizeCurriculum(raw: unknown): Curriculum | null {
     source: str(c.source ?? c.bron).trim() || undefined,
     example: c.example === true || undefined,
     goals,
-    createdAt: typeof c.createdAt === 'number' ? c.createdAt : Date.now(),
+    createdAt,
     updatedAt: typeof c.updatedAt === 'number' ? c.updatedAt : Date.now(),
   };
+  // Versie 2: alleen meenemen wat klopt, en geen lege velden toevoegen.
+  if (c.kind === 'leerplan' || c.kind === 'eigen') cur.kind = c.kind;
+  const herkomst = sanitizeHerkomst(c.herkomst, createdAt);
+  if (herkomst) cur.herkomst = herkomst;
+  const controle = sanitizeControle(c.controle);
+  if (controle) cur.controle = controle;
+  const sets = sanitizeSets(c.minimumdoelenSets);
+  if (sets) cur.minimumdoelenSets = sets;
+  return bewaakControle(cur);
 }
 
 /**
@@ -312,12 +480,19 @@ export function maakEigenKopie(cur: Curriculum, titel?: string): Curriculum {
   };
 }
 
-/** Leerplan als JSON-bestand (met kop, zodat import het herkent). */
+/**
+ * Leerplan als JSON-bestand (met kop, zodat import het herkent). Versie 2: met soort, herkomst,
+ * nakijkstatus, sets en verwijzingen. Een nagekeken leerplan waarvan de doelen intussen veranderd
+ * zijn, gaat als "gewijzigd" de deur uit.
+ */
 export function exportCurriculumJson(cur: Curriculum): string {
-  return JSON.stringify({ app: 'boosterz', kind: 'leerplan', v: 1, curriculum: cur }, null, 2);
+  return JSON.stringify({ app: 'boosterz', kind: 'leerplan', v: 2, curriculum: bewaakControle(cur) }, null, 2);
 }
 
-/** JSON-bestand inlezen; null als er niets bruikbaars in staat. */
+/**
+ * JSON-bestand inlezen (versie 1 en 2, ook zonder kop); null als er niets bruikbaars in staat.
+ * De vingerafdruk wordt opnieuw uitgerekend: klopt die niet, dan is het leerplan "gewijzigd".
+ */
 export function importCurriculumJson(json: string): Curriculum | null {
   try {
     return sanitizeCurriculum(JSON.parse(json));

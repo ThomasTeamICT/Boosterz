@@ -6,7 +6,7 @@
 // later iets wijzigt, merkt dat aan die status ("gewijzigd na nakijken").
 
 import type { Curriculum, CurriculumGoal, CurriculumHerkomst } from './curriculumTypes';
-import { bevestigLeerplan, controleStatus, createCurriculum, doelenVingerafdruk, normalizeGoalCode } from './curriculum';
+import { bevestigLeerplan, controleStatus, createCurriculum, doelenVingerafdruk, normalizeGoalCode, sanitizeCurriculum } from './curriculum';
 import { htmlNaarTekst, NAAMSVERMELDING, type Minimumdoel, type MinimumdoelenSetBestand } from './minimumdoelen';
 import { datumLeesbaar } from './minimumdoelenBron';
 import { uid } from './utils';
@@ -162,8 +162,9 @@ export function leerplanUitSet(bestand: MinimumdoelenSetBestand): LeerplanUitSet
   if (s.sha256) herkomst.bronSha256 = s.sha256;
 
   const opgehaald = datumLeesbaar(s.opgehaald);
-  const leerplan = bevestigLeerplan(
-    createCurriculum({
+  // Eerst saneren zoals een import dat doet, dan pas bevestigen: zo is de vingerafdruk die van de
+  // doelen zoals ze na exporteren en importeren terugkomen, en blijft het leerplan "nagekeken".
+  const ruw = createCurriculum({
       title: niveau ? `${naam} · ${niveau}` : naam,
       net: 'minimumdoelen',
       subject: naam,
@@ -174,12 +175,15 @@ export function leerplanUitSet(bestand: MinimumdoelenSetBestand): LeerplanUitSet
       herkomst,
       minimumdoelenSets: [s.id],
       goals,
-    }),
-    {
-      door: NAGEKEKEN_DOOR_BRON,
-      samenvatting: `Letterlijk overgenomen uit de officiële set ${s.id} (${doelen(goals.length)}).`,
-    },
-  );
+    });
+  const gesaneerd = sanitizeCurriculum(ruw) ?? ruw;
+  const leerplan = bevestigLeerplan(gesaneerd, {
+    door: NAGEKEKEN_DOOR_BRON,
+    samenvatting: `Letterlijk overgenomen uit de officiële set ${s.id} (${doelen(gesaneerd.goals.length)}).`,
+  });
+  if (gesaneerd.goals.length !== goals.length) {
+    waarschuwingen.push(`${doelen(goals.length - gesaneerd.goals.length)} vielen weg bij het saneren.`);
+  }
   return { leerplan, waarschuwingen };
 }
 

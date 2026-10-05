@@ -366,6 +366,8 @@ describe('htmlNaarTekst', () => {
   it('zet entiteiten om en laat onbekende staan', () => {
     expect(htmlNaarTekst('caf&eacute; &amp; &#233;&#xE9; &rsquo;s &lt;b&gt; &onbekend; &#0;')).toBe('café & éé \u2019s <b> &onbekend; &#0;');
     expect(htmlNaarTekst('af&shy;breek')).toBe('afbreek');
+    // gewone tekst uit de API met Windows-regeleinden en lege regels
+    expect(htmlNaarTekst('op het oog: \r\n-veilig vallen; \r\n\r\n-evenwicht')).toBe('op het oog:\n-veilig vallen;\n-evenwicht');
   });
 
   it('geeft tekst, geen HTML: een omgezette tag wordt nooit opnieuw een tag', () => {

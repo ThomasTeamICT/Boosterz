@@ -1,6 +1,9 @@
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
-  controleStatus, doelenVingerafdruk, maakEigenKopie, normalizeGoalCode,
+  controleStatus, doelenVingerafdruk, exportCurriculumJson, importCurriculumJson, maakEigenKopie, normalizeGoalCode,
 } from './curriculum';
 import type { Curriculum } from './curriculumTypes';
 import { htmlNaarTekst, type Minimumdoel, type MinimumdoelenSetBestand } from './minimumdoelen';
@@ -108,7 +111,6 @@ describe('leerplanUitSet', () => {
     expect(leerplan.goals[1].theme).toBe('Plastische opvoeding › Waarnemen');
     expect(leerplan.goals[2].theme).toBe('Muzikale opvoeding');
     expect(leerplan.goals[3].theme).toBeUndefined();
-    expect('theme' in leerplan.goals[3]).toBe(false);
   });
 
   it('verwijst elk doel naar zichzelf in de set', () => {
@@ -269,5 +271,25 @@ describe('vindLeerplanVoorSet', () => {
     expect(vindLeerplanVoorSet([gemarkeerd], bestand)).toBeUndefined();
     // Het ongewijzigde origineel wordt wel gevonden, ook als er een gewijzigde bij staat.
     expect(vindLeerplanVoorSet([gewijzigd, leerplan], bestand)).toBe(leerplan);
+  });
+});
+
+// ── Met de echte bestanden van laag 1 ───────────────────────────────────────
+
+describe('leerplanUitSet met alle meegeleverde sets', () => {
+  const map = join(fileURLToPath(new URL('../../', import.meta.url)), 'public', 'leerplannen', 'minimumdoelen');
+  const bestanden = existsSync(map) ? readdirSync(map).filter((f) => /^ODS_\d+\.json$/.test(f)) : [];
+
+  it.runIf(bestanden.length > 0)('blijft nagekeken na exporteren en importeren, zonder doelen te verliezen', () => {
+    const fouten: string[] = [];
+    for (const f of bestanden) {
+      const bestand = JSON.parse(readFileSync(join(map, f), 'utf8')) as MinimumdoelenSetBestand;
+      const { leerplan } = leerplanUitSet(bestand);
+      const terug = importCurriculumJson(exportCurriculumJson(leerplan));
+      if (!terug) fouten.push(`${f}: import mislukt`);
+      else if (controleStatus(terug) !== 'gecontroleerd') fouten.push(`${f}: status ${controleStatus(terug)}`);
+      else if (terug.goals.length !== leerplan.goals.length) fouten.push(`${f}: ${leerplan.goals.length} → ${terug.goals.length} doelen`);
+    }
+    expect(fouten).toEqual([]);
   });
 });
