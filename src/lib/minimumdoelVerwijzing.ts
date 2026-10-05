@@ -35,6 +35,14 @@ export interface VerwijzingBlok {
   tekst: string;
   /** De codes in het blok, reeksen uitgeschreven ("09.01-09.03" → 09.01, 09.02, 09.03). */
   codes: string[];
+  /**
+   * Een reeks in het blok kon niet uitgeschreven worden (een ander voorvoegsel zoals "09.08-10.02",
+   * meer dan 30 codes, of een einde vóór het begin): `codes` bevat dan alleen de uiteinden. De
+   * controlepoort meldt dat, zodat de leerkracht de verwijzingen zelf koppelt.
+   */
+  onvolledig?: true;
+  /** De reeksen die niet uitgeschreven konden worden, met hun uiteinden. */
+  onvolledigeReeksen?: { van: string; tot: string }[];
 }
 
 const AANDUIDING_BRON = '(?:md|et|em|minimumdoelen|minimumdoel|eindtermen|eindterm)(?!\\p{L})\\s*[:.]?\\s*';
@@ -42,12 +50,16 @@ const AANDUIDING_BRON = '(?:md|et|em|minimumdoelen|minimumdoel|eindtermen|eindte
 const RE_AANDUIDING = new RegExp(`(?<![\\p{L}\\p{N}])${AANDUIDING_BRON}`, 'giu');
 /** Aanduiding na een scheidingsteken, bv. de tweede "MD" in "MD 09.01, MD 09.03". */
 const RE_AANDUIDING_HIER = new RegExp(AANDUIDING_BRON, 'iuy');
-/** Een code: 1 of 2 cijfers, dan 1 tot 3 delen met een punt. Niet gevolgd door nog een cijfer of deel. */
-const RE_CODE = /\d{1,2}(?:\.\d{1,3}){1,3}(?!\d|\.\d)/y;
+/**
+ * Een code: 1 of 2 cijfers, dan 1 tot 3 delen met een punt. Niet gevolgd door nog een cijfer, een
+ * letter of een deel: "5.1a" is geen code "5.1" (anders bleef er een losse "a" in de tekst staan).
+ */
+const RE_CODE = /\d{1,2}(?:\.\d{1,3}){1,3}(?![\p{L}\p{N}]|\.\d)/uy;
 const RE_SCHEIDING = /\s*(?:,|;|\/|\ben\b)\s*/iy;
-const RE_REEKS = /\s*[-–]\s*/y;
+/** Reeks: "-", "–", "t.e.m." (ook "tem", "t. e. m."), "t/m" of "tot en met". */
+const RE_REEKS = /\s*(?:[-–]|t\.?\s?e\.?\s?m\.?(?!\p{L})|t\s?\/\s?m\.?(?!\p{L})|tot\s+en\s+met(?!\p{L}))\s*/iuy;
 /** Verkorte reeks zonder spaties: "09.01-03" (het einde neemt het voorvoegsel van het begin over). */
-const RE_REEKS_KORT = /[-–](\d{1,3})(?!\d|\.\d)/y;
+const RE_REEKS_KORT = /[-–](\d{1,3})(?![\p{L}\p{N}]|\.\d)/uy;
 const MAX_REEKS = 30;
 
 function opPlaats(re: RegExp, tekst: string, plaats: number): RegExpExecArray | null {
@@ -55,8 +67,11 @@ function opPlaats(re: RegExp, tekst: string, plaats: number): RegExpExecArray | 
   return re.exec(tekst);
 }
 
-/** Reeks uitschrijven, opgevuld naar het formaat van het begin. Alleen bij hetzelfde voorvoegsel en ≤ 30 codes. */
-function schrijfReeksUit(begin: string, eindDelen: string[], eindLetterlijk: string | undefined): string[] {
+/**
+ * Reeks uitschrijven, opgevuld naar het formaat van het begin. Alleen bij hetzelfde voorvoegsel, een
+ * einde na het begin en ≤ 30 codes; anders alleen de uiteinden, met `volledig: false`.
+ */
+function schrijfReeksUit(begin: string, eindDelen: string[], eindLetterlijk: string | undefined): { codes: string[]; volledig: boolean } {
   const beginDelen = begin.split('.');
   const laatste = beginDelen.length - 1;
   const zelfdeVoorvoegsel =
@@ -72,16 +87,17 @@ function schrijfReeksUit(begin: string, eindDelen: string[], eindLetterlijk: str
     const uit = [begin];
     for (let n = a + 1; n < b; n++) uit.push(opgevuld(n));
     uit.push(eind ?? opgevuld(b));
-    return uit;
+    return { codes: uit, volledig: true };
   }
   // Geen bruikbare reeks: alleen de uiteinden.
-  return eind === undefined ? [begin] : [begin, eind];
+  return { codes: eind === undefined ? [begin] : [begin, eind], volledig: false };
 }
 
 /**
  * Alle blokken "aanduiding + codes" in een tekst, in volgorde. Een blok begint bij de aanduiding
  * (MD, ET, EM, minimumdoel(en), eindterm(en); hoofdletterongevoelig, met optioneel ":" of ".")
- * en loopt over codes gescheiden door komma, puntkomma, "en", "/" of een reeks met "-" of "–".
+ * en loopt over codes gescheiden door komma, puntkomma, "en", "/" of een reeks met "-", "–", "t.e.m.",
+ * "t/m" of "tot en met". Een reeks die niet uitgeschreven kan worden, maakt het blok `onvolledig`.
  * Na een scheidingsteken mag de aanduiding herhaald worden ("MD 09.01, MD 09.03").
  */
 export function zoekVerwijzingBlokken(tekst: string): VerwijzingBlok[] {
@@ -98,6 +114,12 @@ export function zoekVerwijzingBlokken(tekst: string): VerwijzingBlok[] {
       continue;
     }
     const codes: string[] = [eerste[0]];
+    const onvolledig: { van: string; tot: string }[] = [];
+    const reeksVan = (begin: string, eindDelen: string[], eindLetterlijk: string | undefined): string[] => {
+      const r = schrijfReeksUit(begin, eindDelen, eindLetterlijk);
+      if (!r.volledig) onvolledig.push({ van: begin, tot: r.codes[r.codes.length - 1] });
+      return r.codes;
+    };
     plaats += eerste[0].length;
     let eind = plaats;
     for (;;) {
@@ -107,7 +129,7 @@ export function zoekVerwijzingBlokken(tekst: string): VerwijzingBlok[] {
         const delen = begin.split('.');
         delen[delen.length - 1] = kort[1];
         codes.pop();
-        codes.push(...schrijfReeksUit(begin, delen, undefined));
+        codes.push(...reeksVan(begin, delen, undefined));
         plaats += kort[0].length;
         eind = plaats;
         continue;
@@ -117,7 +139,7 @@ export function zoekVerwijzingBlokken(tekst: string): VerwijzingBlok[] {
         const code = opPlaats(RE_CODE, tekst, plaats + reeks[0].length);
         if (code) {
           const begin = codes.pop() as string;
-          codes.push(...schrijfReeksUit(begin, code[0].split('.'), code[0]));
+          codes.push(...reeksVan(begin, code[0].split('.'), code[0]));
           plaats += reeks[0].length + code[0].length;
           eind = plaats;
           continue;
@@ -138,7 +160,12 @@ export function zoekVerwijzingBlokken(tekst: string): VerwijzingBlok[] {
       }
       break;
     }
-    blokken.push({ start, eind, tekst: tekst.slice(start, eind), codes });
+    const blok: VerwijzingBlok = { start, eind, tekst: tekst.slice(start, eind), codes };
+    if (onvolledig.length > 0) {
+      blok.onvolledig = true;
+      blok.onvolledigeReeksen = onvolledig;
+    }
+    blokken.push(blok);
     RE_AANDUIDING.lastIndex = eind;
   }
   return blokken;
@@ -147,7 +174,8 @@ export function zoekVerwijzingBlokken(tekst: string): VerwijzingBlok[] {
 /**
  * Codes van minimumdoelen in een stuk tekst, in volgorde, ontdubbeld (op `normaliseerMdCode`) en
  * letterlijk zoals in de tekst. Een reeks ("MD 09.01-09.03") wordt uitgeschreven als beide uiteinden
- * hetzelfde voorvoegsel hebben en de reeks hoogstens 30 codes telt; anders alleen de uiteinden.
+ * hetzelfde voorvoegsel hebben en de reeks hoogstens 30 codes telt; anders alleen de uiteinden (het
+ * blok is dan `onvolledig`; wie dat moet weten, gebruikt `zoekVerwijzingBlokken`).
  * Codes zonder punt ("ET 12") herkent deze functie bewust niet: zo'n getal is te vaak iets anders.
  */
 export function vindVerwijzingen(tekst: string): string[] {

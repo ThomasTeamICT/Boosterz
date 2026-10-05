@@ -32,6 +32,11 @@ export interface GelezenDoel {
   regel: number;
   /** De ruwe regels van dit doel, met "\n". */
   bronFragment: string;
+  /**
+   * Afbrekingen aan het regeleinde die de lezer herstelde door woorddelen samen te voegen, leesbaar:
+   * "e-|mail → email". Nooit stil: de leerkracht kijkt na of het streepje bij het woord hoort.
+   */
+  afbrekingen?: string[];
 }
 
 export interface LezerResultaat {
@@ -44,8 +49,11 @@ export interface LezerResultaat {
 
 // ── Gedeelde tekstregels ────────────────────────────────────────────────────
 
-/** Onzichtbare tekens die niets betekenen voor de tekst. */
-const ONZICHTBAAR = /[\u00ad\f\u200b\ufeff]/g;
+/**
+ * Onzichtbare tekens die niets betekenen voor de tekst: zacht afbreekstreepje, form feed, de tekens
+ * zonder breedte. Als alternatieven en niet als tekenklasse: U+200D in een tekenklasse is misleidend.
+ */
+const ONZICHTBAAR = /\u00ad|\f|\u200b|\u200c|\u200d|\u2060|\ufeff/g;
 /**
  * Opsommingstekens vooraan een regel: bolletjes, blokjes, pijltjes, de bolletjes uit de lettertypes
  * Symbol en Wingdings (privégebied U+F000–U+F0FF), en "-", "–", "—" of "*" gevolgd door witruimte.
@@ -74,15 +82,85 @@ function heeftOpsomming(regel: string): boolean {
   return OPSOMMING.test(kaal(regel));
 }
 
-/** Twee regels aan elkaar, met herstel van de afbreking aan het regeleinde. */
-function verbind(links: string, rechts: string, zachtAfgebroken: boolean): string {
-  if (zachtAfgebroken) return links + rechts;
+/**
+ * Hoe twee regels aan elkaar gaan: met een spatie, zonder iets ertussen (het streepje hoort bij het
+ * woord: "Noord-" + "Amerika"), of als hersteld woord: het streepje valt weg ("verwe-" + "ring") of
+ * een zacht afbreekstreepje plakt de delen. Kijkt alleen naar het einde van de linkerregel, zodat
+ * samenvoegen lineair blijft.
+ */
+function verbinding(links: string, rechts: string, zachtAfgebroken: boolean): 'spatie' | 'plak' | 'zonderStreepje' | 'zacht' {
+  if (zachtAfgebroken) return 'zacht';
   const m = /([\p{L}\p{N}])\p{M}*[-\u2010]$/u.exec(links);
-  if (!m) return `${links} ${rechts}`;
+  if (!m) return 'spatie';
   const woord = /^\p{L}+/u.exec(rechts)?.[0] ?? '';
-  if (VOEGWOORDEN.has(woord)) return `${links} ${rechts}`; // "natuur- en milieu"
-  if (/\p{Ll}/u.test(m[1]) && /^\p{Ll}/u.test(rechts)) return links.slice(0, -1) + rechts; // "verwe-" + "ring"
-  return links + rechts; // "Noord-" + "Amerika", "CO2-" + "uitstoot": het streepje hoort bij het woord
+  if (VOEGWOORDEN.has(woord)) return 'spatie'; // "natuur- en milieu"
+  if (/\p{Ll}/u.test(m[1]) && /^\p{Ll}/u.test(rechts)) return 'zonderStreepje'; // "verwe-" + "ring"
+  return 'plak'; // "Noord-" + "Amerika", "CO2-" + "uitstoot": het streepje hoort bij het woord
+}
+
+/** Een herstelde afbreking: twee woorddelen aan het regeleinde werden één woord. */
+export interface Afbreking {
+  /** Het woorddeel vóór het regeleinde, met streepje: "e-". */
+  links: string;
+  /** Het woorddeel na het regeleinde: "mail". */
+  rechts: string;
+  /** Het samengevoegde woord: "email". */
+  woord: string;
+  /** Plaats in de samengevoegde tekst waar het rechterdeel begint. */
+  plaats: number;
+}
+
+/** "e-|mail → email": zo melden de lezer en de controlepoort een herstelde afbreking. */
+export function beschrijfAfbreking(a: Pick<Afbreking, 'links' | 'rechts' | 'woord'>): string {
+  return `${a.links}|${a.rechts} → ${a.woord}`;
+}
+
+const WOORDDEEL_LINKS = /[\p{L}\p{N}\p{M}\-\u2010]*$/u;
+const WOORDDEEL_RECHTS = /^[\p{L}\p{N}\p{M}\-\u2010]*/u;
+
+/**
+ * Regels samenvoegen tot één tekst, zoals `voegRegelsSamen`, en elke herstelde afbreking vastleggen
+ * (een weggevallen streepje, of een zacht afbreekstreepje aan het regeleinde) met de plaats in de
+ * tekst, en waar elke (niet-lege) regel in de tekst begint (`regelBegin`, stijgend). Lineair in de
+ * lengte van de tekst: de delen gaan in een lijst en alleen het laatste deel wordt bekeken.
+ */
+export function voegRegelsSamenMetAfbrekingen(regels: readonly string[]): { tekst: string; afbrekingen: Afbreking[]; regelBegin: number[] } {
+  const delen: string[] = [];
+  const afbrekingen: Afbreking[] = [];
+  const regelBegin: number[] = [];
+  let lengte = 0;
+  let zacht = false;
+  for (const ruw of regels) {
+    const r = schoonRegel(ruw);
+    const eindigtZacht = /\u00ad\s*$/.test(ruw);
+    if (!r) continue;
+    if (delen.length > 0) {
+      const laatste = delen[delen.length - 1];
+      const soort = verbinding(laatste, r, zacht);
+      if (soort === 'spatie') {
+        delen.push(' ');
+        lengte++;
+      } else if (soort !== 'plak') {
+        const linksWoord = WOORDDEEL_LINKS.exec(laatste)?.[0] ?? '';
+        const rechtsWoord = WOORDDEEL_RECHTS.exec(r)?.[0] ?? '';
+        if (soort === 'zonderStreepje') {
+          delen[delen.length - 1] = laatste.slice(0, -1);
+          lengte--;
+        }
+        afbrekingen.push({
+          links: soort === 'zacht' ? `${linksWoord}-` : linksWoord,
+          rechts: rechtsWoord,
+          woord: (soort === 'zacht' ? linksWoord : linksWoord.slice(0, -1)) + rechtsWoord,
+          plaats: lengte,
+        });
+      }
+    }
+    regelBegin.push(lengte);
+    delen.push(r);
+    lengte += r.length;
+    zacht = eindigtZacht;
+  }
+  return { tekst: delen.join(''), afbrekingen, regelBegin };
 }
 
 /**
@@ -91,24 +169,21 @@ function verbind(links: string, rechts: string, zachtAfgebroken: boolean): strin
  * "verwe-" + "ring" → "verwering"; "natuur-" + "en milieu" → "natuur- en milieu"; een hoofdletter
  * of cijfer na het streepje houdt het streepje ("Noord-Amerika"); een zacht afbreekstreepje (U+00AD)
  * aan het regeleinde plakt de woorddelen aan elkaar. Lezer en controlepoort gebruiken allebei deze
- * functie, zodat ze dezelfde tekst zien.
+ * functie, zodat ze dezelfde tekst zien. Welke afbrekingen hersteld werden, geeft
+ * `voegRegelsSamenMetAfbrekingen`.
  */
 export function voegRegelsSamen(regels: readonly string[]): string {
-  let uit = '';
-  let zacht = false;
-  for (const ruw of regels) {
-    const r = schoonRegel(ruw);
-    const eindigtZacht = /\u00ad\s*$/.test(ruw);
-    if (!r) continue;
-    uit = uit === '' ? r : verbind(uit, r, zacht);
-    zacht = eindigtZacht;
-  }
-  return uit;
+  return voegRegelsSamenMetAfbrekingen(regels).tekst;
 }
 
-/** Splitst een tekst in regels (zonder de regeleinden). */
+/**
+ * Splitst een tekst in regels (zonder de regeleinden). Regeleinden: "\r\n", "\r", "\n", U+2028 en
+ * U+2029. Een form feed (nieuwe pagina) begint een nieuwe regel en blijft vooraan die regel staan,
+ * zodat `kopEnVoetregels` de paginagrens nog ziet; voor de tekst zelf is hij onzichtbaar. Lezer en
+ * controlepoort gebruiken allebei deze functie.
+ */
 export function splitsRegels(tekst: string): string[] {
-  return tekst.split(/\r\n|\r|\n/);
+  return tekst.split(/\r\n|\r|\n|\u2028|\u2029|(?=\f)/);
 }
 
 /** Verwijswoorden en scheidingstekens die rond een verwijzing mogen staan zonder dat het tekst is. */
@@ -125,6 +200,26 @@ const VERWIJS_LABEL = /^(?:(?:verwijzing(?:en)?|link|koppeling|relatie)(?:\s+(?:
  * letterlijk (zonder de haakjes).
  */
 export function haalVerwijzingenUit(tekst: string): { tekst: string; blokken: string[] } {
+  const { tekst: uit, blokken } = verwijzingenEruit(tekst, false);
+  return { tekst: uit, blokken };
+}
+
+/**
+ * Zoals `haalVerwijzingenUit`, met voor elk teken van het resultaat de plaats in `tekst` waar het
+ * vandaan komt (`bron[i]`, stijgend). Zo kan de controlepoort een plaats in de oorspronkelijke tekst
+ * (bv. een herstelde afbreking) terugvinden in de tekst zonder verwijzingen.
+ */
+export function haalVerwijzingenUitMetPosities(tekst: string): { tekst: string; blokken: string[]; bron: number[] } {
+  const r = verwijzingenEruit(tekst, true);
+  return { tekst: r.tekst, blokken: r.blokken, bron: r.bron ?? [] };
+}
+
+function isWitruimte(c: number): boolean {
+  return (c >= 9 && c <= 13) || c === 32 || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a)
+    || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;
+}
+
+function verwijzingenEruit(tekst: string, metPosities: boolean): { tekst: string; blokken: string[]; bron?: number[] } {
   const weg: { start: number; eind: number; blok: string }[] = [];
   const blijft: { start: number; eind: number }[] = [];
   const reHaakjes = /\(([^()]{1,400})\)/g;
@@ -158,30 +253,77 @@ export function haalVerwijzingenUit(tekst: string): { tekst: string; blokken: st
     }
     weg.push({ start, eind: b.eind, blok: tekst.slice(start, b.eind).trim() });
   }
-  if (weg.length === 0) return { tekst: tekst.replace(/\s+/g, ' ').trim(), blokken: [] };
 
+  // Wat blijft, als stukken [van, tot) van de tekst: lineair, ook bij een lange bron met veel blokken.
   weg.sort((a, b) => a.start - b.start);
-  let uit = '';
+  const houd: { van: number; tot: number }[] = [];
+  /** Witruimte achteraan het resultaat tot nu toe weghalen (ook over stukken heen). */
+  const trimEind = () => {
+    while (houd.length > 0) {
+      const s = houd[houd.length - 1];
+      while (s.tot > s.van && isWitruimte(tekst.charCodeAt(s.tot - 1))) s.tot--;
+      if (s.tot > s.van) return;
+      houd.pop();
+    }
+  };
   let p = 0;
   const blokken: string[] = [];
   const leestekenNa = /\s*[.,;:!?)]/y;
   const eindeNa = /\s*$/y;
   for (const w of weg) {
     if (w.start < p) continue;
-    uit += tekst.slice(p, w.start);
+    if (w.start > p) houd.push({ van: p, tot: w.start });
     blokken.push(w.blok);
     leestekenNa.lastIndex = w.eind;
     eindeNa.lastIndex = w.eind;
     if (leestekenNa.test(tekst)) {
-      uit = uit.trimEnd(); // "X (ET 9.1)." → "X."
+      trimEind(); // "X (ET 9.1)." → "X."
     } else if (eindeNa.test(tekst)) {
-      uit = uit.trimEnd();
-      if (/[-–—,;:]$/.test(uit)) uit = uit.slice(0, -1).trimEnd(); // "X – MD 09.01" → "X"
+      trimEind();
+      const s = houd[houd.length - 1];
+      if (s && /[-–—,;:]/.test(tekst[s.tot - 1])) {
+        s.tot--; // "X – MD 09.01" → "X"
+        trimEind();
+      }
     }
     p = w.eind;
   }
-  uit += tekst.slice(p);
-  return { tekst: uit.replace(/\s+/g, ' ').trim(), blokken };
+  if (p < tekst.length) houd.push({ van: p, tot: tekst.length });
+
+  if (!metPosities) {
+    return { tekst: houd.map((s) => tekst.slice(s.van, s.tot)).join('').replace(/\s+/g, ' ').trim(), blokken };
+  }
+  // Witruimte samenvouwen en trimmen, met de herkomst van elk teken.
+  const delen: string[] = [];
+  const bron: number[] = [];
+  let spatie = -1; // plaats van een witruimte die nog een spatie moet worden
+  for (const s of houd) {
+    let begin = s.van;
+    for (let i = s.van; i < s.tot; i++) {
+      if (!isWitruimte(tekst.charCodeAt(i))) continue;
+      if (i > begin) {
+        if (spatie >= 0 && bron.length > 0) {
+          delen.push(' ');
+          bron.push(spatie);
+        }
+        delen.push(tekst.slice(begin, i));
+        for (let k = begin; k < i; k++) bron.push(k);
+        spatie = -1;
+      }
+      if (spatie < 0) spatie = i;
+      begin = i + 1;
+    }
+    if (s.tot > begin) {
+      if (spatie >= 0 && bron.length > 0) {
+        delen.push(' ');
+        bron.push(spatie);
+      }
+      delen.push(tekst.slice(begin, s.tot));
+      for (let k = begin; k < s.tot; k++) bron.push(k);
+      spatie = -1;
+    }
+  }
+  return { tekst: delen.join(''), blokken, bron };
 }
 
 /** Bestaat de regel alleen uit verwijzingen (eventueel met een label zoals "Verwijzing naar")? */
@@ -211,18 +353,24 @@ function isPaginamarkering(k: string): boolean {
 
 /**
  * Welke regels opmaak van de pagina zijn en geen inhoud (0-gebaseerde indexen): paginamarkeringen
- * ("— p. 3 —"), regels met alleen een paginanummer, en kop- en voetregels. Een kop- of voetregel is
- * een regel die op minstens 3 verschillende pagina's identiek voorkomt (of identiek op de cijfers na,
- * als die niet vooraan staan), telkens bij de boven- of onderrand van de pagina (de eerste of laatste
- * 3 regels), en nooit elders. Pagina's zijn de stukken tussen paginamarkeringen of form feeds; zonder
- * die grenzen de blokken tussen lege regels met minstens 6 regels (zo geeft `extractPdfLines` zijn
- * tekst). Een regel die een doel begint, een verwijzing is of met "Uitbreiding" begint, is nooit een
- * kop- of voetregel.
+ * ("— p. 3 —"), paginanummers, en kop- en voetregels. Een kop- of voetregel is een regel die op
+ * minstens 3 verschillende pagina's identiek voorkomt (of identiek op de cijfers na, als die niet
+ * vooraan staan), telkens bij de boven- of onderrand van de pagina (de eerste of laatste 3 regels),
+ * en nooit elders. Pagina's zijn de stukken tussen paginamarkeringen of form feeds; zonder die grenzen
+ * de blokken tussen lege regels met minstens 6 regels (zo geeft `extractPdfLines` zijn tekst). Een
+ * regel die een doel begint, een verwijzing is of met "Uitbreiding" begint, is nooit een kop- of
+ * voetregel.
+ *
+ * Een regel met alleen een getal ("12", "3 van 9") is alleen een paginanummer aan de rand van een
+ * pagina (de eerste of laatste 3 regels, zoals kop- en voetregels), en niet als hij midden in een zin
+ * staat: de regel ervoor is geen afgeronde zin en de regel erna begint met een kleine letter, zonder
+ * lege regel of paginagrens ertussen. Zo blijft "tot" / "1000" / "ordenen" gewoon "tot 1000 ordenen".
  */
 export function kopEnVoetregels(regels: readonly string[]): Set<number> {
   const k = regels.map(kaal);
   const opmaak = new Set<number>();
   const grens = new Set<number>(); // regels waarvóór een nieuwe pagina begint
+  const nummers: number[] = []; // kandidaat-paginanummers
   let expliciet = false;
   k.forEach((t, i) => {
     if (isPaginamarkering(t)) {
@@ -230,7 +378,7 @@ export function kopEnVoetregels(regels: readonly string[]): Set<number> {
       grens.add(i + 1);
       expliciet = true;
     } else if (PAGINANUMMER.test(t)) {
-      opmaak.add(i);
+      nummers.push(i);
     }
     if (regels[i].includes('\f')) {
       grens.add(i);
@@ -238,8 +386,11 @@ export function kopEnVoetregels(regels: readonly string[]): Set<number> {
     }
   });
 
-  // Pagina's opbouwen: lijsten met de indexen van de inhoudsregels.
+  // Pagina's opbouwen: lijsten met de indexen van de inhoudsregels. Een kandidaat-paginanummer telt
+  // niet mee als inhoud; we onthouden op welke pagina hij staat en hoeveel regels ervoor.
   const paginas: number[][] = [[]];
+  const kandidaten = new Set(nummers);
+  const plaatsNummer: { i: number; pagina: number; voor: number }[] = [];
   let wachtOpNieuwe = false;
   for (let i = 0; i < regels.length; i++) {
     if (expliciet ? grens.has(i) : wachtOpNieuwe && k[i] !== '') {
@@ -251,7 +402,20 @@ export function kopEnVoetregels(regels: readonly string[]): Set<number> {
       continue;
     }
     if (opmaak.has(i)) continue;
+    if (kandidaten.has(i)) {
+      plaatsNummer.push({ i, pagina: paginas.length - 1, voor: paginas[paginas.length - 1].length });
+      continue;
+    }
     paginas[paginas.length - 1].push(i);
+  }
+  for (const { i, pagina, voor } of plaatsNummer) {
+    const na = paginas[pagina].length - voor;
+    if (voor >= RAND && na >= RAND) continue; // niet aan de rand: inhoud
+    const vorige = k[i - 1] ?? '';
+    const volgende = k[i + 1] ?? '';
+    const aanGrens = vorige === '' || volgende === '' || grens.has(i) || grens.has(i + 1) || opmaak.has(i - 1) || opmaak.has(i + 1);
+    const midZin = !aanGrens && !/[.!?:;]["'”’)\]]*$/.test(vorige) && /^\p{Ll}/u.test(schoonRegel(regels[i + 1]));
+    if (!midZin) opmaak.add(i);
   }
 
   interface Voorkomen { paginas: Set<number>; buitenRand: boolean; regels: number[] }
@@ -305,6 +469,21 @@ export interface NummeringGat {
 
 const MAX_ONTBREKEND = 50;
 
+const isCijfer = (c: number) => c >= 48 && c <= 57;
+
+/**
+ * Het laatste getal in een code en wat ervoor staat: "LPD 12U" → { reeks: "LPD ", getal: "12" }.
+ * Van achter naar voor gelezen, zonder reguliere expressie: lineair, ook voor een heel lange code.
+ */
+function laatsteGetal(code: string): { reeks: string; getal: string } | null {
+  let eind = code.length;
+  while (eind > 0 && !isCijfer(code.charCodeAt(eind - 1))) eind--;
+  if (eind === 0) return null;
+  let begin = eind;
+  while (begin > 0 && isCijfer(code.charCodeAt(begin - 1))) begin--;
+  return { reeks: code.slice(0, begin), getal: code.slice(begin, eind) };
+}
+
 /**
  * Gaten in de laatste numerieke positie per reeks: "LPD 6" en "LPD 8" zonder "LPD 7"; "2.1", "2.2"
  * en "2.4" zonder "2.3"; ook een reeks die niet bij 1 begint. Een nummer telt als aanwezig als een
@@ -317,9 +496,9 @@ export function gatenInNummering(codes: readonly string[]): NummeringGat[] {
   const reeksen = new Map<string, Reeks>();
   const ontleed: { reeks: string; n: number; i: number; breedte: number }[] = [];
   codes.forEach((ruw, i) => {
-    const m = /^(.*?)(\d+)(\D*)$/.exec(normalizeGoalCode(ruw));
+    const m = laatsteGetal(normalizeGoalCode(ruw));
     if (!m) return;
-    ontleed.push({ reeks: m[1], n: parseInt(m[2], 10), i, breedte: m[2].length });
+    ontleed.push({ reeks: m.reeks, n: parseInt(m.getal, 10), i, breedte: m.getal.length });
   });
   const reeksVan = (naam: string): Reeks => {
     let r = reeksen.get(naam);
@@ -334,11 +513,13 @@ export function gatenInNummering(codes: readonly string[]): NummeringGat[] {
   }
   // Dieper genummerde codes maken hun ouder aanwezig: "1.2.1" → nummer 2 in reeks "1.".
   for (const o of ontleed) {
-    const m = /^(.*?)(\d+)\.$/.exec(o.reeks);
+    // De reeks moet eindigen op "<getal>." (zonder reguliere expressie: lineair, ook voor lange codes).
+    if (!o.reeks.endsWith('.') || !isCijfer(o.reeks.charCodeAt(o.reeks.length - 2))) continue;
+    const m = laatsteGetal(o.reeks.slice(0, -1));
     if (!m) continue;
-    const ouder = reeksen.get(m[1]);
+    const ouder = reeksen.get(m.reeks);
     if (!ouder?.eigen) continue;
-    const n = parseInt(m[2], 10);
+    const n = parseInt(m.getal, 10);
     const bestaand = ouder.nummers.get(n);
     if (bestaand === undefined || o.i < bestaand) ouder.nummers.set(n, o.i);
   }
@@ -546,8 +727,9 @@ function isAfgerond(t: string): boolean {
   return /[.!?]["'”’)\]]*$/.test(t);
 }
 
+/** Loopt het woord door op de volgende regel: een afbreekstreepje of een zacht afbreekstreepje achteraan. */
 function eindigtOpAfbreking(t: string): boolean {
-  return /[\p{L}\p{N}]\p{M}*[-\u2010]$/u.test(t);
+  return /[\p{L}\p{N}]\p{M}*[-\u2010]$|\u00ad$/u.test(t);
 }
 
 /** Korte regel zonder eindpunt die met een hoofdletter begint: zo ziet een rubriekskop eruit. */
@@ -564,6 +746,24 @@ function isSterkeKop(t: string): boolean {
   return letters.length >= 2 && letters === letters.toUpperCase() && letters !== letters.toLowerCase();
 }
 
+/** Wat na een code staat, is een kop en geen doel(zin): kort, hoofdletter, geen eindpunt, niet "De leerling(en)". */
+function isKopRest(rest: string): boolean {
+  return rest !== '' && heeftKopvorm(rest) && !STERKE_DOELZIN.test(rest);
+}
+
+/** Hoogstens zoveel losse meldingen van dezelfde soort; de rest komt samen in één melding. */
+const MAX_MELDINGEN = 20;
+
+function kort(t: string, max: number): string {
+  return t.length <= max ? t : `${t.slice(0, max).trimEnd()}…`;
+}
+
+/** Losse meldingen, en wat boven `MAX_MELDINGEN` uitkomt in één samenvatting (met elk regelnummer). */
+function meldAllemaal<T extends { regel: number }>(waarschuwingen: string[], lijst: readonly T[], los: (x: T) => string, rest: (regels: string) => string): void {
+  for (const x of lijst.slice(0, MAX_MELDINGEN)) waarschuwingen.push(los(x));
+  if (lijst.length > MAX_MELDINGEN) waarschuwingen.push(rest(lijst.slice(MAX_MELDINGEN).map((x) => x.regel).join(', ')));
+}
+
 interface Bezig {
   start: number;
   eind: number;
@@ -573,7 +773,7 @@ interface Bezig {
   rubriek?: string;
   uitbreiding: boolean;
   viaKop: boolean;
-  /** Een verwijzing sloot het doel af: geen tekst meer erbij. */
+  /** Een verwijzing sloot het doel af: alleen een regel met een kleine letter komt er nog bij. */
   gesloten: boolean;
   /** Er kwam een regel tussen die er niet bij hoort: geen tekst meer erbij. */
   onderbroken: boolean;
@@ -582,10 +782,16 @@ interface Bezig {
 
 /**
  * Leest doelen uit leerplantekst (zie de uitleg bovenaan). Een doel loopt door over de volgende
- * regels tot het volgende doel, een rubriekskop, of een regel die er niet bij hoort. Na een lege
- * regel, een paginamarkering of een kop- of voetregel loopt het alleen door als de volgende regel
- * duidelijk een vervolg is (de vorige eindigde op een afbreekstreepje, of de zin is niet af en de
- * regel begint met een kleine letter): zo blijft een doel heel over een paginagrens.
+ * regels tot het volgende doel, een rubriekskop, of een regel die er niet bij hoort. Een regel die met
+ * een kleine letter begint, is altijd een vervolg (ook na een punt, zoals "o.a." of "t.o.v.", en ook
+ * na een lege regel of een paginagrens). Na een lege regel, een paginamarkering of een kop- of
+ * voetregel loopt het doel verder alleen door als de volgende regel duidelijk een vervolg is (de vorige
+ * eindigde op een afbreekstreepje, of de zin is niet af en er volgt een opsomming): zo blijft een doel
+ * heel over een paginagrens.
+ *
+ * Wat de lezer niet zeker weet, komt in `waarschuwingen`, met het regelnummer: regels die met een code
+ * van het gekozen patroon beginnen maar geen doel werden, doelen in een tweede nummering, herstelde
+ * afbrekingen, en een overgeslagen paginanummer midden in een doel.
  */
 export function leesLeerplan(tekst: string): LezerResultaat {
   const waarschuwingen: string[] = [];
@@ -594,7 +800,11 @@ export function leesLeerplan(tekst: string): LezerResultaat {
   const opmaak = kopEnVoetregels(regels);
   const schoon = regels.map(schoonRegel);
   const opsomming = regels.map(heeftOpsomming);
+  /** Een zacht afbreekstreepje aan het regeleinde: het woord loopt door op de volgende regel. */
+  const zacht = regels.map((r) => /\u00ad\s*$/.test(r));
   const leeg = (i: number) => schoon[i] === '' || opmaak.has(i);
+  /** De tekst van regel i zoals hij in een doel komt, met het zachte afbreekstreepje voor het samenvoegen. */
+  const deel = (i: number, t: string) => (zacht[i] ? `${t}\u00ad` : t);
 
   /** Volgende inhoudsregel na i (lege regels en opmaak overgeslagen), binnen `max` regels. */
   const volgende = (i: number, max = 6): number | undefined => {
@@ -617,20 +827,21 @@ export function leesLeerplan(tekst: string): LezerResultaat {
   };
 
   // 1. Het patroon kiezen: meeste treffers vooraan een regel, "De leerling(en)" telt dubbel.
-  const scores = PATRONEN.map((p) => {
+  const alleScores = PATRONEN.map((p) => {
     let treffers = 0;
-    let sterk = 0;
+    const sterkeRegels: number[] = [];
     let voorbeeld = '';
     for (let i = 0; i < regels.length; i++) {
       const t = doelStart(p, i);
       if (!t) continue;
       treffers++;
-      if (t.sterk) sterk++;
+      if (t.sterk) sterkeRegels.push(i);
       if (!voorbeeld) voorbeeld = t.code;
     }
-    const score = (treffers + sterk) * (p.zwak ? 0.5 : 1);
-    return { p, treffers, score, voorbeeld };
-  })
+    const score = (treffers + sterkeRegels.length) * (p.zwak ? 0.5 : 1);
+    return { p, treffers, score, voorbeeld, sterkeRegels };
+  });
+  const scores = alleScores
     .filter((s) => s.treffers >= (s.p.zwak ? 2 : 1))
     .sort((a, b) => b.score - a.score || a.p.rang - b.p.rang);
 
@@ -639,17 +850,51 @@ export function leesLeerplan(tekst: string): LezerResultaat {
     waarschuwingen.push(
       'De lezer vond geen nummering van doelen (zoals "LPD 12", "1.2.3" of "AAR 2.1") vooraan een regel. Kijk na of de tekst de doelen met hun code bevat, of voeg de doelen met de hand toe.',
     );
+    // Wel codes vooraan, maar zonder doelzin erachter: misschien staat het begin van de zin erboven.
+    const metCode: { regel: number; code: string }[] = [];
+    for (let i = 0; i < regels.length && metCode.length < 5; i++) {
+      if (leeg(i)) continue;
+      const p = PATRONEN.find((x) => !x.zwak && x.lees(schoon[i]) !== null);
+      const t = p?.lees(schoon[i]);
+      if (t) metCode.push({ regel: i + 1, code: t.code });
+    }
+    if (metCode.length > 0) {
+      waarschuwingen.push(
+        `Regel ${metCode.map((m) => m.regel).join(', ')} begint wel met een code (bv. ${metCode[0].code}), maar zonder doelzin erachter ("De leerlingen …" of een zin met een hoofdletter). Staat het begin van de zin misschien boven de lijst? Neem de doelen dan met de hand over.`,
+      );
+    }
     return { doelen: [], waarschuwingen, genegeerdeRegels };
   }
   const gekozen = scores[0];
   const patroon = gekozen.p;
-  if (scores.length > 1 && scores[1].treffers >= 2 && scores[1].score >= 0.8 * gekozen.score) {
+  const bijnaEvenSterk = scores.length > 1 && scores[1].treffers >= 2 && scores[1].score >= 0.8 * gekozen.score ? scores[1].p : undefined;
+  if (bijnaEvenSterk) {
     waarschuwingen.push(
       `Twee nummeringen komen ongeveer even vaak voor: ${patroon.naam} (bv. ${gekozen.voorbeeld}, ${gekozen.treffers} keer) en ${scores[1].p.naam} (bv. ${scores[1].voorbeeld}, ${scores[1].treffers} keer). De lezer koos de eerste; kijk na of dat klopt.`,
     );
   }
 
   const start = regels.map((_, i) => doelStart(patroon, i));
+
+  // Een tweede nummering met doelen die met "De leerling(en)" beginnen, hoe weinig ook: die las de lezer niet.
+  for (const s of alleScores) {
+    if (s.p === patroon || s.p === bijnaEvenSterk) continue;
+    const ongelezen = s.sterkeRegels.filter((i) => !start[i]);
+    if (ongelezen.length === 0) continue;
+    const eerste = s.p.lees(schoon[ongelezen[0]])?.code ?? '';
+    waarschuwingen.push(
+      `Er staan ook doelen in een andere nummering: ${s.p.naam} (bv. ${eerste} op regel ${ongelezen[0] + 1}${ongelezen.length > 1 ? `, ${ongelezen.length} keer: regels ${ongelezen.map((i) => i + 1).join(', ')}` : ''}). De lezer las alleen ${patroon.naam}; kijk na of die doelen erbij horen.`,
+    );
+  }
+
+  // Regels die met een code van het gekozen patroon beginnen, maar geen doel werden (bv. "LPD 3 aan de hand van …").
+  const nietGelezen: { regel: number; code: string; tekst: string }[] = [];
+  for (let i = 0; i < regels.length; i++) {
+    if (leeg(i) || start[i]) continue;
+    const t = patroon.lees(schoon[i]);
+    if (!t || (patroon.streng && isKopRest(t.rest))) continue;
+    nietGelezen.push({ regel: i + 1, code: t.code, tekst: schoon[i] });
+  }
 
   /** Volgt er (na lege regels, opmaak en andere koppen) een doel? */
   const volgtDoel = (i: number): boolean => {
@@ -674,6 +919,9 @@ export function leesLeerplan(tekst: string): LezerResultaat {
   let aanduidingNetGezet = false;
   let huidig: Bezig | null = null;
   let grens = false; // lege regel of opmaak sinds de laatste regel van het doel
+  /** Paginanummers die sinds de laatste inhoudsregel overgeslagen werden. */
+  let overgeslagen: number[] = [];
+  const nummerInDoel: { regel: number; code: string; start: number; tekst: string }[] = [];
   let uitbreidingOnzeker: number | undefined;
   let viaKop = 0;
   const tweeKolommen: string[] = [];
@@ -681,8 +929,8 @@ export function leesLeerplan(tekst: string): LezerResultaat {
 
   const sluit = () => {
     if (!huidig) return;
-    const samen = voegRegelsSamen(huidig.delen);
-    const v = haalVerwijzingenUit(samen);
+    const samen = voegRegelsSamenMetAfbrekingen(huidig.delen);
+    const v = haalVerwijzingenUit(samen.tekst);
     const tekstDoel = schrijfLigaturenUit(v.tekst);
     const refs = [...v.blokken, ...huidig.refsRegels];
     if (!tekstDoel) {
@@ -697,6 +945,9 @@ export function leesLeerplan(tekst: string): LezerResultaat {
       if (huidig.rubriek) doel.rubriek = huidig.rubriek;
       if (refs.length > 0) doel.refsBron = refs.join(', ');
       if (huidig.uitbreiding) doel.niveau = 'uitbreiding';
+      // Een afbreking in een verwijzing die uit de tekst ging, hoort niet bij het doel.
+      const afbrekingen = samen.afbrekingen.filter((a) => schrijfLigaturenUit(v.tekst).includes(schrijfLigaturenUit(a.woord)));
+      if (afbrekingen.length > 0) doel.afbrekingen = afbrekingen.map(beschrijfAfbreking);
       if (huidig.viaKop) viaKop++;
       if (uitbreidingOnzeker === undefined && UITBREIDING_AANDUIDING.test(tekstDoel)) uitbreidingOnzeker = huidig.start + 1;
       doelen.push(doel);
@@ -705,9 +956,12 @@ export function leesLeerplan(tekst: string): LezerResultaat {
   };
 
   const isVervolg = (h: Bezig, i: number): boolean => {
-    if (h.gesloten || h.onderbroken) return false;
+    if (h.onderbroken) return false;
     const t = schoon[i];
-    if (h.delen.length === 0) return true; // code alleen op de regel: de tekst volgt
+    if (h.delen.length === 0) return !h.gesloten; // code alleen op de regel: de tekst volgt
+    // Een kleine letter vooraan: de zin loopt door, ook na "o.a." of "t.o.v." en over een lege regel.
+    if (/^\p{Ll}/u.test(t)) return true;
+    if (h.gesloten) return false;
     const vorige = h.delen[h.delen.length - 1];
     if (eindigtOpAfbreking(vorige)) return true;
     const af = isAfgerond(vorige);
@@ -716,15 +970,17 @@ export function leesLeerplan(tekst: string): LezerResultaat {
       return opsomming[i] && h.inLijst;
     }
     if (af) return false;
-    if (/^\p{Ll}/u.test(t)) return true;
     return opsomming[i] && (h.inLijst || /:$/.test(vorige));
   };
 
   for (let i = 0; i < regels.length; i++) {
     if (leeg(i)) {
+      if (opmaak.has(i) && PAGINANUMMER.test(kaal(regels[i]))) overgeslagen.push(i);
       grens = true;
       continue;
     }
+    const tussen = overgeslagen;
+    overgeslagen = [];
     const t = schoon[i];
     const s = start[i];
     if (s) {
@@ -736,7 +992,7 @@ export function leesLeerplan(tekst: string): LezerResultaat {
         start: i,
         eind: i,
         code: s.code,
-        delen: s.rest ? [s.rest] : [],
+        delen: s.rest ? [deel(i, s.rest)] : [],
         refsRegels: [],
         rubriek,
         uitbreiding: s.uitbreiding || uitbreidingModus,
@@ -789,8 +1045,9 @@ export function leesLeerplan(tekst: string): LezerResultaat {
     if (huidig && isVervolg(huidig, i)) {
       const h: Bezig = huidig;
       if (opsomming[i]) h.inLijst = true;
-      h.delen.push(t);
+      h.delen.push(deel(i, t));
       h.eind = i;
+      for (const j of tussen) nummerInDoel.push({ regel: j + 1, code: h.code, start: h.start + 1, tekst: kaal(regels[j]) });
       // Een verwijzing achteraan deze regel sluit het doel af.
       if (eindigtOpVerwijzing(t)) h.gesloten = true;
       grens = false;
@@ -812,6 +1069,13 @@ export function leesLeerplan(tekst: string): LezerResultaat {
     waarschuwingen.push('De lezer herkende een nummering, maar vond er geen doelen met tekst bij. Kijk de tekst na.');
   }
   for (const z of zonderTekst) waarschuwingen.push(`Bij ${z} vond de lezer geen doeltekst.`);
+
+  meldAllemaal(
+    waarschuwingen,
+    nietGelezen,
+    (x) => `Regel ${x.regel} begint met ${x.code}, maar de lezer las er geen doel in ("${kort(x.tekst, 60)}"). Kijk na of daar een doel staat.`,
+    (r) => `Nog meer regels beginnen met een code maar werden geen doel: regels ${r}. Kijk na of daar doelen staan.`,
+  );
 
   const perCode = new Map<string, number[]>();
   for (const d of doelen) {
@@ -838,6 +1102,20 @@ export function leesLeerplan(tekst: string): LezerResultaat {
     );
   }
 
+  meldAllemaal(
+    waarschuwingen,
+    doelen.filter((d) => d.afbrekingen !== undefined),
+    (d) => `${d.code} (regel ${d.regel}): afbreking hersteld: ${(d.afbrekingen ?? []).join(', ')}; kijk na of het streepje bij het woord hoort.`,
+    (r) => `Ook bij de doelen op regels ${r} werd een afbreking hersteld; kijk na of het streepje bij het woord hoort.`,
+  );
+
+  meldAllemaal(
+    waarschuwingen,
+    nummerInDoel,
+    (x) => `${x.code} (regel ${x.start}): de lezer sloeg regel ${x.regel} ("${x.tekst}") over als paginanummer, midden in het doel. Kijk na of dat getal bij de tekst hoort.`,
+    (r) => `Ook op regels ${r} sloeg de lezer een paginanummer over midden in een doel. Kijk na of die getallen bij de tekst horen.`,
+  );
+
   if (viaKop > 0) {
     waarschuwingen.push(
       `${viaKop} ${viaKop === 1 ? 'doel staat' : 'doelen staan'} onder een kop "Uitbreiding" en ${viaKop === 1 ? 'kreeg' : 'kregen'} daarom niveau uitbreiding, tot de volgende rubriek. Kijk na of dat klopt.`,
@@ -850,6 +1128,79 @@ export function leesLeerplan(tekst: string): LezerResultaat {
   }
 
   return { doelen, patroon: { naam: patroon.naam, voorbeeld: gekozen.voorbeeld }, waarschuwingen, genegeerdeRegels };
+}
+
+// ── Voor de controlepoort ───────────────────────────────────────────────────
+
+/** Een regel van de bron die met een doelcode begint (volgens eender welk patroon van de lezer). */
+export interface CodeRegel {
+  /** Regelnummer in de bron (vanaf 1). */
+  regel: number;
+  /** De code zoals de lezer ze zou geven, bv. "LPD 3". */
+  code: string;
+  /** Wat na de code staat. */
+  rest: string;
+  /**
+   * Telt als mogelijke doelstart. Niet bij een streng patroon (1.2.3, 12.) waarvan de rest eruitziet
+   * als een kop (kort, hoofdletter, geen eindpunt en niet "De leerling(en)"): "2.3 Energie" is een kop.
+   */
+  telt: boolean;
+}
+
+/**
+ * Alle regels die met een doelcode beginnen, volgens elk patroon van de lezer, zonder de opmaak van de
+ * pagina (`opmaak`, uit `kopEnVoetregels`). De controlepoort zoekt hiermee doelen die in de bron staan
+ * maar in het leerplan ontbreken.
+ */
+export function regelsMetDoelcode(regels: readonly string[], opmaak: ReadonlySet<number>): CodeRegel[] {
+  const uit: CodeRegel[] = [];
+  regels.forEach((ruw, i) => {
+    if (opmaak.has(i)) return;
+    const t = schoonRegel(ruw);
+    if (!t) return;
+    const gezien = new Set<string>();
+    for (const p of PATRONEN) {
+      const treffer = p.lees(t);
+      if (!treffer || gezien.has(treffer.code)) continue;
+      gezien.add(treffer.code);
+      uit.push({ regel: i + 1, code: treffer.code, rest: treffer.rest, telt: !(p.streng && isKopRest(treffer.rest)) });
+    }
+  });
+  return uit;
+}
+
+function escapeRe(t: string): string {
+  return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Staat er in een doeltekst nog een doelcode van dezelfde soort als `code`, gevolgd door een doelzin?
+ * Dan zijn twee doelen samengevoegd ("De leerlingen kunnen A. LPD 2 De leerlingen kunnen B."). Zelfde
+ * soort: dezelfde letters vooraan en evenveel delen in het nummer. Na een code met letters telt een
+ * zin met "De leerling(en)", of een zin met een hoofdletter als de code na een zinseinde staat; na een
+ * code met alleen cijfers telt alleen "De leerling(en)". Een verwijzing ("MD 09.01 De …") telt niet.
+ * Geeft de gevonden code, of `undefined`.
+ */
+export function samengevoegdeCode(tekst: string, code: string): string | undefined {
+  const m = /^(\p{L}{1,6})?\s?(\d{1,3}(?:\.\d{1,3}){0,3})\s?(?:U|\(U\))?$/u.exec(normalizeGoalCode(code));
+  if (!m) return undefined;
+  const letters = m[1];
+  const diepte = m[2].split('.').length;
+  const nummer = diepte === 1 ? String.raw`\d{1,3}` : String.raw`\d{1,3}(?:\.\d{1,3}){${diepte - 1}}`;
+  const re = letters
+    ? new RegExp(String.raw`(?<![\p{L}\p{N}])(${escapeRe(letters)}\s?${nummer}(?:U|\s?\(U\))?)(?![\p{L}\p{N}]|\.\d)[\s:.)–—-]+`, 'giu')
+    : diepte === 1
+      ? new RegExp(String.raw`(?<![\p{L}\p{N}.])(${nummer})[.)]\s+`, 'gu')
+      : new RegExp(String.raw`(?<![\p{L}\p{N}.])(${nummer}U?)(?![\p{L}\p{N}]|\.\d)\.?[\s:)–—-]+`, 'gu');
+  let treffer: RegExpExecArray | null;
+  while ((treffer = re.exec(tekst)) !== null) {
+    const ervoor = tekst.slice(0, treffer.index);
+    if (VERWIJS_VOOR.test(ervoor)) continue;
+    const na = tekst.slice(treffer.index + treffer[0].length);
+    if (STERKE_DOELZIN.test(na)) return treffer[1].trim();
+    if (letters && DOELZIN.test(na) && /(?:^|[.!?;:])\s*$/.test(ervoor)) return treffer[1].trim();
+  }
+  return undefined;
 }
 
 /**

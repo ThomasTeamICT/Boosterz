@@ -12,6 +12,8 @@ import type {
   MinimumdoelRef,
 } from './curriculumTypes';
 import { CURRICULUM_NETS } from './curriculumTypes';
+// Alleen een type: curriculumCheck.ts gebruikt dit bestand, dus geen import tijdens het uitvoeren.
+import type { ControleRapport } from './curriculumCheck';
 import { sha256Hex } from './sha256';
 import { notifyChange, reportWriteFailure } from './storage';
 import { uid } from './utils';
@@ -198,6 +200,10 @@ function tekstVeld(v: unknown, max: number): string | undefined {
 const SET_ID = /^ODS_\d{1,9}$/;
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 const ISO_DATUM = /^\d{4}-\d{2}-\d{2}$/;
+/** Langste doelcode; een langere code wordt ingekort (ook zo blijft `gatenInNummering` snel). */
+export const MAX_DOELCODE = 60;
+/** Langste voorvoegsel van een automatische code, zodat de code zelf onder `MAX_DOELCODE` blijft. */
+const MAX_AUTO_VOORVOEGSEL = 40;
 const MAX_REFS = 50;
 const MAX_SETS = 50;
 const METHODES: readonly CurriculumMethode[] = ['officieel', 'export', 'pdf', 'tekst', 'ai', 'handmatig'];
@@ -238,8 +244,13 @@ function sanitizeRefs(raw: unknown): MinimumdoelRef[] | undefined {
 /**
  * Tekst met regels: "\r\n" en "\r" worden "\n", per regel witruimte samengevouwen en getrimd, lege
  * regels weg. Officiële doelen bevatten lijsten en alinea's (na `htmlNaarTekst` gescheiden door
- * "\n"); die regeleinden horen bij de tekst en dus bij de vingerafdruk. Idempotent.
+ * "\n"); die regeleinden horen bij de tekst en dus bij de vingerafdruk. Idempotent. Zo wordt elke
+ * doeltekst bewaard (`sanitizeGoal`); de controlepoort vergelijkt officiële doelen in deze vorm.
  */
+export function normaliseerDoeltekst(t: string): string {
+  return tekstMetRegels(t);
+}
+
 function tekstMetRegels(t: string): string {
   return t
     .replace(/\r\n?/g, '\n')
@@ -255,7 +266,7 @@ export function sanitizeGoal(raw: unknown): CurriculumGoal | null {
   const g = raw as Record<string, unknown>;
   const text = tekstMetRegels(str(g.text ?? g.doel ?? g.omschrijving));
   if (!text) return null; // een doel zonder tekst zegt niets
-  const code = normalizeGoalCode(str(g.code ?? g.nummer));
+  const code = kap(normalizeGoalCode(str(g.code ?? g.nummer)), MAX_DOELCODE);
   const level = g.level === 'uitbreiding' ? 'uitbreiding' : g.level === 'basis' ? 'basis' : undefined;
   const theme = str(g.theme ?? g.thema ?? g.rubriek).trim();
   const note = tekstMetRegels(str(g.note ?? g.toelichting));
@@ -276,9 +287,11 @@ export function sanitizeGoal(raw: unknown): CurriculumGoal | null {
 }
 
 /**
- * Lijst doelen saneren: lege doelen vallen weg, codes worden genormaliseerd en
- * ontdubbeld. Doelen zonder code krijgen er zelf een, opgebouwd per thema:
- * "<PREFIX> <thema-nr>.<volgnr>" (bv. "NW 2.3").
+ * Lijst doelen saneren: lege doelen vallen weg, codes worden genormaliseerd, ingekort tot 60 tekens en
+ * ontdubbeld (een tweede doel met dezelfde code valt weg). Doelen zonder code krijgen er zelf een,
+ * opgebouwd per thema: "<PREFIX> <thema-nr>.<volgnr>" (bv. "NW 2.3"), waarbij codes die al in de
+ * lijst staan overgeslagen worden: een automatische code neemt nooit de plaats van een echt doel in.
+ * Een tweede doel met hetzelfde id krijgt een nieuw id. Idempotent.
  */
 export function sanitizeGoals(raw: unknown, opts: { autoPrefix?: string } = {}): CurriculumGoal[] {
   const list = Array.isArray(raw) ? raw : [];
@@ -287,10 +300,12 @@ export function sanitizeGoals(raw: unknown, opts: { autoPrefix?: string } = {}):
     const goal = sanitizeGoal(item);
     if (goal) goals.push(goal);
   }
-  const prefix = normalizeGoalCode(opts.autoPrefix ?? 'DOEL') || 'DOEL';
+  const prefix = kap(normalizeGoalCode(opts.autoPrefix ?? 'DOEL'), MAX_AUTO_VOORVOEGSEL) || 'DOEL';
+  const bestaand = new Set(goals.map((g) => g.code).filter((c) => c !== ''));
   const themeNumbers = new Map<string, number>();
   const perTheme = new Map<string, number>();
   const used = new Set<string>();
+  const ids = new Set<string>();
   const out: CurriculumGoal[] = [];
   for (const goal of goals) {
     let code = goal.code;
@@ -301,13 +316,18 @@ export function sanitizeGoals(raw: unknown, opts: { autoPrefix?: string } = {}):
         nr = themeNumbers.size + 1;
         themeNumbers.set(theme, nr);
       }
-      const seq = (perTheme.get(theme) ?? 0) + 1;
+      let seq = perTheme.get(theme) ?? 0;
+      do {
+        seq++;
+        code = `${prefix} ${nr}.${seq}`;
+      } while (bestaand.has(code) || used.has(code));
       perTheme.set(theme, seq);
-      code = `${prefix} ${nr}.${seq}`;
     }
     if (used.has(code)) continue; // dubbele code = dubbel doel
     used.add(code);
-    out.push({ ...goal, code });
+    const id = ids.has(goal.id) ? uid() : goal.id;
+    ids.add(id);
+    out.push({ ...goal, id, code });
   }
   return out;
 }
@@ -384,15 +404,29 @@ export function bewaakControle(cur: Curriculum): Curriculum {
  * velden vallen weg. Saneren is idempotent: twee keer saneren geeft hetzelfde als één keer.
  */
 export function sanitizeCurriculum(raw: unknown): Curriculum | null {
-  if (!raw || typeof raw !== 'object') return null;
+  return sanitizeCurriculumMetRapport(raw).curriculum;
+}
+
+/** Zoals `sanitizeCurriculum`, met het aantal doelen dat bij het saneren wegviel. */
+export interface SaneerUitkomst {
+  curriculum: Curriculum | null;
+  /** Doelen in het bestand die niet overbleven (geen tekst, dubbele code, geen object). */
+  weggevallen: number;
+}
+
+function sanitizeCurriculumMetRapport(raw: unknown): SaneerUitkomst {
+  if (!raw || typeof raw !== 'object') return { curriculum: null, weggevallen: 0 };
   const outer = raw as Record<string, unknown>;
   const c = (outer.curriculum && typeof outer.curriculum === 'object'
     ? outer.curriculum
     : outer.leerplan && typeof outer.leerplan === 'object'
       ? outer.leerplan
       : outer) as Record<string, unknown>;
-  const goals = sanitizeGoals(c.goals ?? c.doelen, { autoPrefix: str(c.subject).slice(0, 3) || 'DOEL' });
-  if (!goals.length) return null;
+  const ruw = c.goals ?? c.doelen;
+  const aantalRuw = Array.isArray(ruw) ? ruw.length : 0;
+  const goals = sanitizeGoals(ruw, { autoPrefix: str(c.subject).slice(0, 3) || 'DOEL' });
+  const weggevallen = aantalRuw - goals.length;
+  if (!goals.length) return { curriculum: null, weggevallen };
   const net = CURRICULUM_NETS.some((n) => n.id === c.net) ? (c.net as Curriculum['net']) : 'eigen';
   const createdAt = typeof c.createdAt === 'number' ? c.createdAt : Date.now();
   const cur: Curriculum = {
@@ -415,7 +449,7 @@ export function sanitizeCurriculum(raw: unknown): Curriculum | null {
   if (controle) cur.controle = controle;
   const sets = sanitizeSets(c.minimumdoelenSets);
   if (sets) cur.minimumdoelenSets = sets;
-  return bewaakControle(cur);
+  return { curriculum: bewaakControle(cur), weggevallen };
 }
 
 /**
@@ -442,22 +476,45 @@ export function controleStatus(cur: Curriculum): ControleStatus {
   return cur.controle?.status ?? 'niet-gecontroleerd';
 }
 
+export interface BevestigOpties {
+  /** Wie nakeek (verplicht, niet leeg). */
+  door: string;
+  /** Het rapport van `controleerLeerplan` voor precies deze doelen. */
+  rapport: ControleRapport;
+  /** Standaard de samenvatting van het rapport. */
+  samenvatting?: string;
+  op?: number;
+}
+
 /**
- * Bevestigt dat een mens elk doel met de bron vergeleken heeft: status "gecontroleerd", met
- * naam, tijdstip en de vingerafdruk van de doelen op dit moment. Geeft een nieuw object terug.
+ * Bevestigt dat een mens elk doel met de bron vergeleken heeft: status "gecontroleerd", met naam,
+ * tijdstip en de vingerafdruk van de doelen. Het leerplan wordt eerst gesaneerd zoals bij bewaren
+ * (`sanitizeCurriculum`), zodat de vingerafdruk die is van wat bewaard, geëxporteerd en weer
+ * geïmporteerd wordt. Geeft een nieuw object terug.
+ *
+ * Gooit een `Error` (met een boodschap voor de leerkracht) als de naam leeg is, als het rapport
+ * bevestigen niet toelaat, of als de poort op andere doelen liep dan de gesaneerde doelen van `cur`
+ * (`rapport.doelenSha256`). Werkwijze voor de inleeswizard: eerst `sanitizeCurriculum`, dan
+ * `controleerLeerplan` op dat resultaat, dan `bevestigLeerplan` met datzelfde leerplan en rapport.
+ * Een officiële set bevestig je met `bevestigUitOfficieleSet` (minimumdoelenLeerplan.ts).
  */
-export function bevestigLeerplan(cur: Curriculum, opts: { door: string; samenvatting?: string; op?: number }): Curriculum {
-  return {
-    ...cur,
-    kind: 'leerplan',
-    controle: {
-      status: 'gecontroleerd',
-      door: opts.door.trim() || undefined,
-      op: opts.op ?? Date.now(),
-      doelenSha256: doelenVingerafdruk(cur.goals),
-      samenvatting: opts.samenvatting?.trim() || undefined,
-    },
-  };
+export function bevestigLeerplan(cur: Curriculum, opts: BevestigOpties): Curriculum {
+  const door = tekstVeld(opts.door, 120);
+  if (!door) throw new Error('Vul je naam in: zo is te zien wie het leerplan nagekeken heeft.');
+  const rapport = opts.rapport;
+  if (!rapport || rapport.kanBevestigen !== true) {
+    throw new Error('Het leerplan kan nog niet als nagekeken bevestigd worden: het nakijken vond nog fouten.');
+  }
+  const gesaneerd = sanitizeCurriculum(cur);
+  if (!gesaneerd) throw new Error('Het leerplan heeft geen doelen om te bevestigen.');
+  const vingerafdruk = doelenVingerafdruk(gesaneerd.goals);
+  if (rapport.doelenSha256 !== vingerafdruk) {
+    throw new Error('De doelen zijn niet meer dezelfde als bij het nakijken. Kijk het leerplan opnieuw na en bevestig daarna.');
+  }
+  const samenvatting = tekstVeld(opts.samenvatting, 500) ?? tekstVeld(rapport.samenvatting, 500);
+  const controle: CurriculumControle = { status: 'gecontroleerd', door, op: opts.op ?? Date.now(), doelenSha256: vingerafdruk };
+  if (samenvatting) controle.samenvatting = samenvatting;
+  return { ...gesaneerd, kind: 'leerplan', controle };
 }
 
 /**
@@ -494,9 +551,17 @@ export function exportCurriculumJson(cur: Curriculum): string {
  * De vingerafdruk wordt opnieuw uitgerekend: klopt die niet, dan is het leerplan "gewijzigd".
  */
 export function importCurriculumJson(json: string): Curriculum | null {
+  return importCurriculumJsonMetRapport(json).curriculum;
+}
+
+/**
+ * Zoals `importCurriculumJson`, met ook het aantal doelen dat bij het saneren wegviel (geen tekst,
+ * dubbele code, geen object), zodat de pagina dat kan melden in plaats van het stil te verliezen.
+ */
+export function importCurriculumJsonMetRapport(json: string): SaneerUitkomst {
   try {
-    return sanitizeCurriculum(JSON.parse(json));
+    return sanitizeCurriculumMetRapport(JSON.parse(json));
   } catch {
-    return null;
+    return { curriculum: null, weggevallen: 0 };
   }
 }

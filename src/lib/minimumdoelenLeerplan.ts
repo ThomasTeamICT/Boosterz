@@ -1,12 +1,17 @@
 // Van een officiële set minimumdoelen (laag 1) naar een nagekeken leerplan (docs/LEERPLANNEN.md § 14).
 //
 // Een leerkracht die de minimumdoelen als leerplan wil gebruiken, hoeft niets in te lezen of na te
-// kijken: de doelen komen letterlijk uit het bestand van de Vlaamse overheid. Het leerplan krijgt
-// daarom meteen de status "nagekeken", met een vingerafdruk van de doelen zoals ze er nu staan. Wie
-// later iets wijzigt, merkt dat aan die status ("gewijzigd na nakijken").
+// kijken: de doelen komen letterlijk uit het bestand van de Vlaamse overheid. De controlepoort kijkt
+// dat na met de set als bron (`bevestigUitOfficieleSet`): elke tekst gelijk aan die van zijn
+// minimumdoel en geen doel van de set vergeten. Lukt dat, dan krijgt het leerplan meteen de status
+// "nagekeken", met een vingerafdruk van de doelen zoals ze er nu staan. Wie later iets wijzigt, merkt
+// dat aan die status ("gewijzigd na nakijken").
 
 import type { Curriculum, CurriculumGoal, CurriculumHerkomst } from './curriculumTypes';
-import { bevestigLeerplan, controleStatus, createCurriculum, doelenVingerafdruk, normalizeGoalCode, sanitizeCurriculum } from './curriculum';
+import {
+  bevestigLeerplan, bewaakControle, controleStatus, createCurriculum, doelenVingerafdruk, normalizeGoalCode, sanitizeCurriculum,
+} from './curriculum';
+import { controleerLeerplan, type ControleRapport } from './curriculumCheck';
 import { htmlNaarTekst, NAAMSVERMELDING, type Minimumdoel, type MinimumdoelenSetBestand } from './minimumdoelen';
 import { datumLeesbaar } from './minimumdoelenBron';
 import { uid } from './utils';
@@ -115,15 +120,43 @@ function doelen(n: number): string {
   return `${n} ${n === 1 ? 'doel' : 'doelen'}`;
 }
 
+export interface OfficieelBevestigd {
+  /** Gesaneerd; met status "gecontroleerd" als `bevestigd`, anders zonder nakijkstatus. */
+  leerplan: Curriculum;
+  /** Het rapport van de controlepoort, met de set als bron. */
+  rapport: ControleRapport;
+  bevestigd: boolean;
+}
+
 /**
- * Maakt een nagekeken leerplan rechtstreeks uit een officiële set. De doelen blijven in de volgorde
- * van het bestand; de tekst gaat door `htmlNaarTekst` (nooit HTML bewaren). Elk doel verwijst naar
- * zichzelf in de set (`refs`: set + vast nummer + code). Een doel zonder vast nummer of zonder tekst
- * wordt overgeslagen en komt in `waarschuwingen`, zodat niets stil verdwijnt.
- *
- * Geeft het leerplan nog niet terug uit de opslag: de aanroeper bewaart het met `saveCurriculum`.
+ * Bevestigt een leerplan uit een officiële set (herkomst "officieel"): saneert het, draait de
+ * controlepoort met de set als bron (`controleerLeerplan(…, { sets: [bestand] })`: elke tekst gelijk
+ * aan die van het minimumdoel waar hij naar verwijst, elk doel van de set aanwezig, verwijzingen in
+ * orde) en bevestigt het alleen als de poort geen fouten vindt. Anders blijft het leerplan niet
+ * nagekeken en zegt het rapport waarom. Gooit een `Error` als de herkomst niet "officieel" is.
  */
-export function leerplanUitSet(bestand: MinimumdoelenSetBestand): LeerplanUitSet {
+export function bevestigUitOfficieleSet(
+  cur: Curriculum,
+  bestand: MinimumdoelenSetBestand,
+  opts: { door?: string; samenvatting?: string; op?: number } = {},
+): OfficieelBevestigd {
+  if (cur.herkomst?.methode !== 'officieel') {
+    throw new Error('Alleen een leerplan dat rechtstreeks uit een officiële set komt, kan zo bevestigd worden.');
+  }
+  const gesaneerd = sanitizeCurriculum(cur);
+  if (!gesaneerd) {
+    return { leerplan: cur, rapport: controleerLeerplan(cur, { sets: [bestand] }), bevestigd: false };
+  }
+  const zonderStatus: Curriculum = { ...gesaneerd };
+  delete zonderStatus.controle;
+  const rapport = controleerLeerplan(zonderStatus, { sets: [bestand] });
+  if (!rapport.kanBevestigen) return { leerplan: zonderStatus, rapport, bevestigd: false };
+  const leerplan = bevestigLeerplan(zonderStatus, { door: opts.door ?? NAGEKEKEN_DOOR_BRON, rapport, samenvatting: opts.samenvatting, op: opts.op });
+  return { leerplan, rapport, bevestigd: true };
+}
+
+/** Het leerplan uit een set, gesaneerd zoals bij bewaren, nog zonder nakijken. */
+function bouwLeerplanUitSet(bestand: MinimumdoelenSetBestand): LeerplanUitSet {
   const s = bestand.set;
   const waarschuwingen: string[] = [];
 
@@ -162,8 +195,8 @@ export function leerplanUitSet(bestand: MinimumdoelenSetBestand): LeerplanUitSet
   if (s.sha256) herkomst.bronSha256 = s.sha256;
 
   const opgehaald = datumLeesbaar(s.opgehaald);
-  // Eerst saneren zoals een import dat doet, dan pas bevestigen: zo is de vingerafdruk die van de
-  // doelen zoals ze na exporteren en importeren terugkomen, en blijft het leerplan "nagekeken".
+  // Eerst saneren zoals een import dat doet, dan pas nakijken en bevestigen: zo is de vingerafdruk die
+  // van de doelen zoals ze na exporteren en importeren terugkomen, en blijft het leerplan "nagekeken".
   const ruw = createCurriculum({
       title: niveau ? `${naam} · ${niveau}` : naam,
       net: 'minimumdoelen',
@@ -177,29 +210,53 @@ export function leerplanUitSet(bestand: MinimumdoelenSetBestand): LeerplanUitSet
       goals,
     });
   const gesaneerd = sanitizeCurriculum(ruw) ?? ruw;
-  const leerplan = bevestigLeerplan(gesaneerd, {
-    door: NAGEKEKEN_DOOR_BRON,
-    samenvatting: `Letterlijk overgenomen uit de officiële set ${s.id} (${doelen(gesaneerd.goals.length)}).`,
-  });
   if (gesaneerd.goals.length !== goals.length) {
-    waarschuwingen.push(`${doelen(goals.length - gesaneerd.goals.length)} vielen weg bij het saneren.`);
+    const weg = goals.length - gesaneerd.goals.length;
+    waarschuwingen.push(`${doelen(weg)} ${weg === 1 ? 'viel' : 'vielen'} weg bij het saneren.`);
+  }
+  return { leerplan: gesaneerd, waarschuwingen };
+}
+
+/**
+ * Maakt een leerplan rechtstreeks uit een officiële set en bevestigt het als nagekeken via
+ * `bevestigUitOfficieleSet` (de controlepoort met de set als bron). De doelen blijven in de volgorde
+ * van het bestand; de tekst gaat door `htmlNaarTekst` (nooit HTML bewaren). Elk doel verwijst naar
+ * zichzelf in de set (`refs`: set + vast nummer + code). Een doel zonder vast nummer of zonder tekst
+ * wordt overgeslagen en komt in `waarschuwingen`, zodat niets stil verdwijnt. Vindt de poort toch een
+ * fout, dan blijft het leerplan niet nagekeken en staat dat in `waarschuwingen`.
+ *
+ * Geeft het leerplan nog niet terug uit de opslag: de aanroeper bewaart het met `saveCurriculum`.
+ */
+export function leerplanUitSet(bestand: MinimumdoelenSetBestand): LeerplanUitSet {
+  const { leerplan: gebouwd, waarschuwingen } = bouwLeerplanUitSet(bestand);
+  if (gebouwd.goals.length === 0) return { leerplan: gebouwd, waarschuwingen };
+  const { leerplan, rapport, bevestigd } = bevestigUitOfficieleSet(gebouwd, bestand, {
+    samenvatting: `Letterlijk overgenomen uit de officiële set ${bestand.set.id} (${doelen(gebouwd.goals.length)}).`,
+  });
+  if (!bevestigd) {
+    const eerste = rapport.bevindingen.find((b) => b.ernst === 'fout')?.bericht ?? '';
+    waarschuwingen.push(`Het leerplan kon niet als nagekeken bevestigd worden, want het nakijken vond een probleem: ${eerste}`);
   }
   return { leerplan, waarschuwingen };
 }
 
 /**
- * Het leerplan dat je al van deze set bewaarde: herkomst "officieel", dezelfde set en dezelfde
- * vingerafdruk (een nieuwere versie van de set is dus een ander leerplan). Een eigen kopie of een
- * leerplan dat na het nakijken gewijzigd werd, telt niet mee: wie opnieuw "gebruik als leerplan"
- * kiest, wil de officiële doelen zoals ze zijn.
+ * Het leerplan dat je al van deze set bewaarde: herkomst "officieel", dezelfde set, dezelfde
+ * vingerafdruk van de set (een nieuwere versie van de set is dus een ander leerplan), en doelen die
+ * precies zijn wat een verse afleiding uit de set nu geeft (`doelenVingerafdruk`). Zo wordt een
+ * leerplan van vóór een verbetering van `htmlNaarTekst`, of een bestand met andere doelen dat zich
+ * als officieel voordoet, nooit hergebruikt. Een eigen kopie of een leerplan dat na het nakijken
+ * gewijzigd werd, telt ook niet mee: wie opnieuw "gebruik als leerplan" kiest, wil de officiële doelen
+ * zoals ze zijn.
  */
 export function vindLeerplanVoorSet(curricula: readonly Curriculum[], bestand: MinimumdoelenSetBestand): Curriculum | undefined {
   const { id, sha256 } = bestand.set;
+  let vers: string | undefined;
+  const versAfgeleid = () => (vers ??= doelenVingerafdruk(bouwLeerplanUitSet(bestand).leerplan.goals));
   return curricula.find((c) => {
     if (c.herkomst?.methode !== 'officieel' || c.herkomst.bronNaam !== id || c.herkomst.bronSha256 !== sha256) return false;
     if (c.kind === 'eigen') return false;
-    const nagekeken = c.controle?.doelenSha256;
-    const gewijzigd = controleStatus(c) === 'gewijzigd' || (nagekeken !== undefined && nagekeken !== doelenVingerafdruk(c.goals));
-    return !gewijzigd;
+    if (controleStatus(bewaakControle(c)) === 'gewijzigd') return false;
+    return doelenVingerafdruk(c.goals) === versAfgeleid();
   });
 }

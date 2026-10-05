@@ -374,6 +374,48 @@ describe('htmlNaarTekst', () => {
     expect(htmlNaarTekst('&lt;img src=x onerror=alert(1)&gt;')).toBe('<img src=x onerror=alert(1)>');
     expect(htmlNaarTekst('<script>alert(1)</script>tekst')).toBe('alert(1)tekst');
   });
+
+  it('haalt alleen echte tags weg: losse < en > in de tekst blijven staan', () => {
+    // Zo staat het letterlijk in een officiële set (wiskunde, 1ste graad).
+    expect(htmlNaarTekst('De leerlingen ordenen getallen en gebruiken de gepaste symbolen (#, <, $, >, =, /).')).toBe(
+      'De leerlingen ordenen getallen en gebruiken de gepaste symbolen (#, <, $, >, =, /).',
+    );
+    expect(htmlNaarTekst('<p>met 0<x<1 en y>2</p>')).toBe('met 0<x<1 en y>2');
+    expect(htmlNaarTekst('<p>a<b en c>d</p>')).toBe('a<b en c>d');
+    expect(htmlNaarTekst('a < b <p>c</p>')).toBe('a < b c');
+    expect(htmlNaarTekst('<P>Hoofdletters</P><BR/>ook')).toBe('Hoofdletters\nook');
+    expect(htmlNaarTekst('<table border="1" cellpadding=\'1\' width=500><tr><td colspan="2">x</td></tr></table>')).toBe('x');
+    expect(htmlNaarTekst('voor<!-- opmerking -->na')).toBe('voorna');
+  });
+
+  it('houdt tabelcellen uit elkaar', () => {
+    const html = '<table><tbody><tr><td>klank</td><td>klank</td></tr><tr><td>&nbsp;</td><td>klinker</td></tr><tr><th>kop</th><th>twee</th></tr></tbody></table>';
+    expect(htmlNaarTekst(html)).toBe('klank klank\nklinker\nkop twee');
+  });
+
+  it('zet superscript en subscript om naar Unicode, of markeert ze als dat niet kan', () => {
+    expect(htmlNaarTekst('f(x)=x<sup>n</sup> waarbij n')).toBe('f(x)=xⁿ waarbij n');
+    expect(htmlNaarTekst('de vorm b.a<sup>x</sup>=c')).toBe('de vorm b.aˣ=c');
+    expect(htmlNaarTekst('a<sup>b</sup>, met a&gt;0')).toBe('aᵇ, met a>0');
+    expect(htmlNaarTekst('x<sup>2n+1</sup> en x<sup>(−3)</sup>')).toBe('x²ⁿ⁺¹ en x⁽⁻³⁾');
+    expect(htmlNaarTekst('H<sub>2</sub>O en CO<sub>2</sub>, a<sub>n</sub>')).toBe('H₂O en CO₂, aₙ');
+    // Zonder Unicode-vorm (q, spatie midden in, Grieks): gemarkeerd, nooit stil in de tekst geschoven.
+    expect(htmlNaarTekst('x<sup>q</sup>')).toBe('x^(q)');
+    expect(htmlNaarTekst('e<sup>i π</sup>')).toBe('e^(i π)');
+    expect(htmlNaarTekst('v<sub>max</sub> en x<sub>q</sub>')).toBe('vₘₐₓ en x_(q)');
+    expect(htmlNaarTekst('10<sup><strong>3</strong></sup>')).toBe('10³');
+    expect(htmlNaarTekst('x<sup> 2</sup>')).toBe('x ²');
+    expect(htmlNaarTekst('x<sup></sup>y')).toBe('xy');
+    // Niet gesloten: toch gemarkeerd.
+    expect(htmlNaarTekst('x<sup>2')).toBe('x²');
+  });
+
+  it('houdt doorgehaalde tekst, met een doorhaling per teken', () => {
+    expect(htmlNaarTekst('het elektrisch<s>e</s> veld')).toBe('het elektrische\u0336 veld');
+    expect(htmlNaarTekst('via <s>s</s>ociale')).toBe('via s\u0336ociale');
+    expect(htmlNaarTekst('<strike>ab</strike> <del>c d</del>')).toBe('a\u0336b\u0336 c\u0336 d\u0336');
+    expect(htmlNaarTekst('x<s><sup>2</sup></s>')).toBe('x²\u0336');
+  });
 });
 
 describe('setSleutelVan', () => {
@@ -1618,4 +1660,59 @@ describe.runIf(heeftIndex)('meegeleverde minimumdoelen (public/leerplannen/minim
       expect(controleerSet(DATA_MAP, ingang)).toEqual([]);
     });
   }
+
+  it('htmlNaarTekst verandert geen enkele officiële tekst', () => {
+    expect(controleerTeksten(DATA_MAP, ingangen)).toEqual([]);
+  });
 });
+
+/** Een echte tag zoals `htmlNaarTekst` ze herkent (los van de implementatie opgeschreven). */
+const ECHTE_TAG = /<!--[\s\S]*?-->|<\/?(?:p|br|div|span|ul|ol|li|table|tbody|thead|tfoot|tr|td|th|strong|b|em|i|u|s|strike|del|ins|sup|sub|h[1-6]|a|font|blockquote)(?:\s+[a-z_:][-a-z0-9_:.]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))*\s*\/?>/gi;
+
+/**
+ * Wat `htmlNaarTekst` met de echte teksten van laag 1 doet: geen entiteit blijft over, geen `<` of `>`
+ * uit de tekst gaat verloren, geen inhoud van `<sup>`/`<sub>` komt ongemarkeerd in de tekst, geen
+ * tabelcellen kleven aan elkaar, en er blijft geen tag over.
+ */
+function controleerTeksten(map: string, sets: MinimumdoelenIndex['sets']): string[] {
+  const fouten: string[] = [];
+  const meld = (f: string) => {
+    if (fouten.length < 30) fouten.push(f);
+  };
+  const tel = (t: string, teken: string) => t.split(teken).length - 1;
+  const enkel = (t: string) => t.replace(/\s+/g, ' ').trim();
+  for (const ingang of sets) {
+    const pad = join(map, ingang.bestand);
+    if (!existsSync(pad)) continue;
+    for (const doel of leesJson<MinimumdoelenSetBestand>(pad).doelen) {
+      const bron = doel.tekst;
+      const uit = htmlNaarTekst(bron);
+      const wie = `${ingang.id} ${doel.code} (${doel.id ?? 'zonder id'})`;
+      const entiteit = /&[a-z][a-z0-9]*;/i.exec(uit);
+      if (entiteit) meld(`${wie}: entiteit ${entiteit[0]} bleef staan`);
+      const tag = /<\/?(?:p|br|td|tr|li|ul|sup|sub|strong|em|u|s|table|tbody)\b[^<>]*>/i.exec(uit);
+      if (tag) meld(`${wie}: tag ${tag[0]} bleef staan`);
+      const zonderTags = bron.replace(ECHTE_TAG, '');
+      for (const [teken, entiteiten] of [['<', /&(?:lt|#60|#x3c);/gi], ['>', /&(?:gt|#62|#x3e);/gi]] as const) {
+        const verwacht = tel(zonderTags, teken) + (zonderTags.match(entiteiten)?.length ?? 0);
+        if (tel(uit, teken) !== verwacht) meld(`${wie}: ${verwacht} keer "${teken}" verwacht, ${tel(uit, teken)} gevonden`);
+      }
+      // Gemarkeerd = "^(…)" / "_(…)", of een reeks Unicode-tekens in superscript of subscript die
+      // (via NFKC, los van de omzettabel in de code) precies de inhoud geeft.
+      const unicodeReeksen = uit.match(/[²³¹ʰ-˿ᴬ-ᶿ⁰-₟ⱼⱽ]+/gu) ?? [];
+      const gelijk = (a: string) => a.normalize('NFKC').replace(/−/g, '-');
+      for (const m of bron.matchAll(/<(sup|sub)\b[^>]*>([\s\S]*?)<\/\1\s*>/gi)) {
+        const inhoud = enkel(htmlNaarTekst(m[2]));
+        if (inhoud === '') continue;
+        const gemarkeerd = uit.includes(`${m[1].toLowerCase() === 'sup' ? '^' : '_'}(${inhoud})`)
+          || unicodeReeksen.some((r) => gelijk(r) === gelijk(inhoud));
+        if (!gemarkeerd) meld(`${wie}: <${m[1]}>${m[2]}</${m[1]}> staat ongemarkeerd in de tekst`);
+      }
+      for (const rij of bron.matchAll(/<tr\b[^>]*>([\s\S]*?)(?:<\/tr\s*>|$)/gi)) {
+        const cellen = [...rij[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)(?:<\/t[dh]\s*>|(?=<t[dh]\b)|$)/gi)].map((c) => enkel(htmlNaarTekst(c[1]))).filter(Boolean);
+        if (cellen.length > 1 && !enkel(uit).includes(cellen.join(' '))) meld(`${wie}: de cellen ${JSON.stringify(cellen)} staan niet gescheiden in de tekst`);
+      }
+    }
+  }
+  return fouten;
+}

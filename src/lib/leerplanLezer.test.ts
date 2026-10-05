@@ -3,10 +3,15 @@ import {
   bronZonderOpmaak,
   gatenInNummering,
   haalVerwijzingenUit,
+  haalVerwijzingenUitMetPosities,
   kopEnVoetregels,
   leesLeerplan,
   naarCurriculumGoals,
+  regelsMetDoelcode,
+  samengevoegdeCode,
+  splitsRegels,
   voegRegelsSamen,
+  voegRegelsSamenMetAfbrekingen,
 } from './leerplanLezer';
 
 // Alle teksten hieronder zijn NAGEMAAKT in de opmaak van leerplannen. Er staat bewust geen echte
@@ -351,5 +356,219 @@ describe('gedeelde tekstregels', () => {
     expect(gatenInNummering(['LPD 1', 'LPD 2U', 'LPD 3'])).toEqual([]);
     expect(gatenInNummering(['09.01', '09.03'])[0].ontbrekend).toEqual(['09.02']);
     expect(gatenInNummering([])).toEqual([]);
+  });
+
+  it('gatenInNummering blijft snel bij een heel lange code', () => {
+    const start = performance.now();
+    expect(gatenInNummering([`${'1'.repeat(20000)}a1`, 'x'.repeat(20000)])).toEqual([]);
+    expect(performance.now() - start).toBeLessThan(100);
+  });
+});
+
+// ── Ronde 2: bevindingen van de review (scenario's van de rechter, nagemaakt) ──
+
+const ZACHT = String.fromCharCode(0xad);
+
+describe('splitsRegels', () => {
+  it('kent alle regeleinden en houdt een form feed vooraan zijn regel', () => {
+    const LS = String.fromCharCode(0x2028);
+    const PS = String.fromCharCode(0x2029);
+    expect(splitsRegels(`a\r\nb\rc\nd${LS}e${PS}f`)).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+    expect(splitsRegels('a\fb\n\fc')).toEqual(['a', '\fb', '\fc']);
+    expect(splitsRegels('')).toEqual(['']);
+  });
+
+  it('de lezer leest doelen die met U+2028 gescheiden zijn als aparte doelen', () => {
+    const LS = String.fromCharCode(0x2028);
+    const res = leesLeerplan(`LPD 1 De leerlingen kunnen A.${LS}LPD 2 De leerlingen kunnen B.${LS}LPD 3 De leerlingen kunnen C.`);
+    expect(res.doelen.map((d) => [d.code, d.tekst])).toEqual([
+      ['LPD 1', 'De leerlingen kunnen A.'], ['LPD 2', 'De leerlingen kunnen B.'], ['LPD 3', 'De leerlingen kunnen C.'],
+    ]);
+  });
+});
+
+describe('leesLeerplan: een regel met een kleine letter loopt door', () => {
+  it('ook na een afkorting met een punt ("o.a.", "t.o.v."), met en zonder lege regel', () => {
+    for (const tussen of ['\n', '\n\n']) {
+      const oa = leesLeerplan(`LPD 1 De leerlingen kunnen verschillende reliëfvormen benoemen, o.a.${tussen}bergen, dalen en vlakten, op een kaart aanduiden.\nLPD 2 De leerlingen kunnen een kaart lezen.`);
+      expect(oa.doelen[0].tekst).toBe('De leerlingen kunnen verschillende reliëfvormen benoemen, o.a. bergen, dalen en vlakten, op een kaart aanduiden.');
+      expect(oa.doelen[1].tekst).toBe('De leerlingen kunnen een kaart lezen.');
+      const tov = leesLeerplan(`LPD 1 De leerlingen situeren België t.o.v.${tussen}de buurlanden op een kaart.\nLPD 2 De leerlingen kunnen een kaart lezen.`);
+      expect(tov.doelen[0].tekst).toBe('De leerlingen situeren België t.o.v. de buurlanden op een kaart.');
+    }
+  });
+
+  it('ook na een verwijzing op een eigen regel, maar niet na een regel die er niet bij hoort', () => {
+    const res = leesLeerplan('LPD 1 De leerlingen tellen, o.a.\n(MD 09.01)\nappels en peren.\nWenken\nde leerkracht toont dit.\nLPD 2 De leerlingen meten.');
+    expect(res.doelen[0]).toMatchObject({ tekst: 'De leerlingen tellen, o.a. appels en peren.', refsBron: 'MD 09.01' });
+    expect(res.doelen[1].tekst).toBe('De leerlingen meten.');
+  });
+
+  it('een tweede zin met een hoofdletter na een punt hoort er niet bij (zoals vroeger)', () => {
+    const res = leesLeerplan('LPD 1 De leerlingen kunnen een kaart lezen.\nZe gebruiken daarbij de legende.\nLPD 2 De leerlingen kunnen een kompas gebruiken.');
+    expect(res.doelen.map((d) => d.tekst)).toEqual(['De leerlingen kunnen een kaart lezen.', 'De leerlingen kunnen een kompas gebruiken.']);
+  });
+});
+
+describe('leesLeerplan: wat niet gelezen werd, wordt gemeld', () => {
+  it('een regel met een code van het patroon die geen doel werd, met regelnummer', () => {
+    const res = leesLeerplan('LPD 1 De leerlingen kunnen een kaart lezen.\nLPD 2 De leerlingen kunnen een kompas gebruiken.\nLPD 3 aan de hand van een kaart de ligging bepalen.');
+    expect(res.doelen.map((d) => d.code)).toEqual(['LPD 1', 'LPD 2']);
+    expect(res.waarschuwingen).toContain(
+      'Regel 3 begint met LPD 3, maar de lezer las er geen doel in ("LPD 3 aan de hand van een kaart de ligging bepalen."). Kijk na of daar een doel staat.',
+    );
+    const drieD = leesLeerplan('LPD 1 De leerlingen kunnen een kaart lezen.\nLPD 2 De leerlingen kunnen een kompas gebruiken.\nLPD 3 3D-vormen herkennen.');
+    expect(drieD.waarschuwingen.some((w) => w.startsWith('Regel 3 begint met LPD 3'))).toBe(true);
+  });
+
+  it('werkt ook bij samengestelde nummers, maar meldt geen kop met minder delen ("1.2 Mengsels")', () => {
+    const res = leesLeerplan('1.1.1 De leerlingen tellen.\n1.1.2 De leerlingen meten.\n1.2 Mengsels\n1.2.1 (zie bijlage 3)\n1.2.2 De leerlingen wegen.');
+    expect(res.doelen.map((d) => d.code)).toEqual(['1.1.1', '1.1.2', '1.2.2']);
+    expect(res.waarschuwingen.some((w) => w.startsWith('Regel 3 '))).toBe(false);
+    expect(res.waarschuwingen.some((w) => w.startsWith('Regel 4 begint met 1.2.1'))).toBe(true);
+  });
+
+  it('meldt elke regel: de eerste 20 apart, de rest samen met hun regelnummers', () => {
+    const regels = ['LPD 1 De leerlingen tellen.', ...Array.from({ length: 25 }, (_, i) => `LPD ${i + 2} en verder`)];
+    const res = leesLeerplan(regels.join('\n'));
+    expect(res.waarschuwingen.filter((w) => w.startsWith('Regel ')).length).toBe(20);
+    expect(res.waarschuwingen).toContain('Nog meer regels beginnen met een code maar werden geen doel: regels 22, 23, 24, 25, 26. Kijk na of daar doelen staan.');
+  });
+
+  it('een tweede nummering met "De leerlingen", ook onder de drempel van 80 %', () => {
+    const lpd = [1, 2, 3, 4, 5].map((n) => `LPD ${n} De leerlingen kunnen ding ${n} doen.`).join('\n');
+    const res = leesLeerplan(`${lpd}\n1.2.3 De leerlingen kunnen iets anders doen.\n1.2.4 De leerlingen kunnen nog iets doen.`);
+    expect(res.doelen).toHaveLength(5);
+    expect(res.waarschuwingen.some((w) => w.startsWith('Twee nummeringen'))).toBe(false);
+    expect(res.waarschuwingen).toContain(
+      'Er staan ook doelen in een andere nummering: samengestelde nummers met 3 delen (bv. 1.2.3 op regel 6, 2 keer: regels 6, 7). De lezer las alleen LPD-nummers; kijk na of die doelen erbij horen.',
+    );
+  });
+
+  it('codes vooraan zonder doelzin (de stam staat erboven): een hint', () => {
+    const res = leesLeerplan('De leerlingen kunnen\nLPD 1 een kaart lezen.\nLPD 2 een kompas gebruiken.\nLPD 3 de ligging bepalen.');
+    expect(res.doelen).toEqual([]);
+    expect(res.waarschuwingen[1]).toContain('Regel 2, 3, 4 begint wel met een code (bv. LPD 1)');
+  });
+});
+
+describe('leesLeerplan: afbreking en paginanummers', () => {
+  it('herstelt een afbreking niet stil: elk samengevoegd woord staat bij het doel en in de waarschuwingen', () => {
+    const res = leesLeerplan('LPD 1 De leerlingen kunnen een e-\nmail versturen.\nLPD 2 De leerlingen kunnen een auto-\nongeluk melden over sociaal-\neconomische zaken.');
+    expect(res.doelen[0]).toMatchObject({ tekst: 'De leerlingen kunnen een email versturen.', afbrekingen: ['e-|mail → email'] });
+    expect(res.doelen[1].afbrekingen).toEqual(['auto-|ongeluk → autoongeluk', 'sociaal-|economische → sociaaleconomische']);
+    expect(res.waarschuwingen).toContain('LPD 1 (regel 1): afbreking hersteld: e-|mail → email; kijk na of het streepje bij het woord hoort.');
+    // Een streepje dat blijft ("Noord-Amerika") of een voegwoord ("natuur- en") is geen herstel.
+    expect(leesLeerplan('LPD 1 De leerlingen situeren Noord-\nAmerika en natuur-\nen milieu.').doelen[0]).not.toHaveProperty('afbrekingen');
+  });
+
+  it('voegt een zacht afbreekstreepje aan het regeleinde samen, en meldt het', () => {
+    const res = leesLeerplan(`LPD 1 De leerlingen kunnen de verwe${ZACHT}\nring van gesteenten uitleggen.\nLPD 2 De leerlingen kunnen B.`);
+    expect(res.doelen[0]).toMatchObject({ tekst: 'De leerlingen kunnen de verwering van gesteenten uitleggen.', afbrekingen: ['verwe-|ring → verwering'] });
+    // Ook over een lege regel, en midden in een vervolgregel.
+    const twee = leesLeerplan(`LPD 1 De leerlingen kunnen de verwe${ZACHT}\n\nring en de ero${ZACHT}\nsie uitleggen.`);
+    expect(twee.doelen[0].tekst).toBe('De leerlingen kunnen de verwering en de erosie uitleggen.');
+  });
+
+  it('een getal alleen op een regel midden in een zin is geen paginanummer', () => {
+    const res = leesLeerplan('LPD 1 De leerlingen kunnen getallen tot\n1000\nordenen.\nLPD 2 De leerlingen kunnen een hoek van\n90\ngraden tekenen.');
+    expect(res.doelen.map((d) => d.tekst)).toEqual(['De leerlingen kunnen getallen tot 1000 ordenen.', 'De leerlingen kunnen een hoek van 90 graden tekenen.']);
+    expect(res.genegeerdeRegels).toBe(0);
+  });
+
+  it('een paginanummer aan een paginagrens midden in een doel valt weg, met een waarschuwing', () => {
+    const res = leesLeerplan('LPD 1 De leerlingen kunnen getallen tot\n12\n\fordenen en vergelijken.\nLPD 2 De leerlingen meten.');
+    expect(res.doelen[0].tekst).toBe('De leerlingen kunnen getallen tot ordenen en vergelijken.');
+    expect(res.waarschuwingen).toContain(
+      'LPD 1 (regel 1): de lezer sloeg regel 2 ("12") over als paginanummer, midden in het doel. Kijk na of dat getal bij de tekst hoort.',
+    );
+  });
+
+  it('kopEnVoetregels: een getal is alleen een paginanummer aan de rand van een pagina', () => {
+    const pagina = (n: number) => ['Kop', `LPD ${n} De leerlingen tellen.`, 'a', 'b', 'c', 'd', 'e', String(n)];
+    const regels = [...pagina(1), '', ...pagina(2), '', ...pagina(3)];
+    const opmaak = kopEnVoetregels(regels);
+    expect([7, 16, 25].every((i) => opmaak.has(i))).toBe(true);
+    // Midden op een pagina: inhoud.
+    const midden = ['LPD 1 De leerlingen tellen.', 'a', 'b', 'c', '42', 'd', 'e', 'f', 'g'];
+    expect(kopEnVoetregels(midden).has(4)).toBe(false);
+  });
+});
+
+describe('voegRegelsSamenMetAfbrekingen en haalVerwijzingenUitMetPosities', () => {
+  it('legt elke herstelde afbreking vast met de plaats in de tekst', () => {
+    const r = voegRegelsSamenMetAfbrekingen(['een e-', 'mail en de verwe' + ZACHT, 'ring', 'Noord-', 'Amerika']);
+    expect(r.tekst).toBe('een email en de verweringNoord-Amerika'.replace('verweringNoord', 'verwering Noord'));
+    expect(r.afbrekingen.map((a) => [a.links, a.rechts, a.woord, r.tekst.slice(a.plaats, a.plaats + a.rechts.length)])).toEqual([
+      ['e-', 'mail', 'email', 'mail'],
+      ['verwe-', 'ring', 'verwering', 'ring'],
+    ]);
+  });
+
+  it('is lineair: 1 MB tekst samenvoegen duurt niet lang', () => {
+    const regels = Array.from({ length: 20000 }, (_, i) => `regel ${i} met wat tekst die afgebroken wordt aan het einde van de re-`);
+    const start = performance.now();
+    const r = voegRegelsSamenMetAfbrekingen(regels);
+    expect(performance.now() - start).toBeLessThan(300);
+    expect(r.afbrekingen).toHaveLength(19999);
+  });
+
+  it('geeft voor elk teken zonder verwijzingen de plaats in de oorspronkelijke tekst', () => {
+    const tekst = '  De leerlingen  meten (MD 09.01), wegen (zie ET 9.1) en  tellen – MD 09.02 ';
+    const r = haalVerwijzingenUitMetPosities(tekst);
+    expect(r.tekst).toBe(haalVerwijzingenUit(tekst).tekst);
+    expect(r.tekst).toBe('De leerlingen meten, wegen en tellen');
+    expect(r.bron).toHaveLength(r.tekst.length);
+    r.bron.forEach((p, i) => {
+      if (r.tekst[i] === ' ') expect(/\s/.test(tekst[p])).toBe(true);
+      else expect(tekst[p]).toBe(r.tekst[i]);
+      if (i > 0) expect(p).toBeGreaterThan(r.bron[i - 1]);
+    });
+  });
+});
+
+describe('voor de controlepoort: regelsMetDoelcode en samengevoegdeCode', () => {
+  it('regelsMetDoelcode geeft elke regel die met een doelcode begint, zonder opmaak', () => {
+    const regels = ['Kop', 'LPD 3 aan de hand van een kaart', '2.3 Energie', '2.3.1 De leerlingen meten.', '12'];
+    const uit = regelsMetDoelcode(regels, new Set([4]));
+    expect(uit.map((c) => [c.regel, c.code, c.telt])).toEqual([
+      [2, 'LPD 3', true],
+      [3, '2.3', false],
+      [4, '2.3.1', true],
+    ]);
+  });
+
+  it('samengevoegdeCode vindt een tweede doel in een doeltekst', () => {
+    expect(samengevoegdeCode('De leerlingen kunnen A. LPD 2 De leerlingen kunnen B.', 'LPD 1')).toBe('LPD 2');
+    expect(samengevoegdeCode('De leerlingen kunnen A. LPD 2 Ze kunnen B.', 'LPD 1')).toBe('LPD 2');
+    expect(samengevoegdeCode('De leerlingen tellen 1.2.4 De leerlingen meten.', '1.2.3')).toBe('1.2.4');
+    expect(samengevoegdeCode('De leerlingen tellen. 4. De leerlingen meten.', '3')).toBe('4');
+    // Geen tweede doel: een verwijzing, een getal in de tekst, een code zonder doelzin.
+    expect(samengevoegdeCode('De leerlingen tellen (MD 09.01) De leerlingen.', 'LPD 1')).toBeUndefined();
+    expect(samengevoegdeCode('De leerlingen zien LPD 2 Bodem als basis.', 'LPD 1')).toBeUndefined();
+    expect(samengevoegdeCode('De leerlingen tellen tot 1.2 meter.', '1.2')).toBeUndefined();
+    expect(samengevoegdeCode('De leerlingen kunnen A.', 'LPD 1')).toBeUndefined();
+    expect(samengevoegdeCode('x', '')).toBeUndefined();
+  });
+});
+
+describe('leesLeerplan: snelheid', () => {
+  it('leest 1 MB tekst ruim binnen de tijd', () => {
+    const regels: string[] = [];
+    let lengte = 0;
+    for (let n = 0; lengte < 1024 * 1024; n++) {
+      // Per rubriek opnieuw nummeren ("AAR 1.1" … "AAR 9.500"): zo blijven de codes geldig.
+      const code = `AAR ${Math.floor(n / 500) + 1}.${(n % 500) + 1}`;
+      for (const r of [`${code} De leerlingen kunnen een kaart lezen en daarbij de legende`, 'gebruiken om de ligging van plaatsen te bepalen in hun eigen omgeving.', 'Wenken: gebruik een atlas en oefen regelmatig met verschillende kaarten.', '']) {
+        regels.push(r);
+        lengte += r.length + 1;
+      }
+    }
+    const start = performance.now();
+    const res = leesLeerplan(regels.join('\n'));
+    // Doel ±300 ms; de grens is ruim, zodat de test niet wiebelt op een trage machine.
+    expect(performance.now() - start).toBeLessThan(900);
+    expect(res.doelen.length).toBeGreaterThan(4000);
+    expect(res.doelen[0].tekst).toBe('De leerlingen kunnen een kaart lezen en daarbij de legende gebruiken om de ligging van plaatsen te bepalen in hun eigen omgeving.');
   });
 });

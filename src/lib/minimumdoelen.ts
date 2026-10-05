@@ -457,29 +457,145 @@ const ENTITEITEN: Record<string, string> = {
   eacute: '\u00e9', egrave: '\u00e8', ecirc: '\u00ea', euml: '\u00eb', aacute: '\u00e1', agrave: '\u00e0',
   acirc: '\u00e2', auml: '\u00e4', iuml: '\u00ef', icirc: '\u00ee', ouml: '\u00f6', ocirc: '\u00f4',
   uuml: '\u00fc', ucirc: '\u00fb', ccedil: '\u00e7', Eacute: '\u00c9', Euml: '\u00cb',
+  minus: '\u2212', le: '\u2264', ge: '\u2265', ne: '\u2260', plusmn: '\u00b1', sup2: '\u00b2', sup3: '\u00b3',
 };
 
 /**
- * Zet de HTML van een doeltekst uit de API om naar gewone tekst: alinea's en regeleinden worden
- * nieuwe regels, lijstitems beginnen met "• ", alle andere tags vallen weg, entiteiten worden
- * tekens. Bedoeld om te tonen en te vergelijken; de bestanden van laag 1 houden de HTML letterlijk.
- * Nooit als HTML in een pagina zetten: het resultaat is tekst.
+ * De HTML-elementen die `htmlNaarTekst` als tag herkent. Al de rest tussen "<" en ">" is tekst: in
+ * wiskunde staat "<" en ">" letterlijk in een doel ("(#, <, $, >, =, /)", "0<x<1 en y>2").
  */
-export function htmlNaarTekst(html: string): string {
-  let t = html
-    .replace(/\r\n?/g, '\n')
-    .replace(/<\s*br\s*\/?>/gi, '\n')
-    .replace(/<\s*li\b[^>]*>/gi, '\n\u2022 ')
-    .replace(/<\s*\/\s*(p|div|ul|ol|li|h[1-6]|tr|table)\s*>/gi, '\n')
-    .replace(/<[^>]*>/g, '');
-  t = t.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (geheel, naam: string) => {
+const HTML_ELEMENTEN = new Set([
+  'a', 'abbr', 'b', 'big', 'blockquote', 'body', 'br', 'caption', 'center', 'cite', 'code', 'col', 'colgroup', 'dd', 'del',
+  'div', 'dl', 'dt', 'em', 'font', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'hr', 'html', 'i', 'img', 'ins', 'kbd', 'li',
+  'mark', 'ol', 'p', 'pre', 'q', 's', 'samp', 'script', 'small', 'span', 'strike', 'strong', 'style', 'sub', 'sup', 'table',
+  'tbody', 'td', 'tfoot', 'th', 'thead', 'title', 'tr', 'tt', 'u', 'ul', 'var', 'wbr',
+]);
+
+/**
+ * Een tag: "<naam>", "</naam>", "<naam/>" of met attributen in de vorm naam=waarde, of commentaar.
+ * Attributen zonder waarde ("<td nowrap>") tellen bewust niet: zo wordt "a<b en c>d" nooit een tag.
+ * De datatest in minimumdoelen.test.ts kijkt na dat er in de echte gegevens geen tag overblijft.
+ */
+const HTML_TAG = /<!--[\s\S]*?-->|<(\/?)([a-zA-Z][a-zA-Z0-9]*)(?:\s+[a-zA-Z_:][-a-zA-Z0-9_:.]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))*\s*\/?>/g;
+
+/** Elementen waarvan de sluittag een regel afsluit. */
+const BLOK_EINDE = new Set(['p', 'div', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'tr', 'table', 'blockquote', 'pre', 'dl', 'dt', 'dd']);
+/** Doorgehaalde tekst. */
+const DOORHALING = new Set(['s', 'strike', 'del']);
+/** Combinerende lange doorhaling (U+0336), na elk teken van doorgehaalde tekst. */
+const DOORHAAL_TEKEN = '\u0336';
+
+function paren(gewoon: string, klein: string): [string, string][] {
+  const a = [...gewoon];
+  const b = [...klein];
+  return a.map((t, i) => [t, b[i]]);
+}
+
+/** Tekens met een vorm in Unicode-superscript (cijfers, + − = ( ), letters behalve q, enkele hoofdletters). */
+const SUPERSCRIPT = new Map<string, string>([
+  ...paren('0123456789+-\u2212=()ni', '\u2070\u00b9\u00b2\u00b3\u2074\u2075\u2076\u2077\u2078\u2079\u207a\u207b\u207b\u207c\u207d\u207e\u207f\u2071'),
+  ...paren('abcdefghjklmoprstuvwxyz', '\u1d43\u1d47\u1d9c\u1d48\u1d49\u1da0\u1d4d\u02b0\u02b2\u1d4f\u02e1\u1d50\u1d52\u1d56\u02b3\u02e2\u1d57\u1d58\u1d5b\u02b7\u02e3\u02b8\u1dbb'),
+  ...paren('ABDEGHIJKLMNOPRTUVW', '\u1d2c\u1d2e\u1d30\u1d31\u1d33\u1d34\u1d35\u1d36\u1d37\u1d38\u1d39\u1d3a\u1d3c\u1d3e\u1d3f\u1d40\u1d41\u2c7d\u1d42'),
+]);
+/** Tekens met een vorm in Unicode-subscript. */
+const SUBSCRIPT = new Map<string, string>([
+  ...paren('0123456789+-\u2212=()', '\u2080\u2081\u2082\u2083\u2084\u2085\u2086\u2087\u2088\u2089\u208a\u208b\u208b\u208c\u208d\u208e'),
+  ...paren('aeoxhklmnpstijruv', '\u2090\u2091\u2092\u2093\u2095\u2096\u2097\u2098\u2099\u209a\u209b\u209c\u1d62\u2c7c\u1d63\u1d64\u1d65'),
+]);
+
+function decodeerEntiteiten(t: string): string {
+  return t.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]*);/gi, (geheel, naam: string) => {
     if (naam[0] === '#') {
       const n = naam[1] === 'x' || naam[1] === 'X' ? parseInt(naam.slice(2), 16) : parseInt(naam.slice(1), 10);
       return Number.isFinite(n) && n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : geheel;
     }
     return Object.prototype.hasOwnProperty.call(ENTITEITEN, naam) ? ENTITEITEN[naam] : geheel;
   });
-  return t
+}
+
+/** Na elk teken dat geen witruimte is een doorhaling: "e" → "e̶". */
+function doorhalen(t: string): string {
+  let uit = '';
+  for (const teken of t) uit += /\s/.test(teken) ? teken : teken + DOORHAAL_TEKEN;
+  return uit;
+}
+
+/**
+ * Inhoud van `<sup>` of `<sub>`: in Unicode als elk teken een vorm heeft ("n" → "ⁿ", "2n+1" → "²ⁿ⁺¹"),
+ * anders gemarkeerd als "^(…)" of "_(…)". Witruimte vooraan en achteraan blijft erbuiten; een
+ * combinerend teken (zoals een doorhaling) blijft bij zijn teken.
+ */
+function kleinSchrift(inhoud: string, soort: 'sup' | 'sub'): string {
+  const voor = /^\s*/.exec(inhoud)?.[0] ?? '';
+  const kern = inhoud.slice(voor.length).trimEnd();
+  const na = inhoud.slice(voor.length + kern.length);
+  if (kern === '') return inhoud;
+  const tabel = soort === 'sup' ? SUPERSCRIPT : SUBSCRIPT;
+  let uit = '';
+  for (const teken of kern) {
+    const klein = /\p{M}/u.test(teken) ? teken : tabel.get(teken);
+    if (klein === undefined) return `${voor}${soort === 'sup' ? '^' : '_'}(${kern})${na}`;
+    uit += klein;
+  }
+  return voor + uit + na;
+}
+
+/**
+ * Zet de HTML van een doeltekst uit de API om naar gewone tekst, zonder iets van de tekst te verliezen
+ * of ongemerkt toe te voegen:
+ * - alinea's, regeleinden en tabelrijen worden nieuwe regels, lijstitems beginnen met "• ", tabelcellen
+ *   worden door een spatie gescheiden ("klank klank", niet "klankklank");
+ * - alleen echte tags vallen weg (`HTML_TAG`); "<" en ">" in de tekst blijven staan;
+ * - `<sup>` en `<sub>` worden Unicode-superscript of -subscript ("x<sup>n</sup>" → "xⁿ"), en waar
+ *   dat niet kan "^(…)" of "_(…)";
+ * - doorgehaalde tekst (`<s>`, `<strike>`, `<del>`) blijft staan, met een doorhaling per teken
+ *   ("elektrisch<s>e</s> veld" → "elektrische̶ veld"). Hoe de doorhaling bedoeld is (een fout in de
+ *   bron, of tekst die echt doorgehaald hoort), moet nog op onderwijsdoelen.be bevestigd worden; zo
+ *   verdwijnt er in elk geval niets en komt er niets ongemerkt bij;
+ * - entiteiten worden tekens.
+ * Bedoeld om te tonen en te vergelijken; de bestanden van laag 1 houden de HTML letterlijk. Nooit
+ * als HTML in een pagina zetten: het resultaat is tekst.
+ */
+export function htmlNaarTekst(html: string): string {
+  const bron = html.replace(/\r\n?/g, '\n');
+  // Elke `<sup>` of `<sub>` opent een eigen buffer, die bij het sluiten omgezet wordt.
+  const stapel: { soort: 'tekst' | 'sup' | 'sub'; tekst: string }[] = [{ soort: 'tekst', tekst: '' }];
+  let doorgehaald = 0;
+  const schrijf = (t: string) => {
+    stapel[stapel.length - 1].tekst += t;
+  };
+  const tekstDeel = (t: string) => {
+    const gewoon = decodeerEntiteiten(t);
+    schrijf(doorgehaald > 0 ? doorhalen(gewoon) : gewoon);
+  };
+  const sluitKlein = () => {
+    const laag = stapel.pop() as { soort: 'sup' | 'sub'; tekst: string };
+    schrijf(kleinSchrift(laag.tekst, laag.soort));
+  };
+  let plaats = 0;
+  const tags = new RegExp(HTML_TAG.source, 'g');
+  let m: RegExpExecArray | null;
+  while ((m = tags.exec(bron)) !== null) {
+    const naam = m[2]?.toLowerCase();
+    if (naam !== undefined && !HTML_ELEMENTEN.has(naam)) continue; // geen echte tag: blijft tekst
+    tekstDeel(bron.slice(plaats, m.index));
+    plaats = m.index + m[0].length;
+    if (naam === undefined) continue; // commentaar
+    const sluit = m[1] === '/';
+    if (naam === 'br') schrijf('\n');
+    else if (naam === 'li' && !sluit) schrijf('\n\u2022 ');
+    else if (sluit && BLOK_EINDE.has(naam)) schrijf('\n');
+    else if (sluit && (naam === 'td' || naam === 'th')) schrijf(' ');
+    else if (naam === 'sup' || naam === 'sub') {
+      if (!sluit) stapel.push({ soort: naam, tekst: '' });
+      else if (stapel[stapel.length - 1].soort === naam) sluitKlein();
+    } else if (DOORHALING.has(naam)) {
+      doorgehaald = Math.max(0, doorgehaald + (sluit ? -1 : 1));
+    }
+  }
+  tekstDeel(bron.slice(plaats));
+  while (stapel.length > 1) sluitKlein(); // niet gesloten: toch omgezet
+  return stapel[0].tekst
     .replace(/\u00a0/g, ' ')
     .replace(/[ \t]+/g, ' ')
     .replace(/ *\n */g, '\n')

@@ -158,7 +158,14 @@ export function StapNakijken({
 
   const bevestig = () => {
     if (redenen.length > 0 || !ontwerp || !check) return;
-    const definitief = bevestigLeerplan(ontwerp, { door: naam.trim(), samenvatting: check.rapport.samenvatting });
+    let definitief: Curriculum;
+    try {
+      definitief = bevestigLeerplan(ontwerp, { door: naam.trim(), rapport: check.rapport, samenvatting: check.rapport.samenvatting });
+    } catch (e) {
+      // De poort liep niet op precies deze doelen (of vond nog iets): niet bevestigen, wel zeggen waarom.
+      toast(e instanceof Error ? e.message : 'Bevestigen lukte niet. Kijk de doelen opnieuw na.', 'err');
+      return;
+    }
     bewaarNakijkerNaam(naam);
     if (!saveCurriculum(definitief)) return;
     toast(`Leerplan nagekeken en bewaard: ${definitief.title}`, 'ok');

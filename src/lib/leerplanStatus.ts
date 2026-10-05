@@ -2,7 +2,7 @@
 // `gecontroleerd` (docs/LEERPLANNEN.md § 14); in de app heet dat "nagekeken", nooit "gecontroleerd".
 
 import type { ControleStatus, Curriculum } from './curriculumTypes';
-import { controleStatus, doelenVingerafdruk } from './curriculum';
+import { bewaakControle, controleStatus } from './curriculum';
 import { formatDateShort } from './utils';
 
 export const STATUS_LABEL: Record<ControleStatus, string> = {
@@ -12,16 +12,13 @@ export const STATUS_LABEL: Record<ControleStatus, string> = {
 };
 
 /**
- * De status zoals de leerkracht ze moet zien. Een leerplan dat als nagekeken is opgeslagen maar
- * waarvan de doelen niet meer bij de vingerafdruk van het nakijken passen (bv. een bestand dat
- * buiten Boosterz is aangepast), geldt als "gewijzigd": zo blijft een slot nooit een leugen.
- * Zonder vingerafdruk valt er niets te vergelijken en geldt de opgeslagen status.
+ * De status zoals de leerkracht ze moet zien, met dezelfde regel als bij bewaren en importeren
+ * (`bewaakControle`): een leerplan dat als nagekeken is opgeslagen maar waarvan de doelen niet meer
+ * bij de vingerafdruk van het nakijken passen (bv. een bestand dat buiten Boosterz is aangepast), of
+ * dat helemaal geen vingerafdruk heeft, geldt als "gewijzigd". Zo blijft een slot nooit een leugen.
  */
 export function effectieveStatus(cur: Curriculum): ControleStatus {
-  const status = controleStatus(cur);
-  const vingerafdruk = cur.controle?.doelenSha256;
-  if (status === 'gecontroleerd' && vingerafdruk !== undefined && vingerafdruk !== doelenVingerafdruk(cur.goals)) return 'gewijzigd';
-  return status;
+  return controleStatus(bewaakControle(cur));
 }
 
 /** "Nagekeken door Boosterz (officiële bron) op 05 okt. 2026"; velden die ontbreken vallen weg. */

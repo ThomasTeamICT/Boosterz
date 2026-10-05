@@ -6,12 +6,30 @@ import {
   exportCurriculumJson,
   getCurriculum,
   importCurriculumJson,
+  importCurriculumJsonMetRapport,
   maakEigenKopie,
   sanitizeCurriculum,
   sanitizeGoal,
+  sanitizeGoals,
   saveCurriculum,
+  type BevestigOpties,
 } from './curriculum';
+import { controleerLeerplan, type ControleRapport } from './curriculumCheck';
 import type { Curriculum } from './curriculumTypes';
+
+/** Een rapport zonder fouten voor de (gesaneerde) doelen van `cur`: om opslag en export te testen. */
+function geslaagd(cur: Curriculum): ControleRapport {
+  const goals = sanitizeCurriculum(cur)?.goals ?? [];
+  return {
+    bevindingen: [], perDoel: {}, dekking: [], kanBevestigen: true, samenvatting: 'Nagemaakt rapport.',
+    tellers: { doelen: goals.length, letterlijk: goals.length, nietLetterlijk: 0, verwijzingen: 0, verwijzingenOk: 0 },
+    doelenSha256: doelenVingerafdruk(goals),
+  };
+}
+
+function bevestig(cur: Curriculum, opts: Omit<BevestigOpties, 'rapport'> & { rapport?: ControleRapport }): Curriculum {
+  return bevestigLeerplan(cur, { ...opts, rapport: opts.rapport ?? geslaagd(cur) });
+}
 
 function memoryStorage(): Storage {
   const data = new Map<string, string>();
@@ -213,7 +231,7 @@ describe('sanitizeCurriculum: versie 2', () => {
       const twee = sanitizeCurriculum(een);
       expect(twee).toStrictEqual(een);
     }
-    const nagekeken = bevestigLeerplan(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An', op: 5 });
+    const nagekeken = bevestig(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An', op: 5 });
     const gewijzigd = { ...nagekeken, goals: nagekeken.goals.map((g, i) => (i === 0 ? { ...g, text: 'Anders.' } : g)) };
     const een = sanitizeCurriculum(gewijzigd);
     expect(een?.controle?.status).toBe('gewijzigd');
@@ -263,12 +281,12 @@ describe('bewaakControle', () => {
   const basis = () => sanitizeCurriculum(v2Ruw()) as Curriculum;
 
   it('laat een kloppend nagekeken leerplan ongemoeid (hetzelfde object)', () => {
-    const cur = bevestigLeerplan(basis(), { door: 'An' });
+    const cur = bevestig(basis(), { door: 'An' });
     expect(bewaakControle(cur)).toBe(cur);
   });
 
   it('zet een gewijzigd doel op "gewijzigd" en bewaart naam, tijdstip en samenvatting', () => {
-    const cur = bevestigLeerplan(basis(), { door: 'An', op: 123, samenvatting: '2 van 2 doelen letterlijk' });
+    const cur = bevestig(basis(), { door: 'An', op: 123, samenvatting: '2 van 2 doelen letterlijk' });
     const anders = { ...cur, goals: [{ ...cur.goals[0], refsBron: 'MD 09.03' }, cur.goals[1]] };
     const uit = bewaakControle(anders);
     expect(uit).not.toBe(anders);
@@ -302,7 +320,7 @@ describe('exporteren en importeren', () => {
   });
 
   it('de vingerafdruk overleeft export en import: "gecontroleerd" blijft', () => {
-    const cur = bevestigLeerplan(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
+    const cur = bevestig(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
     const terug = importCurriculumJson(exportCurriculumJson(cur));
     expect(terug?.controle?.status).toBe('gecontroleerd');
     expect(terug?.controle?.doelenSha256).toBe(doelenVingerafdruk(cur.goals));
@@ -314,7 +332,7 @@ describe('exporteren en importeren', () => {
   it('een doel met regeleinden (lijst) overleeft bevestigen → export → import als "gecontroleerd"', () => {
     const ruw = v2Ruw();
     ruw.goals = [...(ruw.goals as unknown[]), { id: 'g3', code: 'LPD 3', text: 'Inleiding:\n• een\n• twee', note: 'Eerste  alinea.\nTweede alinea.' }];
-    const cur = bevestigLeerplan(sanitizeCurriculum(ruw) as Curriculum, { door: 'An' });
+    const cur = bevestig(sanitizeCurriculum(ruw) as Curriculum, { door: 'An' });
     expect(cur.goals[2].text).toBe('Inleiding:\n• een\n• twee');
     const terug = importCurriculumJson(exportCurriculumJson(cur));
     expect(terug?.controle?.status).toBe('gecontroleerd');
@@ -326,7 +344,7 @@ describe('exporteren en importeren', () => {
   });
 
   it('één doeltekst aanpassen in het bestand geeft "gewijzigd" bij import', () => {
-    const cur = bevestigLeerplan(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
+    const cur = bevestig(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
     const json = exportCurriculumJson(cur).replace('De leerlingen situeren landschappen.', 'De leerlingen situeren steden.');
     expect(json).toContain('steden');
     const terug = importCurriculumJson(json);
@@ -335,19 +353,19 @@ describe('exporteren en importeren', () => {
   });
 
   it('ook een gewijzigde verwijzing of rubriek in het bestand geeft "gewijzigd"', () => {
-    const cur = bevestigLeerplan(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
+    const cur = bevestig(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
     expect(importCurriculumJson(exportCurriculumJson(cur).replace('"92187"', '"92188"'))?.controle?.status).toBe('gewijzigd');
     expect(importCurriculumJson(exportCurriculumJson(cur).replace('"Bodem"', '"Bodems"'))?.controle?.status).toBe('gewijzigd');
   });
 
   it('exporteert een intussen gewijzigd leerplan niet als nagekeken', () => {
-    const cur = bevestigLeerplan(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
+    const cur = bevestig(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
     const anders = { ...cur, goals: cur.goals.slice(0, 1) };
     expect(JSON.parse(exportCurriculumJson(anders)).curriculum.controle.status).toBe('gewijzigd');
   });
 
   it('een eigen kopie is niet nagekeken en blijft dat na export en import', () => {
-    const cur = bevestigLeerplan(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
+    const cur = bevestig(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
     const kopie = importCurriculumJson(exportCurriculumJson(maakEigenKopie(cur)));
     expect(kopie?.kind).toBe('eigen');
     expect(kopie).not.toHaveProperty('controle');
@@ -355,15 +373,125 @@ describe('exporteren en importeren', () => {
   });
 });
 
+describe('sanitizeGoals: ids, lange codes en automatische codes', () => {
+  it('een automatische code neemt nooit de code van een echt doel over', () => {
+    const goals = sanitizeGoals(
+      [{ text: 'Doel zonder code' }, { code: 'AAR 1.1', text: 'Echt doel AAR 1.1' }, { code: 'LPD 1', text: 'x' }, { code: 'lpd 1', text: 'y' }],
+      { autoPrefix: 'Aar' },
+    );
+    expect(goals.map((g) => `${g.code}: ${g.text}`)).toEqual(['AAR 1.2: Doel zonder code', 'AAR 1.1: Echt doel AAR 1.1', 'LPD 1: x']);
+  });
+
+  it('slaat ook later toegekende automatische codes over en blijft idempotent', () => {
+    const ruw = [{ text: 'a' }, { text: 'b' }, { code: 'DOEL 1.2', text: 'c' }, { text: 'd' }];
+    const een = sanitizeGoals(ruw);
+    expect(een.map((g) => g.code)).toEqual(['DOEL 1.1', 'DOEL 1.3', 'DOEL 1.2', 'DOEL 1.4']);
+    expect(sanitizeGoals(een)).toStrictEqual(een);
+  });
+
+  it('geeft een tweede doel met hetzelfde id een nieuw id', () => {
+    const goals = sanitizeGoals([{ id: 'z', code: '1', text: 'a' }, { id: 'z', code: '2', text: 'b' }, { id: 'y', code: '3', text: 'c' }]);
+    expect(goals[0].id).toBe('z');
+    expect(goals[1].id).not.toBe('z');
+    expect(goals[1].id.length).toBeGreaterThan(0);
+    expect(goals[2].id).toBe('y');
+    expect(sanitizeGoals(goals)).toStrictEqual(goals);
+  });
+
+  it('kort een code in tot 60 tekens, ook voor automatische codes met een lang voorvoegsel', () => {
+    const lang = `LPD ${'1'.repeat(100)}`;
+    const [g] = sanitizeGoals([{ code: lang, text: 'a' }]);
+    expect(g.code).toBe(lang.slice(0, 60));
+    expect(sanitizeGoal({ code: `  ${lang}  `, text: 'a' })?.code).toHaveLength(60);
+    const auto = sanitizeGoals([{ text: 'a' }], { autoPrefix: 'x'.repeat(200) });
+    expect(auto[0].code.length).toBeLessThanOrEqual(60);
+    expect(auto[0].code.endsWith(' 1.1')).toBe(true);
+  });
+});
+
+describe('importCurriculumJsonMetRapport', () => {
+  it('meldt hoeveel doelen bij het saneren wegvielen', () => {
+    const json = JSON.stringify({
+      app: 'boosterz', kind: 'leerplan', v: 2,
+      curriculum: { title: 't', subject: 'Aardrijkskunde', goals: [{ code: 'LPD 1', text: 'a' }, { code: 'LPD 1', text: 'b' }, { text: '' }, 'rommel', { code: 'LPD 2', text: 'c' }] },
+    });
+    const { curriculum, weggevallen } = importCurriculumJsonMetRapport(json);
+    expect(curriculum?.goals.map((g) => g.code)).toEqual(['LPD 1', 'LPD 2']);
+    expect(weggevallen).toBe(3);
+    expect(importCurriculumJson(json)?.goals).toHaveLength(2);
+  });
+
+  it('geeft null en het aantal als er niets overblijft, en 0 bij rommel', () => {
+    expect(importCurriculumJsonMetRapport('{"goals":[{"text":""},{"text":" "}]}')).toEqual({ curriculum: null, weggevallen: 2 });
+    expect(importCurriculumJsonMetRapport('geen json')).toEqual({ curriculum: null, weggevallen: 0 });
+    expect(importCurriculumJsonMetRapport(exportCurriculumJson(sanitizeCurriculum(v2Ruw()) as Curriculum)).weggevallen).toBe(0);
+  });
+});
+
+describe('bevestigLeerplan', () => {
+  /** Een ongesaneerd leerplan met een echte bron, en het rapport van de poort op de gesaneerde vorm. */
+  function metBron() {
+    const cur: Curriculum = {
+      id: 'lp', title: 't', net: 'kov', subject: 'Aardrijkskunde', level: '', createdAt: 1, updatedAt: 1, kind: 'leerplan',
+      herkomst: { methode: 'tekst', ingelezenOp: 1, leerplancode: 'X', bronSha256: HEX },
+      goals: [{ id: 'a', code: 'lpd 1', text: 'De  leerlingen  kunnen A.', theme: ' Thema ' }],
+    };
+    const bron = 'LPD 1 De leerlingen kunnen A.';
+    const rapport = controleerLeerplan(sanitizeCurriculum(cur) as Curriculum, { bronTekst: bron });
+    return { cur, bron, rapport };
+  }
+
+  it('saneert zelf: een ongesaneerd leerplan blijft nagekeken na export en import', () => {
+    const { cur, rapport } = metBron();
+    expect(rapport.kanBevestigen).toBe(true);
+    const b = bevestigLeerplan(cur, { door: 'Jan', rapport });
+    expect(b.goals[0]).toMatchObject({ code: 'LPD 1', text: 'De leerlingen kunnen A.', theme: 'Thema' });
+    expect(b.controle).toMatchObject({ status: 'gecontroleerd', door: 'Jan', doelenSha256: rapport.doelenSha256, samenvatting: rapport.samenvatting });
+    const terug = importCurriculumJson(exportCurriculumJson(b));
+    expect(terug?.controle?.status).toBe('gecontroleerd');
+  });
+
+  it('weigert een lege naam', () => {
+    const { cur, rapport } = metBron();
+    for (const door of ['', '   ', undefined as unknown as string]) {
+      expect(() => bevestigLeerplan(cur, { door, rapport })).toThrow(/naam/);
+    }
+  });
+
+  it('weigert een rapport met fouten of zonder rapport', () => {
+    const { cur } = metBron();
+    const fout = controleerLeerplan(sanitizeCurriculum(cur) as Curriculum, { bronTekst: 'Een andere bron.' });
+    expect(fout.kanBevestigen).toBe(false);
+    expect(() => bevestigLeerplan(cur, { door: 'Jan', rapport: fout })).toThrow(/nog niet als nagekeken/);
+    expect(() => bevestigLeerplan(cur, { door: 'Jan' } as BevestigOpties)).toThrow(/nog niet als nagekeken/);
+  });
+
+  it('weigert als de poort op andere doelen liep (gewijzigd na het nakijken, of niet gesaneerd)', () => {
+    const { cur, bron, rapport } = metBron();
+    const anders = { ...cur, goals: [{ ...cur.goals[0], text: 'De leerlingen kunnen B.' }] };
+    expect(() => bevestigLeerplan(anders, { door: 'Jan', rapport })).toThrow(/niet meer dezelfde/);
+    // De poort liep op de ongesaneerde doelen ("lpd 1", dubbele spaties): de vingerafdruk past niet.
+    const ongesaneerd = controleerLeerplan(cur, { bronTekst: bron });
+    expect(() => bevestigLeerplan(cur, { door: 'Jan', rapport: { ...ongesaneerd, kanBevestigen: true } })).toThrow(/niet meer dezelfde/);
+  });
+
+  it('kort de naam in zoals bij saneren, zodat export en import niets veranderen', () => {
+    const { cur, rapport } = metBron();
+    const b = bevestigLeerplan(cur, { door: `  ${'a'.repeat(200)}  `, rapport, op: 7, samenvatting: '  eigen  ' });
+    expect(b.controle).toMatchObject({ door: 'a'.repeat(120), op: 7, samenvatting: 'eigen' });
+    expect(importCurriculumJson(exportCurriculumJson(b))?.controle).toEqual(b.controle);
+  });
+});
+
 describe('saveCurriculum', () => {
   it('bewaart een nagekeken leerplan met kloppende vingerafdruk als nagekeken', () => {
-    const cur = bevestigLeerplan(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
+    const cur = bevestig(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
     expect(saveCurriculum(cur)).toBe(true);
     expect(getCurriculum(cur.id)?.controle?.status).toBe('gecontroleerd');
   });
 
   it('bewaart een nagekeken leerplan met gewijzigde doelen als "gewijzigd"', () => {
-    const cur = bevestigLeerplan(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
+    const cur = bevestig(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
     saveCurriculum({ ...cur, goals: cur.goals.map((g) => ({ ...g, text: `${g.text} Extra.` })) });
     const bewaard = getCurriculum(cur.id);
     expect(bewaard?.controle?.status).toBe('gewijzigd');

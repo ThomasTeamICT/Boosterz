@@ -8,7 +8,7 @@ import {
 import type { Curriculum } from './curriculumTypes';
 import { htmlNaarTekst, type Minimumdoel, type MinimumdoelenSetBestand } from './minimumdoelen';
 import {
-  NAGEKEKEN_DOOR_BRON, isAttitude, isOptioneel, leerplanUitSet, rubriekenVan, themaVanDoel, uniekeCodes, vindLeerplanVoorSet,
+  NAGEKEKEN_DOOR_BRON, bevestigUitOfficieleSet, isAttitude, isOptioneel, leerplanUitSet, rubriekenVan, themaVanDoel, uniekeCodes, vindLeerplanVoorSet,
 } from './minimumdoelenLeerplan';
 
 // ── Een kleine, nagemaakte set ──────────────────────────────────────────────
@@ -271,6 +271,92 @@ describe('vindLeerplanVoorSet', () => {
     expect(vindLeerplanVoorSet([gemarkeerd], bestand)).toBeUndefined();
     // Het ongewijzigde origineel wordt wel gevonden, ook als er een gewijzigde bij staat.
     expect(vindLeerplanVoorSet([gewijzigd, leerplan], bestand)).toBe(leerplan);
+  });
+});
+
+// ── Ronde 2: bevestigen via de controlepoort, en geen verouderd of vervalst leerplan hergebruiken ──
+
+describe('bevestigUitOfficieleSet', () => {
+  const bestand = maakBestand();
+  const { leerplan } = leerplanUitSet(bestand);
+  const zonderStatus = (): Curriculum => {
+    const c: Curriculum = { ...leerplan };
+    delete c.controle;
+    return c;
+  };
+
+  it('kijkt het leerplan na met de set als bron en bevestigt het', () => {
+    const r = bevestigUitOfficieleSet(zonderStatus(), bestand);
+    expect(r.bevestigd).toBe(true);
+    expect(r.rapport.kanBevestigen).toBe(true);
+    expect(r.rapport.tellers).toMatchObject({ doelen: 4, letterlijk: 4, verwijzingen: 4, verwijzingenOk: 4 });
+    expect(r.leerplan.controle).toMatchObject({ status: 'gecontroleerd', door: NAGEKEKEN_DOOR_BRON, doelenSha256: r.rapport.doelenSha256 });
+  });
+
+  it('bevestigt niet als een tekst niet meer gelijk is aan de officiële, of als een doel ontbreekt', () => {
+    const anders = zonderStatus();
+    anders.goals = anders.goals.map((g, i) => (i === 0 ? { ...g, text: 'Een verzonnen doel.' } : g));
+    const r = bevestigUitOfficieleSet(anders, bestand);
+    expect(r.bevestigd).toBe(false);
+    expect(r.leerplan).not.toHaveProperty('controle');
+    expect(r.rapport.bevindingen.find((b) => b.ernst === 'fout')?.bericht).toContain('is niet gelijk aan de officiële tekst');
+
+    const korter = { ...zonderStatus(), goals: zonderStatus().goals.slice(1) };
+    expect(bevestigUitOfficieleSet(korter, bestand).bevestigd).toBe(false);
+  });
+
+  it('weigert een leerplan dat niet uit een officiële set komt', () => {
+    const uitPdf: Curriculum = { ...zonderStatus(), herkomst: { methode: 'pdf', ingelezenOp: 1 } };
+    expect(() => bevestigUitOfficieleSet(uitPdf, bestand)).toThrow(/officiële set/);
+  });
+});
+
+describe('leerplanUitSet: als het nakijken iets vindt', () => {
+  it('blijft het leerplan niet nagekeken en staat dat in de waarschuwingen', () => {
+    // Twee codes die pas na het inkorten tot 60 tekens gelijk worden: bij het saneren valt er een weg.
+    const lang = 'X'.repeat(70);
+    const b = maakBestand([{ id: '1', code: `${lang}1`, tekst: 'Eerste.' }, { id: '2', code: `${lang}2`, tekst: 'Tweede.' }]);
+    const r = leerplanUitSet(b);
+    expect(controleStatus(r.leerplan)).toBe('niet-gecontroleerd');
+    expect(r.waarschuwingen[0]).toBe('1 doel viel weg bij het saneren.');
+    expect(r.waarschuwingen[1]).toMatch(/^Het leerplan kon niet als nagekeken bevestigd worden, want het nakijken vond een probleem: /);
+  });
+});
+
+describe('vindLeerplanVoorSet: alleen een leerplan dat een verse afleiding uit de set is', () => {
+  const bestand = maakBestand();
+
+  it('hergebruikt geen vervalst leerplan dat zich als officieel voordoet', () => {
+    const goals = [{ id: 'x', code: '1', text: 'Een vervalst doel dat niet in de set staat.' }];
+    const vervalst = importCurriculumJson(JSON.stringify({
+      app: 'boosterz', kind: 'leerplan', v: 2,
+      curriculum: {
+        id: 'z', title: 'Vals', net: 'minimumdoelen', subject: 'A', level: '', kind: 'leerplan', goals,
+        herkomst: { methode: 'officieel', bronNaam: bestand.set.id, bronSha256: bestand.set.sha256, ingelezenOp: 1 },
+        controle: { status: 'gecontroleerd', door: NAGEKEKEN_DOOR_BRON, op: 1, doelenSha256: doelenVingerafdruk(goals) },
+        minimumdoelenSets: [bestand.set.id],
+      },
+    })) as Curriculum;
+    expect(controleStatus(vervalst)).toBe('gecontroleerd'); // de status zelf blijft (bewust: geen herafleiding bij import)
+    expect(vindLeerplanVoorSet([vervalst], bestand)).toBeUndefined();
+  });
+
+  it('hergebruikt geen leerplan van vóór een verbetering van htmlNaarTekst', () => {
+    const b = maakBestand([{ id: '1', code: '1', tekst: '<table><tr><td>klank</td><td>klank</td></tr></table>' }, { id: '2', code: '2', tekst: 'Tweede.' }]);
+    const nu = leerplanUitSet(b).leerplan;
+    expect(nu.goals[0].text).toBe('klank klank');
+    // Zo zag het er vroeger uit: de cellen aan elkaar geplakt.
+    const oudeGoals = nu.goals.map((g, i) => (i === 0 ? { ...g, text: 'klankklank' } : g));
+    const oud: Curriculum = { ...nu, goals: oudeGoals, controle: { ...nu.controle!, doelenSha256: doelenVingerafdruk(oudeGoals) } };
+    expect(controleStatus(oud)).toBe('gecontroleerd');
+    expect(vindLeerplanVoorSet([oud], b)).toBeUndefined();
+    expect(vindLeerplanVoorSet([oud, nu], b)).toBe(nu);
+  });
+
+  it('een verse afleiding heeft dezelfde vingerafdruk als het leerplan uit leerplanUitSet', () => {
+    expect(doelenVingerafdruk(leerplanUitSet(bestand).leerplan.goals)).toBe(doelenVingerafdruk(leerplanUitSet(bestand).leerplan.goals));
+    const bewaard = importCurriculumJson(exportCurriculumJson(leerplanUitSet(bestand).leerplan)) as Curriculum;
+    expect(vindLeerplanVoorSet([bewaard], bestand)).toBe(bewaard);
   });
 });
 

@@ -92,6 +92,36 @@ describe('vindVerwijzingen', () => {
     expect(vindVerwijzingen('ET 9.1 – De leerlingen')).toEqual(['9.1']);
   });
 
+  it('herkent "t.e.m.", "t/m" en "tot en met" als reeks', () => {
+    expect(vindVerwijzingen('MD 09.01 t.e.m. 09.03')).toEqual(['09.01', '09.02', '09.03']);
+    expect(vindVerwijzingen('MD 09.01 tem 09.03')).toEqual(['09.01', '09.02', '09.03']);
+    expect(vindVerwijzingen('MD 09.01 t/m 09.03')).toEqual(['09.01', '09.02', '09.03']);
+    expect(vindVerwijzingen('MD 09.01 tot en met 09.03, 09.05')).toEqual(['09.01', '09.02', '09.03', '09.05']);
+    expect(vindVerwijzingen('ET 9.1 Tot En Met 9.2')).toEqual(['9.1', '9.2']);
+    expect(zoekVerwijzingBlokken('(MD 09.01 t.e.m. 09.03)')[0].tekst).toBe('MD 09.01 t.e.m. 09.03');
+  });
+
+  it('markeert een reeks die niet uitgeschreven kan worden als onvolledig', () => {
+    const verschillend = zoekVerwijzingBlokken('MD 09.08-10.02');
+    expect(verschillend[0]).toMatchObject({ onvolledig: true, codes: ['09.08', '10.02'] });
+    expect(verschillend[0].onvolledigeReeksen).toEqual([{ van: '09.08', tot: '10.02' }]);
+    expect(zoekVerwijzingBlokken('MD 09.01-09.40')[0]).toMatchObject({ onvolledig: true, onvolledigeReeksen: [{ van: '09.01', tot: '09.40' }] });
+    expect(zoekVerwijzingBlokken('MD 1.5-1.2')[0].onvolledig).toBe(true);
+    expect(zoekVerwijzingBlokken('MD 09.01-99')[0].onvolledig).toBe(true);
+    // Een volledige reeks of een gewone lijst is niet onvolledig.
+    expect(zoekVerwijzingBlokken('MD 09.01-09.03, 09.05')[0]).not.toHaveProperty('onvolledig');
+    expect(zoekVerwijzingBlokken('MD 09.01-03')[0]).not.toHaveProperty('onvolledigeReeksen');
+  });
+
+  it('leest "5.1a" niet als "5.1": een code mag niet in een letter overlopen', () => {
+    expect(vindVerwijzingen('MD 5.1a')).toEqual([]);
+    expect(vindVerwijzingen('(MD 5.1a)')).toEqual([]);
+    expect(vindVerwijzingen('MD 09.01, 09.02b')).toEqual(['09.01']);
+    expect(vindVerwijzingen('MD 09.01-03a')).toEqual(['09.01']);
+    expect(vindVerwijzingen('MD 09.01.')).toEqual(['09.01']);
+    expect(vindVerwijzingen('(MD 09.01)')).toEqual(['09.01']);
+  });
+
   it('geeft de plaats van elk blok, zodat de lezer het uit de tekst kan halen', () => {
     const t = 'Tekst (MD 09.01, 09.03) en ET 9.1-9.2.';
     const blokken = zoekVerwijzingBlokken(t);

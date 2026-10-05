@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowDown, ExternalLink, ListTree, LoaderCircle } from 'lucide-react';
-import { getCurricula, saveCurriculum } from '../lib/curriculum';
+import { controleStatus, getCurricula, saveCurriculum } from '../lib/curriculum';
 import { geldigheidVanDoelen, htmlNaarTekst, type MinimumdoelenIndexSet, type MinimumdoelenSetBestand } from '../lib/minimumdoelen';
 import {
   FOUT_NIET_GELADEN, SOORT_LABEL, contextVanSet, datumLeesbaar, filterSets, geldigheidTekst, graadOpties, indexHeeftGeldigheid,
@@ -347,7 +347,8 @@ function SetPaneel({
     // Mislukt het bewaren (opslag vol), dan meldt de opslaglaag dat zelf: dan blijven we hier.
     if (!saveCurriculum(leerplan)) return;
     const extra = waarschuwingen.length > 0 ? ` ${waarschuwingen.join(' ')}` : '';
-    toast(`Leerplan bewaard: ${leerplan.title} (${aantalDoelen(leerplan.goals.length)}, nagekeken).${extra}`, 'ok');
+    const status = controleStatus(leerplan) === 'gecontroleerd' ? 'nagekeken' : 'nog niet nagekeken';
+    toast(`Leerplan bewaard: ${leerplan.title} (${aantalDoelen(leerplan.goals.length)}, ${status}).${extra}`, 'ok');
     navigate(`/leerplannen?open=${encodeURIComponent(leerplan.id)}`);
   };
 

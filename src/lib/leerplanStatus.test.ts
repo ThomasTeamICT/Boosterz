@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { bevestigLeerplan, createCurriculum, doelenVingerafdruk, maakEigenKopie } from './curriculum';
+import type { ControleRapport } from './curriculumCheck';
 import type { Curriculum } from './curriculumTypes';
 import { STATUS_LABEL, effectieveStatus, isOfficieel, nagekekenTekst } from './leerplanStatus';
+
+/** Bevestigen met een rapport zonder fouten voor precies deze doelen (de poort zelf is elders getest). */
+function bevestig(cur: Curriculum, opts: { door: string; op?: number }): Curriculum {
+  const rapport = { kanBevestigen: true, samenvatting: '', doelenSha256: doelenVingerafdruk(cur.goals) } as ControleRapport;
+  return bevestigLeerplan(cur, { ...opts, rapport });
+}
 
 function leerplan(): Curriculum {
   return createCurriculum({
@@ -19,11 +26,11 @@ describe('effectieveStatus', () => {
   });
 
   it('laat een nagekeken leerplan met dezelfde doelen nagekeken', () => {
-    expect(effectieveStatus(bevestigLeerplan(leerplan(), { door: 'Test' }))).toBe('gecontroleerd');
+    expect(effectieveStatus(bevestig(leerplan(), { door: 'Test' }))).toBe('gecontroleerd');
   });
 
   it('maakt van een nagekeken leerplan met gewijzigde doelen een gewijzigd leerplan', () => {
-    const l = bevestigLeerplan(leerplan(), { door: 'Test' });
+    const l = bevestig(leerplan(), { door: 'Test' });
     const tekst = { ...l, goals: l.goals.map((g, i) => (i === 0 ? { ...g, text: 'Aangepast.' } : g)) };
     expect(effectieveStatus(tekst)).toBe('gewijzigd');
     const verwijzing = { ...l, goals: l.goals.map((g) => ({ ...g, refs: undefined })) };
@@ -32,15 +39,15 @@ describe('effectieveStatus', () => {
     expect(effectieveStatus(extra)).toBe('gewijzigd');
   });
 
-  it('vertrouwt de opgeslagen status zonder vingerafdruk, en laat "gewijzigd" gewijzigd', () => {
-    const zonder: Curriculum = { ...leerplan(), controle: { status: 'gecontroleerd' } };
-    expect(effectieveStatus(zonder)).toBe('gecontroleerd');
+  it('gelooft "nagekeken" niet zonder vingerafdruk (zoals bij bewaren), en laat "gewijzigd" gewijzigd', () => {
+    const zonder: Curriculum = { ...leerplan(), controle: { status: 'gecontroleerd', door: 'X' } };
+    expect(effectieveStatus(zonder)).toBe('gewijzigd');
     const gewijzigd: Curriculum = { ...leerplan(), controle: { status: 'gewijzigd', doelenSha256: doelenVingerafdruk(leerplan().goals) } };
     expect(effectieveStatus(gewijzigd)).toBe('gewijzigd');
   });
 
   it('maakt een eigen kopie weer niet nagekeken', () => {
-    expect(effectieveStatus(maakEigenKopie(bevestigLeerplan(leerplan(), { door: 'Test' })))).toBe('niet-gecontroleerd');
+    expect(effectieveStatus(maakEigenKopie(bevestig(leerplan(), { door: 'Test' })))).toBe('niet-gecontroleerd');
   });
 
   it('heeft voor elke status een label in gewone taal', () => {
@@ -55,7 +62,7 @@ describe('effectieveStatus', () => {
 describe('nagekekenTekst', () => {
   it('noemt wie en wanneer, en laat weg wat ontbreekt', () => {
     const op = new Date(2026, 9, 5, 12).getTime();
-    const tekst = nagekekenTekst(bevestigLeerplan(leerplan(), { door: 'Boosterz (officiële bron)', op }));
+    const tekst = nagekekenTekst(bevestig(leerplan(), { door: 'Boosterz (officiële bron)', op }));
     expect(tekst).toMatch(/^Nagekeken door Boosterz \(officiële bron\) op .*2026$/);
     expect(nagekekenTekst({ ...leerplan(), controle: { status: 'gecontroleerd', door: 'An' } })).toBe('Nagekeken door An');
     expect(nagekekenTekst({ ...leerplan(), controle: { status: 'gecontroleerd', op } })).toMatch(/^Nagekeken op /);
