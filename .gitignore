@@ -7,3 +7,6 @@ tsconfig.tsbuildinfo
 
 # Tijdelijke hulpscripts van agents tijdens audits en tests (worden na gebruik verwijderd)
 tests/tmp-*.mjs
+
+# Rapport van de laatste ophaling van de minimumdoelen (wordt als artifact van de workflow bewaard)
+tools/leerplannen/rapport/

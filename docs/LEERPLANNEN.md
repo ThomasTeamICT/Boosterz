@@ -8,7 +8,8 @@ leerplan) moet de punten met "te bevestigen" afvinken vóór het bouwen begint.*
 | Wat | Stand |
 |---|---|
 | API-sleutel Onderwijsdoelen-API | **Bestaat.** Aangevraagd via het portaalformulier op 18 december 2025, aangemaakt op 9 januari 2026 door de Centrale cel ICT. De sleutel kwam per mail in de ICT-mailbox van de scholengroep en geldt voor alle open API's van Onderwijs & Vorming. Hij staat nergens in de repo. |
-| Sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` | **Gedaan** op 5 oktober 2026 (repository secret voor Actions). Volgende stap: pakket L1 bouwen. |
+| Sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` | **Gedaan** op 5 oktober 2026 (repository secret voor Actions). |
+| Pakket L1 (ophaalscript, workflow, datatest) | Gebouwd en gereviewd (twee reviewers, rechter). Volgende stap: eerste run met de hand starten en het rapport nakijken; daarna de API-vorm vastleggen. |
 | Vragen aan het departement (§ 12) | Nog te stellen. Sinds 24 maart 2026 **alleen via het formulier van TechLoket Onderwijs**, niet meer per mail (Nieuwsbrief API K&C van AHOVOKS). |
 | Vragen aan KOV, GO!, OVSG, POV (§ 12) | Teksten klaar in het aanvraagdossier (Claude Docs, "Aanvraagdossier leerplangegevens"); nog niet verstuurd. |
 | Eerste toepassing | De cursus "Aardrijkskunde: bodem en landschap" (leerplan KOV I-Aar-a) krijgt doelcodes zodra laag 1 en het leerplan erin zitten. |
@@ -71,35 +72,60 @@ gebruikt (`tibodepauw/Leerkrachtentools`). Fase 1 bevestigt ze met een echt antw
 **Ophalen gebeurt nooit in de browser.** De sleutel zou dan in de publieke bundel staan, en de
 API laat vermoedelijk geen verzoeken van andere sites toe (CORS, te bevestigen).
 
-- `tools/leerplannen/haal-minimumdoelen.mjs` (Node 22, geen afhankelijkheden): haalt alle
-  pagina's op met `ONDERWIJSDOELEN_API_KEY` uit de omgeving, controleert dat het aantal gelijk is
-  aan `totalItems`, normaliseert, en schrijft per set een bestand.
-- `.github/workflows/minimumdoelen.yml`: met de hand te starten en maandelijks. Draait het script
-  met de sleutel als **GitHub-geheim**, en opent een pull request naar
-  `claude/bookwidgets-web-app-kvcfim` als er iets veranderd is. Een mens keurt het verschil
-  goed; niets gaat automatisch live.
+- `tools/leerplannen/haal-minimumdoelen.mjs` (Node 22.18 of nieuwer, geen afhankelijkheden;
+  de normalisatie zelf staat in `src/lib/minimumdoelen.ts`): haalt alle pagina's op met
+  `ONDERWIJSDOELEN_API_KEY` uit de omgeving, normaliseert, en schrijft per gekozen set een bestand.
+  Opties: `--bron <bestand>` (offline, met een opgeslagen antwoord), `--uit`, `--rapport`,
+  `--filter <regex>` (standaard de sets van het secundair).
+- **Niets stil verliezen.** Het script schrijft niets en stopt met exitcode 3 als in een gekozen set
+  een doel botst (zelfde code, andere tekst), een variant heeft (zelfde code en tekst, andere
+  gegevens), wordt overgeslagen (geen code of omschrijving) of meerwaardige velden heeft, en ook als
+  `totalItems` ontbreekt. Exitcode 1 bij een aantal dat niet klopt met `totalItems`, records die
+  dubbel binnenkomen (verschuivende paginering), een fout halverwege en andere fouten; 2 als geen set
+  herkend wordt. Het rapport toont altijd wat er binnenkwam (`veldInventaris`, `typeInventaris`,
+  `paginaSleutels`, `alleSets`, `problemen`), zodat de eerste echte run de API-vorm laat zien.
+  Sets die al een bestand hebben, worden altijd mee bijgewerkt, ook buiten de filter.
+- **De sleutel beschermd.** Nooit in logs, rapport of bestanden (het script stopt als een tekst de
+  sleutel bevat), en het volgt geen doorverwijzingen, want een eigen kop zoals `x-api-key` gaat
+  daarbij mee naar de andere host.
+- **Ongewijzigd = niet aanraken.** Een set waarvan het opnieuw gebouwde bestand byte voor byte
+  gelijk is (met het oude tijdstip), wordt niet herschreven; zo is er geen verschil en geen pull
+  request.
+- `.github/workflows/minimumdoelen.yml`: met de hand te starten (Actions → Minimumdoelen bijwerken →
+  Run workflow) en maandelijks (de 3de). Het ophalen gebeurt vóór `npm ci --ignore-scripts`, zodat
+  geen installscript de stap met het geheim kan beïnvloeden. Het rapport komt altijd als artifact
+  `minimumdoelen-rapport` mee. Bij wijzigingen pusht de taak een branch `minimumdoelen/bijwerken-…`
+  en opent een pull request naar `claude/bookwidgets-web-app-kvcfim`. Een mens keurt het verschil
+  goed; niets gaat automatisch live. Daarvoor moet in de repo-instellingen "Allow GitHub Actions to
+  create and approve pull requests" aan staan (Settings → Actions → General); anders faalt de taak
+  zichtbaar, met de vergelijkingslink in de samenvatting.
 - De sleutel staat nooit in de repo, nooit in een log en nooit in een chat.
 
 **Bestandsformaat**: `public/leerplannen/minimumdoelen/<SET>.json`, plus een `index.json`
-met de beschikbare sets.
+met de beschikbare sets (zelfde kopvelden, plus `bestand`).
 
 ```json
 {
   "app": "boosterz", "kind": "minimumdoelen", "v": 1,
   "set": {
-    "id": "SO_1STE_GRAAD_V2_1", "titel": "…", "graad": "…", "stroom": "…", "versie": "V2_1",
-    "opgehaald": "2026-10-04T10:00:00Z",
+    "id": "SO_1STE_GRAAD_V2_1", "naam": "…", "graad": "…", "stroom": "…", "leerjaar": "…",
+    "sleutelcompetenties": [{ "nr": "…", "naam": "…" }],
     "bron": "https://www.onderwijsdoelen.be/doelen/SO_1STE_GRAAD_V2_1",
-    "licentie": "…", "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen", "opgehaald": "2026-10-05T10:00:00Z",
     "aantal": 0, "sha256": "…"
   },
   "doelen": [
-    { "code": "…", "tekst": "…", "type": "…", "sleutelcompetentie": { "nr": "…", "naam": "…" },
-      "graad": "…", "stroom": "…", "leerjaar": "…" }
+{ "code": "…", "tekst": "…", "type": "…", "sleutelcompetentie": { "nr": "…", "naam": "…" }, "extra": { "…": "…" } }
   ]
 }
 ```
 
+- `graad`, `stroom` en `leerjaar` staan op setniveau als alle doelen dezelfde waarde hebben; per
+  doel alleen als die afwijkt. `extra` bewaart onbekende tekstvelden van de API, zodat niets
+  verloren gaat. `sha256` is de vingerafdruk van de doelen (canonieke JSON). Een `versie`-veld en
+  de echte vorm van de set-id volgen na de eerste echte run.
 - De bestanden gaan **niet** in localStorage (de volledige set is te groot) en niet in de
   hoofdbundel. De app haalt ze pas op als iemand ze nodig heeft. De service worker bewaart
   ze daarna voor offline gebruik ("andere eigen bestanden: netwerk eerst, cache als terugval").

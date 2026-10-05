@@ -1,0 +1,225 @@
+name: Minimumdoelen bijwerken
+
+# Haalt de officiële minimumdoelen van de Vlaamse overheid op via de Onderwijsdoelen-API, schrijft
+# ze naar public/leerplannen/minimumdoelen/ en opent een pull request als er iets veranderd is.
+# Een mens keurt het verschil goed; niets gaat automatisch live. Ontwerp: docs/LEERPLANNEN.md § 5.
+#
+# De API-sleutel staat als geheim ONDERWIJSDOELEN_API_KEY (Settings → Secrets and variables →
+# Actions). Hij gaat enkel via de omgeving naar het script en komt nooit in een log of in het rapport.
+#
+# Eenmalig instellen: zet in Settings → Actions → General "Allow GitHub Actions to create and approve
+# pull requests" aan. Zonder die instelling lukt de pull request niet; de taak faalt dan zichtbaar
+# en zet een vergelijkingslink in de samenvatting (de branch met de wijzigingen staat er al).
+#
+# Een geplande taak draait op de standaardbranch van de repository: dat moet de branch zijn waar de
+# pull request naartoe gaat (claude/bookwidgets-web-app-kvcfim).
+
+on:
+  workflow_dispatch:
+    inputs:
+      filter:
+        description: 'Filter op de sets, als reguliere expressie (leeg = standaard: secundair|\bSO\b|SO_; . = alle sets)'
+        required: false
+        type: string
+  schedule:
+    - cron: '23 5 3 * *'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: minimumdoelen
+  cancel-in-progress: false
+
+jobs:
+  bijwerken:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # De volgorde doet ertoe: de stap met het geheim draait vóór de installatie van de npm-pakketten.
+      # Het script heeft geen afhankelijkheden, en zo kan geen installscript van een pakket (dat met de
+      # rechten van deze taak draait) de bestanden aanpassen die in de stap met het geheim lopen of
+      # de inloggegevens van de checkout lezen. Het geheim staat enkel in de omgeving van deze ene stap.
+      - name: Minimumdoelen ophalen
+        env:
+          ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
+          # De filter gaat via de omgeving, nooit rechtstreeks in de opdrachtregel (script-injectie).
+          FILTER: ${{ inputs.filter }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ -n "${FILTER:-}" ]; then
+            args+=(--filter "$FILTER")
+          fi
+          node tools/leerplannen/haal-minimumdoelen.mjs ${args[@]+"${args[@]}"}
+
+      # --ignore-scripts: installscripts van pakketten zijn voor de controle niet nodig (vitest draait
+      # met de esbuild-binary uit zijn eigen platformpakket) en krijgen zo geen kans om iets uit te voeren.
+      - name: Pakketten installeren
+        run: npm ci --ignore-scripts
+
+      - name: Geschreven bestanden controleren
+        run: |
+          set -euo pipefail
+          npx vitest run src/lib/minimumdoelen.test.ts
+
+      - name: Rapport bewaren
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: minimumdoelen-rapport
+          path: tools/leerplannen/rapport/laatste-ophaling.json
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Samenvatting
+        if: always()
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';
+          // Tekst uit de API of uit het rapport gaat altijd als codespan de samenvatting in: zonder
+          // backticks, regeleinden en stuurtekens, en afgekapt op 120 tekens.
+          const kort = (t) => '`' + String(t).replace(/[`|]/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').slice(0, 120) + '`';
+          const pad = 'tools/leerplannen/rapport/laatste-ophaling.json';
+          const uit = ['## Minimumdoelen ophalen', ''];
+          if (!fs.existsSync(pad)) {
+            uit.push('Er is geen rapport: de ophaling is niet tot het einde gekomen. Zie het logboek van de stap "Minimumdoelen ophalen".');
+          } else {
+            const r = JSON.parse(fs.readFileSync(pad, 'utf8'));
+            const lijst = (a) => (a && a.length ? a.map(kort).join(', ') : 'geen');
+            const gekozen = (r.alleSets || []).filter((s) => s.gekozen).length;
+            const p = r.problemen || {};
+            const aantal = (soort) => (p[soort] ? p[soort].aantal : 0);
+            if (r.fout) uit.push('**Fout:** ' + kort(r.fout), '');
+            uit.push(
+              '| | |',
+              '|---|---|',
+              '| Bron | ' + r.bron + ' |',
+              '| Pagina\'s | ' + r.paginas + ' |',
+              '| Records | ' + r.records + (r.totalItems == null ? '' : ' (totalItems volgens de API: ' + r.totalItems + ')') + ' |',
+              '| Volledig identieke records samengevoegd | ' + r.dubbel + ' |',
+              '| Problemen | conflict ' + aantal('conflict') + ', variant ' + aantal('variant') + ', overgeslagen ' + aantal('overgeslagen') + ', meerwaardig ' + aantal('meerwaardig') + ' |',
+              '| Sets in de bron | ' + (r.alleSets || []).length + ' (gekozen: ' + gekozen + ') |',
+              '| Nieuw | ' + lijst(r.nieuw) + ' |',
+              '| Gewijzigd | ' + lijst(r.gewijzigd) + ' |',
+              '| Ongewijzigd | ' + lijst(r.ongewijzigd) + ' |',
+              '| Verdwenen uit de bron | ' + lijst(r.verdwenen) + ' |',
+            );
+            // een paar voorbeelden van elk probleem; de rest staat in het rapport
+            for (const soort of ['conflict', 'variant', 'overgeslagen', 'meerwaardig']) {
+              if (!p[soort] || p[soort].aantal === 0) continue;
+              uit.push('', '**' + soort + '** (' + p[soort].aantal + '):');
+              for (const v of p[soort].voorbeelden.slice(0, 5)) {
+                uit.push('- ' + kort(v.set + (v.code ? ' / ' + v.code : '') + (v.reden ? ': ' + v.reden : '') + (v.velden && soort === 'meerwaardig' ? ': ' + v.velden.join(', ') : '')));
+              }
+            }
+            if ((r.waarschuwingen || []).length > 0) {
+              uit.push('', '**Waarschuwingen**', '', ...r.waarschuwingen.map((w) => '- ' + kort(w)));
+            }
+            if (gekozen === 0 && (r.alleSets || []).length > 0) {
+              uit.push('', 'Geen enkele set komt overeen met de filter. Pas de filter aan; de setnamen staan in het rapport (artifact `minimumdoelen-rapport`).');
+            }
+          }
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, uit.join('\n') + '\n');
+          JS
+
+      - name: Pull request openen
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_BRANCH: claude/bookwidgets-web-app-kvcfim
+          RUN_ID: ${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$(git status --porcelain -- public/leerplannen)" ]; then
+            printf '## Geen wijzigingen\n\nDe minimumdoelen komen overeen met wat al in de repository staat.\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          datum="$(date -u +%Y-%m-%d)"
+          branch="minimumdoelen/bijwerken-${datum}-${RUN_ID}"
+          titel="Minimumdoelen bijgewerkt (${datum})"
+          tekst="${RUNNER_TEMP}/pr-tekst.md"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add -- public/leerplannen
+          git commit -m "$titel" -m "Automatisch opgehaald door de workflow minimumdoelen (run ${RUN_ID})."
+          git push origin "$branch"
+
+          # De tekst van de pull request komt uit het rapport.
+          RAPPORT=tools/leerplannen/rapport/laatste-ophaling.json RUN_URL="${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}" \
+            node --input-type=module - > "$tekst" <<'JS'
+          import fs from 'node:fs';
+          // Tekst uit de API of uit het rapport gaat altijd als codespan de tekst in: zonder backticks,
+          // regeleinden en stuurtekens, en afgekapt op 120 tekens.
+          const kort = (t) => '`' + String(t).replace(/[`|]/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').slice(0, 120) + '`';
+          const r = JSON.parse(fs.readFileSync(process.env.RAPPORT, 'utf8'));
+          const aantal = new Map((r.alleSets || []).map((s) => [s.id, s.aantal]));
+          const metAantal = (id) => (aantal.has(id) ? kort(id) + ' (' + aantal.get(id) + ' doelen)' : kort(id));
+          const lijst = (titel, ids, toelichting) => {
+            if (!ids || ids.length === 0) return [];
+            return ['### ' + titel, '', ...(toelichting ? [toelichting, ''] : []), ...ids.map((id) => '- ' + metAantal(id)), ''];
+          };
+          // Een probleem in een gekozen set stopt de ophaling vóór er een pull request komt. Wat hier nog
+          // telt, zit dus alleen in sets die niet gekozen zijn.
+          const p = r.problemen || {};
+          const buitenGekozen = ['conflict', 'variant', 'overgeslagen', 'meerwaardig'].reduce((som, soort) => som + (p[soort] ? p[soort].aantal : 0), 0);
+          const uit = [
+            '## Minimumdoelen bijgewerkt',
+            '',
+            'De ophaling bij de Onderwijsdoelen-API van de Vlaamse overheid vond verschillen met wat in de repository staat.',
+            '',
+            '| | |',
+            '|---|---|',
+            '| Records ontvangen | ' + r.records + ' |',
+            '| Sets in de bron | ' + (r.alleSets || []).length + ' (gekozen: ' + (r.alleSets || []).filter((s) => s.gekozen).length + ') |',
+            '| Nieuwe sets | ' + (r.nieuw || []).length + ' |',
+            '| Gewijzigde sets | ' + (r.gewijzigd || []).length + ' |',
+            '| Verdwenen sets | ' + (r.verdwenen || []).length + ' |',
+            '| Volledig identieke records samengevoegd | ' + r.dubbel + ' |',
+            '| Problemen in niet-gekozen sets (zie het rapport) | ' + buitenGekozen + ' |',
+            '',
+            ...lijst('Nieuwe sets', r.nieuw),
+            ...lijst('Gewijzigde sets', r.gewijzigd),
+            ...lijst('Verdwenen uit de bron', r.verdwenen, 'Deze bestanden blijven staan. Beslis zelf of ze weg moeten.'),
+          ];
+          if ((r.waarschuwingen || []).length > 0) {
+            uit.push('### Waarschuwingen', '', ...r.waarschuwingen.map((w) => '- ' + kort(w)), '');
+          }
+          uit.push(
+            '**Kijk het verschil na vóór je samenvoegt.** Controleer of de teksten letterlijk kloppen, of er geen sets ontbreken en of de aantallen aannemelijk zijn. Niets gaat automatisch live: na het samenvoegen rolt de deploy-workflow het uit.',
+            '',
+            'Het volledige rapport (met de veldinventaris van de API) staat als artifact `minimumdoelen-rapport` bij [deze run](' + process.env.RUN_URL + ').',
+          );
+          console.log(uit.join('\n'));
+          JS
+
+          if url="$(gh pr create --base "$BASE_BRANCH" --head "$branch" --title "$titel" --body-file "$tekst")"; then
+            printf '## Pull request geopend\n\n%s\n' "$url" >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo '## Pull request niet geopend'
+              echo
+              echo "De wijzigingen staan op de branch \`${branch}\`. Open de pull request met de hand: ${SERVER_URL}/${REPO}/compare/${BASE_BRANCH}...${branch}"
+              echo
+              echo 'Tip: zet in Settings → Actions → General "Allow GitHub Actions to create and approve pull requests" aan.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            # Een pull request die niet opent mag niet als geslaagd tellen: de wijzigingen zouden onopgemerkt blijven liggen.
+            echo "::error::De pull request kon niet geopend worden. De wijzigingen staan op de branch ${branch}; zie de samenvatting voor de vergelijkingslink."
+            exit 1
+          fi
