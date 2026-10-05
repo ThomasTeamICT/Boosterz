@@ -156,12 +156,12 @@ export function bevestigUitOfficieleSet(
   return { leerplan, rapport, bevestigd: true };
 }
 
-/** Het leerplan uit een set, gesaneerd zoals bij bewaren, nog zonder nakijken. */
 /** `oudereVersie`: de set is een oudere versie naast een set die nu geldt (`isOudeVersie` in minimumdoelenBron.ts). */
 export interface LeerplanUitSetOpties {
   oudereVersie?: boolean;
 }
 
+/** Het leerplan uit een set, gesaneerd zoals bij bewaren, nog zonder nakijken. */
 function bouwLeerplanUitSet(bestand: MinimumdoelenSetBestand, opties: LeerplanUitSetOpties = {}): LeerplanUitSet {
   const s = bestand.set;
   const waarschuwingen: string[] = [];

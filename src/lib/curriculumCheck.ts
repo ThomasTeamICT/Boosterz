@@ -8,11 +8,14 @@
 // - Letterlijk: elk doel staat in de bron, op woordgrenzen, en loopt in de bron niet verder (dan is
 //   het afgekapt). Zonder bron is er niets na te kijken: dat is een fout. Een officieel leerplan
 //   (herkomst "officieel") heeft de set zelf als bron: elke tekst moet gelijk zijn aan die van het
-//   minimumdoel waar hij naar verwijst, en elk doel van de set moet erin staan.
+//   minimumdoel waar hij naar verwijst, en elk doel van de set moet erin staan. Een samengestelde lijst
+//   (herkomst "samengesteld": letterlijke doelen uit één of meer sets, gekozen door de leerkracht) wordt
+//   net zo tegen zijn sets nagekeken, maar mag per definitie doelen van een set weglaten.
 // - Volledig: geen dubbele of ontbrekende codes, geen doel dat in de bron vooraan een regel staat maar
 //   in het leerplan ontbreekt, geen twee doelen in één, geen afgekapte bron.
 // - Verwijzingen: elke verwijzing bestaat in een meegegeven set, met de juiste code, en klopt met de
-//   verwijzing zoals ze in de bron staat (`refsBron`).
+//   verwijzing zoals ze in de bron staat (`refsBron`). Uit de sets (officieel of samengesteld): elk
+//   minimumdoel hoogstens één keer; samengesteld: elk doel precies één minimumdoel, uit een set van de lijst.
 // - Herkomst: ingevuld, met de vingerafdruk van het bronbestand bij een pdf of geplakte tekst.
 //
 // De berichten zijn voor de leerkracht: gewone taal, en "nakijken" in plaats van "controleren".
@@ -71,7 +74,7 @@ export interface ControleRapport {
 export interface ControleOpties {
   /**
    * De brontekst (pdf of geplakte tekst). Zonder bron kan niets nagekeken worden (een fout), behalve
-   * bij een officieel leerplan: daar zijn de sets de bron.
+   * bij een officieel leerplan of een samengestelde lijst: daar zijn de sets de bron.
    */
   bronTekst?: string;
   /** De sets minimumdoelen waar het leerplan naar verwijst. Een verwijzing naar een andere set is een fout. */
@@ -224,6 +227,11 @@ function langsteBegin(t: string, bronnen: readonly string[]): { lengte: number; 
   const deel = t.slice(0, laag);
   const bron = bronnen.find((b) => b.includes(deel));
   return bron === undefined ? beste : { lengte: laag, bron, plaats: bron.indexOf(deel) };
+}
+
+/** Sleutel van een verwijzing: set + vast nummer (de code alleen is niet uniek). */
+function refSleutel(ref: MinimumdoelRef): string {
+  return `${ref.set}\u0000${ref.id}`;
 }
 
 /** Hoe heet een doel in een bericht: zijn code, of "Doel n" zonder code. */
@@ -410,6 +418,10 @@ export function controleerLeerplan(cur: Curriculum, opties: ControleOpties = {})
   const perDoel: Record<string, DoelRapport> = {};
   const tellers = { doelen: goals.length, letterlijk: 0, nietLetterlijk: 0, verwijzingen: 0, verwijzingenOk: 0 };
   const officieel = cur.herkomst?.methode === 'officieel';
+  // Een samengestelde lijst heeft de sets als bron, net als een officieel leerplan, maar een selectie is per
+  // definitie onvolledig: geen fout voor een doel van de set dat ontbreekt, en geen waarschuwing voor gaten in de nummering.
+  const samengesteld = cur.herkomst?.methode === 'samengesteld';
+  const uitSet = officieel || samengesteld;
   const codeVan = (g: CurriculumGoal) => (typeof g.code === 'string' ? g.code : '');
   const refsVan = (g: CurriculumGoal): MinimumdoelRef[] =>
     (Array.isArray(g.refs) ? g.refs : []).filter((r): r is MinimumdoelRef => r !== null && typeof r === 'object');
@@ -476,10 +488,10 @@ export function controleerLeerplan(cur: Curriculum, opties: ControleOpties = {})
   });
 
   // ── Letterlijk ──
-  const metBron = !officieel && typeof opties.bronTekst === 'string';
+  const metBron = !uitSet && typeof opties.bronTekst === 'string';
   const voorbereid = metBron ? bereidBronVoor(opties.bronTekst as string) : undefined;
   const bronnen = voorbereid?.varianten.map((v) => v.tekst) ?? [];
-  if (!officieel && !metBron) {
+  if (!uitSet && !metBron) {
     voeg({
       soort: 'letterlijk',
       ernst: 'fout',
@@ -493,7 +505,7 @@ export function controleerLeerplan(cur: Curriculum, opties: ControleOpties = {})
     const ruweTekst = typeof goal.text === 'string' ? goal.text : '';
     const fout = (bericht: string, soort: BevindingSoort = 'letterlijk') => voeg({ soort, ernst: 'fout', doelId: goal.id, code: goal.code, bericht }, index);
 
-    if (officieel) {
+    if (uitSet) {
       // De bron is de set zelf: elke tekst gelijk aan die van het minimumdoel waar hij naar verwijst.
       const { bericht, vindplaats } = vergelijkMetSet(goal, naam);
       if (vindplaats !== undefined) rapport.vindplaats = vindplaats;
@@ -597,7 +609,8 @@ export function controleerLeerplan(cur: Curriculum, opties: ControleOpties = {})
       index,
     );
   });
-  for (const gat of gatenInNummering(goals.map(codeVan))) {
+  // Bij een samengestelde lijst zijn gaten normaal: de leerkracht koos maar een deel van de doelen.
+  for (const gat of samengesteld ? [] : gatenInNummering(goals.map(codeVan))) {
     const na = goals[gat.voorIndex];
     const enkel = gat.aantal === 1;
     voeg(
@@ -611,8 +624,34 @@ export function controleerLeerplan(cur: Curriculum, opties: ControleOpties = {})
       gat.voorIndex,
     );
   }
+  // Uit de sets (officieel of samengesteld): elk minimumdoel staat hoogstens één keer in de lijst. (Bij een leerplan van
+  // een net mogen wel meer doelen naar hetzelfde minimumdoel verwijzen.)
+  if (uitSet) {
+    const eersteMetRef = new Map<string, number>();
+    goals.forEach((goal, index) => {
+      for (const ref of new Map(refsVan(goal).map((r) => [refSleutel(r), r])).values()) {
+        const sleutel = refSleutel(ref);
+        const eerder = eersteMetRef.get(sleutel);
+        if (eerder === undefined) {
+          eersteMetRef.set(sleutel, index);
+          continue;
+        }
+        const setNaam = setsOpId.get(ref.set)?.naam;
+        voeg(
+          {
+            soort: 'volledig',
+            ernst: 'fout',
+            doelId: goal.id,
+            code: goal.code,
+            bericht: `${naamVan(codeVan(goal), index)} en ${naamVan(codeVan(goals[eerder]), eerder)} zijn hetzelfde minimumdoel ${ref.code || ref.id} (${setNaam ? `${setNaam}, ` : ''}${ref.set}): dat doel staat twee keer in de lijst. Laat er één weg.`,
+          },
+          index,
+        );
+      }
+    });
+  }
   // Twee doelen in één: een andere doelcode met een doelzin midden in de tekst.
-  if (!officieel) {
+  if (!uitSet) {
     goals.forEach((goal, index) => {
       const ander = samengevoegdeCode(typeof goal.text === 'string' ? goal.text : '', codeVan(goal));
       if (ander === undefined) return;
@@ -650,6 +689,8 @@ export function controleerLeerplan(cur: Curriculum, opties: ControleOpties = {})
 
   // ── Verwijzingen ──
   const gedekt = new Set<string>();
+  // Een samengestelde lijst noemt zelf de sets waar ze uit komt; een verwijzing naar een andere set hoort er niet in.
+  const setsVanLijst = new Set((Array.isArray(cur.minimumdoelenSets) ? cur.minimumdoelenSets : []).filter((s): s is string => typeof s === 'string'));
   goals.forEach((goal, index) => {
     const rapport = perDoel[goal.id];
     const naam = naamVan(codeVan(goal), index);
@@ -666,6 +707,9 @@ export function controleerLeerplan(cur: Curriculum, opties: ControleOpties = {})
         probleem(`${naam} verwijst in de bron naar "${kort(refsBron, 80)}", maar de verwijzing is nog niet gekoppeld aan een minimumdoel.`);
       }
       return;
+    }
+    if (samengesteld && new Set(refs.map(refSleutel)).size > 1) {
+      probleem(`${naam} verwijst naar meer dan één minimumdoel. In een samengestelde lijst is elk doel precies één officieel minimumdoel. Stel de lijst opnieuw samen.`);
     }
 
     // Wat de bron noemt: de codes (reeksen uitgeschreven) en de reeksen die niet uitgeschreven konden worden.
@@ -684,6 +728,10 @@ export function controleerLeerplan(cur: Curriculum, opties: ControleOpties = {})
       tellers.verwijzingen++;
       gedekt.add(`${ref.set}\u0000${ref.id}`);
       const wie = `${ref.code || ref.id} (${ref.set})`;
+      if (samengesteld && !setsVanLijst.has(ref.set)) {
+        probleem(`${naam} verwijst naar ${wie}, maar die set hoort niet bij deze lijst. Stel de lijst opnieuw samen.`);
+        continue;
+      }
       const set = setsOpId.get(ref.set);
       if (!set) {
         gekoppeld.add(normaliseerMdCode(ref.code ?? ''));
@@ -751,6 +799,26 @@ export function controleerLeerplan(cur: Curriculum, opties: ControleOpties = {})
     const nietGedekt: MinimumdoelRef[] = [];
     for (const [id, doel] of set.doelen) if (!gedekt.has(`${setId}\u0000${id}`)) nietGedekt.push({ set: setId, id, code: doel.code });
     dekking.push({ set: setId, naam: set.naam, nietGedekt });
+    if (samengesteld) {
+      // Een selectie: zeg hoeveel van de doelen (met tekst) de leerkracht koos, zonder te doen alsof er iets ontbreekt.
+      let kiesbaar = 0;
+      let gekozen = 0;
+      for (const [id, doel] of set.doelen) {
+        if (tekstVanSetdoel(doel) === '') continue;
+        kiesbaar++;
+        if (gedekt.has(`${setId}\u0000${id}`)) gekozen++;
+      }
+      voeg({
+        soort: 'dekking',
+        ernst: 'info',
+        bericht: kiesbaar === 1 && gekozen === 1
+          ? `Je koos het enige doel van ${set.naam} (${setId}).`
+          : gekozen === kiesbaar && kiesbaar > 0
+            ? `Je koos alle ${kiesbaar} doelen van ${set.naam} (${setId}).`
+            : `Je koos ${gekozen} van de ${meervoud(kiesbaar, 'doel', 'doelen')} van ${set.naam} (${setId}).`,
+      });
+      continue;
+    }
     if (nietGedekt.length === 0) continue;
     voeg({
       soort: 'dekking',
@@ -779,7 +847,7 @@ export function controleerLeerplan(cur: Curriculum, opties: ControleOpties = {})
   const delen: string[] = [];
   const doelWoord = goals.length === 1 ? 'doel' : 'doelen';
   delen.push(
-    metBron || officieel
+    metBron || uitSet
       ? `${tellers.letterlijk} van ${goals.length} ${doelWoord} letterlijk`
       : `${goals.length} ${doelWoord}, letterlijk niet nagekeken (geen bron)`,
   );

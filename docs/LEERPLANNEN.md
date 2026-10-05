@@ -10,7 +10,7 @@ leerplan) moet de punten met "te bevestigen" afvinken vóór het bouwen begint.*
 | API-sleutel Onderwijsdoelen-API | **Bestaat.** Aangevraagd via het portaalformulier op 18 december 2025, aangemaakt op 9 januari 2026 door de Centrale cel ICT. De sleutel kwam per mail in de ICT-mailbox van de scholengroep en geldt voor alle open API's van Onderwijs & Vorming. Hij staat nergens in de repo. |
 | Sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` | **Gedaan** op 5 oktober 2026 (repository secret voor Actions). |
 | Pakket L1 (ophaalscript, workflow, datatest) | Gebouwd en gereviewd (twee reviewers, rechter). **Eerste echte run (5 oktober 2026)**: volledig opgehaald (24019 doelen, 49 pagina's, `totalItems` klopt), maar terecht gestopt (exit 3): sets met dezelfde lange naam vielen samen. Opgelost: de setsleutel is nu `ODS_<onderwijsdoelenset_id>`, elk doel krijgt zijn `@id`, en alle API-velden gaan mee in `extra`. Run 2 en 3 toonden de rest: binnen een set is een code niet altijd uniek (§ 5, "Wat de echte gegevens leren"); een doel wordt nu herkend aan zijn `@id`. **Run 4 geslaagd**: pull request #2 met 950 sets (15 324 doelen, 15 MB), nagekeken door de hoofdsessie (datatest en build groen) en op 5 oktober 2026 samengevoegd op vraag van de eigenaar. **Laag 1 is klaar.** Elke maand haalt de taak de doelen opnieuw op en opent een pull request als er iets verandert. Volgende stap: laag 2 (doelen tonen in de app, koppeling met leerplannen en cursussen). |
-| Laag 2, ronde 1 (§ 14): inleesweg, verwijzingen, hulp | **Bezig** sinds 5 oktober 2026. Klaar en live: basis, kern (lezer, verwijzingen, nakijkpoort), de pagina "Officiële minimumdoelen", wegwijzer en nakijkstatus. **Ronde 1 klaar** (5 oktober 2026): officiële minimumdoelen in de app, inleeswizard met nakijkpoort, verwijzingen naar set + vast nummer, wegwijzer en hulp. Twee reviews met rechter, alle bevestigde punten hersteld; 2004 unittests en de rooktest groen. Pull request #3 (geldigheid per set) samengevoegd: oude versies zijn standaard verborgen, en een oude set wijst zijn opvolger aan. Ook een set met geldigheid "Onbekend" naast een geldige set met dezelfde naam (128 keer versie 2.0 naast 2.1) geldt nu als oudere versie. Een STEM-set legt uit dat de bron niet per vak indeelt en dat het leerplan van het net zegt wat bij een vak hoort; je kan zoeken in de doelen van een set. Voorstel bij de eigenaar: een eigen doelenlijst samenstellen uit meerdere sets (§ 10). Volgende: echte leerplan-pdf's om de lezer te bevestigen (KOV I-Aar-a, een GO!-leerplan), daarna de dekking op twee lagen (L6). |
+| Laag 2, ronde 1 (§ 14): inleesweg, verwijzingen, hulp | **Bezig** sinds 5 oktober 2026. Klaar en live: basis, kern (lezer, verwijzingen, nakijkpoort), de pagina "Officiële minimumdoelen", wegwijzer en nakijkstatus. **Ronde 1 klaar** (5 oktober 2026): officiële minimumdoelen in de app, inleeswizard met nakijkpoort, verwijzingen naar set + vast nummer, wegwijzer en hulp. Twee reviews met rechter, alle bevestigde punten hersteld; 2004 unittests en de rooktest groen. Pull request #3 (geldigheid per set) samengevoegd: oude versies zijn standaard verborgen, en een oude set wijst zijn opvolger aan. Ook een set met geldigheid "Onbekend" naast een geldige set met dezelfde naam (128 keer versie 2.0 naast 2.1) geldt nu als oudere versie. Een STEM-set legt uit dat de bron niet per vak indeelt en dat het leerplan van het net zegt wat bij een vak hoort; je kan zoeken in de doelen van een set. Een eigen doelenlijst samenstellen uit hele sets of losse doelen (§ 15): op vraag van de eigenaar in aanbouw; daarna een grondige debugronde over de hele app. Volgende: echte leerplan-pdf's om de lezer te bevestigen (KOV I-Aar-a, een GO!-leerplan), daarna de dekking op twee lagen (L6). |
 | Vraag aan het GO! (via een contactpersoon bij PBD) | Concept klaar bij de eigenaar (5 oktober 2026): een afgebakend experiment met enkele leerplannen. Nog te versturen. |
 | Vragen aan het departement (§ 12) | Nog te stellen. Sinds 24 maart 2026 **alleen via het formulier van TechLoket Onderwijs**, niet meer per mail (Nieuwsbrief API K&C van AHOVOKS). |
 | Vragen aan KOV, GO!, OVSG, POV (§ 12) | Teksten klaar in het aanvraagdossier (Claude Docs, "Aanvraagdossier leerplangegevens"); nog niet verstuurd. |
@@ -281,10 +281,8 @@ cursuskaart blijft dat van het leerplan.
   te zoeken, en wijst in de 2de en 3de graad de aparte sets voor biologie, chemie en fysica aan
   (`vakSetsBijStem`). Vanaf 10 doelen staat er een zoekveld boven de doelen; "Gebruik als leerplan" neemt
   altijd de hele set.
-- Open vraag (oktober 2026): een eigen doelenlijst samenstellen uit meerdere sets of uit een deel van een
-  set (bv. de NW-doelen uit de STEM-set, of basisgeletterdheid uit Nederlands, wiskunde en digitale
-  competenties). De doelen blijven letterlijk en houden hun verwijzing; de nakijkpoort moet dan per doel
-  controleren in plaats van per volledige set. Nog niet gebouwd.
+- Een eigen doelenlijst samenstellen uit meerdere sets of uit een deel van een set (bv. de NW-doelen uit
+  de STEM-set, of basisgeletterdheid uit Nederlands, wiskunde en digitale competenties): zie § 15.
 
 ## 11. Werkpakketten
 
@@ -432,3 +430,29 @@ Bewust later: een Content-Security-Policy (app-breed, botst met een eigen AI-adr
 bij gekunstelde eigen invoer van vele megabytes; finaliteit (aso, tso, bso, …) voor de 2de en
 3de graad in de wizard; "set" overal hernoemen (één uitlegzin volstaat).
 
+
+## 15. Eigen doelenlijst samenstellen (oktober 2026)
+
+**Vraag van de eigenaar.** Een leerkracht wil een cursus baseren op een deel van de minimumdoelen:
+de doelen van één vak uit een set die vakken bundelt (natuurwetenschappen uit de STEM-set), of
+doelen uit meerdere sets samen (basisgeletterdheid: Nederlands, STEM en digitale competenties).
+"Gebruik als leerplan" neemt alleen één hele set.
+
+**Ontwerp.**
+- Nieuwe herkomst `samengesteld`: letterlijk overgenomen doelen uit één of meer officiële sets,
+  gekozen door de leerkracht (src/lib/doelenSamenstellen.ts). Elk doel verwijst naar precies één
+  minimumdoel (set + vast nummer); `minimumdoelenSets` noemt de sets in volgorde.
+- De nakijkpoort kijkt per doel na in plaats van per volledige set: elke tekst gelijk aan die van
+  zijn minimumdoel, geen minimumdoel twee keer, geen verwijzing naar een set buiten de lijst. Geen
+  fout voor wat niet gekozen is en geen waarschuwing over gaten in de nummering; de dekking zegt
+  "Je koos 12 van de 44 doelen van …". Lukt het nakijken, dan is de lijst meteen nagekeken door de
+  officiële bron, en blijft ze dat na exporteren en importeren.
+- Codes: zoals bij "Gebruik als leerplan"; botst een code tussen gekozen sets (bv. BG02.01 in de
+  A- en de B-stroom), dan krijgen de botsende codes een onderscheid (stroom, graad, of set-id). Bij
+  het aanpassen van een bewaarde lijst behoudt een doel zijn code, en een code van een weggelaten
+  doel gaat nooit naar een ander doel: een koppeling in een cursus wijst zo nooit stil naar iets anders.
+- Het scherm `/leerplannen/samenstellen` in drie stappen: sets kiezen, doelen kiezen (hele set of
+  losse doelen, zoeken over alle gekozen sets), naam en bewaren. Ingangen: de wegwijzer bij
+  Leerplannen, de pagina "Officiële minimumdoelen" (ook "Kies doelen uit deze set" per set) en
+  "Keuze aanpassen" bij een bewaarde lijst. Een eigen kopie van zo'n lijst pas je aan in de editor.
+- Label: "Officiële doelen, zelf gekozen". Een samengestelde lijst is vrij te delen (officiële tekst).

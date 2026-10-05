@@ -52,6 +52,7 @@ export interface MinimumdoelRef {
 /** Hoe de doelen in Boosterz kwamen. */
 export type CurriculumMethode =
   | 'officieel' // rechtstreeks uit een set minimumdoelen van laag 1
+  | 'samengesteld' // letterlijk overgenomen doelen uit één of meer officiële sets, gekozen door de leerkracht (doelenSamenstellen.ts)
   | 'export' // een gestructureerd bestand van het net
   | 'pdf' // de officiële pdf, met de leerplanlezer
   | 'tekst' // geplakte tekst, met de leerplanlezer

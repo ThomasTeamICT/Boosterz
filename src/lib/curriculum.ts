@@ -205,7 +205,8 @@ export const MAX_DOELCODE = 60;
 /** Langste voorvoegsel van een automatische code, zodat de code zelf onder `MAX_DOELCODE` blijft. */
 const MAX_AUTO_VOORVOEGSEL = 40;
 const MAX_REFS = 50;
-const MAX_SETS = 50;
+/** Hoeveel sets minimumdoelen een leerplan hoogstens noemt (`minimumdoelenSets`); wat erboven gaat, valt weg bij het saneren. */
+export const MAX_SETS = 50;
 /**
  * Grenzen voor wat een bestand van iemand anders mag bevatten. De grootste officiële set heeft 168 doelen, de
  * langste doeltekst telt 3.794 tekens en de langste rubriek (de rubrieken samen, met " › " ertussen) 315 tekens:
@@ -218,7 +219,7 @@ export const MAX_DOELTHEMA = 500;
 export const MAX_DOELTOELICHTING = 2000;
 /** Een intern doelnummer: letters, cijfers, "_" en "-", hoogstens 64 tekens. */
 const DOEL_ID = /^[A-Za-z0-9_-]{1,64}$/;
-const METHODES: readonly CurriculumMethode[] = ['officieel', 'export', 'pdf', 'tekst', 'ai', 'handmatig'];
+const METHODES: readonly CurriculumMethode[] = ['officieel', 'samengesteld', 'export', 'pdf', 'tekst', 'ai', 'handmatig'];
 const CONTROLE_STATUSSEN: readonly ControleStatus[] = ['niet-gecontroleerd', 'gecontroleerd', 'gewijzigd'];
 
 function isEindig(v: unknown): v is number {

@@ -27,9 +27,22 @@ export function nagekekenTekst(cur: Curriculum): string {
   return ['Nagekeken', door ? `door ${door}` : '', op ? `op ${formatDateShort(op)}` : ''].filter(Boolean).join(' ');
 }
 
-/** Komt dit leerplan uit de officiële minimumdoelen (laag 1)? */
+/** Is dit leerplan een hele officiële set minimumdoelen (laag 1, "Gebruik als leerplan")? */
 export function isOfficieel(cur: Curriculum): boolean {
   return cur.herkomst?.methode === 'officieel';
+}
+
+/** Is dit een eigen doelenlijst, samengesteld uit letterlijke doelen van één of meer officiële sets (doelenSamenstellen.ts)? */
+export function isSamengesteld(cur: Curriculum): boolean {
+  return cur.herkomst?.methode === 'samengesteld';
+}
+
+/**
+ * Komen alle doelen letterlijk uit de officiële minimumdoelen: een hele set (`isOfficieel`) of een samengestelde
+ * lijst (`isSamengesteld`)? Zo'n leerplan heeft de sets zelf als bron en is vrij te delen.
+ */
+export function uitOfficieleBron(cur: Curriculum): boolean {
+  return isOfficieel(cur) || isSamengesteld(cur);
 }
 
 /**
