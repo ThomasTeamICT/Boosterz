@@ -71,6 +71,14 @@
 .md-opvolgers li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; }
 .md-opvolger-info { color: var(--text-soft); font-size: 0.85rem; min-width: 0; }
 .md-verouderd-icoon { flex: none; margin-top: 2px; color: var(--warn-text); }
+.md-stem { align-items: flex-start; margin: 16px 0 0; }
+.md-stem p { margin: 0; }
+.md-stem-tekst { display: grid; gap: 10px; min-width: 0; }
+.md-stem-icoon { flex: none; margin-top: 2px; color: color-mix(in srgb, var(--brand-fill) 60%, var(--text)); }
+.md-stem-zoek { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.md-doelzoek { display: grid; gap: 2px; margin: 0 0 12px; max-width: 34rem; }
+.md-doelzoek .field { margin-bottom: 0; }
+.md-doelzoek-aantal { margin: 0; min-height: 1.3em; font-weight: 700; color: var(--text-soft); font-size: 0.9rem; }
 .md-acties { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0 6px; }
 .md-uitleg { margin: 0 0 16px; color: var(--text-soft); font-size: 0.9rem; }
 .md-doelen-kop { margin: 22px 0 10px; font-size: 1.1rem; }

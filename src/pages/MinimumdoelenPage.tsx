@@ -14,8 +14,9 @@ import { ArrowDown, ExternalLink, ListTree, LoaderCircle } from 'lucide-react';
 import { controleStatus, getCurricula, saveCurriculum } from '../lib/curriculum';
 import { geldigheidVanDoelen, htmlNaarTekst, type MinimumdoelenIndexSet, type MinimumdoelenSetBestand } from '../lib/minimumdoelen';
 import {
-  FOUT_NIET_GELADEN, SOORT_LABEL, contextVanSet, datumLeesbaar, filterSets, geldigheidTekst, geldigheidVan, graadOpties, indexHeeftGeldigheid,
-  isGeldigSetId, laadIndex, laadSet, opvolgersVan, soortVanSet, veiligeLink, type SoortOnderwijs,
+  FOUT_NIET_GELADEN, SOORT_LABEL, contextVanSet, datumLeesbaar, doelPastBijZoek, filterSets, geldigheidTekst, geldigheidVan, graadOpties,
+  indexHeeftGeldigheid, isGeldigSetId, isStemSet, laadIndex, laadSet, opvolgersVan, oudeVersieIds, soortVanSet, vakSetsBijStem, veiligeLink,
+  zoekTermen, zoekVoorbeelden, type SoortOnderwijs,
 } from '../lib/minimumdoelenBron';
 import { geldigheidJaren } from '../lib/setKeuze';
 import { isAttitude, isOptioneel, leerplanUitSet, themaVanDoel, vindLeerplanVoorSet } from '../lib/minimumdoelenLeerplan';
@@ -30,6 +31,10 @@ const STAP = 60;
 const SMAL_SCHERM = '(max-width: 899px)';
 
 const SOORT_VOLGORDE: SoortOnderwijs[] = ['so', 'buso', 'vwo', 'ander'];
+/** Vanaf zoveel doelen staat er een zoekveld boven de doelen van een set. */
+const ZOEK_IN_DOELEN_VANAF = 10;
+/** Een set met geldigheid "Onbekend" naast een geldige set met dezelfde naam. */
+const OUDERE_VERSIE = 'Oudere versie';
 
 // ── Laden met opnieuw proberen ──────────────────────────────────────────────
 
@@ -84,7 +89,7 @@ export function MinimumdoelenPage() {
   const index = useLaadstand('index', laadIndex);
 
   const [zoek, setZoek] = useState('');
-  // Standaard alleen de sets die nu gelden (of waarvan de bron geen geldigheid vermeldt); oude versies op vraag.
+  // Standaard geen oude versies (lib/minimumdoelenBron.ts, `oudeVersieIds`); die komen er op vraag bij.
   const [toonOud, setToonOud] = useState(false);
   const [graad, setGraad] = useState('');
   const [soort, setSoort] = useState<SoortOnderwijs | 'alle'>('alle');
@@ -109,6 +114,7 @@ export function MinimumdoelenPage() {
   );
   const laatstOpgehaald = useMemo(() => sets.reduce((m, s) => (s.opgehaald > m ? s.opgehaald : m), ''), [sets]);
   const gekozen = setId ? sets.find((s) => s.id === setId) : undefined;
+  const oud = useMemo(() => oudeVersieIds(sets), [sets]);
 
   // Een andere set gekozen: de focus gaat naar de set (ook op een breed scherm, anders blijft het toetsenbord in de
   // lijst staan en moet je er eerst doorheen tabben). Op een smal scherm staat de set boven de lijst: dan ook omhoog.
@@ -194,7 +200,7 @@ export function MinimumdoelenPage() {
                     </label>
                     <p className="md-oud-hint">
                       {toonOud
-                        ? 'Oude versies staan in de lijst met “Niet meer geldig”. Je hebt ze alleen nodig voor oudere leerplannen of cursussen.'
+                        ? 'Oude versies staan in de lijst met “Niet meer geldig” of “Oudere versie”. Je hebt ze alleen nodig voor oudere leerplannen of cursussen.'
                         : verborgenOud > 0
                           ? `${verborgenOud} oude ${verborgenOud === 1 ? 'versie' : 'versies'} verborgen. Je hebt ze alleen nodig voor oudere leerplannen of cursussen.`
                           : 'Alleen sets die nu gelden.'}
@@ -233,7 +239,7 @@ export function MinimumdoelenPage() {
               ) : (
                 <>
                   <ul className="md-sets" aria-label="Sets minimumdoelen">
-                    {gefilterd.slice(0, zichtbaar).map((s) => <SetKnop key={s.id} set={s} gekozen={s.id === setId} onKies={kies} />)}
+                    {gefilterd.slice(0, zichtbaar).map((s) => <SetKnop key={s.id} set={s} oud={oud.has(s.id)} gekozen={s.id === setId} onKies={kies} />)}
                   </ul>
                   {gefilterd.length > zichtbaar && (
                     <div className="md-meer">
@@ -276,10 +282,10 @@ export function MinimumdoelenPage() {
 
 // ── Eén set in de lijst ─────────────────────────────────────────────────────
 
-function SetKnop({ set, gekozen, onKies }: { set: MinimumdoelenIndexSet; gekozen: boolean; onKies: (id: string) => void }) {
+function SetKnop({ set, oud, gekozen, onKies }: { set: MinimumdoelenIndexSet; oud: boolean; gekozen: boolean; onKies: (id: string) => void }) {
   const soort = soortVanSet(set.naam);
   const kenmerken = [soort === 'so' ? '' : SOORT_LABEL[soort], set.graad, set.stroom, contextVanSet(set.naam)].filter(Boolean).join(' · ');
-  const geldig = geldigheidTekst(set);
+  const geldig = oud && geldigheidVan(set) === 'O' ? OUDERE_VERSIE : geldigheidTekst(set);
   const doelen = typeof set.aantal === 'number' ? `${set.aantal} ${set.aantal === 1 ? 'doel' : 'doelen'}` : '';
   return (
     <li>
@@ -354,15 +360,31 @@ function SetPaneel({
   const { stand, opnieuw } = useLaadstand(setId, () => laadSet(setId));
   const bestand = stand.status === 'klaar' ? stand.waarde : undefined;
   const rijen = useMemo(() => (bestand ? maakRijen(bestand) : []), [bestand]);
+  // Zoeken in de doelen: alleen wat je ziet, "Gebruik als leerplan" neemt altijd de hele set.
+  const [zoekDoel, setZoekDoel] = useState('');
+  const zoekDoelRef = useRef<HTMLInputElement>(null);
+  const termen = useMemo(() => zoekTermen(zoekDoel), [zoekDoel]);
+  const getoondeRijen = useMemo(() => rijen.filter((r) => doelPastBijZoek(r, termen)), [rijen, termen]);
+  const kanZoeken = rijen.length >= ZOEK_IN_DOELEN_VANAF;
 
   const kop = bestand?.set ?? indexSet;
   // Een set zonder geldigheid in de kop (oudere bestanden): afleiden uit de doelen zelf.
   const geldigheid = bestand ? (bestand.set.geldigheid !== undefined ? bestand.set : geldigheidVanDoelen(bestand.doelen)) : indexSet;
   const bronLink = veiligeLink(bestand?.set.bron);
-  // Een set die niet meer geldt, mag je nog gebruiken, maar de leerkracht moet het weten.
-  const verouderd = geldigheid !== undefined && geldigheidVan(geldigheid) === 'N';
+  // Een set die niet meer geldt of een oudere versie is, mag je nog gebruiken, maar de leerkracht moet het weten.
+  const code = geldigheid !== undefined ? geldigheidVan(geldigheid) : undefined;
+  const oudereVersie = code === 'O' && indexSet !== undefined && oudeVersieIds(alleSets).has(indexSet.id);
+  const verouderd = code === 'N' || oudereVersie;
   const jaren = geldigheid ? geldigheidJaren(geldigheid) : undefined;
   const opvolgers = useMemo(() => (verouderd && indexSet ? opvolgersVan(indexSet, alleSets) : undefined), [verouderd, indexSet, alleSets]);
+  // Een STEM-set bundelt wiskunde, natuurwetenschappen en techniek: dat zeggen we, met hulp om de eigen doelen te vinden.
+  const stem = !verouderd && kop !== undefined && isStemSet(kop);
+  const vakSets = useMemo(() => (stem && indexSet ? vakSetsBijStem(indexSet, alleSets) : []), [stem, indexSet, alleSets]);
+  const voorbeelden = useMemo(() => (stem ? zoekVoorbeelden(rijen) : []), [stem, rijen]);
+  const zoekOp = (woord: string) => {
+    setZoekDoel(woord);
+    zoekDoelRef.current?.focus();
+  };
 
   const feiten: { naam: string; waarde: string }[] = [];
   if (kop) {
@@ -371,7 +393,7 @@ function SetPaneel({
     if (kop.stroom) feiten.push({ naam: 'Stroom', waarde: kop.stroom });
     if (kop.leerjaar) feiten.push({ naam: 'Leerjaar', waarde: kop.leerjaar });
     if (kop.versie) feiten.push({ naam: 'Versie', waarde: kop.versie });
-    const g = geldigheid ? geldigheidTekst(geldigheid) : undefined;
+    const g = oudereVersie ? `${OUDERE_VERSIE} (de bron vermeldt geen geldigheid)` : geldigheid ? geldigheidTekst(geldigheid) : undefined;
     if (g) feiten.push({ naam: 'Geldigheid', waarde: g });
     if (typeof kop.aantal === 'number') feiten.push({ naam: 'Aantal doelen', waarde: String(kop.aantal) });
     feiten.push({ naam: 'Nummer van de set', waarde: kop.id });
@@ -384,7 +406,7 @@ function SetPaneel({
       navigate(`/leerplannen?open=${encodeURIComponent(bestaand.id)}`);
       return;
     }
-    const { leerplan, waarschuwingen } = leerplanUitSet(b);
+    const { leerplan, waarschuwingen } = leerplanUitSet(b, { oudereVersie });
     if (leerplan.goals.length === 0) {
       toast('Deze set bevat geen doelen die je kan overnemen.', 'err');
       return;
@@ -418,7 +440,11 @@ function SetPaneel({
         <div className="callout warn md-verouderd" role="note">
           <WarningIcon size={20} className="md-verouderd-icoon" />
           <div className="md-verouderd-tekst">
-            {opvolgers?.soort === 'versie' ? (
+            {oudereVersie && opvolgers?.soort === 'versie' ? (
+              <p>Dit is een oudere versie van deze set. Er is een nieuwere versie die nu geldt: gebruik die.</p>
+            ) : oudereVersie ? (
+              <p>Dit is een oudere versie van deze set. Kies liever een set die nu geldt.</p>
+            ) : opvolgers?.soort === 'versie' ? (
               <p>
                 Deze versie geldt niet meer{jaren ? ` (${jaren})` : ''}. Er is een nieuwere versie van deze set: gebruik die.
               </p>
@@ -460,6 +486,40 @@ function SetPaneel({
         </div>
       )}
 
+      {stem && (
+        <div className="callout md-stem" role="note">
+          <InfoIcon size={20} className="md-stem-icoon" />
+          <div className="md-stem-tekst">
+            <p>
+              <strong>Wiskunde, natuurwetenschappen en techniek zitten samen in deze set.</strong> De officiële bron zegt niet
+              welk doel bij welk vak hoort: dat staat in het leerplan van je net. Baseer een cursus dus op dat leerplan; deze
+              minimumdoelen zijn de ondergrens die de overheid vastlegt.
+            </p>
+            {kanZoeken && (
+              <div className="md-stem-zoek">
+                <span>Zoek de doelen van je vak met een woord{voorbeelden.length > 0 ? ', bv.' : '.'}</span>
+                {voorbeelden.map((w) => (
+                  <button key={w} type="button" className="btn btn-sm btn-ghost" onClick={() => zoekOp(w)}>{w}</button>
+                ))}
+              </div>
+            )}
+            {vakSets.length > 0 && (
+              <>
+                <p>Voor sommige studierichtingen zijn er in de {kop?.graad ?? 'deze graad'} ook aparte sets per vak:</p>
+                <ul className="md-opvolgers">
+                  {vakSets.map((o) => (
+                    <li key={o.id}>
+                      <Link to={`${BASIS_ROUTE}/${o.id}`} className="btn btn-sm btn-ghost">Open ‘{o.korteNaam || o.naam}’</Link>
+                      <span className="md-opvolger-info">{[contextVanSet(o.naam), aantalDoelen(o.aantal)].filter(Boolean).join(' · ')}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="md-acties">
         <button type="button" className="btn btn-primary" disabled={!bestand} onClick={() => bestand && gebruik(bestand)}>
           <ListTree size={18} /> {verouderd ? 'Toch als leerplan gebruiken' : 'Gebruik als leerplan'}
@@ -483,7 +543,29 @@ function SetPaneel({
       {bestand && (
         <>
           <h2 className="md-doelen-kop">Doelen ({bestand.doelen.length})</h2>
-          <DoelenPerRubriek rijen={rijen} />
+          {kanZoeken && (
+            <div className="md-doelzoek">
+              <Field label="Zoek in de doelen" hint="Op een woord of een code. ‘Gebruik als leerplan’ neemt altijd de hele set.">
+                <input
+                  ref={zoekDoelRef} type="search" className="input" value={zoekDoel}
+                  placeholder={voorbeelden[0] ? `bv. ${voorbeelden[0]}` : 'bv. een woord of een code'}
+                  autoComplete="off" spellCheck={false}
+                  onChange={(e) => setZoekDoel(e.target.value)}
+                />
+              </Field>
+              <p className="md-doelzoek-aantal" aria-live="polite" aria-atomic="true">
+                {termen.length > 0 ? `${getoondeRijen.length} van ${aantalDoelen(rijen.length)}` : ''}
+              </p>
+            </div>
+          )}
+          {getoondeRijen.length === 0 && termen.length > 0 ? (
+            <div className="md-leeg">
+              <p><strong>Geen doelen met ‘{zoekDoel.trim()}’.</strong> Probeer een ander of korter woord.</p>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => zoekOp('')}>Toon alle doelen</button>
+            </div>
+          ) : (
+            <DoelenPerRubriek rijen={getoondeRijen} />
+          )}
           <p className="md-voet">
             {bestand.set.naamsvermelding}
             {bestand.set.opgehaald && <> · opgehaald op {datumLeesbaar(bestand.set.opgehaald)}</>}

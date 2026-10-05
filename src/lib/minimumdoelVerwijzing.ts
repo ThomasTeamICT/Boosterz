@@ -12,6 +12,7 @@
 
 import type { MinimumdoelRef } from './curriculumTypes';
 import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from './minimumdoelen';
+import { oudeVersieIds } from './minimumdoelenBron';
 
 /**
  * Code van een minimumdoel om te vergelijken: alleen cijfers en punten, per deel zonder
@@ -295,28 +296,28 @@ export interface SetVoorstelOpties {
   stroom?: string;
   /** Zoekwoorden, gescheiden door spaties; elk woord moet voorkomen in naam, korte naam of id. */
   zoek?: string;
-  /** Ook sets die niet meer geldig zijn. */
+  /** Ook oude versies: sets die niet meer geldig zijn. */
   alleGeldigheden?: boolean;
 }
 
 /**
- * Sets uit de index die passen bij een leerplan. Standaard zonder de sets die niet meer gelden
- * (`geldigheid` is "Niet meer geldig"); sets met geldigheid "Onbekend" blijven, want daaronder staan
- * o.a. de huidige sets van de 3de graad. Heeft geen enkele set in de index een geldigheid (oudere
+ * Sets uit de index die passen bij een leerplan. Standaard zonder de oude versies (`oudeVersieIds`):
+ * "Niet meer geldig", en "Onbekend" naast een geldige set met dezelfde naam. Een set met "Onbekend"
+ * zonder zo'n geldige naamgenoot blijft. Heeft geen enkele set in de index een geldigheid (oudere
  * index), dan wordt daar niet op gefilterd. Een set met een andere graad of stroom valt weg; een set zonder graad of stroom blijft
  * (zulke sets gelden vaak over graden heen) maar komt na de sets die exact passen. Daarna op korte
  * naam (of naam), natuurlijk gesorteerd. Puur: de index zelf verandert niet.
  */
 export function stelSetsVoor(index: readonly MinimumdoelenIndexSet[], opties: SetVoorstelOpties = {}): MinimumdoelenIndexSet[] {
   const metGeldigheid = index.some((s) => typeof s.geldigheid === 'string' && s.geldigheid.trim() !== '');
+  const oud = !opties.alleGeldigheden && metGeldigheid ? oudeVersieIds(index) : undefined;
   const graad = opties.graad?.trim() ? graadSleutel(opties.graad) : undefined;
   const stroom = opties.stroom?.trim() ? stroomSleutel(opties.stroom) : undefined;
   const woorden = eenvoudig(opties.zoek ?? '').split(' ').filter(Boolean);
 
   const passend: { set: MinimumdoelenIndexSet; score: number; naam: string }[] = [];
   for (const set of index) {
-    // Alleen wat uitdrukkelijk niet meer geldt, valt weg: "Onbekend" zijn in de bron o.a. de huidige sets van de 3de graad.
-    if (!opties.alleGeldigheden && metGeldigheid && (set.geldigheid ?? '').trim().toLowerCase() === 'niet meer geldig') continue;
+    if (oud?.has(set.id)) continue;
     let score = 0;
     if (graad !== undefined && set.graad) {
       if (graadSleutel(set.graad) !== graad) continue;

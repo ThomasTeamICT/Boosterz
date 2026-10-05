@@ -10,7 +10,7 @@ leerplan) moet de punten met "te bevestigen" afvinken vóór het bouwen begint.*
 | API-sleutel Onderwijsdoelen-API | **Bestaat.** Aangevraagd via het portaalformulier op 18 december 2025, aangemaakt op 9 januari 2026 door de Centrale cel ICT. De sleutel kwam per mail in de ICT-mailbox van de scholengroep en geldt voor alle open API's van Onderwijs & Vorming. Hij staat nergens in de repo. |
 | Sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` | **Gedaan** op 5 oktober 2026 (repository secret voor Actions). |
 | Pakket L1 (ophaalscript, workflow, datatest) | Gebouwd en gereviewd (twee reviewers, rechter). **Eerste echte run (5 oktober 2026)**: volledig opgehaald (24019 doelen, 49 pagina's, `totalItems` klopt), maar terecht gestopt (exit 3): sets met dezelfde lange naam vielen samen. Opgelost: de setsleutel is nu `ODS_<onderwijsdoelenset_id>`, elk doel krijgt zijn `@id`, en alle API-velden gaan mee in `extra`. Run 2 en 3 toonden de rest: binnen een set is een code niet altijd uniek (§ 5, "Wat de echte gegevens leren"); een doel wordt nu herkend aan zijn `@id`. **Run 4 geslaagd**: pull request #2 met 950 sets (15 324 doelen, 15 MB), nagekeken door de hoofdsessie (datatest en build groen) en op 5 oktober 2026 samengevoegd op vraag van de eigenaar. **Laag 1 is klaar.** Elke maand haalt de taak de doelen opnieuw op en opent een pull request als er iets verandert. Volgende stap: laag 2 (doelen tonen in de app, koppeling met leerplannen en cursussen). |
-| Laag 2, ronde 1 (§ 14): inleesweg, verwijzingen, hulp | **Bezig** sinds 5 oktober 2026. Klaar en live: basis, kern (lezer, verwijzingen, nakijkpoort), de pagina "Officiële minimumdoelen", wegwijzer en nakijkstatus. **Ronde 1 klaar** (5 oktober 2026): officiële minimumdoelen in de app, inleeswizard met nakijkpoort, verwijzingen naar set + vast nummer, wegwijzer en hulp. Twee reviews met rechter, alle bevestigde punten hersteld; 2004 unittests en de rooktest groen. Pull request #3 (geldigheid per set) samengevoegd: oude versies zijn standaard verborgen, en een oude set wijst zijn opvolger aan. Volgende: echte leerplan-pdf's om de lezer te bevestigen (KOV I-Aar-a, een GO!-leerplan), daarna de dekking op twee lagen (L6). |
+| Laag 2, ronde 1 (§ 14): inleesweg, verwijzingen, hulp | **Bezig** sinds 5 oktober 2026. Klaar en live: basis, kern (lezer, verwijzingen, nakijkpoort), de pagina "Officiële minimumdoelen", wegwijzer en nakijkstatus. **Ronde 1 klaar** (5 oktober 2026): officiële minimumdoelen in de app, inleeswizard met nakijkpoort, verwijzingen naar set + vast nummer, wegwijzer en hulp. Twee reviews met rechter, alle bevestigde punten hersteld; 2004 unittests en de rooktest groen. Pull request #3 (geldigheid per set) samengevoegd: oude versies zijn standaard verborgen, en een oude set wijst zijn opvolger aan. Ook een set met geldigheid "Onbekend" naast een geldige set met dezelfde naam (128 keer versie 2.0 naast 2.1) geldt nu als oudere versie. Een STEM-set legt uit dat de bron niet per vak indeelt en dat het leerplan van het net zegt wat bij een vak hoort; je kan zoeken in de doelen van een set. Voorstel bij de eigenaar: een eigen doelenlijst samenstellen uit meerdere sets (§ 10). Volgende: echte leerplan-pdf's om de lezer te bevestigen (KOV I-Aar-a, een GO!-leerplan), daarna de dekking op twee lagen (L6). |
 | Vraag aan het GO! (via een contactpersoon bij PBD) | Concept klaar bij de eigenaar (5 oktober 2026): een afgebakend experiment met enkele leerplannen. Nog te versturen. |
 | Vragen aan het departement (§ 12) | Nog te stellen. Sinds 24 maart 2026 **alleen via het formulier van TechLoket Onderwijs**, niet meer per mail (Nieuwsbrief API K&C van AHOVOKS). |
 | Vragen aan KOV, GO!, OVSG, POV (§ 12) | Teksten klaar in het aanvraagdossier (Claude Docs, "Aanvraagdossier leerplangegevens"); nog niet verstuurd. |
@@ -157,7 +157,8 @@ gelijk; een sleutel uit de naam viel in de eerste echte run samen voor verschill
   teksten zonder ander onderscheid dan het id. Mogelijk een fout in de bron: vraag voor TechLoket.
 - De API geeft ook oude sets. Van de 950 gekozen sets zijn er 408 geldig, 411 niet meer geldig
   (bv. de vakgebonden eindtermen aardrijkskunde 1997–2020, `ODS_2118`) en 131 met geldigheid
-  "Onbekend". De geldigheid staat per doel in `extra.geldigheid` (`type`, `geldig_van_dt`,
+  "Onbekend". Van die 131 zijn er 128 versie 2.0 (2021) van een set die nu als versie 2.1 geldt; alleen
+  3 sets van het volwassenenonderwijs (`ODS_2704`–`ODS_2706`) hebben geen nieuwere versie. De geldigheid staat per doel in `extra.geldigheid` (`type`, `geldig_van_dt`,
   `geldig_tot_dt`). We bewaren alles (herkomst en oude verwijzingen blijven naspeurbaar); laag 2
   toont standaard alleen geldige doelen.
 - 383 sets hebben exact dezelfde doelen als een andere set (dezelfde doelen voor een andere
@@ -263,8 +264,9 @@ cursuskaart blijft dat van het leerplan.
   het controlerapport, en het nakijkscherm met doel en bron naast elkaar.
 - Toegankelijk zoals de rest van de app: één `h1`, alles met het toetsenbord bedienbaar, en de
   status niet alleen met kleur aangeduid.
-- De lijst toont standaard alleen sets die gelden of waarvan de bron geen geldigheid vermeldt
-  ("Onbekend": o.a. de huidige sets van de 3de graad); "Toon ook oude versies" toont de rest. De
+- De lijst toont standaard geen oude versies (`oudeVersieIds`): niet wat "Niet meer geldig" is, en niet wat
+  "Onbekend" is terwijl dezelfde set (zelfde naam, soort, graad en stroom) nu geldt; die heet "Oudere versie".
+  "Toon ook oude versies" toont ze erbij. De wizard en de editor stellen ze ook niet voor. De
   1ste graad A-stroom heeft drie generaties: per vak (tot 2020), per sleutelcompetentie (2019–2025)
   en de herziene versie (sinds 2024).
 - Een set die niet meer geldt, krijgt een waarschuwing die de opvolger aanwijst (`opvolgersVan`):
@@ -273,6 +275,16 @@ cursuskaart blijft dat van het leerplan.
   openen; daarnaast "Toch als leerplan gebruiken". Het leerplan heet dan "… (niet meer geldig)". Zoeken op een vak vindt ook de sleutelcompetentie
   waar het sinds 2019 onder valt (bv. aardrijkskunde → ruimtelijk bewustzijn): een hulp bij het
   zoeken, geen officiële koppeling.
+- Een STEM-set ("wiskunde, exacte wetenschappen en technologie", `isStemSet`) bundelt wiskunde,
+  natuurwetenschappen en techniek; de bron zegt niet welk doel bij welk vak hoort. Het scherm zegt dat,
+  verwijst naar het leerplan van het net als basis voor een cursus, biedt voorbeeldwoorden om in de doelen
+  te zoeken, en wijst in de 2de en 3de graad de aparte sets voor biologie, chemie en fysica aan
+  (`vakSetsBijStem`). Vanaf 10 doelen staat er een zoekveld boven de doelen; "Gebruik als leerplan" neemt
+  altijd de hele set.
+- Open vraag (oktober 2026): een eigen doelenlijst samenstellen uit meerdere sets of uit een deel van een
+  set (bv. de NW-doelen uit de STEM-set, of basisgeletterdheid uit Nederlands, wiskunde en digitale
+  competenties). De doelen blijven letterlijk en houden hun verwijzing; de nakijkpoort moet dan per doel
+  controleren in plaats van per volledige set. Nog niet gebouwd.
 
 ## 11. Werkpakketten
 

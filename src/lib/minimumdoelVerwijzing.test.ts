@@ -206,14 +206,20 @@ describe('stelSetsVoor', () => {
     s('ODS_5', { korteNaam: 'Ruimtelijk bewustzijn', graad: '2de graad', geldigheid: 'Geldig' }),
     s('ODS_6', { korteNaam: 'Vakoverschrijdend', geldigheid: 'Geldig' }),
     s('ODS_7', { korteNaam: 'Économie', graad: '3de graad', geldigheid: 'Geldig' }),
-    // "Onbekend" in de bron: o.a. de huidige sets van de 3de graad. Die blijven.
+    // "Onbekend" zonder geldige set met dezelfde naam (zoals enkele sets van het volwassenenonderwijs): blijft.
     s('ODS_8', { korteNaam: 'Zelfsturing', graad: '1ste graad', stroom: 'A-stroom', geldigheid: 'Onbekend' }),
   ];
 
-  it('laat standaard alleen de sets weg die niet meer gelden, of toont alles op vraag', () => {
+  it('laat standaard de oude versies weg, of toont alles op vraag', () => {
     expect(stelSetsVoor(index).map((x) => x.id)).not.toContain('ODS_3');
     expect(stelSetsVoor(index).map((x) => x.id)).toContain('ODS_8');
     expect(stelSetsVoor(index, { alleGeldigheden: true })).toHaveLength(index.length);
+  });
+
+  it('laat ook een oudere versie met "Onbekend" weg als dezelfde set nu geldt', () => {
+    const metOud = [...index, s('ODS_9', { naam: 'Secundair onderwijs ODS_2', korteNaam: 'Ruimtelijk bewustzijn', graad: '1ste graad', stroom: 'A-stroom', geldigheid: 'Onbekend' })];
+    expect(stelSetsVoor(metOud).map((x) => x.id)).not.toContain('ODS_9');
+    expect(stelSetsVoor(metOud, { alleGeldigheden: true }).map((x) => x.id)).toContain('ODS_9');
   });
 
   it('filtert niet op geldigheid als de index er geen kent', () => {

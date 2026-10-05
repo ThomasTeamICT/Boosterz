@@ -157,7 +157,12 @@ export function bevestigUitOfficieleSet(
 }
 
 /** Het leerplan uit een set, gesaneerd zoals bij bewaren, nog zonder nakijken. */
-function bouwLeerplanUitSet(bestand: MinimumdoelenSetBestand): LeerplanUitSet {
+/** `oudereVersie`: de set is een oudere versie naast een set die nu geldt (`isOudeVersie` in minimumdoelenBron.ts). */
+export interface LeerplanUitSetOpties {
+  oudereVersie?: boolean;
+}
+
+function bouwLeerplanUitSet(bestand: MinimumdoelenSetBestand, opties: LeerplanUitSetOpties = {}): LeerplanUitSet {
   const s = bestand.set;
   const waarschuwingen: string[] = [];
 
@@ -188,9 +193,11 @@ function bouwLeerplanUitSet(bestand: MinimumdoelenSetBestand): LeerplanUitSet {
 
   const naam = s.korteNaam?.trim() || s.naam.trim();
   const niveau = [s.graad, s.stroom].map((t) => t?.trim()).filter(Boolean).join(' ');
-  // Een set die niet meer geldt, mag je nog gebruiken, maar de titel zegt het en er staat geen "geldig vanaf" bij: dat
-  // zou doen alsof ze nog geldt. (De vingerafdruk dekt alleen de doelen; de titel en de herkomst veranderen die niet.)
-  const verouderd = geldigheidVanBestand(bestand) === 'N';
+  // Een set die niet meer geldt of een oudere versie is, mag je nog gebruiken, maar de titel zegt het en er staat geen
+  // "geldig vanaf" bij: dat zou doen alsof ze nog geldt. (De vingerafdruk dekt alleen de doelen; de titel en de
+  // herkomst veranderen die niet.)
+  const nietMeerGeldig = geldigheidVanBestand(bestand) === 'N';
+  const verouderd = nietMeerGeldig || opties.oudereVersie === true;
   const herkomst: CurriculumHerkomst = { methode: 'officieel', ingelezenOp: Date.now() };
   if (s.versie) herkomst.versie = s.versie;
   if (s.geldigVan && !verouderd) herkomst.geldigVanaf = s.geldigVan;
@@ -202,7 +209,7 @@ function bouwLeerplanUitSet(bestand: MinimumdoelenSetBestand): LeerplanUitSet {
   // Eerst saneren zoals een import dat doet, dan pas nakijken en bevestigen: zo is de vingerafdruk die
   // van de doelen zoals ze na exporteren en importeren terugkomen, en blijft het leerplan "nagekeken".
   const ruw = createCurriculum({
-      title: `${niveau ? `${naam} · ${niveau}` : naam}${verouderd ? ' (niet meer geldig)' : ''}`,
+      title: `${niveau ? `${naam} · ${niveau}` : naam}${nietMeerGeldig ? ' (niet meer geldig)' : verouderd ? ' (oudere versie)' : ''}`,
       net: 'minimumdoelen',
       subject: naam,
       level: niveau,
@@ -231,8 +238,8 @@ function bouwLeerplanUitSet(bestand: MinimumdoelenSetBestand): LeerplanUitSet {
  *
  * Geeft het leerplan nog niet terug uit de opslag: de aanroeper bewaart het met `saveCurriculum`.
  */
-export function leerplanUitSet(bestand: MinimumdoelenSetBestand): LeerplanUitSet {
-  const { leerplan: gebouwd, waarschuwingen } = bouwLeerplanUitSet(bestand);
+export function leerplanUitSet(bestand: MinimumdoelenSetBestand, opties: LeerplanUitSetOpties = {}): LeerplanUitSet {
+  const { leerplan: gebouwd, waarschuwingen } = bouwLeerplanUitSet(bestand, opties);
   if (gebouwd.goals.length === 0) return { leerplan: gebouwd, waarschuwingen };
   const { leerplan, rapport, bevestigd } = bevestigUitOfficieleSet(gebouwd, bestand, {
     samenvatting: `Letterlijk overgenomen uit de officiële set ${bestand.set.id} (${doelen(gebouwd.goals.length)}).`,

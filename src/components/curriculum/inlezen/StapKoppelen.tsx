@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { MinimumdoelenIndexSet } from '../../../lib/minimumdoelen';
-import { SOORT_LABEL, contextVanSet, filterSets, geldigheidTekst, soortVanSet } from '../../../lib/minimumdoelenBron';
+import { SOORT_LABEL, contextVanSet, filterSets, geldigheidTekst, oudeVersieIds, soortVanSet } from '../../../lib/minimumdoelenBron';
 import { beschrijfSetKeuze, gemengdeStromen, niveauTekst, type OnderwijsKeuze } from '../../../lib/leerplanInlezen';
 import { AddIcon, CheckIcon, InfoIcon, SearchIcon, WarningIcon } from '../../icons';
 import { Field } from '../../ui';
@@ -61,6 +61,7 @@ export function StapKoppelen({
     return { totaal: alle.length, getoond: alle.slice(0, MAX_ZOEKRESULTATEN) };
   }, [zoek, stand.indexSets]);
   const inLijst = useMemo(() => new Set(stand.kandidaten.map((k) => k.set.id)), [stand.kandidaten]);
+  const oud = useMemo(() => oudeVersieIds(stand.indexSets), [stand.indexSets]);
 
   const niveau = niveauTekst(graad, stroom);
   const voor = [SOORT_LABEL[onderwijs].toLowerCase(), niveau].filter(Boolean).join(', ');
@@ -144,7 +145,7 @@ export function StapKoppelen({
                     <label className={`il-set${k.treffers > 0 ? ' met-treffers' : ''}`}>
                       <input type="checkbox" checked={stand.gekozen.includes(k.set.id)} onChange={() => onWissel(k.set.id)} />
                       <span className="il-set-tekst">
-                        <span className="il-set-naam">{k.set.korteNaam || k.set.naam}{k.geldigheid === 'N' ? ' (oude versie)' : ''}</span>
+                        <span className="il-set-naam">{k.set.korteNaam || k.set.naam}{k.geldigheid === 'N' || oud.has(k.set.id) ? ' (oude versie)' : ''}</span>
                         {meta && <span className="il-set-meta">{meta}</span>}
                         <span className="il-set-meta">
                           {k.mislukt ? <strong>Kon niet geladen worden</strong> : getallen}

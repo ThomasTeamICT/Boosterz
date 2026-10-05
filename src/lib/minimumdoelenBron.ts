@@ -183,7 +183,8 @@ export function geldigheidTekst(set: { geldigheid?: string; geldigVan?: string; 
     if (van) return `Niet meer geldig (was geldig sinds ${van})`;
     return 'Niet meer geldig';
   }
-  // De bron zegt "Onbekend": o.a. bij de huidige sets van de 3de graad. Dat is geen "niet meer geldig".
+  // De bron zegt "Onbekend". Meestal is dat een oudere versie van een set die wél geldig is (zie
+  // `oudeVersieIds`); de enkele andere (bv. cesuurdoelen volwassenenonderwijs) tonen we gewoon.
   if (g === 'O') return 'Geldigheid niet vermeld';
   return undefined;
 }
@@ -235,7 +236,7 @@ export function contextVanSet(naam: string): string {
 export interface SetFilter {
   /** Zoektekst: naam, korte naam of id, zonder accenten en hoofdletterongevoelig. */
   zoek: string;
-  /** 'actueel' = alles behalve wat niet meer geldt (geldig of zonder vermelde geldigheid). */
+  /** 'actueel' = zonder oude versies: niet wat niet meer geldt, en niet wat een nieuwere geldige versie heeft. */
   geldigheid: GeldigheidCode | 'actueel' | 'alle';
   /** Leeg = alle graden. */
   graad: string;
@@ -253,10 +254,11 @@ export function zonderAccenten(tekst: string): string {
  */
 export function filterSets(sets: readonly MinimumdoelenIndexSet[], filter: SetFilter): MinimumdoelenIndexSet[] {
   const termen = zonderAccenten(filter.zoek).split(/\s+/).filter(Boolean);
+  const oud = filter.geldigheid === 'actueel' ? oudeVersieIds(sets) : undefined;
   const alternatieven = termen.map((t) => competentieFrases(t));
   return sets.filter((s) => {
-    if (filter.geldigheid === 'actueel') {
-      if (geldigheidVan(s) === 'N') return false;
+    if (oud) {
+      if (oud.has(s.id)) return false;
     } else if (filter.geldigheid !== 'alle' && geldigheidVan(s) !== filter.geldigheid) return false;
     if (filter.graad !== '' && s.graad !== filter.graad) return false;
     if (filter.soort !== 'alle' && soortVanSet(s.naam) !== filter.soort) return false;
@@ -273,7 +275,32 @@ export function graadOpties(sets: readonly MinimumdoelenIndexSet[]): string[] {
   return [...graden].sort((a, b) => a.localeCompare(b, 'nl', { numeric: true }));
 }
 
-// ── Opvolgers van een set die niet meer geldt ───────────────────────────────
+// ── Oude versies en hun opvolgers ───────────────────────────────────────────
+
+const OUDE_VERSIES = new WeakMap<readonly MinimumdoelenIndexSet[], Set<string>>();
+
+/**
+ * De sets die een oude versie zijn: "Niet meer geldig", of "Onbekend" terwijl er een geldige set met
+ * dezelfde naam (zelfde soort, graad en stroom) bestaat. Dat laatste is in de echte gegevens bijna altijd
+ * versie 2.0 (2021) naast een geldige versie 2.1. Per lijst één keer berekend.
+ */
+export function oudeVersieIds(alle: readonly MinimumdoelenIndexSet[]): Set<string> {
+  const bewaard = OUDE_VERSIES.get(alle);
+  if (bewaard) return bewaard;
+  const geldig = new Set(alle.filter((s) => geldigheidVan(s) === 'G').map((s) => plaatsEnNaam(s)));
+  const oud = new Set<string>();
+  for (const s of alle) {
+    const g = geldigheidVan(s);
+    if (g === 'N' || (g === 'O' && geldig.has(plaatsEnNaam(s)))) oud.add(s.id);
+  }
+  OUDE_VERSIES.set(alle, oud);
+  return oud;
+}
+
+/** Is deze set een oude versie (zie `oudeVersieIds`)? */
+export function isOudeVersie(set: MinimumdoelenIndexSet, alle: readonly MinimumdoelenIndexSet[]): boolean {
+  return oudeVersieIds(alle).has(set.id);
+}
 
 /** Woorden uit een (korte) setnaam die niets over het vak zeggen. */
 const GEEN_VAKWOORD = new Set(['vak', 'eindtermen', 'eindterm', 'opvoeding', 'moderne', 'talen', 'competenties', 'vakoverschrijdende', 'specifieke']);
@@ -286,6 +313,10 @@ function zelfdePlaats(a: MinimumdoelenIndexSet, b: MinimumdoelenIndexSet): boole
   return soortVanSet(a.naam) === soortVanSet(b.naam) && (a.graad ?? '') === (b.graad ?? '') && (a.stroom ?? '') === (b.stroom ?? '');
 }
 
+function plaatsEnNaam(s: MinimumdoelenIndexSet): string {
+  return `${soortVanSet(s.naam)}|${s.graad ?? ''}|${s.stroom ?? ''}|${naamSleutel(s.naam)}`;
+}
+
 export interface Opvolgers {
   /**
    * 'versie': dezelfde set in een nieuwere versie (zelfde naam); 'vak': de sets die nu gelden voor het vak van een
@@ -296,13 +327,14 @@ export interface Opvolgers {
 }
 
 /**
- * Waar vindt een leerkracht de doelen van een set die niet meer geldt? Alleen sets van dezelfde soort onderwijs,
- * graad en stroom die nog gelden (of zonder vermelde geldigheid). Eerst dezelfde set in een nieuwere versie; anders
+ * Waar vindt een leerkracht de doelen van een oude versie? Alleen sets van dezelfde soort onderwijs, graad en
+ * stroom die zelf geen oude versie zijn. Eerst dezelfde set in een nieuwere versie; anders
  * de sets die het vak noemen of er volgens de zoektabel bij horen (aardrijkskunde → ruimtelijk bewustzijn),
  * grootste eerst, hoogstens drie. Dit wijst de weg; het koppelt niets.
  */
 export function opvolgersVan(set: MinimumdoelenIndexSet, alle: readonly MinimumdoelenIndexSet[]): Opvolgers {
-  const kandidaten = alle.filter((s) => s.id !== set.id && geldigheidVan(s) !== 'N' && zelfdePlaats(s, set));
+  const oud = oudeVersieIds(alle);
+  const kandidaten = alle.filter((s) => s.id !== set.id && !oud.has(s.id) && zelfdePlaats(s, set));
   const sleutel = naamSleutel(set.naam);
   const versies = kandidaten.filter((s) => naamSleutel(s.naam) === sleutel);
   if (versies.length > 0) return { soort: 'versie', sets: versies.slice(0, 3) };
@@ -324,3 +356,49 @@ export function opvolgersVan(set: MinimumdoelenIndexSet, alle: readonly Minimumd
   return passend.length > 0 ? { soort: 'vak', sets: passend.slice(0, 3) } : { soort: 'geen', sets: [] };
 }
 
+
+// ── STEM-sets en zoeken in de doelen ────────────────────────────────────────
+
+/**
+ * Een set van de sleutelcompetentie "wiskunde, exacte wetenschappen en technologie" (STEM). Zo'n set bundelt
+ * wiskunde, natuurwetenschappen en techniek; de bron zegt niet welk doel bij welk vak hoort.
+ */
+export function isStemSet(set: { naam: string }): boolean {
+  return /wiskunde,\s*exacte wetenschappen en technologie/i.test(set.naam);
+}
+
+const NW_VAKKEN = ['biologie', 'chemie', 'fysica'];
+
+/**
+ * De sets per vak (biologie, chemie, fysica) die naast een STEM-set bestaan: dezelfde soort onderwijs, graad en
+ * leerjaar, en geen oude versie. In de echte gegevens alleen in de 2de en 3de graad (cesuurdoelen en specifieke
+ * eindtermen, voor bepaalde studierichtingen). In de volgorde biologie, chemie, fysica.
+ */
+export function vakSetsBijStem(set: MinimumdoelenIndexSet, alle: readonly MinimumdoelenIndexSet[]): MinimumdoelenIndexSet[] {
+  const oud = oudeVersieIds(alle);
+  const vak = (s: MinimumdoelenIndexSet) => NW_VAKKEN.indexOf(zonderAccenten(s.korteNaam ?? '').trim());
+  return alle
+    .filter((s) => s.id !== set.id && !oud.has(s.id) && vak(s) >= 0
+      && soortVanSet(s.naam) === soortVanSet(set.naam) && (s.graad ?? '') === (set.graad ?? '') && (s.leerjaar ?? '') === (set.leerjaar ?? ''))
+    .sort((a, b) => vak(a) - vak(b) || a.id.localeCompare(b.id, 'nl', { numeric: true }));
+}
+
+/** De woorden uit een zoekveld: zonder accenten, in kleine letters. */
+export function zoekTermen(zoek: string): string[] {
+  return zonderAccenten(zoek).split(/\s+/).filter(Boolean);
+}
+
+/** Past een doel bij de zoekwoorden? Elk woord moet ergens in de code, de tekst of de rubriek staan. */
+export function doelPastBijZoek(doel: { code: string; tekst: string; rubriek?: string }, termen: readonly string[]): boolean {
+  if (termen.length === 0) return true;
+  const hooi = zonderAccenten(`${doel.code} ${doel.tekst} ${doel.rubriek ?? ''}`);
+  return termen.every((t) => hooi.includes(t));
+}
+
+/** Woorden uit natuurwetenschappen om als voorbeeld bij het zoeken te tonen; alleen wat in de doelen voorkomt. */
+const NW_VOORBEELDEN = ['energie', 'organismen', 'stoffen', 'krachten', 'licht'];
+
+/** Hoogstens drie voorbeeldwoorden die echt iets vinden in deze doelen. */
+export function zoekVoorbeelden(doelen: readonly { code: string; tekst: string }[]): string[] {
+  return NW_VOORBEELDEN.filter((w) => doelen.some((d) => doelPastBijZoek(d, [w]))).slice(0, 3);
+}

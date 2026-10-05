@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from '../../lib/minimumdoelen';
-import { SOORT_LABEL, contextVanSet, filterSets, geldigheidVan, laadIndex, laadSet, soortVanSet } from '../../lib/minimumdoelenBron';
+import { SOORT_LABEL, contextVanSet, filterSets, geldigheidVan, laadIndex, laadSet, oudeVersieIds, soortVanSet } from '../../lib/minimumdoelenBron';
 import { geldigheidVoorLijst, kandidaatSets } from '../../lib/setKeuze';
 import { useLaadstand } from '../../lib/useLaadstand';
 import { Field, Modal } from '../ui';
@@ -51,6 +51,7 @@ export function SetsKiezen({
     return kandidaatSets(sets, { graad, stroom, onderwijs: 'so', vak, eigen: eigenSleutel === '' ? [] : eigenSleutel.split('|') });
   }, [stand, zoek, graad, stroom, vak, eigenSleutel]);
   const getoond = useMemo(() => lijst.slice(0, MAX_GETOOND), [lijst]);
+  const oudeVersies = useMemo(() => oudeVersieIds(stand.status === 'klaar' ? stand.waarde.sets : []), [stand]);
 
   // Kent de index de geldigheid van een set niet (oudere index), dan leiden we ze af uit het bestand van de set,
   // zoals de wizard dat doet. Alleen voor wat op het scherm staat.
@@ -127,7 +128,7 @@ export function SetsKiezen({
             <ul className="kz-sets">
               {getoond.map((s) => {
                 const g = geldigheidVoorLijst(s, bestanden.get(s.id));
-                const oud = g.code === 'N';
+                const oud = g.code === 'N' || oudeVersies.has(s.id);
                 const kenmerk = kenmerken(s);
                 return (
                   <li key={s.id}>

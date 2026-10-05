@@ -8,18 +8,25 @@ import {
   SOORT_LABEL,
   contextVanSet,
   datumLeesbaar,
+  doelPastBijZoek,
   filterSets,
   geldigheidTekst,
   geldigheidVan,
   graadOpties,
   indexHeeftGeldigheid,
   isGeldigSetId,
+  isOudeVersie,
+  isStemSet,
   laadIndex,
   laadSet,
   opvolgersVan,
+  oudeVersieIds,
   soortVanSet,
+  vakSetsBijStem,
   veiligeLink,
   wisMinimumdoelenCache,
+  zoekTermen,
+  zoekVoorbeelden,
   zonderAccenten,
   type SetFilter,
 } from './minimumdoelenBron';
@@ -282,12 +289,24 @@ describe('filterSets', () => {
     expect(filterSets(sets, { ...alles, geldigheid: 'G' }).map((s) => s.id)).toEqual(['ODS_3287', 'ODS_2600']);
     expect(filterSets(sets, { ...alles, geldigheid: 'N' }).map((s) => s.id)).toEqual(['ODS_2118']);
     expect(filterSets(sets, { ...alles, geldigheid: 'O' }).map((s) => s.id)).toEqual(['ODS_2300']);
-    // 'actueel': alles behalve wat niet meer geldt
+    // 'actueel': zonder oude versies; "Onbekend" zonder geldige naamgenoot blijft
     expect(filterSets(sets, { ...alles, geldigheid: 'actueel' }).map((s) => s.id)).not.toContain('ODS_2118');
     expect(filterSets(sets, { ...alles, geldigheid: 'actueel' }).map((s) => s.id)).toContain('ODS_2300');
     expect(filterSets(sets, { ...alles, graad: '1ste graad' }).map((s) => s.id)).toEqual(['ODS_3287', 'ODS_2118']);
     expect(filterSets(sets, { ...alles, soort: 'buso' }).map((s) => s.id)).toEqual(['ODS_2300']);
     expect(filterSets(sets, { ...alles, soort: 'so', geldigheid: 'G', graad: '1ste graad' }).map((s) => s.id)).toEqual(['ODS_3287']);
+  });
+
+  it("'actueel' verbergt ook een oudere versie met \"Onbekend\" naast een geldige set met dezelfde naam", () => {
+    const naam = sets[0].naam;
+    const oudere = indexSet('ODS_2447', { naam: `${naam} `, korteNaam: 'Ruimtelijk bewustzijn', graad: '1ste graad', stroom: 'A-stroom', geldigheid: 'Onbekend' });
+    // Zelfde naam maar andere stroom: geen naamgenoot, dus geen oudere versie.
+    const andereStroom = indexSet('ODS_2450', { naam, korteNaam: 'Ruimtelijk bewustzijn', graad: '1ste graad', stroom: 'B-stroom', geldigheid: 'Onbekend' });
+    const metOud = [...sets, oudere, andereStroom];
+    expect([...oudeVersieIds(metOud)].sort()).toEqual(['ODS_2118', 'ODS_2447']);
+    expect(isOudeVersie(oudere, metOud)).toBe(true);
+    expect(isOudeVersie(andereStroom, metOud)).toBe(false);
+    expect(filterSets(metOud, { ...alles, geldigheid: 'actueel' }).map((s) => s.id)).toEqual(['ODS_3287', 'ODS_2300', 'ODS_2600', 'ODS_2450']);
   });
 
   it('graadOpties geeft de graden in natuurlijke volgorde, zonder dubbels of lege waarden', () => {
@@ -320,12 +339,24 @@ describe('opvolgersVan met de meegeleverde index', () => {
     expect(ids('ODS_2447')).toEqual({ soort: 'versie', sets: [set('ODS_3287')] });
   });
 
+  it.runIf(heeft)('ziet versie 2.0 met geldigheid "Onbekend" als oudere versie van 2.1', () => {
+    // STEM 3de graad doorstroom: 2.0 (Onbekend) → 2.1 (Geldig)
+    expect(isOudeVersie(set('ODS_2787'), index)).toBe(true);
+    expect(ids('ODS_2787')).toEqual({ soort: 'versie', sets: [set('ODS_3069')] });
+    // Volwassenenonderwijs zonder geldige naamgenoot: blijft zichtbaar.
+    expect(isOudeVersie(set('ODS_2704'), index)).toBe(false);
+    // Elke "Onbekend" die als oud geldt, heeft een nieuwere versie om naar te wijzen.
+    for (const s of index.filter((x) => geldigheidVan(x) === 'O' && isOudeVersie(x, index))) {
+      expect(opvolgersVan(s, index).soort, s.id).toBe('versie');
+    }
+  });
+
   it.runIf(heeft)('geeft voor elke set die niet meer geldt iets terug, zonder zichzelf of andere oude sets', () => {
     let metOpvolger = 0;
     const oud = index.filter((s) => geldigheidVan(s) === 'N');
     for (const s of oud) {
       const o = opvolgersVan(s, index);
-      expect(o.sets.every((x) => x.id !== s.id && geldigheidVan(x) !== 'N')).toBe(true);
+      expect(o.sets.every((x) => x.id !== s.id && !isOudeVersie(x, index))).toBe(true);
       if (o.sets.length > 0) metOpvolger++;
     }
     // De meeste oude sets hebben een aanwijsbare opvolger; de rest krijgt "kies een set die nu geldt".
@@ -333,3 +364,57 @@ describe('opvolgersVan met de meegeleverde index', () => {
   });
 });
 
+
+// ── STEM-sets en zoeken in de doelen ────────────────────────────────────────
+
+describe('zoeken in de doelen', () => {
+  const doel = { code: '06.31', tekst: 'De leerlingen leggen het verschil uit tussen mengsels en zuivere stoffen aan de hand van het deeltjesmodel.' };
+
+  it('zoekTermen: zonder accenten, kleine letters, gesplitst op witruimte', () => {
+    expect(zoekTermen('  Énergie   DEELTJES ')).toEqual(['energie', 'deeltjes']);
+    expect(zoekTermen('')).toEqual([]);
+  });
+
+  it('doelPastBijZoek: alle woorden in code, tekst of rubriek', () => {
+    expect(doelPastBijZoek(doel, [])).toBe(true);
+    expect(doelPastBijZoek(doel, zoekTermen('mengsels deeltjesmodel'))).toBe(true);
+    expect(doelPastBijZoek(doel, zoekTermen('06.31'))).toBe(true);
+    expect(doelPastBijZoek(doel, zoekTermen('mengsels fotosynthese'))).toBe(false);
+    expect(doelPastBijZoek({ ...doel, rubriek: 'Materie' }, zoekTermen('materie'))).toBe(true);
+  });
+
+  it('zoekVoorbeelden: alleen woorden die iets vinden, hoogstens drie', () => {
+    expect(zoekVoorbeelden([doel])).toEqual(['stoffen']);
+    expect(zoekVoorbeelden([{ code: '1', tekst: 'Rekenen met breuken.' }])).toEqual([]);
+  });
+});
+
+describe('STEM-sets met de meegeleverde index', () => {
+  const map = join(fileURLToPath(new URL('../../', import.meta.url)), 'public', 'leerplannen', 'minimumdoelen');
+  const pad = join(map, 'index.json');
+  const index = existsSync(pad) ? (JSON.parse(readFileSync(pad, 'utf8')) as { sets: MinimumdoelenIndexSet[] }).sets : [];
+  const heeft = index.length > 0 && indexHeeftGeldigheid(index);
+  const set = (id: string) => index.find((s) => s.id === id) as MinimumdoelenIndexSet;
+  const vakken = (id: string) => vakSetsBijStem(set(id), index).map((s) => s.id);
+
+  it.runIf(heeft)('herkent de STEM-sets aan de naam van de sleutelcompetentie', () => {
+    expect(isStemSet(set('ODS_3283'))).toBe(true);
+    expect(isStemSet(set('ODS_3344'))).toBe(true);
+    expect(isStemSet(set('ODS_3287'))).toBe(false);
+    expect(isStemSet(set('ODS_3132'))).toBe(false);
+  });
+
+  it.runIf(heeft)('vindt de sets per vak naast een STEM-set, per graad en leerjaar', () => {
+    expect(vakken('ODS_3283')).toEqual([]);
+    expect(vakken('ODS_3020')).toEqual(['ODS_3132', 'ODS_3133', 'ODS_3136']);
+    expect(vakken('ODS_3069')).toEqual(['ODS_3116', 'ODS_3117', 'ODS_3120']);
+    expect(vakken('ODS_3365')).toEqual(['ODS_3377', 'ODS_3379', 'ODS_3383']);
+  });
+
+  it.runIf(heeft)('elk voorbeeldwoord vindt iets in de STEM-set van de 1ste graad A-stroom', () => {
+    const bestand = JSON.parse(readFileSync(join(map, 'ODS_3283.json'), 'utf8')) as { doelen: { code: string; tekst: string }[] };
+    const voorbeelden = zoekVoorbeelden(bestand.doelen);
+    expect(voorbeelden.length).toBeGreaterThan(0);
+    for (const w of voorbeelden) expect(bestand.doelen.some((d) => doelPastBijZoek(d, [w])), w).toBe(true);
+  });
+});

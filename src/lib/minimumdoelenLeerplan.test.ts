@@ -402,6 +402,15 @@ describe('leerplanUitSet: een set die niet meer geldt', () => {
     }
   });
 
+  it('een oudere versie (geldigheid "Onbekend" naast een geldige set) zegt het in de titel, zonder "geldig vanaf"', () => {
+    const b = oudeSet({ geldigheid: 'Onbekend', geldigVan: '2021-09-01' });
+    const { leerplan } = leerplanUitSet(b, { oudereVersie: true });
+    expect(leerplan.title).toBe('Artistieke Opvoeding · 1ste graad A-stroom (oudere versie)');
+    expect(leerplan.herkomst?.geldigVanaf).toBeUndefined();
+    expect(controleStatus(leerplan)).toBe('gecontroleerd');
+    expect(vindLeerplanVoorSet([leerplan], b)).toBe(leerplan);
+  });
+
   it('blijft een nagekeken leerplan, en vindLeerplanVoorSet vindt het nog steeds (de titel telt niet mee)', () => {
     const b = oudeSet({ geldigheid: 'Niet meer geldig', geldigVan: '1997-09-01', geldigTot: '2020-08-31' });
     const { leerplan, waarschuwingen } = leerplanUitSet(b);
