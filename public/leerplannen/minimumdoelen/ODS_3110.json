@@ -1,0 +1,29 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3110",
+    "naam": "Secundair onderwijs 3de graad bso Finaliteit arbeidsmarkt -  Zelfbewustzijn en zelfexpressie, zelfsturing en wendbaarheid - Eindtermen",
+    "apiId": "3110",
+    "korteNaam": "Zelfbewustzijn",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "14",
+        "naam": "Zelfbewustzijn en zelfexpressie, zelfsturing en wendbaarheid"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 1,
+    "sha256": "f235af6cb332ac6ef78858f682ad4a6857dd5edbd4998892d2380286545b43e3"
+  },
+  "doelen": [
+{"id":"91749","code":"0000","tekst":"<p>Omwille van de verwevenheid van deze sleutelcompetentie met sleutelcompetenties zoals sleutelcompetentie 1 ‘Competenties op het vlak van lichamelijk, geestelijk en emotioneel bewustzijn en op het vlak van lichamelijke, geestelijke en emotionele gezondheid’, sleutelcompetentie 5 ‘Sociaal-relationele competenties’ zijn er geen aparte eindtermen geformuleerd.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"14","naam":"Zelfbewustzijn en zelfexpressie, zelfsturing en wendbaarheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}}
+  ]
+}

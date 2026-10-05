@@ -1,0 +1,35 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3097",
+    "naam": "Secundair onderwijs 3de graad bso Finaliteit arbeidsmarkt -  Competenties op het vlak van lichamelijk, geestelijk en emotioneel bewustzijn/gezondheid - Eindtermen",
+    "apiId": "3097",
+    "korteNaam": "Lichamelijke en geestelijke gezondheid",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "1",
+        "naam": "Competenties op het vlak van lichamelijk, geestelijk en emotioneel bewustzijn/gezondheid"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 7,
+    "sha256": "4743a947aa8431b26dfff92810114b586cade9c2a436860eb3fc52d3396c2ad7"
+  },
+  "doelen": [
+{"id":"90633","code":"01.01","tekst":"<p>De leerlingen passen technieken voor levensreddend handelen toe in een gesimuleerde leeromgeving.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"1","naam":"Competenties op het vlak van lichamelijk, geestelijk en emotioneel bewustzijn/gezondheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Technieken voor levensreddend handelen zoals technieken van reanimatie (BLS) met een automatische externe defibrillator (AED), technieken in geval van verdrinking, verstikking, hart- en ademhalingsstilstand.</p><p>Herhaling van levensreddende technieken in beide graden is van belang om die technieken nadien systematisch in een noodsituatie te kunnen toepassen.</p>","optioneel":false,"titels":{}}},
+{"id":"90634","code":"01.02","tekst":"<p>De leerlingen ontwikkelen gezondheidsvaardigheden in functie van hun fysiek en mentaal welzijn binnen verschillende thema’s.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"1","naam":"Competenties op het vlak van lichamelijk, geestelijk en emotioneel bewustzijn/gezondheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Gezondheidsvaardigheden inzake voeding, hygiëne, beweging.</p><ul><li>Voeding zoals ultrabewerkt voedsel, gezonde snacks, duurzame voeding, evenwichtige voeding</li><li>Hygiëne zoals basisregels voor hygiëne</li><li>Beweging zoals beweegnormen, sedentair gedrag&nbsp;</li></ul>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"90635","code":"01.03","tekst":"<p>De leerlingen voeren conform de beweegrichtlijnen in verschillende bewegingsomgevingen activiteiten uit in verschillende individuele, interactieve en ritmisch expressieve bewegingsdomeinen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"1","naam":"Competenties op het vlak van lichamelijk, geestelijk en emotioneel bewustzijn/gezondheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context (zoals bewegingsomgevingen en bewegingsdomeinen) waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"90636","code":"01.04","tekst":"<p>De leerlingen ontwikkelen kracht, lenigheid, uithouding, snelheid, coördinatie en evenwicht, rekening houdend met de evolutie van hun fysieke capaciteiten.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"1","naam":"Competenties op het vlak van lichamelijk, geestelijk en emotioneel bewustzijn/gezondheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}},
+{"id":"90637","code":"01.05","tekst":"<p>De leerlingen voeren motorische basisvaardigheden uit, rekening houdend met ergonomische principes en de evolutie van hun fysieke capaciteiten.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"1","naam":"Competenties op het vlak van lichamelijk, geestelijk en emotioneel bewustzijn/gezondheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Motorische basisvaardigheden zoals balanceren, wentelen, springen, rollen, klauteren, klimmen, ritmisch bewegen, lopen, vangen, werpen, terugslaan, vallen, mee- en tegengaan in beweging.</p><p>Ergonomische principes zoals in het geval van heffen, tillen, staan, verplaatsen, rughygiëne.</p>","optioneel":false,"titels":{}}},
+{"id":"90638","code":"01.06","tekst":"<p>De leerlingen passen tactieken en principes toe met respect voor de afgesproken regels en rollen in sport en spel.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"1","naam":"Competenties op het vlak van lichamelijk, geestelijk en emotioneel bewustzijn/gezondheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Rollen in sport en spel zoals de beoefenaar, de coach, de scheidsrechter.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context (zoals de bewegingsdomeinen) waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"90639","code":"01.07","tekst":"<p>De leerlingen hanteren in verschillende rollen in sport en spel principes van verantwoord en veilig gedrag.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"1","naam":"Competenties op het vlak van lichamelijk, geestelijk en emotioneel bewustzijn/gezondheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context (zoals de bewegingsdomeinen) waarin het minimumdoel aan bod komt.</p>"}}
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3380",
+    "naam": "Buitengewoon Secundair onderwijs 3de graad 3de leerjaar Opleidingsvorm 4 -  Chemie - Specifieke eindtermen",
+    "apiId": "3380",
+    "korteNaam": "Chemie",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "leerjaar": "3de leerjaar",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 1,
+    "sha256": "24f808f63ed7b38ac8f46702c8893e5679001fda06420668013bcb5c410cb804"
+  },
+  "doelen": [
+{"id":"92351","code":"09.03.01","tekst":"<p>De leerlingen leggen het verband tussen de plaats en de eigenschappen van atomen in het PSE.</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"onderwijsdoel_pretekst":"<p>Uit de onderwijsdoelen van het 7de leerjaar gericht op het hoger onderwijs aangeduid met (*) selecteert de school minstens 1 onderwijsdoel.&nbsp;</p>","optioneel":true,"titels":{"1":{"titel":"Algemene chemie","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo9.3"}}}}}
+  ]
+}

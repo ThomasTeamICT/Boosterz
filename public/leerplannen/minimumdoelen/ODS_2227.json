@@ -1,0 +1,31 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2227",
+    "naam": "Secundair onderwijs 3de graad aso - Vakoverschrijdende - Technisch-Technologische Vorming - Eindtermen",
+    "apiId": "2227",
+    "korteNaam": "Technisch-Technologische Vorming",
+    "versie": "1.0",
+    "graad": "3de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 8,
+    "sha256": "bba61bf19b3cbb209da0756e0b047e00ade9d9193d167a914e9e1efddeec783a"
+  },
+  "doelen": [
+{"id":"77480","code":"1","tekst":"De leerlingen kunnen effecten van techniek op mens en samenleving illustreren en in historisch perspectief plaatsen (zoals comfort, design, milieu, consumentisme …).","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2002-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Techniek begrijpen","nr":"1"}}}},
+{"id":"77481","code":"2","tekst":"De leerlingen kunnen effecten van techniek op menselijke gedragingen, houdingen, waarden en normen illustreren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2002-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Techniek begrijpen","nr":"1"}}}},
+{"id":"77482","code":"3","tekst":"De leerlingen kunnen kenmerken van een technische benadering onderscheiden van andere benaderingen zoals wetenschappelijk, aritistiek, sociaal,…","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2002-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Techniek begrijpen","nr":"1"}}}},
+{"id":"77483","code":"4","tekst":"De leerlingen kunnen gefundeerd oordelen over de rol van ondernemingen/organisaties in en voor de samenleving bijvoorbeeld met betrekking tot welvaart, ontwikkeling, welzijn,…","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2002-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Techniek begrijpen","nr":"1"}}}},
+{"id":"77484","code":"5","tekst":"De leerlingen kunnen kennis en vaardigheden uit verschilllende sectoren herkennen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2002-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"\"Technisch\" begrijpen","nr":"2"}}}},
+{"id":"77485","code":"6","tekst":"De leerlingen kunnen eenvoudige ontwerpen en realisaties evalueren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2002-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"\"Technisch\" begrijpen","nr":"2"}}}},
+{"id":"77486","code":"7","tekst":"De leerlingen kunnen ondernemingen/organisaties karakteriseren als uitvoerders van technische processen en de rol van verschillende technische beroepen en vaardigheden hierbij toelichten.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2002-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"\"Technisch\" begrijpen","nr":"2"}}}},
+{"id":"77487","code":"8","tekst":"De leerlingen ontwikkelen een constructief kritische houding ten aanzien van techniek, technische beroepen en ondernemingen/organisaties.","type":"Eindtermen","extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2002-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Attitude","nr":"3"}}}}
+  ]
+}

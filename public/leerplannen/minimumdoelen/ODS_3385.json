@@ -1,0 +1,26 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3385",
+    "naam": "Secundair onderwijs 3de graad 3de leerjaar -  STEM - Specifieke eindtermen",
+    "apiId": "3385",
+    "korteNaam": "STEM",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "leerjaar": "3de leerjaar",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 2,
+    "sha256": "08ea706e28f6aa97a514e48519cf1503471608e833c556756ec32371234d5c60"
+  },
+  "doelen": [
+{"id":"92355","code":"12.01.01","tekst":"<p>De leerlingen ontwikkelen een oplossing voor een probleem door STEM-disciplines geïntegreerd toe te passen.</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Het probleem kan een maatschappelijk probleem, een probleem uit de leefwereld van de leerlingen of een probleem gelinkt aan de context van het zevende leerjaar gericht op het hoger onderwijs zijn waarbij STEM-disciplines een oplossing zouden kunnen genereren.</p><p>Interactie tussen onderzoeken en ontwikkelen: bij het ontwikkelen van een oplossing voor een probleem nemen de leerlingen een onderzoekende houding aan.</p>","onderliggende_elementen":"<ul><li>Interactie tussen onderzoeken en ontwikkelen</li><li>Modelleren</li></ul>","onderwijsdoel_pretekst":"<p>Uit de onderwijsdoelen van het 7de leerjaar gericht op het hoger onderwijs aangeduid met (*) selecteert de school minstens 1 onderwijsdoel.&nbsp;</p>","optioneel":true,"titels":{"1":{"titel":"STEM - Engineering","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo12.1"}}}}},
+{"id":"92356","code":"12.03.01","tekst":"<p>De leerlingen passen geschikte labotechnieken toe om betrouwbare informatie te verzamelen met aandacht voor goede labopraktijken.</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"onderwijsdoel_pretekst":"<p>Uit de onderwijsdoelen van het 7de leerjaar gericht op het hoger onderwijs aangeduid met (*) selecteert de school minstens 1 onderwijsdoel.&nbsp;</p>","optioneel":true,"titels":{"1":{"titel":"Labo","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo12.3"}}}}}
+  ]
+}

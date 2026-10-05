@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2934",
+    "naam": "Buitengewoon Secundair onderwijs 3de graad bso Finaliteit arbeidsmarkt Opleidingsvorm 4 -  Competenties met betrekking tot ruimtelijk bewustzijn - Eindtermen",
+    "apiId": "2934",
+    "korteNaam": "Ruimtelijk bewustzijn",
+    "versie": "2.0",
+    "graad": "3de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "9",
+        "naam": "Competenties met betrekking tot ruimtelijk bewustzijn"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 4,
+    "sha256": "7604dd2114f7a7b105186630f72f3efbac034b88ee199884d6e34dacb5457221"
+  },
+  "doelen": [
+{"id":"89072","code":"9.1","tekst":"De leerlingen situeren personen, plaatsen, patronen en processen op relevante ruimtelijke schaalniveaus.","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau toepassen","conceptuele_kennis":"- Fysischgeografische invalshoek: natuur- en weerfenomenen, platen, plaatranden\r\n- Politiek-, sociaal- en economischgeografische invalshoek: stad, land, werelddeel\r\n- Sterrenkundige invalshoek: polen, evenaar, halfronden, meridianen\r\n- Tijdskader: versterkt broeikaseffect","context":"* De eindterm wordt gerealiseerd aan de hand van situeringen uit de eindtermen 9.2 en 9.3.","feitenkennis":"- Afrika, Antarctica, Azië, Europa, Noord-Amerika, Oceanië, Zuid-Amerika","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Toepassen van principes van relatief situeren op verschillende relevante ruimtelijke schaalniveaus \r\n- Gebruiken van geografische hulpbronnen uit eindterm 9.4","titels":{"1":{"titel":"Personen, plaatsen, patronen en processen situeren op verschillende ruimtelijke schaalniveaus en tijdsschalen.\r\n","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"89073","code":"9.2","tekst":"De leerlingen analyseren aspecten van het ruimtegebruik.","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau analyseren","conceptuele_kennis":"- Aspecten van ruimtegebruik zoals wonen, werken, recreatie, verkeer, natuur, toerisme\r\n- Beïnvloedende factoren zoals demografie, politiek en beleid, economie, technologie\r\n- Duurzaam ruimtegebruik","context":"* De eindterm wordt gerealiseerd aan de hand van een plaats, stad of regio en in functie van de eigen leefwereld, de actualiteit of vanuit authentieke contexten.","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Gebruiken van geografische hulpbronnen en toepassen van terreintechnieken uit eindterm 9.4\r\n- Systeemdenken","titels":{"1":{"titel":"Plaatsbegrip hanteren om lokale, nationale en internationale gebeurtenissen in een geografisch kader te plaatsen.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"89074","code":"9.3","tekst":"De leerlingen verklaren het voorkomen en de spreiding van natuur- en weerfenomenen en de impact ervan op de ruimte en de maatschappij.","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Natuur- en weerfenomenen: aardbevingen en vulkanen en andere zoals overstromingen, stormen, hittegolven, ijstijden\r\n- Oorzaken van ruimtelijke spreiding van natuur- en weerfenomenen \r\n> Temperatuursverdeling op aarde \r\n> Platen, plaatranden en plaatbewegingen\r\n- Versterkt broeikaseffect, klimaatverandering, broeikasgas\r\n- Invloed van natuur- en weerfenomenen op de mens en zijn woonplaats","context":"* De eindterm wordt gerealiseerd aan de hand van casussen in functie van de actualiteit of vanuit authentieke contexten en op verschillende relevante ruimtelijke schaalniveaus.","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Ruimtelijke patronen en processen aan het aardoppervlak verklaren als het resultaat van interacties tussen natuurlijke processen onderling, tussen menselijke processen onderling en tussen natuurlijke en menselijke processen.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"89075","code":"9.4","tekst":"De leerlingen gebruiken terreintechnieken en geografische hulpbronnen om ruimtelijke fenomenen en de gevolgen ervan te onderzoeken.","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau toepassen","conceptuele_kennis":"- Terreintechnieken zoals survey, waarneming, oriënteren, kaartlezen, verkeersonderzoek\r\n- Geografische hulpbronnen zoals kaart, atlas, bestemmingsplan, luchtfoto, weerbericht, online routeplanner, GIS-viewer","context":"* De eindterm wordt gerealiseerd aansluitend bij de inhouden van de eindtermen 9.2 en 9.3.","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Gebruiken van geografische hulpbronnen en toepassen van terreintechnieken","titels":{"1":{"titel":"Geografische methoden en technieken aanwenden om ruimtelijke patronen en processen te onderzoeken.\r\n","ordeningskader":{"type":"bouwsteen"}}}}}
+  ]
+}

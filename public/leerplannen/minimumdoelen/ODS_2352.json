@@ -1,0 +1,34 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2352",
+    "naam": "Buitengewoon Secundair onderwijs 1ste graad B-stroom Opleidingsvorm 4 - Vakoverschrijdende - Ict - Ontwikkelingsdoelen",
+    "apiId": "2352",
+    "korteNaam": "Ict",
+    "versie": "1.0",
+    "graad": "1ste graad",
+    "stroom": "B-stroom",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 10,
+    "sha256": "0e7d0c611d4df7e648bd03812dab91c382c4d6c2a11fc58ee89e540abeb573e3"
+  },
+  "doelen": [
+{"id":"77466","code":"1","tekst":"De leerlingen hebben een positieve houding tegenover ICT en zijn bereid ICT te gebruiken om hen te ondersteunen bij het leren.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2007-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77467","code":"2","tekst":"De leerlingen gebruiken ICT op een veilige, verantwoorde en doelmatige manier.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2007-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77468","code":"3","tekst":"De leerlingen kunnen zelfstandig oefenen in een door ICT ondersteunde leeromgeving.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2007-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77469","code":"4","tekst":"De leerlingen kunnen zelfstandig leren in een door ICT ondersteunde leeromgeving.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2007-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77470","code":"5","tekst":"De leerlingen kunnen ICT gebruiken om eigen ideeën creatief vorm te geven.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2007-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77471","code":"6","tekst":"De leerlingen kunnen met behulp van ICT digitale informatie opzoeken, verwerken en bewaren.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2007-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77472","code":"7","tekst":"De leerlingen kunnen ICT gebruiken bij het voorstellen van informatie aan anderen.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2007-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77473","code":"8","tekst":"De leerlingen kunnen ICT gebruiken om op een veilige, verantwoorde en doelmatige manier te communiceren.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2007-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77474","code":"9","tekst":"De leerlingen kunnen afhankelijk van het te bereiken doel adequaat kiezen uit verschillende ICT-toepassingen.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2007-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77475","code":"10","tekst":"De leerlingen zijn bereid hun handelen bij te sturen na reflectie over hun eigen en elkaars ICT-gebruik.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2007-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

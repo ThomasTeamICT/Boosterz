@@ -1,0 +1,40 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2353",
+    "naam": "Buitengewoon Secundair onderwijs 1ste graad Opleidingsvorm 4 - Vakoverschrijdende - Leren Leren - Eindtermen",
+    "apiId": "2353",
+    "korteNaam": "Leren Leren",
+    "versie": "1.0",
+    "graad": "1ste graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 17,
+    "sha256": "3acc9954e835770af9fd110f10e79176f2747a6b5a3d0bf1e488e6fe243a517e"
+  },
+  "doelen": [
+{"id":"77339","code":"1","tekst":"De leerlingen werken ordelijk","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Opvattingen over leren"}}}},
+{"id":"77340","code":"2","tekst":"De leerlingen weten dat kennis en vaardigheden via verschillende leerstrategieën kunnen verworven worden","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Opvattingen over leren"}}}},
+{"id":"77345","code":"3","tekst":"De leerlingen kunnen gegevens memoriseren door gebruik te maken van hulpmiddelen","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Informatieverwerving"}}}},
+{"id":"77346","code":"4","tekst":"De leerlingen oriënteren zich in overzichtelijke informatie door gebruik te maken van vormkenmerken zoals titels, ondertitels, afbeeldingen en tekstmarkeringen","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Informatieverwerving"}}}},
+{"id":"77347","code":"5","tekst":"De leerlingen maken adequaat gebruik van inhoudstafel en register.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Informatieverwerving"}}}},
+{"id":"77348","code":"6","tekst":"De leerlingen raadplegen adequaat een documentatiecentrum, bibliotheek en multimedia","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Informatieverwerving"}}}},
+{"id":"77351","code":"7","tekst":"De leerlingen zoeken bij het instuderen van een behandelde leerinhoud de noodzakelijke voorkennis opnieuw op in leerboek, werkboek of notities","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Informatieverwerking"}}}},
+{"id":"77352","code":"8","tekst":"Bij het leren van samenhangende informatie:<br/>- stellen de leerlingen vragen bij de leerstof en beantwoorden deze;<br/>- brengen in korte, gestructureerde teksten tekstmarkeringen aan;<br/>- vervolledigen een schema aan de hand van geboden informatie;<br/>- leggen verbanden tussen elementen van de leerstof.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Informatieverwerking"}}}},
+{"id":"77353","code":"9","tekst":"De leerlingen kunnen samenhangende informatie begrijpen en analyseren door de betekenis van woorden, begrippen en zinnen, waar mogelijk, uit de context af te leiden of op te zoeken.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Informatieverwerking"}}}},
+{"id":"77358","code":"10","tekst":"Bij het oplossen van een probleem:<br/>- herformuleren de leerlingen het probleem;<br/>- bedenken zij onder begeleiding een oplossingsweg en lichten die toe;<br/>- passen zij de gevonden oplossingsweg toe.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Problemen oplossen"}}}},
+{"id":"77362","code":"11","tekst":"De leerlingen selecteren en ordenen het nodige materiaal en plannen onder begeleiding hun werktijd","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Regulering van het leerproces"}}}},
+{"id":"77363","code":"12","tekst":"De leerlingen kunnen werken met een antwoordblad en correctiesleutel en houden rekening met lesdoelstellingen of aanwijzingen van de leraar.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Regulering van het leerproces"}}}},
+{"id":"77364","code":"13","tekst":"De leerlingen vergelijken de eigen werkwijze met die van anderen en geven vervolgens aan waarom iets fout gegaan is en hoe fouten vermeden kunnen worden","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Regulering van het leerproces"}}}},
+{"id":"77375","code":"14","tekst":"De leerlingen hebben inzicht in de algemene structuur van het secundair onderwijs","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Studie – en beroepsgerichte keuzebekwaamheid"}}}},
+{"id":"77376","code":"15","tekst":"De leerlingen zijn bereid alle studierichtingen en beroepen naar waarde te schatten","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Studie – en beroepsgerichte keuzebekwaamheid"}}}},
+{"id":"77377","code":"16","tekst":"De leerlingen kunnen hun interesses en mogelijkheden inschatten met het oog op een studiekeuze","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Studie – en beroepsgerichte keuzebekwaamheid"}}}},
+{"id":"77378","code":"17","tekst":"De leerlingen wenden eenvoudige strategieën aan voor het maken van een studiekeuze","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Studie – en beroepsgerichte keuzebekwaamheid"}}}}
+  ]
+}

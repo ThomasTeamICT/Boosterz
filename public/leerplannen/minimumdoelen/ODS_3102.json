@@ -1,0 +1,40 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3102",
+    "naam": "Secundair onderwijs 3de graad bso Finaliteit arbeidsmarkt -  Competenties inzake wiskunde, exacte wetenschappen en technologie - Eindtermen",
+    "apiId": "3102",
+    "korteNaam": "Wiskunde – natuurwetenschappen – technologie – STEM",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "6",
+        "naam": "Competenties inzake wiskunde, exacte wetenschappen en technologie"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 12,
+    "sha256": "6133b348cb9842dae99358923fa401db4191d9d99266085e280449860a7b65c6"
+  },
+  "doelen": [
+{"id":"91128","code":"06.01","tekst":"<p>De leerlingen voeren met functioneel gebruik van ICT eenvoudige berekeningen uit met gehele getallen, decimale getallen, breuken, procenten en verhoudingen in betekenisvolle contexten.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met betekenisvolle contexten van de derde graad.</p>"}},
+{"id":"91129","code":"06.02","tekst":"<p>De leerlingen ronden zinvol af en schatten resultaten van bewerkingen in betekenisvolle contexten.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met bewerkingen en betekenisvolle contexten van de derde graad.</p>"}},
+{"id":"91130","code":"06.03","tekst":"<p>De leerlingen interpreteren grafieken, tabellen, diagrammen en (woord)formules in betekenisvolle contexten.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"onderliggende_elementen":"<ul><li>Samenhang tussen voorstellingswijzen</li><li>Lineaire en niet-lineaire groei</li><li>Relatieve en absolute frequenties</li><li>Misleidingen</li></ul>","optioneel":false,"titels":{}}},
+{"id":"91131","code":"06.04","tekst":"<p>De leerlingen benoemen het verschil tussen samenhang en causaliteit in betekenisvolle contexten.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met betekenisvolle contexten van de derde graad.</p>"}},
+{"id":"91132","code":"06.05","tekst":"<p>De leerlingen interpreteren kansen in betekenisvolle contexten.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Betekenisvolle contexten zoals kansspelen, meerkeuzevragen, risico’s.</p>","optioneel":false,"titels":{}}},
+{"id":"91133","code":"06.06","tekst":"<p>De leerlingen lossen vanuit betekenisvolle contexten problemen op door wiskundige concepten en vaardigheden in te zetten.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met wiskundige concepten en vaardigheden en met betekenisvolle contexten van de derde graad.</p>"}},
+{"id":"90892","code":"06.07","tekst":"<p>De leerlingen lichten de beheersing van de vruchtbaarheid bij de mens toe.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}},
+{"id":"90894","code":"06.08","tekst":"<p>De leerlingen illustreren de invloed van gezondheidsgedrag en leefmilieu op de ontwikkeling van embryo en foetus.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}},
+{"id":"90895","code":"06.09","tekst":"<p>De leerlingen illustreren het overerven van kenmerken bij organismen</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Overerven van kenmerken zoals erfelijke eigenschappen, niet-erfelijke eigenschappen.</p>","optioneel":false,"titels":{}}},
+{"id":"90896","code":"06.10","tekst":"<p>De leerlingen geven voorbeelden van natuurlijke selectie als mogelijke oorzaak voor biologische evolutie.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}},
+{"id":"90897","code":"06.11","tekst":"<p>De leerlingen verklaren fenomenen of toepassingen uit het dagelijkse leven aan de hand van snelheid, kracht, hefboom, druk, zichtbaar licht, straling of elektriciteit.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"90899","code":"06.12","tekst":"<p>De leerlingen ontwerpen een oplossing voor een probleem door wetenschappen, technologie of wiskunde geïntegreerd aan te wenden.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>STEM betekent per definitie dat je geïntegreerd denkt. De mate van integratie is afhankelijk van het probleem.</p><p>Ook niet-STEM-disciplines kunnen aan bod komen.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met concepten van de derde graad en de context waarin dit minimumdoel aan bod komt.</p>"}}
+  ]
+}

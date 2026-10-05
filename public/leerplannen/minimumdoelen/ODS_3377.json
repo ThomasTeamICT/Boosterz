@@ -1,0 +1,25 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3377",
+    "naam": "Secundair onderwijs 3de graad 3de leerjaar -  Biologie - Specifieke eindtermen",
+    "apiId": "3377",
+    "korteNaam": "Biologie",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "leerjaar": "3de leerjaar",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 1,
+    "sha256": "fd9aa7b4f07244e62ec3b90dd7a7edba1f2667b3d8d5333b815541647d3c85e7"
+  },
+  "doelen": [
+{"id":"92350","code":"08.04.01","tekst":"<p>De leerlingen leggen uit dat beweging het resultaat is van een interactie tussen zenuw-, spier- en beenderstelsel.</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"onderwijsdoel_pretekst":"<p>Uit de onderwijsdoelen van het 7de leerjaar gericht op het hoger onderwijs aangeduid met (*) selecteert de school minstens 1 onderwijsdoel.&nbsp;</p>","optioneel":true,"titels":{"1":{"titel":"Toegepaste fysiologie en anatomie van de mens","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo8.4"}}}}}
+  ]
+}

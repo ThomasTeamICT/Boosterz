@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3031",
+    "naam": "Secundair onderwijs 2de graad aso, kso, tso Finaliteit doorstroom -  Cultureel bewustzijn en culturele expressie - Eindtermen",
+    "apiId": "3031",
+    "korteNaam": "Cultureel bewustzijn",
+    "versie": "2.1",
+    "graad": "2de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "16",
+        "naam": "Cultureel bewustzijn en culturele expressie"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 4,
+    "sha256": "7939d56b1089100f0f3c6f80811a322ad8ec163b4d31751d11faea96f79eaf6c"
+  },
+  "doelen": [
+{"id":"91492","code":"16.01","tekst":"<p>De leerlingen brengen kunst- en cultuuruitingen in verband met de context waarin ze voorkomen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"16","naam":"Cultureel bewustzijn en culturele expressie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Kunst- en cultuuruitingen zoals dans, film, game, graffiti, kledij, landschap, lied.<br />Context zoals tijd, ruimte, maatschappelijke context.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"91493","code":"16.02","tekst":"<p>De leerlingen reflecteren over eigen beleving bij uiteenlopende kunst- en cultuuruitingen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"16","naam":"Cultureel bewustzijn en culturele expressie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"91494","code":"16.03","tekst":"<p>De leerlingen lichten toe hoe een kunstwerk vanuit vorm en inhoud betekenis geeft.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"16","naam":"Cultureel bewustzijn en culturele expressie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Inhoud</p><ul><li>onderwerp bijvoorbeeld geboorte, dood, liefde, geschiedenis, het leven, het alledaagse, rituelen;</li><li>bedoeling bijvoorbeeld decoreren, entertainen, praktisch gebruik, informeren, confirmeren, revolteren.</li></ul><p>Vorm zoals bouwstenen, technieken, materialen afhankelijk van het gekozen kunstwerk en de gekozen expressievorm zoals beeld, muziek, drama, dans of audiovisuele media, apart of gecombineerd. In het geval van:</p><ul><li>Beeld</li></ul><p>Bouwstenen zoals compositie, kleur, licht, lijn, ruimte, textuur, vorm<br />Technieken zoals boetseren, fotograferen, maquettes maken, met textiel werken, schilderen<br />Materialen zoals klei, licht, papier, recuperatiematerialen, steen, verf</p><ul><li>Muziek</li></ul><p>Bouwstenen zoals dynamiek, klankkleur, melodie, ritme, samenklank, structuur, tempo, vorm<br />Technieken zoals body percussion, improvisatie, samenzang<br />Materialen zoals instrumenten, lichaam, stem, voorwerpen</p><ul><li>Drama</li></ul><p>Bouwstenen zoals rol, ruimte, structuur, samenspel, tijd<br />Technieken zoals clownerie, figurentheater, improvisatie, mime, teksttheater<br />Materialen zoals decor, geluid, kostuums, lichaam, taal</p><ul><li>Dans</li></ul><p>Bouwstenen zoals kracht, ruimte, relatie, tijd<br />Technieken zoals bewegingsreeks, choreografie, dansexpressie, dansimprovisatie<br />Materialen zoals decor, geluid, lichaam, voorwerpen</p><ul><li>Audiovisuele media</li></ul><p>Bouwstenen zoals camerabeweging, geluid, kader, licht, montage<br />Technieken zoals montage, opname, sonorisatie<br />Materialen zoals microfoon, montageunit, smartphone</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"91495","code":"16.04","tekst":"<p>De leerlingen doorlopen een artistiek-creatief proces vanuit verbeelding.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"16","naam":"Cultureel bewustzijn en culturele expressie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Bij het doorlopen van een artistiek-creatief proces kan je denken aan</p><ul><li>het selecteren van ideeën zoals bij eigen gedachten en gevoelens stilstaan, artistieke werken bestuderen, indrukken of objecten verzamelen;</li><li>het koppelen van de eigen bedoeling aan vormgeving via methodes zoals trial and error, try-out;</li><li>het gebruiken van basistechnieken van de gekozen discipline.</li></ul>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}}
+  ]
+}

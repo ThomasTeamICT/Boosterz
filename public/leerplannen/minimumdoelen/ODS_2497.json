@@ -1,0 +1,40 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2497",
+    "naam": "Buitengewoon Secundair onderwijs 3de graad kso Opleidingsvorm 4 - Vak - Wiskunde - Eindtermen",
+    "apiId": "2497",
+    "korteNaam": "Wiskunde",
+    "versie": "1.0",
+    "graad": "3de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 17,
+    "sha256": "014913721e18b16b49185e40b9ab6dfbea9385057106336e9cacdb7dca128aff"
+  },
+  "doelen": [
+{"id":"75519","code":"1","tekst":"De leerlingen kunnen wiskundige informatie analyseren, schematiseren en structureren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Algemeen","nr":"1."}}}},
+{"id":"75520","code":"2","tekst":"De leerlingen kunnen gebruik maken van wiskundige technieken zoals figuren maken en tabellen opstellen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Algemeen","nr":"1."}}}},
+{"id":"75521","code":"3","tekst":"De leerlingen kunnen bij het oplossen van problemen functioneel gebruik maken van ict.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Algemeen","nr":"1."}}}},
+{"id":"75522","code":"4","tekst":"De leerlingen kunnen bij het oplossen van een vraagstuk:<br/>- relevante gegevens scheiden van niet relevante<br/>- gegevens met elkaar en met de probleemstelling in verband brengen<br/>- gegevens en gevraagde weergeven in een geschikt wiskundig model<br/>- het vraagstuk planmatig uit werken","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Algemeen","nr":"1."}}}},
+{"id":"75523","code":"5","tekst":"De leeringen kunnen wiskundige rekenregels en conventies correct hanteren en toepassen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Algemeen","nr":"1."}}}},
+{"id":"75524","code":"6","tekst":"De leerlingen kunnen keuzes m.b.t. representatie en gevolgde werkwijze verantwoorden.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Algemeen","nr":"1."}}}},
+{"id":"75525","code":"7","tekst":"De leerlingen kunnen voorbeelden geven van het gebruik van wiskunde in andere vakgebieden en in de maatschappij.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Algemeen","nr":"1."}}}},
+{"id":"75526","code":"8","tekst":"De leerlingen zijn kritisch tegenover het gevonden resultaat.","type":"Eindtermen","extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Algemeen","nr":"1."}}}},
+{"id":"75527","code":"9","tekst":"De leerlingen zijn bereid hun leerproces bij te sturen op basis van reflectie over de wijze waarop ze wiskundige problemen oplossen en wiskundige informatie verwerven en verwerken.","type":"Eindtermen","extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Algemeen","nr":"1."}}}},
+{"id":"75528","code":"10","tekst":"De leerlingen kunnen bijzonderheden van grafieken, eventueel aangevuld met tabellen, aflezen zoals periodiciteit, symmetrieën, stijgen en dalen, extreme waarden, lineaire en exponentiële groei.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Reële functies en algebra","nr":"2."}}}},
+{"id":"75529","code":"11","tekst":"De leerlingen kunnen grafieken tekenen van enkele eenvoudige functies (mede met behulp van ict).","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Reële functies en algebra","nr":"2."}}}},
+{"id":"75530","code":"12","tekst":"De leerlingen kunnen veranderingen beschrijven en vergelijken met behulp van differentiequotiënten.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Reële functies en algebra","nr":"2."}}}},
+{"id":"75531","code":"13","tekst":"De leerlingen kunnen problemen, waarbij een functioneel verband gegeven is, oplossen en die oplossing interpreteren (eventueel met behulp van ict).","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Reële functies en algebra","nr":"2."}}}},
+{"id":"75532","code":"14","tekst":"De leerlingen kunnen aan de hand van voorbeelden het belang uitleggen van de representativiteit van een steekproef voor het formuleren van statistische besluiten over de populatie.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Statistiek","nr":"3."}}}},
+{"id":"75533","code":"15","tekst":"De leerlingen kunnen met behulp van ict gemiddelde en standaardafwijking berekenen van statistische gegevens.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Statistiek","nr":"3."}}}},
+{"id":"75534","code":"16","tekst":"De leerlingen kunnen het gemiddelde en de standaardafwijking gebruiken als karakteristieken van een normale verdeling.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Statistiek","nr":"3."}}}},
+{"id":"75535","code":"17","tekst":"De leerlingen staan kritisch tegenover het gebruik van statistiek in de media.","type":"Eindtermen","extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Statistiek","nr":"3."}}}}
+  ]
+}

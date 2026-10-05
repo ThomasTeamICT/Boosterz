@@ -1,0 +1,29 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3076",
+    "naam": "Secundair onderwijs 3de graad aso, kso, tso Finaliteit doorstroom -  Juridische competenties - Eindtermen",
+    "apiId": "3076",
+    "korteNaam": "Juridische competenties",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "12",
+        "naam": "Juridische competenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 1,
+    "sha256": "ef73cf39138a12e6c80e2381ae724fc2e4f581425c01cff704cc7b3a28ec1c94"
+  },
+  "doelen": [
+{"id":"91741","code":"0000","tekst":"<p>Omwille van de verwevenheid van deze sleutelcompetentie met sleutelcompetenties zoals sleutelcompetentie 7 'Burgerschapscompetenties met inbegrip van competenties inzake samenleven', sleutelcompetentie 11 'Economische en financiële competenties' zijn er geen aparte eindtermen geformuleerd.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"12","naam":"Juridische competenties"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}}
+  ]
+}

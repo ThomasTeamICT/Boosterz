@@ -1,0 +1,31 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2585",
+    "naam": "Secundair Volwassenenonderwijs Aanvullende Algemene Vorming Verbreding - Vak - Cultuur - Basiscompetenties",
+    "apiId": "2585",
+    "korteNaam": "Cultuur",
+    "versie": "1.0",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 9,
+    "sha256": "58bd8dee24df128c10825403f699c1dd1bcee6b6a8fb41ce4c695a0bffb76cf5"
+  },
+  "doelen": [
+{"id":"83506","code":"BC AAV CU 001","tekst":"De cursist kan de dynamiek in leef- en omgangsgewoonten, opinies, waarden en normen in eigen en andere sociale en culturele groepen beschrijven;","type":"Basiscompetenties","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83507","code":"BC AAV CU 002","tekst":"De cursist kan beeld, muziek, beweging, drama of media gebruiken om zichzelf uit te drukken;","type":"Basiscompetenties","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83508","code":"BC AAV CU 003","tekst":"De cursist kan de impact van cultuur op denken, voelen en handelen herkennen;","type":"Basiscompetenties","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83509","code":"BC AAV CU 004","tekst":"De cursist kan zijn appreciatie voor cultureel erfgoed hier en elders uiten;","type":"Basiscompetenties","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83510","code":"BC AAV CU 005","tekst":"De cursist kan gepast omgaan met vooroordelen en stereotypering, met ongepaste beïnvloeding en machtsmisbruik, bij zichzelf en anderen;","type":"Basiscompetenties","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83511","code":"BC AAV CU 006","tekst":"De cursist kan kritisch omgaan met de invloed van de media op de beeldvorming;","type":"Basiscompetenties","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83512","code":"BC AAV CU 007","tekst":"De cursist kan constructief omgaan met verschillen tussen mensen en levensopvattingen;","type":"Basiscompetenties","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83513","code":"BC AAV CU 008","tekst":"De cursist kan uit historische en actuele voorbeelden afleiden wat de invloed is van onverdraagzaamheid, racisme en xenofobie op het samenleven;","type":"Basiscompetenties","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83514","code":"BC AAV CU 009","tekst":"De cursist kan rekening houden met de situatie, opvattingen en emoties van anderen in het omgaan met elkaar.","type":"Basiscompetenties","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

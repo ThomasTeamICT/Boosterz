@@ -1,0 +1,33 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3353",
+    "naam": "Secundair onderwijs 1ste graad B-stroom -  Competenties inzake wiskunde, exacte wetenschappen en technologie - Eindtermen basisgeletterdheid",
+    "apiId": "3353",
+    "korteNaam": "Wiskunde – natuurwetenschappen – technologie – STEM",
+    "versie": "2.1",
+    "graad": "1ste graad",
+    "stroom": "B-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "6",
+        "naam": "Competenties inzake wiskunde, exacte wetenschappen en technologie"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 4,
+    "sha256": "6499c2992914acac3a4f00f906197ad4d222945833d127b6a8edf517fba4c0b2"
+  },
+  "doelen": [
+{"id":"92172","code":"BG06.01","tekst":"<p>De leerling voert met functioneel gebruik van ICT eenvoudige berekeningen uit met natuurlijke, positieve decimale getallen met maximaal 2 cijfers na de komma, procenten en verhoudingen in betekenisvolle contexten.</p>","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>De leerling is in staat om verhoudingen te gebruiken in realistische contexten. Wanneer bijvoorbeeld in een kookboek een recept staat voor 4 personen kan de leerling met een gegeven verhoudingstabel de benodigde ingrediënten omrekenen naar bijvoorbeeld een recept voor 5 personen.</p>","onderliggende_elementen":"<ul><li>Schatting grootteorde van resultaten, zinvolle afronding</li><li>Verhoudingstabel</li></ul>","optioneel":false,"titels":{}}},
+{"id":"92173","code":"BG06.02","tekst":"<p>De leerling gebruikt maatgetallen en eenheden van grootheden in betekenisvolle contexten.</p>","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"onderliggende_elementen":"<ul><li>Grootteorde en maatbesef van de grootheden tijd, lengte, oppervlakte, inhoud/volume en massa</li></ul>","optioneel":false,"titels":{}}},
+{"id":"92174","code":"BG06.03","tekst":"<p>De leerling gebruikt informatie uit eenvoudige tabellen en diagrammen in betekenisvolle contexten.</p>","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"92175","code":"BG06.04","tekst":"<p>De leerling berekent de omtrek van een vierhoek en de oppervlakte van een rechthoek in betekenisvolle contexten.</p>","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"6","naam":"Competenties inzake wiskunde, exacte wetenschappen en technologie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"onderliggende_elementen":"<ul><li>Omtrek van een vierhoek als som van de lengtes van de zijden</li><li>Oppervlakte van een rechthoek als product van de lengtes van de lange en korte zijde</li></ul>","optioneel":false,"titels":{}}}
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2223",
+    "naam": "Secundair onderwijs - Vakoverschrijdende - Context 7 Socio culturele samenleving - Eindtermen",
+    "apiId": "2223",
+    "korteNaam": "Context 7 Socio culturele samenleving",
+    "versie": "1.0",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 7,
+    "sha256": "1e768acdd7349485416bbaeadaa9ebe508003dfc85fe11a35bb8ebf52ac66c16"
+  },
+  "doelen": [
+{"id":"77449","code":"1","tekst":"De leerlingen beschrijven de dynamiek in leef- en omgangsgewoonten, opinies, waarden en normen in eigen en andere sociale en culturele groepen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77450","code":"2","tekst":"De leerlingen gaan constructief om met verschillen tussen mensen en levensopvattingen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77451","code":"3","tekst":"De leerlingen illustreren het belang van sociale samenhang en solidariteit;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77452","code":"4","tekst":"De leerlingen trekken lessen uit historische en actuele voorbeelden van onverdraagzaamheid, racisme en xenofobie;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77453","code":"5","tekst":"De leerlingen geven voorbeelden van de potentieel constructieve en destructieve rol van conflicten;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77454","code":"6","tekst":"De leerlingen gaan actief om met de cultuur en kunst die hen omringen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77455","code":"7","tekst":"De leerlingen illustreren de wederzijdse beïnvloeding van kunst, cultuur en techniek, politiek, economie, wetenschappen en levensbeschouwing.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

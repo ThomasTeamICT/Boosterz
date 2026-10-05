@@ -1,0 +1,37 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2159",
+    "naam": "Secundair onderwijs 2de graad tso - Vak - Natuurwetenschappen - Eindtermen",
+    "apiId": "2159",
+    "korteNaam": "Natuurwetenschappen",
+    "versie": "1.0",
+    "graad": "2de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 14,
+    "sha256": "37649bb28753f0b08417d14747a7278c9527b9a8280f653660a2b0dc007c6be6"
+  },
+  "doelen": [
+{"id":"75117","code":"1","tekst":"Structuren op submicroscopisch niveau verbinden met macroscopische eigenschappen van stoffen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Materie"}}}},
+{"id":"75118","code":"2","tekst":"<p>Uitleggen dat de oorsprong van een zuivere stof&nbsp;geen invloed heeft op haar eigenschappen.</p>","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Materie"}}}},
+{"id":"75119","code":"3","tekst":"De symbolische voorstelling van een stofomzetting interpreteren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Materie"}}}},
+{"id":"75120","code":"4","tekst":"De betekenis van de stofconstanten smeltpunt, kookpunt, massadichtheid toelichten en deze stofconstanten hanteren om een zuivere stof te identificeren","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Materie"}}}},
+{"id":"75121","code":"5","tekst":"Het begrip zwaartekracht kwalitatief hanteren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Kracht en beweging"}}}},
+{"id":"75122","code":"6","tekst":"Het begrip druk kwalitatief hanteren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Kracht en beweging"}}}},
+{"id":"75123","code":"7","tekst":"De invloed van de resulterende kracht in verband brengen met de verandering van de bewegingstoestand.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Kracht en beweging"}}}},
+{"id":"75124","code":"8","tekst":"Bij energieomzettingen het vermogen, de behoudswet en het begrip rendement kwalitatief hanteren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Energie"}}}},
+{"id":"75125","code":"9","tekst":"Voorbeelden van stofomzettingen uit de leefwereld herkennen als exo- of endo-energetisch.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Energie"}}}},
+{"id":"75126","code":"10","tekst":"Bij het verduidelijken van en zoeken naar oplossingen voor duurzaamheidsvraagstukken onder begeleiding wetenschappelijke principes hateren die betrekking hebben op grondstof- en energieverbruik.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wetenschap en samenleving"}}}},
+{"id":"75127","code":"11","tekst":"Onder begeleiding de natuurwetenschappen als onderdeel van de culturele ontwikkeling van de maatschappij duiden en de wisselwerking met de maatschappij op ecologisch, economisch, ethisch en technisch vlak illustreren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wetenschap en samenleving"}}}},
+{"id":"75128","code":"12","tekst":"Steunend op wetenschappelijke inzichten verantwoord omgaan met veiligheid en gezondheid in leefwereldsituaties met betrekking tot stoffen, geluid en straling.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wetenschappelijke vaardigheden"}}}},
+{"id":"75129","code":"13","tekst":"Courante grootheden en SI-eenheden hanteren die voorkomen in leefwereldsituaties.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wetenschappelijke vaardigheden"}}}},
+{"id":"75130","code":"14","tekst":"Onder begeleiding illustreren dat natuurwetenschappelijke kennis wordt opgebouwd via natuurwetenschappelijke methoden.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wetenschappelijke vaardigheden"}}}}
+  ]
+}

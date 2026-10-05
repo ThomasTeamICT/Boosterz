@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3335",
+    "naam": "Buitengewoon Secundair onderwijs 1ste graad B-stroom Opleidingsvorm 4 -  Economische en financiële competenties - Eindtermen",
+    "apiId": "3335",
+    "korteNaam": "Economische en financiële competenties",
+    "versie": "2.1",
+    "graad": "1ste graad",
+    "stroom": "B-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "11",
+        "naam": "Economische en financiële competenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 3,
+    "sha256": "c2bc5ef726d57567b2cb6a3da5068908ebbf5a8afb1763b6b6dec2c42ad93a42"
+  },
+  "doelen": [
+{"id":"92211","code":"11.01","tekst":"<p>De leerlingen beargumenteren hun keuzegedrag bij aankopen rekening houdend met hun behoeften, met een persoonlijk budget en een beschikbaar gezinsbudget en met factoren die hun koopgedrag beïnvloeden.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Factoren zoals bijkomende kosten, status, reclame, verkoopspraktijken, peers, media, sociale media, milieu- en sociale aspecten.</p>","onderliggende_elementen":"<ul><li>Reële en gecreëerde behoeften</li><li>Sparen en lenen</li><li>Belang van persoonlijk administratiebeheer</li></ul>","optioneel":false,"titels":{}}},
+{"id":"92212","code":"11.02","tekst":"<p>De leerlingen beoordelen courante betaalmiddelen en courante verkoopkanalen op het vlak van veiligheid, risico’s en kosten.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Het beoordelen van courante betaalmiddelen en verkoopkanalen veronderstelt inzicht in modaliteiten en gebruik ervan.</p>","onderliggende_elementen":"<ul><li>Fraude</li></ul>","optioneel":false,"titels":{}}},
+{"id":"92213","code":"11.03","tekst":"<p>De leerlingen lichten de rol van gezinnen, bedrijven en overheid in de economie toe.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"onderliggende_elementen":"<ul><li>Inkomsten en uitgaven</li><li>Consumeren en produceren</li><li>Maatschappelijk verantwoord ondernemen</li><li>Profit en non-profit</li></ul>","optioneel":false,"titels":{}}}
+  ]
+}

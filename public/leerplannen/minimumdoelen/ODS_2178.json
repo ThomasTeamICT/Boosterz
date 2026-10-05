@@ -1,0 +1,41 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2178",
+    "naam": "Secundair onderwijs 3de graad aso - Pool - Moderne Talen - Specifieke eindtermen",
+    "apiId": "2178",
+    "korteNaam": "Moderne Talen",
+    "versie": "1.0",
+    "graad": "3de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 18,
+    "sha256": "54b646eda8eba33220ec1d10a7dc35c4d5a383a91f944d83384663fa54f01007"
+  },
+  "doelen": [
+{"id":"75612","code":"1","tekst":"De leerlingen kunnen domeinspecifieke teksten, zoals zakelijke en wetenschappelijke, structureren, verwerken en gepast presenteren in functie van de ontvanger;","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal en communicatie","nr":"A."}}}},
+{"id":"75613","code":"2","tekst":"De leerlingen kunnen vanuit een communicatiemodel reflecteren op talige communicatie en die waar nodig bijsturen;","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal en communicatie","nr":"A."}}}},
+{"id":"75614","code":"3","tekst":"De leerlingen kunnen vergelijken hoe in de eigen cultuur en in andere culturen informatie gebracht wordt bij interpersoonlijke, intergroeps- en massacommunicatie.","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal en communicatie","nr":"A."}}}},
+{"id":"75615","code":"4","tekst":"De leerlingen kunnen stereotypen met betrekking tot eigen en andermans cultuur en cultuuruitingen herkennen en nuanceren.","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal en cultuur","nr":"B."}}}},
+{"id":"75616","code":"5","tekst":"De leerlingen kunnen misverstanden in de interculturele communicatie die ontstaan door taalkundige of culturele verschillen herkennen en kunnen rechtzetten;","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal en cultuur","nr":"B."}}}},
+{"id":"75617","code":"6","tekst":"De leerlingen kunnen cultuuruitingen verkennen die specifiek zijn voor de gebieden waar de doeltaal als omgangstaal gebruikt wordt;","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal en cultuur","nr":"B."}}}},
+{"id":"75618","code":"7","tekst":"De leerlingen kunnen verkennen van cultuur door middel van visuele taal zoals film, toneel, dans, reclame, videoclips, beeldend werk, websites...","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal en cultuur","nr":"B."}}}},
+{"id":"75619","code":"8","tekst":"De leerlingen kunnen elementen uit de literatuurgeschiedenis, zoals stromingen, aanwenden om teksten in hun historische, politieke en sociale context te plaatsen;","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal en cultuur","nr":"B."}}}},
+{"id":"75620","code":"9","tekst":"De leerlingen kunnen gevoelens en leeservaringen op een creatieve <br/>manier vorm geven.","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal en cultuur","nr":"B."}}}},
+{"id":"75621","code":"10","tekst":"De leerlingen kunnen bij de studie van teksten grammaticale structuren en formele en inhoudelijke kenmerken van tekstsoorten herkennen en beschrijven;","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal als systeem","nr":"C."}}}},
+{"id":"75622","code":"11","tekst":"De leerlingen kunnen strategieën inzetten en passende hulpmiddelen hanteren om inzicht te verwerven in spellingsysteem, uitspraak, betekenis van woorden, zinsconstructies en de relatie klank-teken;","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal als systeem","nr":"C."}}}},
+{"id":"75623","code":"12","tekst":"De leerlingen kunnen strategieën inzetten om hun taalleerproces autonoom te evalueren, bij te sturen en verder te zetten;","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal als systeem","nr":"C."}}}},
+{"id":"75624","code":"13","tekst":"De leerlingen kunnen met voorbeelden aantonen dat de betekenis van een taaluiting afhankelijk is van de context;","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal als systeem","nr":"C."}}}},
+{"id":"75625","code":"14","tekst":"De leerlingen kunnen elementen van taalvariatie herkennen en illustreren;","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal als systeem","nr":"C."}}}},
+{"id":"75626","code":"15","tekst":"De leerlingen kunnen gelijkenissen en verschillen tussen talen herkennen.","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Taal als systeem","nr":"C."}}}},
+{"id":"75627","code":"16","tekst":"De leerlingen kunnen zich oriënteren op een onderzoeksprobleem door gericht informatie te verzamelen, te ordenen en te bewerken;","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Onderzoekscompetentie","nr":"D."}}}},
+{"id":"75628","code":"17","tekst":"De leerlingen kunnen een onderzoeksopdracht voorbereiden, uitvoeren en evalueren over een literair en /of linguïstisch vraagstuk;","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Onderzoekscompetentie","nr":"D."}}}},
+{"id":"75629","code":"18","tekst":"De leerlingen kunnen de onderzoeksresultaten en conclusies rapporteren en ze confronteren met andere standpunten.","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Onderzoekscompetentie","nr":"D."}}}}
+  ]
+}

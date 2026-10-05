@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3346",
+    "naam": "Buitengewoon Secundair onderwijs 1ste graad A-stroom Opleidingsvorm 4 -  Competenties in het Nederlands - Eindtermen basisgeletterdheid",
+    "apiId": "3346",
+    "korteNaam": "Nederlands",
+    "versie": "2.1",
+    "graad": "1ste graad",
+    "stroom": "A-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "2",
+        "naam": "Competenties in het Nederlands"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 3,
+    "sha256": "ad235df1647f2d854e8d8d585b942a46e3292649557a5e0400f41c377305456e"
+  },
+  "doelen": [
+{"id":"92268","code":"BG02.01","tekst":"<p>De leerling haalt bij het lezen en luisteren doelgericht het onderwerp en relevante informatie uit niet-fictionele teksten.&nbsp;</p>","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"2","naam":"Competenties in het Nederlands"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>De leerlingen gebruiken doelgericht strategieën om het onderwerp te bepalen en informatie te selecteren zoals met lees- of luisterdoel rekening houden; voorkennis activeren; vragen stellen; de vermoedelijke betekenis van onbekende woorden en zinnen afleiden uit de context, via taalverwantschap of op basis van woorddelen; talige hulpmiddelen gebruiken.&nbsp;<br />Tekstsoorten zoals informatief, persuasief, opiniërend, prescriptief, narratief.</p><p>&nbsp;</p>","optioneel":false,"tekstkenmerken":"<p>* Tekstkenmerken voor receptie:&nbsp;</p><ul><li>Herkenbare, expliciet aangegeven structuur&nbsp;</li><li>Grote samenhang&nbsp;</li><li>Voornamelijk Standaardnederlands &nbsp;</li><li>Voornamelijk frequente woorden&nbsp;</li><li>Heel eenvoudig figuurlijk taalgebruik&nbsp;</li><li>Concrete en herkenbare inhoud&nbsp;</li><li>Lage informatiedichtheid&nbsp;</li><li>Variatie aan tekstsoorten&nbsp;</li></ul><p>* Bijkomend voor schriftelijke receptie:&nbsp;</p><ul><li>Duidelijke lay-out&nbsp;</li></ul><p>* Bijkomend voor mondelinge receptie:&nbsp;</p><ul><li>Laag tot normaal spreektempo</li></ul>","titels":{}}},
+{"id":"92269","code":"BG02.02","tekst":"<p>De leerling spreekt en schrijft doelgericht in eenvoudige communicatieve situaties.&nbsp;</p>","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"2","naam":"Competenties in het Nederlands"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Het betreft ondersteunende middelen zoals een kaartje met steekwoorden, structuur, schrijfkader, spreekkader, voorleessoftware, presentatiesoftware enz. maar ook talige hulpmiddelen.&nbsp;</p>","minimumvereisten":"<p>* Minimumvereisten voor productie:&nbsp;</p><ul><li>Eenvoudige tekststructuur&nbsp;</li><li>Redelijk herkenbare samenhang&nbsp;</li><li>Frequente woorden&nbsp;</li><li>Concrete inhoud&nbsp;</li><li>Variatie aan tekstsoorten&nbsp;</li><li>Uitspraak, woordkeuze, zinsbouw, spelling, register en lichaamstaal mogen afwijken zolang ze het overbrengen van de boodschap niet in de weg staan&nbsp;</li></ul>","ondersteunende_middelen":"<p>Met behulp van ondersteunende middelen&nbsp;</p>","optioneel":false,"titels":{}}},
+{"id":"92270","code":"BG02.03","tekst":"<p>De leerling neemt doelgericht deel aan eenvoudige mondelinge en schriftelijke interactie.&nbsp;</p>","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"2","naam":"Competenties in het Nederlands"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Mondelinge interactie veronderstelt minimaal dat leerlingen voorbereid aan een gesprek kunnen deelnemen in een vertrouwde context.</p>","minimumvereisten":"<p>* Minimumvereisten voor productie&nbsp;</p>","optioneel":false,"tekstkenmerken":"<p>* Tekstkenmerken voor receptie&nbsp;</p>","titels":{}}}
+  ]
+}

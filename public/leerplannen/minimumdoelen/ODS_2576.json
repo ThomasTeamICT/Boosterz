@@ -1,0 +1,43 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2576",
+    "naam": "Secundair Volwassenenonderwijs Aanvullende Algemene Vorming Minimum - Vak - Maatschappij - Eindtermen",
+    "apiId": "2576",
+    "korteNaam": "Maatschappij",
+    "versie": "1.0",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 21,
+    "sha256": "75c95258dd48c6d9c28fdb61d83dbfd67872a59d16125a8d6aff0b40c8eae777"
+  },
+  "doelen": [
+{"id":"83285","code":"ET AAV MA 001","tekst":"De cursist kan in duurzaamheidvraagstukken de verwevenheid en wederzijdse beïnvloeding tussen economische, sociale en ecologische aspecten, techniek en beleid herkennen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83286","code":"ET AAV MA 002","tekst":"De cursist kan naar duurzame oplossingen zoeken om de lokale en globale leefomgeving te beïnvloeden en te verbeteren;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83287","code":"ET AAV MA 003","tekst":"De cursist kan aangeven hoe hij kan deelnemen aan besluitvorming in en opbouw van de samenleving;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83288","code":"ET AAV MA 004","tekst":"De cursist kan aantonen dat het samenleven in een democratische rechtsstaat gebaseerd is op rechten en plichten die gelden voor burgers, organisaties en overheid;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83289","code":"ET AAV MA 005","tekst":"De cursist kan de rol erkennen van controle en evenwicht tussen de wetgevende, uitvoerende en rechterlijke macht in ons democratisch bestel;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83290","code":"ET AAV MA 006","tekst":"De cursist kan de rol illustreren van de media en organisaties in het functioneren van ons democratisch bestel;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83291","code":"ET AAV MA 007","tekst":"De cursist kan de hoofdzaken van de federale Belgische staatsstructuur onderscheiden;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83292","code":"ET AAV MA 008","tekst":"De cursist kan het samenleven in ons democratisch bestel toetsen aan het samenleven in andere regeringsvormen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83293","code":"ET AAV MA 009","tekst":"De cursist kan van Europese samenwerking, van het beleid en de instellingen van de Europese Unie de betekenis voor de eigen leefwereld toelichten;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83294","code":"ET AAV MA 010","tekst":"De cursist kan het belang aantonen van internationale organisaties en instellingen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83295","code":"ET AAV MA 011","tekst":"De cursist kan met voorbeelden uitleggen hoe welvaart wordt gecreëerd en hoe een overheid inkomsten verwerft en aanwendt;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83296","code":"ET AAV MA 012","tekst":"De cursist kan de eigen opvatting toetsen aan de verschillende opvattingen over welzijn en verdeling van welvaart;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83297","code":"ET AAV MA 013","tekst":"De cursist kan kenmerken, mogelijke oorzaken en gevolgen van armoede aangeven;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83298","code":"ET AAV MA 014","tekst":"De cursist kan een beroep doen op maatschappelijke diensten en instellingen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83299","code":"ET AAV MA 015","tekst":"De cursist kan gebruikmaken van de gepaste kanalen om zijn vragen, problemen, ideeën of meningen kenbaar te maken;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83300","code":"ET AAV MA 016","tekst":"De cursist kan met voorbeelden het belang van ruimtelijke ordening illustreren;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83301","code":"ET AAV MA 017","tekst":"De cursist kan in fundamentele maatschappelijke problemen, actualiteit, eigen ervaringen en opleidingselementen het verband aantonen tussen verleden, heden en toekomst;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83302","code":"ET AAV MA 018","tekst":"De cursist kan een tijdband hanteren als historisch referentiekader voor belangrijke figuren, gebeurtenissen en periodes, voor opleidings- en andere informatie;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83303","code":"ET AAV MA 019","tekst":"De cursist kan van fundamentele maatschappelijke problemen, actualiteit, eigen ervaringen en opleidingselementen het verband aantonen met geografische determinanten;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83304","code":"ET AAV MA 020","tekst":"De cursist kan een atlas, een plattegrond en een kaart gebruiken;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83305","code":"ET AAV MA 021","tekst":"De cursist kan gegevens over weer en klimaat van een gebied uit cijfers, grafische voorstellingen en kaarten aflezen en interpreteren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3306",
+    "naam": "Buitengewoon Secundair onderwijs 1ste graad A-stroom Opleidingsvorm 4 -  Juridische competenties - Eindtermen",
+    "apiId": "3306",
+    "korteNaam": "Juridische competenties",
+    "versie": "2.1",
+    "graad": "1ste graad",
+    "stroom": "A-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "12",
+        "naam": "Juridische competenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 1,
+    "sha256": "f102c2b4d61a08206334b54b290b2bc84d544cabc222abd6bd1d30f764edd873"
+  },
+  "doelen": [
+{"id":"92276","code":"0000","tekst":"<p>Omwille van de verwevenheid van deze sleutelcompetentie met sleutel-competenties zoals SC 7 (Burgerschapscompetenties met inbegrip van competenties inzake samenleven) en SC 11 (Economische en financiële competenties) zijn er geen aparte eindtermen geformuleerd.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"12","naam":"Juridische competenties"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2761",
+    "naam": "Secundair onderwijs 3de graad bso Finaliteit arbeidsmarkt -  Competenties met betrekking tot historisch bewustzijn - Eindtermen",
+    "apiId": "2761",
+    "korteNaam": "Historisch bewustzijn",
+    "versie": "2.0",
+    "graad": "3de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "8",
+        "naam": "Competenties met betrekking tot historisch bewustzijn"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 4,
+    "sha256": "528b405e1dab6192ef3500ee195700995d805acea980b109cc5d49e0f8f1150f"
+  },
+  "doelen": [
+{"id":"88827","code":"8.1","tekst":"<p>De leerlingen situeren historische elementen uit hun leefwereld en aangereikte kenmerkende historische fenomenen in de historische periodes van het courante westerse referentiekader.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau toepassen","conceptuele_kennis":"<p>- Oorzaak, gevolg, continuïteit en verandering, historische context</p><p>- Lokaal, regionaal, nationaal, mondiaal, westers en niet-westers</p><p>- Kenmerkende historische fenomenen (zoals personen, plaatsen, gebeurtenissen en ontwikkelingen) uit de maatschappelijke domeinen zoals politiek (bestuur, oorlog en vrede, (neo)kolonialisme en imperialisme), economisch (economische activiteit), sociaal (organisatie van het samenleven), cultureel (mens- en wereldbeeld, kunst- en cultuuruitingen, wetenschap en technologie)</p><p>- De zeven periodes van het courante westerse historisch referentiekader: de prehistorie, het oude nabije oosten, de klassieke oudheid, de middeleeuwen, de vroegmoderne tijd, de moderne tijd, de hedendaagse tijd</p><p>- Kenmerkende historische fenomenen van westerse en niet-westerse samenlevingen en de dynamiek tussen die samenlevingen in de moderne en hedendaagse tijd zoals vreedzaam of gewelddadig contact, cultuurvermenging of dominantie</p>","context":"* De eindterm wordt gerealiseerd met verschillende historische periodes waaronder minstens de hedendaagse tijd.","feitenkennis":"<p>- De zeven periodes van het courante westerse historisch referentiekader: de prehistorie, het oude nabije oosten, de klassieke oudheid, de middeleeuwen, de vroegmoderne tijd, de moderne tijd, de hedendaagse tijd</p><p>- Lokaal; regionaal, nationaal, mondiaal</p>","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Hanteren van meerdere perspectieven (multiperspectiviteit)\r\n- Situeren van kenmerkende historische fenomenen in tijd en ruimte zoals met behulp van een tijdlijn of een kaart","titels":{"1":{"titel":"Historische fenomenen situeren in een historisch referentiekader.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"88828","code":"8.2","tekst":"<p>De leerlingen beoordelen de waarde van aangereikte bronnen bij het bestuderen van een historisch fenomeen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau evalueren","conceptuele_kennis":"<p>- Standplaatsgebondenheid van de maker(s), het doelpubliek en het beoogd effect</p><p>- Structuurbegrippen met betrekking tot de waarde van een bron zoals betrouwbaarheid, bruikbaarheid, representativiteit, bedoeling, veralgemening, vooroordeel</p>","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Achterhalen van de betrouwbaarheid van bronnen \r\n- Vergelijken van bronnen over historische fenomenen","titels":{"1":{"titel":"Kritisch reflecteren met en over historische bronnen.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"88829","code":"8.3","tekst":"De leerlingen analyseren beeldvorming van historische elementen uit hun leefwereld en van historische fenomenen.","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau analyseren","conceptuele_kennis":"- Structuurbegrippen zoals context, (on)bedoeld handelen, meerdere perspectieven en de mogelijke gevolgen ervan, bewijs, verband, continuïteit en verandering, veralgemening, stereotypering, wij-zij-denken\r\n- Kenmerkende historische fenomenen vermeld in de conceptuele kennis van eindterm 8.1\r\n- Kenmerkende historische fenomenen van westerse en niet-westerse samenlevingen","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"metacognitieve_kennis":"- Eigen standplaatsgebondenheid","optioneel":false,"procedurele_kennis":"- Hanteren van meerdere perspectieven (multiperspectiviteit)","titels":{"1":{"titel":"Tot beargumenteerde historische beeldvorming komen vanuit verschillende perspectieven.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"89417","code":"8.4","tekst":"<p>De leerlingen lichten redenen toe hoe mythevorming van een historisch fenomeen historische beeldvorming vervormt.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"<p>- Onderscheid geschiedenis-mythevorming</p><p>- Kenmerkende historische fenomenen vermeld in de conceptuele kennis van eindterm 8.1</p><p>- Redenen voor mythevorming zoals vormen van een groepsidentiteit, aanwakkeren van groepsgevoel, ontwikkelen van een gevoel van trots of slachtofferschap, waardenoverdracht, omdat de gebeurtenis tot de verbeelding spreekt of als ingrijpend wordt ervaren</p>","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Over de complexe relatie tussen verleden, heden en toekomst reflecteren en deze duiden.","ordeningskader":{"type":"bouwsteen"}}}}}
+  ]
+}

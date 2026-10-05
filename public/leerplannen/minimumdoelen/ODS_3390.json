@@ -1,0 +1,26 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3390",
+    "naam": "Buitengewoon Secundair onderwijs 3de graad 3de leerjaar Opleidingsvorm 4 -  Gedragswetenschappen - Specifieke eindtermen",
+    "apiId": "3390",
+    "korteNaam": "Gedragswetenschappen",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "leerjaar": "3de leerjaar",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 2,
+    "sha256": "d957a978fff03f572f8d9811a2bfd52750a867d53d9cd372047153d887cd4618"
+  },
+  "doelen": [
+{"id":"92357","code":"14.03.01","tekst":"<p>De leerlingen lichten sociaal gedrag toe.</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"onderliggende_elementen":"<ul><li>Sociaal gedrag: groepsprocessen, sociale beïnvloeding</li></ul>","onderwijsdoel_pretekst":"<p>Uit de onderwijsdoelen van het 7de leerjaar gericht op het hoger onderwijs aangeduid met (*) selecteert de school minstens 1 onderwijsdoel.&nbsp;</p>","optioneel":true,"titels":{"1":{"titel":"Toegepaste gedragswetenschappen: psychologie","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo14.3"}}}}},
+{"id":"92358","code":"14.04.01","tekst":"<p>De leerlingen passen pedagogische modellen toe op concrete opvoedingssituaties.</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Pedagogische modellen zoals het ecologische model, het balansmodel, het vier-variabelenmodel, het transactionele model, het procesmodel.</p>","onderliggende_elementen":"<ul><li>Risicofactoren en beschermende factoren op micro-, meso- en macroniveau die de opvoeding beïnvloeden</li></ul>","onderwijsdoel_pretekst":"<p>Uit de onderwijsdoelen van het 7de leerjaar gericht op het hoger onderwijs aangeduid met (*) selecteert de school minstens 1 onderwijsdoel.&nbsp;</p>","optioneel":true,"titels":{"1":{"titel":"Toegepaste gedragswetenschappen: pedagogiek ","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo14.4"}}}}}
+  ]
+}

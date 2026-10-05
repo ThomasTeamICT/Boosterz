@@ -1,0 +1,30 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3329",
+    "naam": "Buitengewoon Secundair onderwijs 1ste graad B-stroom Opleidingsvorm 4 -  Sociaal-relationele competenties - Eindtermen",
+    "apiId": "3329",
+    "korteNaam": "Sociaal-relationele competenties",
+    "versie": "2.1",
+    "graad": "1ste graad",
+    "stroom": "B-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "5",
+        "naam": "Sociaal-relationele competenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 1,
+    "sha256": "b4d0a8382a44f9ce3762d40bbbe9c431fbe40b8a6aef43884e52d4274753ee93"
+  },
+  "doelen": [
+{"id":"92118","code":"05.01","tekst":"<p>De leerlingen gaan respectvol en constructief met anderen in interactie rekening houdend met elkaars grenzen.&nbsp;</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"5","naam":"Sociaal-relationele competenties"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Respectvol en constructief met anderen in interactie gaan zoals &nbsp;</p><ul><li>rekening houden met de opvattingen, de fysieke en mentale grenzen en de emoties van anderen;&nbsp;</li><li>grenzen herkennen en bewaken;&nbsp;</li><li>reageren tegen grensoverschrijdend gedrag;&nbsp;</li><li>samenwerken en actief bijdragen aan de uitwerking van een gezamenlijk resultaat;&nbsp;</li><li>omgaan met emoties in verschillende situaties;&nbsp;</li><li>respect tonen voor relationele en seksuele integriteit;&nbsp;</li><li>sociaal vaardig interageren in informele en formele relaties.&nbsp;</li></ul>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context waarin het minimumdoel aan bod komt.&nbsp;</p>"}}
+  ]
+}

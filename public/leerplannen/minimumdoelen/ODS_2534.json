@@ -1,0 +1,39 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2534",
+    "naam": "Buitengewoon Secundair onderwijs 3de graad Opleidingsvorm 4 - Vakoverschrijdende - Leren Leren - Eindtermen",
+    "apiId": "2534",
+    "korteNaam": "Leren Leren",
+    "versie": "1.0",
+    "graad": "3de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 16,
+    "sha256": "f1c090ec837176c72bf8cb6624d7720aad4ed3893244e2c2d79319a162fd51da"
+  },
+  "doelen": [
+{"id":"77343","code":"1","tekst":"De leerlingen werken systematisch.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Opvattingen over leren"}}}},
+{"id":"77344","code":"2","tekst":"De leerlingen kiezen hun leerstrategieën gericht met het oog op te bereiken doelen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Opvattingen over leren"}}}},
+{"id":"77350","code":"3","tekst":"De leerlingen kunnen diverse informatiebronnen en -kanalen kritisch kiezen en raadplegen met het oog op te bereiken doelen","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Informatieverwerving"}}}},
+{"id":"77356","code":"4","tekst":"De leerlingen kunnen verwerkte informatie vakoverstijgend en in verschillende situaties functioneel toepassen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Informatieverwerking"}}}},
+{"id":"77357","code":"5","tekst":"De leerlingen kunnen informatie samenvatten.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Informatieverwerking"}}}},
+{"id":"77360","code":"6","tekst":"De leerlingen kunnen op basis van hypothesen en verwachtingen mogelijke oplossingswijzen realistisch inschatten en uitvoeren","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Problemen oplossen"}}}},
+{"id":"77361","code":"7","tekst":"De leerlingen evalueren de gekozen oplossingswijze en de oplossing en gaan eventueel op zoek naar een alternatief","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Problemen oplossen"}}}},
+{"id":"77370","code":"8","tekst":"De leerlingen kunnen een realistische werkplanning op langere termijn maken","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Regulering van het leerproces"}}}},
+{"id":"77371","code":"9","tekst":"De leerlingen sturen hun leerproces, beoordelen het op doelgerichtheid en passen het zonodig aan.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Regulering van het leerproces"}}}},
+{"id":"77372","code":"10","tekst":"De leerlingen kunnen feedback geven en ontvangen over hun leerervaringen","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Regulering van het leerproces"}}}},
+{"id":"77373","code":"11","tekst":"De leerlingen kunnen het eigen aandeel in slagen en mislukken inschatten","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Regulering van het leerproces"}}}},
+{"id":"77374","code":"12","tekst":"De leerlingen erkennen de invloed van hun interesses en waarden op hun motivatie.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Regulering van het leerproces"}}}},
+{"id":"77383","code":"13","tekst":"De leerlingen verwerven een zinvol overzicht over studie- en beroepsmogelijkheden, dienstverlenende instanties met betrekking tot de arbeidsmarkt of de verdere studieloopbaan","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Studie – en beroepsgerichte keuzebekwaamheid"}}}},
+{"id":"77384","code":"14","tekst":"De leerlingen zijn bereid alle studierichtingen en beroepen naar waarde te schatten.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Studie – en beroepsgerichte keuzebekwaamheid"}}}},
+{"id":"77385","code":"15","tekst":"De leerlingen houden rekening met hun interesses en mogelijkheden bij hun studie- of beroepskeuze","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Studie – en beroepsgerichte keuzebekwaamheid"}}}},
+{"id":"77386","code":"16","tekst":"De leerlingen kunnen reflecteren over hun studie- of beroepskeuze.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Studie – en beroepsgerichte keuzebekwaamheid"}}}}
+  ]
+}

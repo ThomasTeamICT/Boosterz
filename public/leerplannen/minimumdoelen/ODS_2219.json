@@ -1,0 +1,33 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2219",
+    "naam": "Secundair onderwijs - Vakoverschrijdende - Context 3 Sociorelationele ontwikkeling - Eindtermen",
+    "apiId": "2219",
+    "korteNaam": "Context 3 Sociorelationele ontwikkeling",
+    "versie": "1.0",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 11,
+    "sha256": "d5f7b091ef2fb4d7da7692cbf3b3c9d42c1af7b94d3a2cb69e95f91e097102e4"
+  },
+  "doelen": [
+{"id":"77410","code":"1","tekst":"De leerlingen kunnen een relatie opbouwen, onderhouden en beëindigen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77411","code":"2","tekst":"De leerlingen erkennen het bestaan van gezagsverhoudingen en het belang van gelijkwaardigheid, afspraken en regels in relaties;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77412","code":"3","tekst":"De leerlingen accepteren verschillen en hechten belang aan respect en zorgzaamheid binnen een relatie;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77413","code":"4","tekst":"De leerlingen kunnen ongelijk toegeven en zich verontschuldigen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77414","code":"5","tekst":"De leerlingen handelen discreet in situaties die dat vereisen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77415","code":"6","tekst":"De leerlingen doorprikken vooroordelen, stereotypering, ongepaste beïnvloeding en machtsmisbruik;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77416","code":"7","tekst":"De leerlingen bespreken opvattingen over medische, psychische en sociale aspecten van samenlevingsvormen, veilig vrijen, gezinsplanning, zwangerschap en zwangerschapsafbreking;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77417","code":"8","tekst":"De leerlingen uiten onbevangen en constructief hun wensen en gevoelens binnen relaties en stellen en aanvaarden hierin grenzen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77418","code":"9","tekst":"De leerlingen zoeken naar constructieve oplossingen voor conflicten;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77419","code":"10","tekst":"De leerlingen beargumenteren, in dialoog met anderen, de dynamiek in hun voorkeur voor bepaalde cultuur- en kunstuitingen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77420","code":"11","tekst":"De leerlingen gebruiken cultuur- en kunstuitingen om begrip op te brengen voor de leefwereld van anderen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

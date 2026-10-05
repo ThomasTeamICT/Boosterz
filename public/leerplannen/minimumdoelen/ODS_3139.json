@@ -1,0 +1,29 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3139",
+    "naam": "Secundair onderwijs 2de graad -  Klassieke talen - Cesuurdoelen",
+    "apiId": "3139",
+    "korteNaam": "Klassieke talen",
+    "versie": "2.1",
+    "graad": "2de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 6,
+    "sha256": "7c16fcb7edacdba2487cdee11769ad89eaa17c3cdfee1833f057c4fb82ff1a70"
+  },
+  "doelen": [
+{"id":"91940","code":"03.01.01","tekst":"<p>De leerlingen passen inzicht in het taalsysteem van het Latijn, Grieks of Hebreeuws toe bij het lezen van teksten</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:01Z"},"onderliggende_elementen":"<ul><li>Basisvocabularium bestaande uit frequente woorden met aandacht voor woordverwantschap en woordvorming</li><li>Elementen van morfologische determinering</li><li>Syntactische analyse<ul><li>Tijden en aspecten&nbsp;</li><li>Gebruikelijke en afwijkende syntactische volgorde (Hebreeuws)</li><li>Congruentie</li><li>Zinsdelen</li><li>Zinsdeelstukken</li><li>Bijzinnen</li></ul></li><li>Elementen van semantische analyse</li></ul>","optioneel":false,"titels":{"1":{"titel":"Latijn en/of Grieks of Hebreeuws: taalsystematiek","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo3.1","studierichtingen":[{"waarde":"Grieks-Latijn","structuuronderdeel_groep_nummer":"G-0099"},{"waarde":"Latijn","structuuronderdeel_groep_nummer":"G-0135"},{"waarde":"Yeshiva","structuuronderdeel_groep_nummer":"G-0301"}]}}}}},
+{"id":"91941","code":"03.01.02","tekst":"<p>De leerlingen lichten gelijkenissen en verschillen toe tussen het taalsysteem van het Latijn, Grieks of Hebreeuws en een modern taalsysteem.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:01Z"},"optioneel":false,"titels":{"1":{"titel":"Latijn en/of Grieks of Hebreeuws: taalsystematiek","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo3.1","studierichtingen":[{"waarde":"Grieks-Latijn","structuuronderdeel_groep_nummer":"G-0099"},{"waarde":"Latijn","structuuronderdeel_groep_nummer":"G-0135"},{"waarde":"Yeshiva","structuuronderdeel_groep_nummer":"G-0301"}]}}}}},
+{"id":"91942","code":"03.02.01","tekst":"<p>De leerlingen tonen aan dat ze teksten in het Latijn, Grieks of Hebreeuws begrijpen: de tekst weergeven in eigen woorden, samenvatten, vragen beantwoorden en vertalen.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:01Z"},"optioneel":false,"tekstkenmerken":"<ul><li>Literaire en in beperkte mate niet-literaire teksten</li></ul>","titels":{"1":{"titel":"Latijn en/of Grieks of Hebreeuws: literatuur","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo3.2","studierichtingen":[{"waarde":"Grieks-Latijn","structuuronderdeel_groep_nummer":"G-0099"},{"waarde":"Latijn","structuuronderdeel_groep_nummer":"G-0135"},{"waarde":"Yeshiva","structuuronderdeel_groep_nummer":"G-0301"}]}}}}},
+{"id":"91943","code":"03.02.02","tekst":"<p>De leerlingen geven betekenis aan Latijnse, Griekse of Hebreeuwse teksten</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:01Z"},"onderliggende_elementen":"<ul><li>Stijlfiguren</li></ul>","optioneel":false,"titels":{"1":{"titel":"Latijn en/of Grieks of Hebreeuws: literatuur","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo3.2","studierichtingen":[{"waarde":"Grieks-Latijn","structuuronderdeel_groep_nummer":"G-0099"},{"waarde":"Latijn","structuuronderdeel_groep_nummer":"G-0135"},{"waarde":"Yeshiva","structuuronderdeel_groep_nummer":"G-0301"}]}}}}},
+{"id":"91944","code":"03.03.01","tekst":"<p>De leerlingen situeren een Latijnse, Griekse of Hebreeuwse tekst binnen de context waarin hij ontstond.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:01Z"},"optioneel":false,"titels":{"1":{"titel":"Latijn en/of Grieks of Hebreeuws: cultuurgeschiedenis ","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo3.3","studierichtingen":[{"waarde":"Grieks-Latijn","structuuronderdeel_groep_nummer":"G-0099"},{"waarde":"Latijn","structuuronderdeel_groep_nummer":"G-0135"},{"waarde":"Yeshiva","structuuronderdeel_groep_nummer":"G-0301"}]}}}}},
+{"id":"91945","code":"03.03.02","tekst":"<p>De leerlingen beschrijven aspecten van de maatschappij en cultuur waarin het Latijn, Grieks of Hebreeuws werd gebruikt.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:01Z"},"optioneel":false,"titels":{"1":{"titel":"Latijn en/of Grieks of Hebreeuws: cultuurgeschiedenis ","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo3.3","studierichtingen":[{"waarde":"Grieks-Latijn","structuuronderdeel_groep_nummer":"G-0099"},{"waarde":"Latijn","structuuronderdeel_groep_nummer":"G-0135"},{"waarde":"Yeshiva","structuuronderdeel_groep_nummer":"G-0301"}]}}}}}
+  ]
+}

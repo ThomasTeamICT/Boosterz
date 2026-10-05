@@ -1,0 +1,33 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2929",
+    "naam": "Buitengewoon Secundair onderwijs 3de graad bso Finaliteit arbeidsmarkt Opleidingsvorm 4 -  Juridische competenties - Eindtermen",
+    "apiId": "2929",
+    "korteNaam": "Juridische competenties",
+    "versie": "2.0",
+    "graad": "3de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "12",
+        "naam": "Juridische competenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 5,
+    "sha256": "7698b148ed0ffdfeef2e0c705a9d7de36743f450545a59aecc192659e4db7ce2"
+  },
+  "doelen": [
+{"id":"88594","code":"7.15","tekst":"<p>De leerlingen komen op voor de eerbiediging van de rechten van de mens en het kind en voor sociale rechtvaardigheid.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"12","naam":"Juridische competenties"},"extra":{"attitude":1,"geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Democratische principes en democratische cultuur kaderen binnen de moderne rechtsstaat.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"88786","code":"11.1","tekst":"De leerlingen bespreken elementen van het arbeidsrecht aan de hand van een concrete arbeidsovereenkomst.","type":"Eindtermen","sleutelcompetentie":{"nr":"12","naam":"Juridische competenties"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Contract: gevolgen\r\n- Arbeidsovereenkomst: soorten zoals voltijds, deeltijds, interim, voor onbepaalde duur, voor bepaalde duur\r\n- Basisrechten en -plichten van werkgever en werknemer met inbegrip van veiligheid en welzijn\r\n- Verschillen tussen het werken met een arbeidsovereenkomst versus zonder: loonbrief, zwartwerk\r\n- Verschillen tussen een studentenovereenkomst en een arbeidsovereenkomst: loon, impact op groeipakket en fiscaal ten laste zijn \r\n- Instanties voor advies, hulp en bescherming zoals VDAB en vakbonden","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"88787","code":"11.2","tekst":"De leerlingen bespreken elementen van het huurrecht aan de hand van een concrete huurovereenkomst.","type":"Eindtermen","sleutelcompetentie":{"nr":"12","naam":"Juridische competenties"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Huurovereenkomst\r\n- Basisverplichtingen van huurder en verhuurder\r\n- Huurprijs en eventuele eenmalige kosten en terugkerende kosten, huurwaarborg, plaatsbeschrijving, indexering\r\n- Instanties voor advies, hulp en bescherming","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"88788","code":"11.3","tekst":"De leerlingen lichten aspecten van een hypothecaire lening toe.","type":"Eindtermen","sleutelcompetentie":{"nr":"12","naam":"Juridische competenties"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Aspecten van een hypothecaire lening: lening, hypotheek, schuldsaldoverzekering, vaste en variabele rente, notariskosten, registratierechten","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"88791","code":"11.6","tekst":"De leerlingen lichten juridische en financieel-economische gevolgen van meerderjarigheid toe.","type":"Eindtermen","sleutelcompetentie":{"nr":"12","naam":"Juridische competenties"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Administratie en formaliteiten \r\n- Samenwonen\r\n- Aansprakelijkheid\r\n- Gevolgen van in gebreke blijven van betalingen zoals borgstelling en zwarte lijst\r\n- Instanties voor advies, hulp en bescherming","context":"* De leerlingen passen deze eindterm toe bij de volgende contexten: bij intrede op de arbeidsmarkt en het alleen gaan wonen.","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}}
+  ]
+}

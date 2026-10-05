@@ -1,0 +1,27 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2400",
+    "naam": "Buitengewoon Secundair onderwijs 2de graad aso Opleidingsvorm 4 - Vakoverschrijdende - Technisch-Technologische Vorming - Eindtermen",
+    "apiId": "2400",
+    "korteNaam": "Technisch-Technologische Vorming",
+    "versie": "1.0",
+    "graad": "2de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 4,
+    "sha256": "7fb117a93fd0d8202a900c42d999c2269e8df35fffa8ed14e3236b6ec8d37e0a"
+  },
+  "doelen": [
+{"id":"77476","code":"1","tekst":"De leerlingen kunnen effecten van techniek op mens en samenleving illustreren en in historisch perspectief plaatsen (zoals comfort, design, milieu, consumentisme …).","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2002-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Techniek begrijpen","nr":"1"}}}},
+{"id":"77477","code":"2","tekst":"De leerlingen kunnen kennis en vaardigheden uit verschillende vakgebieden herkennen in technische realisaties.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2002-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"\"Technisch\" begrijpen","nr":"2"}}}},
+{"id":"77478","code":"3","tekst":"De leerlingen kunnen de eigenheid van het technisch proces (bijvoorbeeld doelbepaling, ontwerpen, uitvoeren, evalueren) herkennen en omschrijven.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2002-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"\"Technisch\" begrijpen","nr":"2"}}}},
+{"id":"77479","code":"4","tekst":"De leerlingen ontwikkelen een constructief kritische houding ten aanzien van techniek, technische beroepen en ondernemingen/organisaties.","type":"Eindtermen","extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2002-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Attitude","nr":"3"}}}}
+  ]
+}

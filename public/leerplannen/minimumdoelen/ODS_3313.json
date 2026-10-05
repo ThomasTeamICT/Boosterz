@@ -1,0 +1,34 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3313",
+    "naam": "Secundair onderwijs 1ste graad B-stroom -  Digitale competentie en mediawijsheid - Eindtermen",
+    "apiId": "3313",
+    "korteNaam": "Digitale competenties",
+    "versie": "2.1",
+    "graad": "1ste graad",
+    "stroom": "B-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "4",
+        "naam": "Digitale competentie en mediawijsheid"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 5,
+    "sha256": "3ec8151a49fb0a85710aba41c1c7b3e9d8b0fca9c7d2d456337a0168eb775b38"
+  },
+  "doelen": [
+{"id":"92181","code":"04.01","tekst":"<p>De leerlingen gebruiken doelgericht basisfunctionaliteiten van toepassingen om digitaal te communiceren.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Digitaal communiceren zoals</p><ul><li>in interactie gaan met mensen, systemen, diensten;</li><li>synchroon (online meeting, chat), asynchroon (berichtensysteem, sociale media, sms, e-mail, blog, fora, websites)</li></ul><p>Basisfunctionaliteiten zijn de elementen die nodig zijn om een systeem functioneel te gebruiken zoals versturen en ontvangen van berichten. Ze onderscheiden zich van courante functionaliteiten die de basiselementen aanvullen met elementen die de gebruikerservaring verbeteren zoals sneltoetsen gebruiken.</p>","optioneel":false,"titels":{}}},
+{"id":"92182","code":"04.02","tekst":"<p>De leerlingen gebruiken doelgericht basisfunctionaliteiten van toepassingen om digitale inhouden te creëren.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Digitale inhouden creëren zoals in tekst-, cijfer-, geluid-, grafische, audiovisuele bestanden, programmacode.</p><p>Basisfunctionaliteiten zijn de elementen die nodig zijn om een systeem functioneel te gebruiken zoals het openen van een document. Ze onderscheiden zich van courante functionaliteiten die de basiselementen aanvullen met elementen die de gebruikerservaring verbeteren zoals sneltoetsen gebruiken.</p>","optioneel":false,"titels":{}}},
+{"id":"92183","code":"04.03","tekst":"<p>De leerlingen gebruiken doelgericht basisfunctionaliteiten van toepassingen om digitale inhouden te beheren aan de hand van een aangereikte structuur.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Digitale inhouden beheren zoals</p><ul><li>met behulp van informatiedragers zoals interne en externe opslag;</li><li>met behulp van ordeningstechnieken zoals mappenstructuur, ordening op thema.</li></ul><p>Basisfunctionaliteiten zijn de elementen die nodig zijn om een systeem functioneel te gebruiken zoals het verplaatsen en kopiëren van bestanden. Ze onderscheiden zich van courante functionaliteiten die de basiselementen aanvullen met elementen die de gebruikerservaring verbeteren zoals sneltoetsen gebruiken.</p>","optioneel":false,"titels":{}}},
+{"id":"92184","code":"04.04","tekst":"<p>De leerlingen passen ethische, sociale en legale regels toe bij het gebruiken van digitale technologie.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Ethische, sociale en legale regels zoals</p><ul><li>principes van privacy zoals het zich beveiligen, beschermen van persoonlijke data;</li><li>principes van auteursrecht zoals gebruik van eigen/andermans werk, rechtenvrij werk;</li><li>principes van portretrecht;</li><li>nettiquette.</li></ul>","optioneel":false,"titels":{}}},
+{"id":"92185","code":"04.05","tekst":"<p>De leerlingen ontwerpen doelgericht een digitaal en niet-digitaal algoritme volgens de principes van computationeel denken en debuggen het.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"onderliggende_elementen":"<ul><li>Bouwstenen van digitale systemen</li><li>Principes van computationeel denken: decompositie, patroonherkenning, abstractie, algoritmen.</li></ul>","optioneel":false,"titels":{}}}
+  ]
+}

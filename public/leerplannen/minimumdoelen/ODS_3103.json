@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3103",
+    "naam": "Secundair onderwijs 3de graad bso Finaliteit arbeidsmarkt -  Burgerschapscompetenties met inbegrip van competenties inzake samenleven - Eindtermen",
+    "apiId": "3103",
+    "korteNaam": "Burgerschap",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "7",
+        "naam": "Burgerschapscompetenties met inbegrip van competenties inzake samenleven"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 4,
+    "sha256": "f79c50e82d7f4080f231f134cabf31ca39ed3d0e96c64ecd53db647f9d6889a1"
+  },
+  "doelen": [
+{"id":"91488","code":"07.01","tekst":"<p>De leerlingen reflecteren over de betekenis, de principes en de werking van de democratische rechtsstaat en hun verantwoordelijkheid daarin.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"7","naam":"Burgerschapscompetenties met inbegrip van competenties inzake samenleven"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>De democratische rechtsstaat op een bestuursniveau zoals gemeente, provincie, gemeenschap, gewest, federaal, Europese Unie.</p>","optioneel":false,"titels":{}}},
+{"id":"91489","code":"07.02","tekst":"<p>De leerlingen reflecteren<strong> </strong>over het relationele, gelaagde en dynamische karakter van identiteit.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"7","naam":"Burgerschapscompetenties met inbegrip van competenties inzake samenleven"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Het relationele en dynamische karakter van identiteit zoals gerelateerd aan sociale cohesie, verbondenheid, solidariteit, discriminatie, wij-zij-denken, mensbeeld en wereldbeeld.<br />Het gelaagde karakter van identiteit zoals gerelateerd aan&nbsp;</p><ul><li>biologische aspecten, persoonlijkheidstrekken, familiale achtergrond;</li><li>regionale, nationale of supranationale groepen, zoals de Vlaamse, de Belgische, de Europese en de niet-Europese;</li><li>subculturen, gender-gerelateerde groepen, socio-economische groepen, levensbeschouwelijke groepen.</li></ul>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"91490","code":"07.03","tekst":"<p>De leerlingen lichten toe hoe verschillende vormen van diversiteit verrijkend en uitdagend zijn voor het samenleven.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"7","naam":"Burgerschapscompetenties met inbegrip van competenties inzake samenleven"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Diversiteit zoals gerelateerd aan fysieke, mentale, cognitieve, socio-economische, culturele, levensbeschouwelijke aspecten<br />Verrijkend zoals culturele verrijking, uitwisseling van ideeën, economische uitwisseling<br />Uitdagend zoals meningsverschillen, verschillende belangen, verschillende referentiekaders van waaruit men denkt en handelt, risico van groepsdenken en uitsluiting<br />Het samenleven zoals het samenleven van sociale groepen in vormen als multiculturalisme, monoculturalisme, integratie, assimilatie, inclusie, exclusie.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"91491","code":"07.04","tekst":"<p>De leerlingen gaan geïnformeerd, beargumenteerd en constructief in dialoog over maatschappelijke thema’s.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"7","naam":"Burgerschapscompetenties met inbegrip van competenties inzake samenleven"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Geïnformeerd, beargumenteerd en constructief in dialoog gaan zoals door het toepassen van strategieën als actief luisteren, creatief denken, zich inleven, respectvol en duidelijk uitkomen voor zijn mening, een eigen mening onderbouwen, drogredenen herkennen en onderscheiden.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}}
+  ]
+}

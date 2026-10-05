@@ -1,0 +1,33 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2664",
+    "naam": "Buitengewoon Secundair onderwijs 1ste graad A-stroom Opleidingsvorm 4 -  Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken - Eindtermen basisgeletterdheid",
+    "apiId": "2664",
+    "korteNaam": "Leercompetenties",
+    "versie": "2.0",
+    "graad": "1ste graad",
+    "stroom": "A-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "13",
+        "naam": "Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 4,
+    "sha256": "26ebe28e346d59415f1a0ea8d3bbf57df88e2a5a4f5d59d04a369ba05011f5c3"
+  },
+  "doelen": [
+{"id":"80084","code":"BG 13.1","tekst":"De leerling hanteert in functionele contexten een aangereikte zoekstrategie bij het selecteren van digitale bronnen en informatie om een aangereikte informatievraag te beantwoorden.","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"13","naam":"Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau toepassen","conceptuele_kennis":"- Soorten bronnen zoals internet, tijdschrift, encyclopedie, boek","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Zoekstrategieën voor bronnen zoals trefwoord, synoniem, auteur\n- Zoekstrategieën voor informatie zoals structuur van informatie, verhouding globaal - detail","titels":{"1":{"titel":"Geschikte (leer-)activiteiten, strategieën en tools inzetten om informatie digitaal en niet-digitaal kritisch te verwerven, beheren en verwerken rekening houdend met het beoogde leerresultaat en –proces.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80085","code":"BG 13.2","tekst":"De leerling beoordeelt in functionele contexten en aan de hand van aangereikte richtvragen de geselecteerde digitale bronnen en informatie op bruikbaarheid, correctheid en betrouwbaarheid.","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"13","naam":"Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau evalueren","conceptuele_kennis":"- Bruikbaarheid, correctheid en betrouwbaarheid\n- Soorten bronnen zoals internet, tijdschrift, encyclopedie, boek","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Geschikte (leer-)activiteiten, strategieën en tools inzetten om informatie digitaal en niet-digitaal kritisch te verwerven, beheren en verwerken rekening houdend met het beoogde leerresultaat en –proces.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80086","code":"BG 13.3","tekst":"De leerling verwerkt in functionele contexten digitale informatie uit één of een beperkt aantal bronnen om een antwoord te geven op een informatievraag.","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"13","naam":"Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau analyseren","conceptuele_kennis":"- Soorten methodes om digitale informatie te verwerken: selecteren, analyseren en concluderen","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Methodes om digitale informatie te verwerken: selecteren, analyseren en concluderen","titels":{"1":{"titel":"Geschikte (leer-)activiteiten, strategieën en tools inzetten om informatie digitaal en niet-digitaal kritisch te verwerven, beheren en verwerken rekening houdend met het beoogde leerresultaat en –proces.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80087","code":"BG 13.4","tekst":"De leerling beheert in functionele contexten informatie digitaal volgens een aangereikte structuur.","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"13","naam":"Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau toepassen","conceptuele_kennis":"- Soorten digitale bewaartechnieken zoals stick, cloud, bewaarsysteem\n- Soorten digitale ordeningstechnieken zoals mappenstructuur, ordening via thema","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Digitale bewaartechnieken\n- Digitale ordeningstechnieken","titels":{"1":{"titel":"Geschikte (leer-)activiteiten, strategieën en tools inzetten om informatie digitaal en niet-digitaal kritisch te verwerven, beheren en verwerken rekening houdend met het beoogde leerresultaat en –proces.","ordeningskader":{"type":"bouwsteen"}}}}}
+  ]
+}

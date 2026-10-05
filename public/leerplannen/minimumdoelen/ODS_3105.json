@@ -1,0 +1,33 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3105",
+    "naam": "Secundair onderwijs 3de graad bso Finaliteit arbeidsmarkt -  Competenties met betrekking tot ruimtelijk bewustzijn - Eindtermen",
+    "apiId": "3105",
+    "korteNaam": "Ruimtelijk bewustzijn",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "9",
+        "naam": "Competenties met betrekking tot ruimtelijk bewustzijn"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 5,
+    "sha256": "1ac88482374d6912ac90558cf15fa6f6aec76aee0a2a2fcac32ff6ed569bcb52"
+  },
+  "doelen": [
+{"id":"91244","code":"09.01","tekst":"<p>De leerlingen illustreren acties die een duurzaam ruimtegebruik mogelijk maken.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}},
+{"id":"91245","code":"09.02","tekst":"<p>De leerlingen beschrijven oorzaken, spreiding en gevolgen van natuurfenomenen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Natuurfenomenen zoals aardbevingen, vulkanen, overstromingen, hittegolven, het noorderlicht, vorming van gebergten, vorming van eilanden.</p><p>Oorzaken van natuurfenomenen zoals versterkt broeikaseffect, klimaatverandering, ontbossing, platentektoniek, zonnewind.</p>","optioneel":false,"titels":{}}},
+{"id":"91246","code":"09.03","tekst":"<p>De leerlingen beschrijven gevolgen van de bewegingen van de Aarde.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Gevolgen zoals etmaal, dag en nacht, tijdsbepaling, zonnetijd, zomertijd en wintertijd, jaar, schrikkeljaar, afwisseling van seizoenen op verschillende breedtegraden, daglengte in functie van breedteligging en tijd van het jaar.</p>","optioneel":false,"titels":{}}},
+{"id":"91247","code":"09.04","tekst":"<p>De leerlingen zetten geografische hulpbronnen met inbegrip van GIS-viewers functioneel in.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Geografische hulpbronnen zoals kaart, atlas, bestemmingsplan, luchtfoto, weerbericht, online routeplanner, GIS-viewer.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"91248","code":"09.05","tekst":"<p>De leerlingen situeren absoluut en relatief personen, plaatsen, patronen en processen op relevante ruimtelijke schaalniveaus.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met personen, plaatsen, patronen en processen die in de derde graad aan bod komen.</p>"}}
+  ]
+}

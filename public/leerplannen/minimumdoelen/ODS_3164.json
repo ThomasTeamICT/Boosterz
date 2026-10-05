@@ -1,0 +1,33 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3164",
+    "naam": "Buitengewoon Secundair onderwijs 2de graad kso, tso Dubbele finaliteit Opleidingsvorm 4 -  Digitale competentie en mediawijsheid - Eindtermen",
+    "apiId": "3164",
+    "korteNaam": "Digitale competenties",
+    "versie": "2.1",
+    "graad": "2de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "4",
+        "naam": "Digitale competentie en mediawijsheid"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 5,
+    "sha256": "6c8bf344d09f2e33a76fda3f960351e52ab0c1235f905a19aa54cb5d055fdbc8"
+  },
+  "doelen": [
+{"id":"90659","code":"04.01","tekst":"<p>De leerlingen gebruiken doelgericht courante functionaliteiten van vergelijkbare toepassingen om digitaal te communiceren.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Digitaal communiceren zoals</p><ul><li>in interactie gaan met mensen, systemen, diensten;</li><li>synchroon (online meeting, chat), asynchroon (berichtensysteem, sociale media, sms, e-mail, blog, fora, websites).<br />&nbsp;</li></ul>","optioneel":false,"titels":{}}},
+{"id":"90660","code":"04.02","tekst":"<p>De leerlingen gebruiken doelgericht courante functionaliteiten van vergelijkbare toepassingen om digitale inhouden te creëren.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Digitale inhouden creëren zoals in tekst-, cijfer-, geluid-, grafische, audiovisuele bestanden.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"90661","code":"04.03","tekst":"<p>De leerlingen gebruiken doelgericht courante functionaliteiten van vergelijkbare toepassingen om digitale inhouden te beheren.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Digitale inhouden beheren zoals</p><ul><li>met behulp van informatiedragers zoals interne en externe opslag;</li><li>met behulp van ordeningstechnieken zoals mappenstructuur, ordening op thema.</li></ul>","optioneel":false,"titels":{}}},
+{"id":"90662","code":"04.04","tekst":"<p>De leerlingen respecteren ethische, sociale en legale regels bij het gebruiken van digitale technologie.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Ethische, sociale en legale regels zoals&nbsp;</p><ul><li>principes van privacy zoals het zich beveiligen, anoniem zijn op het WWW;</li><li>principes van auteursrecht zoals creative commons;</li><li>principes van portretrecht;</li><li>netiquette.</li></ul>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"90663","code":"04.05","tekst":"<p>De leerlingen analyseren de impact van digitale systemen op de maatschappij vanuit principes van computationeel denken.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>De impact van digitale systemen op de maatschappij vanuit principes van computationeel denken zoals algoritmes die digitale platformen gebruiken bij</p><ul><li>het selecteren en presenteren van informatie aan gebruikers;</li><li>het verzamelen van persoonlijke informatie van gebruikers en die (mis)(ge)bruiken voor eigen doeleinden;</li><li>het beïnvloeden van de keuzes van gebruikers (vb. gepersonaliseerd aanbod, gepersonaliseerde reclame);</li><li>het beïnvloeden van de blik op de wereld/opinie van gebruikers ;</li><li>het nemen van beslissingen over gebruikers (vb. over kredietaanvragen, sollicitaties, verzekeringen);</li><li>het creëren van taalinteractie met behulp van artificiële intelligentie (chatbot);</li><li>het creëren van kunst (beelden, muziek, poëzie, andere kunstvormen) met behulp van artificiële intelligentie;</li><li>medische beeldvorming om op basis van een eerste scan eventuele afwijkingen te melden aan artsen.</li></ul><p>Principes van computationeel denken zoals decompositie, patroonherkenning, abstractie en algoritmen.&nbsp;<br />&nbsp;</p>","optioneel":false,"titels":{}}}
+  ]
+}

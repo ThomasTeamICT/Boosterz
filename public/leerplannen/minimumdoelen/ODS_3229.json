@@ -1,0 +1,30 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3229",
+    "naam": "Buitengewoon Secundair onderwijs 3de graad bso Finaliteit arbeidsmarkt Opleidingsvorm 4 -  Digitale competentie en mediawijsheid - Eindtermen",
+    "apiId": "3229",
+    "korteNaam": "Digitale competenties",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "4",
+        "naam": "Digitale competentie en mediawijsheid"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 2,
+    "sha256": "20beca68a900903eee55288bb0723244c31a88d23c14ea594faebc1fe324d755"
+  },
+  "doelen": [
+{"id":"90673","code":"04.01","tekst":"<p>De leerlingen gebruiken doelgericht courante functionaliteiten van vergelijkbare toepassingen om digitale inhouden te creëren.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:13Z"},"memorie":"<p>De minimumdoelen voor sleutelcompetentie 4 worden bereikt op het einde van de tweede graad. Voor de derde graad volstaat het dat er verder wordt ingezet op het toepassen van de twee geformuleerde minimumdoelen rekening houdend met de context waarin de minimumdoelen aan bod komen.</p><p>Digitale inhouden creëren zoals in tekst-, cijfer-, geluid-, grafische, audiovisuele bestanden.</p><p>&nbsp;</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"90674","code":"04.02","tekst":"<p>De leerlingen respecteren ethische, sociale en legale regels bij het gebruiken van digitale technologie.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:13Z"},"memorie":"<p>De minimumdoelen voor sleutelcompetentie 4 worden bereikt op het einde van de tweede graad. Voor de derde graad volstaat het dat er verder wordt ingezet op het toepassen van de twee geformuleerde minimumdoelen rekening houdend met de context waarin de minimumdoelen aan bod komen.</p><p>Ethische, sociale en legale regels zoals&nbsp;</p><ul><li>principes van privacy zoals het zich beveiligen, anoniem zijn op het WWW;</li><li>principes van auteursrecht zoals creative commons;</li><li>principes van portretrecht;</li><li>netiquette.</li></ul><p>&nbsp;</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context waarin het minimumdoel aan bod komt.</p>"}}
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3302",
+    "naam": "Buitengewoon Secundair onderwijs 1ste graad A-stroom Opleidingsvorm 4 -  Competenties met betrekking tot historisch bewustzijn - Eindtermen",
+    "apiId": "3302",
+    "korteNaam": "Historisch bewustzijn",
+    "versie": "2.1",
+    "graad": "1ste graad",
+    "stroom": "A-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "8",
+        "naam": "Competenties met betrekking tot historisch bewustzijn"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 9,
+    "sha256": "4bceb4f27c4415650e77cac76ca4699f69e5b88528cbe64050c983c430f17d6b"
+  },
+  "doelen": [
+{"id":"92023","code":"08.01","tekst":"<p>De leerlingen bouwen een historisch referentiekader op met structuurbegrippen, scharnierpunten en kenmerken eigen aan de prehistorie, het oude nabije oosten en de klassieke oudheid.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Structuurbegrippen met betrekking tot:</p><ul><li>tijd: zoals millennium, eeuw, jaar, tijdrekening, chronologie, periode, continuïteit, verandering, evolutie, revolutie, duur;</li><li>ruimte: zoals lokaal, regionaal, stedelijk en ruraal, continentaal en maritiem.</li></ul><p>Kenmerken van samenlevingen uit elk van de drie bestudeerde periodes, voor elk van de maatschappelijke domeinen:&nbsp;</p><ul><li>politiek: zoals stadstaat, rijk, dynastie, republiek, autocratie, aristocratie, democratie, imperialisme, kolonisatie, ambtenaren;&nbsp;</li><li>sociaal: zoals nomadische samenleving, sedentaire samenleving, standenmaatschappij, patriarchale samenleving, migratie, ongelijkheid, slavernij, burgerrechten, oorlog en vrede;</li><li>cultureel: zoals mythologie, wetenschappen, filosofie, natuurreligie, polytheïsme, monotheïsme, staatsgodsdienst, kunstuiting, schriftsoorten, cultuur, mondelinge traditie, multiculturele samenleving;&nbsp;</li><li>economisch: zoals jager-verzamelaar, agrarische (r)evolutie (of: neolithische revolutie), landbouw, ambacht, handel, ruileconomie, geldeconomie.</li></ul>","onderliggende_elementen":"<ul><li>De zeven periodes van het westerse historisch referentiekader: de prehistorie, het oude nabije oosten, de klassieke oudheid, de middeleeuwen, de vroegmoderne tijd, de moderne tijd en de hedendaagse tijd&nbsp;</li><li>Structuurbegrippen met betrekking tot de drie dimensies van het historisch referentiekader: tijd, ruimte en de maatschappelijke domeinen (politiek, sociaal, cultureel en economisch)</li></ul>","optioneel":false,"titels":{}}},
+{"id":"92024","code":"08.02","tekst":"<p>De leerlingen lichten verbanden toe tussen de maatschappelijke domeinen voor samenlevingen uit de prehistorie, het oude nabije oosten en de klassieke oudheid.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"92025","code":"08.03","tekst":"<p>De leerlingen vergelijken kenmerken van bestudeerde samenlevingen in eenzelfde periode en tussen periodes.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"92026","code":"08.04","tekst":"<p>De leerlingen illustreren beperkingen van de westerse periodisering voor de bestudeerde periodes.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Beperkingen van de periodisering zoals in tijd, ruimte en maatschappelijke domeinen.</p>","optioneel":false,"titels":{}}},
+{"id":"92027","code":"08.05","tekst":"<p>De leerlingen analyseren kritisch verschillende soorten historische bronnen met betrekking tot de bestudeerde periodes in functie van een historische vraag.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Kritisch analyseren zoals rekening houden met standplaatsgebondenheid, perspectief van de auteur/maker, doelpubliek.</p>","optioneel":false,"titels":{}}},
+{"id":"92028","code":"08.06","tekst":"<p>De leerlingen vergelijken historische bronnen met betrekking tot de bestudeerde periodes in functie van een historische vraag.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"92029","code":"08.07","tekst":"<p>De leerlingen beantwoorden een historische vraag aan de hand van historische bronnen met betrekking tot de bestudeerde periodes en historische redeneerwijzen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Historische redeneerwijzen zoals causaal redeneren, continuïteit en verandering analyseren, zich historisch inleven, meerdere perspectieven in acht nemen, actualiseren en historiseren, bewijs gebruiken, verbanden leggen tussen historische feiten.</p><p>Het beantwoorden van een historische vraag gebeurt door gebruik te maken van historische bronnen en historische redeneerwijzen.</p>","optioneel":false,"titels":{}}},
+{"id":"92030","code":"08.08","tekst":"<p>De leerlingen lichten de invloed toe van de eigen standplaatsgebondenheid op historische beeldvorming met betrekking tot de bestudeerde periodes.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"92031","code":"08.09","tekst":"<p>De leerlingen illustreren hoe mythevorming rond historische fenomenen historische beeldvorming vervormt.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"onderliggende_elementen":"<ul><li>Onderscheid tussen verleden en geschiedenis</li></ul>","optioneel":false,"titels":{}}}
+  ]
+}

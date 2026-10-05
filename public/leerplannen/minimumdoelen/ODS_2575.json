@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2575",
+    "naam": "Secundair Volwassenenonderwijs Aanvullende Algemene Vorming Minimum - Vak - Wetenschappen - Eindtermen",
+    "apiId": "2575",
+    "korteNaam": "Wetenschappen",
+    "versie": "1.0",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 10,
+    "sha256": "c73414846f693288e37d01f6f590fd5a51eacfc8e3ea256c8cf403cf31c978ec"
+  },
+  "doelen": [
+{"id":"83275","code":"ET AAV WE 001","tekst":"De cursist kan bij de mens de onderlinge samenhang tussen de verschillende lichaamsstelsels met voorbeelden illustreren;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Natuurwetenschappen"}}}},
+{"id":"83276","code":"ET AAV WE 002","tekst":"De cursist kan bij de mens beschrijven hoe erfelijke kenmerken van generatie op generatie worden overgedragen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Natuurwetenschappen"}}}},
+{"id":"83277","code":"ET AAV WE 003","tekst":"De cursist kan bij de mens manieren aangeven om de voortplanting te regelen en om seksueel overdraagbare aandoeningen te voorkomen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Natuurwetenschappen"}}}},
+{"id":"83278","code":"ET AAV WE 004","tekst":"De cursist kan in een concreet voorbeeld aantonen wat een ecologisch evenwicht is, dat de mens natuur en milieu beïnvloedt, en dat daardoor ecologische evenwichten kunnen wijzigen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Natuurwetenschappen"}}}},
+{"id":"83279","code":"ET AAV WE 005","tekst":"De cursist kan voor de biologische evolutie aanwijzingen geven;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Natuurwetenschappen"}}}},
+{"id":"83280","code":"ET AAV WE 006","tekst":"De cursist kan in concrete voorbeelden uit het dagelijkse leven aantonen dat energie in verschillende vormen kan voorkomen en omgezet kan worden in andere energievormen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Natuurwetenschappen"}}}},
+{"id":"83281","code":"ET AAV WE 007","tekst":"De cursist kan de bewegingen van aarde en maan en de waarneembare gevolgen ervan op aarde aantonen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Natuurwetenschappen"}}}},
+{"id":"83282","code":"ET AAV WE 008","tekst":"De cursist kan op een eenvoudige manier enkele fysisch-aardrijkskundige kenmerken van een bestudeerde regio verklaren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Natuurwetenschappen"}}}},
+{"id":"83283","code":"ET AAV WE 009","tekst":"De cursist kan bij een eenvoudig onderzoek, de essentiële stappen van de natuurwetenschappelijke methode onderscheiden;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Onderzoekend leren"}}}},
+{"id":"83284","code":"ET AAV WE 010","tekst":"De cursist kan de mogelijkheden en beperkingen van wetenschappelijke experimenten en theorieën illustreren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Onderzoekend leren"}}}}
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2754",
+    "naam": "Secundair onderwijs 2de graad kso, tso Dubbele finaliteit -  Economische en financiële competenties - Eindtermen",
+    "apiId": "2754",
+    "korteNaam": "Economische en financiële competenties",
+    "versie": "2.0",
+    "graad": "2de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "11",
+        "naam": "Economische en financiële competenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 5,
+    "sha256": "a0fbf51d7617bcec20b2bda333002ac25177304b863fbbc0e0512c9695f9ac80"
+  },
+  "doelen": [
+{"id":"88782","code":"11.1","tekst":"De leerlingen bespreken elementen van het arbeidsrecht aan de hand van een concrete studentenovereenkomst.","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Contract: gevolgen\r\n- Basisrechten en -plichten van werkgever en werknemer met inbegrip van veiligheid en welzijn\r\n- Instanties voor advies, hulp en bescherming zoals VDAB en vakbonden\r\n- Verschillen tussen het werken met een arbeidsovereenkomst versus zonder: loonbrief, zwartwerk","feitenkennis":"- Brutoloon, nettoloon","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"88783","code":"11.2","tekst":"De leerlingen analyseren de totale kost van aankopen inclusief eenmalige kosten, terugkerende kosten en financieringskosten.","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau analyseren","conceptuele_kennis":"- Basisverplichtingen van koper en verkoper, koop op afbetaling\r\n- Aankoopprijs, kortingen\r\n- Consumentenkrediet: aflossingen, jaarlijks kostenpercentage, intrest, financieringskosten\r\n- Eenmalige en terugkerende kosten","feitenkennis":"- Intrest, jaarlijks kostenpercentage","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Analyseren van de totale kost van aankopen","titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"88784","code":"11.3","tekst":"De leerlingen maken budgettaire keuzes bij aankopen in functie van een persoonlijk budget en rekening houdend met een gezinsbudget.","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"affectieve_dimensie":"Voorkeur tonen voor en belang hechten aan waarden, opvattingen, gedragingen, gebeurtenissen, informatie, taken, strategieën,…","attitude":0,"cognitieve_dimensie":"beheersingsniveau evalueren","conceptuele_kennis":"- Aankoopprijs, kortingen\r\n- Consumentenkrediet: aflossingen, jaarlijks kostenpercentage, intrest\r\n- Eenmalige kosten, terugkerende kosten\r\n- Persoonlijk en gezinsbudget: inkomsten en uitgaven op korte en lange termijn, terugbetalingscapaciteit\r\n- Lenen, sparen, schuld\r\n- Spaarvormen, spaardoelstellingen\r\n- Noodzakelijkheid van een aankoop, duurzaamheid van een aankoop\r\n- Documenten voor een eenvoudig persoonlijk administratiebeheer zoals garantiebewijzen, contracten, verzekeringspolis, loonbrieven\r\n- Instanties voor advies, hulp en bescherming zoals JAC, CAW","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-02-15T00:00:00Z"},"metacognitieve_kennis":"- Eigen voorkeuren","optioneel":false,"procedurele_kennis":"- Kritisch afwegen van budgettaire keuzes bij aankopen \r\n- Beheren en bewaren van een persoonlijke administratie","titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"88785","code":"11.4","tekst":"De leerlingen bespreken een schadegeval in functie van een schadeaangifte bij de verzekeringsmaatschappij.","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Verzekeringscontract met inbegrip van franchise\r\n- Schadegeval: aangifte, aansprakelijkheid, verantwoordelijkheid, gevolgen\r\n- Instanties voor hulp, advies en bescherming","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"89400","code":"11.5","tekst":"<p>De leerlingen illustreren de invloed van vraag en aanbod op de prijsvorming van courante consumptiegoederen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"<p>- Prijs, vraag, aanbod</p><p>- Prijsvorming: werking van de wet van vraag en aanbod</p>","feitenkennis":"<p>- Vraag, aanbod</p>","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Reflecteren over de werking van de markten en de economie als systeem en de invloed van de overheid hierop duiden binnen de (inter)nationale context. \r\n","ordeningskader":{"type":"bouwsteen"}}}}}
+  ]
+}

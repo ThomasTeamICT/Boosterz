@@ -1,0 +1,37 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2152",
+    "naam": "Secundair onderwijs 2de graad kso - Vak - Natuurwetenschappen - Eindtermen",
+    "apiId": "2152",
+    "korteNaam": "Natuurwetenschappen",
+    "versie": "1.0",
+    "graad": "2de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 14,
+    "sha256": "cf72c4e4868164a463a37b931826d89ec8a63252f7345871d783ddafefaeb4db"
+  },
+  "doelen": [
+{"id":"74920","code":"1","tekst":"Structuren op submicroscopisch niveau verbinden met macroscopische eigenschappen van stoffen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Materie","pretekst":"<p>Context, autonomie en verantwoordelijkheid:<br />De volgende eindtermen voor de derde graad kso/tso worden gelezen vanuit de persoonlijke, sociale en mondiale context en dat met behulp van ondersteunende technieken.</p>"}}}},
+{"id":"74921","code":"2","tekst":"<p>Uitleggen dat de oorsprong van een zuivere stof&nbsp;geen invloed heeft op haar eigenschappen.</p>","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Materie","pretekst":"<p>Context, autonomie en verantwoordelijkheid:<br />De volgende eindtermen voor de derde graad kso/tso worden gelezen vanuit de persoonlijke, sociale en mondiale context en dat met behulp van ondersteunende technieken.</p>"}}}},
+{"id":"74922","code":"3","tekst":"De symbolische voorstelling van een stofomzetting interpreteren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Materie","pretekst":"<p>Context, autonomie en verantwoordelijkheid:<br />De volgende eindtermen voor de derde graad kso/tso worden gelezen vanuit de persoonlijke, sociale en mondiale context en dat met behulp van ondersteunende technieken.</p>"}}}},
+{"id":"74923","code":"4","tekst":"De betekenis van de stofconstanten smeltpunt, kookpunt, massadichtheid toelichten en deze stofconstanten hanteren om een zuivere stof te identificeren","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Materie","pretekst":"<p>Context, autonomie en verantwoordelijkheid:<br />De volgende eindtermen voor de derde graad kso/tso worden gelezen vanuit de persoonlijke, sociale en mondiale context en dat met behulp van ondersteunende technieken.</p>"}}}},
+{"id":"74924","code":"5","tekst":"Het begrip zwaartekracht kwalitatief hanteren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Kracht en beweging"}}}},
+{"id":"74925","code":"6","tekst":"Het begrip druk kwalitatief hanteren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Kracht en beweging"}}}},
+{"id":"74926","code":"7","tekst":"De invloed van de resulterende kracht in verband brengen met de verandering van de bewegingstoestand.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Kracht en beweging"}}}},
+{"id":"74927","code":"8","tekst":"Bij energieomzettingen het vermogen, de behoudswet en het begrip rendement kwalitatief hanteren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Energie"}}}},
+{"id":"74928","code":"9","tekst":"Voorbeelden van stofomzettingen uit de leefwereld herkennen als exo- of endo-energetisch.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Energie"}}}},
+{"id":"74929","code":"10","tekst":"<p>Bij het verduidelijken van en zoeken naar oplossingen voor duurzaamheidsvraagstukken onder begeleiding wetenschappelijke principes hanteren die betrekking hebben op grondstof- en energieverbruik.</p>","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wetenschap en samenleving"}}}},
+{"id":"74930","code":"11","tekst":"Onder begeleiding de natuurwetenschappen als onderdeel van de culturele ontwikkeling van de maatschappij duiden en de wisselwerking met de maatschappij op ecologisch, economisch, ethisch en technisch vlak illustreren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wetenschap en samenleving"}}}},
+{"id":"74931","code":"12","tekst":"Steunend op wetenschappelijke inzichten verantwoord omgaan met veiligheid en gezondheid in leefwereldsituaties met betrekking tot stoffen, geluid en straling.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wetenschappelijke vaardigheden"}}}},
+{"id":"74932","code":"13","tekst":"Courante grootheden en SI-eenheden hanteren die voorkomen in leefwereldsituaties.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wetenschappelijke vaardigheden"}}}},
+{"id":"74933","code":"14","tekst":"Onder begeleiding illustreren dat natuurwetenschappelijke kennis wordt opgebouwd via natuurwetenschappelijke methoden.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2015-09-01T00:00:00Z","geldig_tot_dt":"2022-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wetenschappelijke vaardigheden"}}}}
+  ]
+}
