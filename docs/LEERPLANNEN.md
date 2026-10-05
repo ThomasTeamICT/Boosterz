@@ -10,7 +10,7 @@ leerplan) moet de punten met "te bevestigen" afvinken vóór het bouwen begint.*
 | API-sleutel Onderwijsdoelen-API | **Bestaat.** Aangevraagd via het portaalformulier op 18 december 2025, aangemaakt op 9 januari 2026 door de Centrale cel ICT. De sleutel kwam per mail in de ICT-mailbox van de scholengroep en geldt voor alle open API's van Onderwijs & Vorming. Hij staat nergens in de repo. |
 | Sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` | **Gedaan** op 5 oktober 2026 (repository secret voor Actions). |
 | Pakket L1 (ophaalscript, workflow, datatest) | Gebouwd en gereviewd (twee reviewers, rechter). **Eerste echte run (5 oktober 2026)**: volledig opgehaald (24019 doelen, 49 pagina's, `totalItems` klopt), maar terecht gestopt (exit 3): sets met dezelfde lange naam vielen samen. Opgelost: de setsleutel is nu `ODS_<onderwijsdoelenset_id>`, elk doel krijgt zijn `@id`, en alle API-velden gaan mee in `extra`. Run 2 en 3 toonden de rest: binnen een set is een code niet altijd uniek (§ 5, "Wat de echte gegevens leren"); een doel wordt nu herkend aan zijn `@id`. **Run 4 geslaagd**: pull request #2 met 950 sets (15 324 doelen, 15 MB), nagekeken door de hoofdsessie (datatest en build groen) en op 5 oktober 2026 samengevoegd op vraag van de eigenaar. **Laag 1 is klaar.** Elke maand haalt de taak de doelen opnieuw op en opent een pull request als er iets verandert. Volgende stap: laag 2 (doelen tonen in de app, koppeling met leerplannen en cursussen). |
-| Laag 2, ronde 1 (§ 14): inleesweg, verwijzingen, hulp | **Bezig** sinds 5 oktober 2026. Basis klaar (types v2, `sha256.ts`, `doelenVingerafdruk`, `htmlNaarTekst`, geldigheid per set). Kern (`kernbouwer`) en minimumdoelen in de app (`bouwer`) volgen, daarna de inleeswizard. |
+| Laag 2, ronde 1 (§ 14): inleesweg, verwijzingen, hulp | **Bezig** sinds 5 oktober 2026. Klaar en live: basis, kern (lezer, verwijzingen, nakijkpoort), de pagina "Officiële minimumdoelen", wegwijzer en nakijkstatus. Review (juistheid) en rechter: 9 bevestigd, 6 gedeeltelijk; het herstel loopt (§ 14, "Review"). Inleeswizard in aanbouw. Pull request #3 (geldigheid per set) wacht op goedkeuring. |
 | Vraag aan het GO! (via een contactpersoon bij PBD) | Concept klaar bij de eigenaar (5 oktober 2026): een afgebakend experiment met enkele leerplannen. Nog te versturen. |
 | Vragen aan het departement (§ 12) | Nog te stellen. Sinds 24 maart 2026 **alleen via het formulier van TechLoket Onderwijs**, niet meer per mail (Nieuwsbrief API K&C van AHOVOKS). |
 | Vragen aan KOV, GO!, OVSG, POV (§ 12) | Teksten klaar in het aanvraagdossier (Claude Docs, "Aanvraagdossier leerplangegevens"); nog niet verstuurd. |
@@ -374,4 +374,26 @@ naam en een vinkje "Ik heb elk doel met de bron vergeleken"; bewaren zonder naki
 **Poorten.** Lint, typecheck, unittests en build; de rooktest dekt de nieuwe pagina's op 390 px.
 Daarna een review per invalshoek (juistheid, toegankelijkheid en taal, privacy en juridisch) met
 de rechter.
+
+**Review (5 oktober 2026, juistheid; rechter).** Op te lossen in deze ronde: `htmlNaarTekst` liet
+tekens als `<` en `>` vallen, plette machten (`<sup>`) en plakte tabelcellen aan elkaar (23 doelen in
+13 sets, ook geldige); de poort vergeleek de verwijzingen uit de bron niet met de gekoppelde, keurde
+goed zonder bron, en zag afgekapte of samengevoegde doelen en niet-gelezen doelregels niet; de lezer
+kapte een doel af na "o.a." of "t.o.v." aan het regeleinde; `bevestigLeerplan` eiste geen geslaagd
+rapport; de lezer was kwadratisch bij lange bronnen.
+
+Bewust later of zo gelaten:
+- Gaten in de nummering blijven een waarschuwing (§ 7); een ontbrekend laatste doel vangt de poort
+  via de doelcodes in de bron.
+- "Aantal zoals de bron het meldt" wacht op echte pdf's: melden leerplannen zo'n aantal?
+- De vingerafdruk dekt alleen de doelen, niet de herkomst (§ 8). Later eventueel een eigen
+  vingerafdruk voor de herkomst, met een versie, zodat bestaande nagekeken leerplannen niet omslaan.
+- Een gedeeld bestand kan "nagekeken" of "officieel" vervalsen: bewust geen beveiliging. Later bij
+  de import van een officieel leerplan de doelen opnieuw afleiden uit de set.
+- Tabelkolommen door elkaar, en een tweede zin met een hoofdletter op een nieuwe regel: vermoedens
+  of dubbelzinnig; de eerste echte pdf beslist (werkwijze, regel 11).
+- Doorgehaalde tekst (`<s>`, bv. ODS_3120 en ODS_3266): nagaan op onderwijsdoelen.be wat de officiële
+  tekst is; tot dan blijft de doorhaling zichtbaar.
+- Officiële leerplannen die vóór het herstel bewaard werden (5 oktober), kunnen een fout omgezette
+  tekst hebben; "Gebruik als leerplan" maakt na het herstel een nieuw, juist leerplan.
 
