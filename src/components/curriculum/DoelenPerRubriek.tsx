@@ -32,10 +32,16 @@ export function groepeerPerRubriek(rijen: readonly DoelRij[]): RubriekGroep[] {
   return [...groepen.values()];
 }
 
-/** Breedte van de codekolom in tekens: de langste code, met een ondergrens en een bovengrens. */
+/**
+ * Breedte van de codekolom in tekens: de langste code, met een ondergrens en een bovengrens. Codes van een zelf samengestelde
+ * lijst kunnen langer zijn (bv. "01.01 (ODS_3032)", 16 tekens): de bovengrens laat die op één regel staan. Een nog langere code
+ * breekt af op een spatie of, als het moet, ergens in het woord (zie `.dl-code` in doelenlijst.css).
+ */
+const MAX_CODEBREEDTE = 20;
+
 function codeBreedte(rijen: readonly DoelRij[]): number {
   const langste = rijen.reduce((m, r) => Math.max(m, r.code.length), 0);
-  return Math.min(14, Math.max(4, langste)) + 1;
+  return Math.min(MAX_CODEBREEDTE, Math.max(4, langste)) + 1;
 }
 
 export function DoelenPerRubriek({ rijen }: { rijen: readonly DoelRij[] }) {

@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowDown, ExternalLink, ListTree, LoaderCircle } from 'lucide-react';
+import { ArrowDown, ExternalLink, ListChecks, ListTree, LoaderCircle } from 'lucide-react';
 import { controleStatus, getCurricula, saveCurriculum } from '../lib/curriculum';
 import { geldigheidVanDoelen, htmlNaarTekst, type MinimumdoelenIndexSet, type MinimumdoelenSetBestand } from '../lib/minimumdoelen';
 import {
@@ -26,6 +26,8 @@ import { BackIcon, InfoIcon, RetryIcon, WarningIcon } from '../components/icons'
 import '../styles/minimumdoelen.css';
 
 const BASIS_ROUTE = '/leerplannen/minimumdoelen';
+/** Het scherm om een eigen doelenlijst samen te stellen; `?sets=<id>` kiest er al een set. */
+const SAMENSTELLEN_ROUTE = '/leerplannen/samenstellen';
 /** Zoveel sets staan er per keer in de lijst; "Toon meer" voegt er evenveel bij. */
 const STAP = 60;
 const SMAL_SCHERM = '(max-width: 899px)';
@@ -168,6 +170,9 @@ export function MinimumdoelenPage() {
           <p className="md-toelichting">
             Voorlopig staan hier alleen de minimumdoelen van het secundair onderwijs (ook buitengewoon secundair) en van het
             volwassenenonderwijs, niet die van het basisonderwijs.
+          </p>
+          <p className="md-toelichting">
+            Wil je doelen uit meerdere sets, of maar een deel van een set? <Link to={SAMENSTELLEN_ROUTE}>Stel je eigen doelenlijst samen</Link>.
           </p>
           {index.stand.status === 'klaar' && (
             <p className="md-bron">
@@ -495,6 +500,9 @@ function SetPaneel({
               welk doel bij welk vak hoort: dat staat in het leerplan van je net. Baseer een cursus dus op dat leerplan; deze
               minimumdoelen zijn de ondergrens die de overheid vastlegt.
             </p>
+            <p>
+              Wil je alleen de doelen van je vak? <Link to={`${SAMENSTELLEN_ROUTE}?sets=${setId}`}>Kies ze uit deze set</Link>.
+            </p>
             {kanZoeken && (
               <div className="md-stem-zoek">
                 <span>Zoek de doelen van je vak met een woord{voorbeelden.length > 0 ? ', bv.' : '.'}</span>
@@ -524,6 +532,9 @@ function SetPaneel({
         <button type="button" className="btn btn-primary" disabled={!bestand} onClick={() => bestand && gebruik(bestand)}>
           <ListTree size={18} /> {verouderd ? 'Toch als leerplan gebruiken' : 'Gebruik als leerplan'}
         </button>
+        <Link className="btn btn-ghost" to={`${SAMENSTELLEN_ROUTE}?sets=${setId}`}>
+          <ListChecks size={18} /> Kies doelen uit deze set
+        </Link>
         {bronLink && (
           <a className="btn btn-ghost" href={bronLink} target="_blank" rel="noopener noreferrer">
             Bekijk op onderwijsdoelen.be <ExternalLink size={16} />

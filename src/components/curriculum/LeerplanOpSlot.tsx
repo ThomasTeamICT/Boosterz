@@ -8,8 +8,8 @@ import type { Curriculum } from '../../lib/curriculumTypes';
 import { netLabel } from '../../lib/curriculum';
 import { veiligeLink } from '../../lib/minimumdoelenBron';
 import { formatDateShort } from '../../lib/utils';
-import { BackIcon, DuplicateIcon, ExportIcon, TipIcon } from '../icons';
-import { DEEL_HINT, isOfficieel, nagekekenTekst } from '../../lib/leerplanStatus';
+import { BackIcon, DuplicateIcon, EditIcon, ExportIcon, TipIcon } from '../icons';
+import { DEEL_HINT, isSamengesteld, nagekekenTekst, uitOfficieleBron } from '../../lib/leerplanStatus';
 import { ControleLabel, OfficieelLabel } from './ControleLabel';
 import { DoelenPerRubriek, type DoelRij } from './DoelenPerRubriek';
 import { VerwijzingLabels } from './VerwijzingLabels';
@@ -29,12 +29,12 @@ function aantal(n: number): string {
 }
 
 /**
- * Bij een officieel leerplan verwijst elk doel naar zichzelf: een label "→ 09.01" achter elke regel zegt dan niets
- * nieuws en maakt de lijst druk. De verwijzingen blijven wel in de gegevens (dekking, export). Bij een leerplan van
- * een net zeggen ze wel iets: dan staan ze er.
+ * Bij een officieel leerplan (een hele set of een zelf samengestelde lijst) verwijst elk doel naar zichzelf: een label
+ * "→ 09.01" achter elke regel zegt dan niets nieuws en maakt de lijst druk. De verwijzingen blijven wel in de gegevens
+ * (dekking, export). Bij een leerplan van een net zeggen ze wel iets: dan staan ze er.
  */
 function maakRijen(cur: Curriculum): DoelRij[] {
-  const toonVerwijzingen = !isOfficieel(cur);
+  const toonVerwijzingen = !uitOfficieleBron(cur);
   return cur.goals.map((goal) => {
     const optioneel = goal.note?.trim().toLowerCase() === 'optioneel';
     const toelichting = goal.note && !optioneel ? goal.note : undefined;
@@ -66,6 +66,9 @@ export function LeerplanOpSlot({
 }) {
   const h = curriculum.herkomst;
   const bronLink = veiligeLink(h?.bronUrl);
+  const officieel = uitOfficieleBron(curriculum);
+  // Een zelf samengestelde lijst past de leerkracht aan door de keuze te wijzigen (de lijst wordt dan opnieuw samengesteld).
+  const keuzeAanpassen = isSamengesteld(curriculum) && curriculum.kind !== 'eigen';
   const rijen = useMemo(() => maakRijen(curriculum), [curriculum]);
   const geldigVanaf = h?.geldigVanaf ? Date.parse(h.geldigVanaf) : NaN;
   const feiten: { naam: string; waarde: string }[] = [{ naam: 'Net', waarde: netLabel(curriculum.net) }];
@@ -89,23 +92,32 @@ export function LeerplanOpSlot({
           </p>
           <div className="lp-labels">
             <ControleLabel status="gecontroleerd" />
-            {isOfficieel(curriculum) && <OfficieelLabel />}
+            {officieel && <OfficieelLabel eigenKopie={curriculum.kind === 'eigen'} samengesteld={isSamengesteld(curriculum)} />}
           </div>
         </div>
         <div className="page-head-actions">
           <button className="btn btn-ghost" onClick={onExport}><ExportIcon size={18} /> Exporteren</button>
         </div>
       </div>
-      {!isOfficieel(curriculum) && <p className="hint lp-deelhint">{DEEL_HINT}</p>}
+      {!officieel && <p className="hint lp-deelhint">{DEEL_HINT}</p>}
 
       <div className="callout lp-slot" role="note">
         <Lock size={20} className="lp-slot-icoon" />
         <div>
           <p>
             <strong>{nagekekenTekst(curriculum)}.</strong> Dit leerplan staat op slot, zodat het letterlijk blijft.
-            Wil je iets aanpassen? Maak een eigen kopie.
+            {keuzeAanpassen
+              ? ' Wil je andere doelen kiezen? Pas de keuze aan. Wil je zelf iets in een doel veranderen? Maak een eigen kopie.'
+              : ' Wil je iets aanpassen? Maak een eigen kopie.'}
           </p>
-          <button className="btn btn-sm btn-primary" onClick={onEigenKopie}><DuplicateIcon size={16} /> Eigen kopie maken</button>
+          <div className="lp-acties">
+            {keuzeAanpassen && (
+              <Link className="btn btn-sm btn-primary" to={`/leerplannen/samenstellen/${encodeURIComponent(curriculum.id)}`}>
+                <EditIcon size={16} /> Keuze aanpassen
+              </Link>
+            )}
+            <button className={`btn btn-sm ${keuzeAanpassen ? 'btn-ghost' : 'btn-primary'}`} onClick={onEigenKopie}><DuplicateIcon size={16} /> Eigen kopie maken</button>
+          </div>
         </div>
       </div>
 

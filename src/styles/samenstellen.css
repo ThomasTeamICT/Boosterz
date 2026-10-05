@@ -1,0 +1,146 @@
+/* ── Stel je eigen doelenlijst samen (/leerplannen/samenstellen) ──────────── */
+/*
+ * Drie stappen: sets kiezen, doelen kiezen, naam en bewaren. De stappenbalk, de kop van de stap en de knoppen Terug en
+ * Volgende komen uit inlezen.css (il-stappen, il-stap, il-stapkop, il-nav, il-ontbreekt); hier staat wat er alleen
+ * in dit scherm zit. Alleen tokens uit global.css; nooit witte tekst op --brand (gebruik --brand-fill). Werkt op 390 px
+ * zonder horizontaal scrollen: alles breekt lange woorden af en rasters vallen terug op één kolom.
+ */
+
+/* Drie stappen in plaats van vier */
+.il-stappen.sam-stappen { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.sam-stap { min-width: 0; }
+.sam-page p.hint { color: var(--text-soft); font-size: 0.88rem; }
+.sam-kop { margin: 18px 0 8px; font-size: 1.05rem; }
+.sam-teller { margin: 2px 0 10px; font-weight: 700; color: var(--text-soft); font-size: 0.92rem; }
+.sam-leeg { padding: 18px; border: 2px dashed var(--line-strong); border-radius: var(--radius-m); color: var(--text-soft); }
+.sam-leeg p { margin: 0 0 10px; }
+.sam-leeg strong { color: var(--text); }
+
+/* ── Stap 1: gekozen sets, filters en de lijst ─────────────────────────── */
+
+.sam-gekozen {
+  margin: 0 0 6px; padding: 14px 16px; border: 1px solid var(--line-strong); border-radius: var(--radius-m);
+  background: var(--bg-raised);
+}
+.sam-gekozen h3 { margin: 0 0 2px; font-size: 1.05rem; }
+.sam-gekozen h3:focus { outline: none; }
+.sam-gekozen h3:focus-visible { outline: 3px solid var(--brand); outline-offset: 4px; }
+.sam-gekozen .sam-teller { margin-bottom: 8px; }
+.sam-gekozen .hint { margin: 8px 0 0; }
+
+.sam-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.sam-chip {
+  display: inline-flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; padding: 3px 3px 3px 12px;
+  border: 1px solid var(--brand); border-radius: 999px; background: var(--brand-soft); color: var(--text);
+}
+.sam-chip-tekst { display: grid; min-width: 0; padding: 2px 0; line-height: 1.25; }
+.sam-chip-naam { font-weight: 700; overflow-wrap: anywhere; }
+.sam-chip-meta { font-size: 0.8rem; color: var(--text-soft); overflow-wrap: anywhere; }
+.sam-chip-weg {
+  display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; padding: 0; cursor: pointer;
+  border: 0; border-radius: 999px; background: transparent; color: var(--text);
+}
+.sam-chip-weg:hover { background: color-mix(in srgb, var(--brand) 22%, transparent); }
+.sam-chip-weg:focus-visible { outline: 3px solid var(--brand); outline-offset: 1px; }
+
+.sam-filters { display: grid; gap: 2px; max-width: 720px; }
+.sam-filters .field { margin-bottom: 10px; }
+.sam-selecten { display: grid; gap: 0 12px; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); }
+.sam-oud { margin: 0 0 8px; }
+.sam-oud-label { display: flex; align-items: center; gap: 10px; min-height: 40px; font-weight: 600; cursor: pointer; }
+.sam-oud-label input { width: 20px; height: 20px; flex: none; accent-color: var(--brand-fill); }
+.sam-oud-hint { margin: 2px 0 0 30px; color: var(--text-soft); font-size: 0.85rem; }
+
+.sam-sets { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sam-sets > li { min-width: 0; }
+.sam-set {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 10px 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.sam-set:hover { border-color: var(--line-strong); box-shadow: var(--shadow-1); }
+.sam-set:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.sam-set:has(input:disabled) { cursor: not-allowed; }
+.sam-set:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; }
+.sam-set input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--brand-fill); cursor: inherit; }
+.sam-set-tekst { display: grid; gap: 2px; min-width: 0; }
+.sam-set-naam { font-family: var(--font-display); font-weight: 700; line-height: 1.3; overflow-wrap: break-word; hyphens: auto; }
+.sam-set-meta { font-size: 0.84rem; line-height: 1.4; color: var(--text-soft); overflow-wrap: break-word; }
+.sam-set-geldig { font-weight: 700; }
+.sam-set-geldig.oud { color: var(--warn-text); }
+.sam-meer { display: flex; justify-content: center; margin: 12px 0 4px; }
+
+/* ── Stap 2: totaal, zoeken en een blok per set ────────────────────────── */
+
+.sam-totaal { margin: 0 0 12px; font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; }
+.sam-doelzoek { display: grid; gap: 2px; margin: 0 0 16px; max-width: 34rem; }
+.sam-doelzoek .field { margin-bottom: 0; }
+.sam-doelzoek .sam-teller { min-height: 1.4em; margin: 0 0 4px; }
+.sam-doelzoek-acties { display: flex; flex-wrap: wrap; gap: 8px; }
+.sam-doelzoek-hint { margin: 6px 0 0; }
+
+.sam-blokken { display: grid; gap: 16px; }
+.sam-blok { min-width: 0; }
+.sam-blok-kop { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.sam-blok-kop h3 { margin: 0; font-size: 1.15rem; line-height: 1.3; overflow-wrap: break-word; hyphens: auto; }
+.sam-blok-meta { margin: 2px 0 10px; color: var(--text-soft); font-size: 0.88rem; overflow-wrap: break-word; }
+.sam-blok .callout { margin: 8px 0; }
+.sam-blok .callout p { margin: 0 0 8px; }
+.sam-blok .callout p:last-child { margin-bottom: 0; }
+.sam-blok .kz-fout, .sam-blok .kz-status { margin: 6px 0; }
+
+.sam-hele-rij {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px;
+  padding: 8px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.sam-hele { display: inline-flex; align-items: center; gap: 10px; min-height: 36px; font-weight: 700; cursor: pointer; }
+.sam-hele input { flex: none; width: 20px; height: 20px; accent-color: var(--brand-fill); cursor: pointer; }
+.sam-hele:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: var(--radius-s); }
+.sam-telling { color: var(--text-soft); font-weight: 600; font-variant-numeric: tabular-nums; }
+.sam-stem { margin: 10px 0 0; color: var(--text-soft); font-size: 0.9rem; max-width: 72ch; }
+.sam-blok .hint { margin: 8px 0 0; }
+
+.sam-groep { margin: 14px 0 0; min-width: 0; }
+.sam-rubriek {
+  margin: 0 0 2px; padding-bottom: 6px; border-bottom: 2px solid var(--line-strong);
+  font-size: 0.98rem; line-height: 1.35; color: var(--text); overflow-wrap: break-word; hyphens: auto;
+}
+.sam-doelen { list-style: none; margin: 0; padding: 0; }
+.sam-doelen > li { min-width: 0; border-bottom: 1px solid var(--line); }
+.sam-doelen > li:last-child { border-bottom: 0; }
+.sam-doel {
+  display: grid; align-items: start; gap: 2px 12px; min-width: 0; padding: 10px 8px; cursor: pointer;
+  grid-template-columns: 20px min(var(--sam-code, 7ch), 10rem) minmax(0, 1fr);
+}
+.sam-doel:hover { background: var(--bg-sunken); }
+.sam-doel:has(input:checked) { background: var(--brand-soft); }
+.sam-doel:focus-within { outline: 3px solid var(--brand); outline-offset: -2px; border-radius: var(--radius-s); }
+.sam-doel input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--brand-fill); cursor: pointer; }
+.sam-doel-code { font-variant-numeric: tabular-nums; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
+.sam-doel-tekst { display: grid; gap: 6px; min-width: 0; }
+.sam-doel-zin { white-space: pre-line; overflow-wrap: break-word; hyphens: auto; }
+.sam-doel-labels { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── Stap 3: naam en overzicht ─────────────────────────────────────────── */
+
+.sam-velden { display: grid; gap: 0 14px; max-width: 720px; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); }
+.sam-voorstel { margin: -6px 0 12px; }
+.sam-waarschuwing { margin: 4px 0 8px; }
+.sam-gewijzigd { margin-bottom: 14px; }
+.sam-nagekeken { margin: 0 0 12px; max-width: 72ch; font-weight: 600; color: var(--ok-text); }
+
+/* ── Smalle schermen ───────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  /* Drie stappen naast elkaar: het cijfer boven de naam. */
+  .il-stappen.sam-stappen { gap: 6px; }
+  .il-stappen.sam-stappen .il-stap { flex-direction: column; justify-content: flex-start; gap: 4px; padding: 8px 4px; text-align: center; }
+  .sam-chip-weg { width: 44px; height: 44px; }
+  .sam-oud-label { min-height: 44px; }
+  .sam-hele { min-height: 44px; }
+  /* Het selectievakje links; de code boven de tekst, zodat de tekst de volle breedte krijgt. */
+  .sam-doel { grid-template-columns: 20px minmax(0, 1fr); padding: 10px 4px; }
+  .sam-doel-code, .sam-doel-tekst { grid-column: 2; }
+  .sam-doel input { grid-row: 1 / span 2; }
+  .sam-doelzoek-acties .btn { flex: 1 1 100%; }
+}

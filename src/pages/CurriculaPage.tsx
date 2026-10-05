@@ -38,7 +38,7 @@ import {
   AddIcon, AIIcon, BackIcon, CheckIcon, DeleteIcon, EditIcon, ExportIcon, GoalIcon, InfoIcon, MoreIcon, MoveDownIcon,
   MoveUpIcon, PreviewIcon, RetryIcon, TipIcon, WarningIcon,
 } from '../components/icons';
-import { DEEL_HINT, effectieveStatus, isOfficieel, nagekekenTekst } from '../lib/leerplanStatus';
+import { DEEL_HINT, effectieveStatus, isOfficieel, isSamengesteld, nagekekenTekst, uitOfficieleBron } from '../lib/leerplanStatus';
 import { ControleLabel, OfficieelLabel } from '../components/curriculum/ControleLabel';
 import { LeerplanOpSlot } from '../components/curriculum/LeerplanOpSlot';
 import { LeerplanWegwijzer } from '../components/curriculum/LeerplanWegwijzer';
@@ -302,7 +302,7 @@ export function CurriculaPage() {
                       <div className="lp-labels">
                         {cur.example && <span className="badge">voorbeeld</span>}
                         <ControleLabel status={status} />
-                        {isOfficieel(cur) && <OfficieelLabel eigenKopie={cur.kind === 'eigen'} />}
+                        {uitOfficieleBron(cur) && <OfficieelLabel eigenKopie={cur.kind === 'eigen'} samengesteld={isSamengesteld(cur)} />}
                       </div>
                     </div>
                   </div>
@@ -333,7 +333,7 @@ export function CurriculaPage() {
                       className="btn btn-quiet btn-icon"
                       items={[
                         {
-                          label: 'Exporteren', hint: isOfficieel(cur) ? 'Als bestand (.json)' : `Als bestand (.json). ${DEEL_HINT}`,
+                          label: 'Exporteren', hint: uitOfficieleBron(cur) ? 'Als bestand (.json)' : `Als bestand (.json). ${DEEL_HINT}`,
                           Icon: ExportIcon, onSelect: () => exporteer(cur),
                         },
                         { label: 'Verwijderen', Icon: DeleteIcon, danger: true, separator: true, onSelect: () => setDeleteTarget(cur) },
@@ -448,7 +448,12 @@ function CurriculumEditor({
 }) {
   const toast = useToast();
   const goals = curriculum.goals;
+  // Een hele officiële set, of een lijst die de leerkracht zelf samenstelde uit officiële sets: beide komen letterlijk uit de bron.
   const officieel = isOfficieel(curriculum);
+  const samengesteld = isSamengesteld(curriculum);
+  const uitBron = officieel || samengesteld;
+  // Een samengestelde lijst pas je aan door de keuze te wijzigen; een eigen kopie ervan pas je hier aan.
+  const keuzeAanpassen = samengesteld && curriculum.kind !== 'eigen';
   const bronSet = curriculum.herkomst?.bronNaam;
   const setGoals = (next: CurriculumGoal[]) => onChange({ ...curriculum, goals: next });
   const patch = (i: number, p: Partial<CurriculumGoal>) => setGoals(goals.map((g, j) => (j === i ? { ...g, ...p } : g)));
@@ -461,7 +466,8 @@ function CurriculumEditor({
   // Stabiele functies: het venster zet de focus opnieuw als zijn onClose bij elke render van de editor verandert.
   const sluitKiezer = useCallback(() => setKiezerVoor(null), []);
   const sluitSetsKiezen = useCallback(() => setSetsKiezenVoor(null), []);
-  const wizardLink = officieel ? undefined : `/leerplannen/inlezen/${encodeURIComponent(curriculum.id)}`;
+  const wizardLink = uitBron ? undefined : `/leerplannen/inlezen/${encodeURIComponent(curriculum.id)}`;
+  const aanpassenLink = `/leerplannen/samenstellen/${encodeURIComponent(curriculum.id)}`;
 
   const move = (i: number, delta: number) => {
     const j = i + delta;
@@ -501,21 +507,26 @@ function CurriculumEditor({
           </p>
           <div className="lp-labels">
             <ControleLabel status={status} />
-            {officieel && <OfficieelLabel eigenKopie={curriculum.kind === 'eigen'} />}
+            {uitBron && <OfficieelLabel eigenKopie={curriculum.kind === 'eigen'} samengesteld={samengesteld} />}
           </div>
           {status === 'niet-gecontroleerd' && (
-            <p className="hint lp-labeluitleg">De doelen zijn nog niet met de bron vergeleken. Kijk ze na om ze vast te leggen.</p>
+            <p className="hint lp-labeluitleg">
+              {keuzeAanpassen
+                ? 'Deze lijst kon niet als nagekeken bevestigd worden. Pas de keuze aan en bewaar de lijst opnieuw om het nog eens te proberen.'
+                : 'De doelen zijn nog niet met de bron vergeleken. Kijk ze na om ze vast te leggen.'}
+            </p>
           )}
         </div>
         <div className="page-head-actions">
           {wizardLink && <Link className="btn btn-primary" to={wizardLink}><BadgeCheck size={18} /> Nakijken en bevestigen</Link>}
+          {keuzeAanpassen && <Link className="btn btn-primary" to={aanpassenLink}><EditIcon size={18} /> Keuze aanpassen</Link>}
           <button className="btn btn-ai" onClick={onAskAI}><AIIcon size={18} /> Doelen toevoegen met AI</button>
           <button className="btn btn-ghost" onClick={() => exporteer(curriculum)}>
             <ExportIcon size={18} /> Exporteren
           </button>
         </div>
       </div>
-      {!officieel && <p className="hint lp-deelhint">{DEEL_HINT}</p>}
+      {!uitBron && <p className="hint lp-deelhint">{DEEL_HINT}</p>}
 
       {status === 'gewijzigd' && (
         <div className="callout warn lp-gewijzigd" role="note">
@@ -527,6 +538,7 @@ function CurriculumEditor({
               </strong>{' '}
               Dit leerplan telt daarom niet meer als nagekeken.
               {officieel && ' Wil je de officiële doelen? Gebruik de officiële set opnieuw, of maak er bewust een eigen leerplan van.'}
+              {keuzeAanpassen && ' Wil je weer de officiële doelen? Pas de keuze aan en bewaar de lijst opnieuw: ze wordt dan opnieuw samengesteld uit de officiële doelen, en je eigen aanpassingen gaan verloren.'}
             </p>
             {officieel && (
               <div className="lp-acties">

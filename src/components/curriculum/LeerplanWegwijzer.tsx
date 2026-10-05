@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, FileBraces, FileText, Landmark } from 'lucide-react';
+import { ChevronDown, FileBraces, FileText, Landmark, ListChecks } from 'lucide-react';
 import { InfoIcon } from '../icons';
 import { NettenLinks } from './NettenLinks';
 import '../../styles/leerplan.css';
@@ -38,13 +38,22 @@ export function LeerplanWegwijzer({
         <h2 className="lw-kop">Kies hoe je begint</h2>
         <p className="lw-keuzehulp">
           Volgt je school het leerplan van een net (KOV, GO!, OVSG of POV)? Kies ‘Leerplan van je net inlezen’. Wil je enkel de
-          wettelijke basis? Kies ‘Officiële minimumdoelen’. Kreeg je een bestand van een collega? Kies ‘Bestand van een collega’.
+          wettelijke basis? Kies ‘Officiële minimumdoelen’. Wil je zelf doelen kiezen uit de minimumdoelen, bv. voor basisgeletterdheid
+          of voor je vak? Kies ‘Zelf doelen samenstellen’. Kreeg je een bestand van een collega? Kies ‘Bestand van een collega’.
         </p>
         <ul className="lw-wegen">
           <li>
             <Link to="/leerplannen/minimumdoelen" className="lw-weg">
               <span className="lw-weg-titel"><Landmark size={18} /> Officiële minimumdoelen gebruiken</span>
               <span className="lw-weg-zin">De doelen komen letterlijk uit de officiële bron. Kies een set die nog geldt.</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/leerplannen/samenstellen" className="lw-weg">
+              <span className="lw-weg-titel"><ListChecks size={18} /> Zelf doelen samenstellen</span>
+              <span className="lw-weg-zin">
+                Kies hele sets of losse doelen uit de officiële minimumdoelen, bv. voor basisgeletterdheid of de doelen van jouw vak uit de STEM-set.
+              </span>
             </Link>
           </li>
           <li>

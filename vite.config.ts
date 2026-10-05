@@ -52,8 +52,11 @@ import {
  *    gzip), alles in één index-*.js. Met 'vendor' en 'widget-icons' (sep.
  *    2026): 155,3 + 169,2 = 324,5 kB (102,5 kB gzip). Na de reviewronde
  *    (voorbeeldmateriaal uit het leerlingpad, focus in het leespaneel):
- *    155,7 + 169,2 = 325,0 kB (102,6 kB gzip). Het budget ligt 1 kB
- *    boven die meting, zodat elke groei meteen opvalt; wie meer nodig heeft,
+ *    155,7 + 169,2 = 325,0 kB (102,6 kB gzip). Daarna groeide de lijst
+ *    lui geladen routes in App.tsx: 325,9 kB, en met de route naar het
+ *    scherm "Stel je eigen doelenlijst samen" (okt. 2026) 326,3 kB (103,0 kB
+ *    gzip); een route kost ±0,4 kB. Het budget ligt ±0,7 kB boven die
+ *    meting, zodat elke groei meteen opvalt; wie meer nodig heeft,
  *    verhoogt het bewust, hier. Let op: vóór sep. 2026 mat dit budget vóór
  *    Vite de preloadlijst invulde, dus ±9 kB te licht (zie order: 'post').
  *  - vendor: React, React DOM, scheduler, de lucide-basis en de iconen van het
@@ -67,7 +70,7 @@ import {
  */
 const CRITICAL_PATH = {
   label: 'hoofdbundel (kritieke leerlingpad)',
-  maxKb: 326,
+  maxKb: 327,
   /** boven 5 % te veel faalt de build */
   hardFactor: 1.05,
   /** wat naast de hoofdbundel in de statische sluiting mag zitten */

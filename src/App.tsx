@@ -66,6 +66,7 @@ const CoursesPage = lazyRetry(() => import('./pages/CoursesPage').then((m) => ({
 const CurriculaPage = lazyRetry(() => import('./pages/CurriculaPage').then((m) => ({ default: m.CurriculaPage })), 'CurriculaPage');
 const MinimumdoelenPage = lazyRetry(() => import('./pages/MinimumdoelenPage').then((m) => ({ default: m.MinimumdoelenPage })), 'MinimumdoelenPage');
 const LeerplanInlezenPage = lazyRetry(() => import('./pages/LeerplanInlezenPage').then((m) => ({ default: m.LeerplanInlezenPage })), 'LeerplanInlezenPage');
+const SamenstellenPage = lazyRetry(() => import('./pages/SamenstellenPage').then((m) => ({ default: m.SamenstellenPage })), 'SamenstellenPage');
 const CourseEditorPage = lazyRetry(() => import('./pages/CourseEditorPage').then((m) => ({ default: m.CourseEditorPage })), 'CourseEditorPage');
 const CourseViewerPage = lazyRetry(() => import('./pages/CourseViewerPage').then((m) => ({ default: m.CourseViewerPage })), 'CourseViewerPage');
 const CourseOpenPage = lazyRetry(() => import('./pages/CourseViewerPage').then((m) => ({ default: m.CourseOpenPage })), 'CourseViewerPage');
@@ -116,6 +117,7 @@ const router = createHashRouter([
       { path: '/leerplannen/minimumdoelen', element: lz(<MinimumdoelenPage />) },
       { path: '/leerplannen/minimumdoelen/:setId', element: lz(<MinimumdoelenPage />) },
       { path: '/leerplannen/inlezen/:curriculumId?', element: lz(<LeerplanInlezenPage />) },
+      { path: '/leerplannen/samenstellen/:curriculumId?', element: lz(<SamenstellenPage />) },
       { path: '/klassen', element: lz(<ClassesPage />) },
       { path: '/klas/:id', element: lz(<ClassDashboardPage />) },
       { path: '/inleverpunt', element: lz(<InboxPage />) },

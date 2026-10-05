@@ -18,7 +18,7 @@
 .dl-lijst { list-style: none; margin: 0; padding: 0; }
 .dl-rij {
   display: grid; align-items: start; gap: 2px 14px; min-width: 0;
-  grid-template-columns: min(var(--dl-code, 6ch), 9.5rem) minmax(0, 1fr);
+  grid-template-columns: min(var(--dl-code, 6ch), 11.5rem) minmax(0, 1fr);
   padding: 10px 0; border-bottom: 1px solid var(--line);
 }
 .dl-rij:last-child { border-bottom: 0; }

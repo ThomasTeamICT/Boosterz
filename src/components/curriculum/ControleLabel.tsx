@@ -23,15 +23,22 @@ export function ControleLabel({ status }: { status: ControleStatus }) {
   );
 }
 
+const OFFICIEEL_TEKST = {
+  set: { label: 'Officiële minimumdoelen', kopie: 'Kopie van officiële minimumdoelen' },
+  samengesteld: { label: 'Officiële doelen, zelf gekozen', kopie: 'Kopie van officiële doelen, zelf gekozen' },
+} as const;
+
 /**
- * Label voor een leerplan dat uit de officiële minimumdoelen komt. Een eigen kopie ervan is niet
- * meer officieel (je kan alles aanpassen): die heet dan "kopie van".
+ * Label voor een leerplan dat uit de officiële minimumdoelen komt: een hele set ("Officiële minimumdoelen") of een lijst die
+ * de leerkracht zelf samenstelde uit één of meer sets ("Officiële doelen, zelf gekozen"). Een eigen kopie ervan is niet meer
+ * officieel (je kan alles aanpassen): die heet dan "kopie van".
  */
-export function OfficieelLabel({ eigenKopie = false }: { eigenKopie?: boolean }) {
+export function OfficieelLabel({ eigenKopie = false, samengesteld = false }: { eigenKopie?: boolean; samengesteld?: boolean }) {
+  const tekst = samengesteld ? OFFICIEEL_TEKST.samengesteld : OFFICIEEL_TEKST.set;
   return (
     <span className="badge badge-brand">
       <Landmark size={16} />
-      {eigenKopie ? 'Kopie van officiële minimumdoelen' : 'Officiële minimumdoelen'}
+      {eigenKopie ? tekst.kopie : tekst.label}
     </span>
   );
 }

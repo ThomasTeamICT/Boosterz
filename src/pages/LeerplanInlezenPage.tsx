@@ -22,7 +22,7 @@ import {
   type BronGegevens, type Gevonden, type LeerplanKeuze, type Ontbrekend,
 } from '../lib/leerplanInlezen';
 import { AI_VOORINVULLING_SLEUTEL } from '../lib/leerplanAiOverdracht';
-import { isOfficieel } from '../lib/leerplanStatus';
+import { isSamengesteld, uitOfficieleBron } from '../lib/leerplanStatus';
 import type { VerwijzingProbleem } from '../lib/minimumdoelVerwijzing';
 import { uid } from '../lib/utils';
 import { leesPdfBestand, type PdfStand } from '../components/curriculum/inlezen/leesPdf';
@@ -85,7 +85,9 @@ function Wizard({ curriculumId }: { curriculumId?: string }) {
       </div>
     );
   }
-  if (bestaand && isOfficieel(bestaand)) {
+  // Een hele officiële set en een zelf samengestelde lijst komen letterlijk uit de officiële bron: daar is niets in te lezen.
+  if (bestaand && uitOfficieleBron(bestaand)) {
+    const aanpasbaar = isSamengesteld(bestaand) && bestaand.kind !== 'eigen';
     return (
       <div className="page mat-page il-page">
         <div className="page-head"><div><h1>Leerplan nakijken</h1></div></div>
@@ -95,8 +97,12 @@ function Wizard({ curriculumId }: { curriculumId?: string }) {
             <p>
               <strong>{bestaand.title}</strong> komt rechtstreeks uit de officiële minimumdoelen. Er valt niets in te lezen: de doelen staan letterlijk
               zoals in de officiële bron.
+              {aanpasbaar && ' Wil je andere doelen kiezen? Pas de keuze aan: de lijst wordt dan opnieuw nagekeken.'}
             </p>
-            <Link className="btn btn-sm btn-ghost" to={`/leerplannen?open=${encodeURIComponent(bestaand.id)}`}><BackIcon size={16} /> Terug naar het leerplan</Link>
+            <div className="lp-acties">
+              <Link className="btn btn-sm btn-ghost" to={`/leerplannen?open=${encodeURIComponent(bestaand.id)}`}><BackIcon size={16} /> Terug naar het leerplan</Link>
+              {aanpasbaar && <Link className="btn btn-sm btn-ghost" to={`/leerplannen/samenstellen/${encodeURIComponent(bestaand.id)}`}>Keuze aanpassen</Link>}
+            </div>
           </div>
         </div>
       </div>
