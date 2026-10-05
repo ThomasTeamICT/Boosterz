@@ -3,12 +3,12 @@
 *Status: ontwerp (fase 2), nog niet gebouwd. Fase 1 (een echt API-antwoord en per net één echt
 leerplan) moet de punten met "te bevestigen" afvinken vóór het bouwen begint.*
 
-## Stand van zaken (bijgewerkt 4 oktober 2026)
+## Stand van zaken (bijgewerkt 5 oktober 2026)
 
 | Wat | Stand |
 |---|---|
 | API-sleutel Onderwijsdoelen-API | **Bestaat.** Aangevraagd via het portaalformulier op 18 december 2025, aangemaakt op 9 januari 2026 door de Centrale cel ICT. De sleutel kwam per mail in de ICT-mailbox van de scholengroep en geldt voor alle open API's van Onderwijs & Vorming. Hij staat nergens in de repo. |
-| Sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` | Nog te doen door de beheerder. Zodra dat gebeurd is: pakket L1 bouwen. |
+| Sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` | **Gedaan** op 5 oktober 2026 (repository secret voor Actions). Volgende stap: pakket L1 bouwen. |
 | Vragen aan het departement (§ 12) | Nog te stellen. Sinds 24 maart 2026 **alleen via het formulier van TechLoket Onderwijs**, niet meer per mail (Nieuwsbrief API K&C van AHOVOKS). |
 | Vragen aan KOV, GO!, OVSG, POV (§ 12) | Teksten klaar in het aanvraagdossier (Claude Docs, "Aanvraagdossier leerplangegevens"); nog niet verstuurd. |
 | Eerste toepassing | De cursus "Aardrijkskunde: bodem en landschap" (leerplan KOV I-Aar-a) krijgt doelcodes zodra laag 1 en het leerplan erin zitten. |
