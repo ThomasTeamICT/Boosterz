@@ -2,21 +2,25 @@
 //
 // Eén leerplan = een lijst doelen met een stabiele CODE. Die codes koppelen
 // cursussecties, quizvragen en resultaten aan elkaar. Je maakt een lijst
-// blanco, uit een geplakte leerplantekst of pdf (AI-structurering), of uit een
-// JSON-bestand van een collega.
+// blanco, uit de officiële minimumdoelen (pagina "Officiële minimumdoelen"), uit
+// een geplakte leerplantekst of pdf (AI-structurering), of uit een JSON-bestand
+// van een collega.
 //
-// De app haalt géén officiële leerplannen op: die staan achter auteursrecht en
-// zijn niet vrij op te vragen vanuit een browser (CORS). Kopieer/plak de tekst
-// of lees de pdf in — zie de callout onderaan de kop.
+// De app haalt géén leerplannen van de netten op: die staan achter auteursrecht
+// en zijn niet vrij op te vragen vanuit een browser (CORS). Kopieer/plak de tekst
+// of lees de pdf in — zie de wegwijzer boven de lijst. De officiële minimumdoelen
+// zijn wel meegeleverd: een leerplan daaruit is meteen "nagekeken" en staat op
+// slot (zie components/curriculum/LeerplanOpSlot.tsx).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import type { Curriculum, CurriculumGoal, CurriculumNet } from '../lib/curriculumTypes';
+import { Link, useSearchParams } from 'react-router-dom';
+import type { ControleStatus, Curriculum, CurriculumGoal, CurriculumNet } from '../lib/curriculumTypes';
 import { CURRICULUM_NETS } from '../lib/curriculumTypes';
 import {
   createCurriculum, curriculumLabel, deleteCurriculum, exportCurriculumJson, getCurricula,
-  importCurriculumJson, netLabel, saveCurriculum,
+  importCurriculumJson, maakEigenKopie, netLabel, saveCurriculum,
 } from '../lib/curriculum';
+import { isGeldigSetId } from '../lib/minimumdoelenBron';
 import { buildCurriculumPrompt, MAX_CURRICULUM_CHARS, sanitizeAICurriculum } from '../lib/aiCurriculum';
 import { askAI, extractJson } from '../lib/ai';
 import { AIErrorBox, AIGate, AIReviewNote, AIWorkingBox } from '../components/aiCommon';
@@ -25,24 +29,57 @@ import { ConfirmModal, EmptyState, Field, Modal, useToast } from '../components/
 import { downloadFile, formatDateShort, uid } from '../lib/utils';
 import { onStorageChange } from '../lib/storage';
 import { useNewParam } from '../lib/useNewParam';
-import { ChevronDown, FileBraces, ListTree } from 'lucide-react';
+import { BadgeCheck, FileBraces, ListTree } from 'lucide-react';
 import { MenuButton } from '../components/Menu';
 import {
   AddIcon, AIIcon, BackIcon, CheckIcon, DeleteIcon, EditIcon, ExportIcon, GoalIcon, InfoIcon, MoreIcon, MoveDownIcon,
-  MoveUpIcon, RetryIcon, TipIcon, WarningIcon,
+  MoveUpIcon, PreviewIcon, RetryIcon, TipIcon, WarningIcon,
 } from '../components/icons';
+import { effectieveStatus, isOfficieel, nagekekenTekst } from '../lib/leerplanStatus';
+import { ControleLabel, OfficieelLabel } from '../components/curriculum/ControleLabel';
+import { LeerplanOpSlot } from '../components/curriculum/LeerplanOpSlot';
+import { LeerplanWegwijzer } from '../components/curriculum/LeerplanWegwijzer';
+import { VerwijzingLabels } from '../components/curriculum/VerwijzingLabels';
 import '../styles/materiaal.css';
+import '../styles/leerplan.css';
 
 type AITarget = { mode: 'new' } | { mode: 'add'; curriculum: Curriculum };
 
+/**
+ * Opent het leerplan uit `?open=<id>` in de URL (zo komt "Gebruik als leerplan" op de pagina
+ * "Officiële minimumdoelen" hier terecht). Zoals `useNewParam`: daarna verdwijnt de parameter weer,
+ * zodat terugkeren of herladen de editor niet opnieuw opent.
+ */
+function useOpenParam(open: (id: string) => void) {
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    const id = params.get('open');
+    if (!id) return;
+    open(id);
+    const next = new URLSearchParams(params);
+    next.delete('open');
+    setParams(next, { replace: true });
+    // open is een setter uit de pagina; enkel de URL is de trigger
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+}
+
+function exporteer(cur: Curriculum) {
+  downloadFile(`${cur.title || 'leerplan'}.json`, exportCurriculumJson(cur));
+}
+
 export function CurriculaPage() {
   const toast = useToast();
-  // Meteen inlezen: het infoblok hieronder krijgt zo meteen de juiste begintoestand.
+  // Meteen inlezen: de wegwijzer hieronder krijgt zo meteen de juiste begintoestand.
   const [curricula, setCurricula] = useState<Curriculum[]>(getCurricula);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [aiTarget, setAiTarget] = useState<AITarget | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   useNewParam(() => setNewOpen(true));
+  useOpenParam((id) => {
+    if (getCurricula().some((c) => c.id === id)) setEditingId(id);
+    else toast('Dit leerplan werd niet gevonden. Misschien is het verwijderd.', 'err');
+  });
   const [deleteTarget, setDeleteTarget] = useState<Curriculum | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -53,14 +90,26 @@ export function CurriculaPage() {
   }, []);
 
   const editing = curricula.find((c) => c.id === editingId);
+  // Status per leerplan: nagekeken (op slot), niet nagekeken of gewijzigd na nakijken.
+  const statussen = useMemo(() => new Map(curricula.map((c) => [c.id, effectieveStatus(c)] as const)), [curricula]);
 
   // Wisselen tussen lijst en editor is een nieuw scherm: bovenaan beginnen,
   // anders opent de editor halverwege (vooral op gsm).
   useEffect(() => { window.scrollTo(0, 0); }, [editingId]);
 
-  const save = (cur: Curriculum) => {
-    saveCurriculum(cur);
+  /** Bewaart en leest opnieuw in; geeft false als de opslag het weigerde (de opslaglaag meldt dat zelf). */
+  const save = (cur: Curriculum): boolean => {
+    const ok = saveCurriculum(cur);
     reload();
+    return ok;
+  };
+
+  /** Een bewerkbare kopie van een (nagekeken) leerplan; die kopie opent meteen. */
+  const eigenKopie = (cur: Curriculum) => {
+    const kopie = maakEigenKopie(cur);
+    if (!save(kopie)) return;
+    setEditingId(kopie.id);
+    toast(`Eigen kopie gemaakt: ${kopie.title}. Hier kan je alles aanpassen.`, 'ok');
   };
 
   const importFile = async (file: File) => {
@@ -117,14 +166,27 @@ export function CurriculaPage() {
   ) : null;
 
   if (editing) {
+    const status = statussen.get(editing.id) ?? effectieveStatus(editing);
     return (
       <>
-        <CurriculumEditor
-          curriculum={editing}
-          onChange={save}
-          onBack={() => setEditingId(null)}
-          onAskAI={() => setAiTarget({ mode: 'add', curriculum: editing })}
-        />
+        {status === 'gecontroleerd' ? (
+          // Nagekeken = op slot: alleen lezen, exporteren of een eigen kopie maken.
+          <LeerplanOpSlot
+            curriculum={editing}
+            onBack={() => setEditingId(null)}
+            onExport={() => exporteer(editing)}
+            onEigenKopie={() => eigenKopie(editing)}
+          />
+        ) : (
+          <CurriculumEditor
+            curriculum={editing}
+            status={status}
+            onChange={save}
+            onBack={() => setEditingId(null)}
+            onAskAI={() => setAiTarget({ mode: 'add', curriculum: editing })}
+            onEigenKopie={() => eigenKopie(editing)}
+          />
+        )}
         {aiModal}
       </>
     );
@@ -141,6 +203,7 @@ export function CurriculaPage() {
           </p>
         </div>
         <div className="page-head-actions">
+          <Link className="btn btn-ghost" to="/leerplannen/minimumdoelen"><GoalIcon size={18} /> Officiële minimumdoelen</Link>
           <button className="btn btn-ghost" onClick={() => fileRef.current?.click()}><FileBraces size={18} /> JSON importeren</button>
           <input
             ref={fileRef} type="file" accept="application/json,.json" hidden
@@ -153,7 +216,12 @@ export function CurriculaPage() {
         </div>
       </div>
 
-      <SourcesCallout defaultOpen={!curricula.some((c) => !c.example)} />
+      <LeerplanWegwijzer
+        defaultOpen={!curricula.some((c) => !c.example)}
+        // Voorlopig de bestaande AI-weg (tekst of pdf); een latere stap vervangt dit door een inleeswizard.
+        onInlezen={() => setAiTarget({ mode: 'new' })}
+        onBestand={() => fileRef.current?.click()}
+      />
 
       {curricula.length === 0 ? (
         <EmptyState icon={<ListTree size={40} />} title="Nog geen leerplannen">
@@ -169,46 +237,57 @@ export function CurriculaPage() {
         </EmptyState>
       ) : (
         <ul className="mat-grid">
-          {curricula.map((cur) => (
-            <li key={cur.id}>
-              <article className="card mat-card">
-                <div className="mat-card-head">
-                  <span className="mat-card-icon" aria-hidden="true"><ListTree size={20} /></span>
-                  <div className="mat-card-titles">
-                    <h2 className="mat-card-title">{cur.title}</h2>
-                    {cur.example && <span className="badge" style={{ marginTop: 6 }}>voorbeeld</span>}
+          {curricula.map((cur) => {
+            const status = statussen.get(cur.id) ?? 'niet-gecontroleerd';
+            return (
+              <li key={cur.id}>
+                <article className="card mat-card">
+                  <div className="mat-card-head">
+                    <span className="mat-card-icon" aria-hidden="true"><ListTree size={20} /></span>
+                    <div className="mat-card-titles">
+                      <h2 className="mat-card-title">{cur.title}</h2>
+                      <div className="lp-labels">
+                        {cur.example && <span className="badge">voorbeeld</span>}
+                        <ControleLabel status={status} />
+                        {isOfficieel(cur) && <OfficieelLabel eigenKopie={cur.kind === 'eigen'} />}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <ul className="mat-facts">
-                  <li>
-                    <InfoIcon size={16} />
-                    <span>{netLabel(cur.net)} · {curriculumLabel(cur)}</span>
-                  </li>
-                  <li>
-                    <GoalIcon size={16} />
-                    <span>{cur.goals.length} doel{cur.goals.length === 1 ? '' : 'en'} · bijgewerkt {formatDateShort(cur.updatedAt)}</span>
-                  </li>
-                </ul>
-                <div className="mat-card-actions">
-                  <button className="btn btn-sm btn-primary" onClick={() => setEditingId(cur.id)}>
-                    <EditIcon size={16} /> Bewerken<span className="sr-only">: {cur.title}</span>
-                  </button>
-                  <MenuButton
-                    Icon={MoreIcon}
-                    ariaLabel={`Acties voor ${cur.title}`}
-                    className="btn btn-quiet btn-icon"
-                    items={[
-                      {
-                        label: 'Exporteren', hint: 'Als bestand (.json)', Icon: ExportIcon,
-                        onSelect: () => downloadFile(`${cur.title || 'leerplan'}.json`, exportCurriculumJson(cur)),
-                      },
-                      { label: 'Verwijderen', Icon: DeleteIcon, danger: true, separator: true, onSelect: () => setDeleteTarget(cur) },
-                    ]}
-                  />
-                </div>
-              </article>
-            </li>
-          ))}
+                  <ul className="mat-facts">
+                    <li>
+                      <InfoIcon size={16} />
+                      <span>{netLabel(cur.net)} · {curriculumLabel(cur)}</span>
+                    </li>
+                    <li>
+                      <GoalIcon size={16} />
+                      <span>{cur.goals.length} doel{cur.goals.length === 1 ? '' : 'en'} · bijgewerkt {formatDateShort(cur.updatedAt)}</span>
+                    </li>
+                    {status === 'gecontroleerd' && (
+                      <li>
+                        <BadgeCheck size={16} />
+                        <span>{nagekekenTekst(cur)}</span>
+                      </li>
+                    )}
+                  </ul>
+                  <div className="mat-card-actions">
+                    <button className="btn btn-sm btn-primary" onClick={() => setEditingId(cur.id)}>
+                      {status === 'gecontroleerd' ? <PreviewIcon size={16} /> : <EditIcon size={16} />}
+                      {status === 'gecontroleerd' ? 'Bekijken' : 'Bewerken'}<span className="sr-only">: {cur.title}</span>
+                    </button>
+                    <MenuButton
+                      Icon={MoreIcon}
+                      ariaLabel={`Acties voor ${cur.title}`}
+                      className="btn btn-quiet btn-icon"
+                      items={[
+                        { label: 'Exporteren', hint: 'Als bestand (.json)', Icon: ExportIcon, onSelect: () => exporteer(cur) },
+                        { label: 'Verwijderen', Icon: DeleteIcon, danger: true, separator: true, onSelect: () => setDeleteTarget(cur) },
+                      ]}
+                    />
+                  </div>
+                </article>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -237,41 +316,6 @@ export function CurriculaPage() {
 function mergeGoals(existing: CurriculumGoal[], incoming: CurriculumGoal[]): CurriculumGoal[] {
   const have = new Set(existing.map((g) => g.code.toUpperCase()));
   return [...existing, ...incoming.filter((g) => !have.has(g.code.toUpperCase()))];
-}
-
-// ── Waar vind je de officiële documenten? ───────────────────────────────────
-
-function SourcesCallout({ defaultOpen }: { defaultOpen: boolean }) {
-  // Standaard dicht zodra er een eigen leerplan is; daarna beslist de leerkracht.
-  const [open, setOpen] = useState<boolean | null>(null);
-  return (
-    <details
-      className="callout mat-details"
-      style={{ marginBottom: 18 }}
-      open={open ?? defaultOpen}
-      onToggle={(e) => setOpen(e.currentTarget.open)}
-    >
-      <summary>
-        <InfoIcon size={20} />
-        <span>Waar vind je de officiële doelen?</span>
-        <ChevronDown size={18} className="mat-chevron" />
-      </summary>
-      <div className="mat-details-body">
-        <ul style={{ margin: '0 0 6px', paddingLeft: 20 }}>
-          <li><strong>Minimumdoelen</strong> (de wettelijke basis voor elk net): <code>onderwijsdoelen.be</code></li>
-          <li><strong>GO!</strong>-leerplannen: <code>pro.g-o.be</code></li>
-          <li><strong>Katholiek Onderwijs Vlaanderen</strong>: de leerplannen en ZILL via hun leerplansite</li>
-          <li><strong>OVSG</strong> (stedelijk en gemeentelijk): <code>ovsg.be</code></li>
-          <li><strong>POV</strong> (provinciaal): <code>pov.be</code></li>
-        </ul>
-        <p className="hint" style={{ margin: 0 }}>
-          Boosterz haalt die documenten niet zelf op: ze zijn auteursrechtelijk beschermd en een
-          browser mag ze niet zomaar van een andere website inladen (CORS). Kopieer de doelen uit het
-          document en plak ze hier, of lees de pdf in. Alles blijft op dit toestel.
-        </p>
-      </div>
-    </details>
-  );
 }
 
 // ── Nieuw (blanco) ──────────────────────────────────────────────────────────
@@ -336,15 +380,20 @@ function NetSelect({ value, onChange }: { value: CurriculumNet; onChange: (v: Cu
 // ── De doelentabel ──────────────────────────────────────────────────────────
 
 function CurriculumEditor({
-  curriculum, onChange, onBack, onAskAI,
+  curriculum, status, onChange, onBack, onAskAI, onEigenKopie,
 }: {
   curriculum: Curriculum;
+  /** 'niet-gecontroleerd' of 'gewijzigd': een nagekeken leerplan staat op slot en komt hier niet. */
+  status: ControleStatus;
   onChange: (cur: Curriculum) => void;
   onBack: () => void;
   onAskAI: () => void;
+  onEigenKopie: () => void;
 }) {
   const toast = useToast();
   const goals = curriculum.goals;
+  const officieel = isOfficieel(curriculum);
+  const bronSet = curriculum.herkomst?.bronNaam;
   const setGoals = (next: CurriculumGoal[]) => onChange({ ...curriculum, goals: next });
   const patch = (i: number, p: Partial<CurriculumGoal>) => setGoals(goals.map((g, j) => (j === i ? { ...g, ...p } : g)));
 
@@ -384,17 +433,41 @@ function CurriculumEditor({
             {netLabel(curriculum.net)} · {goals.length} doel{goals.length === 1 ? '' : 'en'}
             {curriculum.example ? ' · voorbeeldmateriaal, geen officieel document' : ''}
           </p>
+          <div className="lp-labels">
+            <ControleLabel status={status} />
+            {officieel && <OfficieelLabel eigenKopie={curriculum.kind === 'eigen'} />}
+          </div>
         </div>
         <div className="page-head-actions">
           <button className="btn btn-ai" onClick={onAskAI}><AIIcon size={18} /> Doelen uit tekst of pdf</button>
-          <button
-            className="btn btn-ghost"
-            onClick={() => downloadFile(`${curriculum.title || 'leerplan'}.json`, exportCurriculumJson(curriculum))}
-          >
+          <button className="btn btn-ghost" onClick={() => exporteer(curriculum)}>
             <ExportIcon size={18} /> Exporteren
           </button>
         </div>
       </div>
+
+      {status === 'gewijzigd' && (
+        <div className="callout warn lp-gewijzigd" role="note">
+          <WarningIcon size={20} style={{ flex: 'none', marginTop: 2, color: 'var(--warn-text)' }} />
+          <div>
+            <p>
+              <strong>
+                De doelen zijn gewijzigd sinds het nakijken{curriculum.controle?.op ? ` op ${formatDateShort(curriculum.controle.op)}` : ''}.
+              </strong>{' '}
+              Dit leerplan telt daarom niet meer als nagekeken.
+              {officieel && ' Wil je de officiële doelen? Gebruik de officiële set opnieuw, of maak er bewust een eigen leerplan van.'}
+            </p>
+            {officieel && (
+              <div className="lp-acties">
+                {bronSet && isGeldigSetId(bronSet) && (
+                  <Link className="btn btn-sm btn-ghost" to={`/leerplannen/minimumdoelen/${bronSet}`}>Officiële set openen</Link>
+                )}
+                <button className="btn btn-sm btn-ghost" onClick={onEigenKopie}>Eigen kopie maken</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="card card-pad" style={{ marginBottom: 16 }}>
         <Field label="Titel">
@@ -501,6 +574,20 @@ function CurriculumEditor({
                     onChange={(e) => patch(i, { note: e.target.value || undefined })}
                   />
                 </Field>
+                {goal.refs && goal.refs.length > 0 && (
+                  <div className="lp-refs" role="group" aria-label={`Verwijzingen van doel ${i + 1}`}>
+                    <span className="lp-refs-titel">Verwijst naar minimumdoel</span>
+                    <div className="dl-labels">
+                      <VerwijzingLabels
+                        verwijzingen={goal.refs}
+                        onRemove={(r) => {
+                          const rest = (goal.refs ?? []).filter((_, k) => k !== r);
+                          patch(i, { refs: rest.length > 0 ? rest : undefined });
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </li>
           ))}

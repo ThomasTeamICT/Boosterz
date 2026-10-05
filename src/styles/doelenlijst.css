@@ -1,0 +1,53 @@
+/* ── Doelen per rubriek ──────────────────────────────────────────────────── */
+/*
+ * Eén lijst voor de officiële minimumdoelen en voor leerplannen op slot: de code in een
+ * vaste kolom (--dl-code, in tekens, ingesteld door het onderdeel), de tekst ernaast.
+ * De tekst bewaart regeleinden (lijsten, alinea's) en breekt lange woorden af.
+ * Alleen tokens uit global.css.
+ */
+
+.dl { min-width: 0; }
+.dl-groep { margin: 0 0 22px; min-width: 0; }
+.dl-groep:last-child { margin-bottom: 0; }
+.dl-rubriek {
+  margin: 0 0 4px; padding-bottom: 6px; border-bottom: 2px solid var(--line-strong);
+  font-size: 1rem; line-height: 1.35; color: var(--text);
+  overflow-wrap: break-word; hyphens: auto;
+}
+
+.dl-lijst { list-style: none; margin: 0; padding: 0; }
+.dl-rij {
+  display: grid; align-items: start; gap: 2px 14px; min-width: 0;
+  grid-template-columns: min(var(--dl-code, 6ch), 9.5rem) minmax(0, 1fr);
+  padding: 10px 0; border-bottom: 1px solid var(--line);
+}
+.dl-rij:last-child { border-bottom: 0; }
+
+.dl-code {
+  font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text);
+  overflow-wrap: anywhere; line-height: 1.5;
+}
+.dl-tekst { min-width: 0; }
+.dl-zin { margin: 0; white-space: pre-line; overflow-wrap: break-word; hyphens: auto; }
+.dl-labels { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.dl-labels:empty { display: none; }
+
+/* Verwijzing naar een minimumdoel: klein label "→ 09.01" */
+.dl-ref {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 2px 9px; border-radius: 999px;
+  background: var(--brand-soft); color: var(--brand);
+  font-size: 0.78rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.dl-ref:has(.dl-ref-x) { padding-right: 2px; }
+.dl-ref-x {
+  display: inline-grid; place-items: center; flex: none;
+  width: 28px; height: 28px; margin-left: 2px; padding: 0;
+  border: 0; border-radius: 999px; background: transparent; color: inherit; cursor: pointer;
+}
+.dl-ref-x:hover { background: color-mix(in srgb, var(--brand) 18%, transparent); }
+
+@media (max-width: 640px) {
+  .dl-rij { grid-template-columns: min(var(--dl-code, 6ch), 7.5rem) minmax(0, 1fr); gap: 2px 12px; }
+  .dl-ref-x { width: 44px; height: 44px; margin-block: -8px; }
+}

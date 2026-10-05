@@ -1,0 +1,106 @@
+/* ── Officiële minimumdoelen (/leerplannen/minimumdoelen) ────────────────── */
+/*
+ * Brede schermen: de lijst met sets links (met eigen scroll), de gekozen set rechts.
+ * Smalle schermen: onder elkaar; een gekozen set staat boven de lijst, met een knop om naar de
+ * lijst te springen. Alleen tokens uit global.css; nooit witte tekst op --brand.
+ */
+
+.md-page .md-terug { margin: 0 0 8px -8px; }
+.md-intro { max-width: 72ch; }
+.md-bron { margin: 6px 0 0; color: var(--text-faint); font-size: 0.85rem; }
+
+.md-layout {
+  display: grid; gap: 24px; align-items: start;
+  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+}
+
+/* ── Lijstkolom: filters en sets ───────────────────────────────────────── */
+
+.md-lijstkolom {
+  min-width: 0; position: sticky; top: 72px;
+  max-height: calc(100vh - 88px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px; margin: -4px;
+}
+.md-filters { display: grid; gap: 2px; }
+.md-filters .field { margin-bottom: 10px; scroll-margin-top: 90px; }
+.md-groep { border: 0; margin: 0 0 12px; padding: 0; min-width: 0; }
+.md-groep legend { font-weight: 600; font-size: 0.9rem; color: var(--text-soft); padding: 0; margin-bottom: 6px; }
+.md-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.md-chip {
+  display: inline-flex; align-items: center; min-height: 40px; padding: 5px 13px; border-radius: 999px;
+  border: 1px solid var(--line-strong); background: var(--bg-raised); color: var(--text-soft);
+  font: inherit; font-family: var(--font-display); font-weight: 600; font-size: 0.9rem; cursor: pointer;
+}
+.md-chip:hover { border-color: var(--text-soft); color: var(--text); }
+.md-chip[aria-pressed='true'] { background: var(--text); border-color: var(--text); color: var(--bg); }
+.md-selecten { display: grid; gap: 0 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+.md-aantal { margin: 2px 0 10px; font-weight: 700; color: var(--text-soft); font-size: 0.9rem; }
+
+.md-sets { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.md-sets > li { min-width: 0; }
+.md-set {
+  display: grid; gap: 2px; width: 100%; min-height: 44px; padding: 10px 12px; text-align: left;
+  border: 1px solid var(--line); border-radius: var(--radius-m);
+  background: var(--bg-raised); color: var(--text); font: inherit; cursor: pointer;
+}
+.md-set:hover { border-color: var(--line-strong); box-shadow: var(--shadow-1); }
+.md-set[aria-current='true'] { border-color: var(--brand); background: var(--brand-soft); }
+.md-set-naam { font-family: var(--font-display); font-weight: 700; line-height: 1.3; overflow-wrap: break-word; hyphens: auto; }
+.md-set-meta { font-size: 0.84rem; line-height: 1.4; color: var(--text-soft); overflow-wrap: break-word; hyphens: auto; }
+.md-set-geldig { font-weight: 700; }
+.md-meer { display: flex; justify-content: center; margin: 12px 0 4px; }
+
+.md-leeg { padding: 18px; border: 2px dashed var(--line-strong); border-radius: var(--radius-m); color: var(--text-soft); }
+.md-leeg p { margin: 0 0 10px; }
+.md-leeg strong { color: var(--text); }
+
+/* ── Gekozen set ───────────────────────────────────────────────────────── */
+
+.md-setkolom { min-width: 0; }
+.md-setpaneel { min-width: 0; padding: 20px 22px 24px; }
+.md-setpaneel:focus { outline: none; }
+.md-setpaneel:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.md-kop h2 { margin: 0 0 4px; font-size: 1.25rem; line-height: 1.3; overflow-wrap: break-word; hyphens: auto; }
+.md-feiten {
+  display: grid; gap: 10px 18px; margin: 14px 0 0; padding: 0;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+.md-feiten > div { min-width: 0; }
+.md-feiten dt { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-faint); }
+.md-feiten dd { margin: 0; font-weight: 600; overflow-wrap: break-word; }
+.md-acties { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0 6px; }
+.md-uitleg { margin: 0 0 16px; color: var(--text-soft); font-size: 0.9rem; }
+.md-doelen-kop { margin: 22px 0 10px; font-size: 1.1rem; }
+.md-voet { margin: 18px 0 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--text-faint); font-size: 0.85rem; }
+
+.md-status { display: flex; align-items: center; gap: 10px; padding: 14px 0; color: var(--text-soft); }
+.md-status > svg { flex: none; }
+.md-spin { animation: mdSpin 0.9s linear infinite; }
+@keyframes mdSpin { to { transform: rotate(360deg); } }
+.md-fout { align-items: flex-start; flex-wrap: wrap; margin: 14px 0 0; }
+.md-fout > svg { flex: none; margin-top: 2px; color: var(--err-text); }
+.md-fout-tekst { flex: 1 1 220px; min-width: 0; }
+.md-fout-tekst p { margin: 0 0 10px; }
+
+.md-placeholder { padding: 40px 22px; text-align: center; color: var(--text-soft); }
+.md-placeholder h2 { font-size: 1.1rem; }
+.md-placeholder p { margin: 0 auto; max-width: 46ch; }
+
+/* ── Smalle schermen ───────────────────────────────────────────────────── */
+
+.md-naarlijst { display: none; }
+
+@media (max-width: 899px) {
+  .md-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .md-lijstkolom { position: static; max-height: none; overflow: visible; padding: 0; margin: 0; }
+  .md-layout.heeft-set .md-setkolom { order: -1; }
+  .md-layout:not(.heeft-set) .md-setkolom { display: none; }
+  .md-naarlijst { display: inline-flex; }
+  .md-chip { min-height: 44px; }
+  .md-acties .btn, .md-naarlijst, .md-meer .btn, .md-fout .btn { min-height: 44px; }
+  .md-setpaneel { padding: 16px 14px 20px; }
+}
+@media (max-width: 640px) {
+  .md-page .md-terug { min-height: 44px; }
+}

@@ -523,6 +523,122 @@ check('democursus hangt aan het leerplan met doelcodes', !!demoCoverage && demoC
 await go('/#/cursussen');
 check('dekkingspercentage op de cursuskaart', await page.locator('text=/%/').first().isVisible());
 
+// ── 20b. Officiële minimumdoelen: lezen, als leerplan bewaren, op slot ──────
+console.log('20b. Officiële minimumdoelen');
+const curriculaVoor = await page.evaluate(() => localStorage.getItem('wf.curricula.v1'));
+const passtOpSmal = async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+await go('/#/leerplannen');
+check('wegwijzer: drie wegen om te beginnen', (await page.locator('details.lw .lw-weg').count()) === 3);
+check('wegwijzer: links naar de netten openen in een nieuw tabblad', (await page.locator('details.lw .lw-links a[target="_blank"][rel*="noopener"]').count()) === 4);
+await page.getByRole('link', { name: /Officiële minimumdoelen/ }).first().click();
+await page.waitForSelector('.md-sets > li', { timeout: 15000 });
+check('pagina Officiële minimumdoelen: één main en één h1', (await page.locator('main').count()) === 1 && (await page.locator('main h1').count()) === 1);
+check('h1 is "Officiële minimumdoelen"', /Officiële minimumdoelen/.test(await page.locator('main h1').innerText()));
+const nSets = await page.locator('.md-sets > li').count();
+check(`lijst met sets (${nSets})`, nSets >= 10);
+check('het aantal sets wordt aangekondigd (aria-live)', (await page.locator('.md-aantal[aria-live="polite"]').innerText()).length > 0);
+check('naamsvermelding en ophaaldatum staan bovenaan', /Vlaamse overheid/.test(await page.locator('.md-bron').innerText()) && /opgehaald op/.test(await page.locator('.md-bron').innerText()));
+// Zoeken (zonder accenten en op nummer), dan de set openen
+await page.fill('input[type=search]', 'ruimtelijk bewustzijn 3287');
+await sleep(300);
+check('zoeken op naam en nummer vindt precies één set', (await page.locator('.md-sets > li').count()) === 1);
+await page.locator('.md-sets .md-set').first().click();
+await page.waitForSelector('.dl-rij', { timeout: 15000 });
+check('de set heeft een eigen url (deelbaar)', /#\/leerplannen\/minimumdoelen\/ODS_3287$/.test(page.url()));
+check('de zoekterm blijft staan na het kiezen van een set', (await page.inputValue('input[type=search]')) === 'ruimtelijk bewustzijn 3287');
+check('de gekozen set is gemarkeerd in de lijst', (await page.locator('.md-set[aria-current="true"]').count()) === 1);
+check('de set toont zijn doelen', (await page.locator('.dl-rij').count()) === 8);
+check('de code staat in een eigen kolom', await page.locator('.dl-code', { hasText: '09.01' }).first().isVisible());
+const doelTeksten = await page.locator('.dl-zin').allInnerTexts();
+check('doelteksten zijn gewone tekst, geen HTML', doelTeksten.length === 8 && doelTeksten.every((t) => t.trim().length > 0 && !/<\/?[a-z]/i.test(t)));
+check('de bronlink opent in een nieuw tabblad', (await page.locator('.md-acties a[target="_blank"][rel*="noopener"]').count()) === 1);
+check('nog steeds één h1 met een set open', (await page.locator('main h1').count()) === 1);
+
+// Gebruik als leerplan: nagekeken en op slot
+await page.getByRole('button', { name: /Gebruik als leerplan/ }).click();
+await sleep(700);
+check('daarna opent het leerplan', await page.getByRole('heading', { level: 1, name: /Ruimtelijk bewustzijn/ }).isVisible());
+check('de parameter ?open= is uit de url verdwenen', !/open=/.test(page.url()));
+check('label "Nagekeken" (met icoon en tekst)', await page.locator('main .badge', { hasText: /^Nagekeken$/ }).isVisible());
+check('label "Officiële minimumdoelen"', await page.locator('main .badge', { hasText: 'Officiële minimumdoelen' }).isVisible());
+check('melding: staat op slot', await page.locator('text=/Dit leerplan staat op slot/').isVisible());
+check('op slot: geen invoerveld voor de doeltekst', (await page.locator('main textarea').count()) === 0 && (await page.locator('main input.input').count()) === 0);
+check('de doelen staan er wel, met verwijzingen', (await page.locator('.dl-rij').count()) === 8 && (await page.locator('.dl-ref').count()) === 8);
+check('eigen kopie en exporteren zijn mogelijk', await page.getByRole('button', { name: 'Eigen kopie maken' }).isVisible() && await page.getByRole('button', { name: /Exporteren/ }).isVisible());
+const officieel = await page.evaluate(() => {
+  const c = JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]').filter((x) => x.herkomst?.methode === 'officieel');
+  return { n: c.length, status: c[0]?.controle?.status, goals: c[0]?.goals?.length, sets: c[0]?.minimumdoelenSets, refs: c[0]?.goals?.every((g) => g.refs?.length === 1) };
+});
+check('opgeslagen: één officieel leerplan, nagekeken, met verwijzingen', officieel.n === 1 && officieel.status === 'gecontroleerd' && officieel.goals === 8 && officieel.sets?.[0] === 'ODS_3287' && officieel.refs === true);
+await page.setViewportSize({ width: 390, height: 844 });
+await sleep(200);
+check('390 px: het leerplan op slot scrollt niet horizontaal', await passtOpSmal());
+await page.setViewportSize({ width: 1360, height: 900 });
+
+// Op de lijst: de kaart draagt de labels; nogmaals gebruiken maakt geen tweede leerplan
+await page.getByRole('button', { name: /Alle leerplannen/ }).click();
+await sleep(300);
+const kaart = page.locator('article.mat-card', { hasText: 'Ruimtelijk bewustzijn' });
+check('kaart: label Nagekeken', await kaart.locator('.badge', { hasText: /^Nagekeken$/ }).isVisible());
+check('kaart: label Officiële minimumdoelen', await kaart.locator('.badge', { hasText: 'Officiële minimumdoelen' }).isVisible());
+check('kaart: door wie en wanneer', await kaart.locator('text=/Nagekeken door Boosterz/').isVisible());
+check('kaart: een nagekeken leerplan heet "Bekijken"', await kaart.getByRole('button', { name: /Bekijken/ }).isVisible());
+await go('/#/leerplannen/minimumdoelen/ODS_3287');
+await page.waitForSelector('.dl-rij', { timeout: 15000 });
+await page.getByRole('button', { name: /Gebruik als leerplan/ }).click();
+await sleep(700);
+const nOfficieel = await page.evaluate(() => JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]').filter((x) => x.herkomst?.methode === 'officieel').length);
+check('nogmaals gebruiken opent het bestaande leerplan (geen dubbel)', nOfficieel === 1 && await page.locator('text=/Dit leerplan staat op slot/').isVisible());
+
+// Eigen kopie: bewerkbaar, verwijzingen te verwijderen
+await page.getByRole('button', { name: 'Eigen kopie maken' }).click();
+await sleep(500);
+check('eigen kopie: bewerkbaar met invoervelden', (await page.locator('main textarea').count()) === 8);
+check('eigen kopie: label Niet nagekeken', await page.locator('main .badge', { hasText: /^Niet nagekeken$/ }).isVisible());
+check('eigen kopie: verwijzingen als labels met een verwijderknop', await page.getByRole('button', { name: 'Verwijzing 09.01 verwijderen' }).isVisible());
+await page.getByRole('button', { name: 'Verwijzing 09.01 verwijderen' }).click();
+await sleep(300);
+check('verwijzing verwijderd', (await page.getByRole('button', { name: 'Verwijzing 09.01 verwijderen' }).count()) === 0 && (await page.locator('.dl-ref').count()) === 7);
+
+// Een nagekeken leerplan waarvan de doelen buiten Boosterz gewijzigd zijn, geldt als gewijzigd
+await page.evaluate(() => {
+  const lijst = JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]');
+  const o = lijst.find((x) => x.herkomst?.methode === 'officieel' && x.controle?.status === 'gecontroleerd');
+  o.goals[0].text += ' (aangepast)';
+  localStorage.setItem('wf.curricula.v1', JSON.stringify(lijst));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await sleep(500);
+const gewijzigdeKaart = page.locator('article.mat-card', { hasText: 'Ruimtelijk bewustzijn' }).filter({ has: page.locator('.badge', { hasText: 'Gewijzigd na nakijken' }) });
+check('gewijzigd na nakijken: label op de kaart', (await gewijzigdeKaart.count()) === 1);
+await gewijzigdeKaart.getByRole('button', { name: /Bewerken/ }).click();
+await sleep(400);
+check('gewijzigd: waarschuwing en bewerkbaar', await page.locator('text=/gewijzigd sinds het nakijken/').isVisible() && (await page.locator('main textarea').count()) === 8);
+await page.setViewportSize({ width: 390, height: 844 });
+await sleep(200);
+check('390 px: de editor met waarschuwing scrollt niet horizontaal', await passtOpSmal());
+await page.setViewportSize({ width: 1360, height: 900 });
+
+// Terug zoals het was, zodat de volgende onderdelen niets merken
+await page.evaluate((v) => { if (v === null) localStorage.removeItem('wf.curricula.v1'); else localStorage.setItem('wf.curricula.v1', v); }, curriculaVoor);
+
+// Smal scherm (390 px): geen horizontaal scrollen
+await page.setViewportSize({ width: 390, height: 844 });
+await go('/#/leerplannen/minimumdoelen');
+await page.waitForSelector('.md-sets > li', { timeout: 15000 });
+check('390 px: de lijst met sets scrollt niet horizontaal', await passtOpSmal());
+await go('/#/leerplannen/minimumdoelen/ODS_3287');
+await page.waitForSelector('.dl-rij', { timeout: 15000 });
+check('390 px: een geopende set scrollt niet horizontaal', await passtOpSmal());
+check('390 px: de set staat boven de lijst, met een knop om naar de lijst te springen', await page.getByRole('button', { name: /Naar de lijst met sets/ }).first().isVisible());
+check('390 px: tikdoel "Gebruik als leerplan" is minstens 44 px', (await page.getByRole('button', { name: /Gebruik als leerplan/ }).boundingBox()).height >= 44);
+await page.getByRole('button', { name: /Naar de lijst met sets/ }).first().click();
+await sleep(200);
+check('390 px: de knop zet de focus op het zoekveld', await page.evaluate(() => document.activeElement?.getAttribute('type') === 'search'));
+await go('/#/leerplannen');
+check('390 px: de leerplannenpagina scrollt niet horizontaal', await passtOpSmal());
+await page.setViewportSize({ width: 1360, height: 900 });
+
 // ── 21. Importeren (zonder AI) ──────────────────────────────────────────────
 console.log('21. Importeren');
 await go('/#/importeren');
