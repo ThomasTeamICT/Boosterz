@@ -23,7 +23,11 @@
 // betrouwbaar genoeg om te schrijven (problemen in een gekozen set, of geen totalItems om de
 // volledigheid mee te controleren). Bij 1, 2 en 3 is er niets geschreven behalve het rapport.
 //
-// Problemen per soort (rapport.problemen): conflict (zelfde code, andere tekst), variant (zelfde code
+// Een doel herkennen we aan zijn vaste nummer in de API (`@id`), en alleen zonder dat nummer aan
+// zijn code: binnen één set kan dezelfde code bij verschillende doelen horen (de nummering begint
+// opnieuw per rubriek of pakket). Zulke codes staan ter info in rapport.dubbeleCodes.
+//
+// Problemen per soort (rapport.problemen): conflict (zelfde doel, andere tekst), variant (zelfde doel
 // en tekst, andere metagegevens), overgeslagen (geen code of omschrijving, of een code die een
 // JSON-getal is) en meerwaardig (set, structuur of sleutelcompetentie met meer dan één waarde).
 // Een probleem in een gekozen set stopt de ophaling; in andere sets staat het alleen in het rapport.
@@ -287,11 +291,10 @@ async function haalApi(voortgang) {
 
 const SET_INFO_VELDEN = ['apiId', 'korteNaam', 'versie'];
 
-/** Platte velden van een doel: bovenste velden (zonder code) en `extra.<veld>`. */
+/** Platte velden van een doel: de bovenste velden en `extra.<veld>`. */
 function vlakVan(doel) {
   const vlak = new Map();
   for (const [veld, waarde] of Object.entries(doel)) {
-    if (veld === 'code') continue;
     if (veld === 'extra' && isObject(waarde)) {
       for (const [x, w] of Object.entries(waarde)) vlak.set(`extra.${x}`, M.canoniek(w));
     } else {
@@ -340,7 +343,7 @@ function nieuweSet(sleutel) {
     sleutel,
     namen: new Map(),
     info: { apiId: new Map(), korteNaam: new Map(), versie: new Map() },
-    codes: new Map(), // code -> Map(canoniek doel -> doel)
+    doelen: new Map(), // doelsleutel (id, anders code) -> Map(canoniek doel -> doel)
     problemen: { conflict: [], variant: [], overgeslagen: [], meerwaardig: [] },
   };
 }
@@ -375,10 +378,11 @@ function groepeer(records, rapport) {
       });
       continue;
     }
-    let varianten = set.codes.get(n.doel.code);
+    const doelSleutel = M.doelSleutel(n.doel);
+    let varianten = set.doelen.get(doelSleutel);
     if (!varianten) {
       varianten = new Map();
-      set.codes.set(n.doel.code, varianten);
+      set.doelen.set(doelSleutel, varianten);
     }
     const sleutel = M.canoniek(n.doel);
     if (varianten.has(sleutel)) rapport.dubbel++;
@@ -397,11 +401,12 @@ function groepeer(records, rapport) {
       if (waarden.length > 0) set.setInfo[veld] = waarden[0];
       if (waarden.length > 1) set.andereInfo[veld] = waarden.slice(1);
     }
-    for (const [code, varianten] of set.codes) {
+    for (const varianten of set.doelen.values()) {
       if (varianten.size < 2) continue;
       const lijst = [...varianten.entries()].sort((a, b) => vergelijkTekst(a[0], b[0])).map(([, doel]) => doel);
       const soort = new Set(lijst.map((d) => d.tekst)).size > 1 ? 'conflict' : 'variant';
-      set.problemen[soort].push({ set: set.sleutel, code, verschil: verschilVan(lijst), varianten: lijst });
+      const { code, id } = lijst[0];
+      set.problemen[soort].push({ set: set.sleutel, code, ...(id !== undefined ? { id } : {}), verschil: verschilVan(lijst), varianten: lijst });
     }
     set.aantalProblemen = SOORTEN.reduce((som, soort) => som + set.problemen[soort].length, 0);
   }
@@ -416,16 +421,38 @@ function verzamelProblemen(sets) {
     const alle = [...sets.values()].flatMap((s) => s.problemen[soort]);
     const gesorteerd = alle
       .map((p) => ({ p, s: M.canoniek(p) }))
-      .sort((a, b) => vergelijk(a.p.set, b.p.set) || vergelijk(a.p.code ?? '', b.p.code ?? '') || vergelijkTekst(a.s, b.s))
+      .sort((a, b) => vergelijk(a.p.set, b.p.set) || vergelijk(a.p.code ?? '', b.p.code ?? '') || vergelijk(a.p.id ?? '', b.p.id ?? '') || vergelijkTekst(a.s, b.s))
       .map((x) => x.p);
     problemen[soort] = { aantal: alle.length, voorbeelden: gesorteerd.slice(0, MAX_VOORBEELDEN) };
-    if (soort === 'conflict') conflicten = gesorteerd.map((p) => ({ set: p.set, code: p.code }));
+    if (soort === 'conflict') conflicten = gesorteerd.map((p) => ({ set: p.set, code: p.code, ...(p.id !== undefined ? { id: p.id } : {}) }));
   }
   return { problemen, conflicten: conflicten.slice(0, MAX_CONFLICTEN_IN_RAPPORT) };
 }
 
 function doelenVan(set) {
-  return [...set.codes.values()].map((varianten) => [...varianten.values()][0]);
+  return [...set.doelen.values()].map((varianten) => [...varianten.values()][0]);
+}
+
+const opCodeEnId = (a, b) => vergelijk(a.code, b.code) || vergelijk(a.id ?? '', b.id ?? '');
+
+/**
+ * Codes die binnen een set bij meer dan één doel horen (elk met een eigen id), bv. omdat de nummering
+ * per rubriek of pakket opnieuw begint. Geen probleem, wel goed om te weten: een code alleen wijst
+ * dan niet één doel aan.
+ */
+function dubbeleCodesVan(sets) {
+  const lijst = [];
+  for (const set of [...sets].sort((a, b) => vergelijk(a.sleutel, b.sleutel))) {
+    const perCode = new Map();
+    for (const doel of doelenVan(set)) {
+      if (!perCode.has(doel.code)) perCode.set(doel.code, []);
+      perCode.get(doel.code).push(doel);
+    }
+    for (const [code, doelen] of [...perCode.entries()].sort((a, b) => vergelijk(a[0], b[0]))) {
+      if (doelen.length > 1) lijst.push({ set: set.sleutel, code, ids: doelen.sort(opCodeEnId).map((d) => d.id ?? '?') });
+    }
+  }
+  return { aantal: lijst.length, sets: new Set(lijst.map((d) => d.set)).size, voorbeelden: lijst.slice(0, MAX_VOORBEELDEN) };
 }
 
 function structuurWaarden(set) {
@@ -452,7 +479,7 @@ function maakDoel(doel, setNiveau) {
 }
 
 function bouwSetBestand(set, opgehaald) {
-  const ruw = doelenVan(set).sort((a, b) => vergelijk(a.code, b.code));
+  const ruw = doelenVan(set).sort(opCodeEnId);
   const setNiveau = {};
   for (const veld of ['graad', 'stroom', 'leerjaar']) {
     const waarden = new Set(ruw.map((d) => d[veld]));
@@ -642,7 +669,7 @@ async function main() {
       id: set.sleutel,
       naam: set.naam,
       ...(set.setInfo.korteNaam !== undefined ? { korteNaam: set.setInfo.korteNaam } : {}),
-      aantal: set.codes.size,
+      aantal: set.doelen.size,
       gekozen: isGekozen,
       problemen: set.aantalProblemen,
     });
@@ -658,6 +685,7 @@ async function main() {
   const verzameld = verzamelProblemen(sets);
   rapport.problemen = verzameld.problemen;
   rapport.conflicten = verzameld.conflicten;
+  rapport.dubbeleCodes = dubbeleCodesVan(gekozen.values());
 
   // Volledigheid: zonder totalItems valt niet vast te stellen of er pagina's ontbreken.
   const aantalUniek = new Set(bron.records.map((r) => M.canoniek(r))).size;
@@ -711,7 +739,7 @@ async function main() {
   const teSchrijven = [];
   for (const set of gekozen.values()) {
     const pad = path.join(uit, `${set.sleutel}.json`);
-    aantallen.set(set.sleutel, set.codes.size);
+    aantallen.set(set.sleutel, set.doelen.size);
     const bestond = fs.existsSync(pad);
     if (bestond) {
       // Ongewijzigd = de tekst, opnieuw gebouwd met de tijd van het bestaande bestand, is byte-gelijk.
@@ -749,6 +777,8 @@ async function main() {
   log(`Minimumdoelen: ${rapport.records} records uit ${rapport.bron === 'api' ? 'de API' : 'een bestand'} (${rapport.paginas} ${rapport.paginas === 1 ? 'pagina' : 'pagina\'s'}).`);
   log(`Volledig identieke records samengevoegd: ${rapport.dubbel}. Problemen in niet-gekozen sets: conflict ${p.conflict.aantal}, variant ${p.variant.aantal}, overgeslagen ${p.overgeslagen.aantal}, meerwaardig ${p.meerwaardig.aantal}.`);
   log(`Sets in de bron: ${sets.size}, gekozen: ${gekozen.size}.`);
+  const dc = rapport.dubbeleCodes;
+  if (dc.aantal > 0) log(`Codes die binnen een set bij meer dan één doel horen (elk met een eigen id, bv. per rubriek): ${dc.aantal} in ${dc.sets} ${dc.sets === 1 ? 'set' : 'sets'}; zie dubbeleCodes in het rapport.`);
   log(`Nieuw: ${rapport.nieuw.length ? lijst(rapport.nieuw, aantallen) : 'geen'}.`);
   log(`Gewijzigd: ${rapport.gewijzigd.length ? lijst(rapport.gewijzigd, aantallen) : 'geen'}.`);
   log(`Ongewijzigd: ${rapport.ongewijzigd.length ? lijst(rapport.ongewijzigd, aantallen) : 'geen'}.`);

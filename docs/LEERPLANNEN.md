@@ -9,7 +9,7 @@ leerplan) moet de punten met "te bevestigen" afvinken vóór het bouwen begint.*
 |---|---|
 | API-sleutel Onderwijsdoelen-API | **Bestaat.** Aangevraagd via het portaalformulier op 18 december 2025, aangemaakt op 9 januari 2026 door de Centrale cel ICT. De sleutel kwam per mail in de ICT-mailbox van de scholengroep en geldt voor alle open API's van Onderwijs & Vorming. Hij staat nergens in de repo. |
 | Sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` | **Gedaan** op 5 oktober 2026 (repository secret voor Actions). |
-| Pakket L1 (ophaalscript, workflow, datatest) | Gebouwd en gereviewd (twee reviewers, rechter). **Eerste echte run (5 oktober 2026)**: volledig opgehaald (24019 doelen, 49 pagina's, `totalItems` klopt), maar terecht gestopt (exit 3): sets met dezelfde lange naam vielen samen. Opgelost: de setsleutel is nu `ODS_<onderwijsdoelenset_id>`, elk doel krijgt zijn `@id`, en alle API-velden gaan mee in `extra`. Volgende stap: tweede run en de pull request nakijken. |
+| Pakket L1 (ophaalscript, workflow, datatest) | Gebouwd en gereviewd (twee reviewers, rechter). **Eerste echte run (5 oktober 2026)**: volledig opgehaald (24019 doelen, 49 pagina's, `totalItems` klopt), maar terecht gestopt (exit 3): sets met dezelfde lange naam vielen samen. Opgelost: de setsleutel is nu `ODS_<onderwijsdoelenset_id>`, elk doel krijgt zijn `@id`, en alle API-velden gaan mee in `extra`. Run 2 en 3 toonden de rest: binnen een set is een code niet altijd uniek (§ 5, "Wat de echte gegevens leren"); een doel wordt nu herkend aan zijn `@id`. Volgende stap: run 4 en de pull request nakijken. |
 | Vragen aan het departement (§ 12) | Nog te stellen. Sinds 24 maart 2026 **alleen via het formulier van TechLoket Onderwijs**, niet meer per mail (Nieuwsbrief API K&C van AHOVOKS). |
 | Vragen aan KOV, GO!, OVSG, POV (§ 12) | Teksten klaar in het aanvraagdossier (Claude Docs, "Aanvraagdossier leerplangegevens"); nog niet verstuurd. |
 | Eerste toepassing | De cursus "Aardrijkskunde: bodem en landschap" (leerplan KOV I-Aar-a) krijgt doelcodes zodra laag 1 en het leerplan erin zitten. |
@@ -135,9 +135,24 @@ gelijk; een sleutel uit de naam viel in de eerste echte run samen voor verschill
 - De bestanden gaan **niet** in localStorage (de volledige set is te groot) en niet in de
   hoofdbundel. De app haalt ze pas op als iemand ze nodig heeft. De service worker bewaart
   ze daarna voor offline gebruik ("andere eigen bestanden: netwerk eerst, cache als terugval").
-- Een unittest (`src/lib/minimumdoelen.test.ts`) leest elk meegeleverd bestand en eist dat de
-  codes uniek zijn, de teksten niet leeg, `aantal` klopt en `sha256` overeenkomt met de doelen.
+- Een unittest (`src/lib/minimumdoelen.test.ts`) leest elk meegeleverd bestand en eist dat elk
+  doel uniek is (aan zijn `id`, of zonder id aan zijn code), de teksten niet leeg zijn, de volgorde
+  klopt (code, dan id), `aantal` klopt en `sha256` overeenkomt met de doelen.
   Zo blokkeert de bestaande uitrolpoort een kapot bestand.
+
+**Wat de echte gegevens leren** (runs van 5 oktober 2026, 24019 doelen, 672 sets):
+
+- Een doel heeft een vast nummer (`@id`). Dat is de enige sleutel die altijd uniek is. Hetzelfde
+  doel kan in meer dan één set staan (bv. Artistieke Opvoeding in twee sets met dezelfde ids).
+- Een code is niet uniek binnen een set. De nummering begint opnieuw per rubriek of pakket:
+  Artistieke Opvoeding heeft een doel 1 bij Muzikale opvoeding én bij Plastische opvoeding;
+  Fysica heeft 11.17.01 in "bouwkunde pakket 1" en "pakket 2". De rubriek staat in `extra.titels`.
+  Het script meldt zulke codes in `rapport.dubbeleCodes`; laag 2 toont daarom altijd code én
+  rubriek, en verwijst intern naar het `id`.
+- Sommige STEM-sets bevatten verwijzingen: code "zie eindterm", tekst "6.15". Ze blijven letterlijk
+  staan; laag 2 moet ze als verwijzing naar een ander doel lezen, niet als eigen doel.
+- In de volwassenenonderwijsset Moderne Talen heeft code "BC AAV MVT 032" twee verschillende
+  teksten zonder ander onderscheid dan het id. Mogelijk een fout in de bron: vraag voor TechLoket.
 
 ## 6. Laag 2: leerplannen van de netten inlezen
 
@@ -268,6 +283,10 @@ leerplanpagina is al lui geladen; de lezers komen in een eigen chunk.
    of beheert elk net die zelf?
 5. Is de Nieuwsbrief API K&C de plek waar nieuwe versies van een set aangekondigd worden, of geeft
    de API zelf ook een versie aan?
+6. Is `@id` van een onderwijsdoel stabiel over de tijd, zodat we er blijvend naar kunnen verwijzen?
+7. In de set Moderne Talen (volwassenenonderwijs) heeft code "BC AAV MVT 032" twee verschillende
+   teksten. Is dat bedoeld, en zo ja, hoe onderscheid je ze?
+8. Hoe ziet een link naar één set op onderwijsdoelen.be eruit, zodat elk bestand naar zijn bron wijst?
 
 **Aan elk net (KOV, GO!, OVSG, POV)**:
 1. Bestaat er een gestructureerde export of API van de leerplandoelen, met de verwijzingen naar

@@ -553,6 +553,31 @@ describe('valideerSetBestand', () => {
     expect(valideerSetBestand(b).join('\n')).toMatch(/"1\.10" komt meer dan één keer voor/);
   });
 
+  it('laat dezelfde code toe bij doelen met een eigen id, maar geen dubbele id', () => {
+    const b = geldig();
+    b.doelen = [
+      { id: '7', code: '1', tekst: 'Muzikale opvoeding' },
+      { id: '12', code: '1', tekst: 'Plastische opvoeding' },
+      { id: '3', code: '2', tekst: 'c' },
+    ];
+    expect(valideerSetBestand(b)).toEqual([]);
+
+    b.doelen[2].id = '7';
+    expect(valideerSetBestand(b).join('\n')).toMatch(/doel 3: de id "7" komt meer dan één keer voor/);
+
+    const omgekeerd = geldig();
+    omgekeerd.doelen = [
+      { id: '12', code: '1', tekst: 'a' },
+      { id: '7', code: '1', tekst: 'b' },
+      { id: '3', code: '2', tekst: 'c' },
+    ];
+    expect(valideerSetBestand(omgekeerd).join('\n')).toMatch(/doel 2: id "7" staat na id "12" bij dezelfde code "1"/);
+
+    const leeg = geldig();
+    (leeg.doelen[0] as { id?: unknown }).id = '  ';
+    expect(valideerSetBestand(leeg).join('\n')).toMatch(/doel 1: de id is leeg of geen tekst/);
+  });
+
   it('vangt een lege tekst of lege code', () => {
     const b = geldig();
     b.doelen[1].tekst = '   ';
@@ -1041,22 +1066,64 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
 
   it('zet conflicten en varianten van een gekozen set ook in het logboek: ids, verschillende velden en hun waarden', () => {
     const records = [
-      rec('2.1', '<p>Nieuwe tekst van het doel</p>', SET_SO, { '@id': 11, geldigheid: { tot: null } }),
+      rec('2.1', '<p>Nieuwe tekst van het doel</p>', SET_SO, { '@id': 10, geldigheid: { tot: null } }),
       rec('2.1', '<p>Oude tekst van het doel</p>', SET_SO, { '@id': 10, geldigheid: { tot: '2024-08-31' } }),
       rec('2.2', 'Zelfde', SET_SO, { '@id': 12, optioneel: true }),
-      rec('2.2', 'Zelfde', SET_SO, { '@id': 13 }),
+      rec('2.2', 'Zelfde', SET_SO, { '@id': 12 }),
     ];
     const run = draai(['--bron', schrijfBron('probleem-log.json', [goedDoel, ...records]), '--uit', join(tmp, 'uit-probleem-log'), '--rapport', join(tmp, 'r-probleem-log.json')]);
     expect(run.status, run.stderr).toBe(3);
     const regels = run.stdout.split('\n').filter((r) => r.startsWith('- '));
     expect(regels).toEqual([
-      `- ${SO_ID} (Secundair onderwijs, eerste graad) code 2.1, conflict, ids 10, 11; verschilt in extra.geldigheid, id, tekst. ` +
-        'extra.geldigheid: "{"tot":"2024-08-31"}" | "{"tot":null}"; id: "10" | "11"; tekst: "Oude tekst van het doel" | "Nieuwe tekst van het doel"',
-      `- ${SO_ID} (Secundair onderwijs, eerste graad) code 2.2, variant, ids 12, 13; verschilt in extra.optioneel, id. ` +
-        'extra.optioneel: "true" | "(geen)"; id: "12" | "13"',
+      `- ${SO_ID} (Secundair onderwijs, eerste graad) code 2.1, conflict, ids 10, 10; verschilt in extra.geldigheid, tekst. ` +
+        'extra.geldigheid: "{"tot":"2024-08-31"}" | "{"tot":null}"; tekst: "Oude tekst van het doel" | "Nieuwe tekst van het doel"',
+      `- ${SO_ID} (Secundair onderwijs, eerste graad) code 2.2, variant, ids 12, 12; verschilt in extra.optioneel. ` +
+        'extra.optioneel: "true" | "(geen)"',
     ]);
     const rapport = leesJson<ProbleemRapport>(join(tmp, 'r-probleem-log.json'));
-    expect(rapport.problemen.conflict.voorbeelden).toMatchObject([{ code: '2.1', verschil: ['extra.geldigheid', 'id', 'tekst'] }]);
+    expect(rapport.problemen.conflict.voorbeelden).toMatchObject([{ code: '2.1', id: '10', verschil: ['extra.geldigheid', 'tekst'] }]);
+    expect(rapport.conflicten).toEqual([{ set: SO_ID, code: '2.1', id: '10' }]);
+  });
+
+  it('herkent een doel aan zijn id: dezelfde code bij verschillende doelen is geen probleem, wel gemeld', () => {
+    // Zoals in de echte gegevens: de nummering begint opnieuw per rubriek.
+    const muziek = { titels: { 1: { titel: 'Muzikale opvoeding', nr: '1' } } };
+    const beeld = { titels: { 1: { titel: 'Plastische opvoeding', nr: '2' } } };
+    const records = [
+      rec('2', 'Beeld twee', SET_SO, { '@id': 97, ...beeld }),
+      rec('1', 'Beeld een', SET_SO, { '@id': 96, ...beeld }),
+      rec('1', 'Muziek een', SET_SO, { '@id': 78, ...muziek }),
+      rec('2', 'Muziek twee', SET_SO, { '@id': 79, ...muziek }),
+      rec('3', 'Enkel muziek', SET_SO, { '@id': 80, ...muziek }),
+    ];
+    const uit = join(tmp, 'uit-zelfde-code');
+    const rapportPad = join(tmp, 'r-zelfde-code.json');
+    const run = draai(['--bron', schrijfBron('zelfde-code.json', records), '--uit', uit, '--rapport', rapportPad]);
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.stdout).toMatch(/Codes die binnen een set bij meer dan één doel horen \(elk met een eigen id, bv\. per rubriek\): 2 in 1 set;/);
+
+    const bestand = leesJson<MinimumdoelenSetBestand>(join(uit, `${SO_ID}.json`));
+    expect(bestand.set.aantal).toBe(5);
+    expect(bestand.doelen.map((d) => [d.code, d.id, d.tekst])).toEqual([
+      ['1', '78', 'Muziek een'],
+      ['1', '96', 'Beeld een'],
+      ['2', '79', 'Muziek twee'],
+      ['2', '97', 'Beeld twee'],
+      ['3', '80', 'Enkel muziek'],
+    ]);
+    expect(bestand.doelen[0].extra).toEqual(muziek);
+    expect(controleerMap(uit)).toEqual([]);
+
+    const rapport = leesJson<{ dubbeleCodes: unknown; problemen: Record<string, { aantal: number }> }>(rapportPad);
+    expect(rapport.dubbeleCodes).toEqual({
+      aantal: 2,
+      sets: 1,
+      voorbeelden: [
+        { set: SO_ID, code: '1', ids: ['78', '96'] },
+        { set: SO_ID, code: '2', ids: ['79', '97'] },
+      ],
+    });
+    expect(rapport.problemen.conflict.aantal + rapport.problemen.variant.aantal).toBe(0);
   });
 
   it('een probleem verandert niets aan een bestaande uitmap', () => {

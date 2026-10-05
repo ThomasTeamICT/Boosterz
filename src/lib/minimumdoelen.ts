@@ -172,6 +172,15 @@ function slug(naam: string): string {
     .replace(/_+$/, '');
 }
 
+/**
+ * Waaraan we een doel binnen een set herkennen: zijn vaste nummer in de API (`id`), en alleen
+ * zonder dat nummer zijn code. Een code is niet altijd uniek: in de echte gegevens begint de
+ * nummering opnieuw per rubriek of pakket (bv. Muzikale en Plastische opvoeding hebben elk een doel 1).
+ */
+export function doelSleutel(doel: { code: string; id?: string }): string {
+  return doel.id !== undefined ? `id:${doel.id}` : `code:${doel.code}`;
+}
+
 /** `onderwijsdoelenset_id` als tekst, als het een geheel getal (of een tekst met enkel cijfers) is. */
 function apiIdVan(setObject: unknown): string | undefined {
   if (!isObject(setObject)) return undefined;
@@ -502,7 +511,7 @@ export function valideerSetBestand(json: unknown): string[] {
   const tekstFouten: string[] = [];
   const volgordeFouten: string[] = [];
   const gezien = new Set<string>();
-  let vorige: string | undefined;
+  let vorige: { code: string; id?: string } | undefined;
   doelen.forEach((doel, i) => {
     const plaats = `doel ${i + 1}`;
     if (!isObject(doel)) {
@@ -510,15 +519,27 @@ export function valideerSetBestand(json: unknown): string[] {
       return;
     }
     const code = doel.code;
+    const id = doel.id;
+    if (id !== undefined && !isTekst(id)) codeFouten.push(`${plaats}: de id is leeg of geen tekst.`);
     if (!isTekst(code)) {
       codeFouten.push(`${plaats}: de code ontbreekt of is leeg.`);
     } else {
-      if (gezien.has(code)) dubbel.push(`${plaats}: de code "${code}" komt meer dan één keer voor.`);
-      gezien.add(code);
-      if (vorige !== undefined && vergelijkCodes(vorige, code) > 0) {
-        volgordeFouten.push(`${plaats}: "${code}" staat na "${vorige}", dat is de verkeerde volgorde.`);
+      const heeftId = isTekst(id);
+      // Een doel is uniek door zijn id; zonder id door zijn code. Dezelfde code mag bij meer doelen horen.
+      const sleutel = doelSleutel({ code, ...(heeftId ? { id } : {}) });
+      if (gezien.has(sleutel)) {
+        dubbel.push(heeftId ? `${plaats}: de id "${id}" komt meer dan één keer voor.` : `${plaats}: de code "${code}" komt meer dan één keer voor (zonder id).`);
       }
-      vorige = code;
+      gezien.add(sleutel);
+      if (vorige !== undefined) {
+        const opCode = vergelijkCodes(vorige.code, code);
+        if (opCode > 0) {
+          volgordeFouten.push(`${plaats}: "${code}" staat na "${vorige.code}", dat is de verkeerde volgorde.`);
+        } else if (opCode === 0 && vorige.code === code && vergelijkCodes(vorige.id ?? '', heeftId ? id : '') > 0) {
+          volgordeFouten.push(`${plaats}: id "${heeftId ? id : ''}" staat na id "${vorige.id ?? ''}" bij dezelfde code "${code}", dat is de verkeerde volgorde.`);
+        }
+      }
+      vorige = heeftId ? { code, id } : { code };
     }
     if (!isTekst(doel.tekst)) {
       tekstFouten.push(`${plaats}${isTekst(code) ? ` (${code})` : ''}: de tekst ontbreekt of is leeg.`);
