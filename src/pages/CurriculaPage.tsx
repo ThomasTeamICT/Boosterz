@@ -14,13 +14,14 @@
 // slot (zie components/curriculum/LeerplanOpSlot.tsx).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import type { ControleStatus, Curriculum, CurriculumGoal, CurriculumNet } from '../lib/curriculumTypes';
 import { CURRICULUM_NETS } from '../lib/curriculumTypes';
 import {
   createCurriculum, curriculumLabel, deleteCurriculum, exportCurriculumJson, getCurricula,
-  importCurriculumJson, maakEigenKopie, netLabel, saveCurriculum,
+  importCurriculumJsonMetRapport, maakEigenKopie, netLabel, saveCurriculum,
 } from '../lib/curriculum';
+import { leesAiVoorinvulling, type AiVoorinvulling } from '../lib/leerplanAiOverdracht';
 import { leesNiveau } from '../lib/leerplanNiveau';
 import { isGeldigSetId } from '../lib/minimumdoelenBron';
 import { buildCurriculumPrompt, MAX_CURRICULUM_CHARS, sanitizeAICurriculum } from '../lib/aiCurriculum';
@@ -37,7 +38,7 @@ import {
   AddIcon, AIIcon, BackIcon, CheckIcon, DeleteIcon, EditIcon, ExportIcon, GoalIcon, InfoIcon, MoreIcon, MoveDownIcon,
   MoveUpIcon, PreviewIcon, RetryIcon, TipIcon, WarningIcon,
 } from '../components/icons';
-import { effectieveStatus, isOfficieel, nagekekenTekst } from '../lib/leerplanStatus';
+import { DEEL_HINT, effectieveStatus, isOfficieel, nagekekenTekst } from '../lib/leerplanStatus';
 import { ControleLabel, OfficieelLabel } from '../components/curriculum/ControleLabel';
 import { LeerplanOpSlot } from '../components/curriculum/LeerplanOpSlot';
 import { LeerplanWegwijzer } from '../components/curriculum/LeerplanWegwijzer';
@@ -47,7 +48,10 @@ import { VerwijzingLabels } from '../components/curriculum/VerwijzingLabels';
 import '../styles/materiaal.css';
 import '../styles/leerplan.css';
 
-type AITarget = { mode: 'new' } | { mode: 'add'; curriculum: Curriculum };
+type AITarget = { mode: 'new'; voorinvulling?: AiVoorinvulling } | { mode: 'add'; curriculum: Curriculum };
+
+/** Een bestand van een collega is klein; wat groter is dan dit, is bijna zeker het verkeerde bestand. */
+const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 
 /**
  * Opent het leerplan uit `?open=<id>` in de URL (zo komt "Gebruik als leerplan" op de pagina
@@ -70,14 +74,16 @@ function useOpenParam(open: (id: string) => void) {
 
 /**
  * Opent het AI-venster voor een nieuw leerplan als de URL `?ai=nieuw` bevat (de inleeswizard stuurt
- * hierheen als haar lezer geen doelen vindt). Zoals `useNewParam`: daarna verdwijnt de parameter weer,
+ * hierheen als haar lezer geen doelen vindt). De wizard geeft de tekst en de keuzes uit stap 1 mee in de
+ * routerstate, zodat het venster vooraf ingevuld is. Zoals `useNewParam`: daarna verdwijnt de parameter weer,
  * zodat terugkeren of herladen het venster niet opnieuw opent.
  */
-function useAiParam(open: () => void) {
+function useAiParam(open: (voorinvulling?: AiVoorinvulling) => void) {
   const [params, setParams] = useSearchParams();
+  const { state } = useLocation();
   useEffect(() => {
     if (params.get('ai') !== 'nieuw') return;
-    open();
+    open(leesAiVoorinvulling(state));
     const next = new URLSearchParams(params);
     next.delete('ai');
     setParams(next, { replace: true });
@@ -98,7 +104,7 @@ export function CurriculaPage() {
   const [aiTarget, setAiTarget] = useState<AITarget | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   useNewParam(() => setNewOpen(true));
-  useAiParam(() => setAiTarget({ mode: 'new' }));
+  useAiParam((voorinvulling) => setAiTarget({ mode: 'new', voorinvulling }));
   useOpenParam((id) => {
     if (getCurricula().some((c) => c.id === id)) setEditingId(id);
     else toast('Dit leerplan werd niet gevonden. Misschien is het verwijderd.', 'err');
@@ -116,9 +122,19 @@ export function CurriculaPage() {
   // Status per leerplan: nagekeken (op slot), niet nagekeken of gewijzigd na nakijken.
   const statussen = useMemo(() => new Map(curricula.map((c) => [c.id, effectieveStatus(c)] as const)), [curricula]);
 
-  // Wisselen tussen lijst en editor is een nieuw scherm: bovenaan beginnen,
-  // anders opent de editor halverwege (vooral op gsm).
-  useEffect(() => { window.scrollTo(0, 0); }, [editingId]);
+  // Wisselen tussen lijst en editor is een nieuw scherm: bovenaan beginnen, anders opent de editor halverwege
+  // (vooral op gsm), en de focus naar de kop van het nieuwe scherm. Zonder dat blijft de focus verloren na
+  // "Gebruik als leerplan", "Bewaren zonder nakijken" en "Bevestigen" (de knop is dan weg) en leest een schermlezer
+  // niet voor waar je nu bent. Niet bij het eerste laden van de pagina.
+  const eersteKeer = useRef(true);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    if (eersteKeer.current) {
+      eersteKeer.current = false;
+      return;
+    }
+    document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true });
+  }, [editingId]);
 
   /** Bewaart en leest opnieuw in; geeft false als de opslag het weigerde (de opslaglaag meldt dat zelf). */
   const save = (cur: Curriculum): boolean => {
@@ -136,17 +152,29 @@ export function CurriculaPage() {
   };
 
   const importFile = async (file: File) => {
+    if (file.size > MAX_IMPORT_BYTES) {
+      toast('Dit bestand is groter dan 2 MB. Een leerplanbestand van Boosterz is veel kleiner: kies het juiste bestand.', 'err');
+      return;
+    }
     try {
-      const cur = importCurriculumJson(await file.text());
+      const { curriculum: cur, weggevallen, afgekapt } = importCurriculumJsonMetRapport(await file.text());
       if (!cur) {
         toast('Dit bestand bevat geen bruikbaar leerplan', 'err');
         return;
       }
       // Altijd als nieuw leerplan binnenhalen: nooit stilletjes iets overschrijven.
       const copy: Curriculum = { ...cur, id: uid(), example: undefined, createdAt: Date.now(), updatedAt: Date.now() };
-      save(copy);
+      // Lukt het bewaren niet (opslag vol), dan meldt de opslaglaag dat zelf: dan niet doen alsof het gelukt is.
+      if (!save(copy)) return;
       setEditingId(copy.id);
-      toast(`Leerplan "${copy.title}" geïmporteerd (${copy.goals.length} doelen)`, 'ok');
+      // Wat wegviel of ingekort werd, zeggen we er altijd bij.
+      const opmerkingen: string[] = [];
+      if (weggevallen > 0) opmerkingen.push(`${weggevallen} ${weggevallen === 1 ? 'doel viel' : 'doelen vielen'} weg (zonder tekst, met een dubbele code of boven de 5.000 doelen)`);
+      if (afgekapt > 0) opmerkingen.push(`bij ${afgekapt} ${afgekapt === 1 ? 'doel is' : 'doelen is'} een te lange tekst ingekort`);
+      toast(
+        `Leerplan "${copy.title}" geïmporteerd (${copy.goals.length} doelen).${opmerkingen.length > 0 ? ` Let op: ${opmerkingen.join('; ')}. Kijk het leerplan na.` : ''}`,
+        opmerkingen.length > 0 ? 'info' : 'ok',
+      );
     } catch {
       toast('Importeren mislukt', 'err');
     }
@@ -154,10 +182,11 @@ export function CurriculaPage() {
 
   // Het AI-venster hoort bij beide weergaven: de lijst (nieuw leerplan) én de
   // editor (doelen toevoegen). Vroeger stond het alleen in de lijst, waardoor
-  // "Doelen uit tekst of pdf" in de editor niets deed.
+  // "Doelen toevoegen met AI" in de editor niets deed.
   const aiModal = aiTarget ? (
     <CurriculumAIModal
       curriculum={aiTarget.mode === 'add' ? aiTarget.curriculum : undefined}
+      voorinvulling={aiTarget.mode === 'new' ? aiTarget.voorinvulling : undefined}
       onClose={() => setAiTarget(null)}
       onApply={(goals, meta) => {
         if (aiTarget.mode === 'add') {
@@ -229,13 +258,15 @@ export function CurriculaPage() {
           </p>
         </div>
         <div className="page-head-actions">
+          <Link className="btn btn-primary" to="/leerplannen/inlezen"><FileText size={18} /> Leerplan inlezen</Link>
           <Link className="btn btn-ghost" to="/leerplannen/minimumdoelen"><GoalIcon size={18} /> Officiële minimumdoelen</Link>
-          <button className="btn btn-ghost" onClick={() => fileRef.current?.click()}><FileBraces size={18} /> JSON importeren</button>
+          <button className="btn btn-ghost" title="Open een Boosterz-bestand (.json) dat een collega met je deelde" onClick={() => fileRef.current?.click()}>
+            <FileBraces size={18} /> Bestand van een collega
+          </button>
           <input
             ref={fileRef} type="file" accept="application/json,.json" hidden
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); e.target.value = ''; }}
           />
-          <Link className="btn btn-primary" to="/leerplannen/inlezen"><FileText size={18} /> Leerplan inlezen</Link>
           <button className="btn btn-ghost" onClick={() => setNewOpen(true)}><AddIcon size={18} /> Blanco leerplan</button>
         </div>
       </div>
@@ -301,7 +332,10 @@ export function CurriculaPage() {
                       ariaLabel={`Acties voor ${cur.title}`}
                       className="btn btn-quiet btn-icon"
                       items={[
-                        { label: 'Exporteren', hint: 'Als bestand (.json)', Icon: ExportIcon, onSelect: () => exporteer(cur) },
+                        {
+                          label: 'Exporteren', hint: isOfficieel(cur) ? 'Als bestand (.json)' : `Als bestand (.json). ${DEEL_HINT}`,
+                          Icon: ExportIcon, onSelect: () => exporteer(cur),
+                        },
                         { label: 'Verwijderen', Icon: DeleteIcon, danger: true, separator: true, onSelect: () => setDeleteTarget(cur) },
                       ]}
                     />
@@ -460,7 +494,7 @@ function CurriculumEditor({
       <div className="page-head">
         <div>
           <button className="btn btn-sm btn-quiet" onClick={onBack}><BackIcon size={16} /> Alle leerplannen</button>
-          <h1 style={{ marginTop: 6 }}>{curriculum.title || 'Leerplan'}</h1>
+          <h1 className="lp-kop" tabIndex={-1} style={{ marginTop: 6 }}>{curriculum.title || 'Leerplan'}</h1>
           <p className="sub">
             {netLabel(curriculum.net)} · {goals.length} doel{goals.length === 1 ? '' : 'en'}
             {curriculum.example ? ' · voorbeeldmateriaal, geen officieel document' : ''}
@@ -469,15 +503,19 @@ function CurriculumEditor({
             <ControleLabel status={status} />
             {officieel && <OfficieelLabel eigenKopie={curriculum.kind === 'eigen'} />}
           </div>
+          {status === 'niet-gecontroleerd' && (
+            <p className="hint lp-labeluitleg">De doelen zijn nog niet met de bron vergeleken. Kijk ze na om ze vast te leggen.</p>
+          )}
         </div>
         <div className="page-head-actions">
           {wizardLink && <Link className="btn btn-primary" to={wizardLink}><BadgeCheck size={18} /> Nakijken en bevestigen</Link>}
-          <button className="btn btn-ai" onClick={onAskAI}><AIIcon size={18} /> Doelen uit tekst of pdf</button>
+          <button className="btn btn-ai" onClick={onAskAI}><AIIcon size={18} /> Doelen toevoegen met AI</button>
           <button className="btn btn-ghost" onClick={() => exporteer(curriculum)}>
             <ExportIcon size={18} /> Exporteren
           </button>
         </div>
       </div>
+      {!officieel && <p className="hint lp-deelhint">{DEEL_HINT}</p>}
 
       {status === 'gewijzigd' && (
         <div className="callout warn lp-gewijzigd" role="note">
@@ -648,7 +686,8 @@ function CurriculumEditor({
       )}
       {setsKiezenVoor !== null && (
         <SetsKiezen
-          graad={leesNiveau(curriculum.level).graad} stroom={leesNiveau(curriculum.level).stroom} gekozen={sets} wizardLink={wizardLink}
+          graad={leesNiveau(curriculum.level).graad} stroom={leesNiveau(curriculum.level).stroom} vak={curriculum.subject}
+          gekozen={sets} wizardLink={wizardLink}
           onKies={(ids) => { onChange({ ...curriculum, minimumdoelenSets: ids }); setKiezerVoor(setsKiezenVoor); setSetsKiezenVoor(null); }}
           onClose={sluitSetsKiezen}
         />
@@ -662,19 +701,21 @@ function CurriculumEditor({
 interface AIMeta { title: string; net: CurriculumNet; subject: string; level: string; source: string }
 
 function CurriculumAIModal({
-  curriculum, onClose, onApply,
+  curriculum, voorinvulling, onClose, onApply,
 }: {
   /** Aanwezig = doelen toevoegen aan dit leerplan. */
   curriculum?: Curriculum;
+  /** Wat de inleeswizard meegaf (tekst en keuzes uit stap 1): vult het venster vooraf in. */
+  voorinvulling?: AiVoorinvulling;
   onClose: () => void;
   onApply: (goals: CurriculumGoal[], meta: AIMeta) => void;
 }) {
-  const [text, setText] = useState('');
-  const [title, setTitle] = useState(curriculum?.title ?? '');
-  const [net, setNet] = useState<CurriculumNet>(curriculum?.net ?? 'minimumdoelen');
-  const [subject, setSubject] = useState(curriculum?.subject ?? '');
-  const [level, setLevel] = useState(curriculum?.level ?? '');
-  const [source, setSource] = useState(curriculum?.source ?? '');
+  const [text, setText] = useState(voorinvulling?.text ?? '');
+  const [title, setTitle] = useState(curriculum?.title ?? voorinvulling?.title ?? '');
+  const [net, setNet] = useState<CurriculumNet>(curriculum?.net ?? voorinvulling?.net ?? 'minimumdoelen');
+  const [subject, setSubject] = useState(curriculum?.subject ?? voorinvulling?.subject ?? '');
+  const [level, setLevel] = useState(curriculum?.level ?? voorinvulling?.level ?? '');
+  const [source, setSource] = useState(curriculum?.source ?? voorinvulling?.source ?? '');
   const [wishes, setWishes] = useState('');
 
   const [busy, setBusy] = useState(false);
@@ -727,13 +768,21 @@ function CurriculumAIModal({
   };
 
   return (
-    <Modal title={curriculum ? 'Doelen toevoegen uit tekst of pdf' : 'Leerplan uit tekst of pdf'} onClose={onClose} wide>
-      <AIGate>
+    <Modal title={curriculum ? 'Doelen toevoegen met AI' : 'Leerplan uit tekst of pdf'} onClose={onClose} wide>
+      <AIGate
+        uitleg={
+          <>
+            Voor deze hulp heb je een eigen AI-sleutel nodig (Google Gemini, Anthropic of OpenAI). Voeg die één keer toe bij de
+            AI-instellingen. Zonder sleutel kan je de doelen ook zelf toevoegen in een blanco leerplan.
+          </>
+        }
+      >
         {!busy && !preview && (
           <div style={{ display: 'grid', gap: 4 }}>
             <p className="hint" style={{ marginTop: 0 }}>
               Plak de doelen uit je leerplan of de minimumdoelen, of lees de pdf in. De AI zet ze om
-              in een lijst met codes; ze verzint geen doelen bij. Alles blijft op dit toestel.
+              in een lijst met codes; ze verzint geen doelen bij. De tekst die je hier plakt, gaat naar de AI-aanbieder die je bij
+              de <Link to="/ai-instellingen">AI-instellingen</Link> koos.
             </p>
             <Field label="Leerplantekst" hint="Alleen het stuk met de doelen zelf; inleidingen en visieteksten mag je weglaten.">
               <textarea

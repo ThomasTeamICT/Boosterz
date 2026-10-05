@@ -5,18 +5,23 @@ import { AIIcon, SettingsIcon, WarningIcon } from './icons';
 
 /**
  * Poortje voor AI-functies: toont de kinderen alleen als er een API-sleutel
- * is; anders een vriendelijke uitleg met link naar de instellingen.
+ * is; anders een vriendelijke uitleg met link naar de instellingen. `uitleg` vervangt de standaardtekst (over widgets
+ * en cursussen) door een zin die bij de plek past, bv. bij de leerplannen.
  */
-export function AIGate({ children }: { children: React.ReactNode }) {
+export function AIGate({ children, uitleg }: { children: React.ReactNode; uitleg?: React.ReactNode }) {
   if (hasAIKey()) return <>{children}</>;
   return (
     <div className="card" style={{ padding: 18, textAlign: 'center', display: 'grid', gap: 8, justifyItems: 'center' }}>
       <div aria-hidden><AIIcon size={32} /></div>
       <strong>AI-assistent nog niet ingesteld</strong>
       <p className="hint" style={{ maxWidth: 420, margin: 0 }}>
-        Voeg één keer een API-sleutel toe (Google Gemini, Anthropic of OpenAI) — of open de
-        instel-link die je van je beheerder kreeg — en maak daarna in enkele seconden widgets
-        en cursussen uit je eigen bronmateriaal. De sleutel blijft op dit toestel.
+        {uitleg ?? (
+          <>
+            Voeg één keer een API-sleutel toe (Google Gemini, Anthropic of OpenAI) — of open de
+            instel-link die je van je beheerder kreeg — en maak daarna in enkele seconden widgets
+            en cursussen uit je eigen bronmateriaal. De sleutel blijft op dit toestel.
+          </>
+        )}
       </p>
       <Link to="/ai-instellingen" className="btn btn-primary"><SettingsIcon size={18} aria-hidden /> AI instellen</Link>
     </div>

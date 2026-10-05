@@ -59,7 +59,7 @@ export function StapLeerplan({
             {GRAAD_OPTIES.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
         </Field>
-        <Field label="Stroom of finaliteit" hint="De A- of B-stroom van de 1ste graad. Anders laat je dit leeg.">
+        <Field label="Stroom (alleen 1ste graad)" hint="De A- of de B-stroom. In de 2de en 3de graad laat je dit leeg.">
           <select id="il-stroom" className="select" value={keuze.stroom} onChange={(e) => onChange({ stroom: e.target.value })}>
             <option value="">Geen stroom</option>
             {STROOM_OPTIES.map((s) => <option key={s} value={s}>{s}</option>)}

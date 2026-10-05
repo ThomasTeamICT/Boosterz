@@ -36,11 +36,15 @@ export function LeerplanWegwijzer({
         </p>
 
         <h2 className="lw-kop">Kies hoe je begint</h2>
+        <p className="lw-keuzehulp">
+          Volgt je school het leerplan van een net (KOV, GO!, OVSG of POV)? Kies ‘Leerplan van je net inlezen’. Wil je enkel de
+          wettelijke basis? Kies ‘Officiële minimumdoelen’. Kreeg je een bestand van een collega? Kies ‘Bestand van een collega’.
+        </p>
         <ul className="lw-wegen">
           <li>
             <Link to="/leerplannen/minimumdoelen" className="lw-weg">
               <span className="lw-weg-titel"><Landmark size={18} /> Officiële minimumdoelen gebruiken</span>
-              <span className="lw-weg-zin">Altijd juist en meteen klaar: de doelen komen rechtstreeks uit de officiële bron.</span>
+              <span className="lw-weg-zin">De doelen komen letterlijk uit de officiële bron. Kies een set die nog geldt.</span>
             </Link>
           </li>
           <li>

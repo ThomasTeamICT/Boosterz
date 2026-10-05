@@ -8,6 +8,7 @@
 details.lw { margin-bottom: 18px; }
 .lw-uitleg { margin: 0 0 14px; max-width: 72ch; }
 .lw-kop { font-size: 1rem; margin: 16px 0 8px; }
+.lw-keuzehulp { margin: 0 0 12px; max-width: 72ch; }
 .lw-wegen {
   list-style: none; margin: 0 0 6px; padding: 0;
   display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -32,6 +33,12 @@ details.lw { margin-bottom: 18px; }
 /* Labels op een leerplankaart en in de kop van een leerplan */
 .lp-labels { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .mat-card-titles .lp-labels { margin-top: 6px; }
+.lp-labeluitleg { margin: 6px 0 0; max-width: 60ch; }
+.lp-deelhint { margin: -6px 0 14px; max-width: 72ch; }
+
+/* De kop van een leerplan of een leerplan op slot: de focus komt hier na bewaren, bevestigen of "Gebruik als leerplan" */
+.lp-kop:focus { outline: none; }
+.lp-kop:focus-visible { outline: 3px solid var(--brand); outline-offset: 4px; }
 
 /* Nagekeken leerplan: slot en gegevens */
 .lp-slot { align-items: flex-start; }

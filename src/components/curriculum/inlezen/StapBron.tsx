@@ -3,6 +3,7 @@
 // bron om letterlijk mee te vergelijken: de doelen blijven zoals ze zijn.
 
 import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ClipboardPaste, FileText, ScanSearch } from 'lucide-react';
 import type { Curriculum } from '../../../lib/curriculumTypes';
 import type { BronGegevens, Gevonden } from '../../../lib/leerplanInlezen';
@@ -13,6 +14,8 @@ import { LaadBericht } from '../LaadStatus';
 import type { PdfStand } from './leesPdf';
 
 const PREVIEW = 8;
+/** Een blanco leerplan: de leerplannenpagina opent dan meteen het venster "Nieuw leerplan" (`?nieuw=1`). */
+const BLANCO_LEERPLAN_ROUTE = '/leerplannen?nieuw=1';
 
 function aantal(n: number, enkel: string, meer: string): string {
   return `${n.toLocaleString('nl-BE')} ${n === 1 ? enkel : meer}`;
@@ -45,6 +48,11 @@ export function StapBron({
   const doelen = gevonden?.goals ?? [];
   const toon = alles ? doelen : doelen.slice(0, PREVIEW);
   const resultaat = gevonden && !verouderd ? gevonden : null;
+  // Zonder doelen is er één melding. Zag Boosterz helemaal geen nummering, dan is de eerste waarschuwing precies die
+  // melding en laten we ze weg; herkende het er wel een, dan staat in de waarschuwingen wat er misging.
+  const details = resultaat && doelen.length === 0
+    ? (resultaat.resultaat.patroon ? resultaat.resultaat.waarschuwingen : resultaat.resultaat.waarschuwingen.slice(1))
+    : [];
 
   return (
     <div className="il-stap-inhoud">
@@ -57,7 +65,9 @@ export function StapBron({
           Lees de pdf van het leerplan in, of plak de tekst. Boosterz zoekt zelf de doelen, de nummers en de verwijzingen naar minimumdoelen.
         </p>
       )}
-      <p className="hint il-privacy">Alles blijft op dit toestel. Een gescande pdf (foto’s van pagina’s) bevat geen tekst en kan niet gelezen worden.</p>
+      <p className="hint il-privacy">
+        Alles blijft op dit toestel, behalve als je de AI laat helpen. Een gescande pdf (foto’s van pagina’s) bevat geen tekst en kan niet gelezen worden.
+      </p>
 
       <fieldset className="il-keuzes">
         <legend>Hoe lees je het leerplan in?</legend>
@@ -131,7 +141,7 @@ export function StapBron({
           <WarningIcon size={20} className="il-callout-icoon" />
           <p>
             <strong>Alleen een deel van de pdf is gelezen.</strong> Er kunnen doelen ontbreken. Zo’n leerplan kan je bewaren, maar nakijken kan dan niet
-            bevestigd worden. Lees het leerplan in delen in.
+            bevestigd worden. Lees dan alleen de pagina’s met de doelen in: kopieer ze en kies ‘Tekst plakken’.
           </p>
         </div>
       )}
@@ -177,10 +187,12 @@ export function StapBron({
                   <ul className="il-feiten">
                     {resultaat.resultaat.patroon && (
                       <li>
-                        Herkend als <strong>{resultaat.resultaat.patroon.naam}</strong> (bv. <span className="il-code">{resultaat.resultaat.patroon.voorbeeld}</span>)
+                        Herkend: genummerde doelen zoals <span className="il-code">{resultaat.resultaat.patroon.voorbeeld}</span>
                       </li>
                     )}
-                    <li>{aantal(resultaat.resultaat.genegeerdeRegels, 'kop- of voetregel', 'kop- en voetregels')} overgeslagen</li>
+                    {resultaat.resultaat.genegeerdeRegels > 0 && (
+                      <li>Bladzijdenummers en koppen overgeslagen ({aantal(resultaat.resultaat.genegeerdeRegels, 'regel', 'regels')})</li>
+                    )}
                     <li>
                       {aantalMetVerwijzing(doelen) > 0
                         ? `${aantal(aantalMetVerwijzing(doelen), 'doel', 'doelen')} met een verwijzing naar minimumdoelen`
@@ -188,7 +200,7 @@ export function StapBron({
                     </li>
                   </ul>
                 )}
-                {resultaat.resultaat.waarschuwingen.length > 0 && (
+                {doelen.length > 0 && resultaat.resultaat.waarschuwingen.length > 0 && (
                   <div className="callout warn il-waarschuwingen" role="note">
                     <WarningIcon size={20} className="il-callout-icoon" />
                     <div>
@@ -221,16 +233,29 @@ export function StapBron({
                     <p className="hint">Dit is een voorvertoning. In stap 4 kijk je elk doel na en kan je ze aanpassen.</p>
                   </>
                 ) : (
-                  <div className="il-geen">
-                    <p>Boosterz vond in deze tekst geen doelen. Dat kan komen doordat:</p>
+                  <div id="il-geen" className="il-geen" tabIndex={-1}>
+                    <p>
+                      Boosterz vond in deze tekst geen doelen. Kijk na of de tekst de doelen met hun code bevat (zoals “LPD 1” of “1.2”). Dat
+                      kan komen doordat:
+                    </p>
                     <ul>
                       <li>de pdf een scan is (foto’s van pagina’s) en dus geen echte tekst bevat;</li>
                       <li>je alleen de inleiding hebt meegenomen en niet de pagina’s met de doelen;</li>
                       <li>de doelen in een tabel of in twee kolommen staan: kopieer ze dan en plak ze als tekst;</li>
                       <li>het leerplan een nummering gebruikt die Boosterz niet herkent.</li>
                     </ul>
-                    <p>Kijk de tekst na en probeer het opnieuw. Lukt het niet, dan kan de AI het als laatste redmiddel proberen met je eigen sleutel. Kijk de doelen daarna zelf goed na.</p>
+                    {details.length > 0 && (
+                      <>
+                        <p>Dit zag Boosterz nog:</p>
+                        <ul>{details.map((w, i) => <li key={i}>{w}</li>)}</ul>
+                      </>
+                    )}
+                    <p>Kijk de tekst na en probeer het opnieuw. Lukt het niet, dan kan de AI het als laatste redmiddel proberen. Kijk de doelen daarna zelf goed na.</p>
                     <button type="button" className="btn btn-ai" onClick={onAI}><AIIcon size={18} /> Laat de AI het proberen</button>
+                    <p className="hint il-ai-hint">Daarvoor heb je een eigen AI-sleutel nodig; de tekst gaat dan naar je AI-aanbieder.</p>
+                    <p>
+                      Of <Link to={BLANCO_LEERPLAN_ROUTE}>maak een blanco leerplan</Link> en voeg de doelen zelf toe.
+                    </p>
                   </div>
                 )}
               </section>

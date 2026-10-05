@@ -7,7 +7,12 @@ import {
   getCurriculum,
   importCurriculumJson,
   importCurriculumJsonMetRapport,
+  isVeiligDoelId,
   maakEigenKopie,
+  MAX_DOELEN,
+  MAX_DOELTEKST,
+  MAX_DOELTHEMA,
+  MAX_DOELTOELICHTING,
   sanitizeCurriculum,
   sanitizeGoal,
   sanitizeGoals,
@@ -422,8 +427,8 @@ describe('importCurriculumJsonMetRapport', () => {
   });
 
   it('geeft null en het aantal als er niets overblijft, en 0 bij rommel', () => {
-    expect(importCurriculumJsonMetRapport('{"goals":[{"text":""},{"text":" "}]}')).toEqual({ curriculum: null, weggevallen: 2 });
-    expect(importCurriculumJsonMetRapport('geen json')).toEqual({ curriculum: null, weggevallen: 0 });
+    expect(importCurriculumJsonMetRapport('{"goals":[{"text":""},{"text":" "}]}')).toEqual({ curriculum: null, weggevallen: 2, afgekapt: 0 });
+    expect(importCurriculumJsonMetRapport('geen json')).toEqual({ curriculum: null, weggevallen: 0, afgekapt: 0 });
     expect(importCurriculumJsonMetRapport(exportCurriculumJson(sanitizeCurriculum(v2Ruw()) as Curriculum)).weggevallen).toBe(0);
   });
 });
@@ -496,5 +501,93 @@ describe('saveCurriculum', () => {
     const bewaard = getCurriculum(cur.id);
     expect(bewaard?.controle?.status).toBe('gewijzigd');
     expect(bewaard?.controle?.door).toBe('An');
+  });
+});
+
+describe('doel-id: alleen letters, cijfers, "_" en "-", en geen naam uit het prototype (B7)', () => {
+  it('herkent veilige en onveilige id\'s', () => {
+    for (const id of ['a', 'goal-1', 'ID_2', 'x'.repeat(64), '3k9a1b2c4d5e']) expect(isVeiligDoelId(id), id).toBe(true);
+    for (const id of ['', 'constructor', '__proto__', 'toString', 'hasOwnProperty', 'valueOf', 'a b', 'a.b', 'a/b', 'é', 'x'.repeat(65), 5, null, undefined, {}]) {
+      expect(isVeiligDoelId(id), String(id)).toBe(false);
+    }
+  });
+
+  it('sanitizeGoal houdt een veilig id en geeft een onveilig een nieuw (veilig) id', () => {
+    expect(sanitizeGoal({ id: 'goal-1', code: 'A', text: 'x' })?.id).toBe('goal-1');
+    for (const id of ['constructor', '__proto__', 'toString', 'a b', 'x'.repeat(65), 12, undefined]) {
+      const goal = sanitizeGoal({ id, code: 'A', text: 'x' });
+      expect(goal && isVeiligDoelId(goal.id), String(id)).toBe(true);
+      expect(goal?.id).not.toBe(id);
+    }
+  });
+
+  it('is idempotent en geeft elk doel een eigen id, ook als meerdere hetzelfde onveilige id hadden', () => {
+    const lijst = sanitizeGoals([
+      { id: 'constructor', code: 'A', text: 'a' },
+      { id: 'constructor', code: 'B', text: 'b' },
+      { id: '__proto__', code: 'C', text: 'c' },
+      { id: 'dubbel', code: 'D', text: 'd' },
+      { id: 'dubbel', code: 'E', text: 'e' },
+    ]);
+    const ids = lijst.map((g) => g.id);
+    expect(new Set(ids).size).toBe(5);
+    expect(ids.every(isVeiligDoelId)).toBe(true);
+    expect(sanitizeGoals(lijst)).toEqual(lijst);
+  });
+
+  it('een geïmporteerd bestand met id "constructor" levert geen prototype-id op', () => {
+    const json = JSON.stringify({ app: 'boosterz', kind: 'leerplan', v: 2, curriculum: { title: 't', goals: [{ id: 'constructor', code: 'LPD 1', text: 'a' }, { id: '__proto__', code: 'LPD 2', text: 'b' }] } });
+    const cur = importCurriculumJson(json);
+    expect(cur?.goals.every((g) => isVeiligDoelId(g.id))).toBe(true);
+    const opId: Record<string, string> = {};
+    for (const g of cur?.goals ?? []) opId[g.id] = g.code;
+    expect(Object.keys(opId)).toHaveLength(2);
+    expect(Object.getPrototypeOf(opId)).toBe(Object.prototype);
+  });
+});
+
+describe('grenzen aan wat een bestand mag bevatten (B4)', () => {
+  it('kort een te lange tekst, rubriek en toelichting in', () => {
+    const goal = sanitizeGoal({ code: 'A', text: 'x'.repeat(MAX_DOELTEKST + 50), theme: 't'.repeat(MAX_DOELTHEMA + 5), note: 'n'.repeat(MAX_DOELTOELICHTING + 5) });
+    expect(goal?.text).toHaveLength(MAX_DOELTEKST);
+    expect(goal?.theme).toHaveLength(MAX_DOELTHEMA);
+    expect(goal?.note).toHaveLength(MAX_DOELTOELICHTING);
+  });
+
+  it('laat de grootste officiële tekst (3.794 tekens) ongemoeid', () => {
+    const tekst = 'De leerlingen beschrijven '.repeat(146).slice(0, 3794);
+    expect(sanitizeGoal({ code: 'A', text: tekst })?.text).toBe(tekst.trim());
+  });
+
+  it('knipt geen tekenpaar (emoji) doormidden en blijft idempotent', () => {
+    const goal = sanitizeGoal({ code: 'A', text: `${'x'.repeat(MAX_DOELTEKST - 1)}😀 en meer` });
+    expect(goal?.text).toBe('x'.repeat(MAX_DOELTEKST - 1));
+    expect(sanitizeGoal(goal)?.text).toBe(goal?.text);
+  });
+
+  it('houdt hoogstens 5.000 doelen over; de rest telt mee als weggevallen', () => {
+    expect(MAX_DOELEN).toBe(5000);
+    const veel = Array.from({ length: MAX_DOELEN + 3 }, (_, i) => ({ code: `D ${i + 1}`, text: `Doel ${i + 1}.` }));
+    expect(sanitizeGoals(veel)).toHaveLength(MAX_DOELEN);
+    const r = importCurriculumJsonMetRapport(JSON.stringify({ title: 't', goals: veel }));
+    expect(r.curriculum?.goals).toHaveLength(MAX_DOELEN);
+    expect(r.weggevallen).toBe(3);
+  });
+
+  it('meldt hoeveel doelen een ingekorte tekst kregen', () => {
+    const json = JSON.stringify({
+      title: 't',
+      goals: [
+        { code: 'A', text: 'x'.repeat(MAX_DOELTEKST + 1) },
+        { code: 'B', text: 'kort', note: 'n'.repeat(MAX_DOELTOELICHTING + 1) },
+        { code: 'C', text: 'kort' },
+      ],
+    });
+    const r = importCurriculumJsonMetRapport(json);
+    expect(r).toMatchObject({ weggevallen: 0, afgekapt: 2 });
+    // Opnieuw saneren verandert niets meer: er valt niets meer in te korten.
+    const nog = importCurriculumJsonMetRapport(exportCurriculumJson(r.curriculum as Curriculum));
+    expect(nog.afgekapt).toBe(0);
+    expect(nog.curriculum?.goals.map((g) => g.text.length)).toEqual(r.curriculum?.goals.map((g) => g.text.length));
   });
 });

@@ -206,6 +206,18 @@ export const MAX_DOELCODE = 60;
 const MAX_AUTO_VOORVOEGSEL = 40;
 const MAX_REFS = 50;
 const MAX_SETS = 50;
+/**
+ * Grenzen voor wat een bestand van iemand anders mag bevatten. De grootste officiële set heeft 168 doelen, de
+ * langste doeltekst telt 3.794 tekens en de langste rubriek (de rubrieken samen, met " › " ertussen) 315 tekens:
+ * ruim daarboven, maar niet zo ruim dat één bestand de opslag vult. Een officiële set mag nooit door deze grenzen
+ * veranderen; een test (minimumdoelenLeerplan.test.ts) bewaakt dat met de meegeleverde sets.
+ */
+export const MAX_DOELEN = 5000;
+export const MAX_DOELTEKST = 10000;
+export const MAX_DOELTHEMA = 500;
+export const MAX_DOELTOELICHTING = 2000;
+/** Een intern doelnummer: letters, cijfers, "_" en "-", hoogstens 64 tekens. */
+const DOEL_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const METHODES: readonly CurriculumMethode[] = ['officieel', 'export', 'pdf', 'tekst', 'ai', 'handmatig'];
 const CONTROLE_STATUSSEN: readonly ControleStatus[] = ['niet-gecontroleerd', 'gecontroleerd', 'gewijzigd'];
 
@@ -260,18 +272,40 @@ function tekstMetRegels(t: string): string {
     .join('\n');
 }
 
-/** Eén doel defensief saneren (JSON-import, AI-antwoord). */
-export function sanitizeGoal(raw: unknown): CurriculumGoal | null {
+/**
+ * Mag dit het interne nummer van een doel zijn? Alleen letters, cijfers, "_" en "-" (hoogstens 64 tekens), en geen
+ * naam die al op elk object staat ("constructor", "__proto__", "toString", …): wie een doel in een opzoektabel op
+ * id zoekt, mag nooit iets uit het prototype terugkrijgen.
+ */
+export function isVeiligDoelId(id: unknown): id is string {
+  return typeof id === 'string' && DOEL_ID.test(id) && !(id in Object.prototype);
+}
+
+/** Het interne nummer van een doel als het veilig is, anders een nieuw. */
+export function veiligDoelId(id: unknown): string {
+  return isVeiligDoelId(id) ? id : uid();
+}
+
+interface GesaneerdDoel {
+  goal: CurriculumGoal;
+  /** Een tekst, rubriek of toelichting was te lang en is ingekort. */
+  afgekapt: boolean;
+}
+
+function saneerDoel(raw: unknown): GesaneerdDoel | null {
   if (!raw || typeof raw !== 'object') return null;
   const g = raw as Record<string, unknown>;
-  const text = tekstMetRegels(str(g.text ?? g.doel ?? g.omschrijving));
-  if (!text) return null; // een doel zonder tekst zegt niets
+  const volledigeTekst = tekstMetRegels(str(g.text ?? g.doel ?? g.omschrijving));
+  if (!volledigeTekst) return null; // een doel zonder tekst zegt niets
+  const text = kap(volledigeTekst, MAX_DOELTEKST);
   const code = kap(normalizeGoalCode(str(g.code ?? g.nummer)), MAX_DOELCODE);
   const level = g.level === 'uitbreiding' ? 'uitbreiding' : g.level === 'basis' ? 'basis' : undefined;
-  const theme = str(g.theme ?? g.thema ?? g.rubriek).trim();
-  const note = tekstMetRegels(str(g.note ?? g.toelichting));
+  const volledigThema = str(g.theme ?? g.thema ?? g.rubriek).trim();
+  const theme = kap(volledigThema, MAX_DOELTHEMA);
+  const volledigeNoot = tekstMetRegels(str(g.note ?? g.toelichting));
+  const note = kap(volledigeNoot, MAX_DOELTOELICHTING);
   const goal: CurriculumGoal = {
-    id: str(g.id) || uid(),
+    id: veiligDoelId(g.id),
     code,
     text,
     theme: theme || undefined,
@@ -283,7 +317,12 @@ export function sanitizeGoal(raw: unknown): CurriculumGoal | null {
   if (refs) goal.refs = refs;
   const refsBron = tekstVeld(g.refsBron, 500);
   if (refsBron) goal.refsBron = refsBron;
-  return goal;
+  return { goal, afgekapt: text.length < volledigeTekst.length || theme.length < volledigThema.length || note.length < volledigeNoot.length };
+}
+
+/** Eén doel defensief saneren (JSON-import, AI-antwoord). Te lange teksten worden ingekort (zie `MAX_DOELTEKST`). */
+export function sanitizeGoal(raw: unknown): CurriculumGoal | null {
+  return saneerDoel(raw)?.goal ?? null;
 }
 
 /**
@@ -294,11 +333,20 @@ export function sanitizeGoal(raw: unknown): CurriculumGoal | null {
  * Een tweede doel met hetzelfde id krijgt een nieuw id. Idempotent.
  */
 export function sanitizeGoals(raw: unknown, opts: { autoPrefix?: string } = {}): CurriculumGoal[] {
+  return saneerDoelen(raw, opts).goals;
+}
+
+/** Zoals `sanitizeGoals`, met het aantal doelen waarvan een tekst, rubriek of toelichting ingekort werd. */
+function saneerDoelen(raw: unknown, opts: { autoPrefix?: string } = {}): { goals: CurriculumGoal[]; afgekapt: number } {
   const list = Array.isArray(raw) ? raw : [];
   const goals: CurriculumGoal[] = [];
+  let afgekapt = 0;
   for (const item of list) {
-    const goal = sanitizeGoal(item);
-    if (goal) goals.push(goal);
+    if (goals.length >= MAX_DOELEN) break; // wat daarna komt, valt weg (en telt mee in "weggevallen")
+    const doel = saneerDoel(item);
+    if (!doel) continue;
+    goals.push(doel.goal);
+    if (doel.afgekapt) afgekapt++;
   }
   const prefix = kap(normalizeGoalCode(opts.autoPrefix ?? 'DOEL'), MAX_AUTO_VOORVOEGSEL) || 'DOEL';
   const bestaand = new Set(goals.map((g) => g.code).filter((c) => c !== ''));
@@ -329,7 +377,7 @@ export function sanitizeGoals(raw: unknown, opts: { autoPrefix?: string } = {}):
     ids.add(id);
     out.push({ ...goal, id, code });
   }
-  return out;
+  return { goals: out, afgekapt };
 }
 
 /**
@@ -410,12 +458,14 @@ export function sanitizeCurriculum(raw: unknown): Curriculum | null {
 /** Zoals `sanitizeCurriculum`, met het aantal doelen dat bij het saneren wegviel. */
 export interface SaneerUitkomst {
   curriculum: Curriculum | null;
-  /** Doelen in het bestand die niet overbleven (geen tekst, dubbele code, geen object). */
+  /** Doelen in het bestand die niet overbleven (geen tekst, dubbele code, geen object, meer dan `MAX_DOELEN`). */
   weggevallen: number;
+  /** Doelen die wel overbleven, maar waarvan een tekst, rubriek of toelichting te lang was en is ingekort. */
+  afgekapt: number;
 }
 
 function sanitizeCurriculumMetRapport(raw: unknown): SaneerUitkomst {
-  if (!raw || typeof raw !== 'object') return { curriculum: null, weggevallen: 0 };
+  if (!raw || typeof raw !== 'object') return { curriculum: null, weggevallen: 0, afgekapt: 0 };
   const outer = raw as Record<string, unknown>;
   const c = (outer.curriculum && typeof outer.curriculum === 'object'
     ? outer.curriculum
@@ -424,9 +474,9 @@ function sanitizeCurriculumMetRapport(raw: unknown): SaneerUitkomst {
       : outer) as Record<string, unknown>;
   const ruw = c.goals ?? c.doelen;
   const aantalRuw = Array.isArray(ruw) ? ruw.length : 0;
-  const goals = sanitizeGoals(ruw, { autoPrefix: str(c.subject).slice(0, 3) || 'DOEL' });
+  const { goals, afgekapt } = saneerDoelen(ruw, { autoPrefix: str(c.subject).slice(0, 3) || 'DOEL' });
   const weggevallen = aantalRuw - goals.length;
-  if (!goals.length) return { curriculum: null, weggevallen };
+  if (!goals.length) return { curriculum: null, weggevallen, afgekapt };
   const net = CURRICULUM_NETS.some((n) => n.id === c.net) ? (c.net as Curriculum['net']) : 'eigen';
   const createdAt = typeof c.createdAt === 'number' ? c.createdAt : Date.now();
   const cur: Curriculum = {
@@ -449,7 +499,7 @@ function sanitizeCurriculumMetRapport(raw: unknown): SaneerUitkomst {
   if (controle) cur.controle = controle;
   const sets = sanitizeSets(c.minimumdoelenSets);
   if (sets) cur.minimumdoelenSets = sets;
-  return { curriculum: bewaakControle(cur), weggevallen };
+  return { curriculum: bewaakControle(cur), weggevallen, afgekapt };
 }
 
 /**
@@ -556,12 +606,13 @@ export function importCurriculumJson(json: string): Curriculum | null {
 
 /**
  * Zoals `importCurriculumJson`, met ook het aantal doelen dat bij het saneren wegviel (geen tekst,
- * dubbele code, geen object), zodat de pagina dat kan melden in plaats van het stil te verliezen.
+ * dubbele code, geen object, te veel doelen) en het aantal dat werd ingekort (te lange tekst), zodat de pagina
+ * dat kan melden in plaats van het stil te verliezen.
  */
 export function importCurriculumJsonMetRapport(json: string): SaneerUitkomst {
   try {
     return sanitizeCurriculumMetRapport(JSON.parse(json));
   } catch {
-    return { curriculum: null, weggevallen: 0 };
+    return { curriculum: null, weggevallen: 0, afgekapt: 0 };
   }
 }

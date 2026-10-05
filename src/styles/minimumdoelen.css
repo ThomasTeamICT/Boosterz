@@ -7,6 +7,7 @@
 
 .md-page .md-terug { margin: 0 0 8px -8px; }
 .md-intro { max-width: 72ch; }
+.md-toelichting { margin: 0 0 6px; color: var(--text-soft); font-size: 0.92rem; }
 .md-bron { margin: 6px 0 0; color: var(--text-faint); font-size: 0.85rem; }
 
 .md-layout {
@@ -69,6 +70,9 @@
 .md-feiten > div { min-width: 0; }
 .md-feiten dt { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-faint); }
 .md-feiten dd { margin: 0; font-weight: 600; overflow-wrap: break-word; }
+.md-verouderd { align-items: flex-start; margin: 16px 0 0; }
+.md-verouderd p { margin: 0; }
+.md-verouderd-icoon { flex: none; margin-top: 2px; color: var(--warn-text); }
 .md-acties { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0 6px; }
 .md-uitleg { margin: 0 0 16px; color: var(--text-soft); font-size: 0.9rem; }
 .md-doelen-kop { margin: 22px 0 10px; font-size: 1.1rem; }
@@ -89,14 +93,13 @@
 
 /* ── Smalle schermen ───────────────────────────────────────────────────── */
 
-.md-naarlijst { display: none; }
+/* "Naar de lijst met sets" staat op elk scherm: ook op een breed scherm kom je zo met één toets terug in de lijst. */
 
 @media (max-width: 899px) {
   .md-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
   .md-lijstkolom { position: static; max-height: none; overflow: visible; padding: 0; margin: 0; }
   .md-layout.heeft-set .md-setkolom { order: -1; }
   .md-layout:not(.heeft-set) .md-setkolom { display: none; }
-  .md-naarlijst { display: inline-flex; }
   .md-chip { min-height: 44px; }
   .md-acties .btn, .md-naarlijst, .md-meer .btn, .md-fout .btn { min-height: 44px; }
   .md-setpaneel { padding: 16px 14px 20px; }

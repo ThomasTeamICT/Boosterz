@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { MinimumdoelenIndexSet } from '../../../lib/minimumdoelen';
 import { SOORT_LABEL, contextVanSet, filterSets, geldigheidTekst, soortVanSet } from '../../../lib/minimumdoelenBron';
-import { niveauTekst, type OnderwijsKeuze } from '../../../lib/leerplanInlezen';
+import { beschrijfSetKeuze, gemengdeStromen, niveauTekst, type OnderwijsKeuze } from '../../../lib/leerplanInlezen';
 import { AddIcon, CheckIcon, InfoIcon, SearchIcon, WarningIcon } from '../../icons';
 import { Field } from '../../ui';
 import { FoutBericht, LaadBericht } from '../LaadStatus';
@@ -53,7 +53,6 @@ export function StapKoppelen({
     [stand.kandidaten, stand.gekozen, aangevinktGeweest, alles],
   );
   const verborgen = stand.kandidaten.length - zichtbaar.length;
-  const metTreffers = stand.kandidaten.filter((k) => k.treffers > 0).length;
   const mislukt = stand.kandidaten.filter((k) => k.mislukt).length;
 
   const zoekResultaten = useMemo(() => {
@@ -65,6 +64,11 @@ export function StapKoppelen({
 
   const niveau = niveauTekst(graad, stroom);
   const voor = [SOORT_LABEL[onderwijs].toLowerCase(), niveau].filter(Boolean).join(', ');
+  // Een leerplan is voor één stroom: staan er aangevinkte sets van de A- én de B-stroom, dan zeggen we het.
+  const gemengd = useMemo(
+    () => gemengdeStromen(stand.gekozen.map((id) => stand.indexSets.find((s) => s.id === id) ?? {})),
+    [stand.gekozen, stand.indexSets],
+  );
 
   return (
     <div className="il-stap-inhoud">
@@ -117,13 +121,21 @@ export function StapKoppelen({
               {stand.kandidaten.length === 0
                 ? `Er zijn geen sets gevonden voor ${voor || 'deze keuze'}. Zoek hieronder een set.`
                 : aantalCodes > 0
-                  ? `We keken in ${aantal(stand.kandidaten.length, 'set', 'sets')} voor ${voor || 'alle graden'}. ${metTreffers > 0 ? `${aantal(metTreffers, 'set bevat', 'sets bevatten')} verwijzingen uit je leerplan; die staan bovenaan en zijn aangevinkt.` : 'Geen enkele set bevat de verwijzingen uit je leerplan. Zoek hieronder de juiste set.'}`
+                  ? `We keken in ${aantal(stand.kandidaten.length, 'set', 'sets')} voor ${voor || 'alle graden'}. ${beschrijfSetKeuze(stand.kandidaten, stand.gekozen)}`
                   : `Sets voor ${voor || 'alle graden'}.`}
             </p>
+            <div role="status">
+              {gemengd && (
+                <p className="callout warn il-stroommelding">
+                  <WarningIcon size={20} className="il-callout-icoon" />
+                  <span>Je leerplan is voor één stroom. Vink de sets van de andere stroom af, of kies de stroom in stap 1.</span>
+                </p>
+              )}
+            </div>
             <ul className="il-sets">
               {zichtbaar.map((k) => {
                 const getallen = [
-                  aantalCodes > 0 && !k.mislukt ? `${aantal(k.treffers, 'treffer', 'treffers')}` : '',
+                  aantalCodes > 0 && !k.mislukt ? `${k.treffers.toLocaleString('nl-BE')} van je verwijzingen` : '',
                   typeof k.set.aantal === 'number' ? aantal(k.set.aantal, 'doel', 'doelen') : '',
                 ].filter(Boolean).join(' · ');
                 const meta = [kenmerken(k.set), k.geldigheidTekst ?? geldigheidTekst(k.set)].filter(Boolean).join(' · ');
@@ -132,7 +144,7 @@ export function StapKoppelen({
                     <label className={`il-set${k.treffers > 0 ? ' met-treffers' : ''}`}>
                       <input type="checkbox" checked={stand.gekozen.includes(k.set.id)} onChange={() => onWissel(k.set.id)} />
                       <span className="il-set-tekst">
-                        <span className="il-set-naam">{k.set.korteNaam || k.set.naam}</span>
+                        <span className="il-set-naam">{k.set.korteNaam || k.set.naam}{k.geldigheid === 'N' ? ' (oude versie)' : ''}</span>
                         {meta && <span className="il-set-meta">{meta}</span>}
                         <span className="il-set-meta">
                           {k.mislukt ? <strong>Kon niet geladen worden</strong> : getallen}

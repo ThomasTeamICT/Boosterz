@@ -196,8 +196,8 @@ describe('controleerLeerplan: volledig', () => {
       ['waarschuwing', 'LPD 1', 'id-LPD5'],
       ['waarschuwing', 'LPD 7', 'id-LPD8'],
     ]);
-    expect(gaten[1].bericht).toBe('LPD 7 ontbreekt; staat het niet in de bron of las de lezer het niet?');
-    expect(gaten[0].bericht).toBe('LPD 1 tot LPD 4 ontbreken (4 doelen); staan ze niet in de bron of las de lezer ze niet?');
+    expect(gaten[1].bericht).toBe('LPD 7 ontbreekt; staat het niet in de bron of vond Boosterz het niet?');
+    expect(gaten[0].bericht).toBe('LPD 1 tot LPD 4 ontbreken (4 doelen); staan ze niet in de bron of vond Boosterz ze niet?');
   });
 
   it('meldt gaten binnen een rubriek (2.1, 2.2, 2.4)', () => {
@@ -268,9 +268,9 @@ describe('controleerLeerplan: herkomst', () => {
     expect(r.kanBevestigen).toBe(false);
   });
 
-  it('pdf of tekst zonder vingerafdruk is een fout, een net zonder leerplancode een waarschuwing', () => {
+  it('pdf of tekst zonder vingerafdruk is een fout, een net zonder leerplancode alleen een tip', () => {
     const r = controleerLeerplan(leerplan(GOED, { kind: 'leerplan', net: 'kov', herkomst: { methode: 'pdf', ingelezenOp: 1 } }), {});
-    expect(r.bevindingen.filter((b) => b.soort === 'herkomst').map((b) => b.ernst)).toEqual(['fout', 'waarschuwing']);
+    expect(r.bevindingen.filter((b) => b.soort === 'herkomst').map((b) => b.ernst)).toEqual(['fout', 'info']);
     const tekst = controleerLeerplan(leerplan(GOED, { herkomst: { methode: 'tekst', ingelezenOp: 1 } }), { bronTekst: BRON, sets: [SET] });
     expect(tekst.bevindingen.filter((b) => b.soort === 'herkomst').map((b) => b.ernst)).toEqual(['fout']);
     expect(tekst.kanBevestigen).toBe(false);
@@ -322,7 +322,8 @@ describe('controleerLeerplan: dekking en rapport', () => {
     const fouten = r.bevindingen.filter((b) => b.ernst === 'fout');
     // Eerst wat bij geen doel hoort (LPD 2 staat in de bron maar niet in het leerplan), dan per doel.
     expect(fouten.map((b) => b.doelId)).toEqual([undefined, 'id-LPD1', 'id-LPD1', 'id-LPD3', 'id-LPD4']);
-    expect(r.samenvatting).toBe('1 van 3 doelen letterlijk, 0 van 1 verwijzing in orde, 5 fouten, 3 waarschuwingen.');
+    // De ontbrekende leerplancode is een tip (info) en geen waarschuwing meer.
+    expect(r.samenvatting).toBe('1 van 3 doelen letterlijk, 0 van 1 verwijzing in orde, 5 fouten, 2 waarschuwingen.');
   });
 
   it('gebruikt in berichten "nakijken", nooit "controleren"', () => {
@@ -332,6 +333,37 @@ describe('controleerLeerplan: dekking en rapport', () => {
       for (const b of r.bevindingen) expect(b.bericht).not.toMatch(/controle/i);
       expect(r.samenvatting).not.toMatch(/controle/i);
     }
+  });
+
+  it('praat gewone taal: geen "de lezer", geen "in delen inlezen", geen "met de hand", geen regelnummer', () => {
+    const bron = 'LPD 1 De leerlingen tellen.\nLPD 2 De leerlingen meten.\nLPD 4 De leerlingen wegen.\nLPD 5 aan de hand van een kaart de ligging bepalen.';
+    const goals = naarCurriculumGoals(leesLeerplan(bron));
+    const r = controleerLeerplan(leerplan(goals, { kind: 'leerplan', net: 'go' }), { bronTekst: bron, bronAfgekapt: true });
+    expect(r.bevindingen.length).toBeGreaterThan(2);
+    for (const b of r.bevindingen) expect(b.bericht, b.bericht).not.toMatch(/\blezer\b|in delen|met de hand|\bregel \d/i);
+  });
+
+  it('een bron die niet volledig gelezen is, zegt wat je dan doet: alleen de pagina’s met de doelen inlezen', () => {
+    const r = controleerLeerplan(leerplan(GOED), { bronTekst: BRON, sets: [SET], bronAfgekapt: true });
+    const b = r.bevindingen.find((x) => x.bericht.startsWith('De bron is niet volledig gelezen'));
+    expect(b).toMatchObject({ ernst: 'fout' });
+    expect(b?.bericht).toBe(
+      'De bron is niet volledig gelezen (te veel pagina’s of tekst), dus er kunnen doelen ontbreken. Lees dan alleen de pagina’s met de doelen in: kopieer ze en kies ‘Tekst plakken’.',
+    );
+  });
+
+  it('een ontbrekende leerplancode is een tip, geen waarschuwing en geen blokkade', () => {
+    const herkomst = { methode: 'pdf' as const, ingelezenOp: 1, bronSha256: 'a'.repeat(64) };
+    const r = controleerLeerplan(leerplan(GOED, { kind: 'leerplan', net: 'kov', herkomst }), { bronTekst: BRON, sets: [SET] });
+    const tip = r.bevindingen.filter((b) => b.soort === 'herkomst');
+    expect(tip).toEqual([
+      {
+        soort: 'herkomst',
+        ernst: 'info',
+        bericht: 'Je vulde geen leerplancode in (stap 1). Dat mag, maar met een code herken je het leerplan later makkelijker.',
+      },
+    ]);
+    expect(r.kanBevestigen).toBe(true);
   });
 });
 
@@ -494,13 +526,13 @@ describe('ronde 2: zonder bron geen bevestiging, en een officieel leerplan tegen
 });
 
 describe('ronde 2: volledig, ook wat in de bron staat maar ontbreekt', () => {
-  it('een laatste doel dat de lezer niet las ("LPD 3 aan de hand van …") is een fout', () => {
+  it('een laatste doel dat Boosterz niet las ("LPD 3 aan de hand van …") is een fout', () => {
     const bron = 'LPD 1 De leerlingen kunnen een kaart lezen.\nLPD 2 De leerlingen kunnen een kompas gebruiken.\nLPD 3 aan de hand van een kaart de ligging bepalen.';
     const goals = naarCurriculumGoals(leesLeerplan(bron));
     expect(goals).toHaveLength(2);
     const r = controleerLeerplan(leerplan(goals), { bronTekst: bron });
     expect(fouten(r)).toEqual([
-      'Regel 3 van de bron begint met LPD 3 ("aan de hand van een kaart de ligging bep…"), maar het leerplan heeft geen doel LPD 3. Ontbreekt dat doel?',
+      'In de bron begint een regel met LPD 3 ("aan de hand van een kaart de ligging bep…"), maar het leerplan heeft geen doel LPD 3. Ontbreekt dat doel?',
     ]);
   });
 
@@ -516,7 +548,7 @@ describe('ronde 2: volledig, ook wat in de bron staat maar ontbreekt', () => {
     expect(fouten(controleerLeerplan(leerplan(goals3), { bronTekst: wenken }))).toEqual([]);
     const metDoel = `${wenken}\n8. De leerlingen wegen.`;
     expect(fouten(controleerLeerplan(leerplan(goals3), { bronTekst: metDoel }))).toEqual([
-      'Regel 6 van de bron begint met 8 ("De leerlingen wegen."), maar het leerplan heeft geen doel 8. Ontbreekt dat doel?',
+      'In de bron begint een regel met 8 ("De leerlingen wegen."), maar het leerplan heeft geen doel 8. Ontbreekt dat doel?',
     ]);
   });
 

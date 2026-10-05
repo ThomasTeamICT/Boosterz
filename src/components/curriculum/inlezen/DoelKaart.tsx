@@ -7,6 +7,7 @@ import { CircleCheck, CircleDashed, CircleHelp, CircleX, LoaderCircle } from 'lu
 import type { CurriculumGoal, MinimumdoelRef } from '../../../lib/curriculumTypes';
 import { geldigheidTekstVanBestand, zoekMinimumdoel } from '../../../lib/leerplanInlezen';
 import { htmlNaarTekst, type MinimumdoelenSetBestand } from '../../../lib/minimumdoelen';
+import { niveauTekst } from '../../../lib/leerplanNiveau';
 import { themaVanDoel } from '../../../lib/minimumdoelenLeerplan';
 import type { VerwijzingProbleem } from '../../../lib/minimumdoelVerwijzing';
 import { AddIcon, DeleteIcon, WarningIcon } from '../../icons';
@@ -52,9 +53,13 @@ function Kandidaat({ refMd, bestanden, onKies }: { refMd: MinimumdoelRef; bestan
   const doel = zoekMinimumdoel(bestanden, refMd);
   const bestand = bestanden.get(refMd.set);
   const set = bestand?.set;
-  const naam = set?.korteNaam?.trim() || set?.naam || refMd.set;
-  // Twee sets kunnen dezelfde naam hebben (een oude en een nieuwe versie): nummer en geldigheid maken het verschil.
-  const welke = [refMd.set, bestand ? geldigheidTekstVanBestand(bestand) : undefined].filter(Boolean).join(', ');
+  // "Ruimtelijk bewustzijn, 1ste graad A-stroom": dezelfde code komt in meer sets voor (de A- en de B-stroom, een
+  // oude en een nieuwe versie), dus graad en stroom horen bij de naam.
+  const niveau = set ? niveauTekst(set.graad ?? '', set.stroom ?? '') : '';
+  const naam = [set?.korteNaam?.trim() || set?.naam || refMd.set, niveau].filter(Boolean).join(', ');
+  // Het nummer en de geldigheid maken het verschil tussen een oude en een nieuwe versie met dezelfde naam.
+  const geldig = bestand ? geldigheidTekstVanBestand(bestand)?.toLowerCase().replace(/\s*\(([^)]*)\)\s*$/, ', $1') : undefined;
+  const welke = [refMd.set, geldig].filter(Boolean).join(', ');
   const uitleg = [doel ? themaVanDoel(doel) : undefined, doel ? kort(htmlNaarTekst(doel.tekst), 110) : undefined].filter(Boolean).join(' — ');
   return (
     <button type="button" className="il-kandidaat" onClick={onKies}>
@@ -71,6 +76,10 @@ function DoelKaartBasis({
   const s = STATUS[status];
   const naam = goal.code.trim() || `Doel ${nummer}`;
   const bron = vindplaats ?? fragment;
+  const setNaamVan = (id: string) => {
+    const kop = bestanden.get(id)?.set;
+    return kop?.korteNaam?.trim() || kop?.naam;
+  };
   const bronKop = vindplaats
     ? status === 'nee' ? 'Hier lijkt het doel in de bron te staan:' : 'Zo staat het in de bron:'
     : 'Zo las Boosterz dit doel in de bron:';
@@ -105,7 +114,7 @@ function DoelKaartBasis({
         <span className="lp-refs-titel">Verwijst naar minimumdoel</span>
         <div className="dl-labels">
           {goal.refs && goal.refs.length > 0
-            ? <VerwijzingLabels verwijzingen={goal.refs} onRemove={(i) => onVerwijderRef(goal.id, i)} />
+            ? <VerwijzingLabels verwijzingen={goal.refs} setNaamVan={setNaamVan} onRemove={(i) => onVerwijderRef(goal.id, i)} />
             : <span className="hint">Geen verwijzingen</span>}
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => onVoegToe(goal.id)}>
             <AddIcon size={16} /> Verwijzing toevoegen<span className="sr-only"> bij doel {naam}</span>

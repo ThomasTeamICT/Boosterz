@@ -8,17 +8,20 @@
 // components/curriculum/inlezen/. De pagina houdt de staat vast, zodat een stap terug niets kwijtraakt,
 // en zet bij elke stapwissel de focus op de kop van de nieuwe stap.
 //
-// Alles blijft op dit toestel: de pdf wordt in de browser gelezen en niets gaat het toestel af.
+// Alles blijft op dit toestel: de pdf wordt in de browser gelezen en niets gaat het toestel af, behalve als de
+// leerkracht in stap 2 de AI laat helpen (dan gaat de tekst naar de AI-aanbieder die ze zelf koos).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowRight, Check, ChevronDown } from 'lucide-react';
 import type { Curriculum, CurriculumGoal } from '../lib/curriculumTypes';
-import { getCurriculum } from '../lib/curriculum';
+import { getCurriculum, isVeiligDoelId, veiligDoelId } from '../lib/curriculum';
 import {
-  AI_NIEUW_ROUTE, aantalMetVerwijzing, bronKomtOvereen, codesUitDoelen, keuzeUitLeerplan, koppelDoelen, leesNakijkerNaam, legeKeuze, ontbreektInKeuze,
-  stelTitelVoor, zegOntbrekend, zoekDoelen, type BronGegevens, type Gevonden, type LeerplanKeuze, type Ontbrekend,
+  AI_NIEUW_ROUTE, aantalMetVerwijzing, bronKomtOvereen, codesUitDoelen, keuzeUitLeerplan, koppelDoelen, leegRecord, leesNakijkerNaam, legeKeuze,
+  maakAiVoorinvulling, ontbreektInKeuze, stelTitelVoor, zegOntbrekend, zoekDoelen,
+  type BronGegevens, type Gevonden, type LeerplanKeuze, type Ontbrekend,
 } from '../lib/leerplanInlezen';
+import { AI_VOORINVULLING_SLEUTEL } from '../lib/leerplanAiOverdracht';
 import { isOfficieel } from '../lib/leerplanStatus';
 import type { VerwijzingProbleem } from '../lib/minimumdoelVerwijzing';
 import { uid } from '../lib/utils';
@@ -61,7 +64,11 @@ export function LeerplanInlezenPage() {
 }
 
 function Wizard({ curriculumId }: { curriculumId?: string }) {
-  const bestaand = useMemo(() => (curriculumId ? getCurriculum(curriculumId) : undefined), [curriculumId]);
+  const bestaand = useMemo(() => {
+    const cur = curriculumId ? getCurriculum(curriculumId) : undefined;
+    // Een doel-id als "constructor" (uit een bestand van iemand anders, bewaard vóór het saneren dat weigerde) krijgt een nieuw id.
+    return cur ? { ...cur, goals: cur.goals.map((g) => (isVeiligDoelId(g.id) ? g : { ...g, id: veiligDoelId(g.id) })) } : undefined;
+  }, [curriculumId]);
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
   if (curriculumId && !bestaand) {
@@ -121,7 +128,7 @@ function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
 
   // Stap 4: het werk aan de doelen (blijft staan als je een stap terug gaat)
   const [doelen, setDoelen] = useState<CurriculumGoal[]>(() => bestaand?.goals ?? []);
-  const [problemen, setProblemen] = useState<Record<string, VerwijzingProbleem[]>>({});
+  const [problemen, setProblemen] = useState<Record<string, VerwijzingProbleem[]>>(() => leegRecord());
   const [bewerkt, setBewerkt] = useState(false);
   const [koppelSleutel, setKoppelSleutel] = useState<string | null>(null);
   const [naam, setNaam] = useState(leesNakijkerNaam);
@@ -186,7 +193,7 @@ function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
     setGevonden(g);
     setGevondenTekst(bron.tekst);
     setDoelen(g.goals);
-    setProblemen({});
+    setProblemen(leegRecord());
     setKoppelSleutel(null);
     setBewerkt(false);
     setZoekt(false);
@@ -206,7 +213,8 @@ function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
       if (zoekt) return [{ tekst: 'wacht tot de doelen gezocht zijn' }];
       if (!gevonden) return [{ veld: 'il-zoek-knop', tekst: 'klik op “Doelen zoeken”' }];
       if (verouderd) return [{ veld: 'il-zoek-knop', tekst: 'zoek de doelen opnieuw, want de bron is gewijzigd' }];
-      if (gevonden.goals.length === 0) return [{ tekst: 'kies een bron waarin doelen staan, want er zijn er geen gevonden' }];
+      // De melding "Geen doelen gevonden" in stap 2 legt het al uit: hier niet nog eens.
+      if (gevonden.goals.length === 0) return [{ veld: 'il-geen', elders: 'il-gevonden-kop', tekst: 'kies een bron waarin doelen staan, want er zijn er geen gevonden' }];
       return [];
     }
     if (stap === 3 && sets.stand.status === 'laden') return [{ tekst: 'wacht tot de sets geladen zijn' }];
@@ -220,7 +228,7 @@ function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
     const bestanden = gekozenBestanden();
     setKoppelSleutel(koppelSleutelNu());
     if (bestanden.length === 0) {
-      setProblemen({});
+      setProblemen(leegRecord());
       return;
     }
     const r = koppelDoelen(doelen, bestanden, { alleenZonderRefs: bestaand !== undefined });
@@ -242,6 +250,9 @@ function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
     naarStap((stap + 1) as Stap);
   };
 
+  // Legt een ander stuk pagina al uit wat er ontbreekt, dan verwijst de knop daarheen en staat het er niet nog eens onder.
+  const uitleg = ontbreekt.length > 0 && ontbreekt.every((o) => o.elders !== undefined) ? ontbreekt[0].elders : undefined;
+
   const huidig = STAPPEN[stap - 1];
   const terugNaar = bestaand ? `/leerplannen?open=${encodeURIComponent(bestaand.id)}` : '/leerplannen';
 
@@ -260,7 +271,7 @@ function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
       </div>
 
       <details
-        className="callout mat-details il-hoe" open={hoeOpen ?? (stap === 1 && !bestaand)}
+        className="callout mat-details il-hoe" open={hoeOpen ?? false}
         onToggle={(e) => setHoeOpen(e.currentTarget.open)}
       >
         <summary>
@@ -293,7 +304,8 @@ function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
         <StapBron
           bestaand={bestaand} methode={methode} onMethode={setMethode} pdf={pdf} onPdf={(f) => void kiesPdf(f)}
           tekst={tekst} onTekst={setTekst} bron={bron} gevonden={gevonden} verouderd={verouderd} bezig={zoekt}
-          onZoek={zoek} onAI={() => navigate(AI_NIEUW_ROUTE)} overeen={overeen}
+          onZoek={zoek} onAI={() => navigate(AI_NIEUW_ROUTE, { state: { [AI_VOORINVULLING_SLEUTEL]: maakAiVoorinvulling(keuze, bron) } })}
+          overeen={overeen}
         />
       )}
       {stap === 3 && (
@@ -307,7 +319,7 @@ function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
         <StapNakijken
           bestaand={bestaand} keuze={keuze} bron={bron} doelen={doelen} onDoelen={wijzigDoelen} problemen={problemen} onProblemen={setProblemen}
           fragmenten={gevonden?.fragmenten ?? {}} setIds={sets.stand.gekozen} setBestanden={sets.bestanden}
-          ingelezenOp={gevonden?.op ?? startTijd} nieuwId={nieuwId} naam={naam} onNaam={setNaam}
+          ingelezenOp={gevonden?.op ?? startTijd} nieuwId={nieuwId} naam={naam} onNaam={setNaam} onNaarStap1={() => naarStap(1)}
         />
       )}
 
@@ -320,13 +332,13 @@ function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
         {stap < 4 && (
           <button
             type="button" className="btn btn-primary il-volgende" aria-disabled={ontbreekt.length > 0 ? 'true' : undefined}
-            aria-describedby={ontbreekt.length > 0 ? 'il-ontbreekt' : undefined} onClick={volgende}
+            aria-describedby={ontbreekt.length > 0 ? (uitleg ?? 'il-ontbreekt') : undefined} onClick={volgende}
           >
             Volgende <ArrowRight size={18} />
           </button>
         )}
       </div>
-      {stap < 4 && ontbreekt.length > 0 && <p id="il-ontbreekt" className="il-ontbreekt">{zegOntbrekend(ontbreekt)}</p>}
+      {stap < 4 && ontbreekt.length > 0 && uitleg === undefined && <p id="il-ontbreekt" className="il-ontbreekt">{zegOntbrekend(ontbreekt)}</p>}
 
       {vraagOpnieuwZoeken && (
         <ConfirmModal

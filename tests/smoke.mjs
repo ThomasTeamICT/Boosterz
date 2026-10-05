@@ -531,10 +531,15 @@ const curriculaVoor = await page.evaluate(() => localStorage.getItem('wf.curricu
 const passtOpSmal = async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 await go('/#/leerplannen');
 check('wegwijzer: drie wegen om te beginnen', (await page.locator('details.lw .lw-weg').count()) === 3);
+check('wegwijzer: een korte keuzehulp boven de drie kaarten', /Volgt je school het leerplan van een net \(KOV, GO!, OVSG of POV\)\? Kies ‘Leerplan van je net inlezen’\. Wil je enkel de wettelijke basis\? Kies ‘Officiële minimumdoelen’\. Kreeg je een bestand van een collega\? Kies ‘Bestand van een collega’\./.test(await page.locator('details.lw .lw-keuzehulp').innerText()));
+check('wegwijzer: de minimumdoelen-kaart zegt "Kies een set die nog geldt"', /De doelen komen letterlijk uit de officiële bron\. Kies een set die nog geldt\./.test(await page.locator('details.lw .lw-weg').first().innerText()));
+check('kop van de leerplannenpagina: "Leerplan inlezen" eerst, en "Bestand van een collega" in plaats van "JSON importeren"', JSON.stringify((await page.locator('.page-head-actions .btn').allInnerTexts()).map((t) => t.trim())) === JSON.stringify(['Leerplan inlezen', 'Officiële minimumdoelen', 'Bestand van een collega', 'Blanco leerplan']) && (await page.locator('.page-head-actions a.btn-primary', { hasText: 'Leerplan inlezen' }).count()) === 1);
+check('de netten-tip zegt dat de AI de tekst wel van het toestel haalt', /blijft op dit toestel, behalve als je de AI laat helpen\./.test(await page.locator('details.lw .lw-tip').last().innerText()));
 check('wegwijzer: links naar de netten openen in een nieuw tabblad', (await page.locator('details.lw .lw-links a[target="_blank"][rel*="noopener"]').count()) === 4);
 await page.getByRole('link', { name: /Officiële minimumdoelen/ }).first().click();
 await page.waitForSelector('.md-sets > li', { timeout: 15000 });
 check('pagina Officiële minimumdoelen: één main en één h1', (await page.locator('main').count()) === 1 && (await page.locator('main h1').count()) === 1);
+check('uitleg over de sets en wat er (nog) niet in zit', /De minimumdoelen zijn verdeeld in sets: per vak of sleutelcompetentie, per graad en per stroom\./.test(await page.locator('.md-intro').innerText()) && /alleen de minimumdoelen van het secundair onderwijs \(ook buitengewoon secundair\) en van het volwassenenonderwijs, niet die van het basisonderwijs\./.test(await page.locator('.md-intro').innerText()));
 check('h1 is "Officiële minimumdoelen"', /Officiële minimumdoelen/.test(await page.locator('main h1').innerText()));
 const nSets = await page.locator('.md-sets > li').count();
 check(`lijst met sets (${nSets})`, nSets >= 10);
@@ -547,6 +552,9 @@ check('zoeken op naam en nummer vindt precies één set', (await page.locator('.
 await page.locator('.md-sets .md-set').first().click();
 await page.waitForSelector('.dl-rij', { timeout: 15000 });
 check('de set heeft een eigen url (deelbaar)', /#\/leerplannen\/minimumdoelen\/ODS_3287$/.test(page.url()));
+check('na het kiezen van een set staat de focus op de set, ook op een breed scherm', await page.evaluate(() => document.activeElement?.classList.contains('md-setpaneel')));
+check('"Naar de lijst met sets" staat ook op een breed scherm', await page.locator('.md-naarlijst').first().isVisible());
+check('een set die nog geldt heeft geen waarschuwing en heet "Gebruik als leerplan"', (await page.locator('.md-verouderd').count()) === 0 && (await page.getByRole('button', { name: 'Gebruik als leerplan' }).isVisible()));
 check('de zoekterm blijft staan na het kiezen van een set', (await page.inputValue('input[type=search]')) === 'ruimtelijk bewustzijn 3287');
 check('de gekozen set is gemarkeerd in de lijst', (await page.locator('.md-set[aria-current="true"]').count()) === 1);
 check('de set toont zijn doelen', (await page.locator('.dl-rij').count()) === 8);
@@ -565,7 +573,10 @@ check('label "Nagekeken" (met icoon en tekst)', await page.locator('main .badge'
 check('label "Officiële minimumdoelen"', await page.locator('main .badge', { hasText: 'Officiële minimumdoelen' }).isVisible());
 check('melding: staat op slot', await page.locator('text=/Dit leerplan staat op slot/').isVisible());
 check('op slot: geen invoerveld voor de doeltekst', (await page.locator('main textarea').count()) === 0 && (await page.locator('main input.input').count()) === 0);
-check('de doelen staan er wel, met verwijzingen', (await page.locator('.dl-rij').count()) === 8 && (await page.locator('.dl-ref').count()) === 8);
+check('de doelen staan er wel; een officieel leerplan toont geen verwijzingslabels (de verwijzingen blijven in de gegevens)', (await page.locator('.dl-rij').count()) === 8 && (await page.locator('.dl-ref').count()) === 0);
+check('na "Gebruik als leerplan" staat de focus op de h1 van het leerplan', await page.evaluate(() => document.activeElement?.tagName === 'H1' && document.activeElement === document.querySelector('main h1')));
+check('de bronlink noemt de hostnaam', (await page.locator('.lp-info a', { hasText: /^Bekijk de bron \(www\.onderwijsdoelen\.be\)/ }).count()) === 1);
+check('een officieel leerplan krijgt geen deel-hint', (await page.locator('.lp-deelhint').count()) === 0);
 check('eigen kopie en exporteren zijn mogelijk', await page.getByRole('button', { name: 'Eigen kopie maken' }).isVisible() && await page.getByRole('button', { name: /Exporteren/ }).isVisible());
 const officieel = await page.evaluate(() => {
   const c = JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]').filter((x) => x.herkomst?.methode === 'officieel');
@@ -624,6 +635,35 @@ await page.setViewportSize({ width: 1360, height: 900 });
 // Terug zoals het was, zodat de volgende onderdelen niets merken
 await page.evaluate((v) => { if (v === null) localStorage.removeItem('wf.curricula.v1'); else localStorage.setItem('wf.curricula.v1', v); }, curriculaVoor);
 
+// ── 20b-2. Een set die niet meer geldt, zoeken op vak, een set die niet bestaat ──
+console.log('20b-2. Verouderde set, zoeken op vak, onbekende set');
+await go('/#/leerplannen/minimumdoelen');
+await page.waitForSelector('.md-sets > li', { timeout: 15000 });
+await page.fill('input[type=search]', 'aardrijkskunde');
+await sleep(300);
+const vakSets = await page.locator('.md-sets > li').allInnerTexts();
+check('zoeken op "aardrijkskunde" vindt ook "Ruimtelijk bewustzijn" (hulp bij het zoeken)', vakSets.some((t) => /Ruimtelijk bewustzijn/.test(t)));
+await go('/#/leerplannen/minimumdoelen/ODS_2118');
+await page.waitForSelector('.md-feiten', { timeout: 15000 });
+await page.waitForSelector('.md-verouderd', { timeout: 15000 });
+const oudeNoot = await page.locator('.md-verouderd[role="note"]').innerText();
+check('niet meer geldige set (ODS_2118): een blok met role="note" met de jaren en de raad om een geldende set te kiezen', /^Deze minimumdoelen gelden niet meer \(1997–2020\)\. Kies liever een set die nu geldt\. Sinds 2019 heten veel sets naar een sleutelcompetentie, bv\. ‘Ruimtelijk bewustzijn’ voor aardrijkskunde\./.test(oudeNoot));
+check('… het blok staat boven de knop en de knop heet "Toch als leerplan gebruiken"', await page.evaluate(() => { const n = document.querySelector('.md-verouderd'); const k = document.querySelector('.md-acties'); return !!n && !!k && (n.compareDocumentPosition(k) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0; }) && (await page.getByRole('button', { name: 'Toch als leerplan gebruiken' }).isVisible()) && (await page.getByRole('button', { name: 'Gebruik als leerplan' }).count()) === 0);
+await page.setViewportSize({ width: 390, height: 844 });
+await sleep(200);
+check('390 px: een niet meer geldige set scrollt niet horizontaal', await passtOpSmal());
+await page.setViewportSize({ width: 1360, height: 900 });
+await page.getByRole('button', { name: 'Toch als leerplan gebruiken' }).click();
+await page.waitForSelector('text=/Dit leerplan staat op slot/', { timeout: 10000 });
+check('het leerplan van een oude set heet "(niet meer geldig)" en heeft geen "Geldig vanaf"', /\(niet meer geldig\)$/.test(await page.locator('main h1').innerText()) && !/Geldig vanaf/.test(await page.locator('.lp-info').innerText()));
+check('… en de focus staat op de h1', await page.evaluate(() => document.activeElement === document.querySelector('main h1')));
+for (const id of ['ODS_999999', 'foo']) {
+  await go(`/#/leerplannen/minimumdoelen/${id}`);
+  check(`onbekende set (${id}): "Set niet gevonden" met uitleg, zonder "Opnieuw proberen"`, /^Set niet gevonden$/.test(await page.locator('#md-set-kop').innerText()) && /Deze set bestaat niet\. Kies een set uit de lijst\./.test(await page.locator('.md-setpaneel').innerText()) && (await page.getByRole('button', { name: /Opnieuw proberen/ }).count()) === 0);
+}
+// Terug zoals het was, zodat de volgende onderdelen niets merken
+await page.evaluate((v) => { if (v === null) localStorage.removeItem('wf.curricula.v1'); else localStorage.setItem('wf.curricula.v1', v); }, curriculaVoor);
+
 // Smal scherm (390 px): geen horizontaal scrollen
 await page.setViewportSize({ width: 390, height: 844 });
 await go('/#/leerplannen/minimumdoelen');
@@ -669,10 +709,26 @@ await page.getByRole('link', { name: /^Leerplan inlezen$/ }).first().click();
 await page.waitForSelector('h2.il-stapkop');
 check('wizard: /leerplannen/inlezen, één main en één h1 "Leerplan inlezen"', /#\/leerplannen\/inlezen$/.test(page.url()) && (await page.locator('main').count()) === 1 && (await page.locator('main h1').count()) === 1 && /^Leerplan inlezen$/.test(await page.locator('main h1').innerText()));
 check('wizard: stappenaanduiding "Stap 1 van 4: Welk leerplan?"', (await wizKop()) === 'Stap 1 van 4: Welk leerplan?' && (await page.locator('ol.il-stappen li[aria-current="step"]').count()) === 1);
-check('wizard: inklapbaar "Hoe werkt inlezen?" met vier stappen', (await page.locator('details.il-hoe summary', { hasText: 'Hoe werkt inlezen?' }).count()) === 1 && (await page.locator('details.il-hoe li').count()) === 4);
+check('wizard: inklapbaar "Hoe werkt inlezen?" met vier stappen, standaard dicht', (await page.locator('details.il-hoe summary', { hasText: 'Hoe werkt inlezen?' }).count()) === 1 && (await page.locator('details.il-hoe li').count()) === 4 && (await page.evaluate(() => document.querySelector('details.il-hoe').open)) === false);
+check('stap 1: het veld heet "Stroom (alleen 1ste graad)"', (await page.locator('.field', { has: page.locator('#il-stroom') }).locator('label').innerText()).trim() === 'Stroom (alleen 1ste graad)');
 
 // Stap 1: zolang het nodige ontbreekt, kan je niet verder, en de pagina zegt wat er ontbreekt
 check('stap 1: volgende is geblokkeerd en zegt wat ontbreekt', (await geblokkeerd(volgende())) && /Nog nodig: kies een net, vul het vak in/.test(await page.locator('#il-ontbreekt').innerText()));
+// Een geblokkeerde knop vervaagt niet (geen opacity): gestippelde rand, en tekst die leesbaar blijft, ook in het donker.
+const contrastVan = (sel) => page.evaluate((q) => {
+  const cs = getComputedStyle(document.querySelector(q));
+  const rgb = (c) => c.match(/[\d.]+/g).slice(0, 3).map(Number);
+  const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+  const a = lum(rgb(cs.color)); const b = lum(rgb(cs.backgroundColor));
+  return { ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05), opacity: cs.opacity, rand: cs.borderStyle };
+}, sel);
+const geblokkeerdLicht = await contrastVan('.il-volgende');
+await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+await sleep(150);
+const geblokkeerdDonker = await contrastVan('.il-volgende');
+await page.evaluate(() => document.documentElement.removeAttribute('data-theme'));
+await sleep(150);
+check(`een geblokkeerde knop: geen opacity, gestippelde rand en tekstcontrast minstens 4,5 : 1 (licht ${geblokkeerdLicht.ratio.toFixed(1)}, donker ${geblokkeerdDonker.ratio.toFixed(1)})`, [geblokkeerdLicht, geblokkeerdDonker].every((m) => m.opacity === '1' && m.rand === 'dashed' && m.ratio >= 4.5));
 await volgende().click({ force: true });
 await sleep(200);
 check('stap 1: een klik op het geblokkeerde knop wijst het eerste ontbrekende veld aan', (await page.evaluate(() => document.activeElement?.id)) === 'il-net' && /Stap 1 van 4/.test(await wizKop()));
@@ -700,8 +756,8 @@ await page.fill('#il-tekst', WIZARD_TEKST);
 await page.getByRole('button', { name: 'Doelen zoeken' }).click();
 await page.waitForSelector('.il-preview');
 const gevondenTekst = await page.locator('.il-resultaat').innerText();
-check('stap 2: 3 doelen gevonden met het herkende patroon', /3 doelen gevonden/.test(gevondenTekst) && /LPD-nummers/.test(gevondenTekst) && /bv\. LPD 1/.test(gevondenTekst));
-check('stap 2: aantal overgeslagen kop- en voetregels en verwijzingen worden getoond', /kop- en voetregels overgeslagen/.test(gevondenTekst) && /3 doelen met een verwijzing naar minimumdoelen/.test(gevondenTekst));
+check('stap 2: 3 doelen gevonden met het herkende patroon in gewone taal', /3 doelen gevonden/.test(gevondenTekst) && /Herkend: genummerde doelen zoals LPD 1/.test(gevondenTekst) && !/LPD-nummers/.test(gevondenTekst));
+check('stap 2: de verwijzingen worden geteld; de regel over kop- en voetregels staat er niet bij 0', /3 doelen met een verwijzing naar minimumdoelen/.test(gevondenTekst) && !/Bladzijdenummers en koppen overgeslagen/.test(gevondenTekst) && !/kop- en voetregels/.test(gevondenTekst));
 check('stap 2: voorvertoning met code, tekst, rubriek en verwijzing', (await page.locator('.il-preview > li').count()) === 3 && /Verwijzing: MD 09\.02, 09\.03/.test(gevondenTekst) && /Rubriek: Ruimte en kaarten/.test(gevondenTekst));
 check('stap 2: volgende kan nu', !(await geblokkeerd(volgende())));
 await volgende().click();
@@ -711,9 +767,21 @@ await page.waitForSelector('.il-sets', { timeout: 30000 });
 await sleep(300);
 check('stap 3: stapkop en verwijzingen uit de bron geteld', (await wizKop()) === 'Stap 3 van 4: Minimumdoelen koppelen' && /4 verwijzingen/.test(await page.locator('.il-stap-inhoud').innerText()));
 const setMd = page.locator('.il-set', { hasText: 'ODS_3287' });
-check('stap 3: de set ODS_3287 staat er met 4 treffers en is vooraf aangevinkt', (await setMd.count()) === 1 && /4 treffers/.test(await setMd.innerText()) && (await setMd.locator('input').isChecked()));
+check('stap 3: de set ODS_3287 staat er met "4 van je verwijzingen" en is vooraf aangevinkt', (await setMd.count()) === 1 && /4 van je verwijzingen/.test(await setMd.innerText()) && !/treffer/.test(await setMd.innerText()) && (await setMd.locator('input').isChecked()));
 const setOud = page.locator('.il-set', { hasText: 'ODS_2447' });
-check('stap 3: een oude versie van die set (niet meer geldig) staat niet vooraf aangevinkt', (await setOud.count()) === 0 || !(await setOud.locator('input').isChecked()));
+// Kent de index de geldigheid (pull request #3), dan stelt de wizard de oude versie niet eens voor; anders staat ze erbij, niet aangevinkt.
+const oudeAanwezig = (await setOud.count()) === 1;
+const setUitleg = await page.locator('.il-setuitleg').innerText();
+check('stap 3: de zin rekent uit wat aangevinkt staat', oudeAanwezig
+  ? /Je verwijzingen staan in 2 sets\. De set die nu geldt, staat aangevinkt; de oude versie niet\. Klopt dat\? Klik dan op Volgende\./.test(setUitleg)
+  : /Je verwijzingen staan in 1 set\. Die set staat aangevinkt\. Klopt dat\? Klik dan op Volgende\./.test(setUitleg));
+if (oudeAanwezig) {
+  check('stap 3: een oude versie (niet meer geldig) staat niet vooraf aangevinkt en heet "(oude versie)"', !(await setOud.locator('input').isChecked()) && /\(oude versie\)/.test(await setOud.innerText()));
+  await setOud.locator('input').check();
+  check('stap 3: vinkt de leerkracht de oude versie ook aan, dan zegt de zin dat ze allebei aanstaan', /Ze staan allemaal aangevinkt\./.test(await page.locator('.il-setuitleg').innerText()));
+  await setOud.locator('input').uncheck();
+}
+check('stap 3: bij één stroom (A) geen melding over twee stromen', (await page.locator('.il-stroommelding').count()) === 0);
 check('stap 3: andere sets toevoegen kan met een zoekveld', await page.locator('#il-setzoek').isVisible());
 await page.fill('#il-setzoek', 'duurzaamheid 3288');
 await sleep(200);
@@ -728,6 +796,14 @@ await page.getByRole('button', { name: /^Toevoegen/ }).click();
 await page.waitForSelector('.il-set:has-text("ODS_3303")');
 check('stap 3: een toegevoegde set staat aangevinkt in de lijst', await page.locator('.il-set', { hasText: 'ODS_3303' }).locator('input').isChecked());
 await page.locator('.il-set', { hasText: 'ODS_3303' }).locator('input').uncheck();
+await page.fill('#il-setzoek', 'ruimtelijk 2467');
+await sleep(200);
+await page.getByRole('button', { name: /^Toevoegen/ }).click();
+await page.waitForSelector('.il-set:has-text("ODS_2467")');
+check('stap 3: sets van de A- én de B-stroom aangevinkt: "Je leerplan is voor één stroom"', /Je leerplan is voor één stroom\. Vink de sets van de andere stroom af, of kies de stroom in stap 1\./.test(await page.locator('.il-stroommelding').innerText()));
+await page.locator('.il-set', { hasText: 'ODS_2467' }).locator('input').uncheck();
+await sleep(200);
+check('stap 3: de melding verdwijnt als de andere stroom afgevinkt is', (await page.locator('.il-stroommelding').count()) === 0);
 await volgende().click();
 
 // Stap 4: nakijken
@@ -737,6 +813,8 @@ check('stap 4: een kaart per doel, elk "Letterlijk in de bron"', (await page.loc
 check('stap 4: de verwijzingen zijn opgelost tot labels (met verwijderknop)', (await page.locator('.il-doel .dl-ref').count()) === 4 && (await page.getByRole('button', { name: 'Verwijzing 09.02 verwijderen' }).count()) === 1);
 check('stap 4: "Bekijk in de bron" per doel', (await page.locator('.il-doel').first().locator('details.il-brondetails summary').count()) === 1);
 check('stap 4: nog steeds één main en één h1', (await page.locator('main').count()) === 1 && (await page.locator('main h1').count()) === 1);
+check('stap 4: de uitleg zegt dat Boosterz een doel te kort of te lang kan afbakenen (en niet "de lezer")', /Boosterz kan een doel te kort of te lang afgebakend hebben\. Vergelijk elke tekst met de bron en pas aan\./.test(await page.locator('.il-stap-inhoud > .il-uitleg').first().innerText()) && !/\blezer\b/.test(await page.locator('main').innerText()));
+check('stap 4: bij het naamveld staat dat de naam ook bij een export hoort', /Je naam komt bij het leerplan, ook als je het exporteert\./.test(await page.locator('.il-naamveld').innerText()));
 const bevestig = page.locator('button.il-bevestig');
 check('stap 4: bevestigen is geblokkeerd en zegt precies waarom', (await geblokkeerd(bevestig)) && /Vul je naam in/.test(await page.locator('#il-redenen').innerText()) && /Vink aan dat je elk doel met de bron hebt vergeleken/.test(await page.locator('#il-redenen').innerText()));
 await page.fill('#il-naam', 'Test Nakijker');
@@ -751,10 +829,10 @@ const doel1Origineel = await doel1.inputValue();
 await doel1.fill(`${doel1Origineel} (aangepast)`);
 await page.waitForFunction(() => document.querySelectorAll('.il-doel .badge-err').length === 1, null, { timeout: 8000 });
 check('een gewijzigd doel: "Niet letterlijk gevonden"', (await page.locator('.il-doel .badge', { hasText: 'Niet letterlijk gevonden' }).count()) === 1);
-check('… onder "Moet opgelost", met een link naar het doel', (await page.getByRole('heading', { name: /Moet opgelost/ }).count()) === 1 && (await page.getByRole('button', { name: /^Ga naar LPD 1/ }).count()) === 1);
+check('… onder "Los dit eerst op", met een link naar het doel', (await page.getByRole('heading', { name: /Los dit eerst op/ }).count()) === 1 && (await page.getByRole('button', { name: /^Ga naar LPD 1/ }).count()) === 1 && (await page.getByText('Moet opgelost').count()) === 0);
 await page.getByLabel('Ik heb elk doel met de bron vergeleken').check();
 await sleep(200);
-check('… en bevestigen is geblokkeerd met de reden', (await geblokkeerd(bevestig)) && /Los eerst 1 punt op dat moet opgelost worden\./.test(await page.locator('#il-redenen').innerText()));
+check('… en bevestigen is geblokkeerd met de reden', (await geblokkeerd(bevestig)) && /Los eerst 1 punt op \(zie ‘Los dit eerst op’\)\./.test(await page.locator('#il-redenen').innerText()));
 await doel1.fill(doel1Origineel);
 await page.waitForFunction(() => document.querySelectorAll('.il-doel .badge-err').length === 0, null, { timeout: 8000 });
 await wachtOpBevestigen();
@@ -792,6 +870,8 @@ await wachtOpBevestigen();
 await page.locator('button.il-bevestig').click();
 await page.waitForSelector('text=/Dit leerplan staat op slot/', { timeout: 10000 });
 check('bevestigd: /leerplannen opent het leerplan en de parameter ?open= verdwijnt', /#\/leerplannen$/.test(page.url()) && (await page.getByRole('heading', { level: 1, name: wizTitel }).isVisible()));
+check('bevestigd: de focus staat op de h1 van het leerplan', await page.evaluate(() => document.activeElement === document.querySelector('main h1')));
+check('een nagekeken leerplan van een net toont de verwijzingen wel, en de hint over delen', (await page.locator('.dl-ref .sr-only', { hasText: /^Verwijst naar minimumdoel 09\.0\d/ }).count()) === 4 && !/ODS_/.test((await page.locator('.dl-ref .sr-only').allInnerTexts()).join(' ')) && /Deel een leerplan van je net alleen met collega’s van je school\./.test(await page.locator('.lp-deelhint').innerText()));
 check('bevestigd: label "Nagekeken" en door wie', (await page.locator('main .badge', { hasText: /^Nagekeken$/ }).isVisible()) && (await page.locator('text=/Nagekeken door Test Nakijker/').first().isVisible()));
 check('bevestigd: de doelen staan op slot, met de verwijzingen als labels', (await page.locator('main textarea').count()) === 0 && (await page.locator('.dl-rij').count()) === 3 && (await page.locator('.dl-ref').count()) === 4);
 const wizOpgeslagen = await page.evaluate(() => {
@@ -838,11 +918,20 @@ const pdfOpgeslagen = await page.evaluate(() => {
 });
 check('bewaren zonder nakijken: bewaard als niet nagekeken, met de vingerafdruk van de pdf', !!pdfOpgeslagen && pdfOpgeslagen.n === aantalVoor + 1 && pdfOpgeslagen.status === undefined && pdfOpgeslagen.methode === 'pdf' && pdfOpgeslagen.naam === 'voorbeeld-cursus.pdf' && pdfOpgeslagen.sha === pdfSha && pdfOpgeslagen.goals === 2 && pdfOpgeslagen.sets === undefined);
 check('bewaren zonder nakijken: de editor opent met "Niet nagekeken"', (await page.locator('main .badge', { hasText: /^Niet nagekeken$/ }).isVisible()) && (await page.locator('main textarea').count()) === 2);
+check('bewaren zonder nakijken: de focus staat op de h1 van de editor', await page.evaluate(() => document.activeElement === document.querySelector('main h1')));
+check('editor: "Doelen toevoegen met AI" in plaats van "Doelen uit tekst of pdf"', (await page.getByRole('button', { name: 'Doelen toevoegen met AI' }).count()) === 1 && (await page.getByRole('button', { name: /Doelen uit tekst of pdf/ }).count()) === 0);
+check('editor: onder het label "Niet nagekeken" staat wat dat betekent', /De doelen zijn nog niet met de bron vergeleken\. Kijk ze na om ze vast te leggen\./.test(await page.locator('.lp-labeluitleg').innerText()));
+check('editor: bij exporteren de raad om een leerplan van je net alleen met collega’s van je school te delen', /Deel een leerplan van je net alleen met collega’s van je school\./.test(await page.locator('.lp-deelhint').innerText()));
 check('editor: knop "Nakijken en bevestigen" en per doel "Verwijzing toevoegen"', (await page.getByRole('link', { name: 'Nakijken en bevestigen' }).isVisible()) && (await page.getByRole('button', { name: /^Verwijzing toevoegen/ }).count()) === 2);
 
 // De editor: een leerplan zonder sets laat eerst sets kiezen, dan de minimumdoelen
 await page.getByRole('button', { name: /^Verwijzing toevoegen/ }).first().click();
 await page.getByRole('dialog', { name: 'Kies de sets met minimumdoelen' }).waitFor();
+await page.getByRole('dialog').getByRole('searchbox').waitFor();
+check('editor: het zoekveld in het venster met sets heeft meteen de focus', await page.evaluate(() => document.activeElement?.getAttribute('type') === 'search'));
+await page.waitForFunction(() => /geldig/i.test(document.querySelector('.kz-setrij .kz-setmeta')?.textContent || ''), null, { timeout: 30000 });
+const kzRijen = await page.getByRole('dialog').locator('.kz-setrij').allInnerTexts();
+check('editor: de sets bij het vak staan bovenaan, met de geldigheid bij elke rij', kzRijen.length >= 5 && /natuurwetenschappen|STEM/i.test(kzRijen[0]) && kzRijen.slice(0, 5).every((r) => /geldig/i.test(r)));
 await page.getByRole('dialog').getByRole('searchbox').fill('ruimtelijk bewustzijn 3287');
 await sleep(250);
 check('editor: sets kiezen zoekt op naam en nummer', (await page.getByRole('dialog').locator('.kz-setrij').count()) === 1);
@@ -850,6 +939,7 @@ await page.getByRole('dialog').locator('.kz-setrij input').check();
 await page.getByRole('dialog').getByRole('button', { name: /^Sets bewaren \(1\)/ }).click();
 await page.getByRole('dialog', { name: /Minimumdoelen kiezen voor/ }).waitFor();
 await page.getByRole('dialog').locator('.kz-rij').first().waitFor({ timeout: 15000 });
+check('editor: ook het zoekveld voor de minimumdoelen heeft meteen de focus', await page.evaluate(() => document.activeElement?.getAttribute('type') === 'search'));
 check('editor: het venster toont de doelen van de set met een vakje per doel', (await page.getByRole('dialog').locator('.kz-rij input[type=checkbox]').count()) === 8);
 await page.getByRole('dialog').getByRole('searchbox').fill('09.04');
 await sleep(250);
@@ -893,6 +983,78 @@ const bijgewerkt = await page.evaluate(() => {
 });
 check('bestaand leerplan bevestigd: hetzelfde leerplan bijgewerkt (geen kopie), nagekeken, met zijn verwijzing', bijgewerkt.n === aantalVoor + 1 && bijgewerkt.status === 'gecontroleerd' && bijgewerkt.door === 'Test Nakijker' && bijgewerkt.goals === 2 && bijgewerkt.ref === '09.04');
 
+// Zonder stroom gekozen: sets van de A- én de B-stroom, een dubbelzinnige verwijzing en de tip over de leerplancode
+await go('/#/leerplannen/inlezen');
+await page.selectOption('#il-net', 'kov');
+await page.fill('#il-vak', 'Aardrijkskunde');
+await page.selectOption('#il-graad', '1ste graad');
+await volgende().click();
+await sleep(300);
+await page.locator('input[name="il-methode"]').nth(1).check();
+await page.fill('#il-tekst', `— p. 1 —\n${WIZARD_TEKST.replace('LPD 3', '— p. 2 —\nLPD 3')}`);
+await page.getByRole('button', { name: 'Doelen zoeken' }).click();
+await page.waitForSelector('.il-preview');
+check('stap 2: paginamarkeringen worden overgeslagen en gemeld als "Bladzijdenummers en koppen overgeslagen (2 regels)"', /Bladzijdenummers en koppen overgeslagen \(2 regels\)/.test(await page.locator('.il-resultaat').innerText()) && /3 doelen gevonden/.test(await page.locator('.il-resultaat').innerText()));
+await volgende().click();
+await page.waitForSelector('.il-sets', { timeout: 60000 });
+await sleep(500);
+check('zonder stroom: de A- én de B-stroom staan aangevinkt en de pagina zegt dat een leerplan voor één stroom is', /Je leerplan is voor één stroom\. Vink de sets van de andere stroom af, of kies de stroom in stap 1\./.test(await page.locator('.il-stroommelding').innerText()));
+await page.setViewportSize({ width: 390, height: 844 });
+await sleep(200);
+check('390 px: stap 3 met de melding over twee stromen scrollt niet horizontaal', await passtOpSmal());
+await page.setViewportSize({ width: 1360, height: 900 });
+await volgende().click();
+await wachtOpSamenvatting();
+const kandidaten = (await page.locator('.il-kandidaat-titel').allInnerTexts()).map((t) => t.trim());
+check('stap 4: een dubbelzinnige verwijzing noemt graad en stroom bij de set ("09.01 · Ruimtelijk bewustzijn, 1ste graad A-stroom (ODS_3287, geldig sinds 2024)")', kandidaten.some((t) => t === '09.01 · Ruimtelijk bewustzijn, 1ste graad A-stroom (ODS_3287, geldig sinds 2024)') && kandidaten.some((t) => /^09\.01 · Ruimtelijk bewustzijn, 1ste graad B-stroom \(ODS_\d+, geldig sinds 2024\)$/.test(t)));
+check('stap 4: de verborgen tekst bij een verwijzing noemt de set bij naam, zonder ODS-nummer', (await page.locator('.il-doel .dl-ref .sr-only', { hasText: /^Verwijst naar minimumdoel 09\.07 \(Ruimtelijk bewustzijn\)$/ }).count()) === 1 && !/ODS_/.test((await page.locator('.il-doel .dl-ref .sr-only').allInnerTexts()).join(' ')));
+check('stap 4: zonder leerplancode een tip (geen waarschuwing) met een knop "Naar stap 1"', /Je vulde geen leerplancode in \(stap 1\)\. Dat mag, maar met een code herken je het leerplan later makkelijker\./.test(await page.locator('.il-groep-info').innerText()) && (await page.locator('.il-groep-waarschuwing', { hasText: 'leerplancode' }).count()) === 0 && (await page.getByRole('button', { name: 'Naar stap 1' }).count()) === 1);
+await page.getByRole('button', { name: 'Naar stap 1' }).click();
+await sleep(250);
+check('de knop "Naar stap 1" brengt je naar stap 1, met de focus op de kop', (await wizKop()) === 'Stap 1 van 4: Welk leerplan?' && (await page.evaluate(() => document.activeElement?.tagName === 'H2')));
+
+// Een bestand van een collega: te groot, en met wat er wegvalt (en een gevaarlijk doel-id)
+await go('/#/leerplannen');
+await page.setInputFiles('input[type=file][accept*="json"]', { name: 'groot.json', mimeType: 'application/json', buffer: Buffer.alloc(2 * 1024 * 1024 + 16, 32) });
+check('een bestand groter dan 2 MB wordt geweigerd met een duidelijke melding', await page.locator('text=/Dit bestand is groter dan 2 MB/').first().isVisible());
+const importProef = JSON.stringify({
+  app: 'boosterz', kind: 'leerplan', v: 2,
+  curriculum: {
+    title: 'Importproef', net: 'eigen', subject: 'Test', level: '',
+    goals: [
+      { id: 'constructor', code: 'LPD 1', text: 'De leerlingen tellen.' },
+      { id: '__proto__', code: 'LPD 2', text: 'De leerlingen meten.' },
+      { code: 'LPD 2', text: 'Een dubbele code.' },
+      { code: 'LPD 3', text: 'x'.repeat(10100) },
+      { code: 'LPD 4', text: '' },
+    ],
+  },
+});
+await page.setInputFiles('input[type=file][accept*="json"]', { name: 'importproef.json', mimeType: 'application/json', buffer: Buffer.from(importProef) });
+await page.waitForSelector('text=/Importproef.*geïmporteerd/');
+const importMelding = await page.locator('text=/Importproef.*geïmporteerd/').first().innerText();
+check('bestand importeren: de melding zegt wat wegviel en wat ingekort werd', /\(3 doelen\)\. Let op: 2 doelen vielen weg \(.*\); bij 1 doel is een te lange tekst ingekort\. Kijk het leerplan na\./.test(importMelding));
+check('bestand importeren: de focus staat op de h1 van het nieuwe leerplan', await page.evaluate(() => document.activeElement === document.querySelector('main h1')) && /^Importproef$/.test(await page.locator('main h1').innerText()));
+const importOpgeslagen = await page.evaluate(() => {
+  const c = JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]').find((x) => x.title === 'Importproef');
+  return c ? { ids: c.goals.map((g) => g.id), lengtes: c.goals.map((g) => g.text.length) } : null;
+});
+check('bestand importeren: elk doel-id is veilig ("constructor" en "__proto__" zijn vervangen) en de lange tekst is op 10.000 tekens gekapt', !!importOpgeslagen && importOpgeslagen.ids.length === 3 && importOpgeslagen.ids.every((id) => /^[A-Za-z0-9_-]{1,64}$/.test(id) && !['constructor', '__proto__'].includes(id)) && importOpgeslagen.lengtes[2] === 10000);
+// Dit leerplan nakijken in de wizard (de plek waar per doel-id wordt opgezocht) werkt gewoon
+await page.getByRole('link', { name: 'Nakijken en bevestigen' }).click();
+await page.waitForSelector('h2.il-stapkop');
+await page.locator('input[name="il-methode"]').nth(1).check();
+await page.fill('#il-tekst', 'LPD 1 De leerlingen tellen.\nLPD 2 De leerlingen meten.');
+await volgende().click();
+await page.waitForSelector('.il-sets', { timeout: 60000 });
+await volgende().click();
+await wachtOpSamenvatting();
+check('wizard met een eerder gevaarlijk doel-id: alle doelen staan er, het eerste "Letterlijk in de bron"', (await page.locator('.il-doel').count()) === 3 && (await page.locator('.il-doel').first().locator('.badge-ok', { hasText: 'Letterlijk in de bron' }).count()) === 1);
+
+// Privacy: wat er over leerplannen staat
+await go('/#/privacy');
+check('privacy: leerplannen bevatten bij een nagekeken leerplan de naam van wie nakeek', /doelenlijsten die je invoerde of inlas, en bij een nagekeken leerplan de naam die je bij het nakijken invulde \(die gaat mee als je exporteert\)/.test(await page.locator('main').innerText()));
+
 // Onbekend leerplan, AI als laatste redmiddel, ?ai=nieuw
 await go('/#/leerplannen/inlezen/bestaat-niet');
 check('onbekend leerplan: nette melding met een link terug', (await page.locator('text=/Dit leerplan werd niet gevonden/').isVisible()) && (await page.getByRole('link', { name: /Naar de leerplannen/ }).isVisible()) && (await page.locator('main h1').count()) === 1);
@@ -906,9 +1068,33 @@ await page.fill('#il-tekst', 'Dit is een inleiding zonder enig doel.\nNog een zi
 await page.getByRole('button', { name: 'Doelen zoeken' }).click();
 await page.waitForSelector('.il-geen');
 check('stap 2: zonder doelen uitleg wat er mis kan zijn en een AI-knop als laatste redmiddel', (await page.locator('.il-resultaat h3', { hasText: 'Geen doelen gevonden' }).count()) === 1 && (await page.getByRole('button', { name: 'Laat de AI het proberen' }).isVisible()) && (await geblokkeerd(volgende())));
+check('stap 2: zonder doelen één melding (niet drie): geen waarschuwingenblok en geen "Nog nodig" onder de knop', (await page.locator('.il-waarschuwingen').count()) === 0 && (await page.locator('#il-ontbreekt').count()) === 0 && (await page.locator('.il-resultaat').count()) === 1 && /Kijk na of de tekst de doelen met hun code bevat/.test(await page.locator('.il-geen').innerText()) && !/met de hand|\blezer\b/.test(await page.locator('.il-resultaat').innerText()));
+check('stap 2: de uitwegen: bij de AI-knop staat dat je een eigen sleutel nodig hebt, en je kan een blanco leerplan maken', /Daarvoor heb je een eigen AI-sleutel nodig; de tekst gaat dan naar je AI-aanbieder\./.test(await page.locator('.il-geen').innerText()) && (await page.getByRole('link', { name: 'maak een blanco leerplan' }).getAttribute('href')) === '#/leerplannen?nieuw=1' && /Of maak een blanco leerplan en voeg de doelen zelf toe\./.test(await page.locator('.il-geen').innerText()));
+check('stap 2: de knop Volgende verwijst naar de melding en een klik erop zet de focus erop', (await page.locator('.il-volgende').getAttribute('aria-describedby')) === 'il-gevonden-kop' && await (async () => { await page.locator('.il-volgende').click({ force: true }); return page.evaluate(() => document.activeElement?.id === 'il-geen'); })());
 await page.getByRole('button', { name: 'Laat de AI het proberen' }).click();
 await page.getByRole('dialog', { name: /Leerplan uit tekst of pdf/ }).waitFor({ timeout: 10000 });
 check('?ai=nieuw opent het AI-venster en de parameter verdwijnt uit de url', !/ai=/.test(page.url()) && /#\/leerplannen$/.test(page.url()));
+const gateTekst = await page.getByRole('dialog').innerText();
+check('zonder sleutel zegt het venster dat je een AI-sleutel nodig hebt, zonder het over widgets en cursussen te hebben', /Voor deze hulp heb je een eigen AI-sleutel nodig/.test(gateTekst) && !/widgets en cursussen/.test(gateTekst));
+await page.keyboard.press('Escape');
+// Met een sleutel: het venster is vooraf ingevuld met de tekst en de keuzes uit stap 1
+await page.evaluate(() => localStorage.setItem('wf.ai.v1', JSON.stringify({ provider: 'gemini', apiKey: 'test-sleutel', model: 'gemini-3.7-flash' })));
+await go('/#/leerplannen/inlezen');
+await page.selectOption('#il-net', 'kov');
+await page.fill('#il-vak', 'Aardrijkskunde');
+await page.selectOption('#il-graad', '1ste graad');
+await page.selectOption('#il-stroom', 'A-stroom');
+await volgende().click();
+await sleep(300);
+await page.locator('input[name="il-methode"]').nth(1).check();
+await page.fill('#il-tekst', 'Dit is een inleiding zonder enig doel.\nNog een zin zonder nummering.');
+await page.getByRole('button', { name: 'Doelen zoeken' }).click();
+await page.waitForSelector('.il-geen');
+await page.getByRole('button', { name: 'Laat de AI het proberen' }).click();
+await page.getByRole('dialog', { name: /Leerplan uit tekst of pdf/ }).waitFor({ timeout: 10000 });
+check('met een sleutel: het AI-venster is vooraf ingevuld met de tekst en de keuzes uit stap 1', (await page.getByRole('dialog').getByLabel('Leerplantekst').inputValue()) === 'Dit is een inleiding zonder enig doel.\nNog een zin zonder nummering.' && (await page.getByRole('dialog').getByLabel('Vak').inputValue()) === 'Aardrijkskunde' && (await page.getByRole('dialog').getByLabel('Niveau').inputValue()) === '1ste graad A-stroom' && (await page.getByRole('dialog').getByLabel('Titel van het leerplan').inputValue()) === 'Aardrijkskunde 1ste graad A-stroom (KOV)');
+check('het AI-venster zegt waar de tekst heen gaat', /De tekst die je hier plakt, gaat naar de AI-aanbieder die je bij de AI-instellingen koos\./.test(await page.getByRole('dialog').innerText()) && !/Alles blijft op dit toestel/.test(await page.getByRole('dialog').innerText()));
+await page.evaluate(() => localStorage.removeItem('wf.ai.v1'));
 await page.keyboard.press('Escape');
 await go('/#/leerplannen?ai=nieuw');
 check('?ai=nieuw werkt ook rechtstreeks', await page.getByRole('dialog', { name: /Leerplan uit tekst of pdf/ }).isVisible());

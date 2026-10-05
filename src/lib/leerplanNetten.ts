@@ -34,7 +34,7 @@ export const LEERPLANCODE_TIP =
   'Vraag je vakwerkgroep of coördinator welk leerplan je school volgt. De leerplancode staat meestal op de eerste bladzijde (bv. “I-Aar-a”).';
 
 export const AUTEURSRECHT_TIP =
-  'Boosterz haalt die leerplannen niet zelf op: ze zijn auteursrechtelijk beschermd. Alles wat je inleest, blijft op dit toestel.';
+  'Boosterz haalt die leerplannen niet zelf op: ze zijn auteursrechtelijk beschermd. Alles wat je inleest, blijft op dit toestel, behalve als je de AI laat helpen.';
 
 /** Een net zoals de leerkracht het kiest in de inleeswizard. */
 export interface NetKeuze {

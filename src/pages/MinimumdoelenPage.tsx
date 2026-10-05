@@ -14,9 +14,10 @@ import { ArrowDown, ExternalLink, ListTree, LoaderCircle } from 'lucide-react';
 import { controleStatus, getCurricula, saveCurriculum } from '../lib/curriculum';
 import { geldigheidVanDoelen, htmlNaarTekst, type MinimumdoelenIndexSet, type MinimumdoelenSetBestand } from '../lib/minimumdoelen';
 import {
-  FOUT_NIET_GELADEN, SOORT_LABEL, contextVanSet, datumLeesbaar, filterSets, geldigheidTekst, graadOpties, indexHeeftGeldigheid,
-  laadIndex, laadSet, soortVanSet, veiligeLink, type GeldigheidCode, type SoortOnderwijs,
+  FOUT_NIET_GELADEN, SOORT_LABEL, contextVanSet, datumLeesbaar, filterSets, geldigheidTekst, geldigheidVan, graadOpties, indexHeeftGeldigheid,
+  isGeldigSetId, laadIndex, laadSet, soortVanSet, veiligeLink, type GeldigheidCode, type SoortOnderwijs,
 } from '../lib/minimumdoelenBron';
+import { geldigheidJaren } from '../lib/setKeuze';
 import { isAttitude, isOptioneel, leerplanUitSet, themaVanDoel, vindLeerplanVoorSet } from '../lib/minimumdoelenLeerplan';
 import { DoelenPerRubriek, type DoelRij } from '../components/curriculum/DoelenPerRubriek';
 import { Field, useToast } from '../components/ui';
@@ -111,15 +112,15 @@ export function MinimumdoelenPage() {
   const laatstOpgehaald = useMemo(() => sets.reduce((m, s) => (s.opgehaald > m ? s.opgehaald : m), ''), [sets]);
   const gekozen = setId ? sets.find((s) => s.id === setId) : undefined;
 
-  // Een andere set op een smal scherm: de set staat boven de lijst, dus daarheen springen.
+  // Een andere set gekozen: de focus gaat naar de set (ook op een breed scherm, anders blijft het toetsenbord in de
+  // lijst staan en moet je er eerst doorheen tabben). Op een smal scherm staat de set boven de lijst: dan ook omhoog.
   const vorigeSet = useRef(setId);
   useEffect(() => {
     if (vorigeSet.current === setId) return;
     vorigeSet.current = setId;
-    if (setId && typeof window.matchMedia === 'function' && window.matchMedia(SMAL_SCHERM).matches) {
-      window.scrollTo(0, 0);
-      paneelRef.current?.focus({ preventScroll: true });
-    }
+    if (!setId) return;
+    if (typeof window.matchMedia === 'function' && window.matchMedia(SMAL_SCHERM).matches) window.scrollTo(0, 0);
+    paneelRef.current?.focus({ preventScroll: true });
   }, [setId]);
 
   const naarLijst = () => {
@@ -150,6 +151,11 @@ export function MinimumdoelenPage() {
             Minimumdoelen zijn de wettelijke basis van de Vlaamse overheid: voor elk net dezelfde. Hier staan ze
             letterlijk zoals ze in de officiële bron staan. Kies een set en gebruik ze als leerplan.
           </p>
+          <p className="md-toelichting">De minimumdoelen zijn verdeeld in sets: per vak of sleutelcompetentie, per graad en per stroom.</p>
+          <p className="md-toelichting">
+            Voorlopig staan hier alleen de minimumdoelen van het secundair onderwijs (ook buitengewoon secundair) en van het
+            volwassenenonderwijs, niet die van het basisonderwijs.
+          </p>
           {index.stand.status === 'klaar' && (
             <p className="md-bron">
               {index.stand.waarde.naamsvermelding}
@@ -166,7 +172,7 @@ export function MinimumdoelenPage() {
           {index.stand.status === 'klaar' && (
             <>
               <div className="md-filters">
-                <Field label="Zoek een set" hint="Op naam, korte naam of nummer (bv. ODS_3287)">
+                <Field label="Zoek een set" hint="Op naam, korte naam of nummer (bv. ODS_3287). Een vak als aardrijkskunde vindt ook ‘Ruimtelijk bewustzijn’.">
                   <input
                     ref={zoekRef} type="search" className="input" value={zoek} placeholder="bv. aardrijkskunde"
                     autoComplete="off" spellCheck={false}
@@ -236,7 +242,15 @@ export function MinimumdoelenPage() {
         </div>
 
         <div className="md-setkolom">
-          {setId ? (
+          {setId && (!isGeldigSetId(setId) || (index.stand.status === 'klaar' && !gekozen)) ? (
+            // Een nummer dat geen set kan zijn, of dat niet in de lijst staat: niets ophalen en niet "Opnieuw proberen" aanbieden.
+            <SetNietGevonden paneelRef={paneelRef} onNaarLijst={naarLijst} />
+          ) : setId && index.stand.status === 'laden' ? (
+            // Eerst de lijst: pas dan weten we of de set bestaat.
+            <section className="card md-setpaneel" aria-label="Set" tabIndex={-1} ref={paneelRef}>
+              <LaadBericht tekst="De set wordt geladen…" />
+            </section>
+          ) : setId ? (
             <SetPaneel key={setId} setId={setId} indexSet={gekozen} paneelRef={paneelRef} onNaarLijst={naarLijst} />
           ) : (
             <div className="card md-placeholder">
@@ -271,6 +285,20 @@ function SetKnop({ set, gekozen, onKies }: { set: MinimumdoelenIndexSet; gekozen
         )}
       </button>
     </li>
+  );
+}
+
+// ── Een set die niet bestaat ────────────────────────────────────────────────
+
+function SetNietGevonden({ paneelRef, onNaarLijst }: { paneelRef: RefObject<HTMLElement>; onNaarLijst: () => void }) {
+  return (
+    <section className="card md-setpaneel" aria-labelledby="md-set-kop" tabIndex={-1} ref={paneelRef}>
+      <h2 id="md-set-kop">Set niet gevonden</h2>
+      <p>Deze set bestaat niet. Kies een set uit de lijst.</p>
+      <button type="button" className="btn btn-ghost md-naarlijst" onClick={onNaarLijst}>
+        <ArrowDown size={16} /> Naar de lijst met sets
+      </button>
+    </section>
   );
 }
 
@@ -318,6 +346,9 @@ function SetPaneel({
   // Een set zonder geldigheid in de kop (oudere bestanden): afleiden uit de doelen zelf.
   const geldigheid = bestand ? (bestand.set.geldigheid !== undefined ? bestand.set : geldigheidVanDoelen(bestand.doelen)) : indexSet;
   const bronLink = veiligeLink(bestand?.set.bron);
+  // Een set die niet meer geldt, mag je nog gebruiken, maar de leerkracht moet het weten.
+  const verouderd = geldigheid !== undefined && geldigheidVan(geldigheid) === 'N';
+  const jaren = geldigheid ? geldigheidJaren(geldigheid) : undefined;
 
   const feiten: { naam: string; waarde: string }[] = [];
   if (kop) {
@@ -369,9 +400,19 @@ function SetPaneel({
         </dl>
       )}
 
+      {verouderd && (
+        <div className="callout warn md-verouderd" role="note">
+          <WarningIcon size={20} className="md-verouderd-icoon" />
+          <p>
+            Deze minimumdoelen gelden niet meer{jaren ? ` (${jaren})` : ''}. Kies liever een set die nu geldt. Sinds 2019 heten veel sets naar
+            een sleutelcompetentie, bv. ‘Ruimtelijk bewustzijn’ voor aardrijkskunde.
+          </p>
+        </div>
+      )}
+
       <div className="md-acties">
         <button type="button" className="btn btn-primary" disabled={!bestand} onClick={() => bestand && gebruik(bestand)}>
-          <ListTree size={18} /> Gebruik als leerplan
+          <ListTree size={18} /> {verouderd ? 'Toch als leerplan gebruiken' : 'Gebruik als leerplan'}
         </button>
         {bronLink && (
           <a className="btn btn-ghost" href={bronLink} target="_blank" rel="noopener noreferrer">

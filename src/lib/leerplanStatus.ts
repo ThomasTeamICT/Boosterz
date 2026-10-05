@@ -31,3 +31,9 @@ export function nagekekenTekst(cur: Curriculum): string {
 export function isOfficieel(cur: Curriculum): boolean {
   return cur.herkomst?.methode === 'officieel';
 }
+
+/**
+ * Bij het exporteren van een leerplan dat niet uit de officiële minimumdoelen komt: het leerplan van een net is
+ * auteursrechtelijk beschermd en voor eigen gebruik ingelezen. Een officieel leerplan is vrij te delen.
+ */
+export const DEEL_HINT = 'Deel een leerplan van je net alleen met collega’s van je school.';

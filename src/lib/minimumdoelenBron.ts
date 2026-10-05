@@ -11,6 +11,7 @@ import {
   type MinimumdoelenIndexSet,
   type MinimumdoelenSetBestand,
 } from './minimumdoelen';
+import { bevatFrase, competentieFrases } from './vakZoektabel';
 
 /** De map met de bestanden, naast de app (vite base './'; de hash-route verandert het pad niet). */
 export const MINIMUMDOELEN_MAP = `${import.meta.env.BASE_URL}leerplannen/minimumdoelen/`;
@@ -243,16 +244,21 @@ export function zonderAccenten(tekst: string): string {
   return tekst.normalize('NFD').replace(/\p{M}+/gu, '').toLowerCase();
 }
 
-/** De sets die aan alle filters voldoen, in de volgorde van de index. Alle zoekwoorden moeten passen. */
+/**
+ * De sets die aan alle filters voldoen, in de volgorde van de index. Alle zoekwoorden moeten passen. Een
+ * zoekwoord dat een vak is ("aardrijkskunde"), vindt ook de set van de sleutelcompetentie die erbij hoort
+ * ("Ruimtelijk bewustzijn"): dat is een hulp bij het zoeken, geen officiële koppeling (zie vakZoektabel.ts).
+ */
 export function filterSets(sets: readonly MinimumdoelenIndexSet[], filter: SetFilter): MinimumdoelenIndexSet[] {
   const termen = zonderAccenten(filter.zoek).split(/\s+/).filter(Boolean);
+  const alternatieven = termen.map((t) => competentieFrases(t));
   return sets.filter((s) => {
     if (filter.geldigheid !== 'alle' && geldigheidVan(s) !== filter.geldigheid) return false;
     if (filter.graad !== '' && s.graad !== filter.graad) return false;
     if (filter.soort !== 'alle' && soortVanSet(s.naam) !== filter.soort) return false;
     if (termen.length === 0) return true;
     const hooi = zonderAccenten(`${s.naam} ${s.korteNaam ?? ''} ${s.id}`);
-    return termen.every((t) => hooi.includes(t));
+    return termen.every((t, i) => hooi.includes(t) || alternatieven[i].some((f) => bevatFrase(hooi, f)));
   });
 }
 

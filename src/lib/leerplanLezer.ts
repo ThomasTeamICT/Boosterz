@@ -758,10 +758,30 @@ function kort(t: string, max: number): string {
   return t.length <= max ? t : `${t.slice(0, max).trimEnd()}…`;
 }
 
-/** Losse meldingen, en wat boven `MAX_MELDINGEN` uitkomt in één samenvatting (met elk regelnummer). */
-function meldAllemaal<T extends { regel: number }>(waarschuwingen: string[], lijst: readonly T[], los: (x: T) => string, rest: (regels: string) => string): void {
+/** Losse meldingen, en wat boven `MAX_MELDINGEN` uitkomt in één samenvatting (met van elk het doel, bv. "LPD 4"). */
+function meldAllemaal<T>(
+  waarschuwingen: string[],
+  lijst: readonly T[],
+  los: (x: T) => string,
+  wie: (x: T) => string,
+  rest: (doelen: string) => string,
+): void {
   for (const x of lijst.slice(0, MAX_MELDINGEN)) waarschuwingen.push(los(x));
-  if (lijst.length > MAX_MELDINGEN) waarschuwingen.push(rest(lijst.slice(MAX_MELDINGEN).map((x) => x.regel).join(', ')));
+  if (lijst.length > MAX_MELDINGEN) waarschuwingen.push(rest(lijst.slice(MAX_MELDINGEN).map(wie).join(', ')));
+}
+
+/**
+ * Het bladzijdenummer waar regel `i` staat, als de tekst paginamarkeringen heeft ("— p. 3 —", zoals
+ * `extractPdfLines` ze zet): de laatste markering vóór die regel. `undefined` zonder markeringen (geplakte tekst).
+ */
+function bladzijdeBij(regels: readonly string[], i: number): number | undefined {
+  for (let j = Math.min(i, regels.length - 1); j >= 0; j--) {
+    const k = kaal(regels[j]);
+    if (!isPaginamarkering(k)) continue;
+    const nr = /\d{1,4}/.exec(k)?.[0];
+    return nr === undefined ? undefined : Number(nr);
+  }
+  return undefined;
 }
 
 interface Bezig {
@@ -789,9 +809,11 @@ interface Bezig {
  * eindigde op een afbreekstreepje, of de zin is niet af en er volgt een opsomming): zo blijft een doel
  * heel over een paginagrens.
  *
- * Wat de lezer niet zeker weet, komt in `waarschuwingen`, met het regelnummer: regels die met een code
- * van het gekozen patroon beginnen maar geen doel werden, doelen in een tweede nummering, herstelde
- * afbrekingen, en een overgeslagen paginanummer midden in een doel.
+ * Wat de lezer niet zeker weet, komt in `waarschuwingen`, in gewone taal en met het doel erbij ("bij LPD 4"), niet
+ * met een regelnummer (de leerkracht ziet de regels van onze tekst niet; zonder doel staat er de bladzijde, als
+ * die uit een paginamarkering te halen is): regels die met een code van het gekozen patroon beginnen maar geen
+ * doel werden, doelen in een tweede nummering, herstelde afbrekingen, en een overgeslagen paginanummer midden
+ * in een doel.
  */
 export function leesLeerplan(tekst: string): LezerResultaat {
   const waarschuwingen: string[] = [];
@@ -848,19 +870,19 @@ export function leesLeerplan(tekst: string): LezerResultaat {
   const genegeerdeRegels = opmaak.size;
   if (scores.length === 0) {
     waarschuwingen.push(
-      'De lezer vond geen nummering van doelen (zoals "LPD 12", "1.2.3" of "AAR 2.1") vooraan een regel. Kijk na of de tekst de doelen met hun code bevat, of voeg de doelen met de hand toe.',
+      'Boosterz vond geen nummering van doelen (zoals "LPD 12", "1.2.3" of "AAR 2.1") vooraan een regel. Kijk na of de tekst de doelen met hun code bevat.',
     );
     // Wel codes vooraan, maar zonder doelzin erachter: misschien staat het begin van de zin erboven.
-    const metCode: { regel: number; code: string }[] = [];
+    const metCode: string[] = [];
     for (let i = 0; i < regels.length && metCode.length < 5; i++) {
       if (leeg(i)) continue;
       const p = PATRONEN.find((x) => !x.zwak && x.lees(schoon[i]) !== null);
       const t = p?.lees(schoon[i]);
-      if (t) metCode.push({ regel: i + 1, code: t.code });
+      if (t) metCode.push(t.code);
     }
     if (metCode.length > 0) {
       waarschuwingen.push(
-        `Regel ${metCode.map((m) => m.regel).join(', ')} begint wel met een code (bv. ${metCode[0].code}), maar zonder doelzin erachter ("De leerlingen …" of een zin met een hoofdletter). Staat het begin van de zin misschien boven de lijst? Neem de doelen dan met de hand over.`,
+        `Er staan wel codes vooraan een regel (bv. ${metCode.slice(0, 3).join(', ')}), maar zonder doelzin erachter ("De leerlingen …" of een zin met een hoofdletter). Staat het begin van de zin misschien boven de lijst? Kijk na of de tekst de doelen met hun code bevat.`,
       );
     }
     return { doelen: [], waarschuwingen, genegeerdeRegels };
@@ -870,7 +892,7 @@ export function leesLeerplan(tekst: string): LezerResultaat {
   const bijnaEvenSterk = scores.length > 1 && scores[1].treffers >= 2 && scores[1].score >= 0.8 * gekozen.score ? scores[1].p : undefined;
   if (bijnaEvenSterk) {
     waarschuwingen.push(
-      `Twee nummeringen komen ongeveer even vaak voor: ${patroon.naam} (bv. ${gekozen.voorbeeld}, ${gekozen.treffers} keer) en ${scores[1].p.naam} (bv. ${scores[1].voorbeeld}, ${scores[1].treffers} keer). De lezer koos de eerste; kijk na of dat klopt.`,
+      `Twee nummeringen komen ongeveer even vaak voor: nummers zoals ${gekozen.voorbeeld} (${gekozen.treffers} keer) en nummers zoals ${scores[1].voorbeeld} (${scores[1].treffers} keer). Boosterz koos de eerste; kijk na of dat klopt.`,
     );
   }
 
@@ -883,17 +905,17 @@ export function leesLeerplan(tekst: string): LezerResultaat {
     if (ongelezen.length === 0) continue;
     const eerste = s.p.lees(schoon[ongelezen[0]])?.code ?? '';
     waarschuwingen.push(
-      `Er staan ook doelen in een andere nummering: ${s.p.naam} (bv. ${eerste} op regel ${ongelezen[0] + 1}${ongelezen.length > 1 ? `, ${ongelezen.length} keer: regels ${ongelezen.map((i) => i + 1).join(', ')}` : ''}). De lezer las alleen ${patroon.naam}; kijk na of die doelen erbij horen.`,
+      `Er staan ook doelen in een andere nummering: nummers zoals ${eerste}${ongelezen.length > 1 ? ` (${ongelezen.length} keer)` : ''}. Boosterz las alleen nummers zoals ${gekozen.voorbeeld}; kijk na of die doelen erbij horen.`,
     );
   }
 
   // Regels die met een code van het gekozen patroon beginnen, maar geen doel werden (bv. "LPD 3 aan de hand van …").
-  const nietGelezen: { regel: number; code: string; tekst: string }[] = [];
+  const nietGelezen: { code: string; tekst: string }[] = [];
   for (let i = 0; i < regels.length; i++) {
     if (leeg(i) || start[i]) continue;
     const t = patroon.lees(schoon[i]);
     if (!t || (patroon.streng && isKopRest(t.rest))) continue;
-    nietGelezen.push({ regel: i + 1, code: t.code, tekst: schoon[i] });
+    nietGelezen.push({ code: t.code, tekst: schoon[i] });
   }
 
   /** Volgt er (na lege regels, opmaak en andere koppen) een doel? */
@@ -921,8 +943,9 @@ export function leesLeerplan(tekst: string): LezerResultaat {
   let grens = false; // lege regel of opmaak sinds de laatste regel van het doel
   /** Paginanummers die sinds de laatste inhoudsregel overgeslagen werden. */
   let overgeslagen: number[] = [];
-  const nummerInDoel: { regel: number; code: string; start: number; tekst: string }[] = [];
-  let uitbreidingOnzeker: number | undefined;
+  const nummerInDoel: { code: string; tekst: string }[] = [];
+  /** Het woord "uitbreiding" op een plaats die we niet konden thuisbrengen: bij welk doel, of op welke regel. */
+  let uitbreidingOnzeker: { code?: string; regel: number } | undefined;
   let viaKop = 0;
   const tweeKolommen: string[] = [];
   const zonderTekst: string[] = [];
@@ -934,7 +957,7 @@ export function leesLeerplan(tekst: string): LezerResultaat {
     const tekstDoel = schrijfLigaturenUit(v.tekst);
     const refs = [...v.blokken, ...huidig.refsRegels];
     if (!tekstDoel) {
-      zonderTekst.push(`${huidig.code} (regel ${huidig.start + 1})`);
+      zonderTekst.push(huidig.code);
     } else {
       const doel: GelezenDoel = {
         code: huidig.code,
@@ -949,7 +972,7 @@ export function leesLeerplan(tekst: string): LezerResultaat {
       const afbrekingen = samen.afbrekingen.filter((a) => schrijfLigaturenUit(v.tekst).includes(schrijfLigaturenUit(a.woord)));
       if (afbrekingen.length > 0) doel.afbrekingen = afbrekingen.map(beschrijfAfbreking);
       if (huidig.viaKop) viaKop++;
-      if (uitbreidingOnzeker === undefined && UITBREIDING_AANDUIDING.test(tekstDoel)) uitbreidingOnzeker = huidig.start + 1;
+      if (uitbreidingOnzeker === undefined && UITBREIDING_AANDUIDING.test(tekstDoel)) uitbreidingOnzeker = { code: huidig.code, regel: huidig.start };
       doelen.push(doel);
     }
     huidig = null;
@@ -987,7 +1010,7 @@ export function leesLeerplan(tekst: string): LezerResultaat {
       sluit();
       aanduidingNetGezet = false;
       const extra = patroon.tweedeCode(s.rest);
-      if (extra) tweeKolommen.push(`regel ${i + 1} (${s.code} en ${extra})`);
+      if (extra) tweeKolommen.push(`${s.code} en ${extra}`);
       huidig = {
         start: i,
         eind: i,
@@ -1047,7 +1070,7 @@ export function leesLeerplan(tekst: string): LezerResultaat {
       if (opsomming[i]) h.inLijst = true;
       h.delen.push(deel(i, t));
       h.eind = i;
-      for (const j of tussen) nummerInDoel.push({ regel: j + 1, code: h.code, start: h.start + 1, tekst: kaal(regels[j]) });
+      for (const j of tussen) nummerInDoel.push({ code: h.code, tekst: kaal(regels[j]) });
       // Een verwijzing achteraan deze regel sluit het doel af.
       if (eindigtOpVerwijzing(t)) h.gesloten = true;
       grens = false;
@@ -1059,39 +1082,40 @@ export function leesLeerplan(tekst: string): LezerResultaat {
       const h: Bezig = huidig;
       h.onderbroken = true;
     }
-    if (uitbreidingOnzeker === undefined && UITBREIDING_AANDUIDING.test(t)) uitbreidingOnzeker = i + 1;
+    if (uitbreidingOnzeker === undefined && UITBREIDING_AANDUIDING.test(t)) uitbreidingOnzeker = { regel: i };
     grens = false;
   }
   sluit();
 
   // 3. Waarschuwingen over het resultaat.
   if (doelen.length === 0) {
-    waarschuwingen.push('De lezer herkende een nummering, maar vond er geen doelen met tekst bij. Kijk de tekst na.');
+    waarschuwingen.push('Boosterz herkende een nummering, maar vond er geen doelen met tekst bij. Kijk de tekst na.');
   }
-  for (const z of zonderTekst) waarschuwingen.push(`Bij ${z} vond de lezer geen doeltekst.`);
+  for (const z of zonderTekst) waarschuwingen.push(`Bij ${z} vond Boosterz geen doeltekst.`);
 
   meldAllemaal(
     waarschuwingen,
     nietGelezen,
-    (x) => `Regel ${x.regel} begint met ${x.code}, maar de lezer las er geen doel in ("${kort(x.tekst, 60)}"). Kijk na of daar een doel staat.`,
-    (r) => `Nog meer regels beginnen met een code maar werden geen doel: regels ${r}. Kijk na of daar doelen staan.`,
+    (x) => `Bij ${x.code} las Boosterz geen doel ("${kort(x.tekst, 60)}"). Kijk na of daar een doel staat.`,
+    (x) => x.code,
+    (doelen) => `Nog meer codes staan vooraan een regel maar werden geen doel: ${doelen}. Kijk na of daar doelen staan.`,
   );
 
-  const perCode = new Map<string, number[]>();
+  const perCode = new Map<string, number>();
   for (const d of doelen) {
     const k = normalizeGoalCode(d.code);
-    perCode.set(k, [...(perCode.get(k) ?? []), d.regel]);
+    perCode.set(k, (perCode.get(k) ?? 0) + 1);
   }
-  for (const [code, regelsMetCode] of perCode) {
-    if (regelsMetCode.length > 1) {
+  for (const [code, aantal] of perCode) {
+    if (aantal > 1) {
       waarschuwingen.push(
-        `De code ${code} komt ${regelsMetCode.length} keer voor (regels ${regelsMetCode.join(', ')}). Bij bewaren blijft alleen het eerste doel met die code over; kijk na welk doel juist is.`,
+        `De code ${code} komt ${aantal} keer voor. Bij bewaren blijft alleen het eerste doel met die code over; kijk na welk doel juist is.`,
       );
     }
   }
 
   for (const gat of gatenInNummering(doelen.map((d) => d.code))) {
-    waarschuwingen.push(`${beschrijfGat(gat)}: staat het niet in de bron, of las de lezer het niet?`);
+    waarschuwingen.push(`${beschrijfGat(gat)}: staat het niet in de bron, of vond Boosterz het niet?`);
   }
 
   if (tweeKolommen.length > 0) {
@@ -1105,15 +1129,17 @@ export function leesLeerplan(tekst: string): LezerResultaat {
   meldAllemaal(
     waarschuwingen,
     doelen.filter((d) => d.afbrekingen !== undefined),
-    (d) => `${d.code} (regel ${d.regel}): afbreking hersteld: ${(d.afbrekingen ?? []).join(', ')}; kijk na of het streepje bij het woord hoort.`,
-    (r) => `Ook bij de doelen op regels ${r} werd een afbreking hersteld; kijk na of het streepje bij het woord hoort.`,
+    (d) => `${d.code}: afbreking hersteld: ${(d.afbrekingen ?? []).join(', ')}; kijk na of het streepje bij het woord hoort.`,
+    (d) => d.code,
+    (doelen) => `Ook bij ${doelen} werd een afbreking hersteld; kijk na of het streepje bij het woord hoort.`,
   );
 
   meldAllemaal(
     waarschuwingen,
     nummerInDoel,
-    (x) => `${x.code} (regel ${x.start}): de lezer sloeg regel ${x.regel} ("${x.tekst}") over als paginanummer, midden in het doel. Kijk na of dat getal bij de tekst hoort.`,
-    (r) => `Ook op regels ${r} sloeg de lezer een paginanummer over midden in een doel. Kijk na of die getallen bij de tekst horen.`,
+    (x) => `${x.code}: Boosterz sloeg het getal "${x.tekst}" over als paginanummer, midden in het doel. Kijk na of dat getal bij de tekst hoort.`,
+    (x) => x.code,
+    (doelen) => `Ook bij ${doelen} sloeg Boosterz een paginanummer over midden in het doel. Kijk na of die getallen bij de tekst horen.`,
   );
 
   if (viaKop > 0) {
@@ -1122,8 +1148,11 @@ export function leesLeerplan(tekst: string): LezerResultaat {
     );
   }
   if (uitbreidingOnzeker !== undefined) {
+    const { code, regel } = uitbreidingOnzeker;
+    const pagina = bladzijdeBij(regels, regel);
+    const waar = code ? `Bij ${code} staat` : pagina !== undefined ? `Op bladzijde ${pagina} staat` : 'In de tekst staat';
     waarschuwingen.push(
-      `Het woord "uitbreiding" staat in de tekst (bv. regel ${uitbreidingOnzeker}) op een plaats die de lezer niet kon thuisbrengen. Kijk het niveau (basis of uitbreiding) van de doelen na.`,
+      `${waar} het woord "uitbreiding" op een plaats die Boosterz niet kon thuisbrengen. Kijk het niveau (basis of uitbreiding) van de doelen na.`,
     );
   }
 

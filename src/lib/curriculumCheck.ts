@@ -571,7 +571,7 @@ export function controleerLeerplan(cur: Curriculum, opties: ControleOpties = {})
     voeg({
       soort: 'volledig',
       ernst: 'fout',
-      bericht: 'De bron is niet volledig gelezen (te veel pagina\'s of tekst). Er kunnen doelen ontbreken; lees het leerplan in delen in.',
+      bericht: 'De bron is niet volledig gelezen (te veel pagina’s of tekst), dus er kunnen doelen ontbreken. Lees dan alleen de pagina’s met de doelen in: kopieer ze en kies ‘Tekst plakken’.',
     });
   }
   const eersteMetCode = new Map<string, number>();
@@ -606,7 +606,7 @@ export function controleerLeerplan(cur: Curriculum, opties: ControleOpties = {})
         ernst: 'waarschuwing',
         doelId: na?.id,
         code: gat.ontbrekend[0],
-        bericht: `${beschrijfGat(gat)}; ${enkel ? 'staat het niet in de bron of las de lezer het niet?' : 'staan ze niet in de bron of las de lezer ze niet?'}`,
+        bericht: `${beschrijfGat(gat)}; ${enkel ? 'staat het niet in de bron of vond Boosterz het niet?' : 'staan ze niet in de bron of vond Boosterz ze niet?'}`,
       },
       gat.voorIndex,
     );
@@ -643,7 +643,7 @@ export function controleerLeerplan(cur: Curriculum, opties: ControleOpties = {})
         soort: 'volledig',
         ernst: 'fout',
         code: r.code,
-        bericht: `Regel ${r.regel} van de bron begint met ${r.code} ("${kort(r.rest, CITAAT)}"), maar het leerplan heeft geen doel ${r.code}. Ontbreekt dat doel?`,
+        bericht: `In de bron begint een regel met ${r.code} ("${kort(r.rest, CITAAT)}"), maar het leerplan heeft geen doel ${r.code}. Ontbreekt dat doel?`,
       });
     }
   }
@@ -741,7 +741,8 @@ export function controleerLeerplan(cur: Curriculum, opties: ControleOpties = {})
     voeg({ soort: 'herkomst', ernst: 'fout', bericht: 'De vingerafdruk van het bronbestand ontbreekt: zonder die vingerafdruk kan niemand nagaan uit welke bron de doelen komen. Lees de bron opnieuw in.' });
   }
   if (cur.net !== 'eigen' && cur.net !== 'minimumdoelen' && !herkomst?.leerplancode?.trim()) {
-    voeg({ soort: 'herkomst', ernst: 'waarschuwing', bericht: 'De leerplancode ontbreekt (bv. "I-Aar-a"): vul ze in, zodat je ziet welk leerplan van het net dit is.' });
+    // Alleen een tip: de code is niet nodig om na te kijken, wel om het leerplan later te herkennen.
+    voeg({ soort: 'herkomst', ernst: 'info', bericht: 'Je vulde geen leerplancode in (stap 1). Dat mag, maar met een code herken je het leerplan later makkelijker.' });
   }
 
   // ── Dekking ──

@@ -19,7 +19,7 @@ export async function leesPdfBestand(file: File): Promise<PdfStand> {
     return { status: 'fout', naam: file.name, fout: 'Kies een pdf-bestand.' };
   }
   if (file.size > MAX_PDF_MB * 1024 * 1024) {
-    return { status: 'fout', naam: file.name, fout: `Deze pdf is groter dan ${MAX_PDF_MB} MB. Lees het leerplan in delen in, of exporteer de pdf opnieuw met een lagere kwaliteit.` };
+    return { status: 'fout', naam: file.name, fout: `Deze pdf is groter dan ${MAX_PDF_MB} MB, dus Boosterz kan hem niet lezen. Lees dan alleen de pagina’s met de doelen in: kopieer ze en kies ‘Tekst plakken’.` };
   }
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());

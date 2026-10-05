@@ -80,6 +80,9 @@
 .il-waarschuwingen { margin-bottom: 12px; }
 .il-geen p { margin: 0 0 10px; }
 .il-geen ul { margin: 0 0 12px; padding-left: 1.2em; }
+.il-geen:focus { outline: none; }
+.il-geen:focus-visible { outline: 3px solid var(--brand); outline-offset: 4px; }
+.il-ai-hint { margin: 6px 0 12px; max-width: 60ch; }
 .il-preview { list-style: none; margin: 0 0 10px; padding: 0; }
 .il-preview > li {
   display: grid; gap: 2px 12px; padding: 9px 0; border-bottom: 1px solid var(--line);
@@ -92,6 +95,7 @@
 
 /* Stap 3: sets */
 .il-herkoppel { margin: 0 0 12px; max-width: 72ch; }
+.il-stroommelding { align-items: flex-start; margin: 0 0 12px; max-width: 72ch; }
 .il-setlijst { border: 0; margin: 0 0 20px; padding: 0; min-width: 0; }
 .il-setlijst legend { padding: 0; margin-bottom: 4px; font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; }
 .il-setuitleg { margin: 0 0 8px; max-width: 72ch; }
@@ -202,7 +206,16 @@
 .il-nav .btn { min-height: 44px; }
 .il-volgende { margin-left: auto; }
 .il-ontbreekt { margin: 4px 0 0; text-align: right; color: var(--text-soft); font-size: 0.92rem; }
-.il-page .btn[aria-disabled='true'] { opacity: 0.55; cursor: not-allowed; }
+/*
+ * Een knop die nog niet kan ("Volgende", "Bevestigen als nagekeken") blijft klikbaar, zodat hij zegt wat er ontbreekt (aria-disabled).
+ * Hij ziet er ook anders uit, zonder te vervagen: een gestippelde rand en een zachte achtergrond, met tekst die
+ * leesbaar blijft (minstens 4,5 : 1, ook in het donkere thema). Geen opacity: die maakt de tekst bleek en onleesbaar.
+ * Een echt `disabled` knop blijft zoals in de rest van de app.
+ */
+.il-page .btn[aria-disabled='true'],
+.il-page .btn[aria-disabled='true']:hover {
+  background: var(--bg-sunken); color: var(--text-soft); border: 2px dashed var(--text-soft); padding: 8px 15px; cursor: not-allowed;
+}
 .il-page .btn[aria-disabled='true']:active { transform: none; }
 
 @media (max-width: 640px) {

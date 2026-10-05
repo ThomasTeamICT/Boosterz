@@ -14,6 +14,7 @@ import {
 import { controleerLeerplan, type ControleRapport } from './curriculumCheck';
 import { htmlNaarTekst, NAAMSVERMELDING, type Minimumdoel, type MinimumdoelenSetBestand } from './minimumdoelen';
 import { datumLeesbaar } from './minimumdoelenBron';
+import { geldigheidVanBestand } from './setKeuze';
 import { uid } from './utils';
 
 /** Wie het leerplan "nagekeken" heeft: de officiële bron zelf, niet een leerkracht. */
@@ -187,9 +188,12 @@ function bouwLeerplanUitSet(bestand: MinimumdoelenSetBestand): LeerplanUitSet {
 
   const naam = s.korteNaam?.trim() || s.naam.trim();
   const niveau = [s.graad, s.stroom].map((t) => t?.trim()).filter(Boolean).join(' ');
+  // Een set die niet meer geldt, mag je nog gebruiken, maar de titel zegt het en er staat geen "geldig vanaf" bij: dat
+  // zou doen alsof ze nog geldt. (De vingerafdruk dekt alleen de doelen; de titel en de herkomst veranderen die niet.)
+  const verouderd = geldigheidVanBestand(bestand) === 'N';
   const herkomst: CurriculumHerkomst = { methode: 'officieel', ingelezenOp: Date.now() };
   if (s.versie) herkomst.versie = s.versie;
-  if (s.geldigVan) herkomst.geldigVanaf = s.geldigVan;
+  if (s.geldigVan && !verouderd) herkomst.geldigVanaf = s.geldigVan;
   if (s.bron) herkomst.bronUrl = s.bron;
   herkomst.bronNaam = s.id;
   if (s.sha256) herkomst.bronSha256 = s.sha256;
@@ -198,7 +202,7 @@ function bouwLeerplanUitSet(bestand: MinimumdoelenSetBestand): LeerplanUitSet {
   // Eerst saneren zoals een import dat doet, dan pas nakijken en bevestigen: zo is de vingerafdruk die
   // van de doelen zoals ze na exporteren en importeren terugkomen, en blijft het leerplan "nagekeken".
   const ruw = createCurriculum({
-      title: niveau ? `${naam} · ${niveau}` : naam,
+      title: `${niveau ? `${naam} · ${niveau}` : naam}${verouderd ? ' (niet meer geldig)' : ''}`,
       net: 'minimumdoelen',
       subject: naam,
       level: niveau,

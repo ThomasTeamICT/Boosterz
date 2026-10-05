@@ -12,8 +12,8 @@ import { bevestigLeerplan, saveCurriculum } from '../../../lib/curriculum';
 import { controleerLeerplan, type ControleRapport } from '../../../lib/curriculumCheck';
 import {
   aantalFouten, alleBevindingen, bewaarbareDoelen, bewaarNakijkerNaam, bouwOntwerp, bronHash, groepeerBevindingen,
-  pasDoelAan, redenenGeenBevestiging, ruimProblemenOp, saneerOntwerp, verwijderDoel, verwijderRef, vindDoelProblemen,
-  voegRefToe, zetRefs, type BronGegevens, type LeerplanKeuze,
+  isLeerplancodeBevinding, kopieerRecord, opId, pasDoelAan, redenenGeenBevestiging, ruimProblemenOp, saneerOntwerp, verwijderDoel,
+  verwijderRef, vindDoelProblemen, voegRefToe, zetRefs, type BronGegevens, type LeerplanKeuze,
 } from '../../../lib/leerplanInlezen';
 import type { MinimumdoelenSetBestand } from '../../../lib/minimumdoelen';
 import type { VerwijzingProbleem } from '../../../lib/minimumdoelVerwijzing';
@@ -37,6 +37,7 @@ type Wijzig<T> = (fn: (vorige: T) => T) => void;
 
 export function StapNakijken({
   bestaand, keuze, bron, doelen, onDoelen, problemen, onProblemen, fragmenten, setIds, setBestanden, ingelezenOp, nieuwId, naam, onNaam,
+  onNaarStap1,
 }: {
   /** Het leerplan dat nagekeken wordt; leeg bij een nieuw leerplan. */
   bestaand?: Curriculum;
@@ -57,6 +58,8 @@ export function StapNakijken({
   /** De naam van de nakijker: blijft staan als je een stap terug gaat. */
   naam: string;
   onNaam: (naam: string) => void;
+  /** Terug naar stap 1, bv. om de leerplancode in te vullen. */
+  onNaarStap1: () => void;
 }) {
   const toast = useToast();
   const navigate = useNavigate();
@@ -103,7 +106,7 @@ export function StapNakijken({
   const onTekst = useCallback((id: string, waarde: string) => { onDoelen((d) => pasDoelAan(d, id, { text: waarde })); markeer(id); }, [onDoelen, markeer]);
   const onVerwijder = useCallback((id: string) => {
     onDoelen((d) => verwijderDoel(d, id));
-    onProblemen((p) => { const { [id]: _weg, ...rest } = p; return rest; });
+    onProblemen((p) => kopieerRecord(p, [id]));
     toast('Doel verwijderd', 'ok');
   }, [onDoelen, onProblemen, toast]);
   const onVerwijderRef = useCallback((id: string, index: number) => onDoelen((d) => verwijderRef(d, id, index)), [onDoelen]);
@@ -140,7 +143,7 @@ export function StapNakijken({
 
   const statusVan = (id: string): DoelStatus => {
     if (!check || vuil.has(id)) return 'bezig';
-    return check.rapport.perDoel[id]?.letterlijk ?? 'overgeslagen';
+    return opId(check.rapport.perDoel, id)?.letterlijk ?? 'overgeslagen';
   };
 
   // Bewaren en bevestigen
@@ -177,8 +180,8 @@ export function StapNakijken({
   return (
     <div className="il-stap-inhoud">
       <p className="il-uitleg">
-        Vergelijk elk doel met de bron. Boosterz kijkt al na of elk doel letterlijk in de bron staat en of de verwijzingen kloppen. Pas aan wat niet klopt:
-        de lezer kan een doel verkeerd geknipt hebben.
+        Boosterz kijkt al na of elk doel letterlijk in de bron staat en of de verwijzingen kloppen. Boosterz kan een doel te kort of te lang afgebakend
+        hebben. Vergelijk elke tekst met de bron en pas aan.
       </p>
 
       {!ontwerp ? (
@@ -195,7 +198,7 @@ export function StapNakijken({
               <div><dt>Letterlijk in de bron</dt><dd>{tellers ? tellers.letterlijk : '…'}</dd></div>
               <div><dt>Niet letterlijk</dt><dd>{tellers ? tellers.nietLetterlijk : '…'}</dd></div>
               <div><dt>Verwijzingen in orde</dt><dd>{tellers ? `${tellers.verwijzingenOk} van ${tellers.verwijzingen}` : '…'}</dd></div>
-              <div><dt>Moet opgelost</dt><dd>{fouten}</dd></div>
+              <div><dt>Los dit eerst op</dt><dd>{fouten}</dd></div>
               <div><dt>Kijk dit na</dt><dd>{waarschuwingen}</dd></div>
             </dl>
             {nietGekoppeld > 0 && (
@@ -219,6 +222,9 @@ export function StapNakijken({
                           Ga naar {b.code?.trim() || 'het doel'}
                         </button>
                       )}
+                      {isLeerplancodeBevinding(b) && (
+                        <button type="button" className="il-link" onClick={onNaarStap1}>Naar stap 1</button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -232,8 +238,8 @@ export function StapNakijken({
               <li key={g.id}>
                 <DoelKaart
                   goal={g} nummer={i + 1} status={statusVan(g.id)}
-                  vindplaats={check?.rapport.perDoel[g.id]?.vindplaats} fragment={fragmenten[g.id]}
-                  problemen={problemen[g.id] ?? GEEN_PROBLEMEN} bestanden={setBestanden}
+                  vindplaats={opId(check?.rapport.perDoel, g.id)?.vindplaats} fragment={opId(fragmenten, g.id)}
+                  problemen={opId(problemen, g.id) ?? GEEN_PROBLEMEN} bestanden={setBestanden}
                   onCode={onCode} onTekst={onTekst} onVerwijder={onVerwijder} onVerwijderRef={onVerwijderRef} onKies={onKies} onVoegToe={onVoegToe}
                 />
               </li>
@@ -249,7 +255,7 @@ export function StapNakijken({
           <h4>Bevestigen als nagekeken</h4>
           <p className="hint">Het leerplan komt dan op slot, met je naam en de datum, en telt als nagekeken.</p>
           <div className="il-naamveld">
-            <Field label="Je naam" hint="Zo zien collega’s wie het leerplan nakeek. Je naam wordt op dit toestel onthouden.">
+            <Field label="Je naam" hint="Je naam komt bij het leerplan, ook als je het exporteert. Op dit toestel onthoudt Boosterz je naam voor de volgende keer.">
               <input id="il-naam" className="input" value={naam} autoComplete="name" onChange={(e) => onNaam(e.target.value)} />
             </Field>
           </div>

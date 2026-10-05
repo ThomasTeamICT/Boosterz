@@ -17,19 +17,21 @@ import { createCurriculum, normalizeGoalCode, sanitizeCurriculum, sanitizeGoal }
 import { leesNiveau, niveauTekst } from './leerplanNiveau';
 import { NET_KEUZES } from './leerplanNetten';
 import { leesLeerplan, naarCurriculumGoals, type LezerResultaat } from './leerplanLezer';
-import { geldigheidVanDoelen, type Minimumdoel, type MinimumdoelenIndexSet, type MinimumdoelenSetBestand } from './minimumdoelen';
-import { geldigheidTekst, geldigheidVan, soortVanSet, zonderAccenten, type GeldigheidCode, type SoortOnderwijs } from './minimumdoelenBron';
-import { losVerwijzingenOp, normaliseerMdCode, stelSetsVoor, vindVerwijzingen, type VerwijzingProbleem } from './minimumdoelVerwijzing';
+import type { Minimumdoel, MinimumdoelenIndexSet, MinimumdoelenSetBestand } from './minimumdoelen';
+import type { GeldigheidCode } from './minimumdoelenBron';
+import { geldigheidTekstVanBestand, geldigheidVanBestand, type OnderwijsKeuze } from './setKeuze';
+import { losVerwijzingenOp, normaliseerMdCode, vindVerwijzingen, type VerwijzingProbleem } from './minimumdoelVerwijzing';
 import { sha256Hex } from './sha256';
 
-/** Waar de AI-weg zit: de leerplannenpagina opent dan het AI-venster voor een nieuw leerplan. */
-export const AI_NIEUW_ROUTE = '/leerplannen?ai=nieuw';
+// De AI-weg en wat de wizard daarbij meegeeft, staan in een apart, licht bestand: de leerplannenpagina leest het ook.
+export { AI_NIEUW_ROUTE, maakAiVoorinvulling, type AiVoorinvulling } from './leerplanAiOverdracht';
+
+// De rangschikking van sets en de geldigheid staan in setKeuze.ts (ook de editor van de leerplannen gebruikt ze).
+export { geldigheidTekstVanBestand, geldigheidVanBestand, kandidaatSets, gemengdeStromen, type KandidaatOpties, type OnderwijsKeuze } from './setKeuze';
 
 // ── Stap 1: welk leerplan? ──────────────────────────────────────────────────
 
 export { GRAAD_OPTIES, STROOM_OPTIES, leesNiveau, niveauTekst } from './leerplanNiveau';
-
-export type OnderwijsKeuze = Exclude<SoortOnderwijs, 'ander'>;
 
 export const ONDERWIJS_OPTIES: readonly { id: OnderwijsKeuze; label: string }[] = [
   { id: 'so', label: 'Gewoon secundair onderwijs' },
@@ -87,6 +89,11 @@ export interface Ontbrekend {
   veld?: string;
   /** Een korte zin zonder hoofdletter of punt, bv. "vul het vak in". */
   tekst: string;
+  /**
+   * Het id van een stuk pagina dat dit al uitlegt (bv. de melding "Geen doelen gevonden"). De pagina zegt het
+   * dan niet nog eens onder de knop, maar verwijst de knop ernaar. Zo staat er één melding en geen drie.
+   */
+  elders?: string;
 }
 
 export function ontbreektInKeuze(k: LeerplanKeuze): Ontbrekend[] {
@@ -106,6 +113,29 @@ export function somLijst(delen: readonly string[]): string {
 /** "Nog nodig: kies een net en vul het vak in." Leeg als er niets ontbreekt. */
 export function zegOntbrekend(lijst: readonly Ontbrekend[]): string {
   return lijst.length === 0 ? '' : `Nog nodig: ${somLijst(lijst.map((o) => o.tekst))}.`;
+}
+
+// ── Opzoeken op doel-id ─────────────────────────────────────────────────────
+
+/**
+ * Een lege opzoektabel op doel-id, zonder prototype: een id als "constructor" of "__proto__" (uit een bestand van
+ * iemand anders) zoekt dan nooit iets op wat in elk object zit. Voor wat de wizard per doel bijhoudt (`problemen`,
+ * `fragmenten`). `sanitizeGoal` laat zulke id's trouwens niet meer door; dit is de tweede grendel.
+ */
+export function leegRecord<T>(): Record<string, T> {
+  return Object.create(null) as Record<string, T>;
+}
+
+/** Een kopie van een opzoektabel zonder prototype, zonder de sleutels in `weg`. */
+export function kopieerRecord<T>(bron: Readonly<Record<string, T>>, weg: readonly string[] = []): Record<string, T> {
+  const uit = leegRecord<T>();
+  for (const k of Object.keys(bron)) if (!weg.includes(k)) uit[k] = bron[k];
+  return uit;
+}
+
+/** Het item bij een doel-id, ook uit een gewone tabel (bv. `rapport.perDoel`): alleen een eigen sleutel telt. */
+export function opId<T>(bron: Readonly<Record<string, T>> | undefined, id: string): T | undefined {
+  return bron !== undefined && Object.prototype.hasOwnProperty.call(bron, id) ? bron[id] : undefined;
 }
 
 // ── Stap 2: de bron ─────────────────────────────────────────────────────────
@@ -161,7 +191,7 @@ export interface Gevonden {
 export function zoekDoelen(tekst: string, op: number = Date.now()): Gevonden {
   const resultaat = leesLeerplan(tekst);
   const goals: CurriculumGoal[] = [];
-  const fragmenten: Record<string, string> = {};
+  const fragmenten = leegRecord<string>();
   for (const doel of resultaat.doelen) {
     const goal = naarCurriculumGoals({ doelen: [doel], waarschuwingen: [], genegeerdeRegels: 0 })[0];
     if (!goal) continue;
@@ -203,46 +233,6 @@ export function aantalMetVerwijzing(goals: readonly CurriculumGoal[]): number {
   return goals.filter((g) => vindVerwijzingen(g.refsBron ?? '').length > 0).length;
 }
 
-/** Woorden uit het vak om sets op te herkennen: "Natuurwetenschappen" → ["natuurwetenschappen"]. */
-function vakWoorden(vak: string): string[] {
-  return zonderAccenten(vak).split(/[^\p{L}\d]+/u).filter((w) => w.length >= 3);
-}
-
-export interface KandidaatOpties {
-  graad: string;
-  stroom: string;
-  onderwijs: OnderwijsKeuze;
-  vak: string;
-  /** Sets die het leerplan al heeft: die staan altijd bij de kandidaten, vooraan. */
-  eigen: readonly string[];
-}
-
-/**
- * De sets die we voorstellen: `stelSetsVoor` bij graad en stroom, gefilterd op de soort onderwijs
- * (`soortVanSet`). Sets waarvan de naam het vak noemt komen vóór de rest, en sets die het leerplan al
- * had staan helemaal vooraan. Geen enkele set komt twee keer voor.
- */
-export function kandidaatSets(index: readonly MinimumdoelenIndexSet[], opties: KandidaatOpties): MinimumdoelenIndexSet[] {
-  const voorgesteld = stelSetsVoor(index, { graad: opties.graad, stroom: opties.stroom }).filter(
-    (s) => soortVanSet(s.naam) === opties.onderwijs,
-  );
-  const woorden = vakWoorden(opties.vak);
-  const noemtVak = (s: MinimumdoelenIndexSet) => {
-    if (woorden.length === 0) return false;
-    const delen = zonderAccenten(`${s.korteNaam ?? ''} ${s.naam}`).split(/[^\p{L}\d]+/u);
-    return woorden.some((w) => delen.some((d) => d === w || (w.length >= 5 && d.startsWith(w))));
-  };
-  const eigen = opties.eigen.map((id) => index.find((s) => s.id === id)).filter((s): s is MinimumdoelenIndexSet => s !== undefined);
-  const gezien = new Set<string>();
-  const uit: MinimumdoelenIndexSet[] = [];
-  for (const s of [...eigen, ...voorgesteld.filter(noemtVak), ...voorgesteld.filter((s) => !noemtVak(s))]) {
-    if (gezien.has(s.id)) continue;
-    gezien.add(s.id);
-    uit.push(s);
-  }
-  return uit;
-}
-
 export interface SetKandidaat {
   set: MinimumdoelenIndexSet;
   /** Ontbreekt zolang de set niet geladen is, of als laden mislukte. */
@@ -257,20 +247,6 @@ export interface SetKandidaat {
   geldigheidTekst?: string;
   /** Laden van deze set mislukte. */
   mislukt?: boolean;
-}
-
-/** Geldigheid van een geladen set: uit de kop, en bij oudere bestanden uit de doelen zelf. */
-function geldigheidBron(bestand: MinimumdoelenSetBestand) {
-  return bestand.set.geldigheid !== undefined ? bestand.set : geldigheidVanDoelen(bestand.doelen);
-}
-
-export function geldigheidVanBestand(bestand: MinimumdoelenSetBestand): GeldigheidCode | undefined {
-  return geldigheidVan(geldigheidBron(bestand));
-}
-
-/** "Geldig sinds 2024" of "Niet meer geldig (2019–2025)" voor een geladen set; `undefined` zonder gegevens. */
-export function geldigheidTekstVanBestand(bestand: MinimumdoelenSetBestand): string | undefined {
-  return geldigheidTekst(geldigheidBron(bestand));
 }
 
 /** Een kandidaat voor een set, met het aantal treffers van de codes uit de verwijzingen. */
@@ -309,6 +285,38 @@ export function kiesVooraf(kandidaten: readonly SetKandidaat[]): string[] {
   return uit;
 }
 
+function telTekst(n: number, enkel: string, meer: string): string {
+  return `${n.toLocaleString('nl-BE')} ${n === 1 ? enkel : meer}`;
+}
+
+/**
+ * Wat stap 3 zegt over de sets waarin de verwijzingen van het leerplan staan, uitgerekend uit wat er echt
+ * aangevinkt staat (`gekozen`): niet wat Boosterz vooraf aanvinkte, want de leerkracht kan dat veranderd hebben.
+ * "Je verwijzingen staan in 2 sets. De set die nu geldt, staat aangevinkt; de oude versie niet. Klopt dat? Klik dan op Volgende."
+ */
+export function beschrijfSetKeuze(kandidaten: readonly SetKandidaat[], gekozen: readonly string[]): string {
+  const met = kandidaten.filter((k) => k.treffers > 0 && !k.mislukt);
+  if (met.length === 0) return 'Geen enkele set bevat de verwijzingen uit je leerplan. Zoek hieronder de juiste set.';
+  const aan = met.filter((k) => gekozen.includes(k.set.id));
+  const af = met.filter((k) => !gekozen.includes(k.set.id));
+  const intro = `Je verwijzingen staan in ${telTekst(met.length, 'set', 'sets')}.`;
+  if (aan.length === 0) {
+    const zin = met.length === 1 ? 'Die set staat niet aangevinkt.' : 'Geen enkele staat aangevinkt.';
+    return `${intro} ${zin} Vink de juiste set aan, anders kan Boosterz je verwijzingen niet koppelen.`;
+  }
+  let midden: string;
+  if (af.length === 0) {
+    midden = met.length === 1 ? 'Die set staat aangevinkt.' : 'Ze staan allemaal aangevinkt.';
+  } else if (af.every((k) => k.geldigheid === 'N') && aan.every((k) => k.geldigheid !== 'N')) {
+    midden = aan.length === 1 && af.length === 1
+      ? 'De set die nu geldt, staat aangevinkt; de oude versie niet.'
+      : 'De sets die nu gelden, staan aangevinkt; de oude versies niet.';
+  } else {
+    midden = `${aan.length} van de ${met.length} ${aan.length === 1 ? 'staat' : 'staan'} aangevinkt.`;
+  }
+  return `${intro} ${midden} Klopt dat? Klik dan op Volgende.`;
+}
+
 export interface KoppelResultaat {
   goals: CurriculumGoal[];
   /** Per doel (op `id`) de verwijzingen die niet op één minimumdoel pasten. */
@@ -330,7 +338,7 @@ export function koppelDoelen(
   sets: readonly MinimumdoelenSetBestand[],
   opties: { alleenZonderRefs?: boolean } = {},
 ): KoppelResultaat {
-  const problemen: Record<string, VerwijzingProbleem[]> = {};
+  const problemen = leegRecord<VerwijzingProbleem[]>();
   let gekoppeld = 0;
   let nietGekoppeld = 0;
   const uit = goals.map((goal): CurriculumGoal => {
@@ -389,12 +397,13 @@ export function ruimProblemenOp(
   goalId: string,
   refs: readonly MinimumdoelRef[],
 ): Record<string, VerwijzingProbleem[]> {
-  const nu = problemen[goalId];
-  if (!nu) return { ...problemen };
+  const nu = opId(problemen, goalId);
+  if (!nu) return kopieerRecord(problemen);
   const opgelost = new Set(refs.map((r) => normaliseerMdCode(r.code)));
   const rest = nu.filter((p) => !opgelost.has(normaliseerMdCode(p.code)));
-  const { [goalId]: _weg, ...overige } = problemen;
-  return rest.length > 0 ? { ...overige, [goalId]: rest } : overige;
+  const uit = kopieerRecord(problemen, [goalId]);
+  if (rest.length > 0) uit[goalId] = rest;
+  return uit;
 }
 
 /** Eén verwijzing bij een doel zetten (niet twee keer dezelfde). */
@@ -534,7 +543,7 @@ export function bewaarbareDoelen(goals: readonly CurriculumGoal[]): CurriculumGo
 // ── Bevindingen en bevestigen ───────────────────────────────────────────────
 
 export const ERNST_TITEL: Record<BevindingErnst, string> = {
-  fout: 'Moet opgelost',
+  fout: 'Los dit eerst op',
   waarschuwing: 'Kijk dit na',
   info: 'Ter info',
 };
@@ -547,7 +556,7 @@ export interface BevindingGroep {
   items: Bevinding[];
 }
 
-/** De bevindingen per ernst, in de volgorde "Moet opgelost", "Kijk dit na", "Ter info"; lege groepen vallen weg. */
+/** De bevindingen per ernst, in de volgorde "Los dit eerst op", "Kijk dit na", "Ter info"; lege groepen vallen weg. */
 export function groepeerBevindingen(bevindingen: readonly Bevinding[]): BevindingGroep[] {
   return ERNST_VOLGORDE.map((ernst) => ({ ernst, titel: ERNST_TITEL[ernst], items: bevindingen.filter((b) => b.ernst === ernst) })).filter(
     (g) => g.items.length > 0,
@@ -559,13 +568,21 @@ export function alleBevindingen(rapport: ControleRapport | undefined, doelProble
   return [...doelProblemen, ...(rapport?.bevindingen ?? [])];
 }
 
+/**
+ * De bevinding dat het leerplan geen leerplancode heeft (alleen een tip: ernst 'info', soort 'herkomst'). Stap 4
+ * zet er een knop "Naar stap 1" bij, want daar vul je de code in.
+ */
+export function isLeerplancodeBevinding(b: Bevinding): boolean {
+  return b.soort === 'herkomst' && b.ernst === 'info';
+}
+
 export function aantalFouten(bevindingen: readonly Bevinding[]): number {
   return bevindingen.filter((b) => b.ernst === 'fout').length;
 }
 
-/** "Los eerst 2 punten op die moeten opgelost worden." */
+/** "Los eerst 2 punten op (zie ‘Los dit eerst op’)." Zo heet de groep met die punten in het overzicht. */
 export function puntenTekst(n: number): string {
-  return n === 1 ? 'Los eerst 1 punt op dat moet opgelost worden.' : `Los eerst ${n} punten op die moeten opgelost worden.`;
+  return `Los eerst ${n} ${n === 1 ? 'punt' : 'punten'} op (zie ‘${ERNST_TITEL.fout}’).`;
 }
 
 export interface BevestigStand {

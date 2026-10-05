@@ -8,9 +8,10 @@ import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from './minimumdo
 import { effectieveStatus } from './leerplanStatus';
 import { NET_KEUZES, NET_LINKS, netLinkVoor } from './leerplanNetten';
 import {
-  aantalFouten, aantalMetVerwijzing, alleBevindingen, bewaarbareDoelen, bewaarNakijkerNaam, bouwOntwerp, bronHash, bronKomtOvereen,
-  codesUitDoelen, geldigheidTekstVanBestand, geldigheidVanBestand, groepeerBevindingen, kandidaatSets, keuzeUitLeerplan, kiesKandidaat,
-  kiesVooraf, koppelDoelen, legeKeuze, leesNakijkerNaam, leesNiveau, maakKandidaat, niveauTekst, ontbreektInKeuze,
+  aantalFouten, aantalMetVerwijzing, alleBevindingen, beschrijfSetKeuze, bewaarbareDoelen, bewaarNakijkerNaam, bouwOntwerp, bronHash,
+  bronKomtOvereen, codesUitDoelen, gemengdeStromen, geldigheidTekstVanBestand, geldigheidVanBestand, groepeerBevindingen, isLeerplancodeBevinding,
+  kandidaatSets, keuzeUitLeerplan, kiesKandidaat, kiesVooraf, koppelDoelen, kopieerRecord, leegRecord, legeKeuze, leesNakijkerNaam,
+  leesNiveau, maakKandidaat, niveauTekst, ontbreektInKeuze, opId,
   pasDoelAan, puntenTekst, rangschik, redenenGeenBevestiging, ruimProblemenOp, saneerOntwerp, somLijst,
   stelTitelVoor, verwijderDoel, verwijderRef, vindDoelProblemen, zegOntbrekend, zetRefs, zoekDoelen, zoekMinimumdoel,
   type BronGegevens, type LeerplanKeuze,
@@ -448,7 +449,7 @@ describe('bevindingen en bevestigen', () => {
 
   it('groepeert per ernst in vaste volgorde en laat lege groepen weg', () => {
     const groepen = groepeerBevindingen([b('info', 'i'), b('fout', 'f1'), b('waarschuwing', 'w'), b('fout', 'f2')]);
-    expect(groepen.map((x) => x.titel)).toEqual(['Moet opgelost', 'Kijk dit na', 'Ter info']);
+    expect(groepen.map((x) => x.titel)).toEqual(['Los dit eerst op', 'Kijk dit na', 'Ter info']);
     expect(groepen[0].items.map((x) => x.bericht)).toEqual(['f1', 'f2']);
     expect(groepeerBevindingen([b('info', 'i')]).map((x) => x.ernst)).toEqual(['info']);
     expect(groepeerBevindingen([])).toEqual([]);
@@ -466,8 +467,8 @@ describe('bevindingen en bevestigen', () => {
   });
 
   it('schrijft het aantal punten goed', () => {
-    expect(puntenTekst(1)).toBe('Los eerst 1 punt op dat moet opgelost worden.');
-    expect(puntenTekst(2)).toBe('Los eerst 2 punten op die moeten opgelost worden.');
+    expect(puntenTekst(1)).toBe('Los eerst 1 punt op (zie ‘Los dit eerst op’).');
+    expect(puntenTekst(2)).toBe('Los eerst 2 punten op (zie ‘Los dit eerst op’).');
   });
 
   const klaar = { heeftOntwerp: true, heeftBron: true, rapportFris: true, fouten: 0, naam: 'Dries', vergeleken: true };
@@ -477,7 +478,7 @@ describe('bevindingen en bevestigen', () => {
   });
 
   it('zegt precies waarom bevestigen niet kan, in de volgorde van oplossen', () => {
-    expect(redenenGeenBevestiging({ ...klaar, fouten: 2 })).toEqual(['Los eerst 2 punten op die moeten opgelost worden.']);
+    expect(redenenGeenBevestiging({ ...klaar, fouten: 2 })).toEqual(['Los eerst 2 punten op (zie ‘Los dit eerst op’).']);
     expect(redenenGeenBevestiging({ ...klaar, naam: '  ' })).toEqual(['Vul je naam in.']);
     expect(redenenGeenBevestiging({ ...klaar, vergeleken: false })).toEqual(['Vink aan dat je elk doel met de bron hebt vergeleken.']);
     expect(redenenGeenBevestiging({ ...klaar, heeftBron: false })[0]).toMatch(/geen bron/);
@@ -505,5 +506,125 @@ describe('de naam van de nakijker onthouden', () => {
     vi.stubGlobal('localStorage', { getItem: () => { throw new Error('geblokkeerd'); }, setItem: () => { throw new Error('vol'); } });
     expect(leesNakijkerNaam()).toBe('');
     expect(() => bewaarNakijkerNaam('An')).not.toThrow();
+  });
+});
+
+// ── Stap 3: wat er echt aangevinkt staat (A4) ───────────────────────────────
+
+describe('beschrijfSetKeuze: de zin komt uit wat echt aangevinkt staat', () => {
+  const nieuw = maakKandidaat(indexSet('ODS_3287'), bestand('ODS_3287', [{ id: '1', code: '09.01', geldigheid: 'Geldig' }]), ['09.01']);
+  const oud = maakKandidaat(indexSet('ODS_2447'), bestand('ODS_2447', [{ id: '2', code: '9.1', geldigheid: 'Niet meer geldig' }]), ['09.01']);
+  const andere = maakKandidaat(indexSet('ODS_5'), bestand('ODS_5', [{ id: '3', code: '09.01', geldigheid: 'Geldig' }]), ['09.01']);
+  const zonder = maakKandidaat(indexSet('ODS_2118'), bestand('ODS_2118', [{ id: '4', code: '1', geldigheid: 'Geldig' }]), ['09.01']);
+
+  it('de nieuwe set staat aan, de oude niet: zegt het zo', () => {
+    expect(beschrijfSetKeuze([nieuw, oud, zonder], ['ODS_3287'])).toBe(
+      'Je verwijzingen staan in 2 sets. De set die nu geldt, staat aangevinkt; de oude versie niet. Klopt dat? Klik dan op Volgende.',
+    );
+  });
+
+  it('als de leerkracht de oude ook aanvinkt, klopt de zin nog: alles staat aan', () => {
+    expect(beschrijfSetKeuze([nieuw, oud], ['ODS_3287', 'ODS_2447'])).toBe(
+      'Je verwijzingen staan in 2 sets. Ze staan allemaal aangevinkt. Klopt dat? Klik dan op Volgende.',
+    );
+  });
+
+  it('één set, aan of uit', () => {
+    expect(beschrijfSetKeuze([nieuw, zonder], ['ODS_3287'])).toBe('Je verwijzingen staan in 1 set. Die set staat aangevinkt. Klopt dat? Klik dan op Volgende.');
+    expect(beschrijfSetKeuze([nieuw, zonder], [])).toBe(
+      'Je verwijzingen staan in 1 set. Die set staat niet aangevinkt. Vink de juiste set aan, anders kan Boosterz je verwijzingen niet koppelen.',
+    );
+    expect(beschrijfSetKeuze([nieuw, andere], [])).toBe(
+      'Je verwijzingen staan in 2 sets. Geen enkele staat aangevinkt. Vink de juiste set aan, anders kan Boosterz je verwijzingen niet koppelen.',
+    );
+  });
+
+  it('twee sets die allebei gelden, waarvan er één aanstaat: telt het zonder iets te veronderstellen', () => {
+    expect(beschrijfSetKeuze([nieuw, andere], ['ODS_3287'])).toBe('Je verwijzingen staan in 2 sets. 1 van de 2 staat aangevinkt. Klopt dat? Klik dan op Volgende.');
+  });
+
+  it('meer oude en nieuwe sets: de meervoudsvorm', () => {
+    expect(beschrijfSetKeuze([nieuw, andere, oud], ['ODS_3287', 'ODS_5'])).toBe(
+      'Je verwijzingen staan in 3 sets. De sets die nu gelden, staan aangevinkt; de oude versies niet. Klopt dat? Klik dan op Volgende.',
+    );
+  });
+
+  it('geen enkele set met verwijzingen, of een set die niet geladen werd: telt niet mee', () => {
+    expect(beschrijfSetKeuze([zonder], [])).toBe('Geen enkele set bevat de verwijzingen uit je leerplan. Zoek hieronder de juiste set.');
+    expect(beschrijfSetKeuze([maakKandidaat(indexSet('ODS_7'), undefined, ['09.01'])], ['ODS_7'])).toBe(
+      'Geen enkele set bevat de verwijzingen uit je leerplan. Zoek hieronder de juiste set.',
+    );
+  });
+});
+
+describe('stap 3: één stroom (A5)', () => {
+  it('meldt sets van de A- én de B-stroom, ook via de index', () => {
+    const sets = [indexSet('ODS_1'), indexSet('ODS_2', { stroom: 'B-stroom' })];
+    expect(gemengdeStromen(sets)).toBe(true);
+    expect(gemengdeStromen([sets[0]])).toBe(false);
+  });
+});
+
+// ── Opzoeken op doel-id (B7) ────────────────────────────────────────────────
+
+describe('opzoektabellen op doel-id hebben geen prototype', () => {
+  it('leegRecord, kopieerRecord en opId lezen nooit uit het prototype', () => {
+    const r = leegRecord<number>();
+    expect(Object.getPrototypeOf(r)).toBeNull();
+    for (const id of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+      expect(opId(r, id)).toBeUndefined();
+      expect(opId({}, id)).toBeUndefined(); // ook een gewone tabel (zoals rapport.perDoel)
+      r[id] = 1;
+      expect(opId(r, id)).toBe(1);
+    }
+    const kopie = kopieerRecord(r, ['constructor']);
+    expect(Object.getPrototypeOf(kopie)).toBeNull();
+    expect(opId(kopie, 'constructor')).toBeUndefined();
+    expect(opId(kopie, '__proto__')).toBe(1);
+    expect(opId(undefined, 'a')).toBeUndefined();
+  });
+
+  it('koppelDoelen, ruimProblemenOp en kiesKandidaat werken ook met een doel dat "constructor" heet', () => {
+    const andere = bestand('ODS_9', [{ id: '201', code: '9.7', rubriek: 'A' }, { id: '202', code: '9.7', rubriek: 'B' }]);
+    const doelen: CurriculumGoal[] = [
+      { id: 'constructor', code: 'A 1', text: 'één', refsBron: 'MD 09.07' },
+      { id: '__proto__', code: 'A 2', text: 'twee', refsBron: 'MD 09.99' },
+      { id: 'gewoon', code: 'A 3', text: 'drie' },
+    ];
+    const r = koppelDoelen(doelen, [andere]);
+    expect(opId(r.problemen, 'constructor')?.[0]).toMatchObject({ code: '09.07', soort: 'dubbelzinnig' });
+    expect(opId(r.problemen, '__proto__')?.[0]).toMatchObject({ code: '09.99', soort: 'onbekend' });
+    expect(opId(r.problemen, 'gewoon')).toBeUndefined();
+    expect(Object.getPrototypeOf(r.problemen)).toBeNull();
+
+    const kandidaat = opId(r.problemen, 'constructor')?.[0].kandidaten[0];
+    const gekozen = kiesKandidaat(r.goals, r.problemen, 'constructor', kandidaat as NonNullable<typeof kandidaat>);
+    expect(opId(gekozen.problemen, 'constructor')).toBeUndefined();
+    expect(opId(gekozen.problemen, '__proto__')).toHaveLength(1);
+    expect(gekozen.goals[0].refs).toHaveLength(1);
+    const op = ruimProblemenOp(r.problemen, 'gewoon', []);
+    expect(Object.keys(op).sort()).toEqual(['__proto__', 'constructor']);
+  });
+
+  it('zoekDoelen zet de fragmenten in een tabel zonder prototype', () => {
+    const g = zoekDoelen(TEKST);
+    expect(Object.getPrototypeOf(g.fragmenten)).toBeNull();
+    expect(opId(g.fragmenten, g.goals[0].id)).toContain(g.goals[0].code);
+  });
+});
+
+// ── Kleine hulpjes voor de schermen ─────────────────────────────────────────
+
+describe('hulp bij het nakijken', () => {
+  it('de titel van een fout is "Los dit eerst op"', () => {
+    const groepen = groepeerBevindingen([{ soort: 'volledig', ernst: 'fout', bericht: 'f' }]);
+    expect(groepen[0].titel).toBe('Los dit eerst op');
+  });
+
+  it('herkent de tip over de leerplancode, en niets anders', () => {
+    const b = (soort: Bevinding['soort'], ernst: Bevinding['ernst']): Bevinding => ({ soort, ernst, bericht: 'x' });
+    expect(isLeerplancodeBevinding(b('herkomst', 'info'))).toBe(true);
+    expect(isLeerplancodeBevinding(b('herkomst', 'fout'))).toBe(false);
+    expect(isLeerplancodeBevinding(b('dekking', 'info'))).toBe(false);
   });
 });

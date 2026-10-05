@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
-  controleStatus, doelenVingerafdruk, exportCurriculumJson, importCurriculumJson, maakEigenKopie, normalizeGoalCode,
+  MAX_DOELEN, MAX_DOELTEKST, MAX_DOELTHEMA, controleStatus, doelenVingerafdruk, exportCurriculumJson, importCurriculumJson,
+  maakEigenKopie, normalizeGoalCode, normaliseerDoeltekst,
 } from './curriculum';
 import type { Curriculum } from './curriculumTypes';
 import { htmlNaarTekst, type Minimumdoel, type MinimumdoelenSetBestand } from './minimumdoelen';
@@ -360,11 +361,81 @@ describe('vindLeerplanVoorSet: alleen een leerplan dat een verse afleiding uit d
   });
 });
 
+// ── Een set die niet meer geldt ─────────────────────────────────────────────
+
+describe('leerplanUitSet: een set die niet meer geldt', () => {
+  /** De set uit `maakBestand`, met de geldigheid uit de kop vervangen. */
+  function oudeSet(kop: Partial<MinimumdoelenSetBestand['set']>): MinimumdoelenSetBestand {
+    const b = maakBestand();
+    delete b.set.geldigheid;
+    delete b.set.geldigVan;
+    Object.assign(b.set, kop);
+    return b;
+  }
+
+  it('zet "(niet meer geldig)" achter de titel en geen "geldig vanaf" in de herkomst', () => {
+    const { leerplan } = leerplanUitSet(oudeSet({ geldigheid: 'Niet meer geldig', geldigVan: '1997-09-01', geldigTot: '2020-08-31' }));
+    expect(leerplan.title).toBe('Artistieke Opvoeding · 1ste graad A-stroom (niet meer geldig)');
+    expect(leerplan.herkomst?.geldigVanaf).toBeUndefined();
+    expect(leerplan.herkomst?.versie).toBe('1.0');
+    expect(leerplan.subject).toBe('Artistieke Opvoeding');
+  });
+
+  it('haalt de geldigheid ook uit de doelen als de kop ze niet heeft (oudere bestanden)', () => {
+    const oud = { type: 'Niet meer geldig', geldig_van_dt: '1997-09-01T00:00:00Z', geldig_tot_dt: '2020-08-31T00:00:00Z' };
+    const b = maakBestand([
+      { id: '1', code: '1', tekst: 'Eerste.', extra: { geldigheid: oud } },
+      { id: '2', code: '2', tekst: 'Tweede.', extra: { geldigheid: oud } },
+    ]);
+    delete b.set.geldigheid;
+    b.set.geldigVan = '1997-09-01';
+    const { leerplan } = leerplanUitSet(b);
+    expect(leerplan.title).toBe('Artistieke Opvoeding · 1ste graad A-stroom (niet meer geldig)');
+    expect(leerplan.herkomst?.geldigVanaf).toBeUndefined();
+  });
+
+  it('een set die geldt, een onbekende geldigheid en een set zonder gegevens veranderen niets', () => {
+    for (const kop of [{ geldigheid: 'Geldig', geldigVan: '2024-09-01' }, { geldigheid: 'Onbekend', geldigVan: '2024-09-01' }, { geldigVan: '2024-09-01' }]) {
+      const { leerplan } = leerplanUitSet(oudeSet(kop));
+      expect(leerplan.title).toBe('Artistieke Opvoeding · 1ste graad A-stroom');
+      expect(leerplan.herkomst?.geldigVanaf).toBe('2024-09-01');
+    }
+  });
+
+  it('blijft een nagekeken leerplan, en vindLeerplanVoorSet vindt het nog steeds (de titel telt niet mee)', () => {
+    const b = oudeSet({ geldigheid: 'Niet meer geldig', geldigVan: '1997-09-01', geldigTot: '2020-08-31' });
+    const { leerplan, waarschuwingen } = leerplanUitSet(b);
+    // Alleen de bekende waarschuwing van de nagemaakte set (een doel zonder vast nummer): niets over de geldigheid.
+    expect(waarschuwingen).toEqual(['1 doel zonder vast nummer is overgeslagen.']);
+    expect(controleStatus(leerplan)).toBe('gecontroleerd');
+    const bewaard = importCurriculumJson(exportCurriculumJson(leerplan)) as Curriculum;
+    expect(controleStatus(bewaard)).toBe('gecontroleerd');
+    expect(vindLeerplanVoorSet([bewaard], b)).toBe(bewaard);
+    // De doelen en hun vingerafdruk zijn dezelfde als van dezelfde set die nog geldt.
+    expect(doelenVingerafdruk(leerplan.goals)).toBe(doelenVingerafdruk(leerplanUitSet(maakBestand()).leerplan.goals));
+  });
+});
+
 // ── Met de echte bestanden van laag 1 ───────────────────────────────────────
 
 describe('leerplanUitSet met alle meegeleverde sets', () => {
   const map = join(fileURLToPath(new URL('../../', import.meta.url)), 'public', 'leerplannen', 'minimumdoelen');
   const bestanden = existsSync(map) ? readdirSync(map).filter((f) => /^ODS_\d+\.json$/.test(f)) : [];
+
+  it.runIf(bestanden.length > 0)('geen enkele officiële set raakt de grenzen van het saneren (te lange tekst, rubriek of toelichting, te veel doelen)', () => {
+    const fouten: string[] = [];
+    for (const f of bestanden) {
+      const bestand = JSON.parse(readFileSync(join(map, f), 'utf8')) as MinimumdoelenSetBestand;
+      if (bestand.doelen.length > MAX_DOELEN) fouten.push(`${f}: ${bestand.doelen.length} doelen`);
+      for (const d of bestand.doelen) {
+        const tekst = normaliseerDoeltekst(htmlNaarTekst(d.tekst)).length;
+        const thema = themaVanDoel(d)?.length ?? 0;
+        if (tekst > MAX_DOELTEKST) fouten.push(`${f} ${d.code}: tekst van ${tekst} tekens`);
+        if (thema > MAX_DOELTHEMA) fouten.push(`${f} ${d.code}: rubriek van ${thema} tekens`);
+      }
+    }
+    expect(fouten).toEqual([]);
+  });
 
   it.runIf(bestanden.length > 0)('blijft nagekeken na exporteren en importeren, zonder doelen te verliezen', () => {
     const fouten: string[] = [];

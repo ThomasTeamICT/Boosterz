@@ -96,7 +96,7 @@ export function MinimumdoelKiezer({
         <>
           <Field label="Zoek een minimumdoel" hint="Op code (bv. 09.02) of op een woord uit de tekst">
             <input
-              type="search" className="input" value={zoek} autoComplete="off" spellCheck={false}
+              type="search" className="input" value={zoek} autoComplete="off" spellCheck={false} autoFocus
               onChange={(e) => { setZoek(e.target.value); setLimiet(STAP); }}
             />
           </Field>

@@ -257,7 +257,9 @@ describe('leesLeerplan: randgevallen', () => {
   it('meldt dubbele codes', () => {
     const res = leesLeerplan('LPD 1 De leerlingen tellen.\nLPD 2 De leerlingen meten.\nLPD 2 De leerlingen wegen.');
     expect(res.doelen).toHaveLength(3);
-    expect(res.waarschuwingen.some((w) => w.includes('LPD 2 komt 2 keer voor (regels 2, 3)'))).toBe(true);
+    expect(res.waarschuwingen.some((w) => w.includes('De code LPD 2 komt 2 keer voor.'))).toBe(true);
+    // Het doel wordt genoemd, geen regelnummer.
+    expect(res.waarschuwingen.every((w) => !/\bregels?\s+\d/i.test(w))).toBe(true);
   });
 
   it('meldt mogelijke tweekoloms opmaak', () => {
@@ -411,28 +413,28 @@ describe('leesLeerplan: een regel met een kleine letter loopt door', () => {
 });
 
 describe('leesLeerplan: wat niet gelezen werd, wordt gemeld', () => {
-  it('een regel met een code van het patroon die geen doel werd, met regelnummer', () => {
+  it('een regel met een code van het patroon die geen doel werd, met het doel erbij (geen regelnummer)', () => {
     const res = leesLeerplan('LPD 1 De leerlingen kunnen een kaart lezen.\nLPD 2 De leerlingen kunnen een kompas gebruiken.\nLPD 3 aan de hand van een kaart de ligging bepalen.');
     expect(res.doelen.map((d) => d.code)).toEqual(['LPD 1', 'LPD 2']);
     expect(res.waarschuwingen).toContain(
-      'Regel 3 begint met LPD 3, maar de lezer las er geen doel in ("LPD 3 aan de hand van een kaart de ligging bepalen."). Kijk na of daar een doel staat.',
+      'Bij LPD 3 las Boosterz geen doel ("LPD 3 aan de hand van een kaart de ligging bepalen."). Kijk na of daar een doel staat.',
     );
     const drieD = leesLeerplan('LPD 1 De leerlingen kunnen een kaart lezen.\nLPD 2 De leerlingen kunnen een kompas gebruiken.\nLPD 3 3D-vormen herkennen.');
-    expect(drieD.waarschuwingen.some((w) => w.startsWith('Regel 3 begint met LPD 3'))).toBe(true);
+    expect(drieD.waarschuwingen.some((w) => w.startsWith('Bij LPD 3 las Boosterz geen doel'))).toBe(true);
   });
 
   it('werkt ook bij samengestelde nummers, maar meldt geen kop met minder delen ("1.2 Mengsels")', () => {
     const res = leesLeerplan('1.1.1 De leerlingen tellen.\n1.1.2 De leerlingen meten.\n1.2 Mengsels\n1.2.1 (zie bijlage 3)\n1.2.2 De leerlingen wegen.');
     expect(res.doelen.map((d) => d.code)).toEqual(['1.1.1', '1.1.2', '1.2.2']);
-    expect(res.waarschuwingen.some((w) => w.startsWith('Regel 3 '))).toBe(false);
-    expect(res.waarschuwingen.some((w) => w.startsWith('Regel 4 begint met 1.2.1'))).toBe(true);
+    expect(res.waarschuwingen.some((w) => w.startsWith('Bij 1.2 '))).toBe(false);
+    expect(res.waarschuwingen.some((w) => w.startsWith('Bij 1.2.1 las Boosterz geen doel'))).toBe(true);
   });
 
-  it('meldt elke regel: de eerste 20 apart, de rest samen met hun regelnummers', () => {
+  it('meldt elke code: de eerste 20 apart, de rest samen met hun codes', () => {
     const regels = ['LPD 1 De leerlingen tellen.', ...Array.from({ length: 25 }, (_, i) => `LPD ${i + 2} en verder`)];
     const res = leesLeerplan(regels.join('\n'));
-    expect(res.waarschuwingen.filter((w) => w.startsWith('Regel ')).length).toBe(20);
-    expect(res.waarschuwingen).toContain('Nog meer regels beginnen met een code maar werden geen doel: regels 22, 23, 24, 25, 26. Kijk na of daar doelen staan.');
+    expect(res.waarschuwingen.filter((w) => /^Bij LPD \d+ las Boosterz geen doel/.test(w)).length).toBe(20);
+    expect(res.waarschuwingen).toContain('Nog meer codes staan vooraan een regel maar werden geen doel: LPD 22, LPD 23, LPD 24, LPD 25, LPD 26. Kijk na of daar doelen staan.');
   });
 
   it('een tweede nummering met "De leerlingen", ook onder de drempel van 80 %', () => {
@@ -441,14 +443,17 @@ describe('leesLeerplan: wat niet gelezen werd, wordt gemeld', () => {
     expect(res.doelen).toHaveLength(5);
     expect(res.waarschuwingen.some((w) => w.startsWith('Twee nummeringen'))).toBe(false);
     expect(res.waarschuwingen).toContain(
-      'Er staan ook doelen in een andere nummering: samengestelde nummers met 3 delen (bv. 1.2.3 op regel 6, 2 keer: regels 6, 7). De lezer las alleen LPD-nummers; kijk na of die doelen erbij horen.',
+      'Er staan ook doelen in een andere nummering: nummers zoals 1.2.3 (2 keer). Boosterz las alleen nummers zoals LPD 1; kijk na of die doelen erbij horen.',
     );
   });
 
   it('codes vooraan zonder doelzin (de stam staat erboven): een hint', () => {
     const res = leesLeerplan('De leerlingen kunnen\nLPD 1 een kaart lezen.\nLPD 2 een kompas gebruiken.\nLPD 3 de ligging bepalen.');
     expect(res.doelen).toEqual([]);
-    expect(res.waarschuwingen[1]).toContain('Regel 2, 3, 4 begint wel met een code (bv. LPD 1)');
+    expect(res.waarschuwingen[1]).toContain('Er staan wel codes vooraan een regel (bv. LPD 1, LPD 2, LPD 3)');
+    // Geen "voeg de doelen met de hand toe": wel de vraag of de tekst de doelen met hun code bevat.
+    expect(res.waarschuwingen.join(' ')).not.toMatch(/met de hand/);
+    expect(res.waarschuwingen[0]).toContain('Kijk na of de tekst de doelen met hun code bevat.');
   });
 });
 
@@ -457,7 +462,7 @@ describe('leesLeerplan: afbreking en paginanummers', () => {
     const res = leesLeerplan('LPD 1 De leerlingen kunnen een e-\nmail versturen.\nLPD 2 De leerlingen kunnen een auto-\nongeluk melden over sociaal-\neconomische zaken.');
     expect(res.doelen[0]).toMatchObject({ tekst: 'De leerlingen kunnen een email versturen.', afbrekingen: ['e-|mail → email'] });
     expect(res.doelen[1].afbrekingen).toEqual(['auto-|ongeluk → autoongeluk', 'sociaal-|economische → sociaaleconomische']);
-    expect(res.waarschuwingen).toContain('LPD 1 (regel 1): afbreking hersteld: e-|mail → email; kijk na of het streepje bij het woord hoort.');
+    expect(res.waarschuwingen).toContain('LPD 1: afbreking hersteld: e-|mail → email; kijk na of het streepje bij het woord hoort.');
     // Een streepje dat blijft ("Noord-Amerika") of een voegwoord ("natuur- en") is geen herstel.
     expect(leesLeerplan('LPD 1 De leerlingen situeren Noord-\nAmerika en natuur-\nen milieu.').doelen[0]).not.toHaveProperty('afbrekingen');
   });
@@ -480,7 +485,7 @@ describe('leesLeerplan: afbreking en paginanummers', () => {
     const res = leesLeerplan('LPD 1 De leerlingen kunnen getallen tot\n12\n\fordenen en vergelijken.\nLPD 2 De leerlingen meten.');
     expect(res.doelen[0].tekst).toBe('De leerlingen kunnen getallen tot ordenen en vergelijken.');
     expect(res.waarschuwingen).toContain(
-      'LPD 1 (regel 1): de lezer sloeg regel 2 ("12") over als paginanummer, midden in het doel. Kijk na of dat getal bij de tekst hoort.',
+      'LPD 1: Boosterz sloeg het getal "12" over als paginanummer, midden in het doel. Kijk na of dat getal bij de tekst hoort.',
     );
   });
 
@@ -492,6 +497,49 @@ describe('leesLeerplan: afbreking en paginanummers', () => {
     // Midden op een pagina: inhoud.
     const midden = ['LPD 1 De leerlingen tellen.', 'a', 'b', 'c', '42', 'd', 'e', 'f', 'g'];
     expect(kopEnVoetregels(midden).has(4)).toBe(false);
+  });
+});
+
+describe('leesLeerplan: de berichten zijn voor de leerkracht (geen "de lezer", geen regelnummer)', () => {
+  const LASTIGE_TEKSTEN = [
+    'Dit is een inleiding zonder doelen.\nZe vertelt over de visie.',
+    'De leerlingen kunnen\nLPD 1 een kaart lezen.\nLPD 2 een kompas gebruiken.',
+    'LPD 1 De leerlingen tellen.\nLPD 2\nLPD 3 De leerlingen meten.',
+    'LPD 1 De leerlingen tellen.\nLPD 2 De leerlingen meten.\nLPD 2 De leerlingen wegen.',
+    'LPD 1 De leerlingen tellen. LPD 4 De leerlingen wegen.\nLPD 2 De leerlingen meten. LPD 5 De leerlingen gieten.',
+    'LPD 1 De leerlingen kunnen een e-\nmail versturen.',
+    'LPD 1 De leerlingen kunnen getallen tot\n12\n\fordenen en vergelijken.\nLPD 2 De leerlingen meten.',
+    'LPD 1 De leerlingen tellen.\nLPD 2 De leerlingen meten.\n1.2.3 De leerlingen kunnen iets anders doen.\n1.2.4 De leerlingen kunnen nog iets doen.',
+  ];
+
+  it('geen enkele melding noemt "de lezer", een regelnummer of "met de hand"', () => {
+    for (const tekst of LASTIGE_TEKSTEN) {
+      for (const w of leesLeerplan(tekst).waarschuwingen) {
+        expect(w, w).not.toMatch(/\blezer\b|\bregels?\s+\d|\(regel|met de hand/i);
+      }
+    }
+  });
+
+  it('een doel zonder tekst: bij welk doel', () => {
+    const res = leesLeerplan('LPD 1 De leerlingen tellen.\nLPD 2\nLPD 3 De leerlingen meten.');
+    expect(res.waarschuwingen).toContain('LPD 2 ontbreekt: staat het niet in de bron, of vond Boosterz het niet?');
+    expect(res.waarschuwingen).toContain('Bij LPD 2 las Boosterz geen doel ("LPD 2"). Kijk na of daar een doel staat.');
+  });
+
+  it('het woord "uitbreiding" op een onbekende plaats: bij het doel, anders op de bladzijde, anders zonder plaats', () => {
+    const inDoel = leesLeerplan('LPD 1 De leerlingen kunnen tellen (uitbreidingsdoel voor sterke leerlingen).\nLPD 2 De leerlingen meten.');
+    expect(inDoel.waarschuwingen[0]).toMatch(/^Bij LPD 1 staat het woord "uitbreiding" op een plaats die Boosterz niet kon thuisbrengen\./);
+    const opPagina = leesLeerplan('— p. 2 —\nLPD 1 De leerlingen tellen.\nLPD 2 De leerlingen meten.\n\n— p. 3 —\nToelichting: (uitbreiding) voor wie sneller werkt.');
+    expect(opPagina.waarschuwingen[0]).toMatch(/^Op bladzijde 3 staat het woord "uitbreiding"/);
+    const zonderPlaats = leesLeerplan('LPD 1 De leerlingen tellen.\nLPD 2 De leerlingen meten.\n\nToelichting: (uitbreiding) voor wie sneller werkt.');
+    expect(zonderPlaats.waarschuwingen[0]).toMatch(/^In de tekst staat het woord "uitbreiding"/);
+  });
+
+  it('zonder nummering: kijk na of de tekst de doelen met hun code bevat', () => {
+    const res = leesLeerplan('Dit is een inleiding zonder doelen.');
+    expect(res.waarschuwingen).toEqual([
+      'Boosterz vond geen nummering van doelen (zoals "LPD 12", "1.2.3" of "AAR 2.1") vooraan een regel. Kijk na of de tekst de doelen met hun code bevat.',
+    ]);
   });
 });
 

@@ -9,21 +9,36 @@ import { netLabel } from '../../lib/curriculum';
 import { veiligeLink } from '../../lib/minimumdoelenBron';
 import { formatDateShort } from '../../lib/utils';
 import { BackIcon, DuplicateIcon, ExportIcon, TipIcon } from '../icons';
-import { isOfficieel, nagekekenTekst } from '../../lib/leerplanStatus';
+import { DEEL_HINT, isOfficieel, nagekekenTekst } from '../../lib/leerplanStatus';
 import { ControleLabel, OfficieelLabel } from './ControleLabel';
 import { DoelenPerRubriek, type DoelRij } from './DoelenPerRubriek';
 import { VerwijzingLabels } from './VerwijzingLabels';
 import '../../styles/leerplan.css';
 
+/** De hostnaam van een link, om te zien waar ze heen gaat ("www.onderwijsdoelen.be"); leeg als ze niet te lezen is. */
+function hostnaam(link: string): string {
+  try {
+    return new URL(link).hostname;
+  } catch {
+    return '';
+  }
+}
+
 function aantal(n: number): string {
   return `${n} doel${n === 1 ? '' : 'en'}`;
 }
 
+/**
+ * Bij een officieel leerplan verwijst elk doel naar zichzelf: een label "→ 09.01" achter elke regel zegt dan niets
+ * nieuws en maakt de lijst druk. De verwijzingen blijven wel in de gegevens (dekking, export). Bij een leerplan van
+ * een net zeggen ze wel iets: dan staan ze er.
+ */
 function maakRijen(cur: Curriculum): DoelRij[] {
+  const toonVerwijzingen = !isOfficieel(cur);
   return cur.goals.map((goal) => {
     const optioneel = goal.note?.trim().toLowerCase() === 'optioneel';
     const toelichting = goal.note && !optioneel ? goal.note : undefined;
-    const heeftLabels = Boolean(goal.refs?.length) || optioneel || Boolean(toelichting) || goal.level === 'uitbreiding';
+    const heeftLabels = (toonVerwijzingen && Boolean(goal.refs?.length)) || optioneel || Boolean(toelichting) || goal.level === 'uitbreiding';
     return {
       key: goal.id,
       code: goal.code,
@@ -33,7 +48,7 @@ function maakRijen(cur: Curriculum): DoelRij[] {
         <>
           {goal.level === 'uitbreiding' && <span className="badge badge-warn">Uitbreiding</span>}
           {optioneel && <span className="badge badge-warn">Optioneel</span>}
-          <VerwijzingLabels verwijzingen={goal.refs} />
+          {toonVerwijzingen && <VerwijzingLabels verwijzingen={goal.refs} />}
           {toelichting && <span className="lp-note">{toelichting}</span>}
         </>
       ) : undefined,
@@ -67,7 +82,7 @@ export function LeerplanOpSlot({
       <div className="page-head">
         <div>
           <button className="btn btn-sm btn-quiet" onClick={onBack}><BackIcon size={16} /> Alle leerplannen</button>
-          <h1 style={{ marginTop: 6 }}>{curriculum.title || 'Leerplan'}</h1>
+          <h1 className="lp-kop" tabIndex={-1} style={{ marginTop: 6 }}>{curriculum.title || 'Leerplan'}</h1>
           <p className="sub">
             {netLabel(curriculum.net)} · {aantal(curriculum.goals.length)}
             {curriculum.example ? ' · voorbeeldmateriaal, geen officieel document' : ''}
@@ -81,6 +96,7 @@ export function LeerplanOpSlot({
           <button className="btn btn-ghost" onClick={onExport}><ExportIcon size={18} /> Exporteren</button>
         </div>
       </div>
+      {!isOfficieel(curriculum) && <p className="hint lp-deelhint">{DEEL_HINT}</p>}
 
       <div className="callout lp-slot" role="note">
         <Lock size={20} className="lp-slot-icoon" />
@@ -115,7 +131,7 @@ export function LeerplanOpSlot({
                 <>
                   {curriculum.source ? ' ' : ''}
                   <a href={bronLink} target="_blank" rel="noopener noreferrer">
-                    Bekijk de bron <ExternalLink size={14} className="icon-inline" aria-hidden="true" />
+                    Bekijk de bron{hostnaam(bronLink) ? ` (${hostnaam(bronLink)})` : ''} <ExternalLink size={14} className="icon-inline" aria-hidden="true" />
                     <span className="sr-only"> (opent in een nieuw tabblad)</span>
                   </a>
                 </>
