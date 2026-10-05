@@ -1,0 +1,25 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3387",
+    "naam": "Secundair onderwijs 3de graad 3de leerjaar -  Bewegingswetenschappen - Specifieke eindtermen",
+    "apiId": "3387",
+    "korteNaam": "Bewegingswetenschappen",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "leerjaar": "3de leerjaar",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 1,
+    "sha256": "b75a453d6fd75734e485653d8ab93e387d44c326c23575e2b280fad8a6fb7e42"
+  },
+  "doelen": [
+{"id":"92362","code":"13.02.01","tekst":"<p>De leerlingen beschrijven bewegingsactiviteiten vanuit anatomisch, fysiologisch of biomechanisch perspectief.</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Het specifieke minimumdoel kan theoretisch en/of toepassingsgericht gerealiseerd worden.</p>","onderwijsdoel_pretekst":"<p>Uit de onderwijsdoelen van het 7de leerjaar gericht op het hoger onderwijs aangeduid met (*) selecteert de school minstens 1 onderwijsdoel.&nbsp;</p>","optioneel":true,"titels":{"1":{"titel":"Toegepaste bewegingswetenschappen","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo13.2"}}}}}
+  ]
+}

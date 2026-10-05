@@ -1,0 +1,33 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3322",
+    "naam": "Secundair onderwijs 1ste graad B-stroom -  Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken - Eindtermen",
+    "apiId": "3322",
+    "korteNaam": "Leercompetenties",
+    "versie": "2.1",
+    "graad": "1ste graad",
+    "stroom": "B-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "13",
+        "naam": "Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 4,
+    "sha256": "81f46a3abd05f693be45f03f7d2c5df5e319e0571c4fdb1add0f51140069436f"
+  },
+  "doelen": [
+{"id":"92305","code":"13.01","tekst":"<p>De leerlingen reflecteren over het eigen leerproces en sturen het doelgericht bij.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"13","naam":"Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Het reflecteren over het eigen leerproces bevat een cognitieve, een metacognitieve en een motivationele component.</p><p>Het bijsturen van het eigen leerproces kan gebeuren op basis van de eigen reflectie en van de feedback van anderen.</p>","optioneel":false,"titels":{}}},
+{"id":"92306","code":"13.02","tekst":"<p>De leerlingen zetten (meta)cognitieve leer- en regulatiestrategieën in om zich leerinhouden eigen te maken.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"13","naam":"Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Cognitieve leerstrategieën en bijhorende activiteiten zoals structureren, zich vragen stellen bij de leerinhoud, memoriseren, herhalen, selecteren, relateren, toepassen, inoefenen.</p><p>Metacognitieve regulatiestrategieën en bijhorende activiteiten zoals plannen, monitoren, evalueren, bijsturen.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"92307","code":"13.03","tekst":"<p>De leerlingen gebruiken school- en vaktaal.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"13","naam":"Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Vaktaal zoals domeinspecifieke terminologie, symbolen.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Relevante vakterminologie.</p><p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"92308","code":"13.04","tekst":"<p>De leerlingen zoeken doelgericht informatie in diverse bronnen en verwerken die op een kritische en systematische manier.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"13","naam":"Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Digitale en niet-digitale bronnen zoals personen, tijdschriften, encyclopedieën, boeken, audiovisueel materiaal, websites.</p><p>De bronnen kunnen worden aangereikt of zelf worden opgezocht en worden beoordeeld op bruikbaarheid en betrouwbaarheid.</p><p>Het kritisch en systematisch verwerken van informatie veronderstelt het beoordelen ervan op bruikbaarheid, betrouwbaarheid en correctheid.</p><p>Verwerken van informatie in functie van het vooropgestelde doel, zoals het beantwoorden van een (onderzoeks)vraag.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}}
+  ]
+}

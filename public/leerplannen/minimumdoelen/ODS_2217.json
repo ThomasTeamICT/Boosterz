@@ -1,0 +1,37 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2217",
+    "naam": "Secundair onderwijs - Vakoverschrijdende - Context 1 Lichamelijke gezondheid en veiligheid - Eindtermen",
+    "apiId": "2217",
+    "korteNaam": "Context 1 Lichamelijke gezondheid en veiligheid",
+    "versie": "1.0",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 15,
+    "sha256": "8339451da4ea46a7c2a9108c8f1777f5448c04def3daf8ceac3495d8dc20b0f8"
+  },
+  "doelen": [
+{"id":"77387","code":"1","tekst":"De leerlingen verzorgen en gedragen zich hygiënisch;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77388","code":"2","tekst":"De leerlingen leren het eigen lichaam kennen en reageren adequaat op lichaamssignalen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77389","code":"3","tekst":"De leerlingen vinden evenwicht tussen werk, ontspanning, rust en beweging;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77390","code":"4","tekst":"De leerlingen nemen een ergonomische en gevarieerde sta-, zit-, werk- en tilhouding aan;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77391","code":"5","tekst":"De leerlingen maken gezonde keuzes in hun dagelijkse voeding;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77392","code":"6","tekst":"De leerlingen hanteren richtlijnen voor het hygiënisch omgaan met voeding;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77393","code":"7","tekst":"De leerlingen nemen dagelijks tijd voor lichaamsbeweging;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77394","code":"8","tekst":"De leerlingen schatten de risico’s en gevolgen in bij het gebruik van genotsmiddelen en medicijnen en reageren assertief in aanbodsituaties;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77395","code":"9","tekst":"De leerlingen nemen voorzorgsmaatregelen tegen risicovol lichamelijk contact;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77396","code":"10","tekst":"De leerlingen participeren aan gezondheids- en veiligheidsbeleid op school;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77397","code":"11","tekst":"De leerlingen passen veiligheidsvoorschriften toe en nemen voorzorgen voor een veilige leef- en werkomgeving;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77398","code":"12","tekst":"De leerlingen roepen hulp in en dienen eerste hulp en cpr toe;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77399","code":"13","tekst":"De leerlingen passen het verkeersreglement toe;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77400","code":"14","tekst":"De leerlingen gebruiken eigen en openbaar vervoer op een veilige manier;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77401","code":"15","tekst":"De leerlingen beseffen dat maatschappelijke fenomenen een impact hebben op veiligheid en gezondheid.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

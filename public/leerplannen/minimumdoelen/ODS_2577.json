@@ -1,0 +1,31 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2577",
+    "naam": "Secundair Volwassenenonderwijs Aanvullende Algemene Vorming Minimum - Vak - Cultuur - Eindtermen",
+    "apiId": "2577",
+    "korteNaam": "Cultuur",
+    "versie": "1.0",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 9,
+    "sha256": "adca1daa286aa75981e219f943c8b2c8a8fe6a9f18706d8a3535dfe33260f556"
+  },
+  "doelen": [
+{"id":"83306","code":"ET AAV CU 001","tekst":"De cursist kan de dynamiek in leef- en omgangsgewoonten, opinies, waarden en normen in eigen en andere sociale en culturele groepen beschrijven;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83307","code":"ET AAV CU 002","tekst":"De cursist kan beeld, muziek, beweging, drama of media gebruiken om zichzelf uit te drukken;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83308","code":"ET AAV CU 003","tekst":"De cursist kan de impact van cultuur op denken, voelen en handelen herkennen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83309","code":"ET AAV CU 004","tekst":"De cursist kan zijn appreciatie voor cultureel erfgoed hier en elders uiten;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83310","code":"ET AAV CU 005","tekst":"De cursist kan gepast omgaan met vooroordelen en stereotypering, met ongepaste beïnvloeding en machtsmisbruik, bij zichzelf en anderen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83311","code":"ET AAV CU 006","tekst":"De cursist kan kritisch omgaan met de invloed van de media op de beeldvorming;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83312","code":"ET AAV CU 007","tekst":"De cursist kan constructief omgaan met verschillen tussen mensen en levensopvattingen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83313","code":"ET AAV CU 008","tekst":"De cursist kan uit historische en actuele voorbeelden afleiden wat de invloed is van onverdraagzaamheid, racisme en xenofobie op het samenleven;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"83314","code":"ET AAV CU 009","tekst":"De cursist kan rekening houden met de situatie, opvattingen en emoties van anderen in het omgaan met elkaar.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2012-09-01T00:00:00Z","publicatie_dt":"2012-04-20T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

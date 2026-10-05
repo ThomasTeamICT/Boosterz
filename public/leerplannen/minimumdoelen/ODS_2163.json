@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2163",
+    "naam": "Secundair onderwijs 3de graad kso - Vak - Aardrijkskunde - Eindtermen",
+    "apiId": "2163",
+    "korteNaam": "Aardrijkskunde",
+    "versie": "1.0",
+    "graad": "3de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 9,
+    "sha256": "4fa2d646223b76c7b1ff260fdfae2b68029606f86768d73810dcfe9a9fc7ad33"
+  },
+  "doelen": [
+{"id":"75230","code":"1","tekst":"<p>Kaarten en satellietbeelden aanwenden om geografische verschijnselen te onderzoeken</p>","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Overkoepelend aardrijkskundig","pretekst":"<p>Context, autonomie en verantwoordelijkheid<br /><br />De volgende eindtermen voor de derde graad kso/tso worden gelezen vanuit de persoonlijke, sociale en mondiale context. Ze worden gerealiseerd met behulp van ondersteunende technieken.</p>"}}}},
+{"id":"75231","code":"2","tekst":"Met toepassingen van GIS, ruimtelijke verbanden onderzoeken, gebruik makend van databestanden die aan GIS gekoppeld zijn","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Overkoepelend aardrijkskundig","pretekst":"<p>Context, autonomie en verantwoordelijkheid<br /><br />De volgende eindtermen voor de derde graad kso/tso worden gelezen vanuit de persoonlijke, sociale en mondiale context. Ze worden gerealiseerd met behulp van ondersteunende technieken.</p>"}}}},
+{"id":"75232","code":"3","tekst":"De plaats van de aarde binnen het heelal aangeven en de gevolgen van de bewegingen van de aarde rond haar as en rond de zon beschrijven","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Specifiek aardrijkskundig"}}}},
+{"id":"75233","code":"4","tekst":"Aan de hand van enkele typische fysisch-geografische landschappen de gevolgen van platentektoniek en geomorfologische processen op het aardoppervlak aangeven","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Specifiek aardrijkskundig"}}}},
+{"id":"75234","code":"5","tekst":"Belangrijke geologische gebeurtenissen en klimaatsveranderingen situeren op een geologische tijdsschaal","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Specifiek aardrijkskundig"}}}},
+{"id":"75235","code":"6","tekst":"Weerfenomenen in verband brengen met geografische en atmosferische omstandigheden op basis van een weerbericht","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Specifiek aardrijkskundig"}}}},
+{"id":"75236","code":"7","tekst":"Herkennen dat demografische evoluties op sociaal-economisch, technologisch en ecologisch vlak regionale en mondiale gevolgen hebben","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Specifiek aardrijkskundig"}}}},
+{"id":"75237","code":"8","tekst":"Illustreren dat duurzame ontwikkeling mede bepaald wordt door gebruik en ordening van de ruimte","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Specifiek aardrijkskundig"}}}},
+{"id":"75238","code":"9","tekst":"De wisselwerking tussen ruimtelijke aspecten en actuele geopolitieke situaties illustreren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Specifiek aardrijkskundig"}}}}
+  ]
+}

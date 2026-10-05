@@ -1,0 +1,31 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2793",
+    "naam": "Secundair onderwijs 3de graad aso, kso, tso Finaliteit doorstroom -  Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties - Eindtermen",
+    "apiId": "2793",
+    "korteNaam": "Ondernemingszin",
+    "versie": "2.0",
+    "graad": "3de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "15",
+        "naam": "Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 3,
+    "sha256": "8675350bdab3a5cc9985dec513882ece17b81c08f9bcc18d921f48d19c8968ea"
+  },
+  "doelen": [
+{"id":"89404","code":"15.1","tekst":"<p>De leerlingen ontwikkelen stapsgewijs een product voor één of meerdere zelfbepaalde doelstellingen met een efficiënte en effectieve aanpak.&nbsp;</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"15","naam":"Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties"},"extra":{"affectieve_dimensie":"Voorkeur tonen voor en belang hechten aan waarden, opvattingen, gedragingen, gebeurtenissen, informatie, taken, strategieën,…","attitude":0,"cognitieve_dimensie":"beheersingsniveau creëren","conceptuele_kennis":"<p>- Hulpmiddelen zoals mensen, informatie, gereedschappen, toepassingen, grondstoffen, energie</p><p>- Intellectuele eigendom: bescherming van eigen creaties</p>","context":"<p>* Met \"stapsgewijs\" wordt bedoeld dat de leerlingen de nodige ruimte krijgen om te experimenteren, om bijsturingen te doen en om eventueel te mislukken. Het leerproces is even belangrijk als het uiteindelijke resultaat.</p><p>* Het product kan variëren zoals een prototype, dienst, artistiek werk, concept, ontwerp, werkstuk, website, app.</p>","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"metacognitieve_kennis":"<p>- Eigen mogelijkheden en beperkingen</p><p>- Eigen rol en verantwoordelijkheid bij aanpak en eventuele bijsturingen</p>","optioneel":false,"procedurele_kennis":"<p>- Toepassen van planningstechnieken: stappenplan met tijdspad en tussentijdse doelstellingen</p><p>- Efficiënt en effectief inzetten van hulpmiddelen in functie van zelfbepaalde doelstellingen</p><p>- Gebruiken van een kwaliteitssysteem of een werkwijze zoals PDCA</p><p>- Beroep doen op anderen in functie van eigen mogelijkheden en beperkingen</p><p>- Overtuigen van en samenwerken met anderen indien nodig</p><p>- Evalueren van de gerealiseerde doelstellingen</p><p>- Toepassen van reflectievaardigheden</p>","titels":{"1":{"titel":"De uitvoerbaarheid van ideeën onderzoeken, het inzetten van middelen tegenover doelstellingen afwegen en het gekozen idee realiseren.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"89267","code":"15.2","tekst":"<p>De leerlingen maken onderbouwde en duurzame keuzes aan de hand van zelfbepaalde criteria en zelfbepaalde strategieën rekening houdend met de gevolgen van hun keuzes op korte en lange termijn en het perspectief van anderen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"15","naam":"Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties"},"extra":{"affectieve_dimensie":"Handelen vanuit een persoonlijk kader waarin voorkeuren voor waarden, opvattingen, gedragingen , gebeurtenissen, informatie, taken, strategieën,… geïnternaliseerd zijn, maar waarbij nog aandacht nodig is voor de balans tussen conflicterende aspecten","attitude":0,"cognitieve_dimensie":"beheersingsniveau evalueren","conceptuele_kennis":"- Rationele, emotionele en intuïtieve keuzes\r\n- Keuzecriteria","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"metacognitieve_kennis":"- Eigen voorkeuren en interesses\r\n- Eigen mogelijkheden en beperkingen","optioneel":false,"procedurele_kennis":"- Afwegen van keuzecriteria\r\n- Bepalen en toepassen van keuzestrategieën \r\n- Vermijden van veel voorkomende valkuilen bij het maken van keuzes\r\n- Toepassen van reflectievaardigheden","titels":{"1":{"titel":"(Duurzame) keuzes maken, rekening houdend met gevolgen op korte en lange termijn.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"89268","code":"15.3","tekst":"<p>De leerlingen onderzoeken het studie- en loopbaanaanbod rekening houdend met hun talenten en interesses enerzijds en met de arbeidsmarkt en de loopbaanperspectieven anderzijds in functie van een gefundeerde keuze.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"15","naam":"Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties"},"extra":{"affectieve_dimensie":"Handelen vanuit een persoonlijk kader waarin voorkeuren voor waarden, opvattingen, gedragingen , gebeurtenissen, informatie, taken, strategieën,… geïnternaliseerd zijn, maar waarbij nog aandacht nodig is voor de balans tussen conflicterende aspecten","attitude":0,"cognitieve_dimensie":"beheersingsniveau analyseren","conceptuele_kennis":"- Leeropvattingen\r\n- Onderwijs- en opleidingsaanbod zoals Se-N-Se, graduaat, professionele en academische bachelor, master, schakeltrajecten, aanbod via volwassenenonderwijs, Syntra, VDAB\r\n- Loopbaanaanbod zoals beroepen, takenpakket, verticale en horizontale doorgroeimogelijkheden tussen beroepen, levenslang leren\r\n- Evoluties op de arbeidsmarkt","geldigheid":{"type":"Onbekend","publicatie_dt":"2021-02-15T00:00:00Z"},"metacognitieve_kennis":"- Eigen voorkeuren en interesses\r\n- Eigen mogelijkheden en beperkingen \r\n- Motivatie","optioneel":false,"procedurele_kennis":"- Toepassen van keuzestrategieën\r\n- Interageren met anderen met betrekking tot studie- en loopbaanmogelijkheden, evoluties op de arbeidsmarkt, talenten en interesses\r\n- Toepassen van reflectievaardigheden","titels":{"1":{"titel":"(Duurzame) keuzes maken, rekening houdend met gevolgen op korte en lange termijn.","ordeningskader":{"type":"bouwsteen"}}}}}
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2678",
+    "naam": "Buitengewoon Secundair onderwijs 1ste graad B-stroom Opleidingsvorm 4 -  Competenties met betrekking tot historisch bewustzijn - Eindtermen",
+    "apiId": "2678",
+    "korteNaam": "Historisch bewustzijn",
+    "versie": "2.0",
+    "graad": "1ste graad",
+    "stroom": "B-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "8",
+        "naam": "Competenties met betrekking tot historisch bewustzijn"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 6,
+    "sha256": "e27800a899cef3bb01f8d73f5f29f94de0545e624ad2f3b1f501d85c9aafab87"
+  },
+  "doelen": [
+{"id":"80450","code":"8.1","tekst":"De leerlingen situeren historische elementen uit hun leefwereld en kenmerkende historische fenomenen in tijd en ruimte op een gegeven tijdlijn en op een relevante kaart.","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Tijdlijn, kaart, tijdstip, datum, tijdsduur, vroeger, nu, later, dag, week, maand, jaar, generatie en eeuw\n- Historische fenomenen zoals personen, plaatsen, gebeurtenissen","context":"* De gegeven tijdlijn omvat de zeven periodes van het courante westerse historische referentiekader (prehistorie - oude nabije oosten - klassieke oudheid - middeleeuwen - vroegmoderne tijd - moderne tijd - hedendaagse tijd) en een aantal kenmerken van die periodes","feitenkennis":"- Tijdlijn, kaart, tijdstip, datum, tijdsduur, vroeger, nu, later, dag, week, maand, jaar, generatie en eeuw","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Historische fenomenen situeren in een historisch referentiekader.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80451","code":"8.2","tekst":"De leerlingen herkennen voor elke historische periode van het courante westerse historische referentiekader enkele gegeven kenmerken.","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau onthouden","conceptuele_kennis":"- Bestuur, oorlog en vrede, economische activiteit, organisatie van het samenleven, mens- en wereldbeeld, kunst en cultuur","context":"* De gegeven tijdlijn omvat de zeven periodes van het courante westerse historische referentiekader (prehistorie - oude nabije oosten - klassieke oudheid - middeleeuwen - vroegmoderne tijd - moderne tijd - hedendaagse tijd)","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Historische fenomenen situeren in een historisch referentiekader.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80452","code":"8.3","tekst":"De leerlingen vergelijken aangereikte bronnen over eenzelfde historisch fenomeen, rekening houdend met de context van de maker(s).","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Context van de maker(s) en het doelpubliek\n- Geschreven, mondelinge, (audio-)visuele en materiële bronnen","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Kritisch reflecteren met en over historische bronnen.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80453","code":"8.4","tekst":"De leerlingen illustreren de beeldvorming van historische elementen uit hun leefwereld en van historische fenomenen.","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Context, (on)bedoeld handelen, meerdere perspectieven en de mogelijke gevolgen ervan\n- Historische fenomenen zoals personen, plaatsen, gebeurtenissen\n- Een selectie uit de hoger beschreven kenmerken: bestuur, oorlog en vrede, economische activiteit, organisatie van het samenleven, mens- en wereldbeeld, kunst en cultuur","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Tot beargumenteerde historische beeldvorming komen vanuit verschillende perspectieven.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80454","code":"8.5","tekst":"De leerlingen vergelijken het heden met het verleden voor historische elementen uit hun leefwereld en voor historische fenomenen.","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Gelijkenis en verschil, verandering, historische context\n- Historische fenomenen zoals personen, plaatsen, gebeurtenissen\n- Een selectie uit de hoger beschreven kenmerken: bestuur, oorlog en vrede, economische activiteit, organisatie van het samenleven, mens- en wereldbeeld, kunst en cultuur","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Over de complexe relatie tussen verleden, heden en toekomst reflecteren en deze duiden.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80455","code":"8.6","tekst":"De leerlingen lichten toe hoe mythevorming van historische fenomenen de historische beeldvorming vervormt.","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Onderscheid geschiedenis-mythevorming\n- Historische fenomenen zoals personen, plaatsen, gebeurtenissen\n- Een selectie uit de hoger beschreven kenmerken: bestuur, oorlog en vrede, economische activiteit, organisatie van het samenleven, mens- en wereldbeeld, kunst en cultuur","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Over de complexe relatie tussen verleden, heden en toekomst reflecteren en deze duiden.","ordeningskader":{"type":"bouwsteen"}}}}}
+  ]
+}

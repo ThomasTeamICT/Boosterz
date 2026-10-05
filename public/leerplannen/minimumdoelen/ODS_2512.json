@@ -1,0 +1,31 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2512",
+    "naam": "Buitengewoon Secundair onderwijs Opleidingsvorm 4 - Vakoverschrijdende - Context 6 Socio-economische samenleving - Eindtermen",
+    "apiId": "2512",
+    "korteNaam": "Context 6 Socio-economische samenleving",
+    "versie": "1.0",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 9,
+    "sha256": "d17e50a1105faaed1350abcf6c08513ae1a34f0a78d11bed385ea048eac0501d"
+  },
+  "doelen": [
+{"id":"77440","code":"1","tekst":"De leerlingen leggen met voorbeelden uit hoe welvaart wordt gecreëerd en hoe een overheid inkomsten verwerft en aanwendt;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77441","code":"2","tekst":"De leerlingen toetsen de eigen opvatting aan de verschillende opvattingen over welzijn en verdeling van welvaart;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77442","code":"3","tekst":"De leerlingen zetten zich in voor de verbetering van het welzijn en de welvaart in de wereld;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77443","code":"4","tekst":"De leerlingen hebben bij het kopen van goederen en het gebruiken van diensten zowel oog voor prijs-kwaliteit en duurzame ontwikkeling als voor de rechten van de consument;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77444","code":"5","tekst":"De leerlingen geven voorbeelden van het veranderlijke karakter van arbeid en economische activiteiten;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77445","code":"6","tekst":"De leerlingen geven voorbeelden van factoren die de waardering van goederen en diensten beïnvloeden;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77446","code":"7","tekst":"De leerlingen kunnen het eigen budget en de persoonlijke administratie beheren;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77447","code":"8","tekst":"De leerlingen geven kenmerken, mogelijke oorzaken en gevolgen van armoede aan;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77448","code":"9","tekst":"De leerlingen lichten de rol toe van ondernemingen, werkgevers- en werknemersorganisaties in een nationale en internationale context.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

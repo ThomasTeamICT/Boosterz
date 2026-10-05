@@ -1,0 +1,34 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2860",
+    "naam": "Buitengewoon Secundair onderwijs 2de graad aso, kso, tso Finaliteit doorstroom Opleidingsvorm 4 -  Sociaal-relationele competenties - Eindtermen",
+    "apiId": "2860",
+    "korteNaam": "Sociaal-relationele competenties",
+    "versie": "2.0",
+    "graad": "2de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "5",
+        "naam": "Sociaal-relationele competenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 6,
+    "sha256": "33ef1357a76fc11e96ba6ff4e1e42223da290ba821192b76d650e5afcfd2c736"
+  },
+  "doelen": [
+{"id":"89234","code":"5.1","tekst":"<p>De leerlingen bewaken in interacties hun eigen fysieke en mentale grenzen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"5","naam":"Sociaal-relationele competenties"},"extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Interpersoonlijke relaties opbouwen, onderhouden en versterken.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"89235","code":"5.2","tekst":"<p>De leerlingen houden in interacties rekening met de opvattingen, de fysieke en mentale grenzen en de emoties van anderen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"5","naam":"Sociaal-relationele competenties"},"extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Interpersoonlijke relaties opbouwen, onderhouden en versterken.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"89236","code":"5.3","tekst":"<p>De leerlingen gaan om met verschillen in de emotionele beleving van fysieke en mentale grenzen tijdens interacties tussen personen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"5","naam":"Sociaal-relationele competenties"},"extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Interpersoonlijke relaties opbouwen, onderhouden en versterken.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"89237","code":"5.4","tekst":"<p>De leerlingen reageren respectvol tegen pest- en uitsluitingsgedrag.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"5","naam":"Sociaal-relationele competenties"},"extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Interpersoonlijke relaties opbouwen, onderhouden en versterken.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"89238","code":"5.5","tekst":"<p>De leerlingen zijn sociaal vaardig in informele en formele relaties.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"5","naam":"Sociaal-relationele competenties"},"extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Interpersoonlijke relaties opbouwen, onderhouden en versterken.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"89239","code":"5.6","tekst":"<p>De leerlingen dragen tijdens groepsactiviteiten actief bij aan de uitwerking van een gezamenlijk resultaat.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"5","naam":"Sociaal-relationele competenties"},"extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-02-15T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Interpersoonlijke relaties opbouwen, onderhouden en versterken.","ordeningskader":{"type":"bouwsteen"}}}}}
+  ]
+}

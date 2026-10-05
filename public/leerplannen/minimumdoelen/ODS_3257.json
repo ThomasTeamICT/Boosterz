@@ -1,0 +1,28 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3257",
+    "naam": "Buitengewoon Secundair onderwijs 2de graad Opleidingsvorm 4 -  Sociale wetenschappen - Cesuurdoelen",
+    "apiId": "3257",
+    "korteNaam": "Sociale wetenschappen",
+    "versie": "2.1",
+    "graad": "2de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 5,
+    "sha256": "398c3e6b0c9c81f4e25b1cb507d9fd221f9d54e139d5418455d2a1a19f5699b0"
+  },
+  "doelen": [
+{"id":"91752","code":"15.01.01","tekst":"<p>De leerlingen lichten toe hoe sociale instituties bijdragen tot socialisatie.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:36Z"},"optioneel":false,"titels":{"1":{"titel":"Samenleving en politiek: sociale en humane wetenschappen","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo15.1","studierichtingen":[{"waarde":"Freinetpedagogie","structuuronderdeel_groep_nummer":"G-0096"},{"waarde":"Humane wetenschappen","structuuronderdeel_groep_nummer":"G-0117"}]}}}}},
+{"id":"91753","code":"15.01.02","tekst":"<p>De leerlingen lichten sociale structuren en rollenconflicten toe.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:36Z"},"optioneel":false,"titels":{"1":{"titel":"Samenleving en politiek: sociale en humane wetenschappen","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo15.1","studierichtingen":[{"waarde":"Freinetpedagogie","structuuronderdeel_groep_nummer":"G-0096"},{"waarde":"Humane wetenschappen","structuuronderdeel_groep_nummer":"G-0117"}]}}}}},
+{"id":"91754","code":"15.02.01","tekst":"<p>De leerlingen lichten toe hoe sociale instituties bijdragen tot socialisatie.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:36Z"},"optioneel":false,"titels":{"1":{"titel":"Samenleving en politiek: pakket uit sociale en humane wetenschappen","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo15.2","studierichtingen":[{"waarde":"Maatschappij- en welzijnswetenschappen","structuuronderdeel_groep_nummer":"G-0140"}]}}}}},
+{"id":"91755","code":"15.02.02","tekst":"<p>De leerlingen lichten sociale structuren en rollenconflicten toe.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:36Z"},"optioneel":false,"titels":{"1":{"titel":"Samenleving en politiek: pakket uit sociale en humane wetenschappen","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo15.2","studierichtingen":[{"waarde":"Maatschappij- en welzijnswetenschappen","structuuronderdeel_groep_nummer":"G-0140"}]}}}}},
+{"id":"91756","code":"15.05.01","tekst":"<p>De leerlingen beschrijven het toeristisch en recreatieve aanbod van plaatsen en regio’s vanuit natuurlijke, culturele of sociaaleconomische factoren.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:36Z"},"optioneel":false,"titels":{"1":{"titel":"Toeristische geografie","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo15.5","studierichtingen":[{"waarde":"Toerisme","structuuronderdeel_groep_nummer":"G-0280"}]}}}}}
+  ]
+}

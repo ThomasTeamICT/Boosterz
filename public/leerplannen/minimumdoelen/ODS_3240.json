@@ -1,0 +1,30 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3240",
+    "naam": "Buitengewoon Secundair onderwijs 3de graad bso Finaliteit arbeidsmarkt Opleidingsvorm 4 -  Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties - Eindtermen",
+    "apiId": "3240",
+    "korteNaam": "Ondernemingszin",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "15",
+        "naam": "Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 2,
+    "sha256": "8ff857f007c01437c4d9763a1b2febbf3592668e205d07dec57b7baaa373e64f"
+  },
+  "doelen": [
+{"id":"90958","code":"15.01","tekst":"<p>De leerlingen doorlopen bewust hun studie- of beroepskeuzeproces.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"15","naam":"Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:13Z"},"memorie":"<p>Doorlopen van een studie- of beroepskeuzeproces zoals met behulp van de keuzetaken oriënteren, zelfconceptverheldering, exploreren in de breedte, exploreren in de diepte, studiekeuzenabijheid, binding.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"90963","code":"15.02","tekst":"<p>De leerlingen genereren creatieve ideeën om een probleem op te lossen en bespreken de uitvoerbaarheid ervan aan de hand van criteria.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"15","naam":"Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:13Z"},"memorie":"<p>Ideeën genereren zoals door middel van ideegeneratietechnieken (bv. door middel van een brainstorm, mindmap) en ideeselectietechnieken (bv. van divergent naar convergent denken).</p><p>Aangereikte of zelf bepaalde criteria zoals tijd, middelen, technische haalbaarheid, ethische principes, duurzaamheidsprincipes, meerwaarde.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}}
+  ]
+}

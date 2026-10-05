@@ -1,0 +1,33 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3056",
+    "naam": "Secundair onderwijs 2de graad bso Finaliteit arbeidsmarkt -  Competenties met betrekking tot ruimtelijk bewustzijn - Eindtermen",
+    "apiId": "3056",
+    "korteNaam": "Ruimtelijk bewustzijn",
+    "versie": "2.1",
+    "graad": "2de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "9",
+        "naam": "Competenties met betrekking tot ruimtelijk bewustzijn"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 5,
+    "sha256": "8bf666d01b621fca673475cdf8588845688cc0e74831692924dfa501634fa236"
+  },
+  "doelen": [
+{"id":"91216","code":"09.01","tekst":"<p>De leerlingen illustreren ruimtelijke gevolgen van demografische processen, productie en consumptie.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Demografische processen zoals bevolkingsgroei, natuurlijke aangroei, migratie, vergrijzing.</p><p>Ruimtelijke gevolgen zoals verstedelijking van het platteland, verschuiving van functies tussen stad en platteland, groei van steden.</p>","optioneel":false,"titels":{}}},
+{"id":"91217","code":"09.02","tekst":"<p>De leerlingen illustreren oorzaken en gevolgen van het versterkt broeikaseffect.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Oorzaken van het versterkt broeikaseffect zoals evolutie van de belangrijkste broeikasgassen in de atmosfeer.</p><p>Gevolgen van het versterkt broeikaseffect zoals stijging van het zeepeil, verschuiven van klimaten en verspreidingsgebieden van planten en dieren, extreme weerfenomenen.</p>","optioneel":false,"titels":{}}},
+{"id":"91218","code":"09.03","tekst":"<p>De leerlingen zetten geografische hulpbronnen met inbegrip van GIS-viewers functioneel in.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Geografische hulpbronnen zoals kaart, atlas, satellietbeeld, luchtfoto, statistisch bronnenmateriaal.</p>","optioneel":false,"titels":{}}},
+{"id":"91219","code":"09.04","tekst":"<p>De leerlingen situeren absoluut en relatief personen, plaatsen, patronen en processen op relevante ruimtelijke schaalniveaus.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met personen, plaatsen, patronen en processen die in de tweede graad aan bod komen.</p>"}},
+{"id":"91220","code":"09.05","tekst":"<p>De leerlingen illustreren de invloed van de persoonlijke en maatschappelijke context van mensen op ruimtelijke beeldvorming.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Invloeden zoals factoren die de beleving en betekenis van een plaats beïnvloeden zoals de persoonlijke, sociale, maatschappelijke, politieke en culturele context.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context waarin het minimumdoel aan bod komt.</p>"}}
+  ]
+}

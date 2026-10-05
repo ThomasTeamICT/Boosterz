@@ -1,0 +1,41 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2347",
+    "naam": "Buitengewoon Secundair onderwijs 1ste graad B-stroom Opleidingsvorm 4 - Vak - Natuurwetenschappen - Ontwikkelingsdoelen",
+    "apiId": "2347",
+    "korteNaam": "Natuurwetenschappen",
+    "versie": "1.0",
+    "graad": "1ste graad",
+    "stroom": "B-stroom",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 17,
+    "sha256": "ae009b6e625dbf9b41092210c7bcaf9ae54c91d99572bafd36c45f9a36106b7c"
+  },
+  "doelen": [
+{"id":"74171","code":"1","tekst":"De leerlingen kunnen gericht waarnemen met al hun zintuigen en de waarnemingen weergeven;","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Algemeen"}}}},
+{"id":"74172","code":"2","tekst":"De leerlingen kunnen in betekenisvolle situaties, metingen uitvoeren en daarvoor geschikte instrumenten kiezen;","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Algemeen"}}}},
+{"id":"74173","code":"3","tekst":"De leerlingen kunnen onder begeleiding een natuurlijk en waarneembaar verschijnsel via een eenvoudig onderzoekje toetsen aan een veronderstelling;","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Algemeen"}}}},
+{"id":"74174","code":"4","tekst":"De leerlingen kunnen eenvoudige tabellen, grafieken en diagrammen in verband met natuurwetenschappelijke verschijnselen gebruiken.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Algemeen"}}}},
+{"id":"74175","code":"5","tekst":"De leerlingen kunnen in een beperkte verzameling van organismen gelijkenissen en verschillen ontdekken en weergeven;","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Levende natuur"}}}},
+{"id":"74176","code":"6","tekst":"De leerlingen kunnen bij goed gekozen voorbeelden van organismen ontdekken en weergeven hoe deze aangepast zijn aan hun omgeving;","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Levende natuur"}}}},
+{"id":"74177","code":"7","tekst":"De leerlingen kunnen de wet van eten en gegeten worden illustreren aan de hand van minstens drie met elkaar verbonden voedselketens;","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Levende natuur"}}}},
+{"id":"74178","code":"8","tekst":"De leerlingen kunnen in concrete voorbeelden aantonen hoe de mens natuur en milieu beïnvloedt;","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Levende natuur"}}}},
+{"id":"74179","code":"9","tekst":"De leerlingen kunnen belangrijke organen die betrokken zijn bij ademhaling, spijsvertering, voortplanting, transport en uitscheiding in het menselijk lichaam, lokaliseren;","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Levende natuur"}}}},
+{"id":"74180","code":"10","tekst":"De leerlingen kunnen de functie van de belangrijke organen die betrokken zijn bij ademhaling, spijsvertering, voortplanting, transport en uitscheiding in het menselijk lichaam op eenvoudige wijze weergeven;","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Levende natuur"}}}},
+{"id":"74181","code":"11","tekst":"De leerlingen kunnen weergeven hoe de voortplanting bij mensen verloopt en middelen aangeven om zwangerschap te voorkomen;","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Levende natuur"}}}},
+{"id":"74182","code":"12","tekst":"De leerlingen kunnen middelen aangeven om seksueel overdraagbare aandoeningen te voorkomen.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Levende natuur"}}}},
+{"id":"74183","code":"13","tekst":"De leerlingen kunnen waarneembare stofomzettingen met concrete voorbeelden uit de levende en niet-levende natuur illustreren;","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Levende en niet-levende natuur"}}}},
+{"id":"74184","code":"14","tekst":"De leerlingen kunnen wetenschappelijke kennis verbinden met dagelijkse waarnemingen, concrete toepassingen of maatschappelijke evoluties.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Levende en niet-levende natuur"}}}},
+{"id":"74185","code":"15","tekst":"De leerlingen kunnen fysische verschijnselen, waaronder uitzetting en verandering van aggregatietoestand in verband brengen met temperatuurverandering;","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Niet-levende natuur"}}}},
+{"id":"74186","code":"16","tekst":"De leerlingen kunnen energievormen uit het dagelijkse leven verbinden met energiebronnen;","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Niet-levende natuur"}}}},
+{"id":"74187","code":"17","tekst":"De leerlingen kunnen energiebesparende maatregelen verbinden met een duurzame levensstijl.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2020-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Niet-levende natuur"}}}}
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3341",
+    "naam": "Buitengewoon Secundair onderwijs 1ste graad A-stroom Opleidingsvorm 4 -  Cultureel bewustzijn en culturele expressie - Eindtermen",
+    "apiId": "3341",
+    "korteNaam": "Cultureel bewustzijn",
+    "versie": "2.1",
+    "graad": "1ste graad",
+    "stroom": "A-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "16",
+        "naam": "Cultureel bewustzijn en culturele expressie"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 5,
+    "sha256": "33dbc96f195fafa1d41c977ffd96d46bdbda308875e5a4f90b8403d26351023a"
+  },
+  "doelen": [
+{"id":"92013","code":"16.01","tekst":"<p>De leerlingen beschrijven kunst- en cultuuruitingen vanuit eigen waarneming.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"16","naam":"Cultureel bewustzijn en culturele expressie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Kunstuitingen zoals dans, theater, film, game, graffiti, kledij, landschap, lied.&nbsp;<br />Cultuuruitingen zoals sociale gewoonten, voorstellingen, rituelen, tradities, uitdrukkingen.&nbsp;<br />Eigen waarneming zoals ervaren en beleven, memoriseren en herkennen en zintuiglijk waarnemen.&nbsp;</p>","optioneel":false,"titels":{}}},
+{"id":"92014","code":"16.02","tekst":"<p>De leerlingen brengen kunst- en cultuuruitingen in verband met de context waarin ze voorkomen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"16","naam":"Cultureel bewustzijn en culturele expressie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Context zoals tijd, ruimte, maatschappelijke context.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.&nbsp;</p>"}},
+{"id":"92015","code":"16.03","tekst":"<p>De leerlingen reflecteren over eigen beleving bij uiteenlopende kunst- en cultuuruitingen.&nbsp;</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"16","naam":"Cultureel bewustzijn en culturele expressie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"92016","code":"16.04","tekst":"<p>De leerlingen lichten toe hoe een kunstwerk vanuit vorm en inhoud betekenis geeft.&nbsp;</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"16","naam":"Cultureel bewustzijn en culturele expressie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Inhoud:&nbsp;</p><ul><li>onderwerp bijvoorbeeld geboorte, dood, liefde, geschiedenis, het leven, het alledaagse, rituelen;&nbsp;</li><li>bedoeling bijvoorbeeld decoreren, entertainen, praktisch gebruik, informeren, confirmeren, revolteren.&nbsp;</li></ul><p>Vorm zoals bouwstenen, technieken, materialen afhankelijk van het gekozen kunstwerk en de gekozen expressievorm zoals beeld, muziek, drama, dans of audiovisuele media, apart of gecombineerd. In het geval van:&nbsp;</p><ul><li>Beeld&nbsp;<ul><li>Bouwstenen zoals compositie, kleur, licht, lijn, ruimte, textuur, vorm.&nbsp;</li><li>Technieken zoals boetseren, fotograferen, maquettes maken, met textiel werken, schilderen.&nbsp;</li><li>Materialen zoals klei, licht, papier, recuperatiematerialen, steen, verf.&nbsp;</li></ul></li><li>Muziek&nbsp;<ul><li>Bouwstenen zoals dynamiek, klankkleur, melodie, ritme, samenklank, structuur, tempo, vorm.&nbsp;</li><li>Technieken zoals body percussion, improvisatie, samenzang.&nbsp;</li><li>Materialen zoals instrumenten, lichaam, stem, voorwerpen.&nbsp;</li></ul></li><li>Drama&nbsp;<ul><li>Bouwstenen zoals rol, ruimte, structuur, samenspel, tijd.&nbsp;</li><li>Technieken zoals clownerie, figurentheater, improvisatie, mime, teksttheater.&nbsp;</li><li>Materialen zoals decor, geluid, kostuums, lichaam, taal.&nbsp;</li></ul></li><li>Dans&nbsp;<ul><li>Bouwstenen zoals kracht, ruimte, relatie, tijd.&nbsp;</li><li>Technieken zoals bewegingsreeks, choreografie, dansexpressie, dansimprovisatie.&nbsp;</li><li>Materialen zoals decor, geluid, lichaam, voorwerpen.&nbsp;</li></ul></li><li>Audiovisuele media&nbsp;<ul><li>Bouwstenen zoals camerabeweging, geluid, kader, licht, montage.&nbsp;</li><li>Technieken zoals montage, opname, sonorisatie.&nbsp;</li><li>Materialen zoals microfoon, montageunit, smartphone.&nbsp;</li></ul></li></ul>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling&nbsp;van leerlingen en de context waarin het minimumdoel aan bod komt.&nbsp;</p>"}},
+{"id":"92017","code":"16.05","tekst":"<p>De leerlingen doorlopen een artistiek-creatief proces vanuit verbeelding.&nbsp;</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"16","naam":"Cultureel bewustzijn en culturele expressie"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Bij het doorlopen van een artistiek-creatief proces kan je denken aan&nbsp;</p><ul><li>het selecteren van ideeën zoals bij eigen gedachten en gevoelens stilstaan, artistieke werken bestuderen, indrukken of objecten verzamelen;&nbsp;</li><li>het koppelen van de eigen bedoeling aan vormgeving via methodes zoals trial and error, try-out;&nbsp;</li><li>het gebruiken van kunsteigen technieken;&nbsp;</li><li>het voorstellen of presenteren.&nbsp;</li></ul>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling&nbsp;van leerlingen en de context waarin het minimumdoel aan bod komt.&nbsp;</p>"}}
+  ]
+}

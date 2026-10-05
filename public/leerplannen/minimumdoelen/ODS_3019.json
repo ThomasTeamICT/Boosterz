@@ -1,0 +1,29 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3019",
+    "naam": "Secundair onderwijs 2de graad aso, kso, tso Finaliteit doorstroom -  Sociaal-relationele competenties - Eindtermen",
+    "apiId": "3019",
+    "korteNaam": "Sociaal-relationele competenties",
+    "versie": "2.1",
+    "graad": "2de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "5",
+        "naam": "Sociaal-relationele competenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 1,
+    "sha256": "5a63b4f3eea98ef74f14ba797764f4fe92c9f8ff0c1df37e1ade02ae17730e87"
+  },
+  "doelen": [
+{"id":"90641","code":"05.01","tekst":"<p>De leerlingen gaan respectvol en constructief met anderen in interactie rekening houdend met elkaars grenzen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"5","naam":"Sociaal-relationele competenties"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Respectvol en constructief met anderen in interactie gaan zoals</p><ul><li>rekening houden met de opvattingen, de fysieke en mentale grenzen en de emoties van anderen;</li><li>grenzen bewaken;</li><li>reageren tegen pest- en uitsluitingsgedrag;</li><li>samenwerken en actief bijdragen aan de uitwerking van een gezamenlijk resultaat;</li><li>omgaan met emoties;</li><li>respect tonen voor relationele en seksuele integriteit;</li><li>sociaal vaardig interageren in informele en formele relaties.</li></ul>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context waarin het minimumdoel aan bod komt.</p>"}}
+  ]
+}

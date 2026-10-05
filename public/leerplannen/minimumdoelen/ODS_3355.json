@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3355",
+    "naam": "Secundair onderwijs 1ste graad B-stroom -  Digitale competentie en mediawijsheid - Eindtermen basisgeletterdheid",
+    "apiId": "3355",
+    "korteNaam": "Digitale competenties",
+    "versie": "2.1",
+    "graad": "1ste graad",
+    "stroom": "B-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "4",
+        "naam": "Digitale competentie en mediawijsheid"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 3,
+    "sha256": "7064a6e4d6ba2d0ddaefea36ecfd21fb4d085a06fa15e792257b0518fe07400c"
+  },
+  "doelen": [
+{"id":"92204","code":"BG04.01","tekst":"<p>De leerling gebruikt doelgericht basisfunctionaliteiten van toepassingen om digitaal te communiceren.</p>","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Digitaal communiceren zoals</p><ul><li>in interactie gaan met mensen, systemen, diensten;</li><li>synchroon (online meeting, chat), asynchroon (berichtensysteem, sociale media, sms, e-mail, blog, fora, websites)</li></ul><p>Basisfunctionaliteiten zijn de elementen die nodig zijn om een systeem functioneel te gebruiken zoals versturen en ontvangen van berichten. Ze onderscheiden zich van courante functionaliteiten die de basiselementen aanvullen met elementen die de gebruikerservaring verbeteren zoals sneltoetsen gebruiken.</p>","optioneel":false,"titels":{}}},
+{"id":"92205","code":"BG04.02","tekst":"<p>De leerling gebruikt doelgericht basisfunctionaliteiten van toepassingen om digitale inhouden te creëren.</p>","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Digitale inhouden creëren zoals in tekst-, cijfer-, geluid-, grafische, audiovisuele bestanden, programmacode.</p><p>Basisfunctionaliteiten zijn de elementen die nodig zijn om een systeem functioneel te gebruiken zoals het openen van een document. Ze onderscheiden zich van courante functionaliteiten die de basiselementen aanvullen met elementen die de gebruikerservaring verbeteren zoals sneltoetsen gebruiken.</p>","optioneel":false,"titels":{}}},
+{"id":"92206","code":"BG04.03","tekst":"<p>De leerling gebruikt doelgericht basisfunctionaliteiten van toepassingen om digitale inhouden te beheren aan de hand van een aangereikte structuur.</p>","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"4","naam":"Digitale competentie en mediawijsheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Digitale inhouden beheren zoals</p><ul><li>met behulp van informatiedragers zoals interne en externe opslag;</li><li>met behulp van ordeningstechnieken zoals mappenstructuur, ordening op thema.</li></ul><p>Basisfunctionaliteiten zijn de elementen die nodig zijn om een systeem functioneel te gebruiken zoals het verplaatsen en kopiëren van bestanden. Ze onderscheiden zich van courante functionaliteiten die de basiselementen aanvullen met elementen die de gebruikerservaring verbeteren zoals sneltoetsen gebruiken.</p>","optioneel":false,"titels":{}}}
+  ]
+}

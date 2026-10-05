@@ -1,0 +1,29 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2503",
+    "naam": "Buitengewoon Secundair onderwijs 3de graad tso Opleidingsvorm 4 - Vak - Natuurwetenschappen of fysica en/of chemie en/of biologie - Eindtermen",
+    "apiId": "2503",
+    "korteNaam": "Natuurwetenschappen of fysica en/of chemie en/of biologie",
+    "versie": "1.0",
+    "graad": "3de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 6,
+    "sha256": "c86243fee6f85364c6fc62229944bc890a2ba6112e96dbb6d4f5370d8032ab1f"
+  },
+  "doelen": [
+{"id":"76019","code":"1","tekst":"De leerlingen kunnen kenmerken van organismen en variatie tussen organismen verklaren vanuit erfelijkheid en omgevingsinvloeden.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Leven"}}}},
+{"id":"76020","code":"2","tekst":"De leerlingen kunnen aan de hand van eenvoudige voorbeelden toelichten hoe kenmerken van generatie op generatie overerven.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Leven"}}}},
+{"id":"76021","code":"3","tekst":"De leerlingen kunnen hormonale regeling van de menselijke voortplanting op een eenvoudige manier verklaren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Leven"}}}},
+{"id":"76022","code":"4","tekst":"De leerlingen kunnen wetenschappelijk onderbouwde argumenten geven voor de biologische evolutie van organismen met inbegrip van de mens.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Leven"}}}},
+{"id":"76023","code":"5","tekst":"De leerlingen kunnen bij het verduidelijken van en zoeken naar oplossingen voor duurzaamheidsvraagstukken wetenschappelijke principes hanteren die betrekking hebben op biodiversiteit en het leefmilieu.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wetenschap en samenleving"}}}},
+{"id":"76024","code":"6","tekst":"De leerlingen kunnen natuurwetenschappen als onderdeel van de culturele ontwikkeling duiden en de wisselwerking met de maatschappij op ecologisch, ethisch, technisch, socio-economisch en filosofisch vlak illustreren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2017-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wetenschap en samenleving"}}}}
+  ]
+}

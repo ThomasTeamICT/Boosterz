@@ -1,0 +1,37 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3303",
+    "naam": "Buitengewoon Secundair onderwijs 1ste graad A-stroom Opleidingsvorm 4 -  Competenties met betrekking tot ruimtelijk bewustzijn - Eindtermen",
+    "apiId": "3303",
+    "korteNaam": "Ruimtelijk bewustzijn",
+    "versie": "2.1",
+    "graad": "1ste graad",
+    "stroom": "A-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "9",
+        "naam": "Competenties met betrekking tot ruimtelijk bewustzijn"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 8,
+    "sha256": "bb3770f1499fc19c001e7a92051cdd72b053744b7e3b2eda3ddb50e0c7f03a33"
+  },
+  "doelen": [
+{"id":"92186","code":"09.01","tekst":"<p>De leerlingen situeren absoluut en relatief personen, plaatsen en patronen op relevante ruimtelijke schaalniveaus.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met personen, plaatsen en patronen die in de eerste graad aan bod komen.</p>"}},
+{"id":"92187","code":"09.02","tekst":"<p>De leerlingen beschrijven kenmerken van fysischgeografische en sociaalgeografische landschapsvormende lagen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Landschapsvormende lagen:</p><ul><li>fysischgeografisch zoals reliëf, klimaat, vegetatie en bodem;</li><li>sociaalgeografisch zoals types van bebouwing, verspreiding van bebouwing, infrastructuur, landbouw, industrie.</li></ul>","optioneel":false,"titels":{}}},
+{"id":"92188","code":"09.03","tekst":"<p>De leerlingen analyseren relaties tussen landschapsvormende lagen van plaatsen om verschillen tussen landschappen te verklaren.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Relaties zoals tussen bodemgebruik en bodem, landgebruik en helling, bodem en ondergrond, klimaat en vegetatie of woonplaats en werkplaats, wegeninfrastructuur door een natuurgebied, reliëfvormen en bevolkingsspreiding.</p>","optioneel":false,"titels":{}}},
+{"id":"92189","code":"09.04","tekst":"<p>De leerlingen illustreren ruimtelijke patronen op verschillende schaalniveaus.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Ruimtelijke patronen zoals reliëfeenheden, klimaatzones, vegetatiezones, bevolkingsspreiding.</p>","optioneel":false,"titels":{}}},
+{"id":"92190","code":"09.05","tekst":"<p>De leerlingen illustreren dat landschappen evolueren op korte en lange termijn onder invloed van fysischgeografische en sociaalgeografische veranderingen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<ul><li>Fysischgeografische veranderingen zoals door vulkaanuitbarstingen, aardbevingen, weer, erosie.</li><li>Sociaalgeografische veranderingen zoals door bebouwing, infrastructuur, landbouw, industrie, ontginning.</li></ul>","optioneel":false,"titels":{}}},
+{"id":"92191","code":"09.06","tekst":"<p>De leerlingen analyseren gevolgen van veranderingen in landschappen voor de mens en voor zijn leefomgeving.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Veranderingen zoals stijging van de zeespiegel, vergroting van landbouwpercelen, ontbossing, omzetten van landbouwgebied naar bebouwing, ontharding, stadslandbouw.</p>","optioneel":false,"titels":{}}},
+{"id":"92192","code":"09.07","tekst":"<p>De leerlingen lokaliseren zichzelf en plaatsen aan de hand van lokalisatie- en oriëntatietechnieken.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Gebruik van lokalisatie- en oriëntatietechnieken zoals:</p><ul><li>kaart: schaal, legende en oriëntatie;</li><li>windrichtingen en kompas;</li><li>satellietnavigatiesystemen.</li></ul>","optioneel":false,"titels":{}}},
+{"id":"92193","code":"09.08","tekst":"<p>De leerlingen zetten terreintechnieken en geografische hulpbronnen met inbegrip van GIS-viewers functioneel in.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<ul><li>Terreintechnieken zoals lokalisatie, oriëntatie, observatie.</li><li>Geografische hulpbronnen zoals digitale en niet-digitale kaarten, atlas, beeldmateriaal.</li></ul>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context waarin het minimumdoel aan bod komt.</p>"}}
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2972",
+    "naam": "Secundair onderwijs 2de graad -  Sociale wetenschappen - Cesuurdoelen",
+    "apiId": "2972",
+    "korteNaam": "Sociale wetenschappen",
+    "versie": "2.0",
+    "graad": "2de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 3,
+    "sha256": "03ebc4b7efc5b5538b80055b048984a051415e0ee18e322be6be2451c0cd6d03"
+  },
+  "doelen": [
+{"id":"90361","code":"15.1.2","tekst":"<p>De leerlingen analyseren kenmerken van hedendaagse samenlevingen aan de hand van sociologische begrippen.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau analyseren","conceptuele_kennis":"<p>- Sociologische begrippen: status, rol, macht, (on)gelijkheid, conflict, norm, cultuur, stand, klasse, groep</p><p>- Kenmerken van hedendaagse samenlevingen zoals individualisering, socialisatie, sociale controle, modernisering, transformatie, stratificatie, sociale mobiliteit, arbeidsverdeling, secularisering, emancipatie, rationalisering, machtsstrijd</p>","feitenkennis":"<p>- Vakterminologie inherent aan de afbakening van het cesuurdoel</p>","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-08-27T00:00:00Z"},"optioneel":false,"procedurele_kennis":"<p>- Toepassen van strategieën om kenmerken van hedendaagse samenlevingen sociologisch te analyseren zoals zoeken naar onderliggende structuren en mechanismen, zoeken naar causale verbanden en correlaties, vergelijken in tijd en ruimte</p>","titels":{"1":{"titel":"Samenleving en politiek: sociale en humane wetenschappen","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.0","nummer":"wdo107","studierichtingen":[{"waarde":"Freinetpedagogie","structuuronderdeel_groep_nummer":"G-0096"},{"waarde":"Humane wetenschappen","structuuronderdeel_groep_nummer":"G-0117"},{"waarde":"Maatschappij- en welzijnswetenschappen","structuuronderdeel_groep_nummer":"G-0140"}]}}}}},
+{"id":"90490","code":"15.5.1","tekst":"<p>De leerlingen situeren toeristische en recreatieve plaatsen op relevante ruimtelijke schaalniveaus.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau toepassen","conceptuele_kennis":"<p>- Topografische kennis met betrekking tot een selectie van culturele en natuurlijke toeristische en recreatieve plaatsen</p><p>-Toeristenstromen</p>","context":"<p>* Het cesuurdoel wordt gerealiseerd op relevante ruimtelijke schaalniveaus, gaande van lokaal tot mondiaal</p>","feitenkennis":"<p>- Topografische kennis met betrekking tot een selectie van culturele en natuurlijke toeristische en recreatieve plaatsen</p>","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-08-27T00:00:00Z"},"optioneel":false,"procedurele_kennis":"<p>Absoluut en relatief situeren op verschillende ruimtelijke schaalniveaus</p>","titels":{"1":{"titel":"Toeristische geografie","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.0","nummer":"wdo111","studierichtingen":[{"waarde":"Toerisme","structuuronderdeel_groep_nummer":"G-0280"}]}}}}},
+{"id":"90491","code":"15.5.2","tekst":"<p>De leerlingen lichten het toeristische en recreatieve aanbod van een plaats of regio toe.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"<p>- Toeristisch en recreatief aanbod van een plaats zoals landschappen, infrastructuren, gebruiken, evenementen</p>","context":"<p>* Het cesuurdoel wordt gerealiseerd aan de hand van plaatsen of regio’s op verschillende ruimtelijke schaalniveaus, met een variatie naar aanbod zoals cultureel en natuurlijk.</p>","feitenkennis":"<p>- Vakterminologie inherent aan de afbakening van het cesuurdoel</p>","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-08-27T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Toeristische geografie","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.0","nummer":"wdo111","studierichtingen":[{"waarde":"Toerisme","structuuronderdeel_groep_nummer":"G-0280"}]}}}}}
+  ]
+}

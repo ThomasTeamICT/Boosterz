@@ -1,0 +1,37 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2421",
+    "naam": "Buitengewoon Secundair onderwijs 3de graad 3de leerjaar bso Opleidingsvorm 4 - Vak - Lichamelijke Opvoeding - Eindtermen",
+    "apiId": "2421",
+    "korteNaam": "Lichamelijke Opvoeding",
+    "versie": "1.0",
+    "graad": "3de graad",
+    "leerjaar": "3de leerjaar",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 13,
+    "sha256": "e628191d7678fc237e9e74605e759f5ffda2ff3273eb8cfbfbe2f7b4252cd907"
+  },
+  "doelen": [
+{"id":"75867","code":"1","tekst":"de leerlingen kunnen een verantwoorde keuze maken van voor hen gepaste bewegingsactiviteiten met het oog op een fysiek actieve levenstijl","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Motorische competenties","nr":"1°"}}}},
+{"id":"75868","code":"2","tekst":"<p>de leerlingen hebben inzicht in diverse aspecten van een verantwoord sport- en fitnessbegeleiding</p>","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Motorische competenties","nr":"1°"}}}},
+{"id":"75869","code":"3","tekst":"de leerlingen leven afspraken en regels na en nemen verantwoordelijkheid op in bewegingssituaties","type":"Eindtermen","extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Motorische competenties","nr":"1°"}}}},
+{"id":"75870","code":"4","tekst":"de leerlingen ervaren bewegingsvreugde door competente deelname aan een gevarieerd aanbod van bewegingsactiviteiten","type":"Eindtermen","extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Motorische competenties","nr":"1°"}}}},
+{"id":"75871","code":"5","tekst":"de leerlingen tonen bereidheid tot en hebben voldoening van prestatieverbetering","type":"Eindtermen","extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Motorische competenties","nr":"1°"}}}},
+{"id":"75872","code":"6","tekst":"de leerlingen kunnen onder begeleiding een conditieprogramma uitvoeren, evalueren en bijsturen","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Gezonde en veilige levensstijl","nr":"2°"}}}},
+{"id":"75873","code":"7","tekst":"de leerlingen kennen gepaste bewegingen en correcte houdingen en kunnen ze in werk- en dagelijkse leefomstandigheden integreren","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Gezonde en veilige levensstijl","nr":"2°"}}}},
+{"id":"75874","code":"8","tekst":"de leerlingen kennen de risico's in een sedentair leven en kunnen remediëren","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Gezonde en veilige levensstijl","nr":"2°"}}}},
+{"id":"75875","code":"9","tekst":"de leerlingen leven veiligheidsafspraken na en vertonen spontaan veilig gedrag","type":"Eindtermen","extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Gezonde en veilige levensstijl","nr":"2°"}}}},
+{"id":"75876","code":"10","tekst":"de leerlingen kunnen in bewegingssituaties omgaan met fairplay, winst, verlies, succes, faalangst en spanning en integreren deze in andere contexten","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Ontwikkeling van het zelfconcept en het sociaal functioneren","nr":"3°"}}}},
+{"id":"75877","code":"11","tekst":"de leerlingen werken spontaan samen in planning, taakverdeling en het vervullen van verschillende rollen","type":"Eindtermen","extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Ontwikkeling van het zelfconcept en het sociaal functioneren","nr":"3°"}}}},
+{"id":"75878","code":"12","tekst":"de leerlingen dragen zorg voor kledij en materiaal, hebben aandacht voor hygiëne en milieu en tonen respect voor anderen","type":"Eindtermen","extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Ontwikkeling van het zelfconcept en het sociaal functioneren","nr":"3°"}}}},
+{"id":"75879","code":"13","tekst":"de leerlingen kunnen kritisch met de nevenverschijnselen van de sport omgaan","type":"Eindtermen","extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2006-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Ontwikkeling van het zelfconcept en het sociaal functioneren","nr":"3°"}}}}
+  ]
+}

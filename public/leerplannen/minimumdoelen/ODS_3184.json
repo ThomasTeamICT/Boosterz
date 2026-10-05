@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3184",
+    "naam": "Buitengewoon Secundair onderwijs 2de graad bso Finaliteit arbeidsmarkt Opleidingsvorm 4 -  Competenties met betrekking tot historisch bewustzijn - Eindtermen",
+    "apiId": "3184",
+    "korteNaam": "Historisch bewustzijn",
+    "versie": "2.1",
+    "graad": "2de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "8",
+        "naam": "Competenties met betrekking tot historisch bewustzijn"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 4,
+    "sha256": "0f0f25a6290c67ac20c5cd73dbbaad2d765ab1e77faaeaecc5990a71a8d96bc6"
+  },
+  "doelen": [
+{"id":"90924","code":"08.01","tekst":"<p>De leerlingen situeren historische fenomenen in tijd en ruimte op een gegeven tijdlijn met de courante historische periodes en op een kaart.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<ul><li>De zeven periodes van het courante westerse historische referentiekader: de prehistorie, het oude nabije oosten, de klassieke oudheid, de middeleeuwen, de vroegmoderne tijd, de moderne tijd, de hedendaagse tijd.</li><li>Historische fenomenen zoals personen, plaatsen, gebeurtenissen, ontwikkelingen uit de maatschappelijke domeinen zoals politiek (bestuur, oorlog en vrede, (neo)kolonialisme en imperialisme), economisch (economische activiteit), sociaal (organisatie van het samenleven), cultureel (mens- en wereldbeeld, kunst- en cultuuruitingen, wetenschap en technologie).<br />&nbsp;</li></ul>","optioneel":false,"titels":{}}},
+{"id":"90925","code":"08.02","tekst":"<p>De leerlingen vergelijken bronnen over eenzelfde historisch fenomeen met aandacht voor betrouwbaarheid.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}},
+{"id":"90926","code":"08.03","tekst":"<p>De leerlingen lichten betekenissen toe van historische fenomenen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}},
+{"id":"90927","code":"08.04","tekst":"<p>De leerlingen leggen aan de hand van voorbeelden gelijkenissen, verschillen en verbanden uit tussen vroeger en nu.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"8","naam":"Competenties met betrekking tot historisch bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}}
+  ]
+}

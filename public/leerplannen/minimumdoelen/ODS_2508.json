@@ -1,0 +1,30 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2508",
+    "naam": "Buitengewoon Secundair onderwijs Opleidingsvorm 4 - Vakoverschrijdende - Context 2 Mentale gezondheid - Eindtermen",
+    "apiId": "2508",
+    "korteNaam": "Context 2 Mentale gezondheid",
+    "versie": "1.0",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 8,
+    "sha256": "41da31ead33e680bdca0d273f8251773940a340612907a3fe4088996b9efedf2"
+  },
+  "doelen": [
+{"id":"77402","code":"1","tekst":"De leerlingen gaan adequaat om met taakbelasting en met stressvolle situaties;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77403","code":"2","tekst":"De leerlingen gaan gepast om met vreugde, verdriet, angst, boosheid, verlies en rouw;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77404","code":"3","tekst":"De leerlingen erkennen probleemsituaties en vragen, accepteren en bieden hulp;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77405","code":"4","tekst":"De leerlingen aanvaarden en verwerken hun seksuele ontwikkeling en veranderingen in de puberteit;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77406","code":"5","tekst":"De leerlingen kunnen zich uiten over en gaan respectvol om met vriendschap, verliefdheid, seksuele identiteit en geaardheid, seksuele gevoelens en gedrag;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77407","code":"6","tekst":"De leerlingen stellen zich weerbaar op;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77408","code":"7","tekst":"De leerlingen gebruiken beeld, muziek, beweging, drama of media om zichzelf uit te drukken;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77409","code":"8","tekst":"De leerlingen herkennen de impact van cultuur- en kunstbeleving op het eigen gevoelsleven en gedrag en dat van anderen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

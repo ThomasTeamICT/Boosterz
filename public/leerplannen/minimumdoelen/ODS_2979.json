@@ -1,0 +1,26 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2979",
+    "naam": "Secundair onderwijs 2de graad -  Aardwetenschappen - Cesuurdoelen",
+    "apiId": "2979",
+    "korteNaam": "Aardwetenschappen",
+    "versie": "2.0",
+    "graad": "2de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 3,
+    "sha256": "b974f69b777b2668f2cc4a957d16cfd4d0d189ffe074d30ef1dd02920eb0e82b"
+  },
+  "doelen": [
+{"id":"90408","code":"10.2.1","tekst":"<p>De leerlingen karakteriseren bodems.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"<p>- Beïnvloedende factoren voor bodemvorming: klimaat, gesteente, biologische activiteit, reliëf, menselijke activiteiten, tijd</p><p>- Samenstelling en eigenschappen</p><p>&gt; Bestanddelen van bodems: lucht, mineralen, humus, water</p><p>&gt; Biologische, fysische en chemische eigenschappen: zuurtegraad, textuur, doorlaatbaarheid en andere zoals humusgehalte, beworteling</p><p>&gt; Bodemprofiel met bodemhorizonten</p><p>- Variatie in bodemtypes</p>","feitenkennis":"<p>- Vakterminologie inherent aan de afbakening van het cesuurdoel waaronder bodemprofiel, bodemhorizont</p>","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-10-27T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Toegepaste aardwetenschappen: bodemkunde","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.0","nummer":"wdo73","studierichtingen":[{"waarde":"Plant- dier- en milieutechnieken","structuuronderdeel_groep_nummer":"G-0224"}]}}}}},
+{"id":"90409","code":"10.3.1","tekst":"<p>De leerlingen onderzoeken interacties en processen in ecosystemen.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau analyseren","conceptuele_kennis":"<p>- Biotische en abiotische componenten en hun ruimtelijke patronen in ecosystemen</p><p>- Interacties en processen in ecosystemen met inbegrip van oorzaak-gevolgrelaties, terugkoppeling</p><p>- Een ecosysteem als deel van een groter systeem</p>","feitenkennis":"<p>- Vakterminologie inherent aan de afbakening van het cesuurdoel</p>","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-10-27T00:00:00Z"},"optioneel":false,"procedurele_kennis":"<p>- Systeemdenken</p><p>- Gebruiken van geografische hulpbronnen en terreintechnieken</p>","titels":{"1":{"titel":"Toegepaste aardwetenschappen: milieu, klimaat en natuur","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.0","nummer":"wdo74","studierichtingen":[{"waarde":"Plant- dier- en milieutechnieken","structuuronderdeel_groep_nummer":"G-0224"}]}}}}},
+{"id":"90410","code":"10.4.1","tekst":"<p>De leerlingen onderzoeken interacties en processen in ecosystemen.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau analyseren","conceptuele_kennis":"<p>- Biotische en abiotische componenten en hun ruimtelijke patronen in ecosystemen</p><p>- Interacties en processen in ecosystemen met inbegrip van oorzaak-gevolgrelaties, terugkoppeling</p><p>- Een ecosysteem als deel van een groter systeem</p>","feitenkennis":"<p>- Vakterminologie inherent aan de afbakening van het cesuurdoel</p>","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2021-09-01T00:00:00Z","geldig_tot_dt":"2024-08-31T00:00:00Z","publicatie_dt":"2021-10-27T00:00:00Z"},"optioneel":false,"procedurele_kennis":"<p>- Systeemdenken</p><p>- Gebruiken van geografische hulpbronnen en terreintechnieken</p>","titels":{"1":{"titel":"Toegepaste aardwetenschappen: milieu, klimaat en landbouw","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.0","nummer":"wdo75","studierichtingen":[{"waarde":"Plant- dier- en milieutechnieken","structuuronderdeel_groep_nummer":"G-0224"}]}}}}}
+  ]
+}

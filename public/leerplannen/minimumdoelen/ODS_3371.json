@@ -1,0 +1,25 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3371",
+    "naam": "Secundair onderwijs 3de graad 3de leerjaar -  Algemene doorstroomcompetenties - Specifieke eindtermen",
+    "apiId": "3371",
+    "korteNaam": "Algemene doorstroomcompetenties",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "leerjaar": "3de leerjaar",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 1,
+    "sha256": "a57ee35c4dcbcf81f95b47100f146c6b1a1cc0d0cb7018011a27bc28c1109bcb"
+  },
+  "doelen": [
+{"id":"92341","code":"01.01.01","tekst":"<p>De leerlingen doorlopen een onderzoekscyclus in samenhang met inhouden van het zevende leerjaar gericht op het hoger onderwijs.</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Inhouden van het zevende leerjaar gericht op het hoger onderwijs zoals vastgelegd in de minimumdoelen, door het schoolbestuur of door de scholengroep.</p><p>Fasen in een onderzoekscyclus zoals oriëntatie, probleem(stelling) of onderzoeksvraag, onderzoeksmethode, gegevensverzameling, analyse, conclusie, rapportering.</p><p>Afhankelijk van de context kunnen een of meerdere fasen in de onderzoekscyclus zelfstandig of onder begeleiding gebeuren.</p>","optioneel":false,"titels":{"1":{"titel":"Generieke doorstroomcompetenties","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo1.1"}}}}}
+  ]
+}

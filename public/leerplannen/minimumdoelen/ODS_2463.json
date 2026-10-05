@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2463",
+    "naam": "Secundair onderwijs 1ste graad B-stroom -  Competenties in het Nederlands - Eindtermen basisgeletterdheid",
+    "apiId": "2463",
+    "korteNaam": "Nederlands",
+    "versie": "2.0",
+    "graad": "1ste graad",
+    "stroom": "B-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "2",
+        "naam": "Competenties in het Nederlands"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 3,
+    "sha256": "36f0f37c0964fd2208775fb8fb01a2a22e0e005f137884d5d1bda7f303dc62a2"
+  },
+  "doelen": [
+{"id":"80426","code":"BG 2.1","tekst":"<p>De leerling haalt het onderwerp en relevante informatie uit geschreven en gesproken niet-fictionele teksten in functie van doelgerichte informatieverwerking en communicatie.</p>","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"2","naam":"Competenties in het Nederlands"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau analyseren","conceptuele_kennis":"- Tekststructuur, titels","feitenkennis":"- Woordenschat: frequente woorden, heel eenvoudig figuurlijk taalgebruik","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Strategieën: tekststructuur en titels herkennen, rekening houden met lees- en luisterdoel, voorkennis activeren, visuele ondersteunende elementen gebruiken, vragen stellen, talige hulpmiddelen gebruiken, de vermoedelijke betekenis van onbekende woorden afleiden uit de context, de vermoedelijke betekenis van onbekende woorden afleiden via taalverwantschap","tekstkenmerken":"<ul><li>Eenvoudige, herkenbare, expliciet aangegeven structuur</li><li>Lage informatiedichtheid</li><li>Voornamelijk Standaardnederlands, heel eenvoudig figuurlijk taalgebruik, voornamelijk frequente woorden</li><li>Grote samenhang</li><li>Concrete en herkenbare inhoud</li><li>Eenvoudige zinsbouw</li><li>Tekstsoorten: informatief, persuasief, opiniërend, prescriptief, narratief</li></ul><p>(bijkomend voor schriftelijke receptie)</p><ul><li>Duidelijke lay-out</li></ul><p>(bijkomend voor mondelinge receptie)</p><ul><li>Laag tot normaal spreektempo</li></ul>","titels":{"1":{"titel":"Het Nederlands receptief, productief en interactief, zowel mondeling als schriftelijk gebruiken als communicatiemiddel in relevante situaties.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80427","code":"BG 2.2","tekst":"<p>De leerling produceert schriftelijke en mondelinge teksten in functie van doelgerichte communicatie.</p>","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"2","naam":"Competenties in het Nederlands"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau creëren","conceptuele_kennis":"- Taalgedragsconventies en registers                                                                                \n- Effecten van non-verbaal gedrag","feitenkennis":"- Woordenschat: frequente woorden, heel eenvoudig figuurlijk taalgebruik","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"procedurele_kennis":"<p>- Strategieën: rekening houden met spreek- en schrijfdoel, voorkennis activeren, rekening houden met ontvanger, talige hulpmiddelen gebruiken</p><p>- Gebruik van taalgedragsconventies en registers</p><p>- Spelling van frequente woorden</p><p>- Uitspraak van hoogfrequente klanken en klankencombinaties</p><p>- Gebruik van eenvoudige grammaticale constructies en zinspatronen (zoals meervoud, volgorde van persoonsvorm en onderwerp in een hoofdzin)</p>","tekstkenmerken":"<ul><li>Eenvoudige tekststructuur</li><li>Redelijk herkenbare samenhang</li><li>Concrete inhoud</li><li>Tekstsoorten: informatief, opiniërend, prescriptief</li><li>Uitspraak, woordkeuze, zinsbouw, spelling, register en lichaamstaal mogen enkel afwijken zolang ze het overbrengen van de boodschap niet in de weg staan</li></ul>","titels":{"1":{"titel":"Het Nederlands receptief, productief en interactief, zowel mondeling als schriftelijk gebruiken als communicatiemiddel in relevante situaties.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80428","code":"BG 2.3","tekst":"De leerling neemt deel aan mondelinge en schriftelijke interactie in functie van doelgerichte communicatie.","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"2","naam":"Competenties in het Nederlands"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau creëren","conceptuele_kennis":"- Zie opsomming bij eindtermen BG 2.1 en  BG 2.2","feitenkennis":"- Zie opsomming bij eindtermen BG 2.1 en  BG 2.2","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Strategieën: inspelen op wat de ander zegt of schrijft, de ander laten uitspreken, op een gepaste manier het woord vragen of nemen,  elementen van lichaamstaal en intonatie herkennen en zelf inzetten, het register afstemmen op de gesprekspartner/correspondent zodat de interactie mogelijk blijft, talige hulpmiddelen gebruiken, de vermoedelijke betekenis van onbekende woorden afleiden uit de context, de vermoedelijke betekenis van onbekende woorden afleiden via taalverwantschap","tekstkenmerken":"* Zie opsomming bij eindtermen BG 2.1 en  BG 2.2","titels":{"1":{"titel":"Het Nederlands receptief, productief en interactief, zowel mondeling als schriftelijk gebruiken als communicatiemiddel in relevante situaties.","ordeningskader":{"type":"bouwsteen"}}}}}
+  ]
+}

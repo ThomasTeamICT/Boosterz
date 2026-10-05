@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3028",
+    "naam": "Secundair onderwijs 2de graad aso, kso, tso Finaliteit doorstroom -  Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken - Eindtermen",
+    "apiId": "3028",
+    "korteNaam": "Leercompetenties",
+    "versie": "2.1",
+    "graad": "2de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "13",
+        "naam": "Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 4,
+    "sha256": "433b70169ce664e21cb0f7e621f54bde72a1f789ae8fc4a8ce2d195f7c1c9bd4"
+  },
+  "doelen": [
+{"id":"90953","code":"13.1","tekst":"<p>De leerlingen reflecteren cyclisch en vakspecifiek over het eigen leerproces en sturen het op basis daarvan doelgericht bij.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"13","naam":"Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}},
+{"id":"90964","code":"13.2","tekst":"<p>De leerlingen zetten (meta)cognitieve leer- en regulatiestrategieën in om zich leerinhouden eigen te maken.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"13","naam":"Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Cognitieve leerstrategieën en bijhorende activiteiten zoals structureren, zich vragen stellen bij de leerinhoud, memoriseren, herhalen, selecteren, relateren, toepassen, inoefenen.<br />Metacognitieve regulatiestrategieën en bijhorende activiteiten zoals plannen monitoren, evalueren, bijsturen<br />&nbsp;</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"90965","code":"13.3","tekst":"<p>De leerlingen gebruiken school- en vaktaal.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"13","naam":"Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Vaktaal zoals domeinspecifieke terminologie, symbolen.</p><p>Voor het leerproces is het belangrijk dat leerlingen schooltaal en vaktaal kunnen gebruiken. Daartoe behoort vakterminologie relevant voor het realiseren van de eindtermen basisvorming en de specifieke eindtermen.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}},
+{"id":"90966","code":"13.4","tekst":"<p>De leerlingen zoeken doelgericht informatie in diverse bronnen en verwerken die op een kritische en systematische manier.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"13","naam":"Leercompetenties met inbegrip van onderzoekscompetenties, innovatiedenken, creativiteit, probleemoplossend en kritisch denken, systeemdenken, informatieverwerking en samenwerken"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Bronnen zoals personen, digitale en niet-digitale tijdschriften, encyclopedieën, boeken, audiovisueel materiaal.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de ontwikkeling van leerlingen en de context waarin het minimumdoel aan bod komt.</p>"}}
+  ]
+}

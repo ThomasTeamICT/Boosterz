@@ -1,0 +1,29 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3248",
+    "naam": "Buitengewoon Secundair onderwijs 2de graad Opleidingsvorm 4 -  Filosofie - Cesuurdoelen",
+    "apiId": "3248",
+    "korteNaam": "Filosofie",
+    "versie": "2.1",
+    "graad": "2de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 6,
+    "sha256": "c43dc026f92ac1395622294a4f5e3132c3a2c493eeab29c63f4a806f2a3c73e5"
+  },
+  "doelen": [
+{"id":"91971","code":"05.01.01","tekst":"<p>De leerlingen lichten de eigenheid van filosofie en filosofisch denken toe.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:22Z"},"optioneel":false,"titels":{"1":{"titel":"Filosofie","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo5.1","studierichtingen":[{"waarde":"Humane wetenschappen","structuuronderdeel_groep_nummer":"G-0117"}]}}}}},
+{"id":"91972","code":"05.01.02","tekst":"<p>De leerlingen reflecteren over de mens vanuit wijsgerige antropologie.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:22Z"},"onderliggende_elementen":"<ul><li>Geest en lichaam</li></ul>","optioneel":false,"titels":{"1":{"titel":"Filosofie","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo5.1","studierichtingen":[{"waarde":"Humane wetenschappen","structuuronderdeel_groep_nummer":"G-0117"}]}}}}},
+{"id":"91973","code":"05.01.03","tekst":"<p>De leerlingen reflecteren over ethische vraagstukken.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:22Z"},"onderliggende_elementen":"<ul><li>Plichtethiek, gevolgenethiek</li></ul>","optioneel":false,"titels":{"1":{"titel":"Filosofie","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo5.1","studierichtingen":[{"waarde":"Humane wetenschappen","structuuronderdeel_groep_nummer":"G-0117"}]}}}}},
+{"id":"91974","code":"05.02.01","tekst":"<p>De leerlingen lichten de eigenheid van filosofie en filosofisch denken toe.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:22Z"},"optioneel":false,"titels":{"1":{"titel":"Pakket uit filosofie","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo5.2","studierichtingen":[{"waarde":"Maatschappij- en welzijnswetenschappen","structuuronderdeel_groep_nummer":"G-0140"},{"waarde":"Rudolf Steinerpedagogie","structuuronderdeel_groep_nummer":"G-0249"}]}}}}},
+{"id":"91975","code":"05.02.02","tekst":"<p>De leerlingen reflecteren over de mens vanuit wijsgerige antropologie.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:22Z"},"onderliggende_elementen":"<ul><li>Geest en lichaam</li></ul>","optioneel":false,"titels":{"1":{"titel":"Pakket uit filosofie","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo5.2","studierichtingen":[{"waarde":"Maatschappij- en welzijnswetenschappen","structuuronderdeel_groep_nummer":"G-0140"},{"waarde":"Rudolf Steinerpedagogie","structuuronderdeel_groep_nummer":"G-0249"}]}}}}},
+{"id":"91976","code":"05.02.03","tekst":"<p>De leerlingen reflecteren over ethische vraagstukken.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:22Z"},"onderliggende_elementen":"<ul><li>Plichtethiek, gevolgenethiek</li></ul>","optioneel":false,"titels":{"1":{"titel":"Pakket uit filosofie","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo5.2","studierichtingen":[{"waarde":"Maatschappij- en welzijnswetenschappen","structuuronderdeel_groep_nummer":"G-0140"},{"waarde":"Rudolf Steinerpedagogie","structuuronderdeel_groep_nummer":"G-0249"}]}}}}}
+  ]
+}

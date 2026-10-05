@@ -1,0 +1,28 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2220",
+    "naam": "Secundair onderwijs - Vakoverschrijdende - Context 4 Omgeving en duurzame ontwikkeling - Eindtermen",
+    "apiId": "2220",
+    "korteNaam": "Context 4 Omgeving en duurzame ontwikkeling",
+    "versie": "1.0",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 6,
+    "sha256": "ce95b0e4edd3cfcb954985d0fdaa0648d69ec5ae87dab273b0c8f4601b285da7"
+  },
+  "doelen": [
+{"id":"77421","code":"1","tekst":"De leerlingen participeren aan milieubeleid en -zorg op school;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77422","code":"2","tekst":"De leerlingen herkennen in duurzaamheidsvraagstukken de verwevenheid tussen economische, sociale en ecologische aspecten en herkennen de invloed van techniek en beleid;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77423","code":"3","tekst":"De leerlingen zoeken naar mogelijkheden om zelf duurzaam gebruik te maken van ruimte, grondstoffen, goederen, energie en vervoermiddelen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77424","code":"4","tekst":"De leerlingen zoeken naar duurzame oplossingen om de lokale en globale leefomgeving te beïnvloeden en te verbeteren;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77425","code":"5","tekst":"De leerlingen tonen interesse en uiten hun appreciatie voor de natuur, het landschap en het cultureel erfgoed;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77426","code":"6","tekst":"De leerlingen voelen de waarde aan van natuurbeleving en het genieten van de natuur.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

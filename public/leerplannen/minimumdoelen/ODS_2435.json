@@ -1,0 +1,33 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2435",
+    "naam": "Secundair onderwijs 1ste graad A-stroom -  Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties - Eindtermen",
+    "apiId": "2435",
+    "korteNaam": "Ondernemingszin",
+    "versie": "2.0",
+    "graad": "1ste graad",
+    "stroom": "A-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "15",
+        "naam": "Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 4,
+    "sha256": "eb9292727b63c53e5c43d3c76706cc4b5aecf343413d4f8c85435b4f45259dd7"
+  },
+  "doelen": [
+{"id":"80101","code":"15.1","tekst":"De leerlingen genereren ideeën voor een uitdaging aan de hand van aangereikte technieken en methodieken en in een gestructureerd en afgebakend kader.","type":"Eindtermen","sleutelcompetentie":{"nr":"15","naam":"Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties"},"extra":{"affectieve_dimensie":"Open staan voor opvattingen, gedrag, gebeurtenissen, informatie, taken, strategieën,…","attitude":0,"cognitieve_dimensie":"beheersingsniveau creëren","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Creatief denkproces - divergerende fase\n> Brainstormtechnieken en andere methodieken om een veelheid aan ideeën te bekomen \n> Valkuilen","titels":{"1":{"titel":"Opportuniteiten zien en verkennen met behulp van een creatief denkproces.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80102","code":"15.2","tekst":"De leerlingen onderzoeken de uitvoerbaarheid van ideeën rekening houdend met aangereikte criteria.","type":"Eindtermen","sleutelcompetentie":{"nr":"15","naam":"Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties"},"extra":{"affectieve_dimensie":"Voorkeur tonen voor en belang hechten aan waarden, opvattingen, gedragingen, gebeurtenissen, informatie, taken, strategieën,…","attitude":0,"cognitieve_dimensie":"beheersingsniveau analyseren","conceptuele_kennis":"- Criteria om de uitvoerbaarheid van ideeën te toetsen zoals ethische principes, duurzaamheid, tijd en middelen, meerwaarde","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Creatief denkproces - convergerende fase: clusteren, combineren, evalueren en selecteren\n- Toepassing van criteria om de uitvoerbaarheid van ideeën te toetsen zoals ethische principes, duurzaamheid, tijd en middelen, meerwaarde","titels":{"1":{"titel":"De uitvoerbaarheid van ideeën onderzoeken, het inzetten van middelen tegenover doelstellingen afwegen en het gekozen idee realiseren.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80103","code":"15.3","tekst":"De leerlingen werken stapsgewijs een zelfgekozen idee uit door het doelmatig inzetten van tijd en hulpmiddelen.","type":"Eindtermen","sleutelcompetentie":{"nr":"15","naam":"Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties"},"extra":{"affectieve_dimensie":"Voorkeur tonen voor en belang hechten aan waarden, opvattingen, gedragingen, gebeurtenissen, informatie, taken, strategieën,…","attitude":0,"cognitieve_dimensie":"beheersingsniveau toepassen","conceptuele_kennis":"- Hulpmiddelen zoals informatie, gereedschappen, mensen, grondstoffen, energie","context":"* Stapsgewijs maar met de nodige ruimte om te experimenteren, om bijsturingen te doen en om eventueel te mislukken. Het leerproces is belangrijker dan het uiteindelijke resultaat.","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"metacognitieve_kennis":"- Reflectievaardigheden en -proces","optioneel":false,"procedurele_kennis":"- Planningstechnieken: beknopt stappenplan, tijdspad\n- Kwaliteitssysteem/werkwijze zoals PDCA, beertjes van Meichembaum","titels":{"1":{"titel":"De uitvoerbaarheid van ideeën onderzoeken, het inzetten van middelen tegenover doelstellingen afwegen en het gekozen idee realiseren.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80104","code":"15.4","tekst":"De leerlingen maken onderbouwde keuzes aan de hand van aangereikte criteria en aangereikte strategieën.","type":"Eindtermen","sleutelcompetentie":{"nr":"15","naam":"Ontwikkeling van initiatief, ambitie, ondernemingszin en loopbaancompetenties"},"extra":{"affectieve_dimensie":"Handelen vanuit een persoonlijk kader waarin voorkeuren voor waarden, opvattingen, gedragingen , gebeurtenissen, informatie, taken, strategieën,… geïnternaliseerd zijn, maar waarbij nog aandacht nodig is voor de balans tussen conflicterende aspecten","attitude":0,"cognitieve_dimensie":"beheersingsniveau evalueren","conceptuele_kennis":"-Rationele, emotionele en intuïtieve keuzes\n- Keuzecriteria","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"metacognitieve_kennis":"- Eigen voorkeuren en interesses\n- Eigen mogelijkheden en beperkingen\n- Reflectievaardigheden en -proces","optioneel":false,"procedurele_kennis":"- Keuzestrategieën met inbegrip van studiekeuze en loopbaan\n- Veel voorkomende valkuilen bij het maken van keuzes","titels":{"1":{"titel":"(Duurzame) keuzes maken, rekening houdend met gevolgen op korte en lange termijn.","ordeningskader":{"type":"bouwsteen"}}}}}
+  ]
+}

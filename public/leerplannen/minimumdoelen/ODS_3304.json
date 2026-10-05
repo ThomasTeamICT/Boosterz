@@ -1,0 +1,30 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3304",
+    "naam": "Buitengewoon Secundair onderwijs 1ste graad A-stroom Opleidingsvorm 4 -  Competenties inzake duurzaamheid - Eindtermen",
+    "apiId": "3304",
+    "korteNaam": "Duurzaamheid",
+    "versie": "2.1",
+    "graad": "1ste graad",
+    "stroom": "A-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "10",
+        "naam": "Competenties inzake duurzaamheid"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 1,
+    "sha256": "e38a2a2cf1a27893c4fc8617eba8857e1b23013815d486516feddcd4a4377779"
+  },
+  "doelen": [
+{"id":"92274","code":"000","tekst":"<p>Omwille van de verwevenheid van deze sleutelcompetentie met andere sleutelcompetenties zoals SC 6 (Competenties inzake wiskunde, exacte wetenschappen en technologie), SC 7 (Burgerschapscompetenties met inbegrip van competenties inzake samenleven) en SC 9 (Competenties met betrekking tot ruimtelijk bewustzijn) zijn er geen aparte eindtermen geformuleerd.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"10","naam":"Competenties inzake duurzaamheid"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

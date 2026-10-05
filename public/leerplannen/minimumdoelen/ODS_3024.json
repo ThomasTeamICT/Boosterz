@@ -1,0 +1,37 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3024",
+    "naam": "Secundair onderwijs 2de graad aso, kso, tso Finaliteit doorstroom -  Competenties met betrekking tot ruimtelijk bewustzijn - Eindtermen",
+    "apiId": "3024",
+    "korteNaam": "Ruimtelijk bewustzijn",
+    "versie": "2.1",
+    "graad": "2de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "9",
+        "naam": "Competenties met betrekking tot ruimtelijk bewustzijn"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 9,
+    "sha256": "7a7db22be8d1d4349855c3185550f40fe1886b231575cc4d7c442e3931e1b286"
+  },
+  "doelen": [
+{"id":"91154","code":"09.01","tekst":"<p>De leerlingen analyseren demografische processen op basis van demografische indicatoren en beïnvloedende factoren.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Demografische processen zoals bevolkingsgroei, emigratie, immigratie, vergrijzing, demografische transitie.</p><p>Demografische indicatoren zoals geboortecijfer, sterftecijfer, natuurlijke aangroei, leeftijdsstructuur, migratiesaldo, bevolkingsdichtheid, ontwikkelingsgraad.</p><p>Beïnvloedende factoren zoals motivatie voor migratie (politieke systemen, oorlogssituatie), geboortebeleid, fysische factoren (klimaat, reliëf, bodemkwaliteit), sociaal-economische factoren (welzijn, welvaart, armoede).</p>","optioneel":false,"titels":{}}},
+{"id":"91155","code":"09.02","tekst":"<p>De leerlingen illustreren de interactie tussen productie en consumptie op mondiale schaal.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}},
+{"id":"91156","code":"09.03","tekst":"<p>De leerlingen analyseren factoren die productie en consumptie beïnvloeden aan de hand van voorbeelden uit landbouw, industrie, ontginning van grondstoffen, energieproductie of diensten.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}},
+{"id":"91157","code":"09.04","tekst":"<p>De leerlingen illustreren de impact van mondialisering op demografische processen en op de ruimtelijke interactie tussen productie en consumptie.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}},
+{"id":"91158","code":"09.05","tekst":"<p>De leerlingen analyseren ruimtelijke gevolgen van demografische processen, productie en consumptie.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Ruimtelijke gevolgen zoals veranderingen in structuren en patronen in de bebouwde ruimte, veranderingen in structuren en patronen in de open ruimte.</p>","optioneel":false,"titels":{}}},
+{"id":"91159","code":"09.06","tekst":"<p>De leerlingen analyseren oorzaken en gevolgen van het versterkt broeikaseffect.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Oorzaken van het versterkt broeikaseffect zoals evolutie van de belangrijkste broeikasgassen in de atmosfeer en de herkomst ervan.</p><p>Gevolgen van het versterkt broeikaseffect zoals stijging van het zeepeil, verschuiven van klimaten en verspreidingsgebieden van planten en dieren, spreiding van tropische ziektes, extreme weerfenomenen.</p>","optioneel":false,"titels":{}}},
+{"id":"91160","code":"09.07","tekst":"<p>De leerlingen zetten terreintechnieken en geografische hulpbronnen met inbegrip van GIS-viewers functioneel in.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Terreintechnieken zoals bodem-, geluids- of wateronderzoek, verkeersonderzoek, enquête, observatie, terreinkartering.</p><p>Geografische hulpbronnen zoals kaart, atlas, satellietbeeld, luchtfoto, statistisch bronnenmateriaal, leeftijdshistogram, klimatogram.</p>","optioneel":false,"titels":{}}},
+{"id":"91161","code":"09.08","tekst":"<p>De leerlingen situeren absoluut en relatief personen, plaatsen, patronen en processen op relevante ruimtelijke schaalniveaus.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>&nbsp;</p><ul></ul>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met personen, plaatsen, patronen en processen die in de tweede graad aan bod komen.</p>"}},
+{"id":"91162","code":"09.09","tekst":"<p>De leerlingen illustreren de invloed van de persoonlijke en maatschappelijke context van mensen op ruimtelijke beeldvorming.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"memorie":"<p>Invloeden zoals&nbsp;</p><ul><li>factoren die de beleving en betekenis van een plaats beïnvloeden (persoonlijke, sociale, maatschappelijke, politieke en culturele context);</li><li>de reële, ervaren en mentale afstand en tijd;</li><li>de mentale kaart;</li><li>de cartografische voorstelling op ruimtelijke beeldvorming.</li></ul>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context waarin het minimumdoel aan bod komt.</p>"}}
+  ]
+}

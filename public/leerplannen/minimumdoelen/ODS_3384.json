@@ -1,0 +1,26 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3384",
+    "naam": "Buitengewoon Secundair onderwijs 3de graad 3de leerjaar Opleidingsvorm 4 -  Fysica - Specifieke eindtermen",
+    "apiId": "3384",
+    "korteNaam": "Fysica",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "leerjaar": "3de leerjaar",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 2,
+    "sha256": "671c04e965864ffdd41016a5558793c7a94859c8748314dc3aeae97a0324c977"
+  },
+  "doelen": [
+{"id":"92353","code":"11.18.01","tekst":"<p>De leerlingen verklaren het effect van inwerkende krachten op de bewegingsverandering van een systeem aan de hand van de drie wetten van Newton.</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"onderwijsdoel_pretekst":"<p>Uit de onderwijsdoelen van het 7de leerjaar gericht op het hoger onderwijs aangeduid met (*) selecteert de school minstens 1 onderwijsdoel.&nbsp;</p>","optioneel":true,"titels":{"1":{"titel":"Toegepaste fysica: basis toegepaste fysica","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo11.18"}}}}},
+{"id":"92354","code":"11.18.02","tekst":"<p>De leerlingen berekenen spanning over, stroomsterkte door, weerstand en vermogen van een verbruiker.</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"optioneel":true,"titels":{"1":{"titel":"Toegepaste fysica: basis toegepaste fysica","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo11.18"}}}}}
+  ]
+}

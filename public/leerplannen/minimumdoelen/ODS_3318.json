@@ -1,0 +1,34 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3318",
+    "naam": "Secundair onderwijs 1ste graad B-stroom -  Competenties met betrekking tot ruimtelijk bewustzijn - Eindtermen",
+    "apiId": "3318",
+    "korteNaam": "Ruimtelijk bewustzijn",
+    "versie": "2.1",
+    "graad": "1ste graad",
+    "stroom": "B-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "9",
+        "naam": "Competenties met betrekking tot ruimtelijk bewustzijn"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 5,
+    "sha256": "7579f35a7f3074e11fa3682ae44503dda9d251221519b9ff9e74ef5d0dd41e53"
+  },
+  "doelen": [
+{"id":"92194","code":"09.01","tekst":"<p>De leerlingen lokaliseren zichzelf en plaatsen met behulp van lokalisatie- en oriëntatietechnieken.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Gebruik van lokalisatie- en oriëntatietechnieken zoals:</p><ul><li>kaart: schaal, legende en oriëntatie;</li><li>windrichtingen en kompas;</li><li>satellietnavigatiesystemen.</li></ul>","optioneel":false,"titels":{}}},
+{"id":"92195","code":"09.02","tekst":"<p>De leerlingen illustreren natuurlijke en menselijke landschapselementen in een landschap.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<ul><li>Natuurlijke landschapselementen zoals bos, gras, struiken, rivieren, beken.</li><li>Menselijke landschapselementen zoals energie-infrastructuur, transportinfrastructuur, hoogbouw en laagbouw.</li></ul>","optioneel":false,"titels":{}}},
+{"id":"92196","code":"09.03","tekst":"<p>De leerlingen illustreren eenvoudige ruimtelijke relaties in een landschap.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Eenvoudige ruimtelijke relaties zoals tussen bewoningsvormen en klimaat, reliëfvormen en toerisme, reliëfvormen en landbouw, landbouw en klimaat.</p>","optioneel":false,"titels":{}}},
+{"id":"92197","code":"09.04","tekst":"<p>De leerlingen illustreren dat landschappen veranderen onder invloed van natuurlijke oorzaken en menselijke ingrepen.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<ul><li>Natuurlijke oorzaken zoals vulkaanuitbarstingen, aardbevingen, weer, erosie, klimaatverandering.</li><li>Menselijke ingrepen zoals bebouwing, infrastructuur, landbouw, industrie, ontginning.</li></ul>","optioneel":false,"titels":{}}},
+{"id":"92198","code":"09.05","tekst":"<p>De leerlingen zetten geografische hulpbronnen met inbegrip van GIS-viewers functioneel in.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"9","naam":"Competenties met betrekking tot ruimtelijk bewustzijn"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2024-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<p>Geografische hulpbronnen zoals digitale en niet-digitale kaarten, atlas, beeldmateriaal.</p>","optioneel":false,"titels":{},"voetnoot":"<p>Rekening houdend met de context waarin het minimumdoel aan bod komt.</p>"}}
+  ]
+}

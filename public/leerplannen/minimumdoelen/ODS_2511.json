@@ -1,0 +1,35 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2511",
+    "naam": "Buitengewoon Secundair onderwijs Opleidingsvorm 4 - Vakoverschrijdende - Context 5 Politiek-juridische samenleving - Eindtermen",
+    "apiId": "2511",
+    "korteNaam": "Context 5 Politiek-juridische samenleving",
+    "versie": "1.0",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 13,
+    "sha256": "cf71134c9ba978ece93f490e1f07b8b6290bc7e90aab8bc8056d9d6ec7ee0833"
+  },
+  "doelen": [
+{"id":"77427","code":"1","tekst":"De leerlingen geven aan hoe zij kunnen deelnemen aan besluitvorming in en opbouw van de samenleving;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77428","code":"2","tekst":"De leerlingen passen inspraak, participatie en besluitvorming toe in reële schoolse situaties;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77429","code":"3","tekst":"De leerlingen tonen het belang en dynamisch karakter aan van mensen- en kinderrechten;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77430","code":"4","tekst":"De leerlingen zetten zich actief en opbouwend in voor de eigen rechten en die van anderen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77431","code":"5","tekst":"De leerlingen tonen aan dat het samenleven in een democratische rechtsstaat gebaseerd is op rechten en plichten die gelden voor burgers, organisaties en overheid;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77432","code":"6","tekst":"De leerlingen erkennen de rol van controle en evenwicht tussen de wetgevende, uitvoerende en rechterlijke macht in ons democratisch bestel;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77433","code":"7","tekst":"De leerlingen illustreren de rol van de media en organisaties in het functioneren van ons democratisch bestel;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77434","code":"8","tekst":"De leerlingen onderscheiden de hoofdzaken van de federale Belgische staatsstructuur;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77435","code":"9","tekst":"De leerlingen toetsen het samenleven in ons democratisch bestel aan het samenleven onder andere regeringsvormen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77436","code":"10","tekst":"De leerlingen illustreren hoe een democratisch beleid het algemeen belang nastreeft en rekening houdt met ideeën, standpunten en belangen van verschillende betrokkenen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77437","code":"11","tekst":"De leerlingen kunnen van Europese samenwerking, van het beleid en de instellingen van de Europese Unie de betekenis voor de eigen leefwereld toelichten;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77438","code":"12","tekst":"De leerlingen tonen het belang aan van internationale organisaties en instellingen;","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"77439","code":"13","tekst":"De leerlingen geven voorbeelden die duidelijk maken hoe de mondialisering voordelen, problemen en conflicten inhoudt.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2010-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

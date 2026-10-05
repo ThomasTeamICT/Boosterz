@@ -1,0 +1,28 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3375",
+    "naam": "Secundair onderwijs 3de graad 3de leerjaar -  Wiskunde - Specifieke eindtermen",
+    "apiId": "3375",
+    "korteNaam": "Wiskunde",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "leerjaar": "3de leerjaar",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 4,
+    "sha256": "a7139e0ad2eb74f6a708858ec5defef5e7a7c1746b6611ea37cfa2f72f19fd98"
+  },
+  "doelen": [
+{"id":"92346","code":"06.09.01","tekst":"<p>De leerlingen rekenen met vectoren in het vlak.</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"onderliggende_elementen":"<ul><li>Bewerking: optelling en vermenigvuldiging met een getal&nbsp;</li><li>Norm met een vector en ontbinding van een vector in zijn componenten</li></ul>","onderwijsdoel_pretekst":"<p>Uit de onderwijsdoelen van het 7de leerjaar gericht op het hoger onderwijs aangeduid met (*) selecteert de school minstens 1 onderwijsdoel.&nbsp;</p>","optioneel":true,"titels":{"1":{"titel":"Goniometrie en vectoren","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo6.9"}}}}},
+{"id":"92347","code":"06.10.01","tekst":"<p>De leerlingen bepalen het voorschrift of de grafiek van een tweedegraadsfunctie als de andere representatie gegeven is.</p><p>Onderliggende (kennis)elementen:</p><p>- Voorschrift f(x)=a(x-p)²+q</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"onderwijsdoel_pretekst":"<p>Uit de onderwijsdoelen van het 7de leerjaar gericht op het hoger onderwijs aangeduid met (*) selecteert de school minstens 1 onderwijsdoel.&nbsp;</p>","optioneel":true,"titels":{"1":{"titel":"Uitgebreide analyse en algebra","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo6.10"}}}}},
+{"id":"92348","code":"06.10.02","tekst":"<p>De leerlingen lossen tweedegraadsvergelijkingen van de vorm a(x-p)²+q=0 algebraïsch op.</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"optioneel":true,"titels":{"1":{"titel":"Uitgebreide analyse en algebra","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo6.10"}}}}},
+{"id":"92349","code":"06.10.03","tekst":"<p>De leerlingen analyseren kenmerken van tweedegraadsfuncties: nulwaarden, tekenverloop, stijgen/dalen, extremum en symmetrie ten opzichte van een verticale rechte.</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"optioneel":true,"titels":{"1":{"titel":"Uitgebreide analyse en algebra","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo6.10"}}}}}
+  ]
+}

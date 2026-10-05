@@ -1,0 +1,34 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2468",
+    "naam": "Secundair onderwijs 1ste graad B-stroom -  Economische en financiële competenties - Eindtermen",
+    "apiId": "2468",
+    "korteNaam": "Economische en financiële competenties",
+    "versie": "2.0",
+    "graad": "1ste graad",
+    "stroom": "B-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "11",
+        "naam": "Economische en financiële competenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 5,
+    "sha256": "0c50f233cc38b795c3f37a1107747f3166845416697906c2703208bfe71975be"
+  },
+  "doelen": [
+{"id":"80463","code":"11.1","tekst":"<p>De leerlingen beargumenteren hun keuzegedrag bij aankopen rekening houdend met hun behoeften en beïnvloedende factoren.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau evalueren","conceptuele_kennis":"- Reële en gecreëerde behoeften\n- Factoren die het koopgedrag beïnvloeden: prijs met inbegrip van bijkomende kosten, beschikbare middelen, status, reclame, verkoopspraktijken, peers, media, sociale media, milieu- en sociale aspecten","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80464","code":"11.2","tekst":"De leerlingen beoordelen de veiligheid, risico's en kosten verbonden aan het gebruik van betaalmiddelen en verkoopkanalen.","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau evalueren","conceptuele_kennis":"- Werking, kosten, fraude en veiligheid bij courante betaalmiddelen en courante verkoopkanalen","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Strategieën om bedrog en fraude te voorkomen, te herkennen en adequaat te reageren","titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80465","code":"11.3","tekst":"De leerlingen schetsen inkomsten en uitgaven binnen een gezinsbudget.","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Gezinsbudget: inkomsten en uitgaven op korte en lange termijn\n- Lenen, sparen, rente, schuld","feitenkennis":"- Budget\n- Lenen, sparen, rente en schuld","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80466","code":"11.4","tekst":"De leerlingen maken budgettaire keuzes voor zichzelf rekening houdend met een eigen budget en een gezinsbudget.","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"affectieve_dimensie":"Handelen vanuit een persoonlijk kader waarin voorkeuren voor waarden, opvattingen, gedragingen , gebeurtenissen, informatie, taken, strategieën,… geïnternaliseerd zijn, maar waarbij nog aandacht nodig is voor de balans tussen conflicterende aspecten","attitude":0,"cognitieve_dimensie":"beheersingsniveau evalueren","conceptuele_kennis":"- Persoonlijk en gezinsbudget: inkomsten en uitgaven op korte en lange termijn\n- Lenen, sparen, schuld\n- Documenten voor een eenvoudig persoonlijk administratiebeheer zoals kastickets, rekeninguittreksels, garantiebewijzen, contracten bv. abonnement","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Stappen voor het beheren en bewaren van een persoonlijke administratie","titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80467","code":"11.5","tekst":"<p>De leerlingen lichten activiteiten toe van verschillende soorten ondernemingen en organisaties in de eigen leefomgeving.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Activiteiten in ondernemingen en organisaties zoals productie, logistiek, marketing, administratie\n- Productie- en dienstenonderneming\n- Profit en non-profit","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"De werking van ondernemingen en organisaties en hun maatschappelijke rol duiden.\r\n\r\n\r\n","ordeningskader":{"type":"bouwsteen"}}}}}
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3107",
+    "naam": "Secundair onderwijs 3de graad bso Finaliteit arbeidsmarkt -  Economische en financiële competenties - Eindtermen",
+    "apiId": "3107",
+    "korteNaam": "Economische en financiële competenties",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "sleutelcompetenties": [
+      {
+        "nr": "11",
+        "naam": "Economische en financiële competenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 5,
+    "sha256": "0960ce313a42c4b67eda8cad616d13262761a0f8048f2c8aad2c70d9440c92d7"
+  },
+  "doelen": [
+{"id":"90969","code":"11.01","tekst":"<p>De leerlingen beargumenteren binnen een persoonlijk of gezinsbudget keuzes bij aankopen rekening houdend met de totale kostprijs en de financieringskost.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"onderliggende_elementen":"<ul><li>Belang van financiële engagementen op korte en lange termijn</li><li>Eenmalige en terugkerende kosten</li><li>Consumentenkrediet</li></ul>","optioneel":false,"titels":{}}},
+{"id":"90972","code":"11.02","tekst":"<p>De leerlingen vergelijken sparen en beleggingsvormen op het vlak van risico en rendement.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"onderliggende_elementen":"<ul><li>Inflatie</li></ul>","optioneel":false,"titels":{}}},
+{"id":"90975","code":"11.03","tekst":"<p>De leerlingen lichten gevolgen van het werken met een arbeidsovereenkomst&nbsp;en de toegang tot de arbeidsmarkt toe.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}},
+{"id":"90983","code":"11.04","tekst":"<p>De leerlingen lichten verantwoordelijkheid en aansprakelijkheid bij een schadegeval toe.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}},
+{"id":"90984","code":"11.05","tekst":"<p>De leerlingen lichten toe hoe de overheid via inkomsten en uitgaven een impact heeft op de samenleving en ongelijkheid tracht te beperken.</p>","type":"Eindtermen","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-07-13T09:42:12Z"},"optioneel":false,"titels":{}}}
+  ]
+}

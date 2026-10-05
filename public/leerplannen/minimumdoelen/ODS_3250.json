@@ -1,0 +1,29 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3250",
+    "naam": "Buitengewoon Secundair onderwijs 2de graad Opleidingsvorm 4 -  Gedragswetenschappen - Cesuurdoelen",
+    "apiId": "3250",
+    "korteNaam": "Gedragswetenschappen",
+    "versie": "2.1",
+    "graad": "2de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 6,
+    "sha256": "e146fac0dfafce13886139d694c40805d743a7cb2f77ecfbc6fc0455ddce44cf"
+  },
+  "doelen": [
+{"id":"91965","code":"14.01.01","tekst":"<p>De leerlingen lichten de fysieke, cognitieve en socio-emotionele ontwikkeling doorheen de levensloopfasen toe.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:22Z"},"onderliggende_elementen":"<ul><li>Fysieke ontwikkeling: (senso)motorische ontwikkeling</li><li>Cognitieve ontwikkeling: van sensomotorisch tot formeel-operationeel denken</li><li>Morele ontwikkeling</li><li>Socio-emotionele ontwikkeling: gehechtheidsontwikkeling en identiteitsvorming</li></ul>","optioneel":false,"titels":{"1":{"titel":"Uitgebreide algemene gedragswetenschappen","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo14.1","studierichtingen":[{"waarde":"Maatschappij- en welzijnswetenschappen","structuuronderdeel_groep_nummer":"G-0140"}]}}}}},
+{"id":"91966","code":"14.01.02","tekst":"<p>De leerlingen lichten het begrip persoonlijkheid toe.&nbsp;</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:22Z"},"optioneel":false,"titels":{"1":{"titel":"Uitgebreide algemene gedragswetenschappen","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo14.1","studierichtingen":[{"waarde":"Maatschappij- en welzijnswetenschappen","structuuronderdeel_groep_nummer":"G-0140"}]}}}}},
+{"id":"91967","code":"14.02.01","tekst":"<p>De leerlingen lichten de fysieke, cognitieve en socio-emotionele ontwikkeling doorheen de levensloopfasen toe.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:22Z"},"onderliggende_elementen":"<ul><li>Fysieke ontwikkeling: (senso)motorische ontwikkeling</li><li>Cognitieve ontwikkeling: van sensomotorisch tot formeel-operationeel denken</li><li>Morele ontwikkeling</li><li>Socio-emotionele ontwikkeling: gehechtheidsontwikkeling en identiteitsvorming</li></ul>","optioneel":false,"titels":{"1":{"titel":"Algemene gedragswetenschappen","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo14.2","studierichtingen":[{"waarde":"Humane wetenschappen","structuuronderdeel_groep_nummer":"G-0117"}]}}}}},
+{"id":"91968","code":"14.02.02","tekst":"<p>De leerlingen lichten het begrip persoonlijkheid toe.&nbsp;</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:22Z"},"optioneel":false,"titels":{"1":{"titel":"Algemene gedragswetenschappen","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo14.2","studierichtingen":[{"waarde":"Humane wetenschappen","structuuronderdeel_groep_nummer":"G-0117"}]}}}}},
+{"id":"91963","code":"14.03.01","tekst":"<p>De leerlingen lichten determinanten van gezondheidsgedrag toe.&nbsp;</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:22Z"},"optioneel":false,"titels":{"1":{"titel":"Toegepaste gedragswetenschappen: psychologie","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo14.3","studierichtingen":[{"waarde":"Maatschappij en welzijn","structuuronderdeel_groep_nummer":"G-0139"},{"waarde":"Sport","structuuronderdeel_groep_nummer":"G-0262"},{"waarde":"Topsport (dubbele finaliteit)","structuuronderdeel_groep_nummer":"G-0281"},{"waarde":"Wellness en lifestyle","structuuronderdeel_groep_nummer":"G-0297"}]}}}}},
+{"id":"91964","code":"14.03.02","tekst":"<p>De leerlingen lichten de fysieke, cognitieve en socio-emotionele ontwikkeling doorheen de levensloopfasen toe.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:22Z"},"onderliggende_elementen":"<ul><li>Fysieke ontwikkeling: (senso)motorische ontwikkeling</li><li>Cognitieve ontwikkeling van sensomotorisch tot formeel-operationeel denken</li><li>Morele ontwikkeling</li><li>Socio-emotionele ontwikkeling: hechting en identiteit</li></ul>","optioneel":false,"titels":{"1":{"titel":"Toegepaste gedragswetenschappen: psychologie","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo14.3","studierichtingen":[{"waarde":"Maatschappij en welzijn","structuuronderdeel_groep_nummer":"G-0139"},{"waarde":"Sport","structuuronderdeel_groep_nummer":"G-0262"},{"waarde":"Topsport (dubbele finaliteit)","structuuronderdeel_groep_nummer":"G-0281"},{"waarde":"Wellness en lifestyle","structuuronderdeel_groep_nummer":"G-0297"}]}}}}}
+  ]
+}

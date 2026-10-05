@@ -1,0 +1,25 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3382",
+    "naam": "Buitengewoon Secundair onderwijs 3de graad 3de leerjaar Opleidingsvorm 4 -  Aardwetenschappen - Specifieke eindtermen",
+    "apiId": "3382",
+    "korteNaam": "Aardwetenschappen",
+    "versie": "2.1",
+    "graad": "3de graad",
+    "leerjaar": "3de leerjaar",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 1,
+    "sha256": "f86abda8121f4e2bc91aa6f68dbfc66a15b4fd166c2fb9c1b8bf5bd86075be3d"
+  },
+  "doelen": [
+{"id":"92352","code":"10.02.01","tekst":"<p>De leerlingen analyseren interacties en processen in ecosystemen.</p>","type":"Specifieke eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2024-05-13T00:00:00Z"},"memorie":"<ul><li>Interacties zoals relaties tussen biotische factoren, tussen biotische en abiotische factoren</li><li>Processen zoals materiestromen, energiestromen</li></ul>","onderwijsdoel_pretekst":"<p>Uit de onderwijsdoelen van het 7de leerjaar gericht op het hoger onderwijs aangeduid met (*) selecteert de school minstens 1 onderwijsdoel.&nbsp;</p>","optioneel":true,"titels":{"1":{"titel":"Toegepaste aardwetenschappen","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo10.2"}}}}}
+  ]
+}

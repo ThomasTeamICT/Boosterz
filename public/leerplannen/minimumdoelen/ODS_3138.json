@@ -1,0 +1,25 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3138",
+    "naam": "Secundair onderwijs 2de graad -  Informaticawetenschappen - Cesuurdoelen",
+    "apiId": "3138",
+    "korteNaam": "Informaticawetenschappen",
+    "versie": "2.1",
+    "graad": "2de graad",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 2,
+    "sha256": "1e13d676ee6d2eba75dc3502ca6db69575e684f9dabd0fb0dde9cd4b28070df3"
+  },
+  "doelen": [
+{"id":"91867","code":"07.01.01","tekst":"<p>De leerlingen passen een gestructureerde programmeertaal toe om zelf ontworpen oplossingen voor concrete problemen te ontwikkelen.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:01Z"},"onderliggende_elementen":"<ul><li>Controlestructuren</li><li>Gebruik van softwarebibliotheken</li></ul>","optioneel":false,"titels":{"1":{"titel":"Algoritmen en programmeren","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo7.1","studierichtingen":[{"waarde":"Bedrijfswetenschappen","structuuronderdeel_groep_nummer":"G-0033"},{"waarde":"Technologische wetenschappen","structuuronderdeel_groep_nummer":"G-0274"}]}}}}},
+{"id":"91868","code":"07.02.01","tekst":"<p>De leerlingen passen een gestructureerde programmeertaal toe om zelf ontworpen oplossingen voor concrete problemen te ontwikkelen.</p>","type":"Cesuurdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2023-09-01T00:00:00Z","publicatie_dt":"2023-09-27T18:04:01Z"},"onderliggende_elementen":"<ul><li>Controlestructuren</li><li>Gebruik van softwarebibliotheken</li></ul>","optioneel":false,"titels":{"1":{"titel":"Pakket uit algoritmen en programmeren","ordeningskader":{"type":"wetenschapsdomein_onderdeel","versie":"2.1","nummer":"wdo7.2","studierichtingen":[{"waarde":"Biotechnologische STEM-wetenschappen","structuuronderdeel_groep_nummer":"G-0048"},{"waarde":"Bouwwetenschappen","structuuronderdeel_groep_nummer":"G-0055"}]}}}}}
+  ]
+}

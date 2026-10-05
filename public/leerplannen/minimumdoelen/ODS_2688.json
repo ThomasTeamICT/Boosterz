@@ -1,0 +1,34 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2688",
+    "naam": "Buitengewoon Secundair onderwijs 1ste graad B-stroom Opleidingsvorm 4 -  Sociaal-relationele competenties - Eindtermen",
+    "apiId": "2688",
+    "korteNaam": "Sociaal-relationele competenties",
+    "versie": "2.0",
+    "graad": "1ste graad",
+    "stroom": "B-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "5",
+        "naam": "Sociaal-relationele competenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 5,
+    "sha256": "4791bd515a82fd16ba7e7570398edd479f176cf5d8f6ed3321fb87cf9032b8ef"
+  },
+  "doelen": [
+{"id":"80340","code":"5.1","tekst":"De leerlingen bewaken in interacties hun eigen fysieke en mentale grenzen.","type":"Eindtermen","sleutelcompetentie":{"nr":"5","naam":"Sociaal-relationele competenties"},"extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Interpersoonlijke relaties opbouwen, onderhouden en versterken.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80341","code":"5.2","tekst":"De leerlingen houden in interacties rekening met de opvattingen, fysieke en mentale grenzen en emoties van anderen.","type":"Eindtermen","sleutelcompetentie":{"nr":"5","naam":"Sociaal-relationele competenties"},"extra":{"attitude":1,"geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Interpersoonlijke relaties opbouwen, onderhouden en versterken.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80342","code":"5.3","tekst":"De leerlingen demonstreren hoe ze respectvol reageren tegen pest- en uitsluitingsgedrag.","type":"Eindtermen","sleutelcompetentie":{"nr":"5","naam":"Sociaal-relationele competenties"},"extra":{"affectieve_dimensie":"Handelen vanuit een persoonlijk kader waarin voorkeuren voor waarden, opvattingen, gedragingen , gebeurtenissen, informatie, taken, strategieën,… geïnternaliseerd zijn, maar waarbij nog aandacht nodig is voor de balans tussen conflicterende aspecten","attitude":0,"cognitieve_dimensie":"beheersingsniveau toepassen","conceptuele_kennis":"- Pest- en uitsluitingsgedrag\n- Fysieke en mentale grenzen","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Strategieën om respectvol te reageren tegen pest- en uitsluitingsgedrag","titels":{"1":{"titel":"Interpersoonlijke relaties opbouwen, onderhouden en versterken.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80343","code":"5.4","tekst":"De leerlingen demonstreren in informele en formele relaties geschikte sociale vaardigheden.","type":"Eindtermen","sleutelcompetentie":{"nr":"5","naam":"Sociaal-relationele competenties"},"extra":{"affectieve_dimensie":"Handelen vanuit een persoonlijk kader waarin voorkeuren voor waarden, opvattingen, gedragingen , gebeurtenissen, informatie, taken, strategieën,… geïnternaliseerd zijn, maar waarbij nog aandacht nodig is voor de balans tussen conflicterende aspecten","attitude":0,"cognitieve_dimensie":"beheersingsniveau toepassen","conceptuele_kennis":"- Formele en informele relaties \n- Leefregels en afspraken\n- Empathie","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Strategieën om sociale vaardigheden in formele en informele relaties te hanteren\n- Strategieën om grenzen te stellen en te bewaken via aanvaardbaar verbaal en non-verbaal gedrag","titels":{"1":{"titel":"Interpersoonlijke relaties opbouwen, onderhouden en versterken.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80344","code":"5.5","tekst":"De leerlingen dragen in groepsactiviteiten met een welomschreven opdracht actief bij aan de uitwerking van een gezamenlijk resultaat.","type":"Eindtermen","sleutelcompetentie":{"nr":"5","naam":"Sociaal-relationele competenties"},"extra":{"affectieve_dimensie":"Handelen vanuit een persoonlijk kader waarin voorkeuren voor waarden, opvattingen, gedragingen , gebeurtenissen, informatie, taken, strategieën,… geïnternaliseerd zijn, maar waarbij nog aandacht nodig is voor de balans tussen conflicterende aspecten","attitude":0,"cognitieve_dimensie":"beheersingsniveau toepassen","conceptuele_kennis":"- Rollen en gedrag van personen in groepsactiviteiten","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Methoden om in overleg taken te verdelen en te plannen","titels":{"1":{"titel":"Interpersoonlijke relaties opbouwen, onderhouden en versterken.","ordeningskader":{"type":"bouwsteen"}}}}}
+  ]
+}

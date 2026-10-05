@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2449",
+    "naam": "Secundair onderwijs 1ste graad A-stroom -  Economische en financiële competenties - Eindtermen basisgeletterdheid",
+    "apiId": "2449",
+    "korteNaam": "Economische en financiële competenties",
+    "versie": "2.0",
+    "graad": "1ste graad",
+    "stroom": "A-stroom",
+    "sleutelcompetenties": [
+      {
+        "nr": "11",
+        "naam": "Economische en financiële competenties"
+      }
+    ],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-10-05T12:20:49Z",
+    "aantal": 3,
+    "sha256": "588536e4e501834172825c792d9df209bfca82a065ef3bcfa40089878cee79ca"
+  },
+  "doelen": [
+{"id":"80280","code":"BG 11.1","tekst":"De leerling verklaart zijn keuzegedrag bij aankopen rekening houdend met zijn behoeften en beïnvloedende factoren.","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Reële en gecreëerde behoeften\n- Factoren die het koopgedrag beïnvloeden zoals prijs met inbegrip van bijkomende kosten, beschikbare middelen, status, reclame, verkoopspraktijken, peers, media, sociale media, milieu- en sociale aspecten","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80281","code":"BG 11.2","tekst":"De leerling licht de veiligheid, risico's en kosten verbonden aan het gebruik van betaalmiddelen en verkoopkanalen toe.","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"attitude":0,"cognitieve_dimensie":"beheersingsniveau begrijpen","conceptuele_kennis":"- Werking, kosten, fraude en veiligheid bij courante betaalmiddelen en courante verkoopkanalen \n- Strategieën om bedrog en fraude te voorkomen, te herkennen en adequaat te reageren","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}},
+{"id":"80282","code":"BG 11.3","tekst":"De leerling maakt budgettaire keuzes voor zichzelf rekening houdend met een eigen budget en een gezinsbudget.","type":"Eindtermen basisgeletterdheid","sleutelcompetentie":{"nr":"11","naam":"Economische en financiële competenties"},"extra":{"affectieve_dimensie":"Handelen vanuit een persoonlijk kader waarin voorkeuren voor waarden, opvattingen, gedragingen , gebeurtenissen, informatie, taken, strategieën,… geïnternaliseerd zijn, maar waarbij nog aandacht nodig is voor de balans tussen conflicterende aspecten","attitude":0,"cognitieve_dimensie":"beheersingsniveau evalueren","conceptuele_kennis":"- Persoonlijk en gezinsbudget: inkomsten en uitgaven op korte en lange termijn\n- Lenen, sparen, schuld\n- Documenten voor een eenvoudig persoonlijk administratiebeheer zoals kastickets, rekeninguittreksels, garantiebewijzen, contracten, abonnementen","geldigheid":{"type":"Niet meer geldig","geldig_van_dt":"2019-09-01T00:00:00Z","geldig_tot_dt":"2025-08-31T00:00:00Z","publicatie_dt":"2018-12-17T00:00:00Z"},"optioneel":false,"procedurele_kennis":"- Stappen voor het beheren en bewaren van een persoonlijke administratie","titels":{"1":{"titel":"Inzicht ontwikkelen in consumptiegedrag, inkomensverwerving en financiële producten om budgettaire gevolgen op korte en lange termijn in te schatten.","ordeningskader":{"type":"bouwsteen"}}}}}
+  ]
+}
