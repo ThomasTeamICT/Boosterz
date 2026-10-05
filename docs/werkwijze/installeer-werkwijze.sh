@@ -22,13 +22,15 @@ cat >> "$TMP" <<'BOOSTERZ_WERKWIJZE_EOF'
 <!-- werkwijze:start -->
 ## Werkwijze: modellen en agents
 
-Afgesproken met de gebruiker in september 2026. Geldt voor elk project en vervangt de eerdere afspraak om alle agents op opus te laten draaien.
+Afgesproken met de gebruiker in september 2026, aangevuld in oktober 2026. Geldt voor elk project en vervangt de eerdere afspraak om alle agents op opus te laten draaien.
 
 **Kernregel.** Het duurste model zet je in waar een fout duur is en moeilijk te zien. Het goedkoopste zet je in waar een test of script de fout toch vangt. Schrijven en controleren doen altijd twee verschillende agents.
 
+**Modelnamen.** `haiku`, `sonnet`, `opus` en `fable` gaan van goedkoop naar duur en van snel naar sterk. De namen wijzen altijd naar de nieuwste versie: bij een nieuwe release verandert er niets aan deze afspraken of aan de agentbestanden. Fable is het sterkste en duurste model en denkt langer per stap; zet het niet in voor regiewerk dat opus aankan.
+
 | Taak | Agent | Model |
 |---|---|---|
-| Regie, ontwerp, integratie, eindcontrole en commits | de hoofdsessie | het sterkste niveau, opus of fable, gekozen met /model |
+| Regie, ontwerp, integratie, eindcontrole en commits | de hoofdsessie | opus; fable (met /model) voor een fase die vooral moeilijk ontwerp is |
 | Lesinhoud schrijven: oefeningen, uitleg, cursustekst | `inhoudschrijver` | opus |
 | Lesinhoud nakijken tegen de brontekst | `nakijker` | sonnet |
 | Bevindingen en twijfelgevallen beoordelen | `rechter` | opus |
@@ -49,6 +51,9 @@ Afgesproken met de gebruiker in september 2026. Geldt voor elk project en vervan
 6. Review: een `reviewer` per invalshoek zoekt, de `rechter` bevestigt of weerlegt. Alleen bevestigde bevindingen worden opgelost.
 7. De grondige modus met veel agents is voor grote fasen: een nieuwe module, een volledige audit, een grote inhoudsronde. Niet voor kleine klussen.
 8. Communicatie met de gebruiker in Vlaams Nederlands: eerst het resultaat, kort, en zonder vakjargon waar het kan.
+9. Werk dat over meerdere sessies loopt, krijgt bovenaan zijn ontwerpdocument een tabel "Stand van zaken": wat klaar is, wat wacht en op wie. CLAUDE.md van het project verwijst ernaar. Zo zit het geheugen in de repo, niet in één sessie.
+10. Geheimen (API-sleutels, wachtwoorden) nooit in een chat, de repo of een log. Ze gaan rechtstreeks als geheim in GitHub of in de omgeving, en de gebruiker zet ze daar zelf.
+11. Een externe bron die nog niet bereikbaar of gekend is (geblokkeerd netwerk, onbekende API-vorm): tolerant bouwen, testen met een nagebootst antwoord, en de eerste echte run de vorm laten bevestigen voor iemand erop verder bouwt.
 <!-- werkwijze:end -->
 BOOSTERZ_WERKWIJZE_EOF
 cat "$TMP" > "$FILE"
