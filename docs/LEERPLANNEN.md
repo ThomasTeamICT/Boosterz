@@ -9,10 +9,10 @@ leerplan) moet de punten met "te bevestigen" afvinken vóór het bouwen begint.*
 |---|---|
 | API-sleutel Onderwijsdoelen-API | **Bestaat.** Aangevraagd via het portaalformulier op 18 december 2025, aangemaakt op 9 januari 2026 door de Centrale cel ICT. De sleutel kwam per mail in de ICT-mailbox van de scholengroep en geldt voor alle open API's van Onderwijs & Vorming. Hij staat nergens in de repo. |
 | Sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` | **Gedaan** op 5 oktober 2026 (repository secret voor Actions). |
-| Pakket L1 (ophaalscript, workflow, datatest) | Gebouwd en gereviewd (twee reviewers, rechter). **Eerste echte run (5 oktober 2026)**: volledig opgehaald (24019 doelen, 49 pagina's, `totalItems` klopt), maar terecht gestopt (exit 3): sets met dezelfde lange naam vielen samen. Opgelost: de setsleutel is nu `ODS_<onderwijsdoelenset_id>`, elk doel krijgt zijn `@id`, en alle API-velden gaan mee in `extra`. Run 2 en 3 toonden de rest: binnen een set is een code niet altijd uniek (§ 5, "Wat de echte gegevens leren"); een doel wordt nu herkend aan zijn `@id`. Volgende stap: run 4 en de pull request nakijken. |
+| Pakket L1 (ophaalscript, workflow, datatest) | Gebouwd en gereviewd (twee reviewers, rechter). **Eerste echte run (5 oktober 2026)**: volledig opgehaald (24019 doelen, 49 pagina's, `totalItems` klopt), maar terecht gestopt (exit 3): sets met dezelfde lange naam vielen samen. Opgelost: de setsleutel is nu `ODS_<onderwijsdoelenset_id>`, elk doel krijgt zijn `@id`, en alle API-velden gaan mee in `extra`. Run 2 en 3 toonden de rest: binnen een set is een code niet altijd uniek (§ 5, "Wat de echte gegevens leren"); een doel wordt nu herkend aan zijn `@id`. **Run 4 geslaagd**: pull request #2 met 950 sets (15 324 doelen, 15 MB), nagekeken door de hoofdsessie (datatest en build groen). Wacht op goedkeuring door de eigenaar. |
 | Vragen aan het departement (§ 12) | Nog te stellen. Sinds 24 maart 2026 **alleen via het formulier van TechLoket Onderwijs**, niet meer per mail (Nieuwsbrief API K&C van AHOVOKS). |
 | Vragen aan KOV, GO!, OVSG, POV (§ 12) | Teksten klaar in het aanvraagdossier (Claude Docs, "Aanvraagdossier leerplangegevens"); nog niet verstuurd. |
-| Eerste toepassing | De cursus "Aardrijkskunde: bodem en landschap" (leerplan KOV I-Aar-a) krijgt doelcodes zodra laag 1 en het leerplan erin zitten. |
+| Eerste toepassing | De cursus "Aardrijkskunde: bodem en landschap" (leerplan KOV I-Aar-a) krijgt doelcodes zodra laag 1 en het leerplan erin zitten. De bijhorende minimumdoelen: `ODS_3287` (1ste graad A-stroom, ruimtelijk bewustzijn, 09.01–09.08, geldig). |
 
 Wijzigingen in de doelensets worden aangekondigd in de Nieuwsbrief API K&C (onder meer: minimumdoelen
 basisonderwijs gewijzigd in juni 2026, correcties basiseducatie in september 2026).
@@ -153,6 +153,14 @@ gelijk; een sleutel uit de naam viel in de eerste echte run samen voor verschill
   staan; laag 2 moet ze als verwijzing naar een ander doel lezen, niet als eigen doel.
 - In de volwassenenonderwijsset Moderne Talen heeft code "BC AAV MVT 032" twee verschillende
   teksten zonder ander onderscheid dan het id. Mogelijk een fout in de bron: vraag voor TechLoket.
+- De API geeft ook oude sets. Van de 950 gekozen sets zijn er 408 geldig, 411 niet meer geldig
+  (bv. de vakgebonden eindtermen aardrijkskunde 1997–2020, `ODS_2118`) en 131 met geldigheid
+  "Onbekend". De geldigheid staat per doel in `extra.geldigheid` (`type`, `geldig_van_dt`,
+  `geldig_tot_dt`). We bewaren alles (herkomst en oude verwijzingen blijven naspeurbaar); laag 2
+  toont standaard alleen geldige doelen.
+- 383 sets hebben exact dezelfde doelen als een andere set (dezelfde doelen voor een andere
+  onderwijsvorm of stroom). Ze blijven apart, want elke set is een eigen officiële publicatie.
+- Ongeveer 40 % van de teksten is HTML (`<p>…</p>`, `&nbsp;`); laag 2 zet dat om naar veilige tekst.
 
 ## 6. Laag 2: leerplannen van de netten inlezen
 
