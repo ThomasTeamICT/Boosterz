@@ -51,7 +51,7 @@ function controleerSet(map: string, ingang: MinimumdoelenIndex['sets'][number]):
     fouten.push(`${ingang.id}: sha256 komt niet overeen met de doelen.`);
   }
   if (ingang.bestand !== `${ingang.id}.json`) fouten.push(`${ingang.id}: bestandsnaam ${ingang.bestand} past niet bij het id.`);
-  for (const veld of ['id', 'naam', 'graad', 'stroom', 'leerjaar', 'aantal', 'sha256', 'opgehaald'] as const) {
+  for (const veld of ['id', 'naam', 'korteNaam', 'versie', 'graad', 'stroom', 'leerjaar', 'aantal', 'sha256', 'opgehaald'] as const) {
     if (bestand.set?.[veld] !== ingang[veld]) fouten.push(`${ingang.id}: "${veld}" in de index wijkt af van de kop van het bestand.`);
   }
   return fouten;
@@ -169,6 +169,17 @@ const TWEE_PAGINAS = [antwoord(PAGINA_1, 6), antwoord(PAGINA_2, 6)];
 
 const SO_ID = 'SO_1STE_GRAAD_V2_1';
 
+/** Zoals de echte API: een lange setnaam, een numeriek set-id, korte naam en versie. */
+const LANGE_NAAM = 'Secundair onderwijs - 2de graad - A-stroom - Doorstroomfinaliteit - Basisvorming - Sleutelcompetenties - Opleidingsvorm 4';
+const SET_API_A = {
+  onderwijsdoelenset: LANGE_NAAM,
+  onderwijsdoelenset_id: 1234,
+  korte_naam: 'SO 2de graad A',
+  versie: '2.0',
+  onderwijsstructuur: { onderwijsniveau: 'Secundair onderwijs', graad: 'Tweede graad' },
+};
+const SET_API_B = { ...SET_API_A, onderwijsdoelenset_id: 1235, versie: 3 };
+
 // ── Eenheidstests ───────────────────────────────────────────────────────────
 
 describe('tekstVan', () => {
@@ -206,6 +217,7 @@ describe('normaliseerRecord', () => {
       setSleutel: 'SO_1STE_GRAAD_V2_1',
       setNaam: 'Secundair onderwijs, eerste graad',
       structuur: { graad: 'Eerste graad', stroom: 'A-stroom', leerjaar: 'Eerste leerjaar' },
+      setInfo: {},
       doel: {
         code: '1.2',
         tekst: 'Eerste doel',
@@ -258,21 +270,55 @@ describe('normaliseerRecord', () => {
     expect(n?.doel.tekst).toBe(tekst);
   });
 
-  it('bewaart onbekende tekstvelden in extra', () => {
+  it('bewaart alle andere velden in extra, van elk type', () => {
+    const titels = { hoofdrubriek: 'Ruimte', rubriek: null };
     const n = normaliseerRecord({
       ...rec('1', 'Tekst', SET_SO),
       toelichting: ' iets ',
       bron_url: 'x',
-      '@id': '/a',
+      '@type': 'Onderwijsdoel',
       _links: 'verborgen',
       id: 'abc',
-      volgorde: 3, // geen string
+      volgorde: 3,
+      attitude: 0,
+      optioneel: false,
+      titels,
+      geldigheid: { begin: '2021-09-01' },
+      onderliggende_elementen: ['a', 'b'],
+      lang: 'x'.repeat(5000),
       leeg: '   ',
-      te_lang: 'x'.repeat(4001),
-      net_goed: 'y'.repeat(4000),
+      niets: null,
+      oneindig: Number.POSITIVE_INFINITY,
     });
-    expect(n?.doel.extra).toEqual({ bron_url: 'x', net_goed: 'y'.repeat(4000), toelichting: 'iets' });
+    expect(n?.doel.extra).toEqual({
+      attitude: 0,
+      bron_url: 'x',
+      geldigheid: { begin: '2021-09-01' },
+      lang: 'x'.repeat(5000),
+      onderliggende_elementen: ['a', 'b'],
+      optioneel: false,
+      titels,
+      toelichting: 'iets',
+      volgorde: 3,
+    });
+    expect(Object.keys(n?.doel.extra ?? {})).toEqual(Object.keys(n?.doel.extra ?? {}).sort());
     expect(normaliseerRecord(rec('1', 'Tekst', SET_SO))?.doel).not.toHaveProperty('extra');
+  });
+
+  it('neemt het vaste nummer van het doel (@id) mee als id', () => {
+    expect(normaliseerRecord(rec('1', 'Tekst', SET_SO, { '@id': 4567 }))?.doel.id).toBe('4567');
+    expect(normaliseerRecord(rec('1', 'Tekst', SET_SO, { '@id': ' /doel/1 ' }))?.doel.id).toBe('/doel/1');
+    for (const v of [undefined, null, '  ', Number.NaN, { a: 1 }]) {
+      expect(normaliseerRecord(rec('1', 'Tekst', SET_SO, { '@id': v }))?.doel).not.toHaveProperty('id');
+    }
+  });
+
+  it('leest een record in de echte vorm van de API: set-id, korte naam en versie', () => {
+    const n = normaliseerRecord(rec('6.37', '<p>Tekst</p>', SET_API_A, { '@id': 91, '@type': 'Onderwijsdoel', optioneel: false }));
+    expect(n?.setSleutel).toBe('ODS_1234');
+    expect(n?.setNaam).toBe(LANGE_NAAM);
+    expect(n?.setInfo).toEqual({ apiId: '1234', korteNaam: 'SO 2de graad A', versie: '2.0' });
+    expect(n?.doel).toMatchObject({ id: '91', code: '6.37', tekst: '<p>Tekst</p>', graad: 'Tweede graad', extra: { optioneel: false } });
   });
 
   it('is tolerant voor ontbrekende set, structuur en competentie', () => {
@@ -287,6 +333,15 @@ describe('normaliseerRecord', () => {
 });
 
 describe('setSleutelVan', () => {
+  it('geeft ODS_ en het set-id van de API voorrang, ook boven id en naam', () => {
+    expect(setSleutelVan({ onderwijsdoelenset_id: 1234, id: 'X' }, 'Naam')).toBe('ODS_1234');
+    expect(setSleutelVan({ onderwijsdoelenset_id: ' 0042 ' }, 'Naam')).toBe('ODS_0042');
+    expect(setSleutelVan({ onderwijsdoelenset_id: 0 }, 'Naam')).toBe('ODS_0');
+    for (const ongeldig of [-1, 1.5, Number.NaN, 2 ** 60, '12a', '', null, { nr: 1 }]) {
+      expect(setSleutelVan({ onderwijsdoelenset_id: ongeldig }, 'Naam')).toBe('NAAM');
+    }
+  });
+
   it('neemt het id, de code of de sleutel van het set-object, in hoofdletters', () => {
     expect(setSleutelVan({ id: 'so_1ste_graad_v2_1' }, 'iets anders')).toBe('SO_1STE_GRAAD_V2_1');
     expect(setSleutelVan({ code: 'a1' }, 'iets anders')).toBe('A1');
@@ -383,6 +438,7 @@ describe('setVan', () => {
       setSleutel: 'SO_1STE_GRAAD_V2_1',
       setNaam: 'Secundair onderwijs, eerste graad',
       structuur: { graad: 'Eerste graad', stroom: 'A-stroom', leerjaar: 'Eerste leerjaar' },
+      setInfo: {},
     });
   });
 
@@ -390,14 +446,22 @@ describe('setVan', () => {
     expect(setVan(rec(undefined, 'Zonder code', SET_LO)).setSleutel).toBe('LAGER_ONDERWIJS');
     expect(setVan({ code: 1.1, omschrijving: 'x', onderwijsdoelenset: 'Basis' }).setSleutel).toBe('BASIS');
     for (const v of [null, undefined, 'tekst', 5, [], {}]) {
-      expect(setVan(v)).toEqual({ setSleutel: 'ONBEKEND', setNaam: 'Onbekende set', structuur: {} });
+      expect(setVan(v)).toEqual({ setSleutel: 'ONBEKEND', setNaam: 'Onbekende set', structuur: {}, setInfo: {} });
     }
   });
 
   it('neemt het element van een lijst met één element, en het eerste bij meer elementen', () => {
     expect(setVan({ onderwijsdoelenset: [{ onderwijsdoelenset: 'Een' }] }).setSleutel).toBe('EEN');
     const meer = setVan({ onderwijsdoelenset: [{ onderwijsdoelenset: 'Eerste', onderwijsstructuur: [{ graad: ['a', 'b'] }] }, { onderwijsdoelenset: 'Tweede' }] });
-    expect(meer).toEqual({ setSleutel: 'EERSTE', setNaam: 'Eerste', structuur: { graad: 'a' } });
+    expect(meer).toEqual({ setSleutel: 'EERSTE', setNaam: 'Eerste', structuur: { graad: 'a' }, setInfo: {} });
+  });
+
+  it('houdt twee sets met dezelfde lange naam uit elkaar dankzij hun set-id', () => {
+    const a = setVan(rec('1', 'x', SET_API_A));
+    const b = setVan(rec('1', 'x', SET_API_B));
+    expect(a.setNaam).toBe(b.setNaam);
+    expect([a.setSleutel, b.setSleutel]).toEqual(['ODS_1234', 'ODS_1235']);
+    expect(b.setInfo).toEqual({ apiId: '1235', korteNaam: 'SO 2de graad A', versie: '3' });
   });
 });
 
@@ -601,7 +665,7 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
       stroom: 'A-stroom',
       leerjaar: 'Eerste leerjaar',
       sleutelcompetenties: [{ nr: '1', naam: 'Competenties in verband met Nederlands' }],
-      bron: `https://www.onderwijsdoelen.be/doelen/${SO_ID}`,
+      bron: 'https://www.onderwijsdoelen.be/',
       api: 'https://onderwijs.api.vlaanderen.be/onderwijsdoelen',
       naamsvermelding: 'Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)',
       licentie: 'nog te bevestigen',
@@ -611,11 +675,12 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
     // natuurlijke volgorde, letterlijke tekst, set-niveau waarden niet herhaald per doel
     expect(bestand.doelen).toEqual([
       {
+        id: '/doel/1',
         code: '1.2',
         tekst: 'Eerste doel',
         type: 'Minimumdoel',
         sleutelcompetentie: { nr: '1', naam: 'Competenties in verband met Nederlands' },
-        extra: { toelichting: 'Een toelichting' },
+        extra: { toelichting: 'Een toelichting', volgorde: 3 },
       },
       {
         code: '1.10',
@@ -763,6 +828,46 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
     const run2 = draai(['--bron', schrijfBron('alles-problemen.json', TWEE_PAGINAS), '--uit', uit2, '--rapport', join(tmp, 'r5b.json'), '--filter', '.']);
     expect(run2.status).toBe(3);
     expect(existsSync(uit2)).toBe(false);
+  });
+
+  it('houdt sets met dezelfde lange naam apart via hun set-id, met korte naam en versie in kop en index', () => {
+    // Zoals in de eerste echte ophaling: dezelfde code en tekst in twee sets met dezelfde (lange) naam.
+    const records = [
+      rec('6.37', 'Zelfde tekst', { ...SET_API_A, vlaamse_sleutelcompetentie: { nr: 6, naam: 'Zes' } }, { '@id': 1 }),
+      rec('6.37', 'Zelfde tekst', { ...SET_API_B, vlaamse_sleutelcompetentie: { nr: 10, naam: 'Tien' } }, { '@id': 2 }),
+      rec('6.38', 'Andere tekst', { ...SET_API_B, korte_naam: 'SO 2de graad A (oud)' }, { '@id': 3, optioneel: true }),
+    ];
+    const bron = schrijfBron('zelfde-naam.json', antwoord(records, 3));
+    const uit = join(tmp, 'uit-zelfde-naam');
+    const rapportPad = join(tmp, 'r-zelfde-naam.json');
+    const run = draai(['--bron', bron, '--uit', uit, '--rapport', rapportPad]);
+    expect(run.status, run.stderr).toBe(0);
+    expect(readdirSync(uit).sort()).toEqual(['ODS_1234.json', 'ODS_1235.json', 'index.json']);
+
+    const a = leesJson<MinimumdoelenSetBestand>(join(uit, 'ODS_1234.json'));
+    const b = leesJson<MinimumdoelenSetBestand>(join(uit, 'ODS_1235.json'));
+    expect(a.set).toMatchObject({ id: 'ODS_1234', naam: LANGE_NAAM, apiId: '1234', korteNaam: 'SO 2de graad A', versie: '2.0', graad: 'Tweede graad' });
+    expect(a.doelen).toEqual([{ id: '1', code: '6.37', tekst: 'Zelfde tekst', type: 'Minimumdoel', sleutelcompetentie: { nr: '6', naam: 'Zes' } }]);
+    expect(b.set).toMatchObject({ id: 'ODS_1235', apiId: '1235', korteNaam: 'SO 2de graad A', versie: '3' });
+    expect(b.doelen.map((d) => [d.id, d.code, d.extra])).toEqual([['2', '6.37', undefined], ['3', '6.38', { optioneel: true }]]);
+    expect(Object.keys(a.set).slice(0, 5)).toEqual(['id', 'naam', 'apiId', 'korteNaam', 'versie']);
+
+    const index = leesJson<MinimumdoelenIndex>(join(uit, 'index.json'));
+    expect(index.sets.map((s) => [s.id, s.korteNaam, s.versie])).toEqual([
+      ['ODS_1234', 'SO 2de graad A', '2.0'],
+      ['ODS_1235', 'SO 2de graad A', '3'],
+    ]);
+    expect(controleerMap(uit)).toEqual([]);
+
+    // een afwijkende korte naam binnen één set is geen probleem, wel een waarschuwing
+    const rapport = leesJson<{ waarschuwingen?: string[]; alleSets: { id: string; korteNaam?: string }[] }>(rapportPad);
+    expect(rapport.waarschuwingen).toEqual([
+      'Set ODS_1235 heeft meerdere waarden voor korteNaam (SO 2de graad A / SO 2de graad A (oud)); de eerste is gebruikt.',
+    ]);
+    expect(rapport.alleSets.map((s) => [s.id, s.korteNaam])).toEqual([
+      ['ODS_1234', 'SO 2de graad A'],
+      ['ODS_1235', 'SO 2de graad A'],
+    ]);
   });
 
   it('geeft per doel enkel een afwijkende graad, stroom of leerjaar', () => {

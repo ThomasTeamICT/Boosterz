@@ -9,7 +9,7 @@ leerplan) moet de punten met "te bevestigen" afvinken vóór het bouwen begint.*
 |---|---|
 | API-sleutel Onderwijsdoelen-API | **Bestaat.** Aangevraagd via het portaalformulier op 18 december 2025, aangemaakt op 9 januari 2026 door de Centrale cel ICT. De sleutel kwam per mail in de ICT-mailbox van de scholengroep en geldt voor alle open API's van Onderwijs & Vorming. Hij staat nergens in de repo. |
 | Sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` | **Gedaan** op 5 oktober 2026 (repository secret voor Actions). |
-| Pakket L1 (ophaalscript, workflow, datatest) | Gebouwd en gereviewd (twee reviewers, rechter). Volgende stap: eerste run met de hand starten en het rapport nakijken; daarna de API-vorm vastleggen. |
+| Pakket L1 (ophaalscript, workflow, datatest) | Gebouwd en gereviewd (twee reviewers, rechter). **Eerste echte run (5 oktober 2026)**: volledig opgehaald (24019 doelen, 49 pagina's, `totalItems` klopt), maar terecht gestopt (exit 3): sets met dezelfde lange naam vielen samen. Opgelost: de setsleutel is nu `ODS_<onderwijsdoelenset_id>`, elk doel krijgt zijn `@id`, en alle API-velden gaan mee in `extra`. Volgende stap: tweede run en de pull request nakijken. |
 | Vragen aan het departement (§ 12) | Nog te stellen. Sinds 24 maart 2026 **alleen via het formulier van TechLoket Onderwijs**, niet meer per mail (Nieuwsbrief API K&C van AHOVOKS). |
 | Vragen aan KOV, GO!, OVSG, POV (§ 12) | Teksten klaar in het aanvraagdossier (Claude Docs, "Aanvraagdossier leerplangegevens"); nog niet verstuurd. |
 | Eerste toepassing | De cursus "Aardrijkskunde: bodem en landschap" (leerplan KOV I-Aar-a) krijgt doelcodes zodra laag 1 en het leerplan erin zitten. |
@@ -101,31 +101,37 @@ API laat vermoedelijk geen verzoeken van andere sites toe (CORS, te bevestigen).
   zichtbaar, met de vergelijkingslink in de samenvatting.
 - De sleutel staat nooit in de repo, nooit in een log en nooit in een chat.
 
-**Bestandsformaat**: `public/leerplannen/minimumdoelen/<SET>.json`, plus een `index.json`
-met de beschikbare sets (zelfde kopvelden, plus `bestand`).
+**Bestandsformaat**: `public/leerplannen/minimumdoelen/ODS_<id>.json`, plus een `index.json`
+met de beschikbare sets (zelfde kopvelden, plus `bestand`). `<id>` is het `onderwijsdoelenset_id`
+van de API: uniek en stabiel, ook als een setnaam verandert. Setnamen zijn lang en vaak bijna
+gelijk; een sleutel uit de naam viel in de eerste echte run samen voor verschillende sets.
 
 ```json
 {
   "app": "boosterz", "kind": "minimumdoelen", "v": 1,
   "set": {
-    "id": "SO_1STE_GRAAD_V2_1", "naam": "…", "graad": "…", "stroom": "…", "leerjaar": "…",
+    "id": "ODS_1234", "naam": "…", "apiId": "1234", "korteNaam": "…", "versie": "…",
+    "graad": "…", "stroom": "…", "leerjaar": "…",
     "sleutelcompetenties": [{ "nr": "…", "naam": "…" }],
-    "bron": "https://www.onderwijsdoelen.be/doelen/SO_1STE_GRAAD_V2_1",
+    "bron": "https://www.onderwijsdoelen.be/",
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen", "opgehaald": "2026-10-05T10:00:00Z",
     "aantal": 0, "sha256": "…"
   },
   "doelen": [
-{ "code": "…", "tekst": "…", "type": "…", "sleutelcompetentie": { "nr": "…", "naam": "…" }, "extra": { "…": "…" } }
+{ "id": "…", "code": "…", "tekst": "…", "type": "…", "sleutelcompetentie": { "nr": "…", "naam": "…" }, "extra": { "…": "…" } }
   ]
 }
 ```
 
 - `graad`, `stroom` en `leerjaar` staan op setniveau als alle doelen dezelfde waarde hebben; per
-  doel alleen als die afwijkt. `extra` bewaart onbekende tekstvelden van de API, zodat niets
-  verloren gaat. `sha256` is de vingerafdruk van de doelen (canonieke JSON). Een `versie`-veld en
-  de echte vorm van de set-id volgen na de eerste echte run.
+  doel alleen als die afwijkt. `id` is het vaste nummer van het doel in de API (`@id`). `extra`
+  bewaart alle andere velden van de API ongewijzigd (kennisdimensies, `titels`, `geldigheid`,
+  `optioneel`, …), zodat niets verloren gaat. `sha256` is de vingerafdruk van de doelen (canonieke
+  JSON). `bron` wijst naar de site zelf: het patroon van een link naar één set is nog niet gekend.
+  `omschrijving` is vaak HTML (`<p>…</p>`) en blijft letterlijk; de app maakt er bij het tonen
+  veilige tekst van (laag 2).
 - De bestanden gaan **niet** in localStorage (de volledige set is te groot) en niet in de
   hoofdbundel. De app haalt ze pas op als iemand ze nodig heeft. De service worker bewaart
   ze daarna voor offline gebruik ("andere eigen bestanden: netwerk eerst, cache als terugval").

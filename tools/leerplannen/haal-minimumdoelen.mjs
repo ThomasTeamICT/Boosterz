@@ -283,10 +283,22 @@ async function haalApi(voortgang) {
 
 // ── Groeperen en problemen verzamelen ───────────────────────────────────────
 
+const SET_INFO_VELDEN = ['apiId', 'korteNaam', 'versie'];
+
+function tel(map, waarde) {
+  map.set(waarde, (map.get(waarde) ?? 0) + 1);
+}
+
+/** Waarden van een telling, de meest voorkomende eerst (bij gelijkstand alfabetisch). */
+function opFrequentie(map) {
+  return [...map.entries()].sort((a, b) => b[1] - a[1] || vergelijk(a[0], b[0])).map(([waarde]) => waarde);
+}
+
 function nieuweSet(sleutel) {
   return {
     sleutel,
     namen: new Map(),
+    info: { apiId: new Map(), korteNaam: new Map(), versie: new Map() },
     codes: new Map(), // code -> Map(canoniek doel -> doel)
     problemen: { conflict: [], variant: [], overgeslagen: [], meerwaardig: [] },
   };
@@ -305,7 +317,8 @@ function groepeer(records, rapport) {
       set = nieuweSet(v.setSleutel);
       sets.set(v.setSleutel, set);
     }
-    set.namen.set(v.setNaam, (set.namen.get(v.setNaam) ?? 0) + 1);
+    tel(set.namen, v.setNaam);
+    for (const veld of SET_INFO_VELDEN) if (v.setInfo[veld] !== undefined) tel(set.info[veld], v.setInfo[veld]);
 
     const n = M.normaliseerRecord(record);
     const velden = M.meerwaardigeVelden(record);
@@ -332,9 +345,17 @@ function groepeer(records, rapport) {
   }
 
   for (const set of sets.values()) {
-    const namen = [...set.namen.entries()].sort((a, b) => b[1] - a[1] || vergelijk(a[0], b[0]));
-    set.naam = namen[0][0];
-    set.andereNamen = namen.slice(1).map(([naam]) => naam);
+    const namen = opFrequentie(set.namen);
+    set.naam = namen[0];
+    set.andereNamen = namen.slice(1);
+    // apiId, korteNaam en versie: de meest voorkomende waarde; afwijkende waarden worden gemeld.
+    set.setInfo = {};
+    set.andereInfo = {};
+    for (const veld of SET_INFO_VELDEN) {
+      const waarden = opFrequentie(set.info[veld]);
+      if (waarden.length > 0) set.setInfo[veld] = waarden[0];
+      if (waarden.length > 1) set.andereInfo[veld] = waarden.slice(1);
+    }
     for (const [code, varianten] of set.codes) {
       if (varianten.size < 2) continue;
       const lijst = [...varianten.entries()].sort((a, b) => vergelijkTekst(a[0], b[0])).map(([, doel]) => doel);
@@ -377,7 +398,9 @@ function structuurWaarden(set) {
 // ── Bestanden bouwen en schrijven ───────────────────────────────────────────
 
 function maakDoel(doel, setNiveau) {
-  const uit = { code: doel.code, tekst: doel.tekst };
+  const uit = {};
+  if (doel.id !== undefined) uit.id = doel.id;
+  Object.assign(uit, { code: doel.code, tekst: doel.tekst });
   if (doel.type !== undefined) uit.type = doel.type;
   if (doel.sleutelcompetentie !== undefined) uit.sleutelcompetentie = doel.sleutelcompetentie;
   for (const veld of ['graad', 'stroom', 'leerjaar']) {
@@ -411,9 +434,10 @@ function bouwSetBestand(set, opgehaald) {
     set: {
       id: set.sleutel,
       naam: set.naam,
+      ...set.setInfo,
       ...setNiveau,
       sleutelcompetenties,
-      bron: M.BRON_BASIS + set.sleutel,
+      bron: M.BRON_BASIS,
       api: M.API_BASIS,
       naamsvermelding: M.NAAMSVERMELDING,
       licentie: M.LICENTIE,
@@ -452,7 +476,7 @@ function bouwIndex(koppen) {
   const sets = koppen
     .map(({ bestand, set }) => {
       const ingang = { id: set.id, naam: set.naam };
-      for (const veld of ['graad', 'stroom', 'leerjaar']) if (set[veld] !== undefined) ingang[veld] = set[veld];
+      for (const veld of ['korteNaam', 'versie', 'graad', 'stroom', 'leerjaar']) if (set[veld] !== undefined) ingang[veld] = set[veld];
       Object.assign(ingang, { aantal: set.aantal, sha256: set.sha256, opgehaald: set.opgehaald, bestand });
       return ingang;
     })
@@ -571,12 +595,22 @@ async function main() {
   const gekozen = new Map();
   const waarschuwingen = [];
   for (const set of [...sets.values()].sort((a, b) => vergelijk(a.sleutel, b.sleutel))) {
-    const doorzoekbaar = [set.naam, set.sleutel, ...structuurWaarden(set)].join(' | ');
+    const doorzoekbaar = [set.naam, set.setInfo.korteNaam ?? '', set.sleutel, ...structuurWaarden(set)].join(' | ');
     const isGekozen = filter.test(doorzoekbaar) || bestaandeIds.has(set.sleutel);
-    rapport.alleSets.push({ id: set.sleutel, naam: set.naam, aantal: set.codes.size, gekozen: isGekozen, problemen: set.aantalProblemen });
+    rapport.alleSets.push({
+      id: set.sleutel,
+      naam: set.naam,
+      ...(set.setInfo.korteNaam !== undefined ? { korteNaam: set.setInfo.korteNaam } : {}),
+      aantal: set.codes.size,
+      gekozen: isGekozen,
+      problemen: set.aantalProblemen,
+    });
     if (isGekozen) gekozen.set(set.sleutel, set);
     if (set.andereNamen.length > 0) {
       waarschuwingen.push(`Set ${set.sleutel} komt met meerdere namen voor (${[set.naam, ...set.andereNamen].join(' / ')}); de eerste is gebruikt.`);
+    }
+    for (const [veld, andere] of Object.entries(set.andereInfo)) {
+      waarschuwingen.push(`Set ${set.sleutel} heeft meerdere waarden voor ${veld} (${[set.setInfo[veld], ...andere].join(' / ')}); de eerste is gebruikt.`);
     }
   }
   if (waarschuwingen.length > 0) rapport.waarschuwingen = waarschuwingen;

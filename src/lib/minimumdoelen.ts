@@ -16,6 +16,8 @@ export interface Sleutelcompetentie {
 }
 
 export interface Minimumdoel {
+  /** Vast nummer van het doel in de API (`@id`), als tekst. */
+  id?: string;
   code: string;
   /** Letterlijk uit de bron; enkel begin- en eindwitruimte zijn weggehaald. */
   tekst: string;
@@ -24,13 +26,20 @@ export interface Minimumdoel {
   graad?: string;
   stroom?: string;
   leerjaar?: string;
-  /** Andere tekstvelden van het API-record die we (nog) niet kennen. */
-  extra?: Record<string, string>;
+  /**
+   * Alle andere velden van het API-record, ongewijzigd (tekst getrimd): kennisvelden, rubrieken
+   * (`titels`), geldigheid, `optioneel`, enzovoort. Zo gaat niets verloren.
+   */
+  extra?: Record<string, unknown>;
 }
 
 export interface MinimumdoelenSetKop {
   id: string;
   naam: string;
+  /** `onderwijsdoelenset_id` van de API. */
+  apiId?: string;
+  korteNaam?: string;
+  versie?: string;
   graad?: string;
   stroom?: string;
   leerjaar?: string;
@@ -56,6 +65,8 @@ export interface MinimumdoelenSetBestand {
 export interface MinimumdoelenIndexSet {
   id: string;
   naam: string;
+  korteNaam?: string;
+  versie?: string;
   graad?: string;
   stroom?: string;
   leerjaar?: string;
@@ -81,10 +92,18 @@ export interface Structuur {
   leerjaar?: string;
 }
 
+export interface SetInfo {
+  /** `onderwijsdoelenset_id` van de API, als tekst. */
+  apiId?: string;
+  korteNaam?: string;
+  versie?: string;
+}
+
 export interface SetVanRecord {
   setSleutel: string;
   setNaam: string;
   structuur: Structuur;
+  setInfo: SetInfo;
 }
 
 export interface GenormaliseerdRecord extends SetVanRecord {
@@ -92,13 +111,13 @@ export interface GenormaliseerdRecord extends SetVanRecord {
 }
 
 export const API_BASIS = 'https://onderwijs.api.vlaanderen.be/onderwijsdoelen';
-export const BRON_BASIS = 'https://www.onderwijsdoelen.be/doelen/';
+/** Het patroon van een link naar één set op de site is nog niet gekend: we verwijzen naar de site. */
+export const BRON_BASIS = 'https://www.onderwijsdoelen.be/';
 export const NAAMSVERMELDING = 'Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)';
 export const LICENTIE = 'nog te bevestigen';
 
 const TEKST_SLEUTELS = ['naam', 'omschrijving', 'code', 'label', 'waarde'];
 const MAX_DIEPTE = 4;
-const EXTRA_MAX = 4000;
 const SET_SLEUTEL_MAX = 80;
 /** Bovenste velden van een record die we zelf verwerken; de rest gaat naar `extra`. */
 const GEKENDE_VELDEN = ['code', 'omschrijving', 'onderwijsdoel_type', 'onderwijsdoelenset', 'id'];
@@ -153,11 +172,25 @@ function slug(naam: string): string {
     .replace(/_+$/, '');
 }
 
+/** `onderwijsdoelenset_id` als tekst, als het een geheel getal (of een tekst met enkel cijfers) is. */
+function apiIdVan(setObject: unknown): string | undefined {
+  if (!isObject(setObject)) return undefined;
+  const id = setObject.onderwijsdoelenset_id;
+  if (typeof id === 'number' && Number.isSafeInteger(id) && id >= 0) return String(id);
+  if (typeof id === 'string' && /^\d{1,15}$/.test(id.trim())) return id.trim();
+  return undefined;
+}
+
 /**
- * Sleutel van een set: het `id`, `code` of `sleutel` van het set-object als dat al een nette
- * sleutel is (in hoofdletters), anders een slug van de naam. Zonder naam: `ONBEKEND`.
+ * Sleutel van een set. Heeft de set een `onderwijsdoelenset_id` (de API geeft dat als getal), dan
+ * `ODS_<id>`: uniek en stabiel, ook als de naam verandert. Anders het `id`, `code` of `sleutel` van
+ * het set-object als dat al een nette sleutel is (in hoofdletters), en anders een slug van de naam.
+ * Zonder naam: `ONBEKEND`. Een slug van een lange naam wordt afgekapt en is dus niet altijd uniek;
+ * het ophaalscript meldt dat als een set met meerdere namen.
  */
 export function setSleutelVan(setObject: unknown, naam: string | undefined): string {
+  const apiId = apiIdVan(setObject);
+  if (apiId !== undefined) return `ODS_${apiId}`;
   if (isObject(setObject)) {
     for (const veld of ['id', 'code', 'sleutel']) {
       const waarde = setObject[veld];
@@ -239,10 +272,20 @@ export function setVan(record: unknown): SetVanRecord {
       if (waarde !== undefined) structuur[veld] = waarde;
     }
   }
+  const setInfo: SetInfo = {};
+  const apiId = apiIdVan(setObject);
+  if (apiId !== undefined) setInfo.apiId = apiId;
+  if (isObject(setObject)) {
+    const korteNaam = tekstVan(setObject.korte_naam);
+    if (korteNaam !== undefined) setInfo.korteNaam = korteNaam;
+    const versie = tekstVan(setObject.versie);
+    if (versie !== undefined) setInfo.versie = versie;
+  }
   return {
     setSleutel: setSleutelVan(setObject, setNaam),
     setNaam: setNaam ?? 'Onbekende set',
     structuur,
+    setInfo,
   };
 }
 
@@ -300,6 +343,9 @@ export function normaliseerRecord(record: unknown): GenormaliseerdRecord | null 
   const { structuur } = set;
 
   const doel: Minimumdoel = { code, tekst };
+  const id = record['@id'];
+  if (typeof id === 'number' && Number.isFinite(id)) doel.id = String(id);
+  else if (typeof id === 'string' && id.trim() !== '') doel.id = id.trim();
   const type = tekstVan(record.onderwijsdoel_type);
   if (type !== undefined) doel.type = type;
   const sleutelcompetentie = sleutelcompetentieVan(competentieRaw);
@@ -308,15 +354,19 @@ export function normaliseerRecord(record: unknown): GenormaliseerdRecord | null 
   if (structuur.stroom !== undefined) doel.stroom = structuur.stroom;
   if (structuur.leerjaar !== undefined) doel.leerjaar = structuur.leerjaar;
 
-  const extra: Record<string, string> = {};
+  // Alle andere velden gaan mee, van elk type: tekst getrimd (lege tekst valt weg), getallen,
+  // booleans, objecten en lijsten ongewijzigd. Alleen `null` valt weg: dat draagt geen gegeven.
+  const extra: Record<string, unknown> = {};
   for (const veld of Object.keys(record).sort()) {
     if (GEKENDE_VELDEN.includes(veld) || veld.startsWith('@') || veld.startsWith('_')) continue;
-    const waarde = record[veld];
-    if (typeof waarde !== 'string') continue;
-    const t = waarde.trim();
-    if (t.length < 1 || t.length > EXTRA_MAX) continue;
+    let waarde: unknown = record[veld];
+    if (waarde === null || waarde === undefined) continue;
+    if (typeof waarde === 'string') {
+      waarde = waarde.trim();
+      if (waarde === '') continue;
+    } else if (typeof waarde === 'number' && !Number.isFinite(waarde)) continue;
     // defineProperty: een veld met de naam `__proto__` mag geen prototype instellen
-    Object.defineProperty(extra, veld, { value: t, enumerable: true, writable: true, configurable: true });
+    Object.defineProperty(extra, veld, { value: waarde, enumerable: true, writable: true, configurable: true });
   }
   if (Object.keys(extra).length > 0) doel.extra = extra;
 
