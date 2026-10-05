@@ -8,6 +8,7 @@
     "apiId": "2926",
     "korteNaam": "Andere talen",
     "versie": "2.0",
+    "geldigheid": "Onbekend",
     "graad": "3de graad",
     "sleutelcompetenties": [
       {
@@ -19,7 +20,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 15,
     "sha256": "82736744719cb691914864686fb0f81fa1c648d35b06b0e808ec48de55698c44"
   },

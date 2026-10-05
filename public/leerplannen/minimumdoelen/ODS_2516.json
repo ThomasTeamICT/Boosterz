@@ -8,6 +8,9 @@
     "apiId": "2516",
     "korteNaam": "Lichamelijke Opvoeding",
     "versie": "1.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "1997-09-01",
+    "geldigTot": "2020-08-31",
     "graad": "1ste graad",
     "stroom": "B-stroom",
     "sleutelcompetenties": [],
@@ -15,7 +18,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 35,
     "sha256": "cf9a1fa514a3a7a85d17da7b09c9c831957c8d5590548f9dfa2e011ce68f68de"
   },

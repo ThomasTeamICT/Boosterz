@@ -8,6 +8,7 @@
     "apiId": "2762",
     "korteNaam": "Historisch bewustzijn",
     "versie": "2.0",
+    "geldigheid": "Onbekend",
     "graad": "3de graad",
     "sleutelcompetenties": [
       {
@@ -19,7 +20,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 9,
     "sha256": "c6ed15adfe0f8fcbe2c508f3dc19ef8bed7b5da055262ae1167e72be1fb977d1"
   },

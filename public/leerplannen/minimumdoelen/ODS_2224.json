@@ -8,6 +8,9 @@
     "apiId": "2224",
     "korteNaam": "Ict",
     "versie": "1.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "2007-09-01",
+    "geldigTot": "2020-08-31",
     "graad": "1ste graad",
     "stroom": "A-stroom",
     "sleutelcompetenties": [],
@@ -15,7 +18,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 10,
     "sha256": "c4a9fcedd88063090bdb835825e608d2ed80267f69f4e0569dd1593a3aa14495"
   },

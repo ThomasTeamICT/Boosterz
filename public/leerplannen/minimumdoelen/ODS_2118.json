@@ -8,6 +8,9 @@
     "apiId": "2118",
     "korteNaam": "Aardrijkskunde",
     "versie": "1.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "1997-09-01",
+    "geldigTot": "2020-08-31",
     "graad": "1ste graad",
     "stroom": "A-stroom",
     "sleutelcompetenties": [],
@@ -15,7 +18,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 38,
     "sha256": "e1b26d71c753b508123ad56f0e6f703990c79ec3b5c304b08ccc5e923ac8805c"
   },

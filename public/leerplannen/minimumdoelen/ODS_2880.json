@@ -8,6 +8,9 @@
     "apiId": "2880",
     "korteNaam": "Wiskunde – natuurwetenschappen – technologie – STEM",
     "versie": "2.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "2021-09-01",
+    "geldigTot": "2024-08-31",
     "graad": "2de graad",
     "sleutelcompetenties": [
       {
@@ -19,7 +22,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 21,
     "sha256": "112969ea3e00b9b5e6693bd4394683ae2592389f4579db40bb3dcb1ed1f6ee95"
   },

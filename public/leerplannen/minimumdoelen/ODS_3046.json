@@ -8,6 +8,8 @@
     "apiId": "3046",
     "korteNaam": "Ondernemingszin",
     "versie": "2.1",
+    "geldigheid": "Geldig",
+    "geldigVan": "2023-09-01",
     "graad": "2de graad",
     "sleutelcompetenties": [
       {
@@ -19,7 +21,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 2,
     "sha256": "fceb2ff3ac05cfdd750b8639670d8160f02cf2cdfdaf293e92f353cd3375c9ed"
   },

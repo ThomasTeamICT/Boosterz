@@ -8,6 +8,8 @@
     "apiId": "3221",
     "korteNaam": "Leercompetenties",
     "versie": "2.1",
+    "geldigheid": "Geldig",
+    "geldigVan": "2023-09-01",
     "graad": "3de graad",
     "sleutelcompetenties": [
       {
@@ -19,7 +21,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 4,
     "sha256": "3c3b421fc8f4a78b997e2c0de123d0063ad21333343ea1ad96b255f4a5006266"
   },

@@ -8,6 +8,8 @@
     "apiId": "3301",
     "korteNaam": "Burgerschap",
     "versie": "2.1",
+    "geldigheid": "Geldig",
+    "geldigVan": "2024-09-01",
     "graad": "1ste graad",
     "stroom": "A-stroom",
     "sleutelcompetenties": [
@@ -20,7 +22,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 4,
     "sha256": "ac4f84d8c4db63d9492e4c3318848592783e3e1655f087c1a9b0b133d49186b3"
   },

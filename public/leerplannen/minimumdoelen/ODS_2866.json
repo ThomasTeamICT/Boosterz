@@ -8,6 +8,9 @@
     "apiId": "2866",
     "korteNaam": "Juridische competenties",
     "versie": "2.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "2021-09-01",
+    "geldigTot": "2024-08-31",
     "graad": "2de graad",
     "sleutelcompetenties": [
       {
@@ -19,7 +22,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 7,
     "sha256": "4cae22073d4a1da818e4d31d8f63df09447f41d3e54c1d6feb45474da610a3fc"
   },

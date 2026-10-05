@@ -8,6 +8,9 @@
     "apiId": "2682",
     "korteNaam": "Leercompetenties",
     "versie": "2.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "2019-09-01",
+    "geldigTot": "2025-08-31",
     "graad": "1ste graad",
     "stroom": "B-stroom",
     "sleutelcompetenties": [
@@ -20,7 +23,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 18,
     "sha256": "abeff27d88a0bd8864bc2a17956a131beea089fd9f16650cf4969704a3667e52"
   },

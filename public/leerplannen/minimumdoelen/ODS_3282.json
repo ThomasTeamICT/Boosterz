@@ -8,6 +8,8 @@
     "apiId": "3282",
     "korteNaam": "Sociaal-relationele competenties",
     "versie": "2.1",
+    "geldigheid": "Geldig",
+    "geldigVan": "2024-09-01",
     "graad": "1ste graad",
     "stroom": "A-stroom",
     "sleutelcompetenties": [
@@ -20,7 +22,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 1,
     "sha256": "ee362c7c912f8835d317c9a57d5cddd94973066cc8912a440f768a3e79aedb2d"
   },

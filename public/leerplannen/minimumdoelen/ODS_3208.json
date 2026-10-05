@@ -8,6 +8,8 @@
     "apiId": "3208",
     "korteNaam": "Cultureel bewustzijn",
     "versie": "2.1",
+    "geldigheid": "Geldig",
+    "geldigVan": "2023-09-01",
     "graad": "3de graad",
     "sleutelcompetenties": [
       {
@@ -19,7 +21,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 4,
     "sha256": "e94e297ebd162eae24f18ce6191e86cc139a5cd387af4e7e60cf8a1b127c8bbb"
   },

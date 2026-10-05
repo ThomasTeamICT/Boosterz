@@ -8,6 +8,9 @@
     "apiId": "2698",
     "korteNaam": "Leren Leren",
     "versie": "1.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "2010-09-01",
+    "geldigTot": "2025-08-31",
     "graad": "3de graad",
     "leerjaar": "3de leerjaar",
     "sleutelcompetenties": [],
@@ -15,7 +18,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 16,
     "sha256": "a2fe39f41e31d9034c7f2bc94bc0efc302209e718a2bf5017c0beba486dfd78d"
   },

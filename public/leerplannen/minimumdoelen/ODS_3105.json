@@ -8,6 +8,8 @@
     "apiId": "3105",
     "korteNaam": "Ruimtelijk bewustzijn",
     "versie": "2.1",
+    "geldigheid": "Geldig",
+    "geldigVan": "2023-09-01",
     "graad": "3de graad",
     "sleutelcompetenties": [
       {
@@ -19,7 +21,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 5,
     "sha256": "1ac88482374d6912ac90558cf15fa6f6aec76aee0a2a2fcac32ff6ed569bcb52"
   },

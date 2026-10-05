@@ -8,6 +8,9 @@
     "apiId": "2335",
     "korteNaam": "Artistieke Opvoeding",
     "versie": "1.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "1997-09-01",
+    "geldigTot": "2020-08-31",
     "graad": "1ste graad",
     "stroom": "A-stroom",
     "sleutelcompetenties": [],
@@ -15,7 +18,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 36,
     "sha256": "9f62dbdea6196c7a0a00cb1ef9783000e3c262816cf701b8cec4df1c0220f667"
   },

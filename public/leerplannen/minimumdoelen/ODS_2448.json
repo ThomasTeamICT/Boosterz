@@ -8,6 +8,9 @@
     "apiId": "2448",
     "korteNaam": "Economische en financiële competenties",
     "versie": "2.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "2019-09-01",
+    "geldigTot": "2025-08-31",
     "graad": "1ste graad",
     "stroom": "A-stroom",
     "sleutelcompetenties": [
@@ -20,7 +23,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 7,
     "sha256": "0873b5fd95f4d8d6666fad9c262858e9c7f24779759357d0358d7b7e31784a8e"
   },

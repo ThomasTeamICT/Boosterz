@@ -8,6 +8,8 @@
     "apiId": "3378",
     "korteNaam": "Biologie",
     "versie": "2.1",
+    "geldigheid": "Geldig",
+    "geldigVan": "2025-09-01",
     "graad": "3de graad",
     "leerjaar": "3de leerjaar",
     "sleutelcompetenties": [],
@@ -15,7 +17,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 1,
     "sha256": "fd9aa7b4f07244e62ec3b90dd7a7edba1f2667b3d8d5333b815541647d3c85e7"
   },

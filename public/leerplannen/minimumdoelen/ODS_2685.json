@@ -8,6 +8,9 @@
     "apiId": "2685",
     "korteNaam": "Digitale competenties",
     "versie": "2.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "2019-09-01",
+    "geldigTot": "2025-08-31",
     "graad": "1ste graad",
     "stroom": "B-stroom",
     "sleutelcompetenties": [
@@ -20,7 +23,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 6,
     "sha256": "b55d246b9f49877e5fce4b313233d7f93945f37e3f61e6fe5520e89d0890c1af"
   },
