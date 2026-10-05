@@ -15,7 +15,7 @@ import { controleStatus, getCurricula, saveCurriculum } from '../lib/curriculum'
 import { geldigheidVanDoelen, htmlNaarTekst, type MinimumdoelenIndexSet, type MinimumdoelenSetBestand } from '../lib/minimumdoelen';
 import {
   FOUT_NIET_GELADEN, SOORT_LABEL, contextVanSet, datumLeesbaar, filterSets, geldigheidTekst, geldigheidVan, graadOpties, indexHeeftGeldigheid,
-  isGeldigSetId, laadIndex, laadSet, soortVanSet, veiligeLink, type GeldigheidCode, type SoortOnderwijs,
+  isGeldigSetId, laadIndex, laadSet, opvolgersVan, soortVanSet, veiligeLink, type SoortOnderwijs,
 } from '../lib/minimumdoelenBron';
 import { geldigheidJaren } from '../lib/setKeuze';
 import { isAttitude, isOptioneel, leerplanUitSet, themaVanDoel, vindLeerplanVoorSet } from '../lib/minimumdoelenLeerplan';
@@ -29,13 +29,6 @@ const BASIS_ROUTE = '/leerplannen/minimumdoelen';
 const STAP = 60;
 const SMAL_SCHERM = '(max-width: 899px)';
 
-type Geldigheid = GeldigheidCode | 'alle';
-const GELDIGHEID_KNOPPEN: { id: Geldigheid; label: string }[] = [
-  { id: 'G', label: 'Geldig' },
-  { id: 'N', label: 'Niet meer geldig' },
-  { id: 'O', label: 'Onbekend' },
-  { id: 'alle', label: 'Alle' },
-];
 const SOORT_VOLGORDE: SoortOnderwijs[] = ['so', 'buso', 'vwo', 'ander'];
 
 // ── Laden met opnieuw proberen ──────────────────────────────────────────────
@@ -91,8 +84,8 @@ export function MinimumdoelenPage() {
   const index = useLaadstand('index', laadIndex);
 
   const [zoek, setZoek] = useState('');
-  // null = de standaard: "Geldig", maar alleen als de index een geldigheid kent.
-  const [geldigheidKeuze, setGeldigheidKeuze] = useState<Geldigheid | null>(null);
+  // Standaard alleen de sets die nu gelden (of waarvan de bron geen geldigheid vermeldt); oude versies op vraag.
+  const [toonOud, setToonOud] = useState(false);
   const [graad, setGraad] = useState('');
   const [soort, setSoort] = useState<SoortOnderwijs | 'alle'>('alle');
   const [zichtbaar, setZichtbaar] = useState(STAP);
@@ -102,13 +95,18 @@ export function MinimumdoelenPage() {
 
   const sets = useMemo<MinimumdoelenIndexSet[]>(() => (index.stand.status === 'klaar' ? index.stand.waarde.sets : []), [index.stand]);
   const heeftGeldigheid = useMemo(() => indexHeeftGeldigheid(sets), [sets]);
-  const geldigheid: Geldigheid = heeftGeldigheid ? (geldigheidKeuze ?? 'G') : 'alle';
+  const geldigheid = heeftGeldigheid && !toonOud ? 'actueel' : 'alle';
   const graden = useMemo(() => graadOpties(sets), [sets]);
   const soorten = useMemo(() => {
     const aanwezig = new Set(sets.map((s) => soortVanSet(s.naam)));
     return SOORT_VOLGORDE.filter((s) => aanwezig.has(s));
   }, [sets]);
   const gefilterd = useMemo(() => filterSets(sets, { zoek, geldigheid, graad, soort }), [sets, zoek, geldigheid, graad, soort]);
+  // Hoeveel oude versies er bij deze filters verborgen zijn: dat zeggen we bij het vinkje.
+  const verborgenOud = useMemo(
+    () => (geldigheid === 'actueel' ? filterSets(sets, { zoek, geldigheid: 'alle', graad, soort }).length - gefilterd.length : 0),
+    [sets, zoek, geldigheid, graad, soort, gefilterd.length],
+  );
   const laatstOpgehaald = useMemo(() => sets.reduce((m, s) => (s.opgehaald > m ? s.opgehaald : m), ''), [sets]);
   const gekozen = setId ? sets.find((s) => s.id === setId) : undefined;
 
@@ -128,14 +126,23 @@ export function MinimumdoelenPage() {
   };
 
   const kies = (id: string) => navigate(`${BASIS_ROUTE}/${id}`);
+  // Vanuit de waarschuwing bij een oude set: de sets die nu gelden voor dezelfde graad en soort.
+  const toonActueel = (set: MinimumdoelenIndexSet) => {
+    setZoek('');
+    setToonOud(false);
+    setGraad(set.graad ?? '');
+    setSoort(soortVanSet(set.naam));
+    setZichtbaar(STAP);
+    zoekRef.current?.focus();
+  };
   // Elke wijziging van een filter begint weer bij de eerste sets.
   const zetZoek = (v: string) => { setZoek(v); setZichtbaar(STAP); };
-  const zetGeldigheid = (v: Geldigheid) => { setGeldigheidKeuze(v); setZichtbaar(STAP); };
+  const zetToonOud = (v: boolean) => { setToonOud(v); setZichtbaar(STAP); };
   const zetGraad = (v: string) => { setGraad(v); setZichtbaar(STAP); };
   const zetSoort = (v: SoortOnderwijs | 'alle') => { setSoort(v); setZichtbaar(STAP); };
   const wisFilters = () => {
     setZoek('');
-    setGeldigheidKeuze('alle');
+    setToonOud(true);
     setGraad('');
     setSoort('alle');
     setZichtbaar(STAP);
@@ -180,19 +187,19 @@ export function MinimumdoelenPage() {
                   />
                 </Field>
                 {heeftGeldigheid && (
-                  <fieldset className="md-groep">
-                    <legend>Geldigheid</legend>
-                    <div className="md-chips">
-                      {GELDIGHEID_KNOPPEN.map((k) => (
-                        <button
-                          key={k.id} type="button" className="md-chip" aria-pressed={geldigheid === k.id}
-                          onClick={() => zetGeldigheid(k.id)}
-                        >
-                          {k.label}
-                        </button>
-                      ))}
-                    </div>
-                  </fieldset>
+                  <div className="md-oud">
+                    <label className="md-oud-label">
+                      <input type="checkbox" checked={toonOud} onChange={(e) => zetToonOud(e.target.checked)} />
+                      <span>Toon ook oude versies die niet meer gelden</span>
+                    </label>
+                    <p className="md-oud-hint">
+                      {toonOud
+                        ? 'Oude versies staan in de lijst met “Niet meer geldig”. Je hebt ze alleen nodig voor oudere leerplannen of cursussen.'
+                        : verborgenOud > 0
+                          ? `${verborgenOud} oude ${verborgenOud === 1 ? 'versie' : 'versies'} verborgen. Je hebt ze alleen nodig voor oudere leerplannen of cursussen.`
+                          : 'Alleen sets die nu gelden.'}
+                    </p>
+                  </div>
                 )}
                 <div className="md-selecten">
                   <Field label="Graad">
@@ -220,7 +227,7 @@ export function MinimumdoelenPage() {
               {gefilterd.length === 0 ? (
                 <div className="md-leeg">
                   <p><strong>Geen sets die hierbij passen.</strong></p>
-                  <p>Probeer een kortere zoekterm, een andere graad of soort, of toon ook de sets die niet meer geldig of onbekend zijn.</p>
+                  <p>Probeer een kortere zoekterm, een andere graad of soort, of toon ook de oude versies.</p>
                   <button type="button" className="btn btn-sm btn-ghost" onClick={wisFilters}>Toon alle sets</button>
                 </div>
               ) : (
@@ -251,7 +258,10 @@ export function MinimumdoelenPage() {
               <LaadBericht tekst="De set wordt geladen…" />
             </section>
           ) : setId ? (
-            <SetPaneel key={setId} setId={setId} indexSet={gekozen} paneelRef={paneelRef} onNaarLijst={naarLijst} />
+            <SetPaneel
+              key={setId} setId={setId} indexSet={gekozen} alleSets={sets} paneelRef={paneelRef} onNaarLijst={naarLijst}
+              onToonActueel={toonActueel}
+            />
           ) : (
             <div className="card md-placeholder">
               <h2>Kies een set</h2>
@@ -328,13 +338,16 @@ function aantalDoelen(n: number): string {
 }
 
 function SetPaneel({
-  setId, indexSet, paneelRef, onNaarLijst,
+  setId, indexSet, alleSets, paneelRef, onNaarLijst, onToonActueel,
 }: {
   setId: string;
   /** De regel uit de index, als die al geladen is: dan staat de naam er meteen. */
   indexSet?: MinimumdoelenIndexSet;
+  /** Alle sets van de index: om bij een oude set de opvolger aan te wijzen. */
+  alleSets: readonly MinimumdoelenIndexSet[];
   paneelRef: RefObject<HTMLElement>;
   onNaarLijst: () => void;
+  onToonActueel: (set: MinimumdoelenIndexSet) => void;
 }) {
   const navigate = useNavigate();
   const toast = useToast();
@@ -349,6 +362,7 @@ function SetPaneel({
   // Een set die niet meer geldt, mag je nog gebruiken, maar de leerkracht moet het weten.
   const verouderd = geldigheid !== undefined && geldigheidVan(geldigheid) === 'N';
   const jaren = geldigheid ? geldigheidJaren(geldigheid) : undefined;
+  const opvolgers = useMemo(() => (verouderd && indexSet ? opvolgersVan(indexSet, alleSets) : undefined), [verouderd, indexSet, alleSets]);
 
   const feiten: { naam: string; waarde: string }[] = [];
   if (kop) {
@@ -403,10 +417,46 @@ function SetPaneel({
       {verouderd && (
         <div className="callout warn md-verouderd" role="note">
           <WarningIcon size={20} className="md-verouderd-icoon" />
-          <p>
-            Deze minimumdoelen gelden niet meer{jaren ? ` (${jaren})` : ''}. Kies liever een set die nu geldt. Sinds 2019 heten veel sets naar
-            een sleutelcompetentie, bv. ‘Ruimtelijk bewustzijn’ voor aardrijkskunde.
-          </p>
+          <div className="md-verouderd-tekst">
+            {opvolgers?.soort === 'versie' ? (
+              <p>
+                Deze versie geldt niet meer{jaren ? ` (${jaren})` : ''}. Er is een nieuwere versie van deze set: gebruik die.
+              </p>
+            ) : opvolgers?.soort === 'vak' ? (
+              <p>
+                Deze minimumdoelen gelden niet meer{jaren ? ` (${jaren})` : ''}. Sinds 2019 zijn de eindtermen niet meer per vak
+                geordend, maar per sleutelcompetentie. De doelen van nu voor {kop?.korteNaam ? <strong>{kop.korteNaam.toLowerCase()}</strong> : 'dit vak'}
+                {' '}staan in:
+              </p>
+            ) : (
+              <p>
+                Deze minimumdoelen gelden niet meer{jaren ? ` (${jaren})` : ''}. Kies liever een set die nu geldt
+                {indexSet?.graad ? ` voor de ${indexSet.graad}${indexSet.stroom ? ` ${indexSet.stroom}` : ''}` : ''}.
+              </p>
+            )}
+            {opvolgers && opvolgers.sets.length > 0 ? (
+              <ul className="md-opvolgers">
+                {opvolgers.sets.map((o, i) => (
+                  <li key={o.id}>
+                    {/* De grootste set eerst en opvallend; een tweede set met dezelfde naam (bv. basisgeletterdheid) krijgt zijn eigen kenmerk erbij. */}
+                    <Link to={`${BASIS_ROUTE}/${o.id}`} className={`btn btn-sm ${i === 0 ? 'btn-primary' : 'btn-ghost'}`}>
+                      Open ‘{o.korteNaam || o.naam}’
+                      {opvolgers.sets.some((x) => x.id !== o.id && (x.korteNaam || x.naam) === (o.korteNaam || o.naam)) && contextVanSet(o.naam)
+                        ? ` · ${contextVanSet(o.naam)}`
+                        : ''}
+                    </Link>
+                    <span className="md-opvolger-info">
+                      {[o.graad, o.stroom, contextVanSet(o.naam), `${o.aantal} doelen`, geldigheidTekst(o)].filter(Boolean).join(' · ')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : indexSet ? (
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => onToonActueel(indexSet)}>
+                Toon de sets die nu gelden{indexSet.graad ? ` voor de ${indexSet.graad}` : ''}
+              </button>
+            ) : null}
+          </div>
         </div>
       )}
 

@@ -295,14 +295,15 @@ export interface SetVoorstelOpties {
   stroom?: string;
   /** Zoekwoorden, gescheiden door spaties; elk woord moet voorkomen in naam, korte naam of id. */
   zoek?: string;
-  /** Ook sets die niet (meer) geldig zijn. */
+  /** Ook sets die niet meer geldig zijn. */
   alleGeldigheden?: boolean;
 }
 
 /**
- * Sets uit de index die passen bij een leerplan. Standaard alleen geldige sets (`geldigheid` is
- * "Geldig"); heeft geen enkele set in de index een geldigheid (oudere index), dan wordt daar niet op
- * gefilterd. Een set met een andere graad of stroom valt weg; een set zonder graad of stroom blijft
+ * Sets uit de index die passen bij een leerplan. Standaard zonder de sets die niet meer gelden
+ * (`geldigheid` is "Niet meer geldig"); sets met geldigheid "Onbekend" blijven, want daaronder staan
+ * o.a. de huidige sets van de 3de graad. Heeft geen enkele set in de index een geldigheid (oudere
+ * index), dan wordt daar niet op gefilterd. Een set met een andere graad of stroom valt weg; een set zonder graad of stroom blijft
  * (zulke sets gelden vaak over graden heen) maar komt na de sets die exact passen. Daarna op korte
  * naam (of naam), natuurlijk gesorteerd. Puur: de index zelf verandert niet.
  */
@@ -314,7 +315,8 @@ export function stelSetsVoor(index: readonly MinimumdoelenIndexSet[], opties: Se
 
   const passend: { set: MinimumdoelenIndexSet; score: number; naam: string }[] = [];
   for (const set of index) {
-    if (!opties.alleGeldigheden && metGeldigheid && set.geldigheid !== 'Geldig') continue;
+    // Alleen wat uitdrukkelijk niet meer geldt, valt weg: "Onbekend" zijn in de bron o.a. de huidige sets van de 3de graad.
+    if (!opties.alleGeldigheden && metGeldigheid && (set.geldigheid ?? '').trim().toLowerCase() === 'niet meer geldig') continue;
     let score = 0;
     if (graad !== undefined && set.graad) {
       if (graadSleutel(set.graad) !== graad) continue;

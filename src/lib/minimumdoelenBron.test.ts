@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   FOUT_NIET_GELADEN,
@@ -13,6 +16,7 @@ import {
   isGeldigSetId,
   laadIndex,
   laadSet,
+  opvolgersVan,
   soortVanSet,
   veiligeLink,
   wisMinimumdoelenCache,
@@ -210,7 +214,7 @@ describe('geldigheid', () => {
     expect(geldigheidTekst({ geldigheid: 'Niet meer geldig', geldigVan: '2019-09-01', geldigTot: '2019-12-31' })).toBe('Niet meer geldig (2019)');
     expect(geldigheidTekst({ geldigheid: 'Niet meer geldig', geldigTot: '2020-08-31' })).toBe('Niet meer geldig (tot 2020)');
     expect(geldigheidTekst({ geldigheid: 'Niet meer geldig' })).toBe('Niet meer geldig');
-    expect(geldigheidTekst({ geldigheid: 'Onbekend' })).toBe('Geldigheid onbekend');
+    expect(geldigheidTekst({ geldigheid: 'Onbekend' })).toBe('Geldigheid niet vermeld');
     expect(geldigheidTekst({})).toBeUndefined();
   });
 
@@ -278,6 +282,9 @@ describe('filterSets', () => {
     expect(filterSets(sets, { ...alles, geldigheid: 'G' }).map((s) => s.id)).toEqual(['ODS_3287', 'ODS_2600']);
     expect(filterSets(sets, { ...alles, geldigheid: 'N' }).map((s) => s.id)).toEqual(['ODS_2118']);
     expect(filterSets(sets, { ...alles, geldigheid: 'O' }).map((s) => s.id)).toEqual(['ODS_2300']);
+    // 'actueel': alles behalve wat niet meer geldt
+    expect(filterSets(sets, { ...alles, geldigheid: 'actueel' }).map((s) => s.id)).not.toContain('ODS_2118');
+    expect(filterSets(sets, { ...alles, geldigheid: 'actueel' }).map((s) => s.id)).toContain('ODS_2300');
     expect(filterSets(sets, { ...alles, graad: '1ste graad' }).map((s) => s.id)).toEqual(['ODS_3287', 'ODS_2118']);
     expect(filterSets(sets, { ...alles, soort: 'buso' }).map((s) => s.id)).toEqual(['ODS_2300']);
     expect(filterSets(sets, { ...alles, soort: 'so', geldigheid: 'G', graad: '1ste graad' }).map((s) => s.id)).toEqual(['ODS_3287']);
@@ -291,3 +298,38 @@ describe('filterSets', () => {
     expect(zonderAccenten('Één Café Ça')).toBe('een cafe ca');
   });
 });
+
+describe('opvolgersVan met de meegeleverde index', () => {
+  const pad = join(fileURLToPath(new URL('../../', import.meta.url)), 'public', 'leerplannen', 'minimumdoelen', 'index.json');
+  const index = existsSync(pad) ? (JSON.parse(readFileSync(pad, 'utf8')) as { sets: MinimumdoelenIndexSet[] }).sets : [];
+  const heeft = index.length > 0 && indexHeeftGeldigheid(index);
+  const set = (id: string) => index.find((s) => s.id === id) as MinimumdoelenIndexSet;
+  const ids = (id: string) => opvolgersVan(set(id), index);
+
+  it.runIf(heeft)('wijst bij een oude vakset de sleutelcompetentie van nu aan', () => {
+    // Natuurwetenschappen, 1ste graad A-stroom (2010–2020) → Wiskunde, exacte wetenschappen en technologie (STEM)
+    expect(ids('ODS_2123')).toMatchObject({ soort: 'vak' });
+    expect(ids('ODS_2123').sets[0].id).toBe('ODS_3283');
+    // Aardrijkskunde (1997–2020) → Ruimtelijk bewustzijn
+    expect(ids('ODS_2118').sets.map((s) => s.id)).toEqual(['ODS_3287']);
+    for (const s of ids('ODS_2123').sets) expect(geldigheidVan(s)).not.toBe('N');
+  });
+
+  it.runIf(heeft)('wijst bij een oudere versie de nieuwe versie met dezelfde naam aan', () => {
+    // Ruimtelijk bewustzijn 2019–2025 → versie 2.1 (sinds 2024)
+    expect(ids('ODS_2447')).toEqual({ soort: 'versie', sets: [set('ODS_3287')] });
+  });
+
+  it.runIf(heeft)('geeft voor elke set die niet meer geldt iets terug, zonder zichzelf of andere oude sets', () => {
+    let metOpvolger = 0;
+    const oud = index.filter((s) => geldigheidVan(s) === 'N');
+    for (const s of oud) {
+      const o = opvolgersVan(s, index);
+      expect(o.sets.every((x) => x.id !== s.id && geldigheidVan(x) !== 'N')).toBe(true);
+      if (o.sets.length > 0) metOpvolger++;
+    }
+    // De meeste oude sets hebben een aanwijsbare opvolger; de rest krijgt "kies een set die nu geldt".
+    expect(metOpvolger / oud.length).toBeGreaterThan(0.5);
+  });
+});
+

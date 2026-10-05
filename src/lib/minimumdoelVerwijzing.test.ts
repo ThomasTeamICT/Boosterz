@@ -206,12 +206,13 @@ describe('stelSetsVoor', () => {
     s('ODS_5', { korteNaam: 'Ruimtelijk bewustzijn', graad: '2de graad', geldigheid: 'Geldig' }),
     s('ODS_6', { korteNaam: 'Vakoverschrijdend', geldigheid: 'Geldig' }),
     s('ODS_7', { korteNaam: 'Économie', graad: '3de graad', geldigheid: 'Geldig' }),
-    s('ODS_8', { korteNaam: 'Onbekend', graad: '1ste graad', stroom: 'A-stroom', geldigheid: 'Onbekend' }),
+    // "Onbekend" in de bron: o.a. de huidige sets van de 3de graad. Die blijven.
+    s('ODS_8', { korteNaam: 'Zelfsturing', graad: '1ste graad', stroom: 'A-stroom', geldigheid: 'Onbekend' }),
   ];
 
-  it('toont standaard alleen geldige sets, of alles op vraag', () => {
+  it('laat standaard alleen de sets weg die niet meer gelden, of toont alles op vraag', () => {
     expect(stelSetsVoor(index).map((x) => x.id)).not.toContain('ODS_3');
-    expect(stelSetsVoor(index).map((x) => x.id)).not.toContain('ODS_8');
+    expect(stelSetsVoor(index).map((x) => x.id)).toContain('ODS_8');
     expect(stelSetsVoor(index, { alleGeldigheden: true })).toHaveLength(index.length);
   });
 
@@ -224,7 +225,7 @@ describe('stelSetsVoor', () => {
     for (const graad of ['1ste graad', '1e graad', 'eerste graad', 'graad 1', 'Eerste Graad']) {
       for (const stroom of ['A-stroom', 'A stroom', 'A', 'a']) {
         const ids = stelSetsVoor(index, { graad, stroom }).map((x) => x.id);
-        expect(ids, `${graad} / ${stroom}`).toEqual(['ODS_2', 'ODS_1', 'ODS_6']);
+        expect(ids, `${graad} / ${stroom}`).toEqual(['ODS_2', 'ODS_1', 'ODS_8', 'ODS_6']);
       }
     }
     expect(stelSetsVoor(index, { graad: '2de graad' }).map((x) => x.id)).toEqual(['ODS_5', 'ODS_6']);
@@ -237,7 +238,7 @@ describe('stelSetsVoor', () => {
     expect(stelSetsVoor(index, { zoek: 'RUIMTELIJK bewust' }).map((x) => x.id)).toEqual(['ODS_2', 'ODS_4', 'ODS_5']);
     expect(stelSetsVoor(index, { zoek: 'economie' }).map((x) => x.id)).toEqual(['ODS_7']);
     expect(stelSetsVoor(index, { zoek: 'ods_6' }).map((x) => x.id)).toEqual(['ODS_6']);
-    expect(stelSetsVoor(index, { zoek: '   ' })).toHaveLength(6);
+    expect(stelSetsVoor(index, { zoek: '   ' })).toHaveLength(7);
   });
 
   it('sorteert exacte graad en stroom eerst, dan op naam (natuurlijk), en verandert de index niet', () => {

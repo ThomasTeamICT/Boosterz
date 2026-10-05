@@ -171,7 +171,7 @@ function jaarVan(datum: string | undefined): string | undefined {
   return typeof datum === 'string' && /^\d{4}/.test(datum) ? datum.slice(0, 4) : undefined;
 }
 
-/** "Geldig sinds 2024", "Niet meer geldig (2019–2025)", "Geldigheid onbekend"; niets zonder gegevens. */
+/** "Geldig sinds 2024", "Niet meer geldig (2019–2025)", "Geldigheid niet vermeld"; niets zonder gegevens. */
 export function geldigheidTekst(set: { geldigheid?: string; geldigVan?: string; geldigTot?: string }): string | undefined {
   const g = geldigheidVan(set);
   const van = jaarVan(set.geldigVan);
@@ -183,7 +183,8 @@ export function geldigheidTekst(set: { geldigheid?: string; geldigVan?: string; 
     if (van) return `Niet meer geldig (was geldig sinds ${van})`;
     return 'Niet meer geldig';
   }
-  if (g === 'O') return 'Geldigheid onbekend';
+  // De bron zegt "Onbekend": o.a. bij de huidige sets van de 3de graad. Dat is geen "niet meer geldig".
+  if (g === 'O') return 'Geldigheid niet vermeld';
   return undefined;
 }
 
@@ -234,7 +235,8 @@ export function contextVanSet(naam: string): string {
 export interface SetFilter {
   /** Zoektekst: naam, korte naam of id, zonder accenten en hoofdletterongevoelig. */
   zoek: string;
-  geldigheid: GeldigheidCode | 'alle';
+  /** 'actueel' = alles behalve wat niet meer geldt (geldig of zonder vermelde geldigheid). */
+  geldigheid: GeldigheidCode | 'actueel' | 'alle';
   /** Leeg = alle graden. */
   graad: string;
   soort: SoortOnderwijs | 'alle';
@@ -253,7 +255,9 @@ export function filterSets(sets: readonly MinimumdoelenIndexSet[], filter: SetFi
   const termen = zonderAccenten(filter.zoek).split(/\s+/).filter(Boolean);
   const alternatieven = termen.map((t) => competentieFrases(t));
   return sets.filter((s) => {
-    if (filter.geldigheid !== 'alle' && geldigheidVan(s) !== filter.geldigheid) return false;
+    if (filter.geldigheid === 'actueel') {
+      if (geldigheidVan(s) === 'N') return false;
+    } else if (filter.geldigheid !== 'alle' && geldigheidVan(s) !== filter.geldigheid) return false;
     if (filter.graad !== '' && s.graad !== filter.graad) return false;
     if (filter.soort !== 'alle' && soortVanSet(s.naam) !== filter.soort) return false;
     if (termen.length === 0) return true;
@@ -268,3 +272,55 @@ export function graadOpties(sets: readonly MinimumdoelenIndexSet[]): string[] {
   for (const s of sets) if (typeof s.graad === 'string' && s.graad.trim() !== '') graden.add(s.graad);
   return [...graden].sort((a, b) => a.localeCompare(b, 'nl', { numeric: true }));
 }
+
+// ── Opvolgers van een set die niet meer geldt ───────────────────────────────
+
+/** Woorden uit een (korte) setnaam die niets over het vak zeggen. */
+const GEEN_VAKWOORD = new Set(['vak', 'eindtermen', 'eindterm', 'opvoeding', 'moderne', 'talen', 'competenties', 'vakoverschrijdende', 'specifieke']);
+
+function naamSleutel(naam: string): string {
+  return zonderAccenten(naam).replace(/\s+/g, ' ').trim();
+}
+
+function zelfdePlaats(a: MinimumdoelenIndexSet, b: MinimumdoelenIndexSet): boolean {
+  return soortVanSet(a.naam) === soortVanSet(b.naam) && (a.graad ?? '') === (b.graad ?? '') && (a.stroom ?? '') === (b.stroom ?? '');
+}
+
+export interface Opvolgers {
+  /**
+   * 'versie': dezelfde set in een nieuwere versie (zelfde naam); 'vak': de sets die nu gelden voor het vak van een
+   * oude vakset (via de naam of de zoektabel, een hulp bij het zoeken); 'geen': niets gevonden.
+   */
+  soort: 'versie' | 'vak' | 'geen';
+  sets: MinimumdoelenIndexSet[];
+}
+
+/**
+ * Waar vindt een leerkracht de doelen van een set die niet meer geldt? Alleen sets van dezelfde soort onderwijs,
+ * graad en stroom die nog gelden (of zonder vermelde geldigheid). Eerst dezelfde set in een nieuwere versie; anders
+ * de sets die het vak noemen of er volgens de zoektabel bij horen (aardrijkskunde → ruimtelijk bewustzijn),
+ * grootste eerst, hoogstens drie. Dit wijst de weg; het koppelt niets.
+ */
+export function opvolgersVan(set: MinimumdoelenIndexSet, alle: readonly MinimumdoelenIndexSet[]): Opvolgers {
+  const kandidaten = alle.filter((s) => s.id !== set.id && geldigheidVan(s) !== 'N' && zelfdePlaats(s, set));
+  const sleutel = naamSleutel(set.naam);
+  const versies = kandidaten.filter((s) => naamSleutel(s.naam) === sleutel);
+  if (versies.length > 0) return { soort: 'versie', sets: versies.slice(0, 3) };
+
+  const woorden = zonderAccenten(set.korteNaam ?? '')
+    .split(/[^\p{L}\d]+/u)
+    .filter((w) => w.length >= 3 && !GEEN_VAKWOORD.has(w));
+  const frases = [...new Set(woorden.flatMap((w) => {
+    const uitTabel = competentieFrases(w);
+    return uitTabel.length > 0 ? [...uitTabel] : [w];
+  }))];
+  if (frases.length === 0) return { soort: 'geen', sets: [] };
+  const passend = kandidaten
+    .filter((s) => {
+      const hooi = zonderAccenten(`${s.korteNaam ?? ''} ${s.naam}`);
+      return frases.some((f) => bevatFrase(hooi, f));
+    })
+    .sort((a, b) => b.aantal - a.aantal || a.id.localeCompare(b.id, 'nl', { numeric: true }));
+  return passend.length > 0 ? { soort: 'vak', sets: passend.slice(0, 3) } : { soort: 'geen', sets: [] };
+}
+
