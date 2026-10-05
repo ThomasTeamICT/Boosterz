@@ -10,7 +10,7 @@ leerplan) moet de punten met "te bevestigen" afvinken vóór het bouwen begint.*
 | API-sleutel Onderwijsdoelen-API | **Bestaat.** Aangevraagd via het portaalformulier op 18 december 2025, aangemaakt op 9 januari 2026 door de Centrale cel ICT. De sleutel kwam per mail in de ICT-mailbox van de scholengroep en geldt voor alle open API's van Onderwijs & Vorming. Hij staat nergens in de repo. |
 | Sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` | **Gedaan** op 5 oktober 2026 (repository secret voor Actions). |
 | Pakket L1 (ophaalscript, workflow, datatest) | Gebouwd en gereviewd (twee reviewers, rechter). **Eerste echte run (5 oktober 2026)**: volledig opgehaald (24019 doelen, 49 pagina's, `totalItems` klopt), maar terecht gestopt (exit 3): sets met dezelfde lange naam vielen samen. Opgelost: de setsleutel is nu `ODS_<onderwijsdoelenset_id>`, elk doel krijgt zijn `@id`, en alle API-velden gaan mee in `extra`. Run 2 en 3 toonden de rest: binnen een set is een code niet altijd uniek (§ 5, "Wat de echte gegevens leren"); een doel wordt nu herkend aan zijn `@id`. **Run 4 geslaagd**: pull request #2 met 950 sets (15 324 doelen, 15 MB), nagekeken door de hoofdsessie (datatest en build groen) en op 5 oktober 2026 samengevoegd op vraag van de eigenaar. **Laag 1 is klaar.** Elke maand haalt de taak de doelen opnieuw op en opent een pull request als er iets verandert. Volgende stap: laag 2 (doelen tonen in de app, koppeling met leerplannen en cursussen). |
-| Laag 2, ronde 1 (§ 14): inleesweg, verwijzingen, hulp | **Bezig** sinds 5 oktober 2026. Klaar en live: basis, kern (lezer, verwijzingen, nakijkpoort), de pagina "Officiële minimumdoelen", wegwijzer en nakijkstatus. Review (juistheid) en rechter: 9 bevestigd, 6 gedeeltelijk; het herstel loopt (§ 14, "Review"). Inleeswizard in aanbouw. Pull request #3 (geldigheid per set) wacht op goedkeuring. |
+| Laag 2, ronde 1 (§ 14): inleesweg, verwijzingen, hulp | **Bezig** sinds 5 oktober 2026. Klaar en live: basis, kern (lezer, verwijzingen, nakijkpoort), de pagina "Officiële minimumdoelen", wegwijzer en nakijkstatus. Inleeswizard live. Review juistheid: herstel live. Review schermen (toegankelijkheid, taal, privacy): 25 punten bevestigd, herstel loopt. **Pull request #3** (geldigheid per set in de index) is nodig om oude sets standaard te verbergen in de lijsten; wacht op goedkeuring door de eigenaar. |
 | Vraag aan het GO! (via een contactpersoon bij PBD) | Concept klaar bij de eigenaar (5 oktober 2026): een afgebakend experiment met enkele leerplannen. Nog te versturen. |
 | Vragen aan het departement (§ 12) | Nog te stellen. Sinds 24 maart 2026 **alleen via het formulier van TechLoket Onderwijs**, niet meer per mail (Nieuwsbrief API K&C van AHOVOKS). |
 | Vragen aan KOV, GO!, OVSG, POV (§ 12) | Teksten klaar in het aanvraagdossier (Claude Docs, "Aanvraagdossier leerplangegevens"); nog niet verstuurd. |
@@ -263,6 +263,10 @@ cursuskaart blijft dat van het leerplan.
   het controlerapport, en het nakijkscherm met doel en bron naast elkaar.
 - Toegankelijk zoals de rest van de app: één `h1`, alles met het toetsenbord bedienbaar, en de
   status niet alleen met kleur aangeduid.
+- Een set die niet meer geldt, krijgt een waarschuwing en een knop "Toch als leerplan gebruiken";
+  het leerplan heet dan "… (niet meer geldig)". Zoeken op een vak vindt ook de sleutelcompetentie
+  waar het sinds 2019 onder valt (bv. aardrijkskunde → ruimtelijk bewustzijn): een hulp bij het
+  zoeken, geen officiële koppeling.
 
 ## 11. Werkpakketten
 
@@ -315,6 +319,8 @@ leerplanpagina is al lui geladen; de lezers komen in een eigen chunk.
    sites van de netten toelaten, zodat fase 1 de formaten rechtstreeks kan testen.
 3. De repo heeft geen licentie. Kies er een voordat er overheidsdata met naamsvermelding in komt,
    zodat duidelijk is wat voor de code geldt en wat voor de data.
+4. De licentie van de minimumdoelen (vraag 2 aan het departement) moet beantwoord zijn vóór een
+   brede uitrol: de bestanden staan nu met "licentie: nog te bevestigen" publiek op de site.
 
 ## 13. Bewust niet
 
@@ -396,4 +402,15 @@ Bewust later of zo gelaten:
   tekst is; tot dan blijft de doorhaling zichtbaar.
 - Officiële leerplannen die vóór het herstel bewaard werden (5 oktober), kunnen een fout omgezette
   tekst hebben; "Gebruik als leerplan" maakt na het herstel een nieuw, juist leerplan.
+
+**Review schermen (5 oktober 2026, toegankelijkheid en taal; privacy en juridisch; rechter).**
+Bevestigd en in herstel: een oude set stond vooraan en werd zonder waarschuwing "nagekeken"; de
+AI-weg zei "alles blijft op dit toestel" terwijl de tekst naar de AI-aanbieder gaat; stap 2 liep
+dood zonder gevonden doelen; dubbelzinnige verwijzingen toonden geen stroom; jargon ("set-id",
+"de lezer", regelnummers); focus na bewaren; de privacypagina noemde de naam van wie nakeek niet;
+een doel-id als "constructor" liet de wizard vastlopen; import zonder groottegrens.
+
+Bewust later: een Content-Security-Policy (app-breed, botst met een eigen AI-adres); vertraging
+bij gekunstelde eigen invoer van vele megabytes; finaliteit (aso, tso, bso, …) voor de 2de en
+3de graad in de wizard; "set" overal hernoemen (één uitlegzin volstaat).
 
