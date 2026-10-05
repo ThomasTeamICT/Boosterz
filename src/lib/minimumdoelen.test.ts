@@ -994,12 +994,12 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
   const PROBLEEM: Record<Soort, { records: Rec[]; voorbeelden: unknown[]; stderr: RegExp }> = {
     conflict: {
       records: [rec('1.2', 'Tweede tekst', SET_SO), rec('1.2', 'Eerste tekst', SET_SO)],
-      voorbeelden: [{ set: SO_ID, code: '1.2', varianten: [doelSO('1.2', 'Eerste tekst'), doelSO('1.2', 'Tweede tekst')] }],
+      voorbeelden: [{ set: SO_ID, code: '1.2', verschil: ['tekst'], varianten: [doelSO('1.2', 'Eerste tekst'), doelSO('1.2', 'Tweede tekst')] }],
       stderr: /Problemen in gekozen sets \(conflict 1; sets: SO_1STE_GRAAD_V2_1\)/,
     },
     variant: {
       records: [rec('1.3', 'Zelfde tekst', metStroom('B-stroom')), rec('1.3', 'Zelfde tekst', SET_SO)],
-      voorbeelden: [{ set: SO_ID, code: '1.3', varianten: [doelSO('1.3', 'Zelfde tekst'), doelSO('1.3', 'Zelfde tekst', { stroom: 'B-stroom' })] }],
+      voorbeelden: [{ set: SO_ID, code: '1.3', verschil: ['stroom'], varianten: [doelSO('1.3', 'Zelfde tekst'), doelSO('1.3', 'Zelfde tekst', { stroom: 'B-stroom' })] }],
       stderr: /Problemen in gekozen sets \(variant 1;/,
     },
     overgeslagen: {
@@ -1038,6 +1038,26 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
       if (soort === 'conflict') expect(rapport.conflicten).toEqual([{ set: SO_ID, code: '1.2' }]);
     });
   }
+
+  it('zet conflicten en varianten van een gekozen set ook in het logboek: ids, verschillende velden en hun waarden', () => {
+    const records = [
+      rec('2.1', '<p>Nieuwe tekst van het doel</p>', SET_SO, { '@id': 11, geldigheid: { tot: null } }),
+      rec('2.1', '<p>Oude tekst van het doel</p>', SET_SO, { '@id': 10, geldigheid: { tot: '2024-08-31' } }),
+      rec('2.2', 'Zelfde', SET_SO, { '@id': 12, optioneel: true }),
+      rec('2.2', 'Zelfde', SET_SO, { '@id': 13 }),
+    ];
+    const run = draai(['--bron', schrijfBron('probleem-log.json', [goedDoel, ...records]), '--uit', join(tmp, 'uit-probleem-log'), '--rapport', join(tmp, 'r-probleem-log.json')]);
+    expect(run.status, run.stderr).toBe(3);
+    const regels = run.stdout.split('\n').filter((r) => r.startsWith('- '));
+    expect(regels).toEqual([
+      `- ${SO_ID} (Secundair onderwijs, eerste graad) code 2.1, conflict, ids 10, 11; verschilt in extra.geldigheid, id, tekst. ` +
+        'extra.geldigheid: "{"tot":"2024-08-31"}" | "{"tot":null}"; id: "10" | "11"; tekst: "Oude tekst van het doel" | "Nieuwe tekst van het doel"',
+      `- ${SO_ID} (Secundair onderwijs, eerste graad) code 2.2, variant, ids 12, 13; verschilt in extra.optioneel, id. ` +
+        'extra.optioneel: "true" | "(geen)"; id: "12" | "13"',
+    ]);
+    const rapport = leesJson<ProbleemRapport>(join(tmp, 'r-probleem-log.json'));
+    expect(rapport.problemen.conflict.voorbeelden).toMatchObject([{ code: '2.1', verschil: ['extra.geldigheid', 'id', 'tekst'] }]);
+  });
 
   it('een probleem verandert niets aan een bestaande uitmap', () => {
     const uit = join(tmp, 'uit-probleem-bestaand');
@@ -1125,7 +1145,7 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
     expect(d.rapport.conflicten).toEqual(c.rapport.conflicten);
     expect(d.run.stderr).toBe(c.run.stderr);
     expect(c.rapport.problemen.conflict.voorbeelden).toEqual([
-      { set: SO_ID, code: '1.2', varianten: [doelSO('1.2', 'Derde tekst'), doelSO('1.2', 'Eerste tekst'), doelSO('1.2', 'Tweede tekst')] },
+      { set: SO_ID, code: '1.2', verschil: ['tekst'], varianten: [doelSO('1.2', 'Derde tekst'), doelSO('1.2', 'Eerste tekst'), doelSO('1.2', 'Tweede tekst')] },
     ]);
 
     // een setnaam met evenveel stemmen: de keuze hangt niet van de volgorde af

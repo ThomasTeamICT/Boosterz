@@ -58,6 +58,8 @@ const VERZOEK_TIMEOUT_MS = 60000;
 const INSPRINGING = '  ';
 const MAX_VOORBEELDEN = 50;
 const MAX_CONFLICTEN_IN_RAPPORT = 1000;
+const MAX_PROBLEMEN_IN_LOG = 60;
+const PROBLEMEN_PER_SET_IN_LOG = 3;
 const SOORTEN = ['conflict', 'variant', 'overgeslagen', 'meerwaardig'];
 
 const wachtFactor = (() => {
@@ -285,6 +287,45 @@ async function haalApi(voortgang) {
 
 const SET_INFO_VELDEN = ['apiId', 'korteNaam', 'versie'];
 
+/** Platte velden van een doel: bovenste velden (zonder code) en `extra.<veld>`. */
+function vlakVan(doel) {
+  const vlak = new Map();
+  for (const [veld, waarde] of Object.entries(doel)) {
+    if (veld === 'code') continue;
+    if (veld === 'extra' && isObject(waarde)) {
+      for (const [x, w] of Object.entries(waarde)) vlak.set(`extra.${x}`, M.canoniek(w));
+    } else {
+      vlak.set(veld, M.canoniek(waarde));
+    }
+  }
+  return vlak;
+}
+
+/** De velden waarin de varianten van één code van elkaar verschillen, alfabetisch. */
+function verschilVan(varianten) {
+  const vlakken = varianten.map(vlakVan);
+  const velden = new Set(vlakken.flatMap((v) => [...v.keys()]));
+  return [...velden].filter((veld) => new Set(vlakken.map((v) => v.get(veld) ?? '(geen)')).size > 1).sort(vergelijkTekst);
+}
+
+/** Eén logregel per conflict of variant: welke ids, welke velden verschillen en hoe (ingekort). */
+function beschrijfProbleem(soort, p, set) {
+  const kort = (t, n = 70) => {
+    const vlak = String(t).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    return vlak.length > n ? `${vlak.slice(0, n - 1)}…` : vlak;
+  };
+  const ids = p.varianten.map((d) => d.id ?? '?').join(', ');
+  const waarden = p.verschil.slice(0, 4).map((veld) => {
+    const per = p.varianten.map((d) => {
+      const w = veld.startsWith('extra.') ? d.extra?.[veld.slice(6)] : d[veld];
+      return w === undefined ? '(geen)' : kort(typeof w === 'string' ? w : JSON.stringify(w), veld === 'tekst' ? 70 : 50);
+    });
+    return `${veld}: ${per.map((w) => `"${w}"`).join(' | ')}`;
+  });
+  const naam = set ? ` (${kort(set.setInfo.korteNaam ?? set.naam, 50)})` : '';
+  return `${p.set}${naam} code ${p.code}, ${soort}, ids ${ids}; verschilt in ${p.verschil.join(', ') || '(niets)'}. ${waarden.join('; ')}`;
+}
+
 function tel(map, waarde) {
   map.set(waarde, (map.get(waarde) ?? 0) + 1);
 }
@@ -360,7 +401,7 @@ function groepeer(records, rapport) {
       if (varianten.size < 2) continue;
       const lijst = [...varianten.entries()].sort((a, b) => vergelijkTekst(a[0], b[0])).map(([, doel]) => doel);
       const soort = new Set(lijst.map((d) => d.tekst)).size > 1 ? 'conflict' : 'variant';
-      set.problemen[soort].push({ set: set.sleutel, code, varianten: lijst });
+      set.problemen[soort].push({ set: set.sleutel, code, verschil: verschilVan(lijst), varianten: lijst });
     }
     set.aantalProblemen = SOORTEN.reduce((som, soort) => som + set.problemen[soort].length, 0);
   }
@@ -648,6 +689,19 @@ async function main() {
       const n = metProbleem.reduce((som, s) => som + s.problemen[soort].length, 0);
       return n > 0 ? `${soort} ${n}` : undefined;
     }).filter(Boolean);
+    // Ook in het logboek, dat altijd leesbaar is (het rapport is een artifact dat je eerst moet downloaden).
+    // Per set de eerste paar, zodat elke set met een probleem zichtbaar is.
+    log('Problemen in gekozen sets (per set de eerste conflicten en varianten):');
+    let gelogd = 0;
+    for (const set of [...metProbleem].sort((a, b) => vergelijk(a.sleutel, b.sleutel))) {
+      const regels = ['conflict', 'variant'].flatMap((soort) =>
+        [...set.problemen[soort]].sort((a, b) => vergelijk(a.code, b.code)).map((p) => beschrijfProbleem(soort, p, set)),
+      );
+      const ruimte = Math.max(0, Math.min(PROBLEMEN_PER_SET_IN_LOG, MAX_PROBLEMEN_IN_LOG - gelogd));
+      for (const regel of regels.slice(0, ruimte)) log(`- ${regel}`);
+      gelogd += Math.min(regels.length, ruimte);
+      if (regels.length > ruimte) log(`  … en nog ${regels.length - ruimte} in ${set.sleutel}.`);
+    }
     throw new Fout(`Problemen in gekozen sets (${soorten.join(', ')}; sets: ${metProbleem.map((s) => s.sleutel).join(', ')}). Er is niets geschreven; zie problemen in het rapport.`, 3);
   }
 
