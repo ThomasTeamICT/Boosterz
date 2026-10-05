@@ -8,6 +8,8 @@
     "apiId": "3358",
     "korteNaam": "Nederlands",
     "versie": "2.1",
+    "geldigheid": "Geldig",
+    "geldigVan": "2024-09-01",
     "graad": "1ste graad",
     "stroom": "A-stroom",
     "sleutelcompetenties": [
@@ -20,7 +22,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 12,
     "sha256": "f0e76207fd33dc3b50f5fe49164f384ba5dce218b6a286eb6e8276b30c5ed7e3"
   },

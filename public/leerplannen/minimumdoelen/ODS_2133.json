@@ -8,6 +8,9 @@
     "apiId": "2133",
     "korteNaam": "Wiskunde",
     "versie": "1.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "1997-09-01",
+    "geldigTot": "2020-08-31",
     "graad": "1ste graad",
     "stroom": "B-stroom",
     "sleutelcompetenties": [],
@@ -15,7 +18,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 50,
     "sha256": "eb57c2dd30f8fad6017dddae9a09dfa0a03160d5ab84b7a0f845dda9c791286c"
   },

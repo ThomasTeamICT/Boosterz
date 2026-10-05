@@ -8,6 +8,8 @@
     "apiId": "3373",
     "korteNaam": "Moderne talen",
     "versie": "2.1",
+    "geldigheid": "Geldig",
+    "geldigVan": "2025-09-01",
     "graad": "3de graad",
     "leerjaar": "3de leerjaar",
     "sleutelcompetenties": [],
@@ -15,7 +17,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 2,
     "sha256": "39f6c914bae8842905f13a16272e6e204022e331f65f106722942f4d085e310f"
   },

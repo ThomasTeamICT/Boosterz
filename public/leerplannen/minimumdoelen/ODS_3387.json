@@ -8,6 +8,8 @@
     "apiId": "3387",
     "korteNaam": "Bewegingswetenschappen",
     "versie": "2.1",
+    "geldigheid": "Geldig",
+    "geldigVan": "2025-09-01",
     "graad": "3de graad",
     "leerjaar": "3de leerjaar",
     "sleutelcompetenties": [],
@@ -15,7 +17,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 1,
     "sha256": "b75a453d6fd75734e485653d8ab93e387d44c326c23575e2b280fad8a6fb7e42"
   },

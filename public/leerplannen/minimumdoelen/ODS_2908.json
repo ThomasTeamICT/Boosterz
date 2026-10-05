@@ -8,6 +8,7 @@
     "apiId": "2908",
     "korteNaam": "Zelfbewustzijn",
     "versie": "2.0",
+    "geldigheid": "Onbekend",
     "graad": "3de graad",
     "sleutelcompetenties": [
       {
@@ -19,7 +20,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 16,
     "sha256": "a3e2b0fb758c1847d0bc0ddcd6713f6138e0828d2d8f33d9d8c06fcf08ab7e80"
   },

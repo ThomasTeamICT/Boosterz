@@ -8,6 +8,7 @@
     "apiId": "2817",
     "korteNaam": "Duurzaamheid",
     "versie": "2.0",
+    "geldigheid": "Onbekend",
     "graad": "3de graad",
     "sleutelcompetenties": [
       {
@@ -19,7 +20,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 13,
     "sha256": "fd00ca41b17867f659cab706a5ba5ef511fcf47090a4df38f149b32a7dff9c5f"
   },

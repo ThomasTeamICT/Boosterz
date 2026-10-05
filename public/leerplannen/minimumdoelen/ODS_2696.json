@@ -8,6 +8,9 @@
     "apiId": "2696",
     "korteNaam": "Project Algemene Vakken",
     "versie": "1.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "2006-09-01",
+    "geldigTot": "2025-08-31",
     "graad": "3de graad",
     "leerjaar": "3de leerjaar",
     "sleutelcompetenties": [],
@@ -15,7 +18,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 32,
     "sha256": "ac5e116513e808a5bddc9bfa43a637871610fa4d33ea56a0522e6f928ae85dc9"
   },

@@ -8,6 +8,9 @@
     "apiId": "2349",
     "korteNaam": "Techniek",
     "versie": "1.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "2010-09-01",
+    "geldigTot": "2020-08-31",
     "graad": "1ste graad",
     "stroom": "B-stroom",
     "sleutelcompetenties": [],
@@ -15,7 +18,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 24,
     "sha256": "6de05a3bf155133dabc37cfe205cac9efdcb9dffe9441c6f3ad2901bd964adc0"
   },

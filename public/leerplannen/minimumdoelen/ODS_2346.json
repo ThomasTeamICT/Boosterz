@@ -8,6 +8,9 @@
     "apiId": "2346",
     "korteNaam": "Maatschappelijke Vorming Of Geschiedenis En Aardrijkskunde",
     "versie": "1.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "1997-09-01",
+    "geldigTot": "2020-08-31",
     "graad": "1ste graad",
     "stroom": "B-stroom",
     "sleutelcompetenties": [],
@@ -15,7 +18,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 37,
     "sha256": "6f3025a9e4a87c9d85cba86139dd51664b1ff08718d6b985758b75e20b900817"
   },

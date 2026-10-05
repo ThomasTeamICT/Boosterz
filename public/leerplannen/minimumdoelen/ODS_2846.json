@@ -8,6 +8,7 @@
     "apiId": "2846",
     "korteNaam": "Lichamelijke en geestelijke gezondheid",
     "versie": "2.0",
+    "geldigheid": "Onbekend",
     "graad": "3de graad",
     "sleutelcompetenties": [
       {
@@ -19,7 +20,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 16,
     "sha256": "f97f793baa61bf9b09894dcc5fba157ceeb7197432ec182e60c2f240b2ca0017"
   },

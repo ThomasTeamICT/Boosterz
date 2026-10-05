@@ -8,6 +8,9 @@
     "apiId": "2338",
     "korteNaam": "Moderne Vreemde Talen Frans - Engels",
     "versie": "1.0",
+    "geldigheid": "Niet meer geldig",
+    "geldigVan": "2010-09-01",
+    "geldigTot": "2020-08-31",
     "graad": "1ste graad",
     "stroom": "A-stroom",
     "sleutelcompetenties": [],
@@ -15,7 +18,7 @@
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
     "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen",
-    "opgehaald": "2026-10-05T12:20:49Z",
+    "opgehaald": "2026-10-05T13:11:11Z",
     "aantal": 27,
     "sha256": "fd50970e269018933ace1becac00468af9a15ff509ea92ca4909ffb17b2d0764"
   },
