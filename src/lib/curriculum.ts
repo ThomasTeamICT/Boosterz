@@ -2,8 +2,9 @@
 // Basis-CRUD en opzoekhulpen. Uitgebreidere logica (AI-structurering, import
 // uit pdf/tekst, dekking) staat in aiCurriculum.ts en de leerplanpagina.
 
-import type { Curriculum, CurriculumGoal } from './curriculumTypes';
+import type { ControleStatus, Curriculum, CurriculumGoal } from './curriculumTypes';
 import { CURRICULUM_NETS } from './curriculumTypes';
+import { sha256Hex } from './sha256';
 import { notifyChange, reportWriteFailure } from './storage';
 import { uid } from './utils';
 
@@ -246,6 +247,68 @@ export function sanitizeCurriculum(raw: unknown): Curriculum | null {
     goals,
     createdAt: typeof c.createdAt === 'number' ? c.createdAt : Date.now(),
     updatedAt: typeof c.updatedAt === 'number' ? c.updatedAt : Date.now(),
+  };
+}
+
+/**
+ * Vingerafdruk (sha-256, hex) van de doelen van een leerplan: code, tekst, rubriek, niveau,
+ * toelichting en verwijzingen, in volgorde. Het interne `id` telt niet mee. Wie na het
+ * bevestigen een doel wijzigt, krijgt een andere vingerafdruk; zo wordt "gecontroleerd"
+ * zichtbaar "gewijzigd" (docs/LEERPLANNEN.md § 8).
+ */
+export function doelenVingerafdruk(goals: readonly CurriculumGoal[]): string {
+  const vast = goals.map((g) => {
+    const o: Record<string, unknown> = { code: g.code, text: g.text };
+    if (g.theme) o.theme = g.theme;
+    if (g.level) o.level = g.level;
+    if (g.note) o.note = g.note;
+    if (g.refs && g.refs.length > 0) o.refs = g.refs.map((r) => ({ set: r.set, id: r.id, code: r.code }));
+    if (g.refsBron) o.refsBron = g.refsBron;
+    return o;
+  });
+  return sha256Hex(JSON.stringify(vast));
+}
+
+/** Status van het nakijken; een leerplan zonder `controle` is niet nagekeken. */
+export function controleStatus(cur: Curriculum): ControleStatus {
+  return cur.controle?.status ?? 'niet-gecontroleerd';
+}
+
+/**
+ * Bevestigt dat een mens elk doel met de bron vergeleken heeft: status "gecontroleerd", met
+ * naam, tijdstip en de vingerafdruk van de doelen op dit moment. Geeft een nieuw object terug.
+ */
+export function bevestigLeerplan(cur: Curriculum, opts: { door: string; samenvatting?: string; op?: number }): Curriculum {
+  return {
+    ...cur,
+    kind: 'leerplan',
+    controle: {
+      status: 'gecontroleerd',
+      door: opts.door.trim() || undefined,
+      op: opts.op ?? Date.now(),
+      doelenSha256: doelenVingerafdruk(cur.goals),
+      samenvatting: opts.samenvatting?.trim() || undefined,
+    },
+  };
+}
+
+/**
+ * Een eigen, bewerkbare kopie van een (nagekeken) leerplan: nieuw id, soort "eigen", niet
+ * nagekeken. De herkomst blijft staan, zodat je ziet waar de doelen vandaan kwamen.
+ */
+export function maakEigenKopie(cur: Curriculum, titel?: string): Curriculum {
+  const nu = Date.now();
+  const { controle: _controle, ...rest } = cur;
+  void _controle;
+  return {
+    ...rest,
+    id: uid(),
+    title: titel?.trim() || `${cur.title} (eigen kopie)`,
+    kind: 'eigen',
+    example: undefined,
+    goals: cur.goals.map((g) => ({ ...g, id: uid(), refs: g.refs?.map((r) => ({ ...r })) })),
+    createdAt: nu,
+    updatedAt: nu,
   };
 }
 

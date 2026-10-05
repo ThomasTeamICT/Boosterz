@@ -40,6 +40,10 @@ export interface MinimumdoelenSetKop {
   apiId?: string;
   korteNaam?: string;
   versie?: string;
+  /** Zie `geldigheidVanDoelen`. */
+  geldigheid?: string;
+  geldigVan?: string;
+  geldigTot?: string;
   graad?: string;
   stroom?: string;
   leerjaar?: string;
@@ -67,6 +71,9 @@ export interface MinimumdoelenIndexSet {
   naam: string;
   korteNaam?: string;
   versie?: string;
+  geldigheid?: string;
+  geldigVan?: string;
+  geldigTot?: string;
   graad?: string;
   stroom?: string;
   leerjaar?: string;
@@ -398,6 +405,85 @@ function serialiseer(v: unknown): string {
     delen.push(JSON.stringify(sleutel) + ':' + serialiseer(waarde));
   }
   return '{' + delen.join(',') + '}';
+}
+
+export interface SetGeldigheid {
+  /** "Geldig", "Niet meer geldig" of "Onbekend" (zoals de API het zegt). */
+  geldigheid?: string;
+  /** Vroegste `geldig_van_dt` van de doelen (JJJJ-MM-DD). */
+  geldigVan?: string;
+  /** Laatste `geldig_tot_dt`, alleen als élk doel een einddatum heeft (JJJJ-MM-DD). */
+  geldigTot?: string;
+}
+
+function datumUit(v: unknown): string | undefined {
+  return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : undefined;
+}
+
+/**
+ * Geldigheid van een set, afgeleid uit `extra.geldigheid` van zijn doelen: het type dat het
+ * vaakst voorkomt (bij gelijkstand alfabetisch), de vroegste begindatum en de laatste
+ * einddatum. Zonder gegevens een leeg object.
+ */
+export function geldigheidVanDoelen(doelen: readonly Minimumdoel[]): SetGeldigheid {
+  const types = new Map<string, number>();
+  let van: string | undefined;
+  let tot: string | undefined;
+  let allemaalTot = doelen.length > 0;
+  for (const doel of doelen) {
+    const g = doel.extra?.geldigheid;
+    const o = isObject(g) ? g : {};
+    const type = typeof o.type === 'string' ? o.type.trim() : '';
+    if (type) types.set(type, (types.get(type) ?? 0) + 1);
+    const v = datumUit(o.geldig_van_dt);
+    if (v !== undefined && (van === undefined || v < van)) van = v;
+    const t = datumUit(o.geldig_tot_dt);
+    if (t === undefined) allemaalTot = false;
+    else if (tot === undefined || t > tot) tot = t;
+  }
+  const uit: SetGeldigheid = {};
+  const meest = [...types.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))[0];
+  if (meest) uit.geldigheid = meest[0];
+  if (van !== undefined) uit.geldigVan = van;
+  if (allemaalTot && tot !== undefined) uit.geldigTot = tot;
+  return uit;
+}
+
+const ENTITEITEN: Record<string, string> = {
+  nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", shy: '',
+  lsquo: '\u2018', rsquo: '\u2019', ldquo: '\u201c', rdquo: '\u201d', sbquo: '\u201a', bdquo: '\u201e',
+  ndash: '\u2013', mdash: '\u2014', hellip: '\u2026', bull: '\u2022', middot: '\u00b7', deg: '\u00b0',
+  euro: '\u20ac', times: '\u00d7', divide: '\u00f7', laquo: '\u00ab', raquo: '\u00bb',
+  eacute: '\u00e9', egrave: '\u00e8', ecirc: '\u00ea', euml: '\u00eb', aacute: '\u00e1', agrave: '\u00e0',
+  acirc: '\u00e2', auml: '\u00e4', iuml: '\u00ef', icirc: '\u00ee', ouml: '\u00f6', ocirc: '\u00f4',
+  uuml: '\u00fc', ucirc: '\u00fb', ccedil: '\u00e7', Eacute: '\u00c9', Euml: '\u00cb',
+};
+
+/**
+ * Zet de HTML van een doeltekst uit de API om naar gewone tekst: alinea's en regeleinden worden
+ * nieuwe regels, lijstitems beginnen met "• ", alle andere tags vallen weg, entiteiten worden
+ * tekens. Bedoeld om te tonen en te vergelijken; de bestanden van laag 1 houden de HTML letterlijk.
+ * Nooit als HTML in een pagina zetten: het resultaat is tekst.
+ */
+export function htmlNaarTekst(html: string): string {
+  let t = html
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\s*li\b[^>]*>/gi, '\n\u2022 ')
+    .replace(/<\s*\/\s*(p|div|ul|ol|li|h[1-6]|tr|table)\s*>/gi, '\n')
+    .replace(/<[^>]*>/g, '');
+  t = t.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (geheel, naam: string) => {
+    if (naam[0] === '#') {
+      const n = naam[1] === 'x' || naam[1] === 'X' ? parseInt(naam.slice(2), 16) : parseInt(naam.slice(1), 10);
+      return Number.isFinite(n) && n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : geheel;
+    }
+    return Object.prototype.hasOwnProperty.call(ENTITEITEN, naam) ? ENTITEITEN[naam] : geheel;
+  });
+  return t
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
 }
 
 /**

@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   canoniek,
+  geldigheidVanDoelen,
+  htmlNaarTekst,
   meerwaardigeVelden,
   normaliseerRecord,
   redenOnbruikbaar,
@@ -51,7 +53,7 @@ function controleerSet(map: string, ingang: MinimumdoelenIndex['sets'][number]):
     fouten.push(`${ingang.id}: sha256 komt niet overeen met de doelen.`);
   }
   if (ingang.bestand !== `${ingang.id}.json`) fouten.push(`${ingang.id}: bestandsnaam ${ingang.bestand} past niet bij het id.`);
-  for (const veld of ['id', 'naam', 'korteNaam', 'versie', 'graad', 'stroom', 'leerjaar', 'aantal', 'sha256', 'opgehaald'] as const) {
+  for (const veld of ['id', 'naam', 'korteNaam', 'versie', 'geldigheid', 'geldigVan', 'geldigTot', 'graad', 'stroom', 'leerjaar', 'aantal', 'sha256', 'opgehaald'] as const) {
     if (bestand.set?.[veld] !== ingang[veld]) fouten.push(`${ingang.id}: "${veld}" in de index wijkt af van de kop van het bestand.`);
   }
   return fouten;
@@ -329,6 +331,46 @@ describe('normaliseerRecord', () => {
     const alleenNaam = normaliseerRecord({ code: '1', omschrijving: 'Tekst', onderwijsdoelenset: 'Secundair onderwijs' });
     expect(alleenNaam?.setSleutel).toBe('SECUNDAIR_ONDERWIJS');
     expect(alleenNaam?.setNaam).toBe('Secundair onderwijs');
+  });
+});
+
+describe('geldigheidVanDoelen', () => {
+  const doel = (geldigheid: unknown) => ({ code: '1', tekst: 't', extra: { geldigheid } });
+  it('neemt het meest voorkomende type, de vroegste begin- en de laatste einddatum', () => {
+    expect(
+      geldigheidVanDoelen([
+        doel({ type: 'Niet meer geldig', geldig_van_dt: '2019-09-01T00:00:00Z', geldig_tot_dt: '2025-08-31T00:00:00Z' }),
+        doel({ type: 'Niet meer geldig', geldig_van_dt: '2018-09-01T00:00:00Z', geldig_tot_dt: '2024-08-31T00:00:00Z' }),
+        doel({ type: 'Geldig', geldig_van_dt: '2025-09-01T00:00:00Z', geldig_tot_dt: '2030-08-31T00:00:00Z' }),
+      ]),
+    ).toEqual({ geldigheid: 'Niet meer geldig', geldigVan: '2018-09-01', geldigTot: '2030-08-31' });
+  });
+
+  it('geeft geen einddatum als een doel er geen heeft, en is leeg zonder gegevens', () => {
+    expect(geldigheidVanDoelen([doel({ type: 'Geldig', geldig_van_dt: '2024-09-01T00:00:00Z' }), doel({ type: 'Geldig', geldig_tot_dt: '2030-08-31' })]))
+      .toEqual({ geldigheid: 'Geldig', geldigVan: '2024-09-01' });
+    expect(geldigheidVanDoelen([])).toEqual({});
+    expect(geldigheidVanDoelen([{ code: '1', tekst: 't' }, doel('raar'), doel({ type: 3, geldig_van_dt: 'gisteren' })])).toEqual({});
+    // gelijkstand: alfabetisch
+    expect(geldigheidVanDoelen([doel({ type: 'Onbekend' }), doel({ type: 'Geldig' })]).geldigheid).toBe('Geldig');
+  });
+});
+
+describe('htmlNaarTekst', () => {
+  it('maakt van alinea\'s, regeleinden en lijsten gewone regels', () => {
+    expect(htmlNaarTekst('<p>De leerlingen situeren&nbsp;plaatsen.&nbsp;</p>')).toBe('De leerlingen situeren plaatsen.');
+    expect(htmlNaarTekst('<p>Inleiding:</p><ul><li>een</li><li>twee<br/>regel</li></ul>')).toBe('Inleiding:\n\u2022 een\n\u2022 twee\nregel');
+    expect(htmlNaarTekst('Zonder <strong>opmaak</strong> en <em>nadruk</em>')).toBe('Zonder opmaak en nadruk');
+  });
+
+  it('zet entiteiten om en laat onbekende staan', () => {
+    expect(htmlNaarTekst('caf&eacute; &amp; &#233;&#xE9; &rsquo;s &lt;b&gt; &onbekend; &#0;')).toBe('café & éé \u2019s <b> &onbekend; &#0;');
+    expect(htmlNaarTekst('af&shy;breek')).toBe('afbreek');
+  });
+
+  it('geeft tekst, geen HTML: een omgezette tag wordt nooit opnieuw een tag', () => {
+    expect(htmlNaarTekst('&lt;img src=x onerror=alert(1)&gt;')).toBe('<img src=x onerror=alert(1)>');
+    expect(htmlNaarTekst('<script>alert(1)</script>tekst')).toBe('alert(1)tekst');
   });
 });
 
@@ -893,6 +935,21 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
       ['ODS_1234', 'SO 2de graad A'],
       ['ODS_1235', 'SO 2de graad A'],
     ]);
+  });
+
+  it('zet de geldigheid van de set in de kop en de index', () => {
+    const records = [
+      rec('1', 'Een', SET_SO, { '@id': 1, geldigheid: { type: 'Geldig', geldig_van_dt: '2024-09-01T00:00:00Z' } }),
+      rec('2', 'Twee', SET_SO, { '@id': 2, geldigheid: { type: 'Geldig', geldig_van_dt: '2023-09-01T00:00:00Z' } }),
+    ];
+    const uit = join(tmp, 'uit-geldigheid');
+    const run = draai(['--bron', schrijfBron('geldigheid.json', records), '--uit', uit, '--rapport', join(tmp, 'r-geldigheid.json')]);
+    expect(run.status, run.stderr).toBe(0);
+    const bestand = leesJson<MinimumdoelenSetBestand>(join(uit, `${SO_ID}.json`));
+    expect(bestand.set).toMatchObject({ geldigheid: 'Geldig', geldigVan: '2023-09-01' });
+    expect(bestand.set).not.toHaveProperty('geldigTot');
+    expect(leesJson<MinimumdoelenIndex>(join(uit, 'index.json')).sets[0]).toMatchObject({ geldigheid: 'Geldig', geldigVan: '2023-09-01' });
+    expect(controleerMap(uit)).toEqual([]);
   });
 
   it('geeft per doel enkel een afwijkende graad, stroom of leerjaar', () => {

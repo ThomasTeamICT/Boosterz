@@ -503,6 +503,7 @@ function bouwSetBestand(set, opgehaald) {
       id: set.sleutel,
       naam: set.naam,
       ...set.setInfo,
+      ...M.geldigheidVanDoelen(ruw),
       ...setNiveau,
       sleutelcompetenties,
       bron: M.BRON_BASIS,
@@ -544,7 +545,9 @@ function bouwIndex(koppen) {
   const sets = koppen
     .map(({ bestand, set }) => {
       const ingang = { id: set.id, naam: set.naam };
-      for (const veld of ['korteNaam', 'versie', 'graad', 'stroom', 'leerjaar']) if (set[veld] !== undefined) ingang[veld] = set[veld];
+      for (const veld of ['korteNaam', 'versie', 'geldigheid', 'geldigVan', 'geldigTot', 'graad', 'stroom', 'leerjaar']) {
+        if (set[veld] !== undefined) ingang[veld] = set[veld];
+      }
       Object.assign(ingang, { aantal: set.aantal, sha256: set.sha256, opgehaald: set.opgehaald, bestand });
       return ingang;
     })

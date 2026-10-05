@@ -10,6 +10,8 @@ leerplan) moet de punten met "te bevestigen" afvinken vóór het bouwen begint.*
 | API-sleutel Onderwijsdoelen-API | **Bestaat.** Aangevraagd via het portaalformulier op 18 december 2025, aangemaakt op 9 januari 2026 door de Centrale cel ICT. De sleutel kwam per mail in de ICT-mailbox van de scholengroep en geldt voor alle open API's van Onderwijs & Vorming. Hij staat nergens in de repo. |
 | Sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` | **Gedaan** op 5 oktober 2026 (repository secret voor Actions). |
 | Pakket L1 (ophaalscript, workflow, datatest) | Gebouwd en gereviewd (twee reviewers, rechter). **Eerste echte run (5 oktober 2026)**: volledig opgehaald (24019 doelen, 49 pagina's, `totalItems` klopt), maar terecht gestopt (exit 3): sets met dezelfde lange naam vielen samen. Opgelost: de setsleutel is nu `ODS_<onderwijsdoelenset_id>`, elk doel krijgt zijn `@id`, en alle API-velden gaan mee in `extra`. Run 2 en 3 toonden de rest: binnen een set is een code niet altijd uniek (§ 5, "Wat de echte gegevens leren"); een doel wordt nu herkend aan zijn `@id`. **Run 4 geslaagd**: pull request #2 met 950 sets (15 324 doelen, 15 MB), nagekeken door de hoofdsessie (datatest en build groen) en op 5 oktober 2026 samengevoegd op vraag van de eigenaar. **Laag 1 is klaar.** Elke maand haalt de taak de doelen opnieuw op en opent een pull request als er iets verandert. Volgende stap: laag 2 (doelen tonen in de app, koppeling met leerplannen en cursussen). |
+| Laag 2, ronde 1 (§ 14): inleesweg, verwijzingen, hulp | **Bezig** sinds 5 oktober 2026. Basis klaar (types v2, `sha256.ts`, `doelenVingerafdruk`, `htmlNaarTekst`, geldigheid per set). Kern (`kernbouwer`) en minimumdoelen in de app (`bouwer`) volgen, daarna de inleeswizard. |
+| Mail aan het GO! (Mark Willems, PBD, GO! Sandbox) | Concept klaar in Outlook (5 oktober 2026): experiment met 1–3 leerplannen 1ste graad A, één schooljaar. Nog te versturen door de eigenaar. |
 | Vragen aan het departement (§ 12) | Nog te stellen. Sinds 24 maart 2026 **alleen via het formulier van TechLoket Onderwijs**, niet meer per mail (Nieuwsbrief API K&C van AHOVOKS). |
 | Vragen aan KOV, GO!, OVSG, POV (§ 12) | Teksten klaar in het aanvraagdossier (Claude Docs, "Aanvraagdossier leerplangegevens"); nog niet verstuurd. |
 | Eerste toepassing | De cursus "Aardrijkskunde: bodem en landschap" (leerplan KOV I-Aar-a) krijgt doelcodes zodra laag 1 en het leerplan erin zitten. De bijhorende minimumdoelen: `ODS_3287` (1ste graad A-stroom, ruimtelijk bewustzijn, 09.01–09.08, geldig). |
@@ -224,15 +226,18 @@ interface Curriculum {
     op?: number;
     doelenSha256?: string;                      // vingerafdruk van de doelen bij bevestiging
   };
-  minimumdoelenSet?: string;                    // bv. "SO_1STE_GRAAD_V2_1"
+  minimumdoelenSets?: string[];                 // bv. ["ODS_3287"]: een leerplan raakt vaak meer sets
 }
 
 interface CurriculumGoal {
   // … bestaande velden
-  refs?: string[];                              // codes van minimumdoelen in minimumdoelenSet
-  niveau?: 'basis' | 'verdieping' | 'keuze';    // vertaling van de termen van elk net
+  refs?: { set: string; id: string; code: string }[];  // set + vast nummer (@id); de code alleen is niet uniek
+  refsBron?: string;                            // de verwijzing zoals ze in de bron staat, bv. "MD 09.01"
 }
 ```
+
+Zo gebouwd in `src/lib/curriculumTypes.ts` (5 oktober 2026). `niveau` uit de eerste versie van dit
+ontwerp is vervallen: het bestaande veld `level` (basis, uitbreiding) volstaat.
 
 - `controle.doelenSha256` maakt wijzigingen zichtbaar. Bij import van een gedeeld bestand
   rekent de app de vingerafdruk opnieuw uit; klopt die niet, dan wordt de status "gewijzigd".
@@ -318,3 +323,55 @@ leerplanpagina is al lui geladen; de lezers komen in een eigen chunk.
 - **Geen automatische updates van officiële doelen zonder menselijke goedkeuring.**
 - **Geen "slimme" correctie van doelteksten.** Wat niet letterlijk klopt, wordt gemeld, niet
   stil verbeterd.
+
+## 14. Laag 2, ronde 1: inleesweg, verwijzingen en hulp (oktober 2026)
+
+Doel van de ronde: een leerkracht krijgt het leerplan van zijn net vlot en betrouwbaar in
+Boosterz, met verwijzingen naar de officiële minimumdoelen die kloppen, en vindt zonder uitleg
+de weg. Wat er nog niet in zit: de leesregels per net bevestigd met echte pdf's (die ontbreken
+nog, regel 11 van de werkwijze), en de dekking op twee lagen (L6).
+
+**Basis (hoofdsessie, klaar).** Types v2 in `curriculumTypes.ts`; `sha256.ts` (synchroon, zonder
+afhankelijkheden); in `curriculum.ts`: `doelenVingerafdruk`, `controleStatus`, `bevestigLeerplan`,
+`maakEigenKopie`; in `minimumdoelen.ts`: `htmlNaarTekst` en `geldigheidVanDoelen`. Het ophaalscript
+zet `geldigheid`, `geldigVan` en `geldigTot` in de kop van elke set en in de index.
+
+**Kern (`kernbouwer`): pure modules met unittests.**
+- `curriculum.ts`: saneren van versie 2 (soort, herkomst, controle, sets, verwijzingen), export
+  met `v: 2`, import van versie 1 en 2. Een nagekeken leerplan waarvan de vingerafdruk niet meer
+  klopt, wordt "gewijzigd" bij import en bij bewaren.
+- `pdfText.ts`: `extractPdfLines`, met regels in plaats van één lange tekst en zonder afkappen.
+  De groepering van tekststukken in regels is een pure, geteste functie.
+- `leerplanLezer.ts`: van tekst naar doelen (code, tekst, rubriek, verwijzing zoals in de bron,
+  regelnummer, bronfragment). Herkent de gangbare nummeringen zelf, herstelt afbreking aan het
+  regeleinde, slaat kop- en voetregels over. Getest met nagemaakte tekst in de opmaak van de netten.
+- `minimumdoelVerwijzing.ts`: verwijzingen vinden ("MD 09.01", "ET 9.1", reeksen), codes
+  gelijkstellen (09.01 = 9.1), oplossen naar set + vast nummer, met "onbekend" en
+  "dubbelzinnig" als uitkomst; sets voorstellen bij graad, stroom en zoekwoorden.
+- `curriculumCheck.ts`: de controlepoort van § 7, met bevindingen in gewone taal, per doel de
+  vindplaats in de bron, en `kanBevestigen`.
+
+**Minimumdoelen in de app (`bouwer`).**
+- `minimumdoelenBron.ts`: index en sets lui ophalen uit `public/leerplannen/minimumdoelen/`, met
+  cache, controle van het set-id en `valideerSetBestand`.
+- Pagina "Officiële minimumdoelen" (`/leerplannen/minimumdoelen`): zoeken, filteren (standaard
+  alleen geldige sets), een set lezen per rubriek, en "Gebruik als leerplan": een nagekeken
+  leerplan met verwijzingen naar zichzelf, rechtstreeks uit de officiële set.
+- Leerplannenpagina: een wegwijzer met drie wegen (officiële minimumdoelen gebruiken, leerplan van
+  je net inlezen, bestand van een collega), waar je het leerplan van je net vindt, en labels per
+  leerplan: "Nagekeken", "Niet nagekeken", "Gewijzigd na nakijken" (icoon en tekst, niet alleen
+  kleur). Een nagekeken leerplan staat op slot; wijzigen kan in een eigen kopie.
+
+**Inleeswizard (`bouwer`, na de kern).** Vier stappen: wat lees je in (net, vak, graad, stroom,
+leerplancode), de bron (pdf of geplakte tekst; AI als laatste redmiddel), welke minimumdoelen
+(voorgestelde sets, verwijzingen automatisch opgelost), en nakijken (per doel de tekst naast de
+bron, rood, oranje of groen, verwijzingen kiezen waar ze dubbelzinnig zijn). Bevestigen vraagt een
+naam en een vinkje "Ik heb elk doel met de bron vergeleken"; bewaren zonder nakijken kan altijd.
+
+**Woordkeuze in de app.** "Nakijken" en "nagekeken", nooit "controleren"; "leerplan",
+"bewaren". De interne status blijft `gecontroleerd`.
+
+**Poorten.** Lint, typecheck, unittests en build; de rooktest dekt de nieuwe pagina's op 390 px.
+Daarna een review per invalshoek (juistheid, toegankelijkheid en taal, privacy en juridisch) met
+de rechter.
+
