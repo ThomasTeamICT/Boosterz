@@ -1,0 +1,222 @@
+/* ── Leerplan inlezen (/leerplannen/inlezen) ─────────────────────────────── */
+/*
+ * De wizard in vier stappen: een stappenbalk, de inhoud van de stap en onderaan Terug en Volgende.
+ * Alleen tokens uit global.css; nooit witte tekst op --brand (gebruik --brand-fill). Werkt op 390 px zonder
+ * horizontaal scrollen: alles breekt lange woorden af en rasters vallen terug op één kolom.
+ */
+
+.il-page { max-width: 980px; }
+.il-page .il-terug { margin: 0 0 8px -8px; }
+.il-intro { max-width: 72ch; }
+.il-uitleg { max-width: 72ch; margin: 0 0 12px; }
+.il-privacy { margin: 0 0 14px; max-width: 72ch; }
+
+/* Meldingen in de pagina */
+.il-page .callout p { margin: 0 0 8px; }
+.il-page .callout p:last-child { margin-bottom: 0; }
+.il-page .callout ul { margin: 4px 0 8px; padding-left: 1.2em; }
+.il-page .callout ul:last-child { margin-bottom: 0; }
+.il-callout-icoon { flex: none; margin-top: 2px; color: var(--text-soft); }
+.callout.warn > .il-callout-icoon { color: var(--warn-text); }
+.il-callout-tekst { flex: 1 1 220px; min-width: 0; }
+.il-callout-tekst p { margin: 0 0 10px; }
+.il-fout { margin: 6px 0; color: var(--err-text); font-weight: 600; }
+
+/* Hoe werkt inlezen? */
+.il-hoe { margin-bottom: 18px; }
+.il-hoe-lijst { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; max-width: 72ch; }
+
+/* De stappenbalk */
+.il-stappen { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.il-stap {
+  display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised); color: var(--text-soft);
+  font-family: var(--font-display); font-weight: 600; font-size: 0.9rem; line-height: 1.25;
+}
+.il-stap-nr {
+  display: inline-grid; place-items: center; flex: none; width: 26px; height: 26px; border-radius: 999px;
+  background: var(--bg-sunken); color: var(--text); font-size: 0.85rem; font-weight: 700;
+}
+.il-stap.huidig { border-color: var(--brand); background: var(--brand-soft); color: var(--text); }
+.il-stap.huidig .il-stap-nr { background: var(--brand-fill); color: #fff; }
+.il-stap.klaar .il-stap-nr { background: var(--ok-soft); color: var(--ok-text); }
+.il-stap-naam { min-width: 0; overflow-wrap: break-word; hyphens: auto; }
+
+/* De kop van de stap: de focus komt hier bij elke stapwissel */
+.il-stapkop { margin: 6px 0 12px; font-size: 1.35rem; scroll-margin-top: 80px; }
+.il-stapkop:focus { outline: none; }
+.il-stapkop:focus-visible { outline: 3px solid var(--brand); outline-offset: 4px; }
+.il-stap-inhoud { min-width: 0; }
+
+/* Stap 1: velden en hulp */
+.il-velden { display: grid; gap: 0 14px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.il-netlink { margin: -4px 0 14px; max-width: 72ch; }
+.il-hulp { margin: 4px 0 14px; }
+.il-minimum { align-items: flex-start; }
+.il-minimum-icoon { flex: none; margin-top: 2px; color: var(--brand); }
+
+/* Stap 2: de bron */
+.il-keuzes { border: 0; margin: 0 0 16px; padding: 0; min-width: 0; }
+.il-keuzes legend { font-weight: 700; padding: 0; margin-bottom: 8px; }
+.il-keuzes-lijst { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.il-keuze {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 12px 14px; cursor: pointer;
+  border: 1.5px solid var(--line-strong); border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.il-keuze:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.il-keuze:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; }
+.il-keuze input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--brand); cursor: pointer; }
+.il-keuze-tekst { display: grid; gap: 2px; min-width: 0; }
+.il-keuze-titel { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; }
+.il-keuze-zin { color: var(--text-soft); font-size: 0.9rem; }
+.il-bronblok { display: grid; gap: 10px; justify-items: start; margin: 0 0 14px; }
+.il-bronblok > .field { width: 100%; }
+.il-pdfstand { width: 100%; min-width: 0; }
+.il-ok { margin: 0; color: var(--ok-text); font-weight: 600; overflow-wrap: anywhere; }
+.il-zoekrij { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 6px 0 14px; }
+.il-resultaat { margin-bottom: 14px; min-width: 0; }
+.il-resultaat h3 { margin: 0 0 8px; font-size: 1.1rem; }
+.il-feiten { margin: 0 0 12px; padding-left: 1.2em; display: grid; gap: 2px; }
+.il-waarschuwingen { margin-bottom: 12px; }
+.il-geen p { margin: 0 0 10px; }
+.il-geen ul { margin: 0 0 12px; padding-left: 1.2em; }
+.il-preview { list-style: none; margin: 0 0 10px; padding: 0; }
+.il-preview > li {
+  display: grid; gap: 2px 12px; padding: 9px 0; border-bottom: 1px solid var(--line);
+  grid-template-columns: minmax(5ch, 8rem) minmax(0, 1fr);
+}
+.il-preview > li:last-child { border-bottom: 0; }
+.il-code { font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.il-preview-tekst { min-width: 0; overflow-wrap: break-word; hyphens: auto; }
+.il-preview-meta { grid-column: 2; display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 0.84rem; color: var(--text-soft); overflow-wrap: anywhere; }
+
+/* Stap 3: sets */
+.il-herkoppel { margin: 0 0 12px; max-width: 72ch; }
+.il-setlijst { border: 0; margin: 0 0 20px; padding: 0; min-width: 0; }
+.il-setlijst legend { padding: 0; margin-bottom: 4px; font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; }
+.il-setuitleg { margin: 0 0 8px; max-width: 72ch; }
+.il-sets { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px; }
+.il-sets > li { min-width: 0; }
+.il-set {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 10px 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.il-set.met-treffers { border-color: var(--line-strong); }
+.il-set:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.il-set:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; }
+.il-set input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--brand); cursor: pointer; }
+.il-set-tekst { display: grid; gap: 2px; min-width: 0; }
+.il-set-naam { font-family: var(--font-display); font-weight: 700; line-height: 1.3; overflow-wrap: break-word; hyphens: auto; }
+.il-set-meta { font-size: 0.84rem; line-height: 1.4; color: var(--text-soft); overflow-wrap: break-word; }
+.il-zoeken { max-width: 640px; }
+.il-zoekresultaten { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+.il-zoekresultaten > li {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; min-width: 0;
+  padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.il-zoekresultaten .il-set-tekst { flex: 1 1 220px; }
+
+/* Stap 4: samenvatting, bevindingen en doelen */
+.il-samenvatting { margin-bottom: 18px; }
+.il-samenvatting h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.il-samenvatting-tekst { margin: 0 0 12px; font-weight: 600; }
+.il-tellers { display: grid; gap: 10px 16px; margin: 0; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+.il-tellers > div { min-width: 0; }
+.il-tellers dt { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-faint); }
+.il-tellers dd { margin: 0; font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.il-nietgekoppeld { margin: 12px 0 0; }
+
+.il-groep { margin: 0 0 16px; }
+.il-groep h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 1.02rem; }
+.il-groep h3 > svg { flex: none; }
+.il-groep-fout h3 { color: var(--err-text); }
+.il-groep-waarschuwing h3 { color: var(--warn-text); }
+.il-groep-info h3 { color: var(--text-soft); }
+.il-bevindingen { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.il-bevindingen > li {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; min-width: 0; padding: 8px 12px;
+  border: 1px solid var(--line); border-left-width: 4px; border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.il-groep-fout .il-bevindingen > li { border-left-color: var(--err); }
+.il-groep-waarschuwing .il-bevindingen > li { border-left-color: var(--warn); }
+.il-groep-info .il-bevindingen > li { border-left-color: var(--line-strong); }
+.il-bericht { flex: 1 1 260px; min-width: 0; overflow-wrap: break-word; }
+.il-link {
+  flex: none; min-height: 36px; padding: 6px 2px; border: 0; background: none; cursor: pointer;
+  font: inherit; font-weight: 600; color: var(--brand); text-decoration: underline;
+}
+.il-link:hover { text-decoration-thickness: 2px; }
+
+.il-doelen-kop { margin: 22px 0 10px; font-size: 1.2rem; }
+.il-doelen { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.il-doelen > li { min-width: 0; }
+.il-doel { min-width: 0; padding: 14px 16px; scroll-margin-top: 80px; }
+.il-doel-kop { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+.il-doel-kop h4 { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
+.il-doel-kop h4:focus { outline: none; }
+.il-doel-kop h4:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
+.il-doel-weg { margin-left: auto; }
+.il-rubriek { margin: 0 0 8px; font-size: 0.88rem; color: var(--text-soft); overflow-wrap: break-word; }
+.il-doel-velden { display: grid; gap: 0 12px; align-items: start; grid-template-columns: minmax(120px, 180px) minmax(0, 1fr); }
+.il-codeveld { font-variant-numeric: tabular-nums; }
+.il-refs { margin: 0 0 10px; }
+.il-refs .dl-labels { align-items: center; margin-top: 0; }
+.il-refsbron { margin: 6px 0 0; overflow-wrap: anywhere; }
+.il-probleem {
+  margin: 0 0 10px; padding: 10px 12px; border-radius: var(--radius-m); color: var(--text); background: var(--warn-soft);
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); overflow-wrap: break-word;
+}
+.il-probleem p { margin: 0 0 8px; }
+.il-probleem svg { color: var(--warn-text); }
+.il-kandidaten { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.il-kandidaat {
+  display: grid; gap: 2px; width: 100%; min-height: 44px; padding: 8px 12px; text-align: left; cursor: pointer;
+  font: inherit; color: var(--text); background: var(--bg-raised); border: 1px solid var(--line-strong); border-radius: var(--radius-s);
+}
+.il-kandidaat:hover { border-color: var(--brand); }
+.il-kandidaat-titel { font-weight: 700; overflow-wrap: break-word; }
+.il-kandidaat-set { font-weight: 400; color: var(--text-soft); font-size: 0.88rem; }
+.il-kandidaat-zin { font-size: 0.88rem; color: var(--text-soft); overflow-wrap: break-word; }
+.il-kandidaat-actie { font-size: 0.82rem; font-weight: 700; color: var(--brand); }
+.il-brondetails > summary { cursor: pointer; min-height: 36px; padding: 6px 0; font-weight: 600; color: var(--brand); }
+.il-brondetails .hint { margin: 2px 0; }
+.il-bron-tekst { margin: 4px 0 0; padding: 10px 12px; border-radius: var(--radius-s); background: var(--bg-sunken); font-size: 0.9rem; white-space: pre-line; overflow-wrap: anywhere; }
+.il-spin { animation: ilSpin 0.9s linear infinite; }
+@keyframes ilSpin { to { transform: rotate(360deg); } }
+
+/* Bewaren en bevestigen */
+.il-acties { margin-top: 24px; }
+.il-acties h3 { margin: 0 0 12px; font-size: 1.15rem; }
+.il-actieblok { padding: 14px 0; border-top: 1px solid var(--line); }
+.il-actieblok:first-of-type { border-top: 0; padding-top: 0; }
+.il-actieblok h4 { margin: 0 0 4px; font-size: 1rem; }
+.il-actieblok > .hint { margin: 0 0 8px; }
+.il-naamveld { max-width: 420px; margin-top: 8px; }
+.il-bevestig { margin-top: 8px; }
+.il-redenen { margin: 10px 0 0; padding: 10px 12px; border-radius: var(--radius-m); background: var(--bg-sunken); }
+.il-redenen p { margin: 0 0 4px; font-weight: 700; }
+.il-redenen ul { margin: 0; padding-left: 1.2em; }
+
+/* Terug en Volgende */
+.il-nav { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin: 22px 0 8px; }
+.il-nav .btn { min-height: 44px; }
+.il-volgende { margin-left: auto; }
+.il-ontbreekt { margin: 4px 0 0; text-align: right; color: var(--text-soft); font-size: 0.92rem; }
+.il-page .btn[aria-disabled='true'] { opacity: 0.55; cursor: not-allowed; }
+.il-page .btn[aria-disabled='true']:active { transform: none; }
+
+@media (max-width: 640px) {
+  .il-stappen { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .il-stap { gap: 6px; padding: 8px; font-size: 0.85rem; }
+  .il-stap-nr { width: 24px; height: 24px; }
+  .il-stap-naam { hyphens: manual; }
+  .il-preview > li { grid-template-columns: minmax(0, 1fr); }
+  .il-preview-meta { grid-column: 1; }
+  .il-doel-velden { grid-template-columns: minmax(0, 1fr); }
+  .il-link, .il-brondetails > summary { min-height: 44px; }
+  .il-page .btn, .il-doel-weg { min-height: 44px; }
+  .il-doel-weg { min-width: 44px; }
+  .il-ontbreekt { text-align: left; }
+  .il-volgende { flex: 1 1 auto; }
+  .il-page .btn-icon { min-width: 44px; }
+}

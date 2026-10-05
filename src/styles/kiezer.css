@@ -1,0 +1,60 @@
+/* ── Minimumdoelen kiezen (venster) en laadmeldingen ──────────────────────── */
+/*
+ * Het venster MinimumdoelKiezer: zoekveld bovenaan, daaronder de doelen van de gekozen sets per set en
+ * rubriek, elk met een vakje. Dezelfde laadmeldingen ("bezig", "opnieuw proberen") gebruikt de
+ * inleeswizard. Alleen tokens uit global.css; nooit witte tekst op --brand.
+ */
+
+/* Laadmeldingen */
+.kz-status { display: flex; align-items: center; gap: 10px; padding: 14px 0; color: var(--text-soft); }
+.kz-status > svg { flex: none; }
+.kz-spin { animation: kzSpin 0.9s linear infinite; }
+@keyframes kzSpin { to { transform: rotate(360deg); } }
+.kz-fout { align-items: flex-start; flex-wrap: wrap; margin: 14px 0 0; }
+.kz-fout > svg { flex: none; margin-top: 2px; color: var(--err-text); }
+.kz-fout-tekst { flex: 1 1 220px; min-width: 0; }
+.kz-fout-tekst p { margin: 0 0 10px; }
+
+/* Het venster */
+.kz-uitleg { margin: 0 0 12px; color: var(--text-soft); font-size: 0.92rem; }
+.kz-aantal { margin: 0 0 10px; font-weight: 700; color: var(--text-soft); font-size: 0.9rem; }
+.kz-set { margin: 0 0 22px; min-width: 0; }
+.kz-set:last-of-type { margin-bottom: 4px; }
+.kz-set-kop { margin: 0 0 6px; padding-bottom: 6px; border-bottom: 2px solid var(--line-strong); font-size: 1.02rem; overflow-wrap: break-word; }
+.kz-groep { border: 0; margin: 0 0 12px; padding: 0; min-width: 0; }
+.kz-rubriek { padding: 0; margin: 8px 0 2px; font-family: var(--font-display); font-weight: 700; font-size: 0.92rem; color: var(--text-soft); overflow-wrap: break-word; }
+.kz-lijst { list-style: none; margin: 0; padding: 0; }
+.kz-lijst > li { border-bottom: 1px solid var(--line); }
+.kz-lijst > li:last-child { border-bottom: 0; }
+.kz-rij {
+  display: grid; align-items: start; gap: 2px 12px; min-width: 0; min-height: 44px; padding: 9px 4px; cursor: pointer;
+  grid-template-columns: 22px minmax(3.2ch, 7rem) minmax(0, 1fr);
+}
+.kz-rij:hover { background: var(--bg-sunken); }
+.kz-rij input { width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--brand); cursor: pointer; }
+.kz-rij:has(input:checked) { background: var(--brand-soft); }
+.kz-code { font-variant-numeric: tabular-nums; font-weight: 700; overflow-wrap: anywhere; line-height: 1.5; }
+.kz-tekst { min-width: 0; white-space: pre-line; overflow-wrap: break-word; hyphens: auto; line-height: 1.5; }
+.kz-meer { display: flex; justify-content: center; margin: 10px 0 4px; }
+.kz-leeg { padding: 14px; border: 2px dashed var(--line-strong); border-radius: var(--radius-m); color: var(--text-soft); }
+.kz-leeg p { margin: 0; }
+
+@media (max-width: 640px) {
+  .kz-rij { grid-template-columns: 22px minmax(0, 1fr); }
+  .kz-rij .kz-tekst { grid-column: 2; }
+  .kz-fout .btn, .kz-meer .btn { min-height: 44px; }
+}
+
+/* Sets kiezen (venster SetsKiezen) */
+.kz-sets { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+.kz-sets > li { min-width: 0; }
+.kz-setrij {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 10px 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.kz-setrij:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.kz-setrij:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; }
+.kz-setrij input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--brand); cursor: pointer; }
+.kz-settekst { display: grid; gap: 2px; min-width: 0; }
+.kz-setnaam { font-family: var(--font-display); font-weight: 700; line-height: 1.3; overflow-wrap: break-word; }
+.kz-setmeta { font-size: 0.84rem; line-height: 1.4; color: var(--text-soft); overflow-wrap: break-word; }

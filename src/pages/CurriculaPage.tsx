@@ -3,8 +3,9 @@
 // Eén leerplan = een lijst doelen met een stabiele CODE. Die codes koppelen
 // cursussecties, quizvragen en resultaten aan elkaar. Je maakt een lijst
 // blanco, uit de officiële minimumdoelen (pagina "Officiële minimumdoelen"), uit
-// een geplakte leerplantekst of pdf (AI-structurering), of uit een JSON-bestand
-// van een collega.
+// een pdf of geplakte tekst met de inleeswizard (pagina "Leerplan inlezen", zonder
+// AI), via de AI-structurering (laatste redmiddel, ook bereikbaar met ?ai=nieuw),
+// of uit een JSON-bestand van een collega.
 //
 // De app haalt géén leerplannen van de netten op: die staan achter auteursrecht
 // en zijn niet vrij op te vragen vanuit een browser (CORS). Kopieer/plak de tekst
@@ -12,7 +13,7 @@
 // zijn wel meegeleverd: een leerplan daaruit is meteen "nagekeken" en staat op
 // slot (zie components/curriculum/LeerplanOpSlot.tsx).
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { ControleStatus, Curriculum, CurriculumGoal, CurriculumNet } from '../lib/curriculumTypes';
 import { CURRICULUM_NETS } from '../lib/curriculumTypes';
@@ -20,6 +21,7 @@ import {
   createCurriculum, curriculumLabel, deleteCurriculum, exportCurriculumJson, getCurricula,
   importCurriculumJson, maakEigenKopie, netLabel, saveCurriculum,
 } from '../lib/curriculum';
+import { leesNiveau } from '../lib/leerplanNiveau';
 import { isGeldigSetId } from '../lib/minimumdoelenBron';
 import { buildCurriculumPrompt, MAX_CURRICULUM_CHARS, sanitizeAICurriculum } from '../lib/aiCurriculum';
 import { askAI, extractJson } from '../lib/ai';
@@ -29,7 +31,7 @@ import { ConfirmModal, EmptyState, Field, Modal, useToast } from '../components/
 import { downloadFile, formatDateShort, uid } from '../lib/utils';
 import { onStorageChange } from '../lib/storage';
 import { useNewParam } from '../lib/useNewParam';
-import { BadgeCheck, FileBraces, ListTree } from 'lucide-react';
+import { BadgeCheck, FileBraces, FileText, ListTree } from 'lucide-react';
 import { MenuButton } from '../components/Menu';
 import {
   AddIcon, AIIcon, BackIcon, CheckIcon, DeleteIcon, EditIcon, ExportIcon, GoalIcon, InfoIcon, MoreIcon, MoveDownIcon,
@@ -39,6 +41,8 @@ import { effectieveStatus, isOfficieel, nagekekenTekst } from '../lib/leerplanSt
 import { ControleLabel, OfficieelLabel } from '../components/curriculum/ControleLabel';
 import { LeerplanOpSlot } from '../components/curriculum/LeerplanOpSlot';
 import { LeerplanWegwijzer } from '../components/curriculum/LeerplanWegwijzer';
+import { MinimumdoelKiezer } from '../components/curriculum/MinimumdoelKiezer';
+import { SetsKiezen } from '../components/curriculum/SetsKiezen';
 import { VerwijzingLabels } from '../components/curriculum/VerwijzingLabels';
 import '../styles/materiaal.css';
 import '../styles/leerplan.css';
@@ -64,6 +68,24 @@ function useOpenParam(open: (id: string) => void) {
   }, [params]);
 }
 
+/**
+ * Opent het AI-venster voor een nieuw leerplan als de URL `?ai=nieuw` bevat (de inleeswizard stuurt
+ * hierheen als haar lezer geen doelen vindt). Zoals `useNewParam`: daarna verdwijnt de parameter weer,
+ * zodat terugkeren of herladen het venster niet opnieuw opent.
+ */
+function useAiParam(open: () => void) {
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.get('ai') !== 'nieuw') return;
+    open();
+    const next = new URLSearchParams(params);
+    next.delete('ai');
+    setParams(next, { replace: true });
+    // open is een setter uit de pagina; enkel de URL is de trigger
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+}
+
 function exporteer(cur: Curriculum) {
   downloadFile(`${cur.title || 'leerplan'}.json`, exportCurriculumJson(cur));
 }
@@ -76,6 +98,7 @@ export function CurriculaPage() {
   const [aiTarget, setAiTarget] = useState<AITarget | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   useNewParam(() => setNewOpen(true));
+  useAiParam(() => setAiTarget({ mode: 'new' }));
   useOpenParam((id) => {
     if (getCurricula().some((c) => c.id === id)) setEditingId(id);
     else toast('Dit leerplan werd niet gevonden. Misschien is het verwijderd.', 'err');
@@ -154,6 +177,9 @@ export function CurriculaPage() {
             subject: meta.subject,
             level: meta.level,
             source: meta.source || undefined,
+            // De AI-weg is het laatste redmiddel: het leerplan is nog niet nagekeken en de herkomst zegt dat.
+            kind: 'leerplan',
+            herkomst: { methode: 'ai', ingelezenOp: Date.now() },
             goals,
           });
           save(cur);
@@ -209,17 +235,13 @@ export function CurriculaPage() {
             ref={fileRef} type="file" accept="application/json,.json" hidden
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); e.target.value = ''; }}
           />
-          <button className="btn btn-ai" onClick={() => setAiTarget({ mode: 'new' })}>
-            <AIIcon size={18} /> Uit tekst of pdf
-          </button>
-          <button className="btn btn-primary" onClick={() => setNewOpen(true)}><AddIcon size={18} /> Blanco leerplan</button>
+          <Link className="btn btn-primary" to="/leerplannen/inlezen"><FileText size={18} /> Leerplan inlezen</Link>
+          <button className="btn btn-ghost" onClick={() => setNewOpen(true)}><AddIcon size={18} /> Blanco leerplan</button>
         </div>
       </div>
 
       <LeerplanWegwijzer
         defaultOpen={!curricula.some((c) => !c.example)}
-        // Voorlopig de bestaande AI-weg (tekst of pdf); een latere stap vervangt dit door een inleeswizard.
-        onInlezen={() => setAiTarget({ mode: 'new' })}
         onBestand={() => fileRef.current?.click()}
       />
 
@@ -231,8 +253,8 @@ export function CurriculaPage() {
             nog niet aan bod komen.
           </p>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-ai" onClick={() => setAiTarget({ mode: 'new' })}><AIIcon size={18} /> Uit tekst of pdf</button>
-            <button className="btn btn-primary" onClick={() => setNewOpen(true)}><AddIcon size={18} /> Blanco leerplan</button>
+            <Link className="btn btn-primary" to="/leerplannen/inlezen"><FileText size={18} /> Leerplan inlezen</Link>
+            <button className="btn btn-ghost" onClick={() => setNewOpen(true)}><AddIcon size={18} /> Blanco leerplan</button>
           </div>
         </EmptyState>
       ) : (
@@ -397,6 +419,16 @@ function CurriculumEditor({
   const setGoals = (next: CurriculumGoal[]) => onChange({ ...curriculum, goals: next });
   const patch = (i: number, p: Partial<CurriculumGoal>) => setGoals(goals.map((g, j) => (j === i ? { ...g, ...p } : g)));
 
+  // Verwijzingen toevoegen: uit de sets van het leerplan; heeft het er nog geen, dan kiest de leerkracht ze eerst.
+  const [kiezerVoor, setKiezerVoor] = useState<number | null>(null);
+  const [setsKiezenVoor, setSetsKiezenVoor] = useState<number | null>(null);
+  const sets = curriculum.minimumdoelenSets ?? [];
+  const voegVerwijzingToe = (i: number) => (sets.length > 0 ? setKiezerVoor(i) : setSetsKiezenVoor(i));
+  // Stabiele functies: het venster zet de focus opnieuw als zijn onClose bij elke render van de editor verandert.
+  const sluitKiezer = useCallback(() => setKiezerVoor(null), []);
+  const sluitSetsKiezen = useCallback(() => setSetsKiezenVoor(null), []);
+  const wizardLink = officieel ? undefined : `/leerplannen/inlezen/${encodeURIComponent(curriculum.id)}`;
+
   const move = (i: number, delta: number) => {
     const j = i + delta;
     if (j < 0 || j >= goals.length) return;
@@ -439,6 +471,7 @@ function CurriculumEditor({
           </div>
         </div>
         <div className="page-head-actions">
+          {wizardLink && <Link className="btn btn-primary" to={wizardLink}><BadgeCheck size={18} /> Nakijken en bevestigen</Link>}
           <button className="btn btn-ai" onClick={onAskAI}><AIIcon size={18} /> Doelen uit tekst of pdf</button>
           <button className="btn btn-ghost" onClick={() => exporteer(curriculum)}>
             <ExportIcon size={18} /> Exporteren
@@ -574,20 +607,21 @@ function CurriculumEditor({
                     onChange={(e) => patch(i, { note: e.target.value || undefined })}
                   />
                 </Field>
-                {goal.refs && goal.refs.length > 0 && (
-                  <div className="lp-refs" role="group" aria-label={`Verwijzingen van doel ${i + 1}`}>
-                    <span className="lp-refs-titel">Verwijst naar minimumdoel</span>
-                    <div className="dl-labels">
-                      <VerwijzingLabels
-                        verwijzingen={goal.refs}
-                        onRemove={(r) => {
-                          const rest = (goal.refs ?? []).filter((_, k) => k !== r);
-                          patch(i, { refs: rest.length > 0 ? rest : undefined });
-                        }}
-                      />
-                    </div>
+                <div className="lp-refs" role="group" aria-label={`Verwijzingen van doel ${i + 1}`}>
+                  <span className="lp-refs-titel">Verwijst naar minimumdoel</span>
+                  <div className="dl-labels">
+                    <VerwijzingLabels
+                      verwijzingen={goal.refs}
+                      onRemove={(r) => {
+                        const rest = (goal.refs ?? []).filter((_, k) => k !== r);
+                        patch(i, { refs: rest.length > 0 ? rest : undefined });
+                      }}
+                    />
+                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => voegVerwijzingToe(i)}>
+                      <AddIcon size={16} /> Verwijzing toevoegen<span className="sr-only"> bij doel {i + 1}</span>
+                    </button>
                   </div>
-                )}
+                </div>
               </div>
             </li>
           ))}
@@ -603,6 +637,22 @@ function CurriculumEditor({
           of laat de AI-cursusbouwer een dekkende cursus opzetten vanuit deze lijst.
         </span>
       </p>
+
+      {kiezerVoor !== null && goals[kiezerVoor] && (
+        <MinimumdoelKiezer
+          titel={`Minimumdoelen kiezen voor ${goals[kiezerVoor].code.trim() || `doel ${kiezerVoor + 1}`}`}
+          setIds={sets} gekozen={goals[kiezerVoor].refs ?? []}
+          onKies={(refs) => { patch(kiezerVoor, { refs: refs.length > 0 ? refs : undefined }); setKiezerVoor(null); }}
+          onClose={sluitKiezer}
+        />
+      )}
+      {setsKiezenVoor !== null && (
+        <SetsKiezen
+          graad={leesNiveau(curriculum.level).graad} stroom={leesNiveau(curriculum.level).stroom} gekozen={sets} wizardLink={wizardLink}
+          onKies={(ids) => { onChange({ ...curriculum, minimumdoelenSets: ids }); setKiezerVoor(setsKiezenVoor); setSetsKiezenVoor(null); }}
+          onClose={sluitSetsKiezen}
+        />
+      )}
     </div>
   );
 }

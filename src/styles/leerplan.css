@@ -60,7 +60,7 @@ details.lw { margin-bottom: 18px; }
 /* Editor: de verwijzingen van een doel */
 .lp-refs { margin-bottom: 14px; }
 .lp-refs-titel { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: var(--text-soft); }
-.lp-refs .dl-labels { margin-top: 0; }
+.lp-refs .dl-labels { margin-top: 0; align-items: center; }
 
 @media (max-width: 640px) {
   .lw-weg { min-height: 56px; }
