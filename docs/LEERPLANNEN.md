@@ -212,7 +212,7 @@ interface Curriculum {
   // … bestaande velden
   kind?: 'leerplan' | 'eigen';                 // laag 1 zit niet in localStorage
   herkomst?: {
-    methode: 'export' | 'pdf' | 'ai' | 'handmatig';
+    methode: 'officieel' | 'samengesteld' | 'export' | 'pdf' | 'tekst' | 'ai' | 'handmatig';
     leerplancode?: string;                      // bv. "I-Aar-a"
     versie?: string;
     geldigVanaf?: string;                       // ISO-datum
@@ -228,6 +228,8 @@ interface Curriculum {
     doelenSha256?: string;                      // vingerafdruk van de doelen bij bevestiging
   };
   minimumdoelenSets?: string[];                 // bv. ["ODS_3287"]: een leerplan raakt vaak meer sets
+  weggelatenCodes?: { code: string; set: string; id: string }[];  // § 15: codes die bij het aanpassen
+                                                // van een samengestelde lijst wegvielen; nooit hergebruikt
 }
 
 interface CurriculumGoal {
@@ -450,9 +452,23 @@ doelen uit meerdere sets samen (basisgeletterdheid: Nederlands, STEM en digitale
 - Codes: zoals bij "Gebruik als leerplan"; botst een code tussen gekozen sets (bv. BG02.01 in de
   A- en de B-stroom), dan krijgen de botsende codes een onderscheid (stroom, graad, of set-id). Bij
   het aanpassen van een bewaarde lijst behoudt een doel zijn code, en een code van een weggelaten
-  doel gaat nooit naar een ander doel: een koppeling in een cursus wijst zo nooit stil naar iets anders.
+  doel gaat nooit naar een ander doel, ook niet over meerdere aanpassingen heen: de lijst onthoudt
+  die codes in `weggelatenCodes` (buiten de vingerafdruk). Een doel dat terugkomt, krijgt zijn oude
+  code terug. Een koppeling in een cursus wijst zo nooit stil naar iets anders.
 - Het scherm `/leerplannen/samenstellen` in drie stappen: sets kiezen, doelen kiezen (hele set of
   losse doelen, zoeken over alle gekozen sets), naam en bewaren. Ingangen: de wegwijzer bij
   Leerplannen, de pagina "Officiële minimumdoelen" (ook "Kies doelen uit deze set" per set) en
   "Keuze aanpassen" bij een bewaarde lijst. Een eigen kopie van zo'n lijst pas je aan in de editor.
 - Label: "Officiële doelen, zelf gekozen". Een samengestelde lijst is vrij te delen (officiële tekst).
+
+**Review (6 oktober 2026; correctheid en opslag, toegankelijkheid en taal; rechter).** Geen fout
+gevonden waardoor een lijst met een niet-letterlijke tekst of een verkeerde verwijzing als nagekeken
+bewaard wordt. Bevestigd en in herstel: de STEM-hint beschreef een handeling die niets deed zolang
+de hele set gekozen was (de STEM-link opent nu met niets aangevinkt); een oude code kon over twee
+aanpassingen heen naar een ander doel gaan (`weggelatenCodes`); aanpassen haalde doelen weg zonder
+melding; hetzelfde minimumdoel in twee sets (gewoon en buitengewoon secundair) stond stil twee keer
+in de lijst (nu een waarschuwing, bewust geen ontdubbeling: een minimumdoel is set + vast nummer);
+twee sets met dezelfde naam waren voor een schermlezer niet te onderscheiden; focus die verloren
+ging; meldingen over sets uit een link; een knop op de pagina Leerplannen; teksten bij een lijst die
+niet nagekeken is. Bewust niet: geheugen voor een deelselectie bij weghalen en terugzetten; een
+tekstronde over de namen van de functie.
