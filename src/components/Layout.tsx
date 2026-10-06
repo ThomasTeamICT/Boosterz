@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   BookOpen, ChartColumn, Ellipsis, FileUp, GraduationCap, HardDriveDownload, House, Inbox, KeyRound,
@@ -54,8 +54,10 @@ function StorageBar() {
   const [criticalPct, setCriticalPct] = useState<number | null>(null);
   const timer = useRef<number | null>(null);
 
-  // Meldingen uit de opslaglaag (mislukt bewaren, geweigerde bescherming).
-  useEffect(() => onStorageNotice(setNotice), []);
+  // Meldingen uit de opslaglaag (mislukt bewaren, geweigerde bescherming). Een
+  // ernstige melding (data weg) blijft staan tot ze weggeklikt wordt: een latere
+  // tip mag ze niet overschrijven.
+  useEffect(() => onStorageNotice((n) => setNotice((cur) => (cur?.severe && !n.severe ? cur : n))), []);
 
   // Vulling meten: bij het openen en — ontdubbeld — na wijzigingen. Autosave
   // schrijft in bursts, dus we wachten telkens tot het even stil is.
@@ -275,14 +277,14 @@ function NavDrawer({
         </nav>
         <div className="drawer-sep" />
         <div className="drawer-more">
-          {more.map((item) =>
+          {more.map((item, i) =>
             item.to ? (
-              <Link key={item.label} to={item.to} className="drawer-link drawer-link-soft" onClick={onClose}>
+              <Link key={i} to={item.to} className="drawer-link drawer-link-soft" onClick={onClose}>
                 {item.Icon && <item.Icon size={19} />}
                 <span>{item.label}</span>
               </Link>
             ) : (
-              <button key={item.label} type="button" className="drawer-link drawer-link-soft" onClick={item.onSelect}>
+              <button key={i} type="button" className="drawer-link drawer-link-soft" onClick={item.onSelect}>
                 {item.Icon && <item.Icon size={19} />}
                 <span>{item.label}</span>
               </button>
@@ -324,6 +326,8 @@ export function Layout() {
 
   // Lade sluiten bij elke navigatie (ook via terugknop van de browser).
   useEffect(() => { setDrawer(false); }, [pathname]);
+  // Stabiele functie: de lade zet zijn focus-effect niet opnieuw op bij elke render.
+  const closeDrawer = useCallback(() => setDrawer(false), []);
 
   // Voorbeeldinhoud is puur leerkrachtmateriaal: ze hoort thuis in deze schil,
   // niet in App.tsx. Een leerling die met een code of klaslink binnenkomt
@@ -350,7 +354,19 @@ export function Layout() {
   return (
     <div className="appshell">
       <style>{BAR_CSS}</style>
-      <a className="skip-link" href="#main">Naar de inhoud</a>
+      {/* In een hash-router is "#main" een route, geen anker: zelf de focus verplaatsen. */}
+      <a
+        className="skip-link"
+        href="#main"
+        onClick={(e) => {
+          e.preventDefault();
+          const m = document.getElementById('main');
+          m?.focus();
+          m?.scrollIntoView();
+        }}
+      >
+        Naar de inhoud
+      </a>
       <header className="topbar">
         <Link to="/" className="topbar-logo" aria-label={`${BRAND}, startpagina`}>
           <BrandMark size={32} />
@@ -404,9 +420,9 @@ export function Layout() {
           <MenuIcon size={22} />
         </button>
       </header>
-      {drawer && <NavDrawer path={pathname} toGrade={toGrade} more={more} onClose={() => setDrawer(false)} />}
+      {drawer && <NavDrawer path={pathname} toGrade={toGrade} more={more} onClose={closeDrawer} />}
       <StorageBar />
-      <main id="main" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <main id="main" tabIndex={-1} style={{ flex: 1, display: 'flex', flexDirection: 'column', outline: 'none' }}>
         {showMaterialTabs && <MaterialTabs />}
         <Outlet />
       </main>

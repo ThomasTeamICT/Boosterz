@@ -2288,6 +2288,125 @@ check('nabespreking: fout gekozen optie zegt "jouw keuze" (niet alleen kleur)',
   await qfixFout.locator('.answer-option.incorrect', { hasText: 'jouw keuze' }).isVisible().catch(() => false));
 check('nabespreking: juiste optie zegt "goed antwoord"',
   await qfixFout.locator('.answer-option.correct', { hasText: 'goed antwoord' }).isVisible().catch(() => false));
+// ── 31. Toegankelijkheid: skiplink, modals, paginatitel, themawissel ────────
+console.log('31. Toegankelijkheid: skiplink, modals, paginatitel, themawissel');
+const actief = () => page.evaluate(() => {
+  const e = document.activeElement;
+  return {
+    id: e?.id ?? '',
+    tag: e?.tagName.toLowerCase() ?? '',
+    tekst: (e?.getAttribute('aria-label') || e?.textContent || '').trim().slice(0, 40),
+    inModal: !!e?.closest('.modal'),
+    inLade: !!e?.closest('.drawer'),
+  };
+});
+// Een verse lading (niet enkel een hashwissel), zodat ook de titel bij het opstarten gemeten wordt.
+const vers = async (hash) => { await page.goto('about:blank'); await go(hash); };
+// Tab n keer en geef terug hoeveel keer de focus buiten de modal viel (en of een <summary> de focus kreeg).
+const tabInModal = async (n) => {
+  let buiten = 0; let summary = false;
+  for (let i = 0; i < n; i++) {
+    await page.keyboard.press('Tab');
+    const a = await actief();
+    if (!a.inModal) buiten++;
+    if (a.tag === 'summary') summary = true;
+  }
+  return { buiten, summary };
+};
+
+// Skiplink: "#main" is in een hash-router een route (/main), dus de link moet de focus verplaatsen.
+await vers('/#/widgets');
+await page.keyboard.press('Tab');
+check('skiplink is het eerste tabstop', (await actief()).tekst === 'Naar de inhoud');
+await page.keyboard.press('Enter');
+await sleep(300);
+check('skiplink: de route blijft /widgets (geen sprong naar /main)', page.url().includes('#/widgets'));
+check('skiplink: de focus staat op main', (await actief()).id === 'main');
+
+// Invulmodal van een sjabloon: getypte tekst blijft in het veld waarin je typt.
+await go('/#/nieuw');
+await page.locator('section[aria-labelledby=cat-templates] button.type-card', { hasText: 'Diagnostische instap' }).click();
+await sleep(500);
+const sjVelden = page.locator('.modal input.input');
+const sjAantal = await sjVelden.count();
+check(`sjabloonmodal heeft meerdere invulvelden (${sjAantal})`, sjAantal >= 2);
+const sjVoor = await sjVelden.evaluateAll((els) => els.map((e) => e.value));
+await sjVelden.nth(1).click();
+await page.keyboard.type('abc', { delay: 40 });
+await sleep(200);
+const sjNa = await sjVelden.evaluateAll((els) => els.map((e) => e.value));
+check('sjabloonmodal: "abc" in veld 2 blijft in veld 2', sjNa[1] === 'abc' && sjNa[0] === sjVoor[0] && sjNa[2] === sjVoor[2]);
+check('sjabloonmodal: de focus blijft in veld 2', await page.evaluate(() => document.activeElement === document.querySelectorAll('.modal input.input')[1]));
+await page.keyboard.press('Escape');
+await sleep(300);
+check('Escape sluit de sjabloonmodal', (await page.locator('.modal').count()) === 0);
+
+// Focus keert na Escape terug bij de knop die de modal opende, ook als een veld autoFocus heeft.
+await go('/#/klassen');
+await page.getByRole('button', { name: /Nieuwe klas/ }).first().focus();
+await page.keyboard.press('Enter');
+await sleep(500);
+check('Nieuwe klas: de modal opent met de focus erin', (await actief()).inModal);
+await page.keyboard.press('Escape');
+await sleep(300);
+check('Nieuwe klas: Escape sluit de modal', (await page.locator('.modal').count()) === 0);
+const naKlas = await actief();
+check('Nieuwe klas: Escape zet de focus terug op de knop "Nieuwe klas"', naKlas.tag === 'button' && naKlas.tekst.includes('Nieuwe klas'));
+
+// Focusval van de deelmodal: ook <summary> telt mee en een dichte <details> verbergt zijn knoppen.
+await go('/#/widgets');
+await page.locator('.widget-card').first().locator('button[aria-label^="Acties"]').click();
+await page.getByRole('menuitem', { name: /Delen/ }).click();
+await sleep(700);
+const dicht = await tabInModal(25);
+check('deelmodal (details dicht): Tab blijft binnen de modal', dicht.buiten === 0);
+check('deelmodal (details dicht): de samenvatting is bereikbaar met Tab', dicht.summary);
+await page.locator('.modal summary', { hasText: 'Meer manieren om te delen' }).click();
+await sleep(300);
+const open = await tabInModal(30);
+check('deelmodal (details open): Tab blijft binnen de modal', open.buiten === 0);
+await page.keyboard.press('Escape');
+await sleep(300);
+
+// Paginatitel: volgt de route, ook zonder herladen; op leerlingroutes nooit "widget".
+await vers('/#/klassen');
+check(`titel op /klassen begint met "Klassen" (${await page.title()})`, (await page.title()).startsWith('Klassen'));
+await page.locator('.topnav a', { hasText: 'Resultaten' }).click();
+await sleep(400);
+check('titel volgt een routewissel zonder herladen', (await page.title()).startsWith('Resultaten'));
+await vers(`/#/speel/${quiz.code}`);
+check(`titel op een oefening: "Oefening" (${await page.title()})`, (await page.title()).startsWith('Oefening'));
+await vers('/#/meedoen');
+check('titel op /meedoen: "Meedoen", zonder "widget"', (await page.title()).startsWith('Meedoen') && !/widget/i.test(await page.title()));
+
+// Themawissel in "Meer": de menuknop blijft bestaan, dus de focus blijft op "Thema".
+await go('/#/');
+await page.getByRole('button', { name: 'Meer', exact: true }).click();
+await sleep(200);
+await page.keyboard.press('End');
+await page.keyboard.press('Enter');
+await sleep(300);
+check('themawissel: de focus blijft op het menu-item "Thema"', (await actief()).tekst.startsWith('Thema'));
+await page.keyboard.press('Enter');
+await page.keyboard.press('Enter'); // drie keer: weer terug op "automatisch"
+await sleep(300);
+const naThema = await actief();
+check('themawissel: na een volledige ronde staat de focus nog op "Thema" (automatisch)', naThema.tekst.startsWith('Thema') && /automatisch/.test(naThema.tekst));
+await page.keyboard.press('Escape');
+
+// Dezelfde themawissel in de lade op smalle schermen: de focus blijft in de lade.
+await page.setViewportSize({ width: 390, height: 800 });
+await go('/#/');
+await page.getByRole('button', { name: 'Menu openen' }).click();
+await sleep(300);
+await page.locator('.drawer button', { hasText: /Thema/ }).click();
+await sleep(300);
+const ladeThema = await actief();
+check('themawissel in de lade: de focus blijft op "Thema"', ladeThema.inLade && ladeThema.tekst.startsWith('Thema'));
+await page.locator('.drawer button', { hasText: /Thema/ }).click();
+await page.locator('.drawer button', { hasText: /Thema/ }).click(); // terug op "automatisch"
+await page.keyboard.press('Escape');
+await page.setViewportSize({ width: 1360, height: 900 });
 
 // ── Slot ────────────────────────────────────────────────────────────────────
 console.log('\n──────────');

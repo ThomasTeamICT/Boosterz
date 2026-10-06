@@ -108,7 +108,7 @@ export function MenuButton({
           className={`menu menu-${align}`}
           onKeyDown={onMenuKey}
         >
-          {items.map((item) => {
+          {items.map((item, i) => {
             const body = (
               <>
                 {item.Icon ? <item.Icon size={18} /> : <span className="menu-icon-gap" />}
@@ -120,7 +120,7 @@ export function MenuButton({
             );
             const cls = `menu-item${item.danger ? ' menu-item-danger' : ''}`;
             return (
-              <React.Fragment key={item.label}>
+              <React.Fragment key={i}>
                 {item.separator && <div className="menu-sep" role="separator" />}
                 {item.to ? (
                   <Link to={item.to} role="menuitem" tabIndex={-1} className={cls} onClick={() => choose(item)}>

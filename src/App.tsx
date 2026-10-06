@@ -144,6 +144,10 @@ const router = createHashRouter([
   { path: '*', element: <JoinPage />, errorElement },
 ]);
 
+// De documenttitel volgt de route (een schermlezer leest hem bij het laden voor).
+// Lui geladen: de titeltabel hoort niet in het kritieke leerlingpad (budget).
+void import('./lib/paginaTitel').then((m) => m.volgRoute(router)).catch(() => { /* niet geladen (offline): de standaardtitel blijft staan */ });
+
 export default function App() {
   useEffect(() => {
     // Media-onderhoud, altijd buiten het kritieke pad:

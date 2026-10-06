@@ -49,16 +49,24 @@ export function Modal({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Een inline onClose van de ouder is bij elke render een nieuwe functie: via een ref
+  // blijft het effect één keer lopen (anders steelt het bij elke toets de focus).
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  // De vorige focus leggen we vast vóór de kinderen committen: bij een kind met
+  // autoFocus staat de focus in het effect al in de modal.
+  const [prev] = useState(() => document.activeElement as HTMLElement | null);
 
   useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
       if (e.key === 'Tab' && ref.current) {
-        // eenvoudige focus-trap (disabled/verborgen elementen tellen niet mee)
+        // eenvoudige focus-trap: alleen wat zichtbaar en bruikbaar is (ook <summary>).
+        // De inhoud van een dichte <details> heeft in sommige browsers nog rechthoeken,
+        // vandaar de aparte selector (alles behalve de <summary> zelf).
         const els = Array.from(ref.current.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])'
-        )).filter((el) => !el.hasAttribute('hidden'));
+          'button:not([disabled]), summary, [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])'
+        )).filter((el) => el.getClientRects().length > 0 && !el.closest('[hidden], details:not([open]) > :not(summary)'));
         if (els.length === 0) return;
         const first = els[0];
         const last = els[els.length - 1];
@@ -74,9 +82,9 @@ export function Modal({
     }, 30);
     return () => {
       document.removeEventListener('keydown', onKey);
-      prev?.focus();
+      if (prev?.isConnected) prev.focus();
     };
-  }, [onClose]);
+  }, [prev]);
 
   return createPortal(
     <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -175,8 +183,8 @@ export function CheckRow({
 
 export function EmptyState({
   icon, title, children, level = 2,
-}: { icon: React.ReactNode; title: string; children?: React.ReactNode; level?: 2 | 3 }) {
-  const Heading = level === 3 ? 'h3' : 'h2';
+}: { icon: React.ReactNode; title: string; children?: React.ReactNode; level?: 1 | 2 | 3 }) {
+  const Heading = level === 1 ? 'h1' : level === 3 ? 'h3' : 'h2';
   return (
     <div className="empty-state">
       <div className="big" aria-hidden>{icon}</div>
