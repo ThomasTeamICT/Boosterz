@@ -66,6 +66,10 @@ import { fontRefsInCss } from './src/offline/lettertypes';
  *    (readableAccent, W15d) kost 0,8 kB: 330,6 kB (104,7 kB gzip); het
  *    opruimen van verlopen tussentijds werk met bestanden (OP13, luie import
  *    in autosave.ts) en de cursuslezer brachten het op 331,1 kB (104,9 kB
+ *    gzip); gedeelde inhoud zonder stil overschrijven (register van zuivere
+ *    kopieën, samenvoegen van voortgang), eerlijke meldingen bij volle opslag
+ *    en het tabbladslot van de mediaopslag (Web Lock, zodat geen afbeelding
+ *    gewist wordt die een ander tabblad nog toont) op 332,7 kB (105,5 kB
  *    gzip). Het budget ligt ±0,5 kB boven die meting, zodat elke groei meteen opvalt; wie meer nodig heeft,
  *    verhoogt het bewust, hier. Let op: vóór sep. 2026 mat dit budget vóór
  *    Vite de preloadlijst invulde, dus ±9 kB te licht (zie order: 'post').
@@ -80,7 +84,7 @@ import { fontRefsInCss } from './src/offline/lettertypes';
  */
 const CRITICAL_PATH = {
   label: 'hoofdbundel (kritieke leerlingpad)',
-  maxKb: 332,
+  maxKb: 333,
   /** boven 5 % te veel faalt de build */
   hardFactor: 1.05,
   /** wat naast de hoofdbundel in de statische sluiting mag zitten */
