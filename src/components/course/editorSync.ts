@@ -20,6 +20,13 @@
 //  6. Een geüpload pdf-bestand wordt pas gewist na een geslaagde bewaring, en
 //     alleen als geen enkele bewaarde cursus of widget én de cursus op het
 //     scherm er nog naar verwijzen.
+//  7. Een "conflict" is een verschil in inhoud, niet in tijdstempel (E5): staat
+//     er in de opslag exact wat op het scherm staat (een ander tabblad bewaarde
+//     opnieuw zonder verschil, of de wijzigingen hier werden teruggedraaid),
+//     dan volgt de editor gewoon de nieuwe versie: geen keuze, geen kopie.
+//  8. Media die bij het overnemen nog niet geladen was (nieuwe afbeelding uit een
+//     ander tabblad) wordt vervangen zodra ze binnen is, maar enkel als er niets
+//     onbewaard is (B4, refresh).
 
 import type { Course, CourseBlock, CourseSection } from '../../lib/courseTypes';
 import { allSections } from '../../lib/courseTypes';
@@ -61,6 +68,36 @@ export function courseCopy(course: Course, o: { id: string; code: string; now: n
   return { ...course, id: o.id, code: o.code, title: `${title} (mijn versie)`, createdAt: o.now, updatedAt: o.now };
 }
 
+/**
+ * Deterministische JSON (sleutels gesorteerd, undefined weg): twee cursussen met
+ * dezelfde inhoud maar een andere sleutelvolgorde zijn gelijk. Zelfde regels als
+ * stableJson in lib/courses.ts (dat niet geëxporteerd wordt).
+ */
+function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return '[' + v.map((x) => (x === undefined ? 'null' : stableJson(x))).join(',') + ']';
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    return '{' + Object.keys(o).sort()
+      .filter((k) => o[k] !== undefined && typeof o[k] !== 'function')
+      .map((k) => JSON.stringify(k) + ':' + stableJson(o[k]))
+      .join(',') + '}';
+  }
+  return JSON.stringify(v) ?? 'null';
+}
+
+/**
+ * Staat er in beide cursussen dezelfde inhoud? Enkel het tijdstempel
+ * (updatedAt) telt niet mee. Bij twijfel of een fout: "niet gelijk", zodat er
+ * nooit iets verdwijnt (dan volgt de gewone keuze bij een conflict).
+ */
+export function sameCourseContent(a: Course, b: Course): boolean {
+  try {
+    return stableJson({ ...a, updatedAt: 0 }) === stableJson({ ...b, updatedAt: 0 });
+  } catch {
+    return false;
+  }
+}
+
 /** "Als leerling": de lezer in voorbeeldmodus, waarin niets bewaard wordt (CU15c). */
 export function coursePreviewHash(code: string): string {
   return `#/cursus/lees/${encodeURIComponent(code)}?voorbeeld=1`;
@@ -75,6 +112,11 @@ export type ExternalDecision =
   | 'herladen'
   /** De opslag staat weer op onze versie: het conflict is weg. */
   | 'opgelost'
+  /**
+   * Een ander tabblad bewaarde een versie met exact dezelfde inhoud als op het
+   * scherm (E5): geen conflict, enkel de nieuwe versie volgen.
+   */
+  | 'gelijk'
   /** Wijzigingen aan beide kanten: niets overschrijven, de leerkracht kiest. */
   | 'conflict-gewijzigd'
   /** De cursus staat niet meer in de opslag. */
@@ -90,10 +132,13 @@ export function decideExternal(s: {
   /** Een venster dat straks de hele cursus vervangt (de AI-hulp) staat open. */
   busy: boolean;
   hasConflict: boolean;
+  /** De opgeslagen versie heeft dezelfde inhoud als het scherm (alleen bekeken bij dirty of busy). */
+  sameContent?: boolean;
 }): ExternalDecision {
   if (!s.stored) return 'conflict-verwijderd';
   if (s.stored.updatedAt === s.stamp) return s.hasConflict ? 'opgelost' : 'niets';
   if (!s.dirty && !s.busy) return 'herladen';
+  if (s.sameContent) return 'gelijk';
   return 'conflict-gewijzigd';
 }
 
@@ -143,6 +188,12 @@ export interface CourseDraft {
   save(): SaveOutcome;
   /** Een ander tabblad schreef de cursussen weg. */
   external(): ExternalDecision;
+  /**
+   * Media die eerst ontbrak is binnen (B4): de bewaarde versie opnieuw lezen en
+   * tonen. Alleen als er niets onbewaard is, geen conflict, en de opslag nog op
+   * onze versie staat. Geeft true als het scherm veranderde.
+   */
+  refresh(): boolean;
   /** Conflict: de versie uit de opslag laden. Eigen wijzigingen vervallen. */
   loadTheirs(): boolean;
   /** Conflict: de eigen versie toch bewaren (overschrijft, of zet terug na verwijderen). */
@@ -213,6 +264,24 @@ export function createCourseDraft(store: DraftStore, initial: Course | undefined
     }
   };
 
+  /** Is wat in de opslag staat inhoudelijk gelijk aan wat op het scherm staat? */
+  const sameAsScreen = (theirs: Course | undefined) =>
+    course !== undefined && theirs !== undefined && sameCourseContent(course, theirs);
+
+  /**
+   * De opslag bevat al wat op het scherm staat (E5): het scherm blijft zoals
+   * het is, de editor bouwt voortaan op de versie uit de opslag. Er wordt niets
+   * geschreven en er verschijnt geen "Bewaard".
+   */
+  const settle = (stored: Course) => {
+    clearTimer();
+    synced = course;
+    stamp = stored.updatedAt;
+    conflict = null;
+    saveFailed = false;
+    status = 'idle';
+  };
+
   const markSaved = (c: Course, updatedAt: number) => {
     synced = c;
     stamp = updatedAt;
@@ -248,6 +317,11 @@ export function createCourseDraft(store: DraftStore, initial: Course | undefined
       saveFailed = true;
       emit();
       return 'mislukt';
+    }
+    if (r.reason === 'gewijzigd' && sameAsScreen(r.stored)) {
+      settle(r.stored);
+      emit();
+      return 'niets';
     }
     conflict = r.reason === 'verwijderd' ? { kind: 'verwijderd' } : { kind: 'gewijzigd', theirs: r.stored };
     emit();
@@ -317,9 +391,13 @@ export function createCourseDraft(store: DraftStore, initial: Course | undefined
     external() {
       if (!course) return 'niets';
       const stored = store.read(course.id);
-      const d = decideExternal({ stamp, stored, dirty: isDirty(), busy, hasConflict: conflict !== null });
+      const dirty = isDirty();
+      // Inhoud vergelijken kost werk: alleen als het antwoord ertoe doet.
+      const sameContent = stored !== undefined && stored.updatedAt !== stamp && (dirty || busy) && sameAsScreen(stored);
+      const d = decideExternal({ stamp, stored, dirty, busy, hasConflict: conflict !== null, sameContent });
       if (d === 'niets') return d;
       if (d === 'herladen' && stored) adopt(stored, 'reloaded');
+      else if (d === 'gelijk' && stored) settle(stored);
       else if (d === 'opgelost') {
         conflict = null;
         schedule();
@@ -332,6 +410,20 @@ export function createCourseDraft(store: DraftStore, initial: Course | undefined
       }
       emit();
       return d;
+    },
+
+    refresh() {
+      if (!course || isDirty() || conflict) return false;
+      const stored = store.read(course.id);
+      if (!stored || stored.updatedAt !== stamp) return false;
+      // Alleen vervangen als er echt iets veranderde (een verwijzing werd een
+      // afbeelding). Media die niet op dit toestel staat blijft een verwijzing:
+      // dan niets doen, anders volgt elke melding opnieuw een vervanging.
+      if (sameAsScreen(stored)) return false;
+      course = stored;
+      synced = stored;
+      emit();
+      return true;
     },
 
     loadTheirs,
@@ -362,11 +454,20 @@ export function createCourseDraft(store: DraftStore, initial: Course | undefined
 
     leave() {
       clearTimer();
-      if (!isDirty()) return { copy: null, failed: false };
+      if (!course || !isDirty()) return { copy: null, failed: false };
       if (!conflict) {
         const out = save();
         if (out === 'bewaard' || out === 'niets') return { copy: null, failed: false };
         if (out === 'mislukt') return { copy: null, failed: true };
+      } else {
+        // Het conflict kan intussen weggevallen zijn: staat er in de opslag
+        // dezelfde inhoud als op het scherm, dan valt er niets te kopiëren (E5).
+        const stored = store.read(course.id);
+        if (stored && sameAsScreen(stored)) {
+          settle(stored);
+          emit();
+          return { copy: null, failed: false };
+        }
       }
       const copy = saveCopy();
       return { copy, failed: copy === null };

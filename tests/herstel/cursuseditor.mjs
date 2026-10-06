@@ -18,7 +18,18 @@
 //  CU14 / A11Y19  één main en één h1, ook bij "niet gevonden", zonder sectie en met een melding
 //  P7     een leeg blok zegt in de editor dat leerlingen het niet zien
 //  390 px zonder horizontaal scrollen, ook met de conflictmelding
+//
+// Herstelpakket P2 (debugronde oktober 2026, rechter: cursuseditor):
+//  E2     "Terug" of een link terwijl bewaren niet lukt: een vraag (Blijven, Downloaden, Toch
+//         weggaan); bewaren lukt weer: geen vraag; Toch weggaan geeft geen tweede foutmelding
+//  E3     de melding bij "elders verwijderd" zegt wat niet terugkomt
+//  E6     een blok met alleen een bijschrift, titel, bron of notitie vraagt eerst; een lege
+//         scheidingslijn en een echt leeg blok niet
+//  E8     na een knop in een melding staat de focus op de titel; Escape annuleert de pdf-vraag
+//  B4     een afbeelding uit een ander tabblad verschijnt vanzelf, zonder herladen
 
+import { readFileSync } from 'node:fs';
+import { deflateSync } from 'node:zlib';
 import { chromium } from 'playwright-core';
 
 const BASE = (process.env.SMOKE_BASE || 'http://localhost:4173').replace(/\/$/, '') + '/';
@@ -435,6 +446,362 @@ await geval(async () => {
   check('de conflictmelding past op 390 px', (await overloop(a)) <= 0, `${await overloop(a)} px`);
   const knoppen = await melding(a).getByRole('button').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().right)));
   check('de knoppen van de melding vallen binnen het scherm', knoppen.length === 3 && knoppen.every((r) => r <= 390), JSON.stringify(knoppen));
+  await ctx.close();
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Herstelpakket P2
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** De opslag helemaal vol schrijven; geeft de sleutels terug om later plaats te maken. */
+const vulOpslag = (p) => p.evaluate(() => {
+  const keys = [];
+  let size = 1 << 20;
+  let i = 0;
+  while (size >= 1) {
+    try { localStorage.setItem(`__vul_${i}`, 'x'.repeat(size)); keys.push(`__vul_${i}`); i++; } catch { size = Math.floor(size / 2); }
+  }
+  return keys;
+});
+const maakVrij = (p, keys) => p.evaluate((ks) => ks.forEach((k) => localStorage.removeItem(k)), keys);
+const actief = (p) => p.evaluate(() => {
+  const el = document.activeElement;
+  return el ? { tag: el.tagName, label: el.getAttribute('aria-label'), tekst: (el.textContent || '').trim().slice(0, 40) } : null;
+});
+/** Staat de focus op het titelveld van de cursus (en dus niet op <body>)? */
+const opTitel = async (p) => { const a = await actief(p); return a?.tag === 'INPUT' && a.label === 'Titel van de cursus'; };
+
+/** Een kleine, geldige png (24 × 24, kleurverloop), zonder extra pakketten. */
+const CRC = (() => {
+  const t = new Int32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c; }
+  return t;
+})();
+function crc32(buf) { let c = -1; for (const b of buf) c = CRC[(c ^ b) & 0xff] ^ (c >>> 8); return (c ^ -1) >>> 0; }
+function pngChunk(type, data) {
+  const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+  const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+  const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body));
+  return Buffer.concat([len, body, crc]);
+}
+function maakPng(w = 24, h = 24) {
+  const rij = w * 3 + 1;
+  const raw = Buffer.alloc(rij * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const o = y * rij + 1 + x * 3;
+    raw[o] = (x * 10) & 255; raw[o + 1] = (y * 10) & 255; raw[o + 2] = 128;
+  }
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), pngChunk('IHDR', ihdr), pngChunk('IDAT', deflateSync(raw)), pngChunk('IEND', Buffer.alloc(0))]);
+}
+
+// ── E2: weggaan terwijl er niets bewaard raakt ──────────────────────────────
+
+console.log('E2. Weggaan terwijl "Niet bewaard" staat: eerst vragen');
+const NIEUWE_TITEL = 'Een veel langere titel die niet meer in de opslag past';
+const terugKnop = (p) => p.getByRole('button', { name: 'Terug naar mijn cursussen' });
+const blokkeerVraag = (p) => p.getByRole('dialog', { name: 'Je wijzigingen zijn niet bewaard' });
+const hash = (p) => p.evaluate(() => location.hash);
+
+await geval(async () => {
+  const ctx = await profiel({ courses: [standaard()] });
+  const p = await tab(ctx, '#/cursus/bewerk/c1');
+  const keys = await vulOpslag(p);
+  check('de opslag is vol', keys.length > 0);
+  await p.getByLabel('Titel van de cursus').fill(NIEUWE_TITEL);
+  await sleep(1300);
+  check('eerst: "Niet bewaard" in de balk', (await status(p)).includes('Niet bewaard'), await status(p));
+
+  // Een link binnen de app (niet alleen "Terug") wordt ook tegengehouden.
+  await p.getByRole('link', { name: 'Voortgang' }).click();
+  await blokkeerVraag(p).waitFor();
+  check('een link naar een andere pagina: dezelfde vraag', await blokkeerVraag(p).isVisible());
+  check('de link ging niet door', (await hash(p)).startsWith('#/cursus/bewerk/c1'), await hash(p));
+  await blokkeerVraag(p).getByRole('button', { name: 'Blijven' }).click();
+  await sleep(200);
+
+  await terugKnop(p).click();
+  await blokkeerVraag(p).waitFor();
+  const vraag = blokkeerVraag(p);
+  check('"Terug": een vraag in plaats van stil weggaan', await vraag.isVisible());
+  check('de vraag zegt waarom en wat er verloren gaat',
+    /opslag is vol/.test(await vraag.innerText()) && /gaan je laatste wijzigingen/.test(await vraag.innerText()), await vraag.innerText());
+  check('de vraag heeft Blijven, Downloaden en Toch weggaan',
+    (await vraag.getByRole('button', { name: 'Blijven' }).count()) === 1 &&
+    (await vraag.getByRole('button', { name: /Downloaden als bestand/ }).count()) === 1 &&
+    (await vraag.getByRole('button', { name: 'Toch weggaan' }).count()) === 1);
+  const s = await structuur(p);
+  check('met de vraag open: één main en één h1', s.main === 1 && s.h1 === 1, JSON.stringify(s));
+  check('de focus staat in de vraag, op "Blijven"', (await actief(p))?.tekst === 'Blijven', JSON.stringify(await actief(p)));
+
+  // Blijven (knop en Escape): niets gaat verloren.
+  await vraag.getByRole('button', { name: 'Blijven' }).click();
+  await sleep(200);
+  check('"Blijven": de vraag is weg en we staan nog in de editor',
+    (await blokkeerVraag(p).count()) === 0 && (await hash(p)).startsWith('#/cursus/bewerk/c1'));
+  check('"Blijven": de titel staat nog op het scherm', (await p.getByLabel('Titel van de cursus').inputValue()) === NIEUWE_TITEL);
+  check('"Blijven": de opslag houdt de oude titel', (await cursusIn(p)).title === 'Testcursus');
+  await terugKnop(p).click();
+  await blokkeerVraag(p).waitFor();
+  await p.keyboard.press('Escape');
+  await sleep(200);
+  check('Escape telt als "Blijven"', (await blokkeerVraag(p).count()) === 0 && (await hash(p)).startsWith('#/cursus/bewerk/c1'));
+
+  // Downloaden: de cursus als bestand, de vraag blijft staan.
+  await terugKnop(p).click();
+  await blokkeerVraag(p).waitFor();
+  const [dl] = await Promise.all([
+    p.waitForEvent('download'),
+    blokkeerVraag(p).getByRole('button', { name: /Downloaden als bestand/ }).click(),
+  ]);
+  const bestand = JSON.parse(readFileSync(await dl.path(), 'utf8'));
+  check('"Downloaden": een .json-bestand', /\.json$/.test(dl.suggestedFilename()), dl.suggestedFilename());
+  check('"Downloaden": met de cursus zoals ze op het scherm staat',
+    bestand.kind === 'cursus' && bestand.course?.title === NIEUWE_TITEL, JSON.stringify(bestand.course?.title));
+  check('"Downloaden": de vraag blijft staan, de leerkracht kiest zelf', await blokkeerVraag(p).isVisible());
+
+  // Toch weggaan: weg, zonder tweede foutmelding.
+  await blokkeerVraag(p).getByRole('button', { name: 'Toch weggaan' }).click();
+  await p.waitForFunction(() => location.hash === '#/cursussen');
+  await sleep(500);
+  check('"Toch weggaan": we staan op Mijn cursussen', (await hash(p)) === '#/cursussen');
+  check('"Toch weggaan": geen tweede melding dat het niet bewaard is',
+    (await p.getByText(/Je laatste wijzigingen aan de cursus zijn niet bewaard/).count()) === 0);
+  check('geen alert-venster', p.dialogen.length === 0, p.dialogen.join(' | '));
+  await maakVrij(p, keys);
+  check('de oude titel staat nog in de opslag', (await cursusIn(p)).title === 'Testcursus');
+  await ctx.close();
+});
+
+await geval(async () => {
+  const ctx = await profiel({ courses: [standaard()] });
+  const p = await tab(ctx, '#/cursus/bewerk/c1');
+  const keys = await vulOpslag(p);
+  await p.getByLabel('Titel van de cursus').fill(NIEUWE_TITEL);
+  await sleep(1300);
+  await terugKnop(p).click();
+  await blokkeerVraag(p).waitFor();
+  await blokkeerVraag(p).getByRole('button', { name: 'Blijven' }).click();
+  await maakVrij(p, keys);
+  await terugKnop(p).click();
+  await p.waitForFunction(() => location.hash === '#/cursussen');
+  await sleep(300);
+  check('na plaats maken: "Terug" bewaart en gaat weg, zonder vraag',
+    (await hash(p)) === '#/cursussen' && (await blokkeerVraag(p).count()) === 0);
+  check('na plaats maken: de nieuwe titel is bewaard', (await cursusIn(p)).title === NIEUWE_TITEL);
+  await ctx.close();
+});
+
+await geval(async () => {
+  const ctx = await profiel({ courses: [standaard()] });
+  const p = await tab(ctx, '#/cursus/bewerk/c1');
+  await p.getByLabel('Titel van de cursus').fill('Snel weg');
+  await terugKnop(p).click(); // binnen de bewaarpauze
+  await p.waitForFunction(() => location.hash === '#/cursussen');
+  await sleep(300);
+  check('gewoon werken: Terug binnen de pauze vraagt niets en bewaart',
+    (await blokkeerVraag(p).count()) === 0 && (await cursusIn(p)).title === 'Snel weg');
+  await ctx.close();
+});
+
+await geval(async () => {
+  const ctx = await profiel({ courses: [standaard()], width: 390, height: 844 });
+  const p = await tab(ctx, '#/cursus/bewerk/c1');
+  await vulOpslag(p);
+  await p.getByLabel('Titel van de cursus').fill(NIEUWE_TITEL);
+  await sleep(1300);
+  await terugKnop(p).click();
+  await blokkeerVraag(p).waitFor();
+  check('de vraag past op 390 px', (await overloop(p)) <= 0, `${await overloop(p)} px`);
+  const rechts = await blokkeerVraag(p).getByRole('button').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().right)));
+  check('alle knoppen van de vraag vallen binnen het scherm', rechts.length >= 3 && rechts.every((r) => r <= 390), JSON.stringify(rechts));
+  await ctx.close();
+});
+
+// ── E3: wat komt niet terug na "Toch bewaren"? ──────────────────────────────
+
+console.log('E3. De melding bij "elders verwijderd" is eerlijk');
+await geval(async () => {
+  const ctx = await profiel({ courses: [standaard()] });
+  const a = await tab(ctx, '#/cursus/bewerk/c1');
+  const b = await tab(ctx, '#/cursussen');
+  await b.evaluate(() => localStorage.setItem('wf.courses.v1', '[]'));
+  await sleep(500);
+  const tekst = await melding(a).innerText();
+  check('verwijderd: de melding staat er', tekst.includes('Verwijderd in een ander tabblad'));
+  check('verwijderd: pdf-bestanden komen niet terug', /pdf/i.test(tekst) && /komt niet terug/.test(tekst), tekst);
+  check('verwijderd: de voortgang van leerlingen en hun notities komen niet terug', /voortgang van je leerlingen/.test(tekst) && /notities/.test(tekst), tekst);
+  check('verwijderd: afbeeldingen die alleen in de cursus zaten kunnen ontbreken', /Afbeeldingen die alleen in deze cursus/.test(tekst), tekst);
+  const rechts = await melding(a).getByRole('button').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().right)));
+  check('verwijderd: de knoppen blijven binnen het scherm', rechts.every((r) => r <= 1280), JSON.stringify(rechts));
+
+  // E8: na "Toch bewaren" (met het toetsenbord) is de knop weg, en de focus niet.
+  await a.getByRole('button', { name: 'Toch bewaren' }).focus();
+  await a.keyboard.press('Enter');
+  await sleep(500);
+  check('"Toch bewaren": de cursus staat terug', (await cursusIn(a))?.code === 'EDT123');
+  check('"Toch bewaren": de focus staat op het titelveld, niet op <body>', await opTitel(a), JSON.stringify(await actief(a)));
+  await ctx.close();
+});
+await geval(async () => {
+  const ctx = await profiel({ courses: [standaard()], width: 390, height: 844 });
+  const a = await tab(ctx, '#/cursus/bewerk/c1');
+  const b = await tab(ctx, '#/cursussen');
+  await b.evaluate(() => localStorage.setItem('wf.courses.v1', '[]'));
+  await sleep(500);
+  check('verwijderd, 390 px: geen horizontaal scrollen', (await overloop(a)) <= 0, `${await overloop(a)} px`);
+  await ctx.close();
+});
+
+// ── E6: wat vraagt bevestiging bij verwijderen? ─────────────────────────────
+
+console.log('E6. Een blok met alleen een bijschrift, titel, bron of notitie vraagt eerst');
+await geval(async () => {
+  const blokken = [
+    { id: 'k1', type: 'divider' },
+    { id: 'k2', type: 'image', url: '' },
+    { id: 'k3', type: 'image', url: '', caption: 'Figuur 3: de waterkringloop' },
+    { id: 'k4', type: 'video', url: '', caption: 'Bekijk dit eerst' },
+    { id: 'k5', type: 'audio', url: '', caption: 'Luisteroefening' },
+    { id: 'k6', type: 'pdf', height: 560, caption: 'Werkblad 2' },
+    { id: 'k7', type: 'embed', url: '', height: 420, title: 'Simulatie' },
+    { id: 'k8', type: 'quote', text: '', source: 'Einstein' },
+    { id: 'k9', type: 'checklist', title: 'Voor je begint', items: [{ id: 'x', text: '' }] },
+    { id: 'k10', type: 'widget', widgetId: '', note: 'Maak dit na de les' },
+  ];
+  const ctx = await profiel({ courses: [cursus([{ id: 's1', title: 'Sectie 1', blocks: blokken }])] });
+  const p = await tab(ctx, '#/cursus/bewerk/c1');
+  check('alle tien de blokken staan in de editor', (await p.locator('.editor-item').count()) === 10);
+  const namen = ['', '', 'afbeelding met bijschrift', 'video met bijschrift', 'audio met bijschrift', 'pdf met bijschrift',
+    'embed met titel', 'citaat met bron', 'checklist met titel', 'widget met notitie'];
+  for (let n = 3; n <= 10; n++) {
+    await p.getByRole('button', { name: `Blok ${n} verwijderen` }).click();
+    await sleep(150);
+    check(`${namen[n - 1]}: eerst bevestigen`, await p.getByRole('dialog', { name: 'Blok verwijderen?' }).isVisible());
+    await p.getByRole('dialog').getByRole('button', { name: 'Annuleren' }).click();
+    await sleep(100);
+  }
+  check('na annuleren staan ze er nog allemaal', (await p.locator('.editor-item').count()) === 10);
+
+  // Een scheidingslijn en een echt leeg blok: zonder vraag.
+  await p.getByRole('button', { name: 'Blok 1 verwijderen' }).click();
+  await sleep(150);
+  check('een scheidingslijn gaat meteen weg, zonder vraag',
+    (await p.getByRole('dialog').count()) === 0 && (await p.locator('.editor-item').count()) === 9);
+  await p.getByRole('button', { name: 'Blok 1 verwijderen' }).click(); // het lege beeld (k2)
+  await sleep(150);
+  check('een leeg beeldblok gaat meteen weg, zonder vraag',
+    (await p.getByRole('dialog').count()) === 0 && (await p.locator('.editor-item').count()) === 8);
+
+  // Eén bevestigd: weg, ook in de opslag.
+  await p.getByRole('button', { name: 'Blok 1 verwijderen' }).click(); // k3, met bijschrift
+  await p.getByRole('dialog').getByRole('button', { name: 'Verwijderen' }).click();
+  await sleep(1300);
+  const rest = (await cursusIn(p)).chapters[0].sections[0].blocks.map((b) => b.id);
+  check('na bevestigen is het blok weg en blijven de andere staan', rest.join(',') === 'k4,k5,k6,k7,k8,k9,k10', rest.join(','));
+  await ctx.close();
+});
+
+// ── E8: focus en Escape ─────────────────────────────────────────────────────
+
+console.log('E8. Na een knop in een melding blijft de focus op een zinvolle plek');
+await geval(async () => {
+  const ctx = await profiel({ courses: [standaard()] });
+  const a = await tab(ctx, '#/cursus/bewerk/c1');
+  const b = await tab(ctx, '#/cursus/bewerk/c1');
+  await maakConflict(a, b);
+  await a.getByRole('button', { name: 'Laad die versie' }).focus();
+  await a.keyboard.press('Enter');
+  await sleep(400);
+  check('"Laad die versie": de melding is weg', (await melding(a).count()) === 0);
+  check('"Laad die versie": de focus staat op het titelveld, niet op <body>', await opTitel(a), JSON.stringify(await actief(a)));
+
+  await maakConflict(a, b, { vanA: 'VAN-A2', vanB: 'VAN-B2' });
+  await a.getByRole('button', { name: 'Mijn versie bewaren' }).focus();
+  await a.keyboard.press('Enter');
+  await sleep(600);
+  check('"Mijn versie bewaren": bewaard', (await cursusIn(a)).chapters[0].sections[0].title === 'VAN-A2');
+  check('"Mijn versie bewaren": de focus staat op het titelveld', await opTitel(a), JSON.stringify(await actief(a)));
+
+  await maakConflict(a, b, { vanA: 'VAN-A3', vanB: 'VAN-B3' });
+  await a.getByRole('button', { name: 'Mijn versie als kopie bewaren' }).focus();
+  await a.keyboard.press('Enter');
+  await sleep(800);
+  check('"Mijn versie als kopie bewaren": we bewerken nu de kopie', a.url().includes('#/cursus/bewerk/') && !a.url().includes('/bewerk/c1'));
+  check('"Mijn versie als kopie bewaren": de focus staat op het titelveld', await opTitel(a), JSON.stringify(await actief(a)));
+  await ctx.close();
+});
+
+await geval(async () => {
+  const ctx = await profiel({ courses: [standaard()] });
+  const p = await tab(ctx, '#/cursus/bewerk/c1');
+  const keys = await vulOpslag(p);
+  await p.getByLabel('Titel van de cursus').fill(NIEUWE_TITEL);
+  await sleep(1300);
+  await p.getByRole('button', { name: 'Opnieuw proberen' }).focus();
+  await p.keyboard.press('Enter');
+  await sleep(300);
+  check('"Opnieuw proberen" zonder plaats: de knop blijft, en de focus erop',
+    (await actief(p))?.tekst.includes('Opnieuw proberen') === true, JSON.stringify(await actief(p)));
+  await maakVrij(p, keys);
+  await p.keyboard.press('Enter');
+  await sleep(500);
+  check('"Opnieuw proberen" met plaats: bewaard', (await cursusIn(p)).title === NIEUWE_TITEL && (await melding(p).count()) === 0);
+  check('"Opnieuw proberen" met plaats: de focus staat op het titelveld', await opTitel(p), JSON.stringify(await actief(p)));
+  await ctx.close();
+});
+
+await geval(async () => {
+  const pdfBlok = { id: 'p1', type: 'pdf', pdfId: 'pdfA', name: 'les.pdf' };
+  const ctx = await profiel({ courses: [cursus([{ id: 's1', title: 'Sectie 1', blocks: [pdfBlok] }])] });
+  const p = await tab(ctx, '#/cursus/bewerk/c1');
+  const blok = p.locator('.editor-item').nth(0);
+  await blok.getByRole('button', { name: 'Verwijderen', exact: true }).click();
+  check('de pdf-vraag staat open, met de focus op "Annuleren"',
+    (await blok.getByRole('group', { name: 'Pdf-bestand verwijderen' }).isVisible()) && (await actief(p))?.tekst === 'Annuleren');
+  await p.keyboard.press('Escape');
+  await sleep(200);
+  check('Escape annuleert de pdf-vraag', (await blok.getByRole('group', { name: 'Pdf-bestand verwijderen' }).count()) === 0);
+  check('Escape: de focus staat terug op "Verwijderen"', (await actief(p))?.tekst === 'Verwijderen', JSON.stringify(await actief(p)));
+  check('Escape: het bestand hangt er nog aan en er ging geen ander venster open',
+    (await blok.getByText('les.pdf').count()) >= 1 && (await p.getByRole('dialog').count()) === 0);
+  await sleep(1200);
+  check('Escape: er is niets gewijzigd of bewaard', (await cursusIn(p)).updatedAt === 1000 && (await cursusIn(p)).chapters[0].sections[0].blocks[0].pdfId === 'pdfA');
+  await ctx.close();
+});
+
+// ── B4: een afbeelding uit een ander tabblad verschijnt vanzelf ─────────────
+
+console.log('B4. Een nieuwe afbeelding uit een ander tabblad is zonder herladen te zien');
+await geval(async () => {
+  const ctx = await profiel({
+    courses: [cursus([{ id: 's1', title: 'Sectie 1', blocks: [{ id: 'i1', type: 'image', url: '', size: 'normal' }] }])],
+  });
+  const a = await tab(ctx, '#/cursus/bewerk/c1');
+  const b = await tab(ctx, '#/cursus/bewerk/c1');
+  const beeld = (p) => p.evaluate(() => {
+    const img = document.querySelector('.editor-item img');
+    return img ? { src: (img.getAttribute('src') || '').slice(0, 5), ok: img.complete && img.naturalWidth > 0 } : null;
+  });
+  await a.locator('.editor-item input[type=file]').first().setInputFiles({ name: 'les.png', mimeType: 'image/png', buffer: maakPng() });
+  await sleep(2000);
+  const inA = await beeld(a);
+  check('A toont de nieuwe afbeelding', inA?.src === 'blob:' && inA.ok, JSON.stringify(inA));
+  const stempel = (await cursusIn(a)).updatedAt;
+  check('A bewaarde de afbeelding (een verwijzing in de opslag)', JSON.stringify(await cursusIn(a)).includes('wfmedia:'));
+  check('B zegt dat er bijgewerkt werd', (await status(b)).includes('Bijgewerkt uit een ander tabblad'), await status(b));
+  let inB = await beeld(b);
+  for (let i = 0; i < 20 && !(inB?.src === 'blob:' && inB.ok); i++) { await sleep(150); inB = await beeld(b); }
+  check('B toont de afbeelding zonder herladen (blob-URL die laadt)', inB?.src === 'blob:' && inB.ok, JSON.stringify(inB));
+  await sleep(1500);
+  const na = await cursusIn(b);
+  check('B schreef niets (zelfde versie, nog altijd verwijzing)', na.updatedAt === stempel && JSON.stringify(na).includes('wfmedia:'));
+  check('B toont geen melding en geen "Niet bewaard"', (await melding(b).count()) === 0 && !(await status(b)).includes('Niet bewaard'));
+  check('B kan verder bouwen: een wijziging in B wordt gewoon bewaard', await (async () => {
+    await b.getByLabel('Titel van de sectie').fill('Verder in B');
+    await sleep(1500);
+    return (await cursusIn(a)).chapters[0].sections[0].title === 'Verder in B' && (await melding(b).count()) === 0;
+  })());
   await ctx.close();
 });
 

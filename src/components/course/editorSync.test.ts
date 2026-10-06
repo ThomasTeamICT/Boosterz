@@ -9,7 +9,7 @@ import { deleteCourse, getCourse, getCourses, pdfReferenceCount, saveCourse, sav
 import type { Course, CourseBlock, CourseSection } from '../../lib/courseTypes';
 import {
   courseCopy, coursePreviewHash, createCourseDraft, decideExternal, pdfIdsInBlocks, pdfRefsInCourse,
-  sectionHasContent, type CourseDraft, type DraftStore,
+  sameCourseContent, sectionHasContent, type CourseDraft, type DraftStore,
 } from './editorSync';
 
 // ── Nagebootste opslag ──────────────────────────────────────────────────────
@@ -110,6 +110,45 @@ describe('decideExternal', () => {
   });
   it('de opslag staat weer op onze versie: het conflict is opgelost', () => {
     expect(decideExternal({ ...base, dirty: true, hasConflict: true, stored: { updatedAt: 10 } })).toBe('opgelost');
+  });
+  it('een andere versie met dezelfde inhoud als op het scherm is geen conflict (E5)', () => {
+    expect(decideExternal({ ...base, dirty: true, sameContent: true, stored: { updatedAt: 11 } })).toBe('gelijk');
+    expect(decideExternal({ ...base, busy: true, sameContent: true, stored: { updatedAt: 11 } })).toBe('gelijk');
+    expect(decideExternal({ ...base, dirty: true, hasConflict: true, sameContent: true, stored: { updatedAt: 11 } })).toBe('gelijk');
+  });
+  it('dezelfde inhoud verandert niets aan de andere uitkomsten', () => {
+    // zonder eigen wijzigingen: gewoon herladen (de nieuwe versie wordt de basis)
+    expect(decideExternal({ ...base, sameContent: true, stored: { updatedAt: 11 } })).toBe('herladen');
+    expect(decideExternal({ ...base, dirty: true, sameContent: true, stored: { updatedAt: 10 } })).toBe('niets');
+    expect(decideExternal({ ...base, dirty: true, sameContent: true, stored: undefined })).toBe('conflict-verwijderd');
+    expect(decideExternal({ ...base, dirty: true, sameContent: false, stored: { updatedAt: 11 } })).toBe('conflict-gewijzigd');
+  });
+});
+
+describe('sameCourseContent (E5)', () => {
+  it('negeert alleen het tijdstempel', () => {
+    expect(sameCourseContent(course(), { ...course(), updatedAt: 9999 })).toBe(true);
+    expect(sameCourseContent(course(), { ...course(), createdAt: 5 })).toBe(false);
+  });
+  it('is gelijk bij een nieuw object met dezelfde inhoud, ook met een andere sleutelvolgorde', () => {
+    const a = course();
+    // dezelfde velden, in omgekeerde volgorde
+    const b = Object.fromEntries(Object.entries(JSON.parse(JSON.stringify(a))).reverse()) as unknown as Course;
+    expect(Object.keys(b)[0]).not.toBe(Object.keys(a)[0]);
+    expect(sameCourseContent(a, b)).toBe(true);
+  });
+  it('ziet een verschil in titel, blok of instelling', () => {
+    expect(sameCourseContent(course(), course('c1', [text('b1', 'Hallo')], { title: 'Andere titel' }))).toBe(false);
+    expect(sameCourseContent(course(), course('c1', [text('b1', 'Hallo!')]))).toBe(false);
+    expect(sameCourseContent(course(), course('c1', [text('b1', 'Hallo'), text('b2', '')]))).toBe(false);
+    const c = course();
+    expect(sameCourseContent(c, { ...c, settings: { ...c.settings, requireName: true } })).toBe(false);
+  });
+  it('een niet-leesbare waarde telt als "niet gelijk" (veilige kant)', () => {
+    const a = course();
+    const rond = { ...course() } as unknown as { self?: unknown };
+    rond.self = rond;
+    expect(sameCourseContent(a, rond as unknown as Course)).toBe(false);
   });
 });
 
@@ -482,5 +521,196 @@ describe('pdf-bestanden opruimen', () => {
     a.edit(retitle('Verder'));
     vi.advanceTimersByTime(800);
     expect(deletedPdfs).toEqual([]);
+  });
+});
+
+// ── E5: een conflict is een verschil in inhoud ──────────────────────────────
+
+describe('een wijziging zonder inhoudelijk verschil (E5)', () => {
+  /** Nieuw object, zelfde inhoud: getypt en teruggedraaid. */
+  const zonderVerschil = (c: Course): Course => ({ ...c, chapters: c.chapters.map((ch) => ({ ...ch })) });
+
+  it('weggaan: een ander tabblad stempelde dezelfde inhoud, dus geen kopie', () => {
+    seed(course());
+    const a = openTab();
+    // het andere tabblad bewaart opnieuw, zonder inhoudelijke wijziging
+    saveCourseGuarded(getCourse('c1')!, 1000);
+    a.edit(zonderVerschil);
+    const out = a.leave();
+    expect(out).toEqual({ copy: null, failed: false });
+    expect(getCourses()).toHaveLength(1);
+    expect(a.getSnapshot()).toMatchObject({ dirty: false, conflict: null });
+  });
+
+  it('bewaren: geen conflict, geen schrijfactie, en verder bouwen op de nieuwe versie', () => {
+    seed(course());
+    const a = openTab();
+    saveCourseGuarded(getCourse('c1')!, 1000);
+    const stamp = getCourse('c1')!.updatedAt;
+    a.edit(zonderVerschil);
+    expect(a.save()).toBe('niets');
+    expect(a.getSnapshot()).toMatchObject({ dirty: false, conflict: null, status: 'idle', saveFailed: false });
+    expect(getCourse('c1')!.updatedAt).toBe(stamp); // niets geschreven
+    // een echte wijziging bewaart daarna gewoon, zonder conflict
+    a.edit(retitle('Echt anders'));
+    vi.advanceTimersByTime(800);
+    expect(a.getSnapshot()).toMatchObject({ status: 'saved', conflict: null });
+    expect(getCourse('c1')?.title).toBe('Echt anders');
+  });
+
+  it('storage-event: dezelfde inhoud elders geeft geen conflictbanner', () => {
+    seed(course());
+    const a = openTab();
+    a.edit(zonderVerschil);
+    saveCourseGuarded(getCourse('c1')!, 1000);
+    expect(a.external()).toBe('gelijk');
+    expect(a.getSnapshot()).toMatchObject({ dirty: false, conflict: null, status: 'idle' });
+    expect(a.current()?.title).toBe('Water'); // het scherm bleef zoals het was
+    a.edit(retitle('Echt anders'));
+    vi.advanceTimersByTime(800);
+    expect(getCourse('c1')?.title).toBe('Echt anders');
+    expect(a.getSnapshot().conflict).toBeNull();
+  });
+
+  it('dezelfde titel in beide tabbladen getypt: ook geen conflict', () => {
+    seed(course());
+    const a = openTab();
+    const b = openTab();
+    b.edit(retitle('Water en wolken'));
+    b.save();
+    a.edit(retitle('Water en wolken'));
+    expect(a.external()).toBe('gelijk');
+    expect(a.getSnapshot()).toMatchObject({ dirty: false, conflict: null });
+    expect(getCourses()).toHaveLength(1);
+  });
+
+  it('een open conflict dat wegvalt omdat het scherm nu gelijk is: weggaan maakt geen kopie', () => {
+    seed(course());
+    const a = openTab();
+    const b = openTab();
+    a.edit(retitle('Van A'));
+    b.edit(rename('Van B'));
+    b.save();
+    expect(a.external()).toBe('conflict-gewijzigd');
+    // de leerkracht in A maakt haar scherm gelijk aan wat B bewaarde
+    a.edit((c) => ({ ...getCourse('c1')!, updatedAt: c.updatedAt }));
+    const out = a.leave();
+    expect(out).toEqual({ copy: null, failed: false });
+    expect(getCourses()).toHaveLength(1);
+    expect(a.getSnapshot().conflict).toBeNull();
+  });
+
+  it('een echt verschil blijft een conflict en geeft een kopie', () => {
+    seed(course());
+    const a = openTab();
+    saveCourseGuarded({ ...getCourse('c1')!, title: 'Van B' }, 1000);
+    a.edit(retitle('Van A'));
+    expect(a.external()).toBe('conflict-gewijzigd');
+    const out = a.leave();
+    expect(out.copy?.title).toBe('Van A (mijn versie)');
+    expect(getCourses()).toHaveLength(2);
+  });
+
+  it('een open AI-venster en dezelfde inhoud elders: geen conflict', () => {
+    seed(course());
+    const a = openTab();
+    a.setBusy(true);
+    saveCourseGuarded(getCourse('c1')!, 1000);
+    expect(a.external()).toBe('gelijk');
+    expect(a.getSnapshot().conflict).toBeNull();
+  });
+
+  it('elders verwijderd blijft een conflict, ook met dezelfde inhoud', () => {
+    seed(course());
+    const a = openTab();
+    a.edit(zonderVerschil);
+    deleteCourse('c1');
+    expect(a.external()).toBe('conflict-verwijderd');
+    expect(a.getSnapshot().conflict).toEqual({ kind: 'verwijderd' });
+  });
+});
+
+// ── B4: media die bij het overnemen nog ontbrak ─────────────────────────────
+
+describe('refresh: media die later binnenkomt (B4)', () => {
+  const image = (url: string): CourseBlock => ({ id: 'i1', type: 'image', url });
+  const urlOf = (c: Course | undefined) => (c?.chapters[0].sections[0].blocks[0] as { url: string }).url;
+  /** Een opslag waarvan de media-oplossing van buiten te sturen is: eerst een open verwijzing, later een blob-URL. */
+  function metMedia() {
+    let resolved = false;
+    const st = store({
+      read: (id) => {
+        const c = getCourse(id);
+        if (!c) return c;
+        return resolved
+          ? { ...c, chapters: [{ ...c.chapters[0], sections: [{ ...c.chapters[0].sections[0], blocks: [image('blob:nieuw')] }] }] }
+          : c;
+      },
+    });
+    return { st, laad: () => { resolved = true; } };
+  }
+
+  it('toont de afbeelding zodra ze binnen is, zonder iets te schrijven', () => {
+    seed(course('c1', [image('wfmedia:m_nieuw')]));
+    const { st, laad } = metMedia();
+    const a = createCourseDraft(st, getCourse('c1'));
+    expect(urlOf(a.current())).toBe('wfmedia:m_nieuw');
+    laad();
+    expect(a.refresh()).toBe(true);
+    expect(urlOf(a.current())).toBe('blob:nieuw');
+    expect(a.getSnapshot()).toMatchObject({ dirty: false, conflict: null });
+    vi.advanceTimersByTime(5000);
+    expect(getCourse('c1')!.updatedAt).toBe(1000); // niets geschreven
+    expect(urlOf(getCourse('c1'))).toBe('wfmedia:m_nieuw');
+  });
+
+  it('doet niets als de media nog niet opgelost raakte (geen lus van vervangingen)', () => {
+    seed(course('c1', [image('wfmedia:m_weg')]));
+    const a = openTab();
+    const voor = a.current();
+    expect(a.refresh()).toBe(false);
+    expect(a.refresh()).toBe(false);
+    expect(a.current()).toBe(voor);
+  });
+
+  it('laat onbewaarde wijzigingen met rust', () => {
+    seed(course('c1', [image('wfmedia:m_nieuw')]));
+    const { st, laad } = metMedia();
+    const a = createCourseDraft(st, getCourse('c1'));
+    a.edit(retitle('Net getypt'));
+    laad();
+    expect(a.refresh()).toBe(false);
+    expect(a.current()?.title).toBe('Net getypt');
+    expect(urlOf(a.current())).toBe('wfmedia:m_nieuw');
+  });
+
+  it('laat een open conflict met rust', () => {
+    seed(course('c1', [image('wfmedia:m_nieuw')]));
+    const { st, laad } = metMedia();
+    const a = createCourseDraft(st, getCourse('c1'));
+    a.edit(retitle('Van A'));
+    saveCourseGuarded({ ...getCourse('c1')!, title: 'Van B' }, 1000);
+    expect(a.external()).toBe('conflict-gewijzigd');
+    laad();
+    expect(a.refresh()).toBe(false);
+    expect(a.getSnapshot().conflict?.kind).toBe('gewijzigd');
+  });
+
+  it('neemt niets over als de opslag intussen een andere versie draagt', () => {
+    seed(course('c1', [image('wfmedia:m_nieuw')]));
+    const { st, laad } = metMedia();
+    const a = createCourseDraft(st, getCourse('c1'));
+    saveCourseGuarded({ ...getCourse('c1')!, title: 'Elders gewijzigd' }, 1000);
+    laad();
+    expect(a.refresh()).toBe(false);
+    expect(a.current()?.title).toBe('Water'); // external() beslist, niet refresh()
+  });
+
+  it('een cursus die niet meer bestaat: niets te vernieuwen', () => {
+    seed(course('c1', [image('wfmedia:m_nieuw')]));
+    const a = openTab();
+    deleteCourse('c1');
+    expect(a.refresh()).toBe(false);
+    expect(createCourseDraft(store(), undefined).refresh()).toBe(false);
   });
 });

@@ -421,7 +421,15 @@ function PdfBlockEditor({
             </>
           )}
           {confirmRemove && (
-            <div className="pdf-remove-confirm" role="group" aria-label="Pdf-bestand verwijderen">
+            <div
+              className="pdf-remove-confirm"
+              role="group"
+              aria-label="Pdf-bestand verwijderen"
+              onKeyDown={(e) => {
+                // Escape annuleert de vraag (E8), net als in elke andere bevestiging.
+                if (e.key === 'Escape') { e.stopPropagation(); cancelRemove(); }
+              }}
+            >
               <p style={{ margin: 0 }}>
                 Dit pdf-bestand uit het blok halen? Gebruikt niets anders het nog, dan verdwijnt het ook van dit
                 toestel. Dat kan je niet ongedaan maken.

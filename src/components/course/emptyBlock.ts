@@ -37,6 +37,31 @@ export function isEmptyBlock(block: CourseBlock): boolean {
   }
 }
 
+/**
+ * Gaat er niets verloren als de leerkracht dit blok in de editor verwijdert?
+ * Strenger dan isEmptyBlock: een blok zonder bestand maar mét bijschrift, een
+ * embed met titel, een citaat met bron, een checklist met titel of een
+ * oefening met notitie is voor een leerling leeg, maar de leerkracht typte
+ * die tekst en verliest ze. Een scheidingslijn bevat niets om te verliezen
+ * (ze is zo opnieuw gezet). Alleen voor de editor: de lezer en de afdrukversie
+ * gebruiken isEmptyBlock om te bepalen wat een leerling ziet.
+ */
+export function nietsTeVerliezen(block: CourseBlock): boolean {
+  if (block.type === 'divider') return true;
+  if (!isEmptyBlock(block)) return false;
+  switch (block.type) {
+    case 'image':
+    case 'video':
+    case 'audio':
+    case 'pdf': return blank(block.caption);
+    case 'embed': return blank(block.title);
+    case 'quote': return blank(block.source);
+    case 'checklist': return blank(block.title);
+    case 'widget': return blank(block.note);
+    default: return true;
+  }
+}
+
 /** De blokken die een leerling te zien krijgt: zonder de lege. */
 export function leerlingBlokken(blocks: CourseBlock[]): CourseBlock[] {
   return blocks.filter((b) => !isEmptyBlock(b));

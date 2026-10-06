@@ -9,23 +9,24 @@
 // eerlijk "Niet bewaard" bij een volle opslag, en pdf-bestanden pas opruimen
 // na een geslaagde bewaring.
 
-import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom';
 import { Blocks, ExternalLink } from 'lucide-react';
 import type { Course, CourseBlock, CourseBlockType, CourseChapter, CourseSection } from '../lib/courseTypes';
 import { allSections } from '../lib/courseTypes';
 import type { Curriculum } from '../lib/curriculumTypes';
 import {
-  getCourse, makeBlock, onCoursesChangedElsewhere, pdfReferenceCount, saveCourse, saveCourseGuarded,
+  exportCourseJson, getCourse, makeBlock, onCoursesChangedElsewhere, pdfReferenceCount, saveCourse, saveCourseGuarded,
 } from '../lib/courses';
+import { hasUnresolvedMedia, onMediaChange } from '../lib/mediaStore';
 import { deletePdf } from '../lib/pdfStore';
 import { onStorageNotice } from '../lib/storageHealth';
 import { getCurricula, getCurriculum } from '../lib/curriculum';
 import { getWidgets } from '../lib/storage';
-import { makeCode, uid } from '../lib/utils';
+import { downloadFile, makeCode, uid } from '../lib/utils';
 import { CheckRow, ConfirmModal, EmptyState, Field, Modal, useToast } from '../components/ui';
 import { BLOCK_META, BlockEditor, PALETTE_ORDER, blockIcon, duplicateBlock } from '../components/course/blockEditors';
-import { isEmptyBlock } from '../components/course/emptyBlock';
+import { isEmptyBlock, nietsTeVerliezen } from '../components/course/emptyBlock';
 import {
   coursePreviewHash, createCourseDraft, pdfIdsInBlocks, sectionHasContent,
   type DraftSnapshot, type DraftStore, type EditorConflict,
@@ -35,7 +36,7 @@ import { GoalCodeInput } from '../components/curriculum/GoalCodeInput';
 import { GoalCoverage } from '../components/course/GoalCoverage';
 import type { OptimizePreset } from '../lib/aiCourse';
 import {
-  AddIcon, AIIcon, BackIcon, CheckIcon, CourseIcon, DeleteIcon, DuplicateIcon, GoalIcon, InfoIcon,
+  AddIcon, AIIcon, BackIcon, CheckIcon, CourseIcon, DeleteIcon, DownloadIcon, DuplicateIcon, GoalIcon, InfoIcon,
   MoveDownIcon, MoveUpIcon, PreviewIcon, PrintIcon, ResultsIcon, RetryIcon, SettingsIcon, WarningIcon,
 } from '../components/icons';
 import '../styles/cursus.css';
@@ -204,6 +205,29 @@ export function CourseEditorPage() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [guardLeave]);
 
+  // Weggaan binnen de app (Terug, een link, de vorige-knop van de browser)
+  // terwijl bewaren niet lukt (E2): eerst nog eens proberen te bewaren, en
+  // lukt het niet, dan vragen. Met een open conflict komt het werk in een
+  // kopie (afspraak 5), dus dan vraagt de editor niets.
+  const shouldBlock = useCallback(() => {
+    const s = draft.getSnapshot();
+    if (!s.dirty || s.conflict) return false;
+    return draft.save() === 'mislukt';
+  }, [draft]);
+  const blocker = useBlocker(shouldBlock);
+
+  // Media uit een ander tabblad die er bij het overnemen nog niet was (nieuwe
+  // afbeelding) komt even later binnen: dan opnieuw lezen, anders blijft ze
+  // kapot tot herladen (B4). Gebeurt niets als er iets onbewaard is.
+  useEffect(() => onMediaChange(() => {
+    const c = draft.current();
+    if (c && hasUnresolvedMedia(c)) draft.refresh();
+  }), [draft]);
+
+  /** Na een knop in een melding verdwijnt die knop: de focus mag niet op <body> belanden (E8). */
+  const titleRef = useRef<HTMLInputElement>(null);
+  const focusTitle = () => { titleRef.current?.focus(); };
+
   // Leerplan van de cursus (voor de doelcodes en de dekking). De widgets halen
   // we pas op als het dekkingspaneel echt opengaat — dat scheelt werk bij elke
   // toetsaanslag in de editor.
@@ -238,17 +262,24 @@ export function CourseEditorPage() {
 
   const retrySave = () => {
     const out = draft.save();
-    if (out === 'mislukt') toast('Nog altijd niet bewaard. Maak eerst plaats vrij op dit toestel.', 'err');
-    else if (out === 'bewaard') toast('Bewaard', 'ok');
+    if (out === 'mislukt') {
+      toast('Nog altijd niet bewaard. Maak eerst plaats vrij op dit toestel.', 'err');
+      return; // de knop blijft staan, dus de focus ook
+    }
+    if (out === 'bewaard') toast('Bewaard', 'ok');
+    focusTitle();
   };
 
   // Keuzes bij een conflict met een ander tabblad.
   const loadTheirs = () => {
     if (draft.loadTheirs()) toast('Je ziet nu de versie uit het andere tabblad.', 'info');
+    focusTitle();
   };
   const keepMine = () => {
-    if (draft.keepMine() === 'bewaard') toast('Jouw versie is bewaard.', 'ok');
-    else toast('Bewaren is mislukt. Je versie staat nog op het scherm.', 'err');
+    if (draft.keepMine() === 'bewaard') {
+      toast('Jouw versie is bewaard.', 'ok');
+      focusTitle();
+    } else toast('Bewaren is mislukt. Je versie staat nog op het scherm.', 'err');
   };
   const saveCopy = () => {
     const copy = draft.saveCopy();
@@ -257,7 +288,25 @@ export function CourseEditorPage() {
       return;
     }
     toast(`Je versie staat apart als “${copy.title}”. Het origineel bleef zoals in het andere tabblad.`, 'ok');
+    focusTitle();
     navigate(`/cursus/bewerk/${copy.id}`);
+  };
+
+  /** De cursus als bestand bewaren, zoals de export op "Mijn cursussen" (E2: een uitweg als bewaren niet lukt). */
+  const downloadCourse = async () => {
+    const cur = draft.current();
+    if (!cur) return;
+    try {
+      downloadFile(`${cur.title.trim() || 'cursus'}.json`, await exportCourseJson(cur));
+      toast('De cursus is gedownload als bestand. Terugzetten kan op “Mijn cursussen” met “JSON openen”.', 'ok');
+    } catch {
+      toast('Downloaden is mislukt. Probeer opnieuw; lukt het niet, dan is de cursus misschien te groot voor dit toestel.', 'err');
+    }
+  };
+  /** Bewust weggaan zonder bewaren: eerst loslaten, zodat het afbreken niet nog eens een foutmelding geeft. */
+  const leaveAnyway = () => {
+    draft.discard();
+    blocker.proceed?.();
   };
   const discardAndLeave = () => {
     draft.discard();
@@ -295,7 +344,7 @@ export function CourseEditorPage() {
     edit((c) => patchChapter(c, p.chapterId, (chap) => ({ ...chap, sections: chap.sections.filter((s) => s.id !== p.sectionId) })));
   };
 
-  /** Direct verwijderen als er niets in zit; anders eerst bevestigen (CU3, CU15e). */
+  /** Direct verwijderen als er niets in zit; anders eerst bevestigen (CU3, CU15e, E6). */
   const askDelete = (p: PendingDelete) => {
     const cur = draft.current();
     if (!cur) return;
@@ -310,7 +359,7 @@ export function CourseEditorPage() {
     } else {
       const block = findBlock(cur, p.sectionId, p.blockId);
       if (!block) return;
-      if (isEmptyBlock(block)) { doDelete(p); return; }
+      if (nietsTeVerliezen(block)) { doDelete(p); return; }
     }
     setPendingDelete(p);
   };
@@ -340,6 +389,7 @@ export function CourseEditorPage() {
           {course.coverEmoji}
         </span>
         <input
+          ref={titleRef}
           className="input input-sm"
           style={{ maxWidth: 320, fontWeight: 700, fontSize: '1.02rem' }}
           value={course.title}
@@ -409,7 +459,7 @@ export function CourseEditorPage() {
             message={notice !== null && notice.at > snap.savedAt ? notice.message : SAVE_FAILED_TEXT}
             failed={snap.saveFailed}
             onRetry={retrySave}
-            onDismiss={() => setNotice(null)}
+            onDismiss={() => { setNotice(null); focusTitle(); }}
           />
         )}
 
@@ -456,6 +506,27 @@ export function CourseEditorPage() {
             onFillGaps={() => { setGoalsOpen(false); setAiModal({ mode: 'optimize', preset: 'hiaten' }); }}
             onOpenSettings={() => { setGoalsOpen(false); setSettingsOpen(true); }}
           />
+        </Modal>
+      )}
+
+      {blocker.state === 'blocked' && (
+        <Modal
+          title="Je wijzigingen zijn niet bewaard"
+          onClose={() => blocker.reset()}
+          footer={
+            <>
+              <button type="button" className="btn btn-primary" onClick={() => blocker.reset()}>Blijven</button>
+              <button type="button" className="btn btn-ghost" onClick={() => void downloadCourse()}>
+                <DownloadIcon size={18} aria-hidden /> Downloaden als bestand
+              </button>
+              <button type="button" className="btn btn-danger" onClick={leaveAnyway}>Toch weggaan</button>
+            </>
+          }
+        >
+          <p>
+            Bewaren op dit toestel lukt niet: de opslag is vol of geblokkeerd. Als je nu weggaat, gaan je laatste
+            wijzigingen aan de cursus verloren. Download de cursus eerst als bestand als je ze wil houden.
+          </p>
         </Modal>
       )}
 
@@ -537,6 +608,11 @@ function ConflictBanner({
               {dirty ? 'Wijzigingen weggooien' : 'Naar mijn cursussen'}
             </button>
           </div>
+          <p className="hint course-editor-alert-hint">
+            Kies je “Toch bewaren”, dan staat de cursus er weer. Wat bij het verwijderen meeging, komt niet terug:
+            geüploade pdf’s, de voortgang van je leerlingen en hun notities. Afbeeldingen die alleen in deze cursus
+            zaten, kunnen ook ontbreken.
+          </p>
         </div>
       </div>
     );
