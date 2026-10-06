@@ -319,6 +319,110 @@ describe.runIf(ECHT)('opnieuw samenstellen: bestaande codes blijven, oude codes 
   });
 });
 
+describe.runIf(ECHT)('opnieuw samenstellen over meer aanpassingen heen: weggelaten codes blijven gereserveerd (C1, echte sets)', () => {
+  // ODS_3343 (Nederlands A) en ODS_3351 (Nederlands B) hebben allebei een doel met code BG02.01: 92268 en 92271.
+  const alle = (...ids: string[]): SetKeuze[] => ids.map((id) => ({ bestand: laad(id), doelen: 'alle' }));
+  const bewaar = (cur: Curriculum) => importCurriculumJson(exportCurriculumJson(cur)) as Curriculum;
+  const codeVan = (cur: Curriculum, id: string) => cur.goals.find((g) => g.refs![0].id === id)?.code;
+  const nederlandsA = [
+    { code: 'BG02.01', set: 'ODS_3343', id: '92268' },
+    { code: 'BG02.02', set: 'ODS_3343', id: '92269' },
+    { code: 'BG02.03', set: 'ODS_3343', id: '92270' },
+  ];
+  const eerst = ECHT ? bewaar(leerplanUitSelectie(alle('ODS_3343', 'ODS_3345'), { titel: 'T' }).leerplan) : ({} as Curriculum);
+  const r2 = ECHT ? leerplanUitSelectie(alle('ODS_3345'), { titel: 'T', bestaand: eerst }) : undefined;
+  const tweede = ECHT ? bewaar(r2!.leerplan) : ({} as Curriculum);
+
+  it('ODS_3343 weglaten: de lijst onthoudt de codes van Nederlands A, blijft nagekeken en waarschuwt', () => {
+    expect(codeVan(eerst, '92268')).toBe('BG02.01');
+    expect(eerst.weggelatenCodes).toBeUndefined();
+    expect(r2!.bevestigd).toBe(true);
+    expect(r2!.leerplan.weggelatenCodes).toEqual(nederlandsA);
+    expect(r2!.waarschuwingen).toEqual([
+      '3 doelen uit de bewaarde lijst vallen weg (BG02.01, BG02.02, BG02.03). Is een cursus of widget aan zo\'n doel gekoppeld, dan vindt die het doel niet meer in deze lijst.',
+    ]);
+    // Exporteren en importeren behoudt het veld en de status.
+    expect(controleStatus(tweede)).toBe('gecontroleerd');
+    expect(tweede.weggelatenCodes).toEqual(nederlandsA);
+  });
+
+  it('daarna ODS_3351 erbij: 92271 krijgt NIET BG02.01 (die is van 92268), maar "BG02.01 (B)"', () => {
+    const r3 = leerplanUitSelectie(alle('ODS_3345', 'ODS_3351'), { titel: 'T', bestaand: tweede });
+    expect(r3.bevestigd).toBe(true);
+    expect(codeVan(r3.leerplan, '92271')).toBe('BG02.01 (B)');
+    expect(codes(r3.leerplan)).not.toContain('BG02.01');
+    expect(codes(r3.leerplan).filter((c) => nederlandsA.some((w) => w.code === c))).toEqual([]);
+    // De codes van Nederlands A blijven gereserveerd, ook na nog een keer bewaren.
+    const derde = bewaar(r3.leerplan);
+    expect(derde.weggelatenCodes).toEqual(nederlandsA);
+    expect(controleStatus(derde)).toBe('gecontroleerd');
+    // Er viel niets weg uit de bewaarde lijst: geen waarschuwing.
+    expect(r3.waarschuwingen).toEqual([]);
+
+    // En dan ODS_3343 terug: 92268 krijgt opnieuw BG02.01 (de koppeling herstelt), 92271 houdt "BG02.01 (B)".
+    const r4 = leerplanUitSelectie(alle('ODS_3343', 'ODS_3345', 'ODS_3351'), { titel: 'T', bestaand: derde });
+    expect(r4.bevestigd).toBe(true);
+    expect(codeVan(r4.leerplan, '92268')).toBe('BG02.01');
+    expect(codeVan(r4.leerplan, '92269')).toBe('BG02.02');
+    expect(codeVan(r4.leerplan, '92271')).toBe('BG02.01 (B)');
+    expect(r4.leerplan.weggelatenCodes).toBeUndefined();
+    expect(bewaar(r4.leerplan).weggelatenCodes).toBeUndefined();
+  });
+
+  it('ODS_3343 meteen terugzetten: dezelfde codes en dezelfde vingerafdruk als de eerste keer', () => {
+    const r = leerplanUitSelectie(alle('ODS_3343', 'ODS_3345'), { titel: 'T', bestaand: tweede });
+    expect(r.bevestigd).toBe(true);
+    expect(codes(r.leerplan)).toEqual(codes(eerst));
+    expect(doelenVingerafdruk(r.leerplan.goals)).toBe(doelenVingerafdruk(eerst.goals));
+    expect(r.leerplan.weggelatenCodes).toBeUndefined();
+  });
+
+  it('een lijst zonder `weggelatenCodes` (van vóór deze versie) kan de oude codes niet meer reserveren', () => {
+    const zonder: Curriculum = { ...tweede };
+    delete zonder.weggelatenCodes;
+    const r = leerplanUitSelectie(alle('ODS_3345', 'ODS_3351'), { titel: 'T', bestaand: zonder });
+    expect(codeVan(r.leerplan, '92271')).toBe('BG02.01');
+  });
+
+  it('het veld telt niet mee in de vingerafdruk: dezelfde doelen zonder het veld hebben dezelfde vingerafdruk', () => {
+    const vers = leerplanUitSelectie(alle('ODS_3345'), { titel: 'T' }).leerplan;
+    expect(vers.weggelatenCodes).toBeUndefined();
+    expect(doelenVingerafdruk(tweede.goals)).toBe(doelenVingerafdruk(vers.goals));
+    expect(tweede.controle!.doelenSha256).toBe(vers.controle!.doelenSha256);
+  });
+});
+
+describe.runIf(ECHT)('hetzelfde minimumdoel via twee sets: een waarschuwing, niet ontdubbeld (C3, echte sets)', () => {
+  const stem = 'Wiskunde – natuurwetenschappen – technologie – STEM';
+
+  it('ODS_3283 (gewoon) en ODS_3300 (buitengewoon) delen hun 44 doelen: 88 doelen, nagekeken, met een waarschuwing', () => {
+    const r = leerplanUitSelectie([{ bestand: laad('ODS_3283'), doelen: 'alle' }, { bestand: laad('ODS_3300'), doelen: 'alle' }], { titel: 'T' });
+    expect(r.leerplan.goals).toHaveLength(88);
+    expect(r.bevestigd).toBe(true);
+    expect(r.waarschuwingen).toEqual([
+      `${stem} (ODS_3300): 44 doelen staan ook in ${stem} (ODS_3283); het zijn dezelfde minimumdoelen. Ze staan nu twee keer in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg.`,
+    ]);
+    // De volgorde van de sets bepaalt welke set "eerst" is.
+    const omgekeerd = leerplanUitSelectie([{ bestand: laad('ODS_3300'), doelen: 'alle' }, { bestand: laad('ODS_3283'), doelen: 'alle' }], { titel: 'T' });
+    expect(omgekeerd.waarschuwingen).toEqual([
+      `${stem} (ODS_3283): 44 doelen staan ook in ${stem} (ODS_3300); het zijn dezelfde minimumdoelen. Ze staan nu twee keer in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg.`,
+    ]);
+  });
+
+  it('één gedeeld doel: enkelvoud; alleen de gekozen doelen tellen', () => {
+    const a = laad('ODS_3283');
+    const b = laad('ODS_3300');
+    const r = leerplanUitSelectie([{ bestand: a, doelen: ['92134', '92135'] }, { bestand: b, doelen: ['92135', '92136'] }], { titel: 'T' });
+    expect(r.bevestigd).toBe(true);
+    expect(r.leerplan.goals).toHaveLength(4);
+    expect(r.waarschuwingen).toEqual([
+      `${stem} (ODS_3300): 1 doel staat ook in ${stem} (ODS_3283); het is hetzelfde minimumdoel. Het staat nu twee keer in je lijst. Wil je het maar één keer, haal dan een van beide sets weg.`,
+    ]);
+    // Geen gedeeld doel gekozen: geen waarschuwing.
+    expect(leerplanUitSelectie([{ bestand: a, doelen: ['92134'] }, { bestand: b, doelen: ['92136'] }], { titel: 'T' }).waarschuwingen).toEqual([]);
+  });
+});
+
 describe.runIf(ECHT)('met veel echte sets', () => {
   const geldig = (graad: string) => index().sets.filter((s) => s.geldigheid === 'Geldig' && soortVanSet(s.naam) === 'so' && s.graad === graad);
 
@@ -662,6 +766,107 @@ describe('leerplanUitSelectie: codes bij opnieuw samenstellen (nagemaakte sets)'
     // B weg: A houdt "(A)"; de vrijgekomen gewone code "1.01" mag A niet aannemen (dat zou de code veranderen).
     const zonderB = leerplanUitSelectie([{ bestand: a, doelen: 'alle' }], { titel: 'T', bestaand: samen }).leerplan;
     expect(codes(zonderB)).toEqual(['1.01 (A)', '1.02 (A)', '1.03 (A)']);
+  });
+});
+
+describe('leerplanUitSelectie: doelen die uit de bewaarde lijst wegvallen (C2, nagemaakte sets)', () => {
+  const s1 = drieDoelen('ODS_9001', 'a');
+  const s2 = drieDoelen('ODS_9002', 'b', { korteNaam: 'Ander', stroom: 'B-stroom' });
+  const eerst = leerplanUitSelectie([{ bestand: s1, doelen: 'alle' }], { titel: 'T' }).leerplan;
+  const gevolg = 'Is een cursus of widget aan zo\'n doel gekoppeld, dan vindt die het doel niet meer in deze lijst.';
+
+  it('noemt hoeveel doelen wegvallen, met hun codes, en bewaart die codes in `weggelatenCodes`', () => {
+    const r = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T', bestaand: eerst });
+    expect(r.waarschuwingen).toEqual([`2 doelen uit de bewaarde lijst vallen weg (1.02, 1.03). ${gevolg}`]);
+    expect(r.bevestigd).toBe(true);
+    expect(r.leerplan.weggelatenCodes).toEqual([{ code: '1.02', set: 'ODS_9001', id: 'a2' }, { code: '1.03', set: 'ODS_9001', id: 'a3' }]);
+  });
+
+  it('één doel: enkelvoud', () => {
+    const r = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }], { titel: 'T', bestaand: eerst });
+    expect(r.waarschuwingen).toEqual(['1 doel uit de bewaarde lijst valt weg (1.03). Is een cursus of widget aan dat doel gekoppeld, dan vindt die het doel niet meer in deze lijst.']);
+  });
+
+  it('hoogstens 5 codes, daarna "…"', () => {
+    const groot = maakSet('ODS_9010', Array.from({ length: 7 }, (_, i) => doel(`g${i + 1}`, `G${i + 1}`, `Doel ${i + 1}.`)));
+    const bewaard = leerplanUitSelectie([{ bestand: groot, doelen: 'alle' }], { titel: 'T' }).leerplan;
+    const r = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T', bestaand: bewaard });
+    expect(r.waarschuwingen).toEqual([`7 doelen uit de bewaarde lijst vallen weg (G1, G2, G3, G4, G5, …). ${gevolg}`]);
+    expect(r.leerplan.weggelatenCodes!.map((w) => w.code)).toEqual(['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7']);
+    // Precies 5: geen "…".
+    const vijf = leerplanUitSelectie([{ bestand: groot, doelen: ['g6', 'g7'] }], { titel: 'T', bestaand: bewaard });
+    expect(vijf.waarschuwingen).toEqual([`5 doelen uit de bewaarde lijst vallen weg (G1, G2, G3, G4, G5). ${gevolg}`]);
+  });
+
+  it('geen waarschuwing als niets wegvalt (dezelfde keuze, iets erbij, of zonder `bestaand`)', () => {
+    expect(leerplanUitSelectie([{ bestand: s1, doelen: 'alle' }], { titel: 'T', bestaand: eerst }).waarschuwingen).toEqual([]);
+    const meer = leerplanUitSelectie([{ bestand: s1, doelen: 'alle' }, { bestand: s2, doelen: ['b1'] }], { titel: 'T', bestaand: eerst });
+    expect(meer.waarschuwingen).toEqual([]);
+    expect(meer.leerplan.weggelatenCodes).toBeUndefined();
+    expect(leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T' }).waarschuwingen).toEqual([]);
+  });
+
+  it('een lijst zonder doelen (niets gekozen) houdt alle oude codes gereserveerd, zonder waarschuwing over wegvallen', () => {
+    const r = leerplanUitSelectie([], { titel: 'T', bestaand: eerst });
+    expect(r.waarschuwingen).toEqual(['Kies minstens één doel.']);
+    expect(r.leerplan.weggelatenCodes!.map((w) => w.code)).toEqual(['1.01', '1.02', '1.03']);
+  });
+
+  it('een doel dat in een vorige aanpassing wegviel, krijgt zijn code terug; een ander doel krijgt ze nooit', () => {
+    const zonderA3 = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }], { titel: 'T', bestaand: eerst }).leerplan;
+    // Een andere set met dezelfde code 1.03: die code is van a3, dus b3 krijgt een onderscheid.
+    const metB = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }, { bestand: s2, doelen: ['b3'] }], { titel: 'T', bestaand: zonderA3 });
+    expect(codes(metB.leerplan)).toEqual(['1.01', '1.02', '1.03 (B)']);
+    expect(metB.leerplan.weggelatenCodes).toEqual([{ code: '1.03', set: 'ODS_9001', id: 'a3' }]);
+    const terug = leerplanUitSelectie([{ bestand: s1, doelen: 'alle' }, { bestand: s2, doelen: ['b3'] }], { titel: 'T', bestaand: metB.leerplan });
+    expect(codes(terug.leerplan)).toEqual(['1.01', '1.02', '1.03', '1.03 (B)']);
+    expect(terug.leerplan.weggelatenCodes).toBeUndefined();
+    expect(terug.bevestigd).toBe(true);
+  });
+
+  it('een geknoeide `weggelatenCodes` in de bewaarde lijst: geen crash, een doel in de lijst gaat voor, codes blijven uniek', () => {
+    const eenDoel = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T' }).leerplan;
+    const geknoeid = {
+      ...eenDoel,
+      weggelatenCodes: [
+        null, 'rommel', 7, { code: 5, set: 'ODS_9001', id: 'a2' },
+        { code: ' 1.02 ', set: 'ODS_9001', id: 'a2' }, // kleine afwijking: toch van a2
+        { code: '1.01', set: 'ODS_9001', id: 'a3' }, // de code van een doel in de lijst: blijft van a1
+        { code: '1.03', set: '', id: 'a3' }, // geen eigenaar: gereserveerd, maar van niemand
+        { code: 'B9', set: 'ODS_9002', id: 'b9' },
+      ],
+    } as unknown as Curriculum;
+    const r = leerplanUitSelectie([{ bestand: s1, doelen: 'alle' }], { titel: 'T', bestaand: geknoeid });
+    expect(r.bevestigd).toBe(true);
+    expect(codes(r.leerplan)).toEqual(['1.01', '1.02', '1.03 (A)']);
+    // Wat overblijft, is gesaneerd: alleen de eigenaar die niet terugkwam.
+    expect(r.leerplan.weggelatenCodes).toEqual([{ code: 'B9', set: 'ODS_9002', id: 'b9' }]);
+    expect(sanitizeCurriculum(r.leerplan)).toStrictEqual(r.leerplan);
+  });
+});
+
+describe('leerplanUitSelectie: hetzelfde minimumdoel via meer sets (C3, nagemaakte sets)', () => {
+  const metIds = (id: string, ids: string[], kop: Partial<MinimumdoelenSetKop> = {}) =>
+    maakSet(id, ids.map((d, i) => doel(d, `1.0${i + 1}`, `Doel ${d}.`)), kop);
+
+  it('een waarschuwing per paar sets, in de volgorde van de sets; doelen die maar één keer voorkomen tellen niet', () => {
+    const a = metIds('ODS_9001', ['x1', 'x2', 'x3']);
+    const b = metIds('ODS_9002', ['x1', 'x2', 'y1'], { korteNaam: 'Bee' });
+    const c = metIds('ODS_9003', ['y1', 'x3', 'z1'], { korteNaam: 'Cee' });
+    const r = leerplanUitSelectie([{ bestand: a, doelen: 'alle' }, { bestand: b, doelen: 'alle' }, { bestand: c, doelen: 'alle' }], { titel: 'T' });
+    expect(r.leerplan.goals).toHaveLength(9);
+    expect(r.bevestigd).toBe(true);
+    expect(r.waarschuwingen).toEqual([
+      'Bee (ODS_9002): 2 doelen staan ook in Testvak (ODS_9001); het zijn dezelfde minimumdoelen. Ze staan nu twee keer in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg.',
+      'Cee (ODS_9003): 1 doel staat ook in Testvak (ODS_9001); het is hetzelfde minimumdoel. Het staat nu twee keer in je lijst. Wil je het maar één keer, haal dan een van beide sets weg.',
+      'Cee (ODS_9003): 1 doel staat ook in Bee (ODS_9002); het is hetzelfde minimumdoel. Het staat nu twee keer in je lijst. Wil je het maar één keer, haal dan een van beide sets weg.',
+    ]);
+  });
+
+  it('twee keer hetzelfde vaste nummer binnen één set is geen dubbel over sets', () => {
+    const s = metIds('ODS_9001', ['x1', 'x1']);
+    const r = leerplanUitSelectie([{ bestand: s, doelen: 'alle' }], { titel: 'T' });
+    expect(r.waarschuwingen.filter((w) => /twee keer in je lijst/.test(w))).toEqual([]);
   });
 });
 

@@ -10,6 +10,7 @@ import type {
   CurriculumHerkomst,
   CurriculumMethode,
   MinimumdoelRef,
+  WeggelatenCode,
 } from './curriculumTypes';
 import { CURRICULUM_NETS } from './curriculumTypes';
 // Alleen een type: curriculumCheck.ts gebruikt dit bestand, dus geen import tijdens het uitvoeren.
@@ -205,6 +206,8 @@ export const MAX_DOELCODE = 60;
 /** Langste voorvoegsel van een automatische code, zodat de code zelf onder `MAX_DOELCODE` blijft. */
 const MAX_AUTO_VOORVOEGSEL = 40;
 const MAX_REFS = 50;
+/** Langste vast nummer (`id`) in een verwijzing naar een minimumdoel. */
+const MAX_REF_ID = 64;
 /** Hoeveel sets minimumdoelen een leerplan hoogstens noemt (`minimumdoelenSets`); wat erboven gaat, valt weg bij het saneren. */
 export const MAX_SETS = 50;
 /**
@@ -243,7 +246,7 @@ function sanitizeRefs(raw: unknown): MinimumdoelRef[] | undefined {
     const set = typeof r.set === 'string' ? r.set.trim() : '';
     if (!SET_ID.test(set)) continue;
     const id = typeof r.id === 'string' ? r.id.trim() : isEindig(r.id) ? String(r.id) : '';
-    if (id === '' || id.length > 64) continue;
+    if (id === '' || id.length > MAX_REF_ID) continue;
     const code = typeof r.code === 'string' ? r.code.trim() : '';
     if (code.length > 40) continue;
     const sleutel = `${set}\u0000${id}`;
@@ -436,6 +439,33 @@ function sanitizeSets(raw: unknown): string[] | undefined {
 }
 
 /**
+ * Codes van weggelaten doelen (`Curriculum.weggelatenCodes`) saneren: alleen elementen met een code die na
+ * `normalizeGoalCode` 1 tot `MAX_DOELCODE` tekens telt (een langere valt weg, ze wordt niet ingekort: zo reserveert ze
+ * nooit een andere code), een geldige set ("ODS_<getal>") en een niet-leeg id van hoogstens 64 tekens (zoals bij de
+ * verwijzingen; een getal wordt tekst). Per code alleen de eerste, hoogstens `MAX_DOELEN`. Leeg = `undefined`.
+ * Idempotent.
+ */
+function sanitizeWeggelaten(raw: unknown): WeggelatenCode[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const uit: WeggelatenCode[] = [];
+  const gezien = new Set<string>();
+  for (const item of raw) {
+    if (uit.length >= MAX_DOELEN) break;
+    if (!item || typeof item !== 'object') continue;
+    const w = item as Record<string, unknown>;
+    const code = typeof w.code === 'string' ? normalizeGoalCode(w.code) : '';
+    if (code === '' || code.length > MAX_DOELCODE || gezien.has(code)) continue;
+    const set = typeof w.set === 'string' ? w.set.trim() : '';
+    if (!SET_ID.test(set)) continue;
+    const id = typeof w.id === 'string' ? w.id.trim() : isEindig(w.id) ? String(w.id) : '';
+    if (id === '' || id.length > MAX_REF_ID) continue;
+    gezien.add(code);
+    uit.push({ code, set, id });
+  }
+  return uit.length > 0 ? uit : undefined;
+}
+
+/**
  * Een nagekeken leerplan waarvan de doelen niet meer bij de vingerafdruk passen, is "gewijzigd".
  * Status "gecontroleerd" zonder vingerafdruk telt ook als gewijzigd: niemand kan dan nog zeggen
  * welke doelen nagekeken zijn. Geeft een kopie terug (naam, tijdstip en samenvatting blijven) of,
@@ -500,6 +530,9 @@ function sanitizeCurriculumMetRapport(raw: unknown): SaneerUitkomst {
   if (controle) cur.controle = controle;
   const sets = sanitizeSets(c.minimumdoelenSets);
   if (sets) cur.minimumdoelenSets = sets;
+  // Hoort niet bij de doelen: telt niet mee in de vingerafdruk en verandert niets aan de nakijkstatus.
+  const weggelatenCodes = sanitizeWeggelaten(c.weggelatenCodes);
+  if (weggelatenCodes) cur.weggelatenCodes = weggelatenCodes;
   return { curriculum: bewaakControle(cur), weggevallen, afgekapt };
 }
 
@@ -590,7 +623,7 @@ export function maakEigenKopie(cur: Curriculum, titel?: string): Curriculum {
 
 /**
  * Leerplan als JSON-bestand (met kop, zodat import het herkent). Versie 2: met soort, herkomst,
- * nakijkstatus, sets en verwijzingen. Een nagekeken leerplan waarvan de doelen intussen veranderd
+ * nakijkstatus, sets, verwijzingen en weggelaten codes. Een nagekeken leerplan waarvan de doelen intussen veranderd
  * zijn, gaat als "gewijzigd" de deur uit.
  */
 export function exportCurriculumJson(cur: Curriculum): string {

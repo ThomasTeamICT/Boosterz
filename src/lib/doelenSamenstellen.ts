@@ -14,9 +14,13 @@
 // - opnieuw samenstellen met dezelfde selectie (`selectieVanLeerplan`) geeft dezelfde doelen en dus dezelfde
 //   vingerafdruk.
 //
+// Bij opnieuw samenstellen (`bestaand`) gaat een code nooit naar een ander minimumdoel, ook niet over meer aanpassingen
+// heen: de codes van doelen die wegvallen, bewaart de lijst in `weggelatenCodes`, en een doel dat terugkomt, krijgt
+// zijn code terug. Scores per doel en koppelingen in cursussen gaan op code; zo wijzen ze nooit stil naar een ander doel.
+//
 // Puur, op `Date.now()` en `uid()` na: bewaren doet de aanroeper met `saveCurriculum`.
 
-import type { Curriculum, CurriculumGoal, CurriculumHerkomst } from './curriculumTypes';
+import type { Curriculum, CurriculumGoal, CurriculumHerkomst, WeggelatenCode } from './curriculumTypes';
 import {
   MAX_DOELCODE, MAX_DOELEN, MAX_DOELTHEMA, MAX_SETS, bevestigLeerplan, createCurriculum, normalizeGoalCode, sanitizeCurriculum,
 } from './curriculum';
@@ -41,9 +45,10 @@ export interface SamenstelOpties {
   /** Komt in `subject`. */
   vak?: string;
   /**
-   * Opnieuw samenstellen van een bewaarde lijst: zelfde id en createdAt, nieuwe updatedAt. Een doel dat er al in stond,
-   * houdt zijn code; een code van een ander (ook een weggelaten) minimumdoel gaat nooit naar een nieuw doel (zie
-   * `kenCodesToe`). Moet zelf een samengestelde lijst zijn (herkomst "samengesteld"), anders gooit
+   * Opnieuw samenstellen van een bewaarde lijst: zelfde id en createdAt, nieuwe updatedAt. Een doel dat er al in stond
+   * (of in `weggelatenCodes`), houdt of krijgt zijn code terug; een code van een ander (ook een weggelaten) minimumdoel
+   * gaat nooit naar een nieuw doel (zie `kenCodesToe`). Doelen die wegvallen, geven een waarschuwing en hun codes gaan
+   * naar `weggelatenCodes`. Moet zelf een samengestelde lijst zijn (herkomst "samengesteld"), anders gooit
    * `leerplanUitSelectie` een `Error`: zo kan een ander leerplan nooit per vergissing overschreven worden.
    */
   bestaand?: Curriculum;
@@ -56,7 +61,11 @@ export interface Samengesteld {
   leerplan: Curriculum;
   rapport: ControleRapport;
   bevestigd: boolean;
-  /** In gewone taal: overgeslagen doelen (zonder vast nummer of tekst), gekozen doelen die niet (meer) in de set staan, oude versies. */
+  /**
+   * In gewone taal: overgeslagen doelen (zonder vast nummer of tekst), gekozen doelen die niet (meer) in de set staan,
+   * oude versies, minimumdoelen die via twee gekozen sets in de lijst komen, en (bij `bestaand`) doelen die uit de
+   * bewaarde lijst wegvallen.
+   */
   waarschuwingen: string[];
 }
 
@@ -287,26 +296,111 @@ function refSleutel(set: string, id: string): string {
   return `${set}\u0000${id}`;
 }
 
+/** Het minimumdoel (set + vast nummer, getrimd) dat een code droeg. */
+interface Eigenaar {
+  set: string;
+  id: string;
+}
+
+interface BestaandeCodes {
+  /** Per minimumdoel (`refSleutel`) zijn code van toen. */
+  vast: Map<string, string>;
+  /**
+   * Elke code die toen al bestond (genormaliseerd), met het minimumdoel dat ze droeg (`null` als dat niet te zeggen is),
+   * in volgorde: eerst de doelen, dan `weggelatenCodes`. Al deze codes zijn gereserveerd.
+   */
+  eigenaars: Map<string, Eigenaar | null>;
+}
+
+/** Set + vast nummer van de eerste bruikbare verwijzing van een doel, of `null`. */
+function eigenaarVanDoel(goal: Record<string, unknown>): Eigenaar | null {
+  const ref = (Array.isArray(goal.refs) ? (goal.refs as unknown[]) : []).find(
+    (r): r is Record<string, unknown> => isObject(r) && tekstOfLeeg(r.set) !== '' && tekstOfLeeg(r.id) !== '',
+  );
+  return ref ? { set: tekstOfLeeg(ref.set), id: tekstOfLeeg(ref.id) } : null;
+}
+
 /**
- * Wat een bewaarde lijst al vastlegde (bij opnieuw samenstellen). `vast`: per minimumdoel (set + vast nummer) zijn
- * code van toen. `gereserveerd`: elke code die toen al bestond; die gaat nooit naar een ander minimumdoel, ook niet als
- * het oude doel weggelaten is, zodat een koppeling in een cursus nooit stil naar een ander doel wijst. Een code die
- * toen meer dan eens voorkwam (een gewijzigd bestand), hoort bij het eerste doel met die code: daar wees een koppeling
- * ook naar (`findGoalByCode`). Een code van meer dan `MAX_DOELCODE` tekens blijft niet, maar is wel gereserveerd.
+ * Wat een bewaarde lijst al vastlegde (bij opnieuw samenstellen), uit haar doelen en daarna haar `weggelatenCodes`.
+ * `vast`: per minimumdoel (set + vast nummer) zijn code van toen. `eigenaars`: elke code die toen al bestond; die gaat
+ * nooit naar een ander minimumdoel, ook niet als het oude doel weggelaten is (nu of bij een vorige aanpassing), zodat
+ * een koppeling in een cursus nooit stil naar een ander doel wijst. Een code die meer dan eens voorkomt (een gewijzigd
+ * bestand), hoort bij de eerste eigenaar: bij de doelen is dat het doel waar een koppeling naar wees
+ * (`findGoalByCode`), en een doel in de lijst gaat voor op een weggelaten code. Een minimumdoel met meer codes houdt
+ * de eerste. Een code van meer dan `MAX_DOELCODE` tekens blijft niet, maar is wel gereserveerd.
  */
-function codesVanBestaand(bestaand: Curriculum | undefined): { vast: Map<string, string>; gereserveerd: Set<string> } {
+function codesVanBestaand(bestaand: Curriculum | undefined): BestaandeCodes {
   const vast = new Map<string, string>();
-  const eigenaar = new Map<string, string>();
-  for (const goal of Array.isArray(bestaand?.goals) ? bestaand.goals : []) {
-    if (!isObject(goal) || typeof goal.code !== 'string') continue;
-    const code = normalizeGoalCode(goal.code);
-    if (code === '') continue;
-    const ref = (Array.isArray(goal.refs) ? goal.refs : []).find((r) => isObject(r) && tekstOfLeeg(r.set) !== '' && tekstOfLeeg(r.id) !== '');
-    const sleutel = ref ? refSleutel(tekstOfLeeg(ref.set), tekstOfLeeg(ref.id)) : '';
-    if (!eigenaar.has(code)) eigenaar.set(code, sleutel);
-    if (sleutel !== '' && eigenaar.get(code) === sleutel && code.length <= MAX_DOELCODE && !vast.has(sleutel)) vast.set(sleutel, code);
+  const eigenaars = new Map<string, Eigenaar | null>();
+  const neem = (ruweCode: unknown, eigenaar: Eigenaar | null) => {
+    if (typeof ruweCode !== 'string') return;
+    const code = normalizeGoalCode(ruweCode);
+    if (code === '') return;
+    if (!eigenaars.has(code)) eigenaars.set(code, eigenaar);
+    const huidige = eigenaars.get(code);
+    if (!eigenaar || !huidige) return;
+    const sleutel = refSleutel(eigenaar.set, eigenaar.id);
+    if (refSleutel(huidige.set, huidige.id) === sleutel && code.length <= MAX_DOELCODE && !vast.has(sleutel)) vast.set(sleutel, code);
+  };
+  for (const goal of Array.isArray(bestaand?.goals) ? (bestaand.goals as unknown[]) : []) {
+    if (isObject(goal)) neem(goal.code, eigenaarVanDoel(goal));
   }
-  return { vast, gereserveerd: new Set(eigenaar.keys()) };
+  for (const w of Array.isArray(bestaand?.weggelatenCodes) ? (bestaand.weggelatenCodes as unknown[]) : []) {
+    if (!isObject(w)) continue;
+    const set = tekstOfLeeg(w.set);
+    const id = tekstOfLeeg(w.id);
+    neem(w.code, set !== '' && id !== '' ? { set, id } : null);
+  }
+  return { vast, eigenaars };
+}
+
+/**
+ * De codes die de nieuwe lijst moet blijven reserveren (`weggelatenCodes`): elke oude eigenaar (doel met verwijzing,
+ * of oude weggelaten code) waarvan het minimumdoel niet meer in de nieuwe lijst staat en waarvan de code door geen
+ * nieuw doel gebruikt wordt. Per code één (de eerste eigenaar), hoogstens `MAX_DOELEN`, in de volgorde van
+ * `codesVanBestaand`. Een code die het saneren niet zou overleven (langer dan `MAX_DOELCODE`), valt weg: geen nieuwe
+ * code is zo lang, dus ze kan niet botsen.
+ */
+function weggelatenNa(
+  eigenaars: ReadonlyMap<string, Eigenaar | null>,
+  nieuweSleutels: ReadonlySet<string>,
+  nieuweCodes: ReadonlySet<string>,
+): WeggelatenCode[] {
+  const uit: WeggelatenCode[] = [];
+  for (const [code, eigenaar] of eigenaars) {
+    if (uit.length >= MAX_DOELEN) break;
+    if (!eigenaar || code.length > MAX_DOELCODE) continue;
+    if (nieuweSleutels.has(refSleutel(eigenaar.set, eigenaar.id)) || nieuweCodes.has(code)) continue;
+    uit.push({ code, set: eigenaar.set, id: eigenaar.id });
+  }
+  return uit;
+}
+
+/** Hoeveel codes een waarschuwing hoogstens opsomt. */
+const MAX_GENOEMDE_CODES = 5;
+
+/**
+ * De waarschuwing voor doelen van de bewaarde lijst die niet meer in de nieuwe lijst staan (hun minimumdoel is niet
+ * meer gekozen), of `undefined`. Een doel zonder bruikbare verwijzing telt mee: geen nieuw doel is hetzelfde.
+ */
+function waarschuwingWegvallen(bestaand: Curriculum, nieuweSleutels: ReadonlySet<string>): string | undefined {
+  const codesWeg: string[] = [];
+  let aantal = 0;
+  for (const goal of Array.isArray(bestaand.goals) ? (bestaand.goals as unknown[]) : []) {
+    if (!isObject(goal)) continue;
+    const eigenaar = eigenaarVanDoel(goal);
+    if (eigenaar && nieuweSleutels.has(refSleutel(eigenaar.set, eigenaar.id))) continue;
+    aantal++;
+    const code = typeof goal.code === 'string' ? inkorten(normalizeGoalCode(goal.code), MAX_DOELCODE) : '';
+    if (code !== '') codesWeg.push(code);
+  }
+  if (aantal === 0) return undefined;
+  const genoemd = codesWeg.slice(0, MAX_GENOEMDE_CODES);
+  const lijst = aantal > genoemd.length ? [...genoemd, '…'] : genoemd;
+  const tussen = genoemd.length > 0 ? ` (${lijst.join(', ')})` : '';
+  return aantal === 1
+    ? `1 doel uit de bewaarde lijst valt weg${tussen}. Is een cursus of widget aan dat doel gekoppeld, dan vindt die het doel niet meer in deze lijst.`
+    : `${aantal} doelen uit de bewaarde lijst vallen weg${tussen}. Is een cursus of widget aan zo'n doel gekoppeld, dan vindt die het doel niet meer in deze lijst.`;
 }
 
 interface CodeInvoer {
@@ -319,8 +413,9 @@ interface CodeInvoer {
 
 /**
  * De codes van de lijst.
- * - Opnieuw samenstellen (`bestaand`): een doel dat al in de lijst stond, houdt zijn code van toen (`codesVanBestaand`).
- *   Zo veranderen bestaande codes niet als je een set toevoegt of weglaat.
+ * - Opnieuw samenstellen (`bestaand`): een doel dat al in de lijst stond, houdt zijn code van toen, en een doel dat
+ *   eerder wegviel (`weggelatenCodes`), krijgt zijn code terug (`codesVanBestaand`). Zo veranderen bestaande codes niet
+ *   als je een set toevoegt of weglaat.
  * - Een ander doel krijgt binnen zijn set de code van "Gebruik als leerplan" (`uniekeCodes`). Komt die code (na
  *   `normalizeGoalCode`) in meer dan één gekozen set voor, dan krijgt ze een onderscheid erbij (`onderscheidVoor`), bv.
  *   "BG02.01 (A)" en "BG02.01 (B)"; zonder `bestaand` in elk van die sets, zodat de code niet afhangt van de volgorde
@@ -329,8 +424,8 @@ interface CodeInvoer {
  * - Elke code is hoogstens `MAX_DOELCODE` tekens; wat dan nog dubbel of gereserveerd is, krijgt "-2", "-3", … (nooit
  *   de code van een ander doel, en nooit een gereserveerde code).
  */
-function kenCodesToe(lijst: readonly CodeInvoer[], koppen: readonly MinimumdoelenSetKop[], bestaand?: Curriculum): string[] {
-  const { vast, gereserveerd } = codesVanBestaand(bestaand);
+function kenCodesToe(lijst: readonly CodeInvoer[], koppen: readonly MinimumdoelenSetKop[], { vast, eigenaars }: BestaandeCodes): string[] {
+  const gereserveerd: ReadonlySet<string> = new Set(eigenaars.keys());
   const lokaal = lijst.map((d) => normalizeGoalCode(d.code));
   const setsMetCode = new Map<string, Set<number>>();
   lokaal.forEach((c, i) => {
@@ -468,6 +563,32 @@ export function bevestigSamengesteld(
 
 // ── Samenstellen ────────────────────────────────────────────────────────────
 
+/**
+ * Minimumdoelen die via meer dan één gekozen set in de lijst komen: hetzelfde vaste nummer staat vaak in meer sets
+ * (gewoon naast buitengewoon secundair, bv. ODS_3283 en ODS_3300), met dezelfde tekst en code. Dat mag (een doel is
+ * set + vast nummer, dus niet ontdubbelen), maar de leerkracht moet het weten. Per vast nummer telt de eerste set; per
+ * latere set en per eerdere set waarmee ze doelen deelt één waarschuwing, in de volgorde van de sets.
+ */
+function waarschuwingenDubbelOverSets(gekozenSets: readonly { bestand: MinimumdoelenSetBestand; doelen: readonly GekozenDoel[] }[]): string[] {
+  const eersteSet = new Map<string, number>();
+  const uit: string[] = [];
+  gekozenSets.forEach(({ bestand, doelen: gekozen }, i) => {
+    const perEerdereSet = new Map<number, number>();
+    for (const { id } of gekozen) {
+      const eerder = eersteSet.get(id);
+      if (eerder === undefined) eersteSet.set(id, i);
+      else if (eerder !== i) perEerdereSet.set(eerder, (perEerdereSet.get(eerder) ?? 0) + 1);
+    }
+    for (const [eerder, n] of [...perEerdereSet].sort((a, b) => a[0] - b[0])) {
+      const ander = setInBericht(gekozenSets[eerder].bestand.set);
+      uit.push(n === 1
+        ? `${setInBericht(bestand.set)}: 1 doel staat ook in ${ander}; het is hetzelfde minimumdoel. Het staat nu twee keer in je lijst. Wil je het maar één keer, haal dan een van beide sets weg.`
+        : `${setInBericht(bestand.set)}: ${n} doelen staan ook in ${ander}; het zijn dezelfde minimumdoelen. Ze staan nu twee keer in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg.`);
+    }
+  });
+  return uit;
+}
+
 function refSleutels(goals: readonly CurriculumGoal[]): string[] {
   return goals.map((g) => (g.refs ?? []).map((r) => refSleutel(r.set, r.id)).join('\u0001'));
 }
@@ -482,7 +603,12 @@ function refSleutels(goals: readonly CurriculumGoal[]): string[] {
  *   nummer + code), "Optioneel" als toelichting bij een optioneel doel. Een doel zonder vast nummer of tekst wordt
  *   overgeslagen, met een waarschuwing.
  * - `theme`: de naam van de set (zie `setLabels`), gevolgd door " › " en de rubriek van het doel.
- * - `code`: zie `kenCodesToe`; bij `bestaand` houdt een doel dat er al in stond zijn code.
+ * - `code`: zie `kenCodesToe`; bij `bestaand` houdt een doel dat er al in stond zijn code, en krijgt een doel dat eerder
+ *   wegviel zijn code terug.
+ * - Bij `bestaand`: `weggelatenCodes` bewaart de codes van de doelen die (nu of eerder) wegvielen en niet terugkomen
+ *   (`weggelatenNa`), en een waarschuwing noemt de doelen die nu uit de bewaarde lijst wegvallen.
+ * - Hetzelfde minimumdoel (vast nummer) via twee gekozen sets staat er twee keer in (een doel is set + vast nummer),
+ *   met een waarschuwing per paar sets.
  * - Meer dan `MAX_SETS` sets of `MAX_DOELEN` doelen, of helemaal geen doel: geen doelen, niet bevestigd, met een
  *   waarschuwing. Valt bij het saneren toch een doel weg, dan wordt de lijst niet bevestigd: een nagekeken lijst
  *   bevat altijd precies wat gekozen is.
@@ -506,6 +632,15 @@ export function leerplanUitSelectie(keuzes: readonly SetKeuze[], opties: Samenst
       waarschuwingen.push(`${setInBericht(bestand.set)} is een oudere versie. Gebruik liever de versie die nu geldt.`);
     }
   }
+  waarschuwingen.push(...waarschuwingenDubbelOverSets(gekozenSets));
+
+  const bestaandeCodes = codesVanBestaand(bestaand);
+  // Een lijst zonder doelen (de grenzen hieronder) laat niets weg uit de reservering: alle oude codes blijven bewaard.
+  const weggelatenVeld = (nieuweSleutels: ReadonlySet<string>, nieuweCodes: ReadonlySet<string>): { weggelatenCodes?: WeggelatenCode[] } => {
+    if (!bestaand) return {};
+    const weggelatenCodes = weggelatenNa(bestaandeCodes.eigenaars, nieuweSleutels, nieuweCodes);
+    return weggelatenCodes.length > 0 ? { weggelatenCodes } : {};
+  };
 
   const koppen = gekozenSets.map((g) => g.bestand.set);
   const bestanden = gekozenSets.map((g) => g.bestand);
@@ -528,7 +663,7 @@ export function leerplanUitSelectie(keuzes: readonly SetKeuze[], opties: Samenst
 
   const zonderDoelen = (waarom: string): Samengesteld => {
     waarschuwingen.push(waarom);
-    const leeg = createCurriculum({ ...kop, goals: [] });
+    const leeg = createCurriculum({ ...kop, ...weggelatenVeld(new Set(), new Set()), goals: [] });
     return { leerplan: leeg, rapport: controleerLeerplan(leeg, { sets: bestanden }), bevestigd: false, waarschuwingen };
   };
   if (totaal === 0) return zonderDoelen('Kies minstens één doel.');
@@ -541,7 +676,13 @@ export function leerplanUitSelectie(keuzes: readonly SetKeuze[], opties: Samenst
 
   const labels = setLabels(koppen);
   const plat = gekozenSets.flatMap((g, setIndex) => g.doelen.map((d) => ({ setIndex, d })));
-  const codes = kenCodesToe(plat.map(({ setIndex, d }) => ({ setIndex, sleutel: refSleutel(koppen[setIndex].id, d.id), code: d.code })), koppen, bestaand);
+  const invoer = plat.map(({ setIndex, d }) => ({ setIndex, sleutel: refSleutel(koppen[setIndex].id, d.id), code: d.code }));
+  const codes = kenCodesToe(invoer, koppen, bestaandeCodes);
+  const nieuweSleutels = new Set(invoer.map((d) => d.sleutel));
+  if (bestaand) {
+    const weg = waarschuwingWegvallen(bestaand, nieuweSleutels);
+    if (weg) waarschuwingen.push(weg);
+  }
   const goals: CurriculumGoal[] = plat.map(({ setIndex, d }, i) => {
     const goal: CurriculumGoal = {
       id: uid(),
@@ -557,7 +698,7 @@ export function leerplanUitSelectie(keuzes: readonly SetKeuze[], opties: Samenst
   // Eerst saneren zoals bewaren en importeren dat doen, dan pas nakijken: zo is de vingerafdruk die van de doelen zoals
   // ze na exporteren en importeren terugkomen. Een selectie mag onvolledig zijn, dus de poort ziet een doel dat bij het
   // saneren wegvalt niet: daarom hier nagaan dat precies de gekozen doelen overblijven.
-  const ruw = createCurriculum({ ...kop, goals });
+  const ruw = createCurriculum({ ...kop, ...weggelatenVeld(nieuweSleutels, new Set(codes)), goals });
   const gesaneerd = sanitizeCurriculum(ruw);
   const sleutelsVoor = refSleutels(goals);
   const sleutelsNa = gesaneerd ? refSleutels(gesaneerd.goals) : [];

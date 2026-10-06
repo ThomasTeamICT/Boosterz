@@ -251,6 +251,85 @@ describe('sanitizeCurriculum: versie 2', () => {
   });
 });
 
+describe('sanitizeCurriculum: weggelatenCodes', () => {
+  const geldig = [{ code: 'BG02.01', set: 'ODS_3343', id: '92268' }, { code: 'BG02.02', set: 'ODS_3343', id: '92269' }];
+
+  it('behoudt geldige elementen: code genormaliseerd, set en id getrimd, een getal als id wordt tekst', () => {
+    const cur = sanitizeCurriculum({
+      ...v2Ruw(),
+      weggelatenCodes: [{ code: '  bg02.01 ', set: ' ODS_3343 ', id: ' 92268 ', extra: 'valt weg' }, { code: 'BG02.02', set: 'ODS_3343', id: 92269 }],
+    });
+    expect(cur?.weggelatenCodes).toEqual(geldig);
+    expect(cur?.weggelatenCodes?.[0]).not.toHaveProperty('extra');
+  });
+
+  it('laat rommel, dubbele codes, te lange codes en ids, en verkeerde set-ids weg', () => {
+    const cur = sanitizeCurriculum({
+      ...v2Ruw(),
+      weggelatenCodes: [
+        null, 'BG02.01', 7, [], {},
+        { code: 5, set: 'ODS_3343', id: '1' },
+        { code: '   ', set: 'ODS_3343', id: '1' },
+        { code: 'X'.repeat(61), set: 'ODS_3343', id: '1' },
+        { code: 'OK1', set: 'ods_3343', id: '1' },
+        { code: 'OK2', set: 'ODS_', id: '1' },
+        { code: 'OK3', set: 'ODS_1234567890', id: '1' },
+        { code: 'OK4', set: 'SET_X', id: '1' },
+        { code: 'OK5', set: 'ODS_3343', id: '' },
+        { code: 'OK6', set: 'ODS_3343', id: 'i'.repeat(65) },
+        { code: 'OK7', set: 'ODS_3343', id: Number.NaN },
+        { code: 'OK8', set: 'ODS_3343', id: null },
+        ...geldig,
+        { code: ' bg02.01', set: 'ODS_9', id: 'ander' }, // dezelfde code: alleen de eerste telt
+        { code: 'X'.repeat(60), set: 'ODS_3343', id: 'i'.repeat(64) },
+      ],
+    });
+    expect(cur?.weggelatenCodes).toEqual([...geldig, { code: 'X'.repeat(60), set: 'ODS_3343', id: 'i'.repeat(64) }]);
+  });
+
+  it('geen lijst, of niets bruikbaars: het veld valt weg', () => {
+    for (const weggelatenCodes of [undefined, null, 'BG02.01', { code: 'BG02.01', set: 'ODS_1', id: '1' }, [], [null, { code: '' }]]) {
+      expect(sanitizeCurriculum({ ...v2Ruw(), weggelatenCodes }), JSON.stringify(weggelatenCodes)).not.toHaveProperty('weggelatenCodes');
+    }
+  });
+
+  it(`houdt hoogstens ${MAX_DOELEN} codes`, () => {
+    const veel = Array.from({ length: MAX_DOELEN + 10 }, (_, i) => ({ code: `C${i}`, set: 'ODS_1', id: `${i}` }));
+    const cur = sanitizeCurriculum({ ...v2Ruw(), weggelatenCodes: veel });
+    expect(cur?.weggelatenCodes).toHaveLength(MAX_DOELEN);
+    expect(cur?.weggelatenCodes?.[MAX_DOELEN - 1]).toEqual(veel[MAX_DOELEN - 1]);
+  });
+
+  it('is idempotent', () => {
+    const een = sanitizeCurriculum({ ...v2Ruw(), weggelatenCodes: [{ code: ' a 1 ', set: 'ODS_1', id: 3 }, { code: 'A 1', set: 'ODS_2', id: '4' }] });
+    expect(een?.weggelatenCodes).toEqual([{ code: 'A 1', set: 'ODS_1', id: '3' }]);
+    expect(sanitizeCurriculum(een)).toStrictEqual(een);
+  });
+
+  it('telt niet mee in de vingerafdruk en verandert de nakijkstatus niet, ook niet na export en import', () => {
+    const nagekeken = bevestig(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
+    const met: Curriculum = { ...nagekeken, weggelatenCodes: geldig };
+    expect(bewaakControle(met)).toBe(met);
+    const terug = importCurriculumJson(exportCurriculumJson(met));
+    expect(terug?.controle?.status).toBe('gecontroleerd');
+    expect(terug?.weggelatenCodes).toEqual(geldig);
+    expect(terug?.controle?.doelenSha256).toBe(doelenVingerafdruk(nagekeken.goals));
+    // Het veld wijzigen in het bestand (of weghalen) maakt een nagekeken lijst niet "gewijzigd".
+    const json = exportCurriculumJson(met);
+    expect(importCurriculumJson(json.replace('"92268"', '"99999"'))?.controle?.status).toBe('gecontroleerd');
+    const zonder = JSON.parse(json) as { curriculum: Record<string, unknown> };
+    delete zonder.curriculum.weggelatenCodes;
+    const terugZonder = importCurriculumJson(JSON.stringify(zonder));
+    expect(terugZonder?.controle?.status).toBe('gecontroleerd');
+    expect(terugZonder).not.toHaveProperty('weggelatenCodes');
+  });
+
+  it('een eigen kopie neemt het veld mee', () => {
+    const met = { ...(sanitizeCurriculum(v2Ruw()) as Curriculum), weggelatenCodes: geldig };
+    expect(maakEigenKopie(met).weggelatenCodes).toEqual(geldig);
+  });
+});
+
 describe('sanitizeCurriculum: versie 1 werkt zoals vroeger', () => {
   it('leest een exportbestand van versie 1 met dezelfde velden als voorheen', () => {
     const v1 = JSON.stringify({

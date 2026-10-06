@@ -49,6 +49,19 @@ export interface MinimumdoelRef {
   code: string;
 }
 
+/**
+ * Een code die bij een minimumdoel hoorde dat bij het aanpassen van een samengestelde lijst wegviel. Ze blijft van dat
+ * minimumdoel (set + vast nummer): komt het terug, dan krijgt het deze code terug.
+ */
+export interface WeggelatenCode {
+  /** De doelcode zoals ze in de lijst stond (genormaliseerd), bv. "BG02.01". */
+  code: string;
+  /** Set uit laag 1, bv. "ODS_3343". */
+  set: string;
+  /** Vast nummer van het minimumdoel (`@id`), als tekst. */
+  id: string;
+}
+
 /** Hoe de doelen in Boosterz kwamen. */
 export type CurriculumMethode =
   | 'officieel' // rechtstreeks uit een set minimumdoelen van laag 1
@@ -112,6 +125,12 @@ export interface Curriculum {
   controle?: CurriculumControle;
   /** Sets van laag 1 waar de verwijzingen van dit leerplan naar wijzen, bv. ["ODS_3287"]. */
   minimumdoelenSets?: string[];
+  /**
+   * Codes van doelen die bij het aanpassen van een samengestelde lijst wegvielen (doelenSamenstellen.ts). Ze worden
+   * nooit aan een ander minimumdoel gegeven: scores per doel en koppelingen in cursussen gaan op code, en mogen zo nooit
+   * stil naar een ander doel wijzen. Telt niet mee in de vingerafdruk van de doelen (`doelenVingerafdruk`).
+   */
+  weggelatenCodes?: WeggelatenCode[];
   goals: CurriculumGoal[];
   createdAt: number;
   updatedAt: number;
