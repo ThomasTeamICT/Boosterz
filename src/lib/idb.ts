@@ -18,6 +18,14 @@ export interface FileRecord {
   createdAt: number;
 }
 
+/**
+ * Zo lang wachten we op `indexedDB.open`. In zeldzame gevallen (Safari,
+ * privévensters) antwoordt die nooit; zonder grens bleef dan elke bewaar- en
+ * leesactie stil hangen. Na de grens wijzen we af, zodat de medialaag
+ * terugvalt op data-URL's en een upload een nette foutmelding toont.
+ */
+export const OPEN_TIMEOUT_MS = 5000;
+
 export function openFilesDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     let req: IDBOpenDBRequest;
@@ -27,35 +35,84 @@ export function openFilesDb(): Promise<IDBDatabase> {
       reject(e);
       return;
     }
+    // Precies één uitkomst. Komt het antwoord pas na de tijdslimiet (of na
+    // 'blocked'), dan gaat die verbinding meteen weer dicht: anders bleef ze
+    // open en blokkeerde ze later bv. het wissen van de database.
+    // (De handlers lopen altijd asynchroon, dus `timer` bestaat al wanneer
+    // fail of onsuccess hem opruimt.)
+    let settled = false;
+    const fail = (err: unknown) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(err);
+    };
+    const timer = setTimeout(() => fail(new Error('IndexedDB antwoordt niet')), OPEN_TIMEOUT_MS);
     req.onupgradeneeded = () => {
       if (!req.result.objectStoreNames.contains(FILES_STORE)) {
         req.result.createObjectStore(FILES_STORE, { keyPath: 'id' });
       }
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-    req.onblocked = () => reject(new Error('IndexedDB geblokkeerd'));
+    req.onsuccess = () => {
+      if (settled) {
+        try {
+          req.result.close();
+        } catch {
+          // al dicht of nooit echt open: niets te doen
+        }
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      resolve(req.result);
+    };
+    req.onerror = () => fail(req.error ?? new Error('IndexedDB kon niet geopend worden'));
+    req.onblocked = () => fail(new Error('IndexedDB geblokkeerd'));
   });
 }
 
-/** Eén verzoek in één transactie; de db gaat na afloop weer dicht. */
+/**
+ * Eén verzoek in één transactie; de db gaat na afloop weer dicht.
+ *
+ * Lost pas op als de transactie écht vastgelegd is (`complete`), niet al bij
+ * het slagen van het verzoek: een QuotaExceededError komt pas bij het
+ * vastleggen (`abort`), en wie dan al "bewaard" gehoord heeft, gooit
+ * misschien de enige andere kopie weg (zie migrateDataUrls in mediaStore).
+ */
 export function filesTx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   return openFilesDb().then(
     (db) =>
       new Promise<T>((resolve, reject) => {
-        let req: IDBRequest<T>;
+        let t: IDBTransaction | undefined;
         try {
-          const t = db.transaction(FILES_STORE, mode);
-          req = run(t.objectStore(FILES_STORE));
-          t.oncomplete = () => db.close();
-          t.onabort = () => { db.close(); reject(t.error); };
+          t = db.transaction(FILES_STORE, mode);
+          const tx = t;
+          const req = run(tx.objectStore(FILES_STORE));
+          let result: T | undefined;
+          req.onsuccess = () => {
+            result = req.result;
+          };
+          // Een mislukt verzoek breekt de transactie af; we wijzen al meteen
+          // af met de fout van het verzoek (onabort doet daarna niets meer).
+          req.onerror = () => reject(req.error ?? new Error('IndexedDB-verzoek mislukt'));
+          tx.oncomplete = () => {
+            db.close();
+            resolve(result as T);
+          };
+          tx.onabort = () => {
+            db.close();
+            reject(tx.error ?? req.error ?? new Error('IndexedDB-transactie afgebroken'));
+          };
         } catch (e) {
+          // Niets half laten vastleggen: wat al gevraagd was, gaat niet door.
+          try {
+            t?.abort();
+          } catch {
+            // transactie al voorbij of nooit gestart
+          }
           db.close();
           reject(e);
-          return;
         }
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
       })
   );
 }
