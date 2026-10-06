@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { PenLine } from 'lucide-react';
 import type { ItemScore, Widget } from '../lib/types';
 import { ScoreRing } from '../components/ui';
@@ -83,12 +83,17 @@ export function ResultHero({
   children?: React.ReactNode;
 }) {
   const p = pct(earned, max);
+  // Na het indienen verdwijnt de knop waarop de leerling stond: de focus naar
+  // de kop van het resultaat, anders belandt ze op body (en begint een
+  // schermlezer of de Tab-toets weer bovenaan de pagina).
+  const headRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { headRef.current?.focus(); }, []);
   return (
     <div className="card result-hero">
       {showScore && max > 0 ? (
         <>
           <ScoreRing percent={p} />
-          <h2>{title ?? (p >= 70 ? 'Goed gedaan! 🎉' : p >= 45 ? 'Bijna! 💪' : 'Blijf oefenen! 📚')}</h2>
+          <h2 ref={headRef} tabIndex={-1}>{title ?? (p >= 70 ? 'Goed gedaan! 🎉' : p >= 45 ? 'Bijna! 💪' : 'Blijf oefenen! 📚')}</h2>
           <p style={{ color: 'var(--text-soft)' }}>
             Je behaalde <strong>{earned}</strong> van <strong>{max}</strong> punten.
           </p>
@@ -96,7 +101,7 @@ export function ResultHero({
       ) : (
         <>
           <div style={{ fontSize: '3rem' }} aria-hidden>🎉</div>
-          <h2>{title ?? 'Ingediend!'}</h2>
+          <h2 ref={headRef} tabIndex={-1}>{title ?? 'Ingediend!'}</h2>
           {subtitle && <p style={{ color: 'var(--text-soft)' }}>{subtitle}</p>}
         </>
       )}

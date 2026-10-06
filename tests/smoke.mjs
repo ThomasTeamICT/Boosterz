@@ -2407,6 +2407,234 @@ await page.locator('.drawer button', { hasText: /Thema/ }).click();
 await page.locator('.drawer button', { hasText: /Thema/ }).click(); // terug op "automatisch"
 await page.keyboard.press('Escape');
 await page.setViewportSize({ width: 1360, height: 900 });
+// ── 32. Leerlingpad: deadline, tijdslimiet, pogingen, focus (debugronde okt. 2026) ──
+// Elk geval in een vers toestel van 390 px breed, via een draagbare link. Waar
+// de tijd telt, draait de klok van de pagina nep (page.clock): fastForward
+// is een toestel dat sliep of een tabblad op de achtergrond.
+console.log('32. Leerlingpad: deadline, tijd, pogingen, focus');
+const llLink = (w) => `${BASE}/#/open?d=${LZString.compressToEncodedURIComponent(JSON.stringify({ v: 1, w }))}`;
+const llSettings = { accentColor: '#4f46e5', shuffle: false, showFeedback: true, showScore: true, timeLimitMin: 0, maxAttempts: 0, requireName: true, instructions: '' };
+const llWidget = (id, type, title, config, settings = {}) => ({
+  id, type, title, folderId: null, code: id.toUpperCase().slice(0, 6), config,
+  settings: { ...llSettings, ...settings }, createdAt: Date.now(), updatedAt: Date.now(),
+});
+const llQuiz = (id, title, questions, settings) => llWidget(id, 'quiz', title, { layout: 'single', questions }, settings);
+const llMc = (id, prompt) => ({ id, type: 'mc', prompt, points: 1, options: ['A', 'B', 'C'], correctIndex: 0 });
+const llOpen = async ({ clock = false } = {}) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p = await ctx.newPage();
+  p.on('pageerror', (e) => errors.push(`pageerror(27): ${e.message}`));
+  p.on('console', (m) => { if (m.type() === 'error' && !/ERR_CERT_AUTHORITY_INVALID/.test(m.text())) errors.push(`console(27): ${m.text()}`); });
+  if (clock) await p.clock.install({ time: Date.now() });
+  // met nepklok: timers en animatieframes laten lopen, en echte tijd voor netwerk en chunks
+  const wacht = async (ms) => { if (clock) await p.clock.runFor(ms); await sleep(ms); };
+  return { ctx, p, wacht };
+};
+const llSubs = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('wf.submissions.v1') || '[]'));
+const llFocus = (p) => p.evaluate(() => {
+  const a = document.activeElement;
+  if (!a || a === document.body) return 'body';
+  return a.matches('.result-hero h2') ? 'resultaatkop' : a.tagName.toLowerCase();
+});
+const llTimer = async (p) => {
+  const m = /(\d+):(\d\d)/.exec(await p.locator('[role=timer]').innerText().catch(() => ''));
+  return m ? Number(m[1]) * 60 + Number(m[2]) : -1;
+};
+const llStart = async (p, wacht, naam) => {
+  if (naam !== undefined) await p.fill('#student-name', naam);
+  await p.getByRole('button', { name: 'Starten' }).click();
+  await wacht(500);
+};
+
+// LL1 + A11Y6 + LL14: de deadline verstrijkt terwijl de leerling bezig is
+for (const metTijd of [true, false]) {
+  const label = metTijd ? 'met tijdslimiet' : 'zonder tijdslimiet';
+  const { ctx, p, wacht } = await llOpen({ clock: true });
+  const w = llQuiz(metTijd ? 'dlmet1' : 'dlzon1', `Deadline ${label}`, [llMc('q1', 'Vraag 1'), llMc('q2', 'Vraag 2')], {
+    timeLimitMin: metTijd ? 10 : 0, expiresAt: new Date(Date.now() + 60000).toISOString(),
+  });
+  await p.goto(llLink(w), { waitUntil: 'networkidle' });
+  await wacht(300);
+  await llStart(p, wacht, 'Emma');
+  check(`A11Y6 (${label}): na "Starten" staat de focus niet op body`, (await llFocus(p)) !== 'body');
+  await p.locator('.answer-option').first().click();
+  await p.getByRole('button', { name: /Volgende/ }).click();
+  await wacht(200);
+  await p.locator('.answer-option').first().click();
+  await p.clock.fastForward(120000); // de deadline (1 min) verstrijkt tijdens het werken
+  await wacht(1100);
+  check(`LL1 (${label}): na de deadline blijft de speler staan`, (await p.locator('.question-card').first().isVisible()) && (await p.locator('text=Deze opdracht is afgesloten').count()) === 0);
+  await p.getByRole('button', { name: /Indienen/ }).click();
+  await wacht(600);
+  await p.locator('input[aria-label="Resultaatcode"]').waitFor({ timeout: 10000 }).catch(() => {});
+  check(`LL1 (${label}): indienen na de deadline bewaart de inzending`, (await llSubs(p)).length === 1);
+  check(`LL1 (${label}): resultaat en resultaatcode zichtbaar`, (await p.locator('.result-hero').first().isVisible()) && (await p.locator('input[aria-label="Resultaatcode"]').isVisible()));
+  check(`A11Y6 (${label}): na het indienen staat de focus op de kop van het resultaat`, (await llFocus(p)) === 'resultaatkop');
+  if (metTijd) {
+    await p.getByRole('button', { name: 'Code kopiëren' }).first().waitFor({ timeout: 10000 }).catch(() => {});
+    check('LL14: één knop "Code kopiëren", geen "QR kopiëren"', (await p.getByRole('button', { name: 'Code kopiëren' }).count()) === 1 && (await p.getByRole('button', { name: /QR kopi/ }).count()) === 0);
+  } else {
+    // Een verse start ná de deadline kan wel niet meer: herladen ...
+    await p.reload({ waitUntil: 'networkidle' });
+    await wacht(300);
+    check('LL1: na de deadline opnieuw openen toont "afgesloten"', await p.locator('text=Deze opdracht is afgesloten').isVisible());
+    // ... en ook niet wie op de startpoort bleef staan tot na de deadline.
+    const nu = await p.evaluate(() => Date.now());
+    const w2 = llQuiz('dlpoo1', 'Deadline op de startpoort', [llMc('q1', 'Vraag 1')], { expiresAt: new Date(nu + 60000).toISOString() });
+    await p.goto(llLink(w2), { waitUntil: 'networkidle' });
+    await wacht(300);
+    await p.fill('#student-name', 'Emma');
+    await p.clock.fastForward(120000);
+    await llStart(p, wacht);
+    check('LL1: starten na de deadline (poort bleef open) toont "afgesloten"', (await p.locator('text=Deze opdracht is afgesloten').isVisible()) && (await p.locator('.question-card').count()) === 0);
+  }
+  await ctx.close();
+}
+
+// LL5: de tijdslimiet loopt door terwijl het toestel slaapt
+{
+  const { ctx, p, wacht } = await llOpen({ clock: true });
+  const w = llQuiz('tijd01', 'Toets met tijd', [llMc('q1', 'Vraag 1'), llMc('q2', 'Vraag 2')], { timeLimitMin: 2 });
+  await p.goto(llLink(w), { waitUntil: 'networkidle' });
+  await wacht(300);
+  await llStart(p, wacht, 'Emma');
+  await wacht(2000);
+  const t0 = await llTimer(p);
+  check(`LL5: de timer loopt (${t0} s over)`, t0 >= 110 && t0 <= 119);
+  await p.clock.fastForward('05:00'); // laptop dicht, vijf minuten later weer open
+  await wacht(1100);
+  check(`LL5: na 5 minuten slaap is de tijd om (timer ${await llTimer(p)} s)`, (await llTimer(p)) === 0);
+  check('LL5: de quiz is bij "tijd om" automatisch ingediend', (await llSubs(p)).length === 1 && (await p.locator('.result-hero').first().isVisible()));
+  await ctx.close();
+}
+// LL5: herladen met een spatie achter de naam geeft geen nieuwe tijd
+{
+  const { ctx, p, wacht } = await llOpen({ clock: true });
+  const w = llQuiz('tijd02', 'Hervatten met tijd', [llMc('q1', 'Vraag 1'), llMc('q2', 'Vraag 2'), llMc('q3', 'Vraag 3')], { timeLimitMin: 5 });
+  await p.goto(llLink(w), { waitUntil: 'networkidle' });
+  await wacht(300);
+  await llStart(p, wacht, 'Emma');
+  await p.locator('.answer-option').nth(1).click();
+  await p.getByRole('button', { name: /Volgende/ }).click();
+  await wacht(300);
+  await p.clock.fastForward(60000);
+  await wacht(1100);
+  await p.reload({ waitUntil: 'networkidle' });
+  await wacht(300);
+  await llStart(p, wacht, 'emma ');
+  const t1 = await llTimer(p);
+  check(`LL5: herladen met "emma " geeft geen nieuwe tijd (${t1} s over, max. 240)`, t1 > 0 && t1 <= 240);
+  await ctx.close();
+}
+// W5: zonder inzendingen belooft de melding geen automatisch indienen
+{
+  const { ctx, p, wacht } = await llOpen({ clock: true });
+  const w = llWidget('tegel1', 'tiptiles', 'Tegels met tijd', { tiles: [{ id: 't1', title: 'Kracht', text: 'Een duw of een trek.' }] }, { timeLimitMin: 1 });
+  await p.goto(llLink(w), { waitUntil: 'networkidle' });
+  await wacht(300);
+  await llStart(p, wacht);
+  await p.clock.fastForward('02:00');
+  await wacht(1100);
+  const melding = p.locator('.callout.err', { hasText: 'De tijd is om' });
+  check('W5: "De tijd is om!" verschijnt', await melding.isVisible());
+  check('W5: oefening zonder inzendingen belooft geen automatisch indienen', !/ingediend/.test(await melding.innerText().catch(() => 'ingediend')));
+  await ctx.close();
+}
+
+// LL8: een poging telt bij het indienen, niet bij het starten (kruiswoord, max. 1)
+{
+  const { ctx, p, wacht } = await llOpen();
+  const w = llWidget('kruis1', 'crossword', 'Kruiswoord met één kans', {
+    entries: [{ id: 'e1', word: 'boom', clue: 'Groeit in het bos' }, { id: 'e2', word: 'maan', clue: 'Schijnt in de nacht' }],
+  }, { maxAttempts: 1 });
+  await p.goto(llLink(w), { waitUntil: 'networkidle' });
+  await wacht(300);
+  await llStart(p, wacht, 'Lotte');
+  check('LL8: kruiswoord gestart', (await p.locator('.cross-cell input').count()) > 0);
+  await p.reload({ waitUntil: 'networkidle' });
+  await wacht(300);
+  await llStart(p, wacht, 'Lotte');
+  check('LL8: herladen kost geen poging', (await p.locator('.cross-cell input').count()) > 0 && (await p.locator('text=Maximaal aantal pogingen').count()) === 0);
+  await p.getByRole('button', { name: /Indienen/ }).click();
+  await wacht(600);
+  check('LL8: indienen bewaart één inzending', (await llSubs(p)).length === 1);
+  await p.reload({ waitUntil: 'networkidle' });
+  await wacht(300);
+  await llStart(p, wacht, 'lotte ');
+  check('LL8: na één keer indienen (max. 1) is de opdracht geblokkeerd', await p.locator('text=Maximaal aantal pogingen bereikt').isVisible());
+  await ctx.close();
+}
+
+// LL4 + LL15: een andere draagbare link in hetzelfde tabblad; de bewaarknop
+{
+  const { ctx, p, wacht } = await llOpen();
+  const A = llQuiz('wisa01', 'Oefening A', [llMc('q1', 'Vraag A1'), llMc('q2', 'Vraag A2')], { instructions: 'Instructie A' });
+  const B = llQuiz('wisb01', 'Oefening B', [llMc('q1', 'Vraag B1')], { instructions: 'Instructie B' });
+  await p.goto(llLink(A), { waitUntil: 'networkidle' });
+  await wacht(300);
+  const bewaar = p.getByRole('button', { name: 'Leerkracht? Bewaar bij je materiaal' });
+  const box = await bewaar.boundingBox();
+  check('LL15: bewaarknop zonder "widget", minstens 44 px hoog', !!box && box.height >= 44);
+  check('LL15: geen horizontaal scrollen op 390 px', await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+  await bewaar.click();
+  await wacht(300);
+  check('LL15: melding "Bewaard bij je materiaal"', await p.locator('text=Bewaard bij je materiaal').first().isVisible());
+  await llStart(p, wacht, 'Emma');
+  check('LL4: oefening A speelt', (await p.locator('.question-card', { hasText: 'Vraag A1' }).count()) === 1);
+  await p.evaluate((h) => { location.hash = h; }, new URL(llLink(B)).hash);
+  await wacht(800);
+  check('LL4: na een hashwissel de startpoort van B (titel, instructie, leeg naamveld)',
+    (await p.locator('.player-topbar .title').innerText()) === 'Oefening B'
+    && (await p.locator('text=Instructie B').isVisible())
+    && (await p.inputValue('#student-name')) === ''
+    && (await p.locator('.question-card').count()) === 0);
+  check('LL4: de bewaarknop geldt weer voor B', await p.getByRole('button', { name: 'Leerkracht? Bewaar bij je materiaal' }).isEnabled());
+  await ctx.close();
+}
+
+// LL7: zonder naamplicht toch tonen als welke klasleerling je werkt
+{
+  const { ctx, p, wacht } = await llOpen();
+  await p.goto(`${BASE}/#/meedoen`, { waitUntil: 'networkidle' });
+  await p.evaluate(() => localStorage.setItem('wf.student.v1', JSON.stringify({ classId: 'c1', classCode: 'KLAS12', className: '1A', studentId: 's1', studentName: 'Anna Peeters' })));
+  await p.goto(llLink(llQuiz('anon01', 'Zonder naamplicht', [llMc('q1', 'Vraag 1')], { requireName: false })), { waitUntil: 'networkidle' });
+  await wacht(400);
+  check('LL7: startpoort toont "Je werkt als Anna Peeters" met "Wissel"', (await p.locator('text=Je werkt als').isVisible()) && (await p.getByRole('button', { name: /Niet jij\? Wissel/ }).isVisible()));
+  await p.getByRole('button', { name: /Niet jij\? Wissel/ }).click();
+  await wacht(200);
+  check('LL7: na "Wissel" geen klasidentiteit en geen verplicht naamveld', (await p.evaluate(() => localStorage.getItem('wf.student.v1'))) === null && (await p.locator('#student-name').count()) === 0);
+  await ctx.close();
+}
+
+// LL11: een ingeleverd bestand reist niet mee in de resultaatcode
+{
+  const { ctx, p, wacht } = await llOpen();
+  await p.goto(llLink(llQuiz('upl001', 'Verslag inleveren', [{ id: 'u1', type: 'upload', prompt: 'Lever je verslag in', points: 2, maxMb: 2 }])), { waitUntil: 'networkidle' });
+  await wacht(300);
+  await llStart(p, wacht, 'Emma');
+  await p.setInputFiles('.question-card input[type=file]', { name: 'verslag.txt', mimeType: 'text/plain', buffer: Buffer.from('Mijn verslag') });
+  await wacht(600);
+  await p.getByRole('button', { name: /Indienen/ }).click();
+  await wacht(800);
+  check('LL11: resultaatkaart zegt dat het bestand apart bezorgd moet worden', await p.locator('.callout', { hasText: 'Je bestand ‘verslag.txt’ zit niet in deze code' }).isVisible());
+  await ctx.close();
+}
+
+// A11Y11: de meedoen-pagina leidt leerlingen niet naar de leerkrachtschil
+{
+  const { ctx, p, wacht } = await llOpen();
+  await p.goto(`${BASE}/#/meedoen`, { waitUntil: 'networkidle' });
+  await wacht(400);
+  check('A11Y11: geen link naar #/ in de leerlingtopbalk', (await p.locator('header a[href="#/"]').count()) === 0);
+  await p.locator('header .topbar-logo').click();
+  await wacht(500);
+  check('A11Y11: tik op het logo: blijft op meedoen, geen voorbeeldmateriaal', /#\/meedoen$/.test(p.url()) && (await p.evaluate(() => JSON.parse(localStorage.getItem('wf.widgets.v1') || '[]').length)) === 0);
+  check('A11Y11: leerkrachten hebben een eigen link "Ik ben leerkracht"', (await p.locator('.join-links a[href="#/"]', { hasText: 'Ik ben leerkracht' }).count()) === 1);
+  await p.goto(`${BASE}/#/open?d=rommel`, { waitUntil: 'networkidle' });
+  await wacht(300);
+  check('A11Y11: kapotte deellink verwijst naar "Code invoeren", niet naar de leerkrachtschil', (await p.locator('a[href="#/meedoen"]', { hasText: 'Code invoeren' }).count()) === 1 && (await p.locator('a[href="#/"]').count()) === 0);
+  await ctx.close();
+}
 
 // ── Slot ────────────────────────────────────────────────────────────────────
 console.log('\n──────────');

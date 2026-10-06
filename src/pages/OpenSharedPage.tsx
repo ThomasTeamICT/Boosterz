@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-// Check is al onderdeel van de hoofdbundel (components/ui.tsx, via
-// CopyButton dat WidgetRunner gebruikt): hergebruiken hier kost geen extra kB.
+// Check is al onderdeel van de hoofdbundel (components/ui.tsx, CopyButton):
+// hergebruiken hier kost geen extra kB.
 import { Check } from 'lucide-react';
 import { decodeWidgetFromParam } from '../lib/share';
 import { getWidget, saveWidget } from '../lib/storage';
@@ -13,11 +13,16 @@ import { makeCode } from '../lib/utils';
 /** Opent een draagbare deellink: de widget zit volledig in de URL. */
 export function OpenSharedPage() {
   const [params] = useSearchParams();
+  const d = params.get('d') ?? '';
+  // Een andere link in hetzelfde tabblad (alleen de hash wijzigt) is een
+  // andere oefening: met de link als key starten speler, startpoort en
+  // "bewaard" opnieuw, anders zou B's titel boven A's vragen staan.
+  return <SharedRunner key={d} d={d} />;
+}
+
+function SharedRunner({ d }: { d: string }) {
   const toast = useToast();
-  const widget = useMemo(() => {
-    const d = params.get('d');
-    return d ? decodeWidgetFromParam(d) : null;
-  }, [params]);
+  const widget = useMemo(() => (d ? decodeWidgetFromParam(d) : null), [d]);
   const [saved, setSaved] = useState(false);
 
   if (!widget) {
@@ -26,7 +31,7 @@ export function OpenSharedPage() {
         <main id="main" className="player-main" style={{ textAlign: 'center', paddingTop: 80 }}>
           <h1>Ongeldige link</h1>
           <p style={{ color: 'var(--text-soft)' }}>Deze deellink is onvolledig of beschadigd. Vraag een nieuwe link.</p>
-          <Link to="/" className="btn btn-primary">Naar de startpagina</Link>
+          <Link to="/meedoen" className="btn btn-primary">Code invoeren</Link>
         </main>
       </div>
     );
@@ -37,18 +42,18 @@ export function OpenSharedPage() {
       <WidgetRunner widget={widget} recordSubmission />
       <div style={{ position: 'fixed', bottom: 14, right: 14, zIndex: 60 }}>
         <button
-          className="btn btn-sm btn-ghost"
-          style={{ boxShadow: 'var(--shadow-2)', background: 'var(--bg-raised)' }}
+          className="btn btn-ghost"
+          style={{ boxShadow: 'var(--shadow-2)', background: 'var(--bg-raised)', minHeight: 44 }}
           disabled={saved}
           onClick={() => {
             const existing = getWidget(widget.id);
             const copy = existing ? { ...widget, id: uid(), code: makeCode() } : widget;
             saveWidget(copy);
             setSaved(true);
-            toast('Widget bewaard bij “Mijn widgets”', 'ok');
+            toast('Bewaard bij je materiaal', 'ok');
           }}
         >
-          {saved ? <><Check size={14} aria-hidden /> Bewaard</> : 'Bewaar in mijn widgets'}
+          {saved ? <><Check size={14} aria-hidden /> Bewaard</> : 'Leerkracht? Bewaar bij je materiaal'}
         </button>
       </div>
     </div>

@@ -4,6 +4,8 @@ import { getWidgetByCode } from '../lib/storage';
 import { BrandMark } from '../components/Brand';
 import '../styles/leerling.css';
 
+const linkStyle = { color: 'var(--text-soft)', fontSize: '0.9rem' };
+
 export function JoinPage() {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -42,10 +44,13 @@ export function JoinPage() {
   return (
     <div className="player-shell" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <header className="player-topbar">
-        <Link to="/" className="topbar-logo" style={{ fontSize: '1.05rem' }}>
+        {/* Geen link: een tik op het logo bracht leerlingen in de leerkrachtschil
+            (en zaaide daar voorbeeldmateriaal). Leerkrachten hebben hieronder
+            hun eigen link. */}
+        <span className="topbar-logo" style={{ fontSize: '1.05rem' }}>
           <BrandMark size={28} />
           <span className="wordmark">Booster<b>z</b></span>
-        </Link>
+        </span>
       </header>
       <main id="main" style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 20 }}>
         <div style={{ maxWidth: 440, width: '100%' }}>
@@ -71,11 +76,14 @@ export function JoinPage() {
             </form>
           </div>
           <p className="join-links" style={{ textAlign: 'center', marginTop: 14, marginBottom: 0, display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/voortgang" className="join-link" style={{ color: 'var(--text-soft)', fontSize: '0.9rem' }}>
+            <Link to="/voortgang" className="join-link" style={linkStyle}>
               Mijn voortgang
             </Link>
-            <Link to="/klas/open" className="join-link" style={{ color: 'var(--text-soft)', fontSize: '0.9rem' }}>
+            <Link to="/klas/open" className="join-link" style={linkStyle}>
               Klaspakket openen
+            </Link>
+            <Link to="/" className="join-link" style={linkStyle}>
+              Ik ben leerkracht
             </Link>
           </p>
         </div>
