@@ -177,6 +177,32 @@ describe('klaspakket', () => {
     );
     expect(pack?.opdrachten[0].classId).toBe('k-echt');
   });
+
+  it('laat geen javascript:-URL door in een cursus uit een klaspakket (pdf-blok en bijlage)', () => {
+    const pack = importClassPackJson(
+      JSON.stringify({
+        v: 1, kind: 'klas',
+        klas: { id: 'k1', name: '1A', code: 'KLAS11', students: [{ id: 'l1', name: 'Emma' }] },
+        opdrachten: [{
+          id: 'o1', kind: 'course', targetId: 'c_pack',
+          course: {
+            id: 'c_pack', title: 'Cursus', code: 'PCK123',
+            chapters: [{ id: 'ch1', title: 'H1', sections: [{ id: '__proto__', title: 'S1', blocks: [
+              { id: 'b1', type: 'pdf', url: 'javascript:window.parent.__xss=1' },
+              { id: 'b2', type: 'attachment', name: 'huiswerk.pdf', dataUrl: ' JaVaScRiPt:window.__xss=1' },
+            ] }] }],
+          },
+          widgets: [],
+        }],
+      })
+    )!;
+    adoptClassPack(pack);
+    const course = getCourse('c_pack')!;
+    const section = course.chapters[0].sections[0];
+    expect(section.id).not.toBe('__proto__');
+    expect(section.blocks.map((b) => b.type)).toEqual(['attachment']);
+    expect(section.blocks[0].type === 'attachment' && section.blocks[0].dataUrl).toBe('');
+  });
 });
 
 // ── Van klaslink tot inleverpunt: de hele keten in één test ─────────────────

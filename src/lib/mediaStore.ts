@@ -29,8 +29,22 @@
 // Wezen (blobs waar niets meer naar verwijst) ruimt pruneOrphanMedia op, met
 // een leeftijdsgrens zodat een net gekozen maar nog niet bewaarde afbeelding
 // nooit onder je handen verdwijnt.
+//
+// VEILIGHEID. Een blob:-URL hoort bij de origin van de app: is het type html
+// of svg, dan voert "afbeelding/link openen in nieuw tabblad" het script erin
+// uit, met toegang tot de API-sleutel. Media komt ook van anderen (links,
+// klaspakketten, resultaatcodes), dus:
+//  - urlFor maakt alleen een blob:-URL met een passief type (lib/veiligeUrl:
+//    png/jpeg/gif/webp/avif/bmp, audio, video, pdf, platte tekst); al de rest
+//    wordt application/octet-stream (downloaden in plaats van tonen). Ook
+//    storeMedia en dataUrlToBlob bewaren alleen zulke types.
+//  - svg kan als octet-stream niet meer in een <img>. Svg wordt daarom nooit
+//    een blob: nieuwe svg's blijven een data:-URL (niet verhuisd, niet als
+//    blob bewaard), en al bewaarde svg-records krijgen bij het inladen een
+//    data:-URL in plaats van een blob:-URL (eigen, ondoorzichtige origin).
 
 import { deleteFilesDb, filesTx, prefixRange, type FileRecord } from './idb';
+import { isSvgType, passieveBlob, SVG_TYPE, veiligBlobType } from './veiligeUrl';
 
 export const MEDIA_REF_PREFIX = 'wfmedia:';
 const ID_PREFIX = 'm_';
@@ -90,7 +104,8 @@ export function configureMediaStore(overrides: Partial<MediaEnv>) {
 
 interface Entry {
   id: string;
-  /** blob:-URL, pas gemaakt bij het eerste gebruik (zie urlFor). */
+  /** blob:-URL, pas gemaakt bij het eerste gebruik (zie urlFor); bij svg
+   *  meteen een data:-URL (zie registerStored). */
   url: string | null;
   blob: Blob;
   name: string;
@@ -139,6 +154,7 @@ function resetMediaCache() {
 }
 
 function safeRevoke(url: string) {
+  // (een svg-data-URL vrijgeven is een no-op: revokeObjectURL negeert al wat geen blob: is)
   try {
     env.revokeObjectUrl(url);
   } catch {
@@ -146,20 +162,47 @@ function safeRevoke(url: string) {
   }
 }
 
-function register(rec: FileRecord): Entry {
+function register(rec: FileRecord, dataUrl?: string): Entry {
   const existing = byId.get(rec.id);
   if (existing) return existing;
   // Geen object-URL hier: bij het opstarten komen álle records langs en de
   // meeste worden op deze pagina nooit getoond.
-  const entry: Entry = { id: rec.id, url: null, blob: rec.blob, name: rec.name, size: rec.size, createdAt: rec.createdAt };
+  const entry: Entry = { id: rec.id, url: dataUrl ?? null, blob: rec.blob, name: rec.name, size: rec.size, createdAt: rec.createdAt };
+  // Bewaren schrijft de data-URL weer als verwijzing weg (zie replaceMedia).
+  if (dataUrl) byDataUrl.set(dataUrl, rec.id);
   byId.set(rec.id, entry);
   missing.delete(rec.id);
   return entry;
 }
 
+/** Svg als data:-URL met het kale svg-type (zonder parameters). */
+function svgDataUrl(blob: Blob): Promise<string> {
+  return blobToDataUrl(blob.type === SVG_TYPE ? blob : blob.slice(0, blob.size, SVG_TYPE));
+}
+
+/**
+ * Record uit de achterkant in het geheugen brengen. Een svg krijgt meteen
+ * zijn data:-URL (async: de bytes moeten gelezen worden), zodat urlFor er
+ * nooit een blob:-URL voor maakt. Andere records registreren synchroon,
+ * nog binnen deze aanroep.
+ */
+async function registerStored(rec: FileRecord): Promise<Entry> {
+  const known = byId.get(rec.id);
+  if (known) return known;
+  if (!isSvgType(rec.blob.type)) return register(rec);
+  let dataUrl: string | undefined;
+  try {
+    dataUrl = await svgDataUrl(rec.blob);
+  } catch {
+    dataUrl = undefined; // dan maakt urlFor een octet-stream-blob: veilig, alleen niet zichtbaar
+  }
+  return register(rec, dataUrl);
+}
+
+/** De URL voor een record: nooit een blob:-URL met een actief type (zie kop). */
 function urlFor(entry: Entry): string {
   if (!entry.url) {
-    entry.url = env.createObjectUrl(entry.blob);
+    entry.url = env.createObjectUrl(passieveBlob(entry.blob));
     byUrl.set(entry.url, entry.id);
   }
   return entry.url;
@@ -169,7 +212,12 @@ function unregister(id: string) {
   const e = byId.get(id);
   if (!e) return;
   byId.delete(id);
-  if (e.url) safeRevoke(e.url); // byUrl bewust laten staan (zie boven)
+  if (e.url) {
+    safeRevoke(e.url); // byUrl bewust laten staan (zie boven)
+    // Een svg-data-URL blijft zelf bruikbaar: niet meer als verwijzing naar
+    // een weggegooid record laten bewaren.
+    if (!e.url.startsWith('blob:')) byDataUrl.delete(e.url);
+  }
 }
 
 // ── Basisbewerkingen ────────────────────────────────────────────────────────
@@ -216,14 +264,16 @@ export function preloadMedia(): Promise<void> {
     const timer = setTimeout(finish, env.preloadTimeoutMs);
     env.backend
       .getAll()
-      .then((recs) => {
+      .then(async (recs) => {
         let added = false;
+        const pending: Promise<Entry>[] = [];
         for (const rec of recs) {
           if (rec && rec.blob && !byId.has(rec.id)) {
-            register(rec);
+            pending.push(registerStored(rec)); // svg: data-URL maken, al de rest meteen
             added = true;
           }
         }
+        await Promise.all(pending);
         if (settled && added) emit(); // laat binnengekomen: alsnog verversen
       })
       .catch(() => {
@@ -257,9 +307,13 @@ async function contentId(blob: Blob): Promise<string> {
  * Blob bewaren; geeft de blob:-URL terug die in de config mag staan. Dezelfde
  * inhoud levert hetzelfde id (en dezelfde URL) op. Gooit als IndexedDB niet
  * beschikbaar is — de aanroeper valt dan terug op een data-URL.
+ * Svg wordt niet bewaard maar komt terug als data:-URL, en een niet-passief
+ * type wordt application/octet-stream (zie de kop van dit bestand).
  */
-export async function storeMedia(blob: Blob, name = ''): Promise<string> {
+export async function storeMedia(input: Blob, name = ''): Promise<string> {
+  if (isSvgType(input.type)) return svgDataUrl(input);
   if (!available) throw new Error('Mediaopslag niet beschikbaar');
+  const blob = passieveBlob(input);
   const id = await contentId(blob);
   const known = byId.get(id);
   if (known) return urlFor(known);
@@ -299,9 +353,9 @@ export function resolveMediaRef(ref: string): string {
   if (ready && available && !missing.has(id) && !pendingLoads.has(id)) {
     const p = env.backend
       .get(id)
-      .then((rec) => {
+      .then(async (rec) => {
         if (rec && rec.blob) {
-          register(rec);
+          await registerStored(rec);
           emit();
         } else {
           missing.add(id);
@@ -325,11 +379,13 @@ export function reviveMedia(_key: string, value: unknown): unknown {
   return isMediaRef(value) ? resolveMediaRef(value) : value;
 }
 
-/** JSON.stringify-replacer: blob:-URL's (en verhuisde data-URL's) worden verwijzingen. */
+/** JSON.stringify-replacer: blob:-URL's (en verhuisde of svg-data-URL's) worden verwijzingen. */
 export function replaceMedia(_key: string, value: unknown): unknown {
   if (typeof value !== 'string') return value;
   if (value.startsWith('blob:')) return byUrl.has(value) ? MEDIA_REF_PREFIX + byUrl.get(value) : value;
-  if (value.length >= MIN_EXTERNALIZE_CHARS && value.startsWith('data:')) {
+  // Geen minimumlengte: ook een kleine svg uit een bewaard record moet weer
+  // als verwijzing weggeschreven worden.
+  if (value.startsWith('data:')) {
     const id = byDataUrl.get(value);
     if (id) return MEDIA_REF_PREFIX + id;
   }
@@ -349,6 +405,7 @@ export function stringifyWithMedia(value: unknown, space?: number): string {
 
 const DATA_URL_RE = /^data:([a-z0-9.+-]+\/[a-z0-9.+-]+)?((?:;[a-z0-9.+=-]+)*);base64,([A-Za-z0-9+/=]*)$/i;
 
+/** Data-URL naar blob. Het type is passief, svg, of anders application/octet-stream. */
 export function dataUrlToBlob(dataUrl: string): Blob | null {
   const m = DATA_URL_RE.exec(dataUrl);
   if (!m) return null;
@@ -356,7 +413,8 @@ export function dataUrlToBlob(dataUrl: string): Blob | null {
     const bin = atob(m[3]);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new Blob([bytes], { type: m[1] ?? 'application/octet-stream' });
+    const type = m[1] ?? '';
+    return new Blob([bytes], { type: isSvgType(type) ? SVG_TYPE : veiligBlobType(type) });
   } catch {
     return null;
   }
@@ -380,7 +438,7 @@ async function blobForRef(ref: string): Promise<Blob | null> {
   if (!available) return null;
   try {
     const rec = await env.backend.get(id);
-    if (rec && rec.blob) return register(rec).blob;
+    if (rec && rec.blob) return (await registerStored(rec)).blob;
   } catch {
     // niets te doen
   }
@@ -486,14 +544,20 @@ export function collectMediaRefs(raw: string): Set<string> {
 // geen " of \, dus de waarde eindigt gegarandeerd bij het sluitende teken.
 const DATA_URL_IN_JSON_RE = /"data:[a-z0-9.+-]+\/[a-z0-9.+-]+(?:;[a-z0-9.+=-]+)*;base64,[A-Za-z0-9+/=]+"/gi;
 
-/** Alle (unieke) grote base64-data-URL's in een ruwe JSON-string. */
+/**
+ * Alle (unieke) grote base64-data-URL's in een ruwe JSON-string. Svg doet
+ * niet mee: die blijft een data:-URL (zie de kop van dit bestand).
+ */
 export function findLargeDataUrls(raw: string, minChars = MIN_EXTERNALIZE_CHARS): string[] {
   if (!raw.includes(';base64,')) return [];
   const found = new Set<string>();
   let m: RegExpExecArray | null;
   DATA_URL_IN_JSON_RE.lastIndex = 0;
   while ((m = DATA_URL_IN_JSON_RE.exec(raw))) {
-    if (m[0].length - 2 >= minChars) found.add(m[0].slice(1, -1));
+    if (m[0].length - 2 < minChars) continue;
+    const url = m[0].slice(1, -1);
+    if (isSvgType(url.slice(5, url.indexOf(';')))) continue;
+    found.add(url);
   }
   return [...found];
 }

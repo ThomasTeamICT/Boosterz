@@ -4,6 +4,7 @@ import {
   type LucideIcon, Pin, Undo2, Video,
 } from 'lucide-react';
 import type { SourcePane, SplitWhiteboardConfig } from '../lib/types';
+import { webUrl } from '../lib/veiligeUrl';
 import { Field, ImagePicker } from '../components/ui';
 import { CheckIcon, DeleteIcon, InfoIcon, WarningIcon } from '../components/icons';
 import { EditorProps, PlayerProps, ResultHero } from './shared';
@@ -175,12 +176,15 @@ function SourceContent({ source }: { source: SourcePane }) {
   if (source.kind === 'video' && source.videoUrl) {
     const id = extractYouTubeId(source.videoUrl);
     if (!id) {
+      // Alleen een http(s)-adres als link: een javascript:-URL uit gedeelde
+      // inhoud zou anders in de app uitgevoerd worden (zie lib/veiligeUrl.ts).
+      const link = webUrl(source.videoUrl);
       return (
         <div className="callout warn" style={{ marginBottom: 0 }}>
           <Video aria-hidden />
           <div>
-            Deze video kan niet ingesloten worden.{' '}
-            <a href={source.videoUrl} target="_blank" rel="noreferrer">Open de video in een nieuw tabblad.</a>
+            Deze video kan niet ingesloten worden.
+            {link && <>{' '}<a href={link} target="_blank" rel="noopener noreferrer">Open de video in een nieuw tabblad.</a></>}
           </div>
         </div>
       );

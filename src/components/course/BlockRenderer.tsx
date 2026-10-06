@@ -17,6 +17,8 @@ import type { PlayerResult } from '../../widgets/shared';
 import type { Submission } from '../../lib/types';
 import { pct, uid } from '../../lib/utils';
 import { deletePdf, getPdf, savePdf } from '../../lib/pdfStore';
+import { isMediaRef, resolveMediaRef } from '../../lib/mediaStore';
+import { isBestandUrl } from '../../lib/veiligeUrl';
 import { TypeTile } from '../TypeTile';
 import { CheckIcon } from '../icons';
 import '../../styles/leerling.css';
@@ -418,12 +420,25 @@ function QuoteView({ block }: { block: QuoteBlock }) {
   );
 }
 
+/**
+ * Downloadlink van een bijlage: alleen een bestand dat de app zelf meegeeft
+ * (data:, blob:, of een eigen mediaverwijzing die naar zo'n URL wijst). Een
+ * javascript:-URL uit gedeelde inhoud zou bij een klik in de app draaien;
+ * dan tonen we de kaart zonder link.
+ */
+function bijlageLink(dataUrl: string | undefined): string | null {
+  if (!dataUrl) return null;
+  const url = isMediaRef(dataUrl) ? resolveMediaRef(dataUrl) : dataUrl;
+  return isBestandUrl(url) ? url : null;
+}
+
 function AttachmentView({ block, interactive }: { block: AttachmentBlock; interactive: boolean }) {
+  const href = interactive ? bijlageLink(block.dataUrl) : null;
   const inner = (
     <>
       <Paperclip size={20} aria-hidden style={{ flex: 'none', color: 'var(--text-soft)' }} />
       <span style={{ fontWeight: 650, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{block.name || 'bestand'}</span>
-      {interactive && (
+      {href && (
         <span className="badge badge-brand" style={{ marginLeft: 'auto', flex: 'none' }}>
           <Download size={13} aria-hidden /> downloaden
         </span>
@@ -434,11 +449,11 @@ function AttachmentView({ block, interactive }: { block: AttachmentBlock; intera
     display: 'flex', gap: 12, alignItems: 'center', padding: '12px 16px',
     textDecoration: 'none', color: 'var(--text)',
   };
-  if (!interactive || !block.dataUrl) {
+  if (!href) {
     return <div className="card" style={style}>{inner}</div>;
   }
   return (
-    <a className="card" href={block.dataUrl} download={block.name || 'bestand'} style={style} aria-label={`Bestand downloaden: ${block.name || 'bestand'}`}>
+    <a className="card" href={href} download={block.name || 'bestand'} style={style} aria-label={`Bestand downloaden: ${block.name || 'bestand'}`}>
       {inner}
     </a>
   );

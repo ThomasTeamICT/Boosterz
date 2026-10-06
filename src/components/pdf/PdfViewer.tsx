@@ -9,11 +9,24 @@
 //   voor een inzending.
 // - valt bij een extern (CORS-geblokkeerd) bestand terug op de ingebouwde
 //   pdf-weergave van de browser (iframe), zonder markeerstiften.
+// - VEILIGHEID: een adres komt uit gedeelde inhoud. Alleen http(s) (en een
+//   eigen blob:-URL) gaat naar pdf.js, de iframe of een link; een
+//   javascript:-URL zou anders in de app uitgevoerd worden. Een eigen blob
+//   krijgt altijd het type application/pdf (zie lib/veiligeUrl.ts).
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Eraser, ExternalLink, FileType, Highlighter, Minus } from 'lucide-react';
 import { uid } from '../../lib/utils';
+import { webUrl } from '../../lib/veiligeUrl';
 import { AddIcon, DownloadIcon } from '../icons';
+
+const PDF_TYPE = 'application/pdf';
+export const PDF_LINK_GEWEIGERD = 'Deze pdf-link kan niet geopend worden: alleen https://-adressen zijn toegelaten.';
+
+/** Het adres dat pdf.js, de iframe en de links mogen krijgen; null = weigeren. */
+function veiligPdfAdres(src: string): string | null {
+  return webUrl(src) ?? (src.startsWith('blob:') ? src : null);
+}
 
 export interface PdfHighlight {
   id: string;
@@ -79,9 +92,16 @@ export function PdfViewer({
   useEffect(() => { hlRef.current = highlights ?? []; }, [highlights]);
 
   const canMark = !!palette?.length && !!onHighlightsChange;
+  // Een adres dat niet mag (javascript:, data: …): geen pdf.js, geen iframe, geen link.
+  const adres = typeof src === 'string' ? veiligPdfAdres(src) : null;
+  const geweigerd = typeof src === 'string' && adres === null;
 
   // ── Document laden ────────────────────────────────────────────────────────
   useEffect(() => {
+    setDoc(null);
+    setFallbackUrl(null);
+    setError(null);
+    if (geweigerd) return;
     let alive = true;
     let task: any = null;
     (async () => {
@@ -91,34 +111,38 @@ export function PdfViewer({
         const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
         pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString();
         pdfjsRef.current = pdfjs;
-        if (typeof src === 'string') {
-          task = pdfjs.getDocument({ url: src });
-        } else {
+        if (typeof src !== 'string') {
           const data = await src.arrayBuffer();
           task = pdfjs.getDocument({ data });
+        } else if (adres) {
+          task = pdfjs.getDocument({ url: adres });
+        } else {
+          return; // kan niet (geweigerd hierboven), maar nooit een leeg adres laden
         }
         const d = await task.promise;
         if (alive) setDoc(d);
       } catch {
         if (!alive) return;
-        if (typeof src === 'string') {
+        if (adres) {
           // Extern bestand dat pdf.js niet mag lezen (CORS) → browserweergave.
-          setFallbackUrl(src);
+          setFallbackUrl(adres);
         } else {
           setError('Deze pdf kon niet gelezen worden. Is het bestand beschadigd?');
         }
       }
     })();
     return () => { alive = false; try { task?.destroy?.(); } catch { /* al weg */ } };
-  }, [src]);
+  }, [src, adres, geweigerd]);
 
-  // Link voor "openen in nieuw tabblad" (en downloadfallback).
+  // Link voor "openen in nieuw tabblad" (en downloadfallback). Een eigen blob
+  // krijgt het type application/pdf: met een html-type zou hij in een nieuw
+  // tabblad als pagina van de app draaien.
   const openUrl = useMemo(() => {
-    if (typeof src === 'string') return src;
+    if (typeof src === 'string') return adres;
     if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
-    blobUrlRef.current = URL.createObjectURL(src);
+    blobUrlRef.current = URL.createObjectURL(src.type === PDF_TYPE ? src : src.slice(0, src.size, PDF_TYPE));
     return blobUrlRef.current;
-  }, [src]);
+  }, [src, adres]);
   useEffect(() => () => { if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current); }, []);
 
   // ── Pagina's renderen (lui) ───────────────────────────────────────────────
@@ -279,6 +303,14 @@ export function PdfViewer({
   };
 
   // ── Weergave ──────────────────────────────────────────────────────────────
+  if (geweigerd) {
+    return (
+      <div className="card card-pad" style={{ textAlign: 'center' }}>
+        <FileType size={32} aria-hidden />
+        <p role="alert" style={{ color: 'var(--err)', fontWeight: 600 }}>{PDF_LINK_GEWEIGERD}</p>
+      </div>
+    );
+  }
   if (fallbackUrl) {
     return (
       <div className="pdfv" style={{ height }}>
@@ -292,7 +324,7 @@ export function PdfViewer({
       <div className="card card-pad" style={{ textAlign: 'center' }}>
         <FileType size={32} aria-hidden />
         <p style={{ color: 'var(--err)', fontWeight: 600 }}>{error}</p>
-        <a className="btn btn-sm btn-ghost" href={openUrl} download={title || 'document.pdf'}><DownloadIcon size={16} aria-hidden /> Download het bestand</a>
+        {openUrl && <a className="btn btn-sm btn-ghost" href={openUrl} download={title || 'document.pdf'}><DownloadIcon size={16} aria-hidden /> Download het bestand</a>}
       </div>
     );
   }
@@ -331,7 +363,7 @@ export function PdfViewer({
             </button>
           </div>
         )}
-        <a className="btn btn-sm btn-quiet" href={openUrl} target="_blank" rel="noopener noreferrer" aria-label="Openen in nieuw tabblad" title="Openen in nieuw tabblad"><ExternalLink size={16} aria-hidden /></a>
+        {openUrl && <a className="btn btn-sm btn-quiet" href={openUrl} target="_blank" rel="noopener noreferrer" aria-label="Openen in nieuw tabblad" title="Openen in nieuw tabblad"><ExternalLink size={16} aria-hidden /></a>}
       </div>
       {canMark && tool.kind !== 'none' && (
         <div className="hint" style={{ padding: '4px 10px', borderBottom: '1px solid var(--line)' }} aria-live="polite">

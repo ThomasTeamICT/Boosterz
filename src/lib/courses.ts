@@ -11,7 +11,8 @@ import { deletePdf } from './pdfStore';
 import { makeCode, uid } from './utils';
 import { EXAMPLE_CURRICULUM_ID, getCurriculum, normalizeGoalCodes } from './curriculum';
 import { cleanupOrphanMedia, getWidget, getWidgets, notifyChange, reportWriteFailure, saveWidget } from './storage';
-import { collectMediaRefs, countUnresolvedMedia, inlineMedia, parseWithMedia, stringifyWithMedia } from './mediaStore';
+import { collectMediaRefs, countUnresolvedMedia, inlineMedia, isMediaRef, parseWithMedia, stringifyWithMedia } from './mediaStore';
+import { isBestandUrl, webUrl } from './veiligeUrl';
 import { defaultSettings, getTypeDef, WIDGET_TYPES } from '../widgets/registry';
 
 const COURSES_KEY = 'wf.courses.v1';
@@ -521,12 +522,34 @@ function s(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback;
 }
 
+/**
+ * Id uit binnengekomen inhoud. Een naam uit Object.prototype ("__proto__",
+ * "constructor", "toString" …) wordt een vers id: de leesweergave zoekt
+ * notities en voortgang op met `obj[id]` en zou dan blijvend crashen of het
+ * prototype aanpassen. Geen witte lijst van tekens: bestaande id's blijven.
+ */
+function veiligId(v: unknown): string {
+  const id = s(v);
+  if (!id || id === '__proto__' || id in Object.prototype) return uid();
+  return id;
+}
+
+/**
+ * Bijlage: alleen een bestand dat de app zelf meegeeft (data:, blob: of een
+ * eigen mediaverwijzing). Al de rest (javascript:, http …) wordt leeg; de
+ * kaart blijft staan, zonder link.
+ */
+function veiligeBijlage(v: unknown): string {
+  const u = s(v);
+  return isBestandUrl(u) || isMediaRef(u) ? u : '';
+}
+
 function sanitizeBlock(raw: unknown): CourseBlock | null {
   if (!raw || typeof raw !== 'object') return null;
   const b = raw as Record<string, unknown>;
   const type = s(b.type) as CourseBlockType;
   if (!BLOCK_TYPES.includes(type)) return null;
-  const id = s(b.id) || uid();
+  const id = veiligId(b.id);
   switch (type) {
     case 'heading':
       return { id, type, text: s(b.text), level: b.level === 3 ? 3 : 2 };
@@ -540,7 +563,9 @@ function sanitizeBlock(raw: unknown): CourseBlock | null {
       return { id, type, url: s(b.url), caption: s(b.caption) || undefined };
     case 'pdf': {
       const pdfId = s(b.pdfId) || undefined;
-      const url = s(b.url) || undefined;
+      // Alleen een http(s)-adres: een javascript:-URL zou via pdf.js en de
+      // iframe-terugval in de app uitgevoerd worden (zie lib/veiligeUrl.ts).
+      const url = webUrl(b.url) ?? undefined;
       // Zonder upload én zonder URL valt er niets te tonen — blok weglaten.
       if (!pdfId && !url) return null;
       return {
@@ -559,7 +584,7 @@ function sanitizeBlock(raw: unknown): CourseBlock | null {
     case 'divider':
       return { id, type };
     case 'attachment':
-      return { id, type, name: s(b.name) || 'bestand', dataUrl: s(b.dataUrl) };
+      return { id, type, name: s(b.name) || 'bestand', dataUrl: veiligeBijlage(b.dataUrl) };
     case 'accordion': {
       const items = Array.isArray(b.items)
         ? b.items
@@ -569,7 +594,7 @@ function sanitizeBlock(raw: unknown): CourseBlock | null {
               const text = s(ii?.text);
               // Half-ingevuld item behouden: alleen weggooien als béíde velden leeg zijn.
               if (!title && !text.trim()) return null;
-              return { id: s(ii?.id) || uid(), title: title || '—', text };
+              return { id: veiligId(ii?.id), title: title || '—', text };
             })
             .filter((x): x is { id: string; title: string; text: string } => x !== null)
         : [];
@@ -596,7 +621,7 @@ function sanitizeBlock(raw: unknown): CourseBlock | null {
               const uitleg = s(ii?.uitleg);
               // Half-ingevuld begrip behouden: alleen weggooien als béíde velden leeg zijn.
               if (!term && !uitleg.trim()) return null;
-              return { id: s(ii?.id) || uid(), term: term || '—', uitleg };
+              return { id: veiligId(ii?.id), term: term || '—', uitleg };
             })
             .filter((x): x is { id: string; term: string; uitleg: string } => x !== null)
         : [];
@@ -607,7 +632,7 @@ function sanitizeBlock(raw: unknown): CourseBlock | null {
         ? b.items
             .map((it) => {
               const text = typeof it === 'string' ? it : s((it as Record<string, unknown>)?.text);
-              return text.trim() ? { id: s((it as Record<string, unknown>)?.id) || uid(), text: text.trim() } : null;
+              return text.trim() ? { id: veiligId((it as Record<string, unknown>)?.id), text: text.trim() } : null;
             })
             .filter((x): x is { id: string; text: string } => x !== null)
         : [];
@@ -639,7 +664,7 @@ export function sanitizeCourse(raw: unknown): Course | null {
               // doel blijven, hier én in de widgets en het klasoverzicht.
               const goalCodes = normalizeGoalCodes(se.goalCodes);
               return {
-                id: s(se.id) || uid(),
+                id: veiligId(se.id),
                 title: s(se.title).trim() || 'Sectie',
                 blocks,
                 goals: Array.isArray(se.goals) ? se.goals.filter((g): g is string => typeof g === 'string' && g.trim() !== '') : undefined,
@@ -650,7 +675,7 @@ export function sanitizeCourse(raw: unknown): Course | null {
             .filter((x): x is CourseSection => x !== null)
         : [];
       return {
-        id: s(ch.id) || uid(),
+        id: veiligId(ch.id),
         title: s(ch.title).trim() || 'Hoofdstuk',
         emoji: s(ch.emoji) || undefined,
         sections,
@@ -661,7 +686,7 @@ export function sanitizeCourse(raw: unknown): Course | null {
 
   const st = (c.settings && typeof c.settings === 'object' ? c.settings : {}) as Record<string, unknown>;
   return {
-    id: s(c.id) || uid(),
+    id: veiligId(c.id),
     title: s(c.title).trim() || 'Cursus',
     subtitle: s(c.subtitle) || undefined,
     author: s(c.author),

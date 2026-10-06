@@ -6,6 +6,7 @@ import {
 import type { Question, QuestionType, SourcePane, SplitWorksheetConfig } from '../lib/types';
 import { gradeQuiz } from '../lib/grading';
 import { shuffled, uid } from '../lib/utils';
+import { webUrl } from '../lib/veiligeUrl';
 import { CheckRow, Field, ImagePicker } from '../components/ui';
 import { CheckIcon, CloseIcon, InfoIcon, WarningIcon } from '../components/icons';
 import { DEFAULT_PALETTE, PdfViewer, pickAndStorePdf } from '../components/pdf/PdfViewer';
@@ -647,12 +648,15 @@ function SourceContent({ source, pdf }: { source: SourcePane; pdf?: PdfPaneProps
   if (source.kind === 'video' && source.videoUrl) {
     const id = extractYouTubeId(source.videoUrl);
     if (!id) {
+      // Alleen een http(s)-adres als link: een javascript:-URL uit gedeelde
+      // inhoud zou anders in de app uitgevoerd worden (zie lib/veiligeUrl.ts).
+      const link = webUrl(source.videoUrl);
       return (
         <div className="callout warn" style={{ marginBottom: 0 }}>
           <Video aria-hidden />
           <div>
-            Deze video kan niet ingesloten worden.{' '}
-            <a href={source.videoUrl} target="_blank" rel="noreferrer">Open de video in een nieuw tabblad.</a>
+            Deze video kan niet ingesloten worden.
+            {link && <>{' '}<a href={link} target="_blank" rel="noopener noreferrer">Open de video in een nieuw tabblad.</a></>}
           </div>
         </div>
       );

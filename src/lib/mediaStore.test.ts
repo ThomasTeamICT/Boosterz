@@ -358,3 +358,138 @@ describe('hulpfuncties', () => {
     expect(mediaSizeForUrl('blob:onbekend')).toBeNull();
   });
 });
+
+// ── Veiligheid: nooit een blob:-URL met een actief type (V7) ───────────────
+
+function b64(text: string): string {
+  return btoa(text);
+}
+/** Svg met een onload-script, groot genoeg om normaal verhuisd te worden. */
+const KWAADAARDIGE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" onload="window.__xss=1"><rect width="9" height="9"/><!--' + 'x'.repeat(3000) + '--></svg>';
+const KWAADAARDIGE_HTML = '<html><body><script>window.__xss=1</script><!--' + 'x'.repeat(3000) + '--></body></html>';
+
+describe('veilige blob:-URL\'s', () => {
+  it('maakt van een bewaard html-record een blob:-URL met type application/octet-stream (bytes ongewijzigd)', async () => {
+    setup({ records: [{ id: 'm_html', name: '', blob: new Blob([KWAADAARDIGE_HTML], { type: 'text/html' }), size: 1, createdAt: 1 }] });
+    await preloadMedia();
+    const url = resolveMediaRef(MEDIA_REF_PREFIX + 'm_html');
+    expect(url).toMatch(/^blob:/);
+    const blob = urlToBlob.get(url)!;
+    expect(blob.type).toBe('application/octet-stream');
+    expect(await blobText(blob)).toBe(KWAADAARDIGE_HTML);
+  });
+
+  it('houdt een passief type, maar zonder parameters (een komma kan een tweede type smokkelen)', async () => {
+    setup({
+      records: [
+        { id: 'm_png', name: '', blob: new Blob(['p'], { type: 'image/png' }), size: 1, createdAt: 1 },
+        { id: 'm_list', name: '', blob: new Blob(['q'], { type: 'image/png;x=1,text/html' }), size: 1, createdAt: 1 },
+        { id: 'm_leeg', name: '', blob: new Blob(['r']), size: 1, createdAt: 1 },
+        { id: 'm_xhtml', name: '', blob: new Blob(['s'], { type: 'application/xhtml+xml' }), size: 1, createdAt: 1 },
+      ],
+    });
+    await preloadMedia();
+    const type = (id: string) => urlToBlob.get(resolveMediaRef(MEDIA_REF_PREFIX + id))!.type;
+    expect(type('m_png')).toBe('image/png');
+    expect(type('m_list')).toBe('image/png');
+    expect(type('m_leeg')).toBe('application/octet-stream');
+    expect(type('m_xhtml')).toBe('application/octet-stream');
+  });
+
+  it('ook een record dat pas later (ander tabblad) binnenkomt krijgt een veilig type', async () => {
+    const { map } = setup();
+    await preloadMedia();
+    map.set('m_laat', { id: 'm_laat', name: '', blob: new Blob(['<b>x</b>'], { type: 'text/html' }), size: 8, createdAt: 1 });
+    const ref = MEDIA_REF_PREFIX + 'm_laat';
+    expect(resolveMediaRef(ref)).toBe(ref);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(urlToBlob.get(resolveMediaRef(ref))!.type).toBe('application/octet-stream');
+  });
+
+  it('storeMedia bewaart een html-bestand als application/octet-stream', async () => {
+    const { map } = setup();
+    const url = await storeMedia(new Blob([KWAADAARDIGE_HTML], { type: 'text/html' }), 'werkblad.html');
+    expect(urlToBlob.get(url)!.type).toBe('application/octet-stream');
+    expect([...map.values()][0].blob.type).toBe('application/octet-stream');
+    expect(await blobText([...map.values()][0].blob)).toBe(KWAADAARDIGE_HTML);
+  });
+
+  it('dataUrlToBlob: passief blijft, svg blijft svg, al de rest wordt application/octet-stream', () => {
+    expect(dataUrlToBlob('data:image/png;base64,' + b64('p'))!.type).toBe('image/png');
+    expect(dataUrlToBlob('data:IMAGE/PNG;base64,' + b64('p'))!.type).toBe('image/png');
+    expect(dataUrlToBlob('data:image/svg+xml;base64,' + b64('<svg/>'))!.type).toBe('image/svg+xml');
+    expect(dataUrlToBlob('data:text/html;base64,' + b64('<b>'))!.type).toBe('application/octet-stream');
+    expect(dataUrlToBlob('data:application/xhtml+xml;charset=utf-8;base64,' + b64('<b>'))!.type).toBe('application/octet-stream');
+  });
+});
+
+describe('svg blijft een data:-URL (V7)', () => {
+  const svgDataUrl = 'data:image/svg+xml;base64,' + b64(KWAADAARDIGE_SVG);
+
+  it('storeMedia bewaart svg niet en geeft een data:-URL terug', async () => {
+    const { map } = setup();
+    const before = urlCounter;
+    const url = await storeMedia(new Blob([KWAADAARDIGE_SVG], { type: 'image/svg+xml' }), 'tekening.svg');
+    expect(url).toBe(svgDataUrl);
+    expect(map.size).toBe(0);
+    expect(urlCounter).toBe(before);
+  });
+
+  it('de migratie laat svg-data-URL\'s staan en verhuist html als application/octet-stream', async () => {
+    const htmlDataUrl = 'data:text/html;base64,' + b64(KWAADAARDIGE_HTML);
+    expect(findLargeDataUrls(JSON.stringify({ a: svgDataUrl, b: htmlDataUrl }))).toEqual([htmlDataUrl]);
+    const { map, storage } = setup({ storage: { 'wf.courses.v1': JSON.stringify([{ img: svgDataUrl, bijlage: htmlDataUrl }]) } });
+    expect(await migrateDataUrls(['wf.courses.v1'])).toBe(1);
+    const raw = storage.getItem('wf.courses.v1')!;
+    expect(raw).toContain(svgDataUrl);
+    expect(raw).not.toContain(htmlDataUrl);
+    expect(map.size).toBe(1);
+    expect([...map.values()][0].blob.type).toBe('application/octet-stream');
+    const back = parseWithMedia<{ img: string; bijlage: string }[]>(raw);
+    expect(back[0].img).toBe(svgDataUrl);
+    expect(urlToBlob.get(back[0].bijlage)!.type).toBe('application/octet-stream');
+  });
+
+  it('een al bewaard svg-record wordt een data:-URL (geen blob:), en bewaren schrijft weer de verwijzing', async () => {
+    setup({ records: [{ id: 'm_svg', name: '', blob: new Blob([KWAADAARDIGE_SVG], { type: 'image/svg+xml' }), size: 9, createdAt: 1 }] });
+    const before = urlCounter;
+    await preloadMedia();
+    const ref = MEDIA_REF_PREFIX + 'm_svg';
+    const url = resolveMediaRef(ref);
+    expect(url).toBe(svgDataUrl);
+    expect(urlCounter).toBe(before); // geen object-URL gemaakt
+    expect(stringifyWithMedia({ img: url })).toBe(JSON.stringify({ img: ref }));
+    expect(parseWithMedia<{ img: string }>(JSON.stringify({ img: ref })).img).toBe(svgDataUrl);
+    // delen: de svg gaat als data-URL mee
+    expect((await inlineMedia({ img: ref })).img).toBe(svgDataUrl);
+  });
+
+  it('ook een kleine svg en een svg met parameters in het type', async () => {
+    const klein = '<svg xmlns="http://www.w3.org/2000/svg"/>';
+    setup({ records: [{ id: 'm_k', name: '', blob: new Blob([klein], { type: 'image/svg+xml;charset=utf-8' }), size: 1, createdAt: 1 }] });
+    await preloadMedia();
+    const url = resolveMediaRef(MEDIA_REF_PREFIX + 'm_k');
+    expect(url).toBe('data:image/svg+xml;base64,' + b64(klein));
+    expect(replaceMedia('', url)).toBe(MEDIA_REF_PREFIX + 'm_k');
+  });
+
+  it('een svg-record dat pas later binnenkomt wordt ook een data:-URL', async () => {
+    const { map } = setup();
+    await preloadMedia();
+    map.set('m_svg2', { id: 'm_svg2', name: '', blob: new Blob([KWAADAARDIGE_SVG], { type: 'image/svg+xml' }), size: 1, createdAt: 1 });
+    const ref = MEDIA_REF_PREFIX + 'm_svg2';
+    expect(resolveMediaRef(ref)).toBe(ref);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(resolveMediaRef(ref)).toBe(svgDataUrl);
+  });
+
+  it('na het opruimen van een svg-record blijft de data-URL zelf bewaard (geen dode verwijzing)', async () => {
+    const old = Date.now() - 60 * 60 * 1000;
+    setup({ records: [{ id: 'm_weg', name: '', blob: new Blob([KWAADAARDIGE_SVG], { type: 'image/svg+xml' }), size: 1, createdAt: old }], storage: {} });
+    await preloadMedia();
+    const url = resolveMediaRef(MEDIA_REF_PREFIX + 'm_weg');
+    expect(url).toBe(svgDataUrl);
+    expect(await pruneOrphanMedia()).toBe(1);
+    expect(replaceMedia('', url)).toBe(url);
+  });
+});

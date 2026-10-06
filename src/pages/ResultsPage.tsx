@@ -15,6 +15,7 @@ import { gradeQuestion } from '../lib/grading';
 import { decodeSubmission } from '../lib/share';
 import { goalLabel, normalizeGoalCode } from '../lib/curriculum';
 import { isRenderableMedia } from '../lib/mediaStore';
+import { passieveBlob } from '../lib/veiligeUrl';
 import { uid } from '../lib/utils';
 import { askAI, hasAIKey } from '../lib/ai';
 import { markTokens as playerMarkTokens, matchMarkers, ZoneCircle } from '../widgets/qtypes/interactTypes';
@@ -461,7 +462,8 @@ function UploadAnswerLine({ ans }: { ans: unknown }) {
     getStudentFile(fileId).then((rec) => {
       if (cancelled) return;
       if (!rec) { setMissing(true); return; }
-      url = URL.createObjectURL(rec.blob);
+      // Leerlingbestand: nooit als html/svg in de origin van de app openen.
+      url = URL.createObjectURL(passieveBlob(rec.blob));
       setObjUrl(url);
     });
     return () => {

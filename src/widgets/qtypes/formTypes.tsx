@@ -11,6 +11,7 @@ import type {
 } from '../../lib/types';
 import { clamp, uid } from '../../lib/utils';
 import { deleteStudentFile, getStudentFile, saveStudentFile } from '../../lib/pdfStore';
+import { passieveBlob } from '../../lib/veiligeUrl';
 import { CheckRow, Field } from '../../components/ui';
 import { CheckIcon, CloseIcon, PreviewIcon, WarningIcon } from '../../components/icons';
 import type { AnswerProps, ExtraQType } from './contract';
@@ -651,7 +652,8 @@ function UploadAnswer({ q, value, onChange, review }: AnswerProps<UploadQuestion
     let url: string | null = null;
     void getStudentFile(fileId).then((rec) => {
       if (!alive) return;
-      if (rec) { url = URL.createObjectURL(rec.blob); setBlobUrl(url); }
+      // Leerlingbestand: nooit als html/svg in de origin van de app openen.
+      if (rec) { url = URL.createObjectURL(passieveBlob(rec.blob)); setBlobUrl(url); }
       else setBlobMissing(true);
     });
     return () => {
