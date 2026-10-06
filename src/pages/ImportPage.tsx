@@ -44,7 +44,7 @@ interface SourceItem extends ExtractedSource {
   /** Waar je naartoe kan na die import. */
   importedTo?: { label: React.ReactNode; to: string };
   /** Widgets uit een pakket die niet bewaard konden worden (opslag vol): opnieuw te proberen. */
-  retry?: { widgets: Widget[]; folderId: string | null; folderName: string; saved: number };
+  retry?: { widgets: Widget[]; folderId: string | null; folderName: string; saved: number; folderSaved: boolean };
 }
 
 const KIND_META: Record<ExtractedSource['kind'], { icon: LucideIcon; label: string }> = {
@@ -297,7 +297,10 @@ export function ImportPage() {
         to: res.folderId ? `/widgets?map=${encodeURIComponent(res.folderId)}` : '/widgets',
       },
       retry: res.failed.length > 0
-        ? { widgets: res.failed, folderId: res.folderId, folderName: res.folderName, saved: alreadySaved + res.widgets.length }
+        ? {
+            widgets: res.failed, folderId: res.folderId, folderName: res.folderName,
+            saved: alreadySaved + res.widgets.length, folderSaved: res.folderSaved,
+          }
         : undefined,
     });
     const total = alreadySaved + res.widgets.length;
@@ -311,7 +314,7 @@ export function ImportPage() {
     void guarded(item.key, () => {
       const res = saveImportedPack(
         { ...item.pack!, widgets: r.widgets },
-        { intoFolder: { id: r.folderId, name: r.folderName } }
+        { intoFolder: { id: r.folderId, name: r.folderName, folderSaved: r.folderSaved } }
       );
       finishPack(item, res, r.saved);
     });

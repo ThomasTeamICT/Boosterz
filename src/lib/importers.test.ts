@@ -5,8 +5,8 @@ import {
   prepareImportedWidget, runInToBlock, saveCourseWithWidgets, saveImportedCourse, saveImportedPack,
   saveImportedWidget, type CourseBundle,
 } from './importers';
-import { getCourse, getCourses, importCourseJson, saveCourse } from './courses';
-import { getFolders, getWidget, getWidgets } from './storage';
+import { adoptSharedCourse, getCourse, getCourses, importCourseJson, saveCourse } from './courses';
+import { deleteWidget, getFolders, getWidget, getWidgets, saveWidget } from './storage';
 import { defaultSettings } from '../widgets/registry';
 import type { Course, HeadingBlock, TableBlock, TextBlock } from './courseTypes';
 import type { Widget } from './types';
@@ -464,6 +464,65 @@ describe('decodeTextBytes (OP10)', () => {
     expect(decodeTextBytes(new ArrayBuffer(0))).toEqual({ text: '', encoding: 'utf-8' });
   });
 
+  // B7: de keuze was alles of niets; één verdwaalde byte kantelde het hele bestand.
+  const utf8Bytes = (s: string) => new TextEncoder().encode(s);
+  const metBytes = (...delen: (string | number[])[]) =>
+    new Uint8Array(delen.flatMap((d) => (typeof d === 'string' ? [...utf8Bytes(d)] : d)));
+  const utf16 = (s: string, le: boolean) =>
+    new Uint8Array([...s].flatMap((c) => {
+      const u = c.charCodeAt(0);
+      return le ? [u & 0xff, u >> 8] : [u >> 8, u & 0xff];
+    }));
+
+  it('B7: UTF-8 met één verdwaalde ANSI-byte blijft UTF-8, met één vervangteken en een eigen waarschuwing', () => {
+    const res = decodeTextBytes(metBytes('Eén café, één crème brûlée; vraag;antwoord\n', [0xe9, 0x0a]));
+    expect(res.encoding).toBe('utf-8');
+    expect(res.text).toContain('Eén café, één crème brûlée');
+    expect(res.text).not.toContain('Ã');
+    expect(res.text.split('�')).toHaveLength(2); // precies één vervangteken
+    expect(res.invalid).toBe(1);
+  });
+
+  it('B7: UTF-8 afgekapt midden in een teken blijft UTF-8', () => {
+    const res = decodeTextBytes(metBytes('Eén café, één crème', [0xc3])); // eerste byte van "é"
+    expect(res).toMatchObject({ encoding: 'utf-8', invalid: 1 });
+    expect(res.text.startsWith('Eén café, één crème')).toBe(true);
+  });
+
+  it('B7: een lange UTF-8-tekst met enkele (meer dan drie, maar minder dan 1 %) ongeldige bytes blijft UTF-8', () => {
+    const res = decodeTextBytes(metBytes('é'.repeat(300), [0xe9, 0x20, 0xe9, 0x20], 'é'.repeat(300), [0xe9, 0x20, 0xe9, 0x20]));
+    expect(res.encoding).toBe('utf-8');
+    expect(res.invalid).toBe(4);
+    expect(res.text).toContain('é'.repeat(300));
+  });
+
+  it('B7: een echt ANSI-bestand blijft windows-1252, ook met een toevallig geldige reeks', () => {
+    // "café één crème brûlée" in windows-1252: alleen ongeldige reeksen in UTF-8
+    const ansi = bytes(0x63, 0x61, 0x66, 0xe9, 0x20, 0xe9, 0xe9, 0x6e, 0x20, 0x63, 0x72, 0xe8, 0x6d, 0x65, 0x20, 0x62, 0x72, 0xfb, 0x6c, 0xe9, 0x65);
+    expect(decodeTextBytes(ansi)).toEqual({ text: 'café één crème brûlée', encoding: 'windows-1252' });
+    // één geldige reeks (Ã©) tussen vijf ongeldige bytes is nog steeds ANSI
+    const toeval = decodeTextBytes(bytes(0xc3, 0xa9, 0x20, 0xe9, 0x20, 0xe9, 0x20, 0xe9, 0x20, 0xe9, 0x20, 0xe9, 0x20));
+    expect(toeval.encoding).toBe('windows-1252');
+    expect(toeval.invalid).toBeUndefined();
+  });
+
+  it('B7: UTF-16 zonder BOM wordt herkend (little en big endian)', () => {
+    const tekst = 'vraag;antwoord\nHé, één café\n';
+    expect(decodeTextBytes(utf16(tekst, true))).toEqual({ text: tekst, encoding: 'utf-16le' });
+    expect(decodeTextBytes(utf16(tekst, false))).toEqual({ text: tekst, encoding: 'utf-16be' });
+  });
+
+  it('B7: extractFromFile: UTF-8 met een verdwaalde byte geeft leesbare tekst en een eigen waarschuwing (geen ANSI)', async () => {
+    const src = await extractFromFile(
+      new File([metBytes('naam;woord\nEmma;café\nNoah;één', [0xe9], '\n')], 'lijst.csv', { type: 'text/csv' })
+    );
+    expect(src.text).toContain('Emma;café');
+    expect(src.text).not.toContain('Ã');
+    const meldingen = src.warnings.join(' ');
+    expect(meldingen).toMatch(/Enkele tekens .* konden niet gelezen worden/);
+    expect(meldingen).not.toMatch(/ANSI/);
+  });
+
   it('extractFromFile: een ANSI-csv geeft leesbare tekst en een waarschuwing; UTF-8 geen', async () => {
     const ansi = new File(
       [bytes(0x6e, 0x61, 0x61, 0x6d, 0x3b, 0x63, 0x61, 0x66, 0xe9, 0x0a, 0x45, 0x6d, 0x6d, 0x61, 0x3b, 0x80)],
@@ -616,6 +675,29 @@ describe('saveImportedWidget en saveImportedPack (OP2)', () => {
       text: '5 widgets geïmporteerd in de map “Fotopakket”.',
       tone: 'ok',
     });
+  });
+
+  it('B8b: opnieuw proberen na een pakket in de hoofdmap: de mapwaarschuwing blijft staan', () => {
+    quota.failKeys.add('wf.folders.v1'); // de map kan niet bewaard worden
+    quota.limit = 36_000; // en maar drie widgets passen
+    const res = saveImportedPack(pakket(5));
+    expect(res.folderSaved).toBe(false);
+    expect(res.folderId).toBeNull();
+    expect(res.failed.length).toBeGreaterThan(0);
+    expect(describePackImport(res).text).toMatch(/in je hoofdmap \(de map “Fotopakket” kon niet aangemaakt worden\)/);
+
+    quota.limit = Infinity;
+    const again = saveImportedPack(
+      { ...pakket(0), widgets: res.failed },
+      { intoFolder: { id: res.folderId, name: res.folderName, folderSaved: res.folderSaved } }
+    );
+    expect(again.failed).toHaveLength(0);
+    expect(again.folderSaved).toBe(false);
+    const msg = describePackImport(again, res.widgets.length);
+    expect(msg.text).toBe('5 widgets geïmporteerd in je hoofdmap (de map “Fotopakket” kon niet aangemaakt worden).');
+    expect(msg.tone).toBe('warn');
+    // Zonder die gegeven blijft het gedrag zoals het was: een bestaande map is bewaard.
+    expect(saveImportedPack({ ...pakket(0), widgets: [fotoWidget(9)] }, { intoFolder: { id: null, name: 'X' } }).folderSaved).toBe(true);
   });
 
   it('onbekend type en "niet bewaard" zijn twee verschillende dingen', () => {
@@ -826,6 +908,220 @@ describe('saveImportedCourse (OP11)', () => {
     expect(msg.tone).toBe('warn');
     expect(msg.badge).toBe('deels bewaard');
     expect(msg.text).toMatch(/Let op: niet alles kon bewaard worden/);
+  });
+});
+
+// ── B2, B3 en H1-N1: de melding zegt wat er echt gebeurde ───────────────────
+
+function metWidget(over: Partial<Course> = {}): Course {
+  return cursus({
+    chapters: [{ id: 'ch1', title: 'H', sections: [{ id: 's1', title: 'S', optional: false, blocks: [
+      { id: 'b1', type: 'text', markdown: 'tekst' },
+      { id: 'b2', type: 'widget', widgetId: 'w1' },
+    ] }] }],
+    ...over,
+  });
+}
+
+function widgetW1(over: Partial<Widget> = {}): Widget {
+  return { ...fotoWidget(1, 10), id: 'w1', title: 'Quiz', updatedAt: 50_000, ...over };
+}
+
+function hoofdstuk(n: number): Course['chapters'][number] {
+  return {
+    id: `ch${n}`, title: `Hoofdstuk ${n}`,
+    sections: [{ id: `s${n}`, title: `Sectie ${n}`, optional: false, blocks: [{ id: `b${n}`, type: 'text', markdown: `Tekst ${n}` }] }],
+  };
+}
+
+describe('saveImportedCourse: eerlijke melding (B2, H1-N1)', () => {
+  useMemoryStorage();
+
+  it('B2: alleen een widget vervangen: de cursus bleef gelijk en de melding noemt de widget, niet "niets veranderd"', async () => {
+    await saveImportedCourse(bestand(metWidget(), { widgets: [widgetW1()] }));
+    vi.setSystemTime(200_000);
+    saveWidget({ ...getWidget('w1')!, title: 'MIJN AANGEPASTE QUIZ' }); // eigen aanpassing, nieuwer dan het bestand
+    const b = bestand(metWidget(), { widgets: [widgetW1()] });
+    const conflicts = await findCourseImportConflicts(b);
+    expect(conflicts.map((c) => c.kind)).toEqual(['widget']); // de cursus zelf is gelijk
+    const res = await saveImportedCourse(b, { choice: 'bijwerken', conflicts });
+    expect(getWidget('w1')!.title).toBe('Quiz');
+    expect(res.courseChanged).toBe(false);
+    expect(res.replaced).toEqual(['Quiz']);
+    expect(res.outcome).toBe('bijgewerkt');
+    const msg = describeCourseImport(res);
+    expect(msg.badge).toBe('bijgewerkt');
+    expect(msg.tone).toBe('ok');
+    expect(msg.text).not.toMatch(/niets veranderd|stond al zo/);
+    expect(msg.text).toBe('De cursus “De waterkringloop” bleef gelijk; 1 widget (“Quiz”) is vervangen door de versie uit het bestand.');
+  });
+
+  it('B2: een ontbrekende widget komt terug: "kwam erbij", niet "niets veranderd"', async () => {
+    await saveImportedCourse(bestand(metWidget(), { widgets: [widgetW1()] }));
+    deleteWidget('w1');
+    const res = await saveImportedCourse(bestand(metWidget(), { widgets: [widgetW1()] }));
+    expect(getWidget('w1')).toBeDefined();
+    expect(res.outcome).toBe('bijgewerkt');
+    expect(res.widgetsAdded).toBe(1);
+    const msg = describeCourseImport(res);
+    expect(msg.text).toBe('De cursus “De waterkringloop” bleef gelijk; 1 widget kwam erbij.');
+    expect(msg.badge).toBe('bijgewerkt');
+  });
+
+  it('B2: "mijn versie houden" met een ontbrekende widget: de melding zegt wat erbij kwam', async () => {
+    saveCourse(metWidget({ title: 'EIGEN' }));
+    const b = bestand(metWidget({ title: 'BESTAND', updatedAt: 90_000 }), { widgets: [widgetW1()] });
+    const conflicts = await findCourseImportConflicts(b);
+    expect(conflicts.map((c) => c.kind)).toEqual(['course']);
+    const res = await saveImportedCourse(b, { choice: 'houden', conflicts });
+    expect(res.outcome).toBe('gehouden');
+    expect(getCourse('c1')!.title).toBe('EIGEN');
+    expect(describeCourseImport(res).text).toMatch(/niet overgenomen\. Ook 1 widget kwam erbij\.$/);
+  });
+
+  it('B2: "mijn versie houden" terwijl een ongewijzigde kopie van een widget wel bijgewerkt wordt: de melding noemt het', async () => {
+    adoptSharedCourse(metWidget(), [widgetW1()], { gedeeld: true }); // zuivere kopieën uit een link
+    saveCourse(metWidget({ title: 'EIGEN' })); // de cursus is nu eigen werk
+    const b = bestand(metWidget({ title: 'BESTAND', updatedAt: 90_000 }), {
+      widgets: [widgetW1({ title: 'Quiz v2', updatedAt: 70_000 })],
+    });
+    const conflicts = await findCourseImportConflicts(b);
+    expect(conflicts.map((c) => c.kind)).toEqual(['course']);
+    const res = await saveImportedCourse(b, { choice: 'houden', conflicts });
+    expect(res.outcome).toBe('gehouden');
+    expect(getCourse('c1')!.title).toBe('EIGEN');
+    expect(getWidget('w1')!.title).toBe('Quiz v2');
+    const msg = describeCourseImport(res);
+    expect(msg.badge).toBe('cursus gehouden'); // niet "niets vervangen": er is wel een widget bijgewerkt
+    expect(msg.text).toMatch(/Ook 1 widget \(“Quiz v2”\) is vervangen door de versie uit het bestand\.$/);
+  });
+
+  it('B2: twee vervangen widgets en een cursus die ook veranderde: beide staan in de melding', async () => {
+    const tweede = (over: Partial<Widget> = {}) => ({ ...widgetW1(over), id: 'w2', title: 'Tweede' });
+    saveCourse(metWidget({ title: 'EIGEN' }));
+    saveWidget({ ...widgetW1(), title: 'EIGEN QUIZ' });
+    saveWidget({ ...tweede(), title: 'EIGEN TWEEDE' });
+    const b = bestand(metWidget({ title: 'BESTAND', updatedAt: 90_000 }), {
+      widgets: [widgetW1({ updatedAt: 90_000 }), tweede({ updatedAt: 90_000 })],
+    });
+    const conflicts = await findCourseImportConflicts(b);
+    const res = await saveImportedCourse(b, { choice: 'bijwerken', conflicts });
+    expect(res.outcome).toBe('vervangen');
+    expect([...res.replaced].sort()).toEqual(['Quiz', 'Tweede']);
+    expect(describeCourseImport(res).text).toBe(
+      'Je cursus “BESTAND” is vervangen door de versie uit het bestand. ' +
+      'Ook 2 widgets zijn vervangen door de versie uit het bestand.'
+    );
+  });
+
+  it('H1-N1: een bestand met dezelfde versie vult een gedeeltelijke kopie aan: "aangevuld", niet "niets veranderd"', async () => {
+    const volledig = cursus({ chapters: [hoofdstuk(1), hoofdstuk(2), hoofdstuk(3)] });
+    // Eerst een gedeeltelijke link (zuivere kopie, 1 hoofdstuk), daarna het volledige bestand van dezelfde versie.
+    adoptSharedCourse({ ...volledig, chapters: [volledig.chapters[0]] }, [], { gedeeld: true });
+    expect(getCourse('c1')!.chapters).toHaveLength(1);
+    const b = bestand(volledig);
+    expect(await findCourseImportConflicts(b)).toEqual([]);
+    const res = await saveImportedCourse(b);
+    expect(getCourse('c1')!.chapters).toHaveLength(3);
+    expect(res.outcome).toBe('bijgewerkt');
+    expect(res.courseChange).toBe('gelijk');
+    expect(res.chaptersAdded).toBe(2);
+    const msg = describeCourseImport(res);
+    expect(msg.badge).toBe('bijgewerkt');
+    expect(msg.text).toBe('Cursus “De waterkringloop” is aangevuld met 2 hoofdstukken uit het bestand.');
+  });
+
+  it('hetzelfde bestand nog eens (niets veranderd, ook niet aan de widgets) blijft "ongewijzigd"', async () => {
+    const b = () => bestand(metWidget(), { widgets: [widgetW1()] });
+    await saveImportedCourse(b());
+    const res = await saveImportedCourse(b());
+    expect(res.outcome).toBe('ongewijzigd');
+    expect(res.courseChanged).toBe(false);
+    expect(res.replaced).toEqual([]);
+    expect(describeCourseImport(res).badge).toBe('niets veranderd');
+  });
+});
+
+describe('saveImportedCourse: een mislukte poging laat niets half achter (B3)', () => {
+  useMemoryStorage();
+
+  /** Eigen cursus en widget, en een bestand met een andere (oudere) versie van beide. */
+  async function eigenEnBestand() {
+    saveWidget({ ...widgetW1(), title: 'EIGEN QUIZ' });
+    saveCourse(metWidget({ title: 'EIGEN' }));
+    const b = bestand(metWidget({ title: 'BESTAND', updatedAt: 90_000 }), {
+      widgets: [widgetW1({ title: 'BESTAND QUIZ', updatedAt: 90_000 })],
+    });
+    const conflicts = await findCourseImportConflicts(b);
+    expect(conflicts.map((c) => c.kind).sort()).toEqual(['course', 'widget']);
+    return { b, conflicts };
+  }
+
+  it('"als kopie" bij een volle opslag: geen widget-kopie achtergelaten, ook niet na een tweede poging', async () => {
+    const { b, conflicts } = await eigenEnBestand();
+    quota.writesLeft.set('wf.courses.v1', 0); // de cursus past niet meer, de widget wel
+    for (const poging of [1, 2]) {
+      const res = await saveImportedCourse(b, { choice: 'kopie', conflicts });
+      expect(res.outcome, `poging ${poging}`).toBe('mislukt');
+      expect(res.widgetsRemoved).toBe(1);
+      expect(getWidgets().map((w) => w.title), `poging ${poging}`).toEqual(['EIGEN QUIZ']);
+    }
+    expect(getCourses().map((c) => c.title)).toEqual(['EIGEN']);
+    quota.writesLeft.clear(); // ruimte gemaakt: nu lukt het, met precies één kopie
+    const res = await saveImportedCourse(b, { choice: 'kopie', conflicts });
+    expect(res.outcome).toBe('kopie');
+    expect(getWidgets().map((w) => w.title).sort()).toEqual(['BESTAND QUIZ (kopie)', 'EIGEN QUIZ']);
+    expect(describeCourseImport(res).text).toMatch(/ernaast als kopie.*Ook 1 widget staat ernaast als kopie\./);
+  });
+
+  it('"vervangen" terwijl de cursus niet past: geen "niets veranderd", en de vervangen widget wordt genoemd', async () => {
+    const { b, conflicts } = await eigenEnBestand();
+    quota.writesLeft.set('wf.courses.v1', 0);
+    const res = await saveImportedCourse(b, { choice: 'bijwerken', conflicts });
+    expect(res.outcome).toBe('mislukt');
+    expect(res.ok).toBe(false);
+    expect(getCourse('c1')!.title).toBe('EIGEN');
+    expect(getWidget('w1')!.title).toBe('BESTAND QUIZ'); // vervangen blijft vervangen
+    const msg = describeCourseImport(res);
+    expect(msg.tone).toBe('err');
+    expect(msg.badge).toBe('niet bewaard');
+    expect(msg.text).not.toMatch(/niets veranderd|stond al zo/);
+    expect(msg.text).toMatch(/is niet bewaard: de opslag van dit toestel is vol\./);
+    expect(msg.text).toMatch(/Je bestaande versie van de cursus bleef zoals ze was\./);
+    expect(msg.text).toMatch(/1 widget \(“BESTAND QUIZ”\) is wel al vervangen door de versie uit het bestand\./);
+  });
+
+  it('een nieuwe cursus die niet past: de widget uit dezelfde poging is weer weg, en de melding zegt dat', async () => {
+    quota.failKeys.add('wf.courses.v1');
+    const res = await saveImportedCourse(bestand(metWidget(), { widgets: [widgetW1()] }));
+    expect(res.outcome).toBe('mislukt');
+    expect(res.courseId).toBeNull();
+    expect(res.widgetsRemoved).toBe(1);
+    expect(getWidgets()).toHaveLength(0);
+    expect(describeCourseImport(res).text).toMatch(/Wat tijdens deze poging al bewaard was \(1 widget\), is weer weggehaald\./);
+    // Ruimte gemaakt: een nieuwe poging lukt zonder restanten.
+    quota.failKeys.clear();
+    const again = await saveImportedCourse(bestand(metWidget(), { widgets: [widgetW1()] }));
+    expect(again.outcome).toBe('nieuw');
+    expect(getWidgets()).toHaveLength(1);
+  });
+
+  it('"mijn versie houden" waarbij een widget niet meer past: wat wel bewaard is, blijft (geen terugdraaien)', async () => {
+    saveCourse(metWidget({ title: 'EIGEN' }));
+    const b = bestand(metWidget({ title: 'BESTAND', updatedAt: 90_000 }), {
+      widgets: [widgetW1(), { ...widgetW1(), id: 'w2', title: 'Tweede' }],
+    });
+    const conflicts = await findCourseImportConflicts(b);
+    quota.writesLeft.set('wf.widgets.v1', 1); // één widget past nog
+    const res = await saveImportedCourse(b, { choice: 'houden', conflicts });
+    expect(res.outcome).toBe('gehouden');
+    expect(res.ok).toBe(false);
+    expect(res.widgetsRemoved).toBe(0);
+    expect(getWidgets()).toHaveLength(1);
+    const msg = describeCourseImport(res);
+    expect(msg.tone).toBe('warn');
+    expect(msg.badge).toBe('deels bewaard');
+    expect(msg.text).toMatch(/Ook 1 widget kwam erbij\..*Let op: niet alles kon bewaard worden/);
   });
 });
 

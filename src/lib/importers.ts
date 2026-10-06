@@ -24,7 +24,8 @@ import {
 import { importFolderPack, importWidgetJson } from './share';
 import { extractPdfMarkdown } from './pdfMarkdown';
 import { htmlToMarkdown } from './htmlToMarkdown';
-import { deleteFolder, deleteWidget, getWidget, saveFolder, saveWidget } from './storage';
+import { deleteFolder, deleteWidget, getWidget, getWidgets, saveFolder, saveWidget } from './storage';
+import { stringifyWithMedia } from './mediaStore';
 import { makeCode, uid } from './utils';
 import { WIDGET_TYPES, defaultSettings } from '../widgets/registry';
 
@@ -91,16 +92,42 @@ function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-// ── Tekstcodering (OP10) ────────────────────────────────────────────────────
+// ── Tekstcodering (OP10, B7) ────────────────────────────────────────────────
 // `File.text()` leest altijd als UTF-8. Excel op Windows bewaart een "CSV" en
 // Kladblok vaak een .txt in ANSI (windows-1252): dan werd "café" stil
-// "caf�". Ook "Unicode-tekst" (UTF-16 met BOM) komt voor. Volgorde: een BOM
-// beslist; anders strikt UTF-8 proberen, en lukt dat niet, windows-1252.
+// "caf�". Ook "Unicode-tekst" (UTF-16, met of zonder BOM) komt voor.
+// Volgorde: een BOM beslist; dan UTF-16 zonder BOM (veel NUL-bytes op
+// even of oneven plaatsen); dan UTF-8 als dat helemaal klopt, of zo goed
+// als helemaal (een verdwaald teken of een afgekapt einde mag niet het hele
+// bestand laten kantelen); anders windows-1252.
 
 export type TextEncodingName = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
 
+export interface DecodedText {
+  text: string;
+  encoding: TextEncodingName;
+  /** Alleen bij UTF-8 met enkele onleesbare bytes: het aantal vervangtekens (�) in de tekst. */
+  invalid?: number;
+}
+
+/** UTF-16 zonder BOM: tekst met accenten of gewone letters heeft om de andere byte een NUL. */
+function sniffUtf16(bytes: Uint8Array): 'utf-16le' | 'utf-16be' | null {
+  const n = Math.min(bytes.length, 4096) & ~1;
+  if (n < 4) return null;
+  let evenNul = 0;
+  let oddNul = 0;
+  for (let i = 0; i < n; i += 2) {
+    if (bytes[i] === 0) evenNul++;
+    if (bytes[i + 1] === 0) oddNul++;
+  }
+  const pairs = n / 2;
+  if (oddNul >= pairs * 0.3 && evenNul <= pairs * 0.05) return 'utf-16le';
+  if (evenNul >= pairs * 0.3 && oddNul <= pairs * 0.05) return 'utf-16be';
+  return null;
+}
+
 /** Bytes → tekst, met de codering die gebruikt werd. Gooit nooit. */
-export function decodeTextBytes(input: ArrayBuffer | Uint8Array): { text: string; encoding: TextEncodingName } {
+export function decodeTextBytes(input: ArrayBuffer | Uint8Array): DecodedText {
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
   if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
     return { text: new TextDecoder('utf-16le').decode(bytes), encoding: 'utf-16le' };
@@ -108,22 +135,38 @@ export function decodeTextBytes(input: ArrayBuffer | Uint8Array): { text: string
   if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
     return { text: new TextDecoder('utf-16be').decode(bytes), encoding: 'utf-16be' };
   }
+  const utf16 = sniffUtf16(bytes);
+  if (utf16) return { text: new TextDecoder(utf16).decode(bytes), encoding: utf16 };
   try {
     // fatal: bij één ongeldige reeks een fout in plaats van vervangtekens
     return { text: new TextDecoder('utf-8', { fatal: true }).decode(bytes), encoding: 'utf-8' };
   } catch {
+    // Niet helemaal geldig. Zijn er veel geldige reeksen (é als twee bytes) en
+    // weinig ongeldige, dan is het UTF-8 met een verdwaald of afgekapt teken:
+    // één vervangteken is dan beter dan het hele bestand als ANSI te lezen.
+    const lenient = new TextDecoder('utf-8').decode(bytes);
+    let valid = 0;
+    let invalid = 0;
+    for (const ch of lenient) {
+      const cp = ch.codePointAt(0) as number;
+      if (cp === 0xfffd) invalid++;
+      else if (cp > 0x7f) valid++;
+    }
+    if (valid > 0 && valid >= invalid && (invalid <= 3 || invalid * 100 < valid + invalid)) {
+      return { text: lenient, encoding: 'utf-8', invalid };
+    }
     try {
       return { text: new TextDecoder('windows-1252').decode(bytes), encoding: 'windows-1252' };
     } catch {
       // Een browser zonder windows-1252 (bestaat in de praktijk niet meer):
       // dan toch liever tekst met vervangtekens dan niets.
-      return { text: new TextDecoder('utf-8').decode(bytes), encoding: 'utf-8' };
+      return { text: lenient, encoding: 'utf-8', invalid };
     }
   }
 }
 
 /** Leest een tekstbestand met de juiste codering (zie decodeTextBytes). */
-export async function readTextFile(file: Blob): Promise<{ text: string; encoding: TextEncodingName }> {
+export async function readTextFile(file: Blob): Promise<DecodedText> {
   if (typeof file.arrayBuffer !== 'function') return { text: await file.text(), encoding: 'utf-8' };
   return decodeTextBytes(await file.arrayBuffer());
 }
@@ -132,9 +175,14 @@ const ANSI_WARNING =
   'Dit bestand was niet als UTF-8 bewaard en is gelezen als Windows-tekst (ANSI). Kijk letters met ' +
   'accenten en speciale tekens even na.';
 
-/** Tekstbron uit een bestand, met een waarschuwing als het geen UTF-8 was. */
-function withEncodingNote(src: ExtractedSource, encoding: TextEncodingName): ExtractedSource {
-  if (encoding === 'windows-1252' && src.text) src.warnings.push(ANSI_WARNING);
+const INVALID_WARNING =
+  'Enkele tekens in dit bestand konden niet gelezen worden en zijn vervangen door �. Kijk de tekst even na.';
+
+/** Tekstbron uit een bestand, met een waarschuwing als het geen zuivere UTF-8 was. */
+function withEncodingNote(src: ExtractedSource, decoded: DecodedText): ExtractedSource {
+  if (!src.text) return src;
+  if (decoded.encoding === 'windows-1252') src.warnings.push(ANSI_WARNING);
+  else if (decoded.invalid) src.warnings.push(INVALID_WARNING);
   return src;
 }
 
@@ -313,16 +361,16 @@ export async function extractFromFile(file: File): Promise<ExtractedSource> {
     return fromJson((await readTextFile(file)).text, origin, fallbackTitle);
   }
   if (ext === 'html' || ext === 'htm' || mime === 'text/html') {
-    const { text, encoding } = await readTextFile(file);
-    return withEncodingNote(textSource(htmlToMarkdown(text), fallbackTitle, origin, 'webpagina (.html)'), encoding);
+    const decoded = await readTextFile(file);
+    return withEncodingNote(textSource(htmlToMarkdown(decoded.text), fallbackTitle, origin, 'webpagina (.html)'), decoded);
   }
   if (ext === 'md' || ext === 'markdown') {
-    const { text, encoding } = await readTextFile(file);
-    return withEncodingNote(textSource(text, fallbackTitle, origin, 'markdown (.md)'), encoding);
+    const decoded = await readTextFile(file);
+    return withEncodingNote(textSource(decoded.text, fallbackTitle, origin, 'markdown (.md)'), decoded);
   }
   if (ext === 'txt' || ext === 'csv' || mime.startsWith('text/')) {
-    const { text, encoding } = await readTextFile(file);
-    return withEncodingNote(textSource(text, fallbackTitle, origin, 'tekstbestand'), encoding);
+    const decoded = await readTextFile(file);
+    return withEncodingNote(textSource(decoded.text, fallbackTitle, origin, 'tekstbestand'), decoded);
   }
   throw new ImportError(
     `Van “${origin}” kan geen tekst gelezen worden. Werkt wel: .docx, .pdf, .md, .txt, .html en ` +
@@ -842,11 +890,14 @@ export interface PackImportResult {
 /**
  * Widgets uit een vakgroeppakket bewaren, standaard in een nieuwe map.
  * `intoFolder`: in een bestaande map (opnieuw proberen na een volle opslag).
+ * Viel het pakket de vorige keer in de hoofdmap omdat de map niet bewaard
+ * kon worden (`id: null`), geef dan `folderSaved: false` mee: de melding
+ * blijft het dan zeggen.
  * Lukt er niets in een gloednieuwe map, dan blijft er geen lege map achter.
  */
 export function saveImportedPack(
   pack: FolderPack,
-  opts: { inNewFolder?: boolean; intoFolder?: { id: string | null; name: string } } = {}
+  opts: { inNewFolder?: boolean; intoFolder?: { id: string | null; name: string; folderSaved?: boolean } } = {}
 ): PackImportResult {
   let folderName = pack.meta.naam || 'Pakket';
   let folderId: string | null = null;
@@ -855,6 +906,7 @@ export function saveImportedPack(
   if (opts.intoFolder) {
     folderId = opts.intoFolder.id;
     folderName = opts.intoFolder.name;
+    folderSaved = opts.intoFolder.folderSaved ?? true;
   } else if (opts.inNewFolder ?? true) {
     const id = uid();
     if (saveFolder({ id, name: folderName, color: '#4f46e5', createdAt: Date.now() })) {
@@ -941,11 +993,51 @@ export interface CourseImportResult {
   ok: boolean;
   /** Aantal meegereisde widgets in het bestand. */
   widgets: number;
-  /** Tellingen over cursus en widgets samen (zie AdoptResult). */
+  /** Ruwe tellingen van de adoptie, over cursus en widgets samen (zie AdoptResult). De melding gebruikt ze niet. */
   added: number;
   updated: number;
   copied: number;
   pdfs: { restored: number; failed: number };
+  // Wat er echt veranderde, afgeleid uit de opslag vóór en na (B2): de melding
+  // zegt wat er staat, niet wat de tellingen hierboven suggereren.
+  /** De inhoud van de cursus (hoofdstukken, titel …) of haar versie is anders dan vooraf. */
+  courseChanged: boolean;
+  /** Hoe de versie van de cursus veranderde (alleen als courseChanged). */
+  courseChange: 'geen' | 'nieuwer' | 'gelijk' | 'ouder';
+  /** Hoofdstukken die er bij een bestaande cursus bijkwamen. */
+  chaptersAdded: number;
+  /** Widgets die hier ontbraken en nu bewaard staan. */
+  widgetsAdded: number;
+  /** Widgets die als kopie ernaast staan. */
+  widgetsCopied: number;
+  /** Titels van widgets die vervangen zijn door de versie uit het bestand. */
+  replaced: string[];
+  /** Widgets die in een mislukte poging bewaard werden en weer weggehaald zijn (B3). */
+  widgetsRemoved: number;
+}
+
+/** Dezelfde gegevens met gesorteerde sleutels, zodat de volgorde in een bestand niet uitmaakt. */
+function sortKeys(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(sortKeys);
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    return Object.fromEntries(Object.keys(o).sort().map((k) => [k, sortKeys(o[k])]));
+  }
+  return v;
+}
+
+/**
+ * Vergelijkbare vorm van een cursus of widget: gesorteerde sleutels, en media
+ * als verwijzing zoals ze bewaard staan (een blob:-URL lokaal en dezelfde
+ * afbeelding als data-URL in een bestand tellen dan als gelijk).
+ */
+function fingerprint(v: unknown): string {
+  return stringifyWithMedia(sortKeys(v));
+}
+
+/** Zelfde inhoud, zonder tijdstempels? */
+function sameWithoutStamps(a: Course, b: Course): boolean {
+  return fingerprint({ ...a, createdAt: 0, updatedAt: 0 }) === fingerprint({ ...b, createdAt: 0, updatedAt: 0 });
 }
 
 /** Pdf's waar een cursus op dit toestel naar verwijst: pdf-blokken en de widgets die ze toont. */
@@ -973,6 +1065,16 @@ export function findCourseImportConflicts(bundle: CourseBundle): Promise<SharedC
  * Een cursusbestand overnemen (met de widgets en pdf's die erin meereisden),
  * na de keuze van de leerkracht als er conflicten waren. Zegt eerlijk wat er
  * gebeurde; zie describeCourseImport.
+ *
+ * De uitkomst volgt uit wat er echt veranderde (cursus én widgets, vergeleken
+ * vóór en na), niet uit een gewijzigde `updatedAt` alleen: een bestand met
+ * dezelfde versie kan een gedeeltelijke kopie aanvullen, en een vervangen
+ * widget laat de cursus soms ongemoeid (B2, H1-N1).
+ *
+ * Lukt de cursus niet te bewaren (opslag vol), dan worden de widgets die in
+ * deze poging nieuw bewaard werden (nieuw of als kopie) weer weggehaald: een
+ * nieuwe poging begint zo schoon en maakt geen tweede "(kopie)" (B3). Widgets
+ * die vervangen werden, blijven vervangen; de melding noemt ze.
  */
 export async function saveImportedCourse(
   bundle: CourseBundle,
@@ -980,6 +1082,11 @@ export async function saveImportedCourse(
 ): Promise<CourseImportResult> {
   const id = bundle.course.id;
   const before = getCourse(id);
+  const courseBefore = before ? fingerprint(before) : null;
+  const bundleIds = new Set(bundle.widgets.map((w) => w.id));
+  const widgetsBefore = new Map(
+    getWidgets().filter((w) => bundleIds.has(w.id)).map((w) => [w.id, fingerprint(w)] as const)
+  );
   const res = adoptSharedCourse(
     bundle.course,
     bundle.widgets,
@@ -987,18 +1094,72 @@ export async function saveImportedCourse(
   );
   const localId = res.courseIds.get(id) ?? id;
   const after = getCourse(localId);
+
+  // Wat veranderde er aan de widgets?
+  const widgetsNow = new Map(getWidgets().map((w) => [w.id, w] as const));
+  const fresh: string[] = []; // nieuw in deze poging (nieuw of kopie): terug te draaien
+  const replaced: string[] = [];
+  let widgetsAdded = 0;
+  let widgetsCopied = 0;
+  for (const wid of bundleIds) {
+    const lid = res.widgetIds.get(wid) ?? wid;
+    const now = widgetsNow.get(lid);
+    if (!now) continue;
+    if (!widgetsBefore.has(lid)) {
+      fresh.push(lid);
+      if (lid === wid) widgetsAdded++;
+      else widgetsCopied++;
+    } else if (fingerprint(now) !== widgetsBefore.get(lid)) {
+      replaced.push(now.title);
+    }
+  }
+
+  // Wat veranderde er aan de cursus, en lukte het bewaren ervan?
+  const courseChanged = Boolean(before && after && localId === id && fingerprint(after) !== courseBefore);
+  const courseWritten = Boolean(after) && (!before || localId !== id || courseChanged);
+  const choice = keuze?.choice;
+  const inList = Boolean(keuze?.conflicts.some((c) => c.kind === 'course' && c.id === id));
+  // Moest de cursus overschreven worden? Een keuze geldt alleen voor wat in de
+  // vraag stond; de rest (een zuivere kopie, een ander bestand) volgt de gewone regels.
+  const meantToWrite = inList ? choice === 'bijwerken' : Boolean(before && !sameWithoutStamps(before, bundle.course));
+  // Elk onderdeel (cursus en elke widget) telt in precies één van de tellingen
+  // van de adoptie, of mislukte. Mislukte widgets die hier ontbreken zijn
+  // zichtbaar; blijft er daarna nog een mislukking over, dan kan dat de cursus zijn.
+  const failures = bundleIds.size + 1 - (res.added + res.updated + res.copied + res.kept);
+  const widgetsMissing = [...bundleIds].filter((wid) => !widgetsNow.has(res.widgetIds.get(wid) ?? wid)).length;
+  const courseFailed = !after || (!courseWritten && failures > widgetsMissing && meantToWrite);
+
+  let widgetsRemoved = 0;
+  if (courseFailed) {
+    for (const lid of fresh) {
+      deleteWidget(lid);
+      widgetsRemoved++;
+    }
+    widgetsAdded = 0;
+    widgetsCopied = 0;
+  }
+
   let outcome: CourseImportOutcome;
-  if (!after) outcome = 'mislukt';
+  if (courseFailed) outcome = 'mislukt';
   else if (localId !== id) outcome = 'kopie';
   else if (!before) outcome = 'nieuw';
-  // Overnemen bewaart de versie (updatedAt) van het bestand: een andere
-  // versie dan vooraf betekent dat de cursus vervangen werd.
-  else if (after.updatedAt !== before.updatedAt) outcome = keuze?.choice === 'bijwerken' ? 'vervangen' : 'bijgewerkt';
-  else outcome = keuze?.choice === 'houden' ? 'gehouden' : 'ongewijzigd';
+  else if (courseChanged) outcome = choice === 'bijwerken' ? 'vervangen' : 'bijgewerkt';
+  else if (choice === 'houden') outcome = 'gehouden';
+  else if (replaced.length + widgetsAdded + widgetsCopied > 0) outcome = 'bijgewerkt';
+  else outcome = 'ongewijzigd';
+
+  let courseChange: CourseImportResult['courseChange'] = 'geen';
+  let chaptersAdded = 0;
+  if (courseChanged && before && after) {
+    courseChange = after.updatedAt > before.updatedAt ? 'nieuwer' : after.updatedAt === before.updatedAt ? 'gelijk' : 'ouder';
+    const had = new Set(before.chapters.map((ch) => ch.id));
+    chaptersAdded = after.chapters.filter((ch) => !had.has(ch.id)).length;
+  }
+
   // Pdf's pas ná de keuze terugzetten, en alleen die waar wat hier nu staat
   // naar verwijst (G3): niet bewaard of bewust niet overgenomen laat geen
   // wees-pdf achter in IndexedDB. Een pdf die hier al staat, blijft ongemoeid.
-  const needed = after ? localPdfIds(after) : new Set<string>();
+  const needed = after && !courseFailed ? localPdfIds(after) : new Set<string>();
   const toRestore = (bundle.pdfs ?? []).filter((p) => needed.has(p.id));
   const pdfs = toRestore.length > 0 ? await restoreCoursePdfs(toRestore) : { restored: 0, failed: 0 };
   return {
@@ -1006,13 +1167,38 @@ export async function saveImportedCourse(
     courseId: after ? localId : null,
     title: bundle.course.title,
     localTitle: after?.title ?? bundle.course.title,
-    ok: res.ok,
+    ok: res.ok && !courseFailed,
     widgets: bundle.widgets.length,
     added: res.added,
     updated: res.updated,
     copied: res.copied,
     pdfs,
+    courseChanged,
+    courseChange,
+    chaptersAdded,
+    widgetsAdded,
+    widgetsCopied,
+    replaced,
+    widgetsRemoved,
   };
+}
+
+/** "1 widget (“Quiz”) is" / "3 widgets zijn": het onderwerp van een zin over vervangen widgets. */
+function replacedSubject(r: CourseImportResult): string {
+  const n = r.replaced.length;
+  return n === 1 ? `1 widget (“${r.replaced[0]}”) is` : `${n} widgets zijn`;
+}
+
+/** Wat er met de widgets gebeurde, in stukjes voor één zin ("1 widget … is vervangen …"). Leeg: niets. */
+function widgetChanges(r: CourseImportResult): string[] {
+  const parts: string[] = [];
+  if (r.replaced.length > 0) parts.push(`${replacedSubject(r)} vervangen door de versie uit het bestand`);
+  // Bij "nieuw" zegt de zin zelf al "met N widgets".
+  if (r.widgetsAdded > 0 && r.outcome !== 'nieuw') {
+    parts.push(`${plural(r.widgetsAdded, 'widget kwam', 'widgets kwamen')} erbij`);
+  }
+  if (r.widgetsCopied > 0) parts.push(`${plural(r.widgetsCopied, 'widget staat', 'widgets staan')} ernaast als kopie`);
+  return parts;
 }
 
 /** Eerlijke melding na een cursusimport, met het label voor de kaart. */
@@ -1020,18 +1206,37 @@ export function describeCourseImport(r: CourseImportResult): { text: string; ton
   const t = `“${r.title}”`;
   let text: string;
   let badge = 'geïmporteerd';
+  const widgetParts = widgetChanges(r);
+  // De cursus bleef zoals ze was; de zin gaat dan over de widgets.
+  let widgetsAlone = false;
   switch (r.outcome) {
-    case 'mislukt':
-      return {
-        text: `De cursus ${t} is niet bewaard: de opslag van dit toestel is vol. ${STORAGE_FULL_HINT}`,
-        tone: 'err',
-        badge: 'niet bewaard',
-      };
+    case 'mislukt': {
+      let msg = `De cursus ${t} is niet bewaard: de opslag van dit toestel is vol.`;
+      if (r.courseId) msg += ' Je bestaande versie van de cursus bleef zoals ze was.';
+      if (r.replaced.length > 0) {
+        msg += ` ${replacedSubject(r)} wel al vervangen door de versie uit het bestand.`;
+      }
+      if (r.widgetsRemoved > 0) {
+        msg += ` Wat tijdens deze poging al bewaard was (${plural(r.widgetsRemoved, 'widget', 'widgets')}), is weer weggehaald.`;
+      }
+      return { text: `${msg} ${STORAGE_FULL_HINT}`, tone: 'err', badge: 'niet bewaard' };
+    }
     case 'nieuw':
       text = `Cursus ${t} staat nu bij je cursussen${r.widgets ? ` (met ${plural(r.widgets, 'widget', 'widgets')})` : ''}.`;
       break;
     case 'bijgewerkt':
-      text = `Cursus ${t} is bijgewerkt naar de nieuwere versie uit het bestand.`;
+      badge = 'bijgewerkt';
+      if (!r.courseChanged) {
+        widgetsAlone = true;
+        text = `De cursus ${t} bleef gelijk; ${widgetParts.join(' en ')}.`;
+      } else if (r.courseChange === 'nieuwer') {
+        text = `Cursus ${t} is bijgewerkt naar de nieuwere versie uit het bestand.`;
+      } else {
+        // Zelfde versie, meer inhoud: een gedeeltelijke kopie die aangevuld werd (H1-N1).
+        text = r.chaptersAdded > 0
+          ? `Cursus ${t} is aangevuld met ${plural(r.chaptersAdded, 'hoofdstuk', 'hoofdstukken')} uit het bestand.`
+          : `Cursus ${t} is bijgewerkt met de inhoud uit het bestand.`;
+      }
       break;
     case 'vervangen':
       text = `Je cursus ${t} is vervangen door de versie uit het bestand.`;
@@ -1040,18 +1245,14 @@ export function describeCourseImport(r: CourseImportResult): { text: string; ton
       text = `Er stond al een versie van ${t}; de import staat ernaast als kopie: “${r.localTitle}”.`;
       break;
     case 'gehouden':
-      badge = 'niets vervangen';
-      text =
-        `Je eigen versie “${r.localTitle}” bleef staan; de versie uit het bestand is niet overgenomen.` +
-        (r.added + r.updated > 0 ? ' Wat nog ontbrak, kwam erbij.' : '');
+      badge = r.replaced.length > 0 ? 'cursus gehouden' : 'niets vervangen';
+      text = `Je eigen versie “${r.localTitle}” bleef staan; de versie uit het bestand is niet overgenomen.`;
       break;
     default:
       badge = 'niets veranderd';
       text = `Cursus ${t} stond al zo op dit toestel; er is niets veranderd.`;
   }
-  if (r.outcome !== 'kopie' && r.copied > 0) {
-    text += ` ${plural(r.copied, 'onderdeel staat', 'onderdelen staan')} ernaast als kopie.`;
-  }
+  if (!widgetsAlone && widgetParts.length > 0) text += ` Ook ${widgetParts.join(' en ')}.`;
   if (r.pdfs.restored > 0) text += ` ${plural(r.pdfs.restored, 'pdf', 'pdf’s')} teruggezet.`;
   if (!r.ok || r.pdfs.failed > 0) {
     const pdfNote = r.pdfs.failed > 0 ? ` (${plural(r.pdfs.failed, 'pdf', 'pdf’s')} niet teruggezet)` : '';
