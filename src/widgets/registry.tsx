@@ -387,12 +387,25 @@ export function defaultSettings(): WidgetSettings {
   };
 }
 
+// Het-woorden krijgen "Nieuw" ("Nieuw werkblad", "Nieuw galgje"), de rest "Nieuwe".
+const HET_WOORD: ReadonlySet<WidgetTypeId> = new Set<WidgetTypeId>([
+  'worksheet', 'splitworksheet', 'exitticket', 'dictation', 'crossword', 'hangman',
+  'pairs', 'memory', 'whiteboard', 'splitwhiteboard', 'spinner',
+]);
+
+/** Standaardtitel van een nieuwe widget, met het juiste lidwoord. */
+export function newWidgetTitle(type: WidgetTypeId): string {
+  if (type === 'spotdifference') return 'Nieuw spel: zoek de verschillen';
+  const name = getTypeDef(type).name.toLowerCase();
+  return `${HET_WOORD.has(type) ? 'Nieuw' : 'Nieuwe'} ${name}`;
+}
+
 export function createWidget(type: WidgetTypeId, title?: string): Widget {
   const def = getTypeDef(type);
   return {
     id: uid(),
     type,
-    title: title ?? `Nieuwe ${def.name.toLowerCase()}`,
+    title: title ?? newWidgetTitle(type),
     folderId: null,
     config: def.defaultConfig(),
     settings: { ...defaultSettings(), accentColor: def.color },
