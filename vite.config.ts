@@ -63,7 +63,10 @@ import { fontRefsInCss } from './src/offline/lettertypes';
  *    beveiliging van links en bestanden (veiligeUrl.ts) en het eerlijker
  *    leerlingscherm (deadline, timer, pogingen in PlayerPage): 329,5 kB
  *    (104,2 kB gzip); de contrastcontrole op de accentkleur van de speler
- *    (readableAccent, W15d) kost 0,8 kB: 330,6 kB (104,7 kB gzip). Het budget ligt ±0,5 kB boven die meting, zodat elke groei meteen opvalt; wie meer nodig heeft,
+ *    (readableAccent, W15d) kost 0,8 kB: 330,6 kB (104,7 kB gzip); het
+ *    opruimen van verlopen tussentijds werk met bestanden (OP13, luie import
+ *    in autosave.ts) en de cursuslezer brachten het op 331,1 kB (104,9 kB
+ *    gzip). Het budget ligt ±0,5 kB boven die meting, zodat elke groei meteen opvalt; wie meer nodig heeft,
  *    verhoogt het bewust, hier. Let op: vóór sep. 2026 mat dit budget vóór
  *    Vite de preloadlijst invulde, dus ±9 kB te licht (zie order: 'post').
  *  - vendor: React, React DOM, scheduler, de lucide-basis en de iconen van het
@@ -77,7 +80,7 @@ import { fontRefsInCss } from './src/offline/lettertypes';
  */
 const CRITICAL_PATH = {
   label: 'hoofdbundel (kritieke leerlingpad)',
-  maxKb: 331,
+  maxKb: 332,
   /** boven 5 % te veel faalt de build */
   hardFactor: 1.05,
   /** wat naast de hoofdbundel in de statische sluiting mag zitten */
