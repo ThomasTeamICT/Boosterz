@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildNewCoursePrompt, buildOptimizeChapterPrompt, buildOptimizePrompt, buildSectionExercisesPrompt,
-  buildSectionPrompt, checkMissingTopics, extractTopicKeywords, sanitizeAIChapter, sanitizeAICourse,
+  buildNewCoursePrompt, buildOptimizeChapterPrompt, buildOptimizePrompt, buildReworkPrompt, buildSectionExercisesPrompt,
+  buildSectionPrompt, checkMissingTopics, compactCourseLength, extractTopicKeywords, sanitizeAIBlocks,
+  sanitizeAIChapter, sanitizeAICourse,
 } from './aiCourse';
-import type { Course, CourseSection } from './courseTypes';
+import type { Course, CourseBlock, CourseSection } from './courseTypes';
 import type { CurriculumGoal } from './curriculumTypes';
 
 const goals: CurriculumGoal[] = [
@@ -248,5 +249,252 @@ describe('prompts met leerplandoelen', () => {
     expect(prompt).toContain('Water verdampt.');
     expect(prompt).toContain('NW 1.1');
     expect(prompt).toContain('"widgets"');
+  });
+});
+
+// ── Herstel uit de debugronde (oktober 2026) ────────────────────────────────
+
+/** Tekst van precies `n` tekens, zonder aanhalingstekens of regeleinden. */
+const longText = (n: number, tag: string) => {
+  let out = '';
+  for (let i = 1; out.length < n; i++) out += `Zin ${i} van ${tag} gaat over verdamping en condensatie. `;
+  return out.slice(0, n);
+};
+
+/** Haalt de compacte JSON achter de markering uit een prompt. */
+function compactFrom(prompt: string, marker: string): Record<string, unknown> {
+  const i = prompt.indexOf(marker);
+  expect(i).toBeGreaterThan(-1);
+  return JSON.parse(prompt.slice(i + marker.length).trim()) as Record<string, unknown>;
+}
+
+type CompactSection = { blocks: Record<string, unknown>[] };
+
+describe('herwerken stuurt de VOLLEDIGE tekst mee (AI1)', () => {
+  const long = {
+    text: longText(3000, 'tekst'),
+    callout: longText(657, 'kader'),
+    quote: longText(900, 'citaat'),
+    accordion: longText(1500, 'accordeon'),
+    left: longText(1400, 'links'),
+    right: longText(1300, 'rechts'),
+  };
+  const blocks: CourseBlock[] = [
+    { id: 'b-text', type: 'text', markdown: long.text },
+    { id: 'b-callout', type: 'callout', kind: 'info', title: 'Kader', text: long.callout },
+    { id: 'b-quote', type: 'quote', text: long.quote, source: 'Bron' },
+    { id: 'b-acc', type: 'accordion', items: [{ id: 'i1', title: 'Vraag', text: long.accordion }] },
+    { id: 'b-cols', type: 'columns', left: long.left, right: long.right },
+    { id: 'b-img', type: 'image', url: 'https://example.test/schema.png', size: 'normal' },
+  ];
+  const course = sanitizeAICourse({
+    course: { title: 'Lange cursus', chapters: [{ title: 'Water', sections: [{ title: 'Verdamping', blocks: [] }] }] },
+  }).course;
+  course.chapters[0].sections[0].blocks = blocks;
+
+  const expectFullText = (sections: CompactSection[]) => {
+    const out = sections[0].blocks;
+    expect(out.find((b) => b.type === 'text')?.markdown).toBe(long.text);
+    expect(out.find((b) => b.type === 'callout')?.text).toBe(long.callout);
+    expect(out.find((b) => b.type === 'quote')?.text).toBe(long.quote);
+    expect((out.find((b) => b.type === 'accordion')?.items as { text: string }[])[0].text).toBe(long.accordion);
+    const cols = out.find((b) => b.type === 'columns');
+    expect(cols?.left).toBe(long.left);
+    expect(cols?.right).toBe(long.right);
+    expect(out.find((b) => b.type === 'keep')).toEqual({ type: 'keep', id: 'b-img', was: 'image' });
+  };
+
+  it('buildOptimizeChapterPrompt bevat een tekstblok van 3000 tekens volledig', () => {
+    const { prompt } = buildOptimizeChapterPrompt({
+      course, chapter: course.chapters[0], chapterIndex: 1, chapterCount: 1, presets: ['taal'], wishes: '',
+    });
+    expect(prompt).toContain(long.text);
+    expectFullText(compactFrom(prompt, '=== HOOFDSTUK (compact) ===').sections as CompactSection[]);
+  });
+
+  it('buildReworkPrompt (en dus ook hiaten) bevat een tekstblok van 3000 tekens volledig', () => {
+    const { prompt } = buildReworkPrompt({ course, wishes: '' });
+    expect(prompt).toContain(long.text);
+    const compact = compactFrom(prompt, '=== HUIDIGE CURSUS (compact) ===');
+    expectFullText((compact.chapters as { sections: CompactSection[] }[])[0].sections);
+
+    const hiaten = buildOptimizePrompt({ course, presets: ['hiaten'], wishes: '', uncovered: [goals[0]], curriculumGoals: goals });
+    expect(hiaten.prompt).toContain(long.text);
+  });
+
+  it('een getrouw AI-antwoord verliest na toepassen geen enkel teken', () => {
+    const { prompt } = buildOptimizeChapterPrompt({
+      course, chapter: course.chapters[0], chapterIndex: 1, chapterCount: 1, presets: ['taal'], wishes: '',
+    });
+    const echoed = compactFrom(prompt, '=== HOOFDSTUK (compact) ===');
+    const res = sanitizeAIChapter({ chapter: echoed }, { base: course, chapterId: course.chapters[0].id });
+    const after = res.chapter!.sections[0].blocks;
+    const byType = (t: string) => after.find((b) => b.type === t) as CourseBlock;
+    expect((byType('text') as { markdown: string }).markdown).toBe(long.text);
+    expect((byType('callout') as { text: string }).text).toBe(long.callout);
+    expect((byType('quote') as { text: string }).text).toBe(long.quote);
+    expect((byType('columns') as { right: string }).right).toBe(long.right);
+    expect(byType('image')).toEqual(blocks[5]); // keep-blok teruggeplaatst
+    expect(res.warnings).toEqual([]);
+  });
+
+  it('compactCourseLength meet precies wat er in de herwerkprompt gaat, zonder plafond', () => {
+    const { prompt } = buildReworkPrompt({ course, wishes: '' });
+    const marker = '=== HUIDIGE CURSUS (compact) ===\n';
+    expect(compactCourseLength(course)).toBe(prompt.length - prompt.indexOf(marker) - marker.length);
+    expect(compactCourseLength(course)).toBeGreaterThan(3000 + 657 + 900 + 1500 + 1400 + 1300);
+  });
+});
+
+describe('de AI maakt geen mediablokken (AI6)', () => {
+  const aiMedia = [
+    { type: 'text', markdown: 'Gewone uitleg.' },
+    { type: 'embed', url: 'https://evil.example/login', height: 400 },
+    { type: 'image', url: 'https://tracker.example/p.png?x=1' },
+    { type: 'attachment', name: 'x.exe', dataUrl: 'data:application/octet-stream;base64,AAAA' },
+    { type: 'widget', widgetId: 'bestaat-niet' },
+    { type: 'pdf', url: 'https://evil.example/x.pdf' },
+    { type: 'video', url: 'https://www.youtube.com/watch?v=abcdefghijk' },
+    { type: 'audio', url: 'https://evil.example/a.mp3' },
+  ];
+  const MEDIA_WARNING = 'Een mediablok van de AI is weggelaten.';
+
+  it('sanitizeAIBlocks houdt alleen tekstuele blokken over, met een waarschuwing per mediablok', () => {
+    const warnings: string[] = [];
+    const out = sanitizeAIBlocks({ blocks: aiMedia }, warnings);
+    expect(out.map((b) => b.type)).toEqual(['text']);
+    expect(warnings).toEqual(Array(7).fill(MEDIA_WARNING));
+  });
+
+  it('sanitizeAIBlocks werkt ook zonder waarschuwingslijst en met een kale array', () => {
+    expect(sanitizeAIBlocks(aiMedia).map((b) => b.type)).toEqual(['text']);
+  });
+
+  it('laat alle tekstuele types door, en een onbekend type zonder mediawaarschuwing weg', () => {
+    const warnings: string[] = [];
+    const out = sanitizeAIBlocks({
+      blocks: [
+        { type: 'heading', text: 'Kop', level: 2 },
+        { type: 'text', markdown: 'Tekst' },
+        { type: 'callout', kind: 'tip', text: 'Tip' },
+        { type: 'quote', text: 'Citaat' },
+        { type: 'divider' },
+        { type: 'accordion', items: [{ title: 'V', text: 'A' }] },
+        { type: 'columns', left: 'L', right: 'R' },
+        { type: 'table', header: true, rows: [['a', 'b']] },
+        { type: 'terms', items: [{ term: 't', uitleg: 'u' }] },
+        { type: 'checklist', items: ['ik kan'] },
+        { type: 'paragraph', text: 'onbekend' },
+        { type: 'keep', id: 'b1' },
+        null,
+        'los',
+      ],
+    }, warnings);
+    expect(out.map((b) => b.type)).toEqual([
+      'heading', 'text', 'callout', 'quote', 'divider', 'accordion', 'columns', 'table', 'terms', 'checklist',
+    ]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('sanitizeAICourse laat mediablokken van de AI weg', () => {
+    const res = sanitizeAICourse({ course: { title: 't', chapters: [{ title: 'c', sections: [{ title: 's', blocks: aiMedia }] }] } });
+    expect(res.course.chapters[0].sections[0].blocks.map((b) => b.type)).toEqual(['text']);
+    expect(res.warnings.filter((w) => w === MEDIA_WARNING)).toHaveLength(7);
+  });
+
+  it('sanitizeAIChapter: teruggeplaatste keep-blokken blijven, door de AI gemaakte media niet', () => {
+    const base = sanitizeAICourse({
+      course: { title: 't', chapters: [{ title: 'c', sections: [{ title: 's', blocks: [{ type: 'text', markdown: 'x' }] }] }] },
+    }).course;
+    const original: CourseBlock[] = [
+      { id: 'img-1', type: 'image', url: 'https://example.test/schema.png', caption: 'Schema', size: 'normal' },
+      { id: 'w-1', type: 'widget', widgetId: 'echte-widget' },
+      { id: 'pdf-1', type: 'pdf', url: 'https://example.test/les.pdf', name: 'les.pdf' },
+    ];
+    base.chapters[0].sections[0].blocks = [...original];
+    const answer = {
+      chapter: {
+        title: 'c',
+        sections: [{
+          title: 's',
+          blocks: [
+            { type: 'keep', id: 'img-1' },
+            { type: 'text', markdown: 'Nieuwe uitleg.' },
+            { type: 'keep', id: 'w-1' },
+            { type: 'keep', id: 'pdf-1' },
+            { type: 'image', url: 'https://tracker.example/p.png' },
+            { type: 'widget', widgetId: 'verzonnen' },
+          ],
+        }],
+      },
+    };
+    const res = sanitizeAIChapter(answer, { base, chapterId: base.chapters[0].id });
+    const out = res.chapter!.sections[0].blocks;
+    expect(out.map((b) => b.type)).toEqual(['image', 'text', 'widget', 'pdf']);
+    expect(out[0]).toEqual(original[0]);
+    expect(out[2]).toEqual(original[1]);
+    expect(out[3]).toEqual(original[2]);
+    expect(res.warnings).toEqual([MEDIA_WARNING, MEDIA_WARNING]);
+  });
+
+  it('een pdf-blok gaat als keep mee, en wordt gemeld als de AI het liet vallen', () => {
+    const base = sanitizeAICourse({
+      course: { title: 't', chapters: [{ title: 'c', sections: [{ title: 's', blocks: [{ type: 'text', markdown: 'x' }] }] }] },
+    }).course;
+    base.chapters[0].sections[0].blocks = [{ id: 'pdf-1', type: 'pdf', url: 'https://example.test/les.pdf' }];
+    const { prompt } = buildReworkPrompt({ course: base, wishes: '' });
+    expect(prompt).toContain('{"type":"keep","id":"pdf-1","was":"pdf"}');
+    const res = sanitizeAIChapter(
+      { chapter: { title: 'c', sections: [{ title: 's', blocks: [{ type: 'text', markdown: 'y' }] }] } },
+      { base, chapterId: base.chapters[0].id }
+    );
+    expect(res.warnings.some((w) => w.includes('pdf-blok') && w.includes('kwam niet terug'))).toBe(true);
+  });
+});
+
+describe('plaatshouders als doelcode (AI9)', () => {
+  it('vraagt alleen "goalCodes" als er leerplandoelen zijn', () => {
+    const zonder = buildNewCoursePrompt({ goals: '', sourceText: 'De waterkringloop.', withQuizzes: true });
+    expect(zonder.prompt).not.toContain('"goalCodes"');
+    expect(zonder.prompt).toContain('"widgets"'); // de envelope blijft verder heel
+    const vrij = buildNewCoursePrompt({ goals: 'Ik kan verdamping uitleggen.' });
+    expect(vrij.prompt).not.toContain('"goalCodes"');
+    const met = buildNewCoursePrompt({ goals: '', curriculumGoals: goals });
+    expect(met.prompt).toContain('"goalCodes":["…"]');
+  });
+
+  const answer = (goalCodes: unknown[]) => ({
+    course: {
+      title: 'Water',
+      chapters: [{ title: 'H1', sections: [{ title: 'S1', goalCodes, blocks: [{ type: 'text', markdown: 'x' }] }] }],
+    },
+  });
+
+  it('bewaart "…" niet als code, ook zonder leerplan', () => {
+    for (const opts of [{}, { allowedGoalCodes: [] as string[] }]) {
+      const res = sanitizeAICourse(answer(['…']), opts);
+      expect(res.course.chapters[0].sections[0].goalCodes).toBeUndefined();
+      expect(res.warnings).toEqual([]);
+    }
+  });
+
+  it('laat echte codes naast plaatshouders staan', () => {
+    const res = sanitizeAICourse(answer(['…', '-', '?', '', 'NW 9.9', 'nw 9.9', '1', 'É']));
+    expect(res.course.chapters[0].sections[0].goalCodes).toEqual(['NW 9.9', '1', 'É']);
+  });
+
+  it('meldt een plaatshouder niet als "niet in je leerplan"', () => {
+    const res = sanitizeAICourse(answer(['…', 'NW 1.1']), { allowedGoalCodes: ['NW 1.1'] });
+    expect(res.course.chapters[0].sections[0].goalCodes).toEqual(['NW 1.1']);
+    expect(res.warnings).toEqual([]);
+  });
+
+  it('filtert plaatshouders ook per hoofdstuk', () => {
+    const base = sanitizeAICourse(answer([])).course;
+    const res = sanitizeAIChapter(
+      { chapter: { title: 'H1', sections: [{ title: 'S1', goalCodes: ['…'], blocks: [{ type: 'text', markdown: 'y' }] }] } },
+      { base, chapterId: base.chapters[0].id }
+    );
+    expect(res.chapter!.sections[0].goalCodes).toBeUndefined();
   });
 });

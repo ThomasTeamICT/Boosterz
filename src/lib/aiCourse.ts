@@ -115,7 +115,10 @@ export function buildNewCoursePrompt(req: NewCourseRequest): { system: string; p
     parts.push('Sluit ELK hoofdstuk af met een korte samenvattingssectie ("Samenvatting van dit hoofdstuk") die de kern in enkele zinnen of een lijstje herhaalt.');
   }
 
-  let envelope = `Geef terug: {"course":{"title":"…","subtitle":"…","coverEmoji":"één emoji","chapters":[{"title":"…","emoji":"…","sections":[{"title":"…","goals":["…"],"goalCodes":["…"],"optional":false,"blocks":[blok,…]}]}]}}`;
+  // "goalCodes" alleen vragen als er codes zijn om uit te kiezen: zonder
+  // leerplan gaf de AI anders de plaatshouder "…" terug als code.
+  const goalCodesField = curGoals.length ? '"goalCodes":["…"],' : '';
+  let envelope = `Geef terug: {"course":{"title":"…","subtitle":"…","coverEmoji":"één emoji","chapters":[{"title":"…","emoji":"…","sections":[{"title":"…","goals":["…"],${goalCodesField}"optional":false,"blocks":[blok,…]}]}]}}`;
   if (req.withQuizzes) {
     envelope = envelope.slice(0, -1) + `,"widgets":[{"type":"quiz","title":"…","config":{…}}]}
 Maak per hoofdstuk één oefenquiz van 4 à 6 vragen over dat hoofdstuk, in dezelfde volgorde als de hoofdstukken.
@@ -128,19 +131,51 @@ ${quizSchemaText()}`;
   return { system: COURSE_SYSTEM, prompt: parts.join('\n\n') };
 }
 
-const MEDIA_BLOCK_TYPES = new Set(['image', 'video', 'audio', 'embed', 'attachment', 'widget']);
+/** Blokken die de leerkracht zelf toevoegt: de AI mag ze alleen terugzetten (keep), nooit zelf maken. */
+const MEDIA_BLOCK_TYPES = new Set(['image', 'video', 'audio', 'pdf', 'embed', 'attachment', 'widget']);
 
-/** Eén blok compact voor in een herwerk-prompt: mediablokken worden een "keep"-verwijzing. */
+/**
+ * De enige bloktypes die de AI zelf mag maken (zie BLOCK_SCHEMA). Bewust een
+ * toelatingslijst: een nieuw mediatype in courseTypes glipt zo niet ongemerkt
+ * door de sanering van een AI-antwoord.
+ */
+const AI_TEXT_BLOCK_TYPES = new Set([
+  'heading', 'text', 'callout', 'quote', 'divider', 'accordion', 'columns', 'table', 'terms', 'checklist',
+]);
+
+const AI_MEDIA_DROPPED = 'Een mediablok van de AI is weggelaten.';
+
+/**
+ * Houdt alleen de tekstuele blokken uit een AI-antwoord over. Een mediablok
+ * (afbeelding, embed, bijlage, oefening …) dat de AI zelf maakte, valt weg met
+ * een waarschuwing: de AI zou er een URL, data-URL of widget-id voor moeten
+ * verzinnen. Andere onbekende types laat sanitizeCourse sowieso al vallen.
+ */
+function keepAITextBlocks(blocks: unknown[], warnings: string[]): unknown[] {
+  return blocks.filter((b) => {
+    if (!b || typeof b !== 'object') return false;
+    const type = (b as Record<string, unknown>).type;
+    if (typeof type === 'string' && AI_TEXT_BLOCK_TYPES.has(type)) return true;
+    if (typeof type === 'string' && MEDIA_BLOCK_TYPES.has(type)) warnings.push(AI_MEDIA_DROPPED);
+    return false;
+  });
+}
+
+/**
+ * Eén blok compact voor in een herwerk-prompt: mediablokken worden een
+ * "keep"-verwijzing. Tekst gaat VOLLEDIG mee: de prompt vraagt het volledige
+ * hoofdstuk terug, dus wat hier afgeknipt wordt, is na "Toepassen" weg.
+ */
 function compactBlock(b: CourseBlock): Record<string, unknown> {
   if (MEDIA_BLOCK_TYPES.has(b.type)) return { type: 'keep', id: b.id, was: b.type };
   switch (b.type) {
     case 'heading': return { type: 'heading', text: b.text, level: b.level };
-    case 'text': return { type: 'text', markdown: b.markdown.slice(0, 1200) };
-    case 'callout': return { type: 'callout', kind: b.kind, title: b.title, text: b.text.slice(0, 600) };
-    case 'quote': return { type: 'quote', text: b.text.slice(0, 400), source: b.source };
+    case 'text': return { type: 'text', markdown: b.markdown };
+    case 'callout': return { type: 'callout', kind: b.kind, title: b.title, text: b.text };
+    case 'quote': return { type: 'quote', text: b.text, source: b.source };
     case 'divider': return { type: 'divider' };
-    case 'accordion': return { type: 'accordion', items: b.items.map((i) => ({ title: i.title, text: i.text.slice(0, 400) })) };
-    case 'columns': return { type: 'columns', left: b.left.slice(0, 600), right: b.right.slice(0, 600) };
+    case 'accordion': return { type: 'accordion', items: b.items.map((i) => ({ title: i.title, text: i.text })) };
+    case 'columns': return { type: 'columns', left: b.left, right: b.right };
     case 'table': return { type: 'table', header: b.header, rows: b.rows };
     case 'terms': return { type: 'terms', items: b.items.map((i) => ({ term: i.term, uitleg: i.uitleg })) };
     case 'checklist': return { type: 'checklist', title: b.title, items: b.items.map((i) => i.text) };
@@ -171,6 +206,15 @@ function compactCourse(course: Course): string {
     subtitle: course.subtitle,
     chapters: course.chapters.map(compactChapter),
   });
+}
+
+/**
+ * Lengte (in tekens) van de cursus zoals ze in een herwerk-prompt gaat. De AI
+ * moet ongeveer evenveel tekst terugschrijven, dus dit bepaalt of herwerken in
+ * één antwoord past (zie CourseAIModal).
+ */
+export function compactCourseLength(course: Course): number {
+  return compactCourse(course).length;
 }
 
 export function buildReworkPrompt({
@@ -520,7 +564,9 @@ function resolveKeepBlocks(
             warnings.push('Een mediablok kon niet teruggeplaatst worden en is weggevallen.');
             return null;
           }
-          return b;
+          // Geen keep: dan moet het een tekstueel blok zijn. Een mediablok dat
+          // de AI zelf maakte (verzonnen URL, data-URL of widget-id) valt weg.
+          return keepAITextBlocks([b], warnings).length ? b : null;
         })
         .filter((b) => b !== null);
     }
@@ -535,9 +581,8 @@ function resolveKeepBlocks(
         }
       }
     }
-    const MEDIA = new Set(['image', 'video', 'audio', 'embed', 'attachment', 'widget']);
     for (const [id, b] of byId) {
-      if (MEDIA.has(b.type) && !returned.has(id)) {
+      if (MEDIA_BLOCK_TYPES.has(b.type) && !returned.has(id)) {
         warnings.push(`Een ${b.type}-blok uit de originele cursus kwam niet terug in de herwerking.`);
       }
     }
@@ -557,8 +602,24 @@ function goalCodeMatchKey(code: string): string {
   return normalizeGoalCode(code).replace(/\s+/g, '');
 }
 
-/** Filtert de doelcodes van een reeks secties tot de toegelaten lijst. */
+/**
+ * Een echte doelcode bevat minstens één letter of cijfer. Wat de AI uit het
+ * antwoordsjabloon overnam ("…", "-", "?"), is een plaatshouder, geen code.
+ */
+function isRealGoalCode(code: string): boolean {
+  return /[\p{L}\d]/u.test(code);
+}
+
+/**
+ * Filtert de doelcodes van een reeks secties tot de toegelaten lijst.
+ * Plaatshouders vallen altijd weg, ook zonder lijst (cursus zonder leerplan).
+ */
 function filterSectionGoalCodes(sections: CourseSection[], allowedGoalCodes: string[] | undefined, warnings: string[]) {
+  for (const section of sections) {
+    if (!section.goalCodes?.length) continue;
+    const real = section.goalCodes.filter(isRealGoalCode);
+    section.goalCodes = real.length ? real : undefined;
+  }
   if (!allowedGoalCodes?.length) return;
   const allowed = new Set(normalizeGoalCodes(allowedGoalCodes).map(goalCodeMatchKey));
   let dropped = 0;
@@ -636,10 +697,15 @@ export function sanitizeAICourse(json: unknown, opts: SanitizeAICourseOptions = 
   return { course, quizzes, warnings };
 }
 
-/** {"blocks":[…]} van de AI → geldige CourseBlocks (via een wegwerpcursus). */
-export function sanitizeAIBlocks(json: unknown): CourseBlock[] {
+/**
+ * {"blocks":[…]} van de AI → geldige CourseBlocks (via een wegwerpcursus).
+ * Alleen tekstuele blokken: een mediablok van de AI valt weg en komt (als je
+ * een lijst meegeeft) in `warnings`.
+ */
+export function sanitizeAIBlocks(json: unknown, warnings: string[] = []): CourseBlock[] {
   const envelope = (json && typeof json === 'object' ? json : {}) as Record<string, unknown>;
-  const blocks = Array.isArray(envelope.blocks) ? envelope.blocks : Array.isArray(json) ? json : [];
+  const raw: unknown[] = Array.isArray(envelope.blocks) ? envelope.blocks : Array.isArray(json) ? json : [];
+  const blocks = keepAITextBlocks(raw, warnings);
   const course = sanitizeCourse({
     title: 'x',
     chapters: [{ title: 'x', sections: [{ title: 'x', blocks }] }],

@@ -9,10 +9,11 @@ import { getCurriculum, normalizeGoalCode } from '../../lib/curriculum';
 import { computeCoverage } from '../../lib/coverage';
 import {
   buildNewCoursePrompt, buildOptimizeChapterPrompt, buildOptimizePrompt, buildReworkPrompt,
-  buildSectionExercisesPrompt, buildSectionPrompt, checkMissingTopics, MAX_SOURCE_CHARS, OPTIMIZE_PRESETS,
-  sanitizeAIBlocks, sanitizeAIChapter, sanitizeAICourse, sanitizeSectionExercises, type OptimizePreset,
+  buildSectionExercisesPrompt, buildSectionPrompt, checkMissingTopics, compactCourseLength, MAX_SOURCE_CHARS,
+  OPTIMIZE_PRESETS, sanitizeAIBlocks, sanitizeAIChapter, sanitizeAICourse, sanitizeSectionExercises,
+  type OptimizePreset,
 } from '../../lib/aiCourse';
-import { AIError, askAI, extractJson } from '../../lib/ai';
+import { AIError, askAI, effectiveMaxTokens, extractJson, getAISettings } from '../../lib/ai';
 import { runBatch } from '../../lib/aiBatch';
 import type { BatchItemStatus } from '../../lib/aiBatch';
 import { AIErrorBox, AIGate, AIReviewNote, AIWorkingBox } from '../aiCommon';
@@ -27,6 +28,25 @@ import {
 
 /** Hoogstens dit veel hoofdstukken tegelijk optimaliseren (per hoofdstuk één aanroep). */
 const CHAPTER_BATCH_CONCURRENCY = 2;
+
+/** Tokenlimiet van één antwoord voor de hele cursus (herwerken en hiaten). */
+const WHOLE_COURSE_MAX_TOKENS = 32000;
+
+/**
+ * Herwerken en hiaten vragen de VOLLEDIGE cursus terug in één antwoord. Is de
+ * cursus (compact) langer dan wat in dat antwoord past (±3 tekens per token),
+ * dan wordt het antwoord zeker afgekapt: liever meteen weigeren dan de
+ * leerkracht een minuut te laten wachten op een mislukking.
+ */
+function tooBigForOneAnswer(course: Course): boolean {
+  const outputTokens = Math.min(
+    WHOLE_COURSE_MAX_TOKENS,
+    effectiveMaxTokens(getAISettings().provider, WHOLE_COURSE_MAX_TOKENS)
+  );
+  return compactCourseLength(course) > 3 * outputTokens;
+}
+
+const TOO_BIG_MESSAGE = 'Te groot om in één keer te herwerken — kies Optimaliseren (per hoofdstuk).';
 
 type Mode = 'new' | 'rework' | 'optimize' | 'section' | 'exercises';
 
@@ -95,7 +115,6 @@ export function CourseAIModal({
   // invoer (mode 'rework' / 'section' / 'optimize' / 'exercises')
   const [wishes, setWishes] = useState('');
   const [source, setSource] = useState('');
-  const [insertMode, setInsertMode] = useState<'append' | 'replace'>('append');
   const [preset, setPreset] = useState<OptimizePreset>(initialPreset ?? 'taal');
   const [exerciseCount, setExerciseCount] = useState(1);
 
@@ -194,16 +213,22 @@ export function CourseAIModal({
   /** Eén mislukt hoofdstuk opnieuw proberen — de andere hoofdstukken in de voorvertoning blijven staan. */
   const retryChapter = async (chapterId: string) => {
     if (!course) return;
+    // De foutkaart blijft staan ("Wordt opnieuw geprobeerd…") tot de nieuwe
+    // poging klaar is: zo telt het hoofdstuk intussen nog als mislukt.
     setChapterStatus((s) => ({ ...s, [chapterId]: 'bezig' }));
-    setChapterErrors((e) => {
-      const next = { ...e };
-      delete next[chapterId];
-      return next;
-    });
     try {
       const res = await optimizeOneChapter(course, chapterId, new AbortController().signal);
       setChapterStatus((s) => ({ ...s, [chapterId]: 'klaar' }));
-      setPreview((p) => (p ? { ...p, course: { ...p.course, chapters: p.course.chapters.map((ch) => (ch.id === chapterId ? res.chapter : ch)) } } : p));
+      setChapterErrors((e) => {
+        const next = { ...e };
+        delete next[chapterId];
+        return next;
+      });
+      setPreview((p) => (p ? {
+        ...p,
+        course: { ...p.course, chapters: p.course.chapters.map((ch) => (ch.id === chapterId ? res.chapter : ch)) },
+        warnings: [...p.warnings, ...res.warnings],
+      } : p));
     } catch (e) {
       setChapterStatus((s) => ({ ...s, [chapterId]: 'mislukt' }));
       setChapterErrors((er) => ({ ...er, [chapterId]: (e as Error).message }));
@@ -254,6 +279,12 @@ export function CourseAIModal({
         // hetzelfde doel niet in meerdere hoofdstukken tegelijk dekken — dat
         // vraagt precies het coursebrede overzicht dat per-hoofdstuk-aanroepen
         // niet hebben, dus blijft dit één aanroep voor de hele cursus.
+        if (tooBigForOneAnswer(course)) {
+          setError(mode === 'optimize'
+            ? `${TOO_BIG_MESSAGE} De open doelen vul je dan per sectie aan met “Vul deze sectie met AI”.`
+            : TOO_BIG_MESSAGE);
+          return;
+        }
         const p = mode === 'optimize'
           ? buildOptimizePrompt({
             course, presets: [preset], wishes,
@@ -274,11 +305,12 @@ export function CourseAIModal({
       } else if (mode === 'section' && course && section) {
         const p = buildSectionPrompt({ course, section, wishes, source });
         const full = await askAI({ ...p, task: 'sectie-inhoud', maxTokens: 8000, onDelta, signal: ctrl.signal });
-        const blocks = sanitizeAIBlocks(extractJson(full));
+        const blockWarnings: string[] = [];
+        const blocks = sanitizeAIBlocks(extractJson(full), blockWarnings);
         if (blocks.length === 0) {
           setError('De AI leverde geen bruikbare blokken op. Probeer het opnieuw met een duidelijkere omschrijving.');
         } else {
-          setPreview({ course, quizzes: [], blocks, warnings: [] });
+          setPreview({ course, quizzes: [], blocks, warnings: blockWarnings });
         }
       } else if (mode === 'exercises' && course && section) {
         const p = buildSectionExercisesPrompt({
@@ -303,22 +335,37 @@ export function CourseAIModal({
     }
   };
 
+  // Per hoofdstuk optimaliseren: toepassen heeft pas zin als minstens één
+  // hoofdstuk echt geoptimaliseerd is, en niet terwijl er nog een opnieuw loopt
+  // (dat antwoord ging anders verloren).
+  const perChapterPreview = mode === 'optimize' && preset !== 'hiaten' && preview !== null;
+  const chapterTotal = preview?.course.chapters.length ?? 0;
+  const failedChapterCount = perChapterPreview
+    ? preview.course.chapters.filter((ch) => chapterErrors[ch.id] !== undefined).length
+    : 0;
+  const applyBlockedReason = !perChapterPreview ? ''
+    : failedChapterCount === chapterTotal
+      ? 'Geen enkel hoofdstuk kon geoptimaliseerd worden, dus er is nog niets om toe te passen. Probeer de hoofdstukken hierboven opnieuw.'
+    : preview.course.chapters.some((ch) => chapterStatus[ch.id] === 'bezig')
+      ? 'Even geduld: er wordt nog een hoofdstuk opnieuw geprobeerd.'
+    : '';
+
   const apply = () => {
-    if (!preview) return;
+    if (!preview || applyBlockedReason) return;
     if (mode === 'section' && course && section && preview.blocks) {
+      // Altijd achteraan toevoegen: de prompt vraagt de AI om AAN TE VULLEN op
+      // wat er al staat. Vervangen gooide zo tekst en media van de leerkracht
+      // weg die niet in het antwoord terugkwamen.
+      const added = preview.blocks;
       const updated: Course = {
         ...course,
         chapters: course.chapters.map((ch) => ({
           ...ch,
-          sections: ch.sections.map((se) =>
-            se.id === section.id
-              ? { ...se, blocks: insertMode === 'replace' ? preview.blocks! : [...se.blocks, ...preview.blocks!] }
-              : se
-          ),
+          sections: ch.sections.map((se) => (se.id === section.id ? { ...se, blocks: [...se.blocks, ...added] } : se)),
         })),
       };
       onResult(updated);
-      toast(`${preview.blocks.length} blok(ken) ${insertMode === 'replace' ? 'geplaatst' : 'toegevoegd'}`, 'ok');
+      toast(`${added.length} blok(ken) achteraan de sectie toegevoegd`, 'ok');
       onClose();
       return;
     }
@@ -357,6 +404,8 @@ export function CourseAIModal({
     onResult(result);
     toast(
       mode === 'new' ? 'Cursus aangemaakt — kijk alles na'
+      : mode === 'optimize' && failedChapterCount > 0
+        ? `Optimalisatie toegepast op ${chapterTotal - failedChapterCount} van ${chapterTotal} hoofdstukken — kijk alles na`
       : mode === 'optimize' ? 'Optimalisatie toegepast — kijk alles na'
       : 'Herwerking toegepast — kijk alles na',
       'ok'
@@ -550,7 +599,12 @@ export function CourseAIModal({
             )}
             {mode === 'section' && section && (
               <>
-                <Field label="Wat moet er in deze sectie komen?">
+                <Field
+                  label="Wat moet er in deze sectie komen?"
+                  hint={section.blocks.length > 0
+                    ? 'De AI vult aan op wat er al staat. De nieuwe blokken komen achteraan; de bestaande blokken blijven staan.'
+                    : undefined}
+                >
                   <textarea className="textarea" rows={3} value={wishes} onChange={(e) => setWishes(e.target.value)}
                     placeholder={`bv. uitleg over "${section.title}" met een begrippenlijst en een check-jezelf-lijstje`} />
                 </Field>
@@ -598,7 +652,8 @@ export function CourseAIModal({
                 </div>
               </>
             )}
-            {error && <AIErrorBox error={error} onRetry={generate} />}
+            {/* Te groot: opnieuw proberen geeft hetzelfde resultaat, dus geen knop. */}
+            {error && <AIErrorBox error={error} onRetry={error.startsWith(TOO_BIG_MESSAGE) ? undefined : generate} />}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
               <button className="btn btn-ghost" onClick={onClose}>Annuleren</button>
               <button className="btn btn-ai" disabled={!canGenerate} onClick={generate}><AIIcon size={16} /> Genereren</button>
@@ -692,16 +747,10 @@ export function CourseAIModal({
                   </ul>
                 </div>
                 {section && section.blocks.length > 0 && (
-                  <div role="radiogroup" aria-label="Plaatsing" style={{ display: 'flex', gap: 16 }}>
-                    <label className="checkbox-row">
-                      <input type="radio" name="insert" checked={insertMode === 'append'} onChange={() => setInsertMode('append')} />
-                      <span>Achteraan toevoegen</span>
-                    </label>
-                    <label className="checkbox-row">
-                      <input type="radio" name="insert" checked={insertMode === 'replace'} onChange={() => setInsertMode('replace')} />
-                      <span>Bestaande blokken vervangen</span>
-                    </label>
-                  </div>
+                  <p className="hint" style={{ margin: 0 }}>
+                    Deze blokken komen achteraan de sectie. Wat er al staat, blijft staan; schrappen of
+                    verschuiven doe je daarna zelf in de editor.
+                  </p>
                 )}
               </>
             ) : (
@@ -764,10 +813,20 @@ export function CourseAIModal({
                 )}
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            {applyBlockedReason && (
+              <p id="course-ai-apply-reason" className="hint" role="status" style={{ margin: 0, textAlign: 'right' }}>
+                {applyBlockedReason}
+              </p>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
               <button className="btn btn-ghost" onClick={() => setPreview(null)}><BackIcon size={16} /> Aanpassen</button>
               <button className="btn btn-ghost" onClick={generate}><RetryIcon size={16} /> Opnieuw genereren</button>
-              <button className="btn btn-primary" onClick={apply}>
+              <button
+                className="btn btn-primary"
+                onClick={apply}
+                disabled={Boolean(applyBlockedReason)}
+                aria-describedby={applyBlockedReason ? 'course-ai-apply-reason' : undefined}
+              >
                 <CheckIcon size={16} />
                 {mode === 'new' ? 'Cursus aanmaken'
                   : mode === 'rework' ? 'Herwerking toepassen'
