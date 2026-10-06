@@ -6,7 +6,9 @@
 // duurste soort bug in deze app — vandaar deze vangrail.
 
 import { describe, expect, it } from 'vitest';
-import { extractGaps, gapPreview, gradeQuestion, gradeQuiz, quizMaxScore, splitGapText } from './grading';
+import {
+  extractGaps, gapPreview, gradeQuestion, gradeQuiz, matchChoiceCorrect, quizMaxScore, splitGapText,
+} from './grading';
 import type {
   GapQuestion, InfoBlock, LongQuestion, MCQuestion, MatchQuestion, MultiQuestion, NumberQuestion,
   OrderQuestion, Question, QuizConfig, RatingQuestion, ShortQuestion, SliderQuestion, TFQuestion,
@@ -179,6 +181,25 @@ describe('gradeQuestion — short (kort antwoord)', () => {
     expect(gradeQuestion(short({ accepted: ['café'] }), 'cafe').earned).toBe(2);
   });
 
+  it('typografische apostrof telt als de gewone (foto’s = foto\'s)', () => {
+    expect(gradeQuestion(short({ accepted: ["foto's"] }), 'foto\u2019s').earned).toBe(2);
+    expect(gradeQuestion(short({ accepted: ['l\u2019école'] }), "l'ecole").earned).toBe(2);
+  });
+
+  it('accentgevoelig (opt-in): été is niet ete, hoofdletters blijven soepel', () => {
+    const q = short({ accepted: ['été'], accentSensitive: true });
+    expect(gradeQuestion(q, 'ete').earned).toBe(0);
+    expect(gradeQuestion(q, 'Été').earned).toBe(2);
+    expect(gradeQuestion(q, 'été').earned).toBe(2);
+  });
+
+  it('hoofdlettergevoelig maakt accenten niet streng, en omgekeerd', () => {
+    expect(gradeQuestion(short({ accepted: ['Été'], caseSensitive: true }), 'Ete').earned).toBe(2);
+    expect(gradeQuestion(short({ accepted: ['Été'], caseSensitive: true }), 'été').earned).toBe(0);
+    expect(gradeQuestion(short({ accepted: ['Été'], caseSensitive: true, accentSensitive: true }), 'Été').earned).toBe(2);
+    expect(gradeQuestion(short({ accepted: ['Été'], caseSensitive: true, accentSensitive: true }), 'Ete').earned).toBe(0);
+  });
+
   it('respecteert hoofdlettergevoeligheid wanneer die aan staat', () => {
     expect(gradeQuestion(short({ caseSensitive: true }), 'parijs').earned).toBe(0);
     expect(gradeQuestion(short({ caseSensitive: true }), 'Parijs').earned).toBe(2);
@@ -307,6 +328,11 @@ describe('gradeQuestion — gap (invuloefening)', () => {
     expect(gradeQuestion(q, ['Brugge']).earned).toBe(0);
   });
 
+  it('typografische apostrof in een gat telt als de gewone', () => {
+    const q = gap({ text: "Twee [foto's] en een [café].", points: 2 });
+    expect(gradeQuestion(q, ['foto\u2019s', 'cafe']).earned).toBe(2);
+  });
+
   it('negeert hoofdletters en accenten in de gaten', () => {
     expect(gradeQuestion(gap({ text: 'Een [café].', points: 1 }), ['CAFE']).earned).toBe(1);
   });
@@ -345,6 +371,49 @@ describe('gradeQuestion — match (koppelparen)', () => {
 
   it('geeft maximum 0 als er geen paren geconfigureerd zijn', () => {
     expect(gradeQuestion(match({ pairs: [] }), [])).toEqual({ earned: 0, max: 0, mode: 'auto' });
+  });
+
+  it('twee keer dezelfde rechtertekst: elke keuze met die tekst is juist', () => {
+    const q = match({
+      pairs: [{ left: 'hond', right: 'zoogdier' }, { left: 'kat', right: 'zoogdier' }, { left: 'merel', right: 'vogel' }],
+    });
+    // hond kiest de "zoogdier" van kat en omgekeerd: voor de leerling identiek
+    expect(gradeQuestion(q, [1, 0, 2])).toEqual({ earned: 3, max: 3, mode: 'auto' });
+    // allebei dezelfde "zoogdier"-optie kiezen is ook juist
+    expect(gradeQuestion(q, [0, 0, 2]).earned).toBe(3);
+    // "vogel" bij een zoogdier blijft fout
+    expect(gradeQuestion(q, [2, 0, 1]).earned).toBe(1);
+  });
+
+  it('gelijke tekst na normalisatie (hoofdletters, spaties, apostrof) telt als gelijk', () => {
+    const q = match({
+      pairs: [{ left: 'a', right: "Foto's " }, { left: 'b', right: 'foto\u2019s' }],
+      points: 2,
+    });
+    expect(gradeQuestion(q, [1, 0]).earned).toBe(2);
+  });
+
+  it('een lege rechtertekst maakt een andere lege keuze niet juist', () => {
+    const q = match({ pairs: [{ left: 'a', right: '' }, { left: 'b', right: '' }], points: 2 });
+    expect(gradeQuestion(q, [1, 0]).earned).toBe(0);
+    expect(gradeQuestion(q, [0, 1]).earned).toBe(2);
+  });
+});
+
+describe('matchChoiceCorrect', () => {
+  const pairs = [{ right: 'zoogdier' }, { right: 'Zoogdier' }, { right: 'vogel' }];
+  it('juist bij dezelfde index of dezelfde genormaliseerde tekst', () => {
+    expect(matchChoiceCorrect(pairs, 0, 0)).toBe(true);
+    expect(matchChoiceCorrect(pairs, 0, 1)).toBe(true);
+    expect(matchChoiceCorrect(pairs, 2, 0)).toBe(false);
+  });
+  it('geen keuze, een tekst of een index buiten bereik is nooit juist', () => {
+    expect(matchChoiceCorrect(pairs, 0, null)).toBe(false);
+    expect(matchChoiceCorrect(pairs, 0, undefined)).toBe(false);
+    expect(matchChoiceCorrect(pairs, 0, '0')).toBe(false);
+    expect(matchChoiceCorrect(pairs, 0, 3)).toBe(false);
+    expect(matchChoiceCorrect(pairs, 0, -1)).toBe(false);
+    expect(matchChoiceCorrect(pairs, 0, 0.5)).toBe(false);
   });
 });
 

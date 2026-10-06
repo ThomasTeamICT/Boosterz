@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Volume2 } from 'lucide-react';
 import type { DictationConfig } from '../lib/types';
 import { normalizeAnswer, uid } from '../lib/utils';
@@ -6,6 +6,17 @@ import { Field } from '../components/ui';
 import { CheckIcon, CloseIcon } from '../components/icons';
 import { EditorProps, GameStatus, PlayerProps, ResultHero } from './shared';
 import type { ItemScore } from '../lib/types';
+
+/**
+ * Dicteezin vergelijken: leestekens tellen niet mee. Standaard ook geen
+ * hoofdletters of accenten; `strict` (vinkje "Streng" in de editor) laat
+ * hoofdletters en accenten wél meetellen. Staat hier en niet in lib/utils,
+ * zodat het niet in de hoofdbundel van het leerlingpad belandt.
+ */
+export function dictationMatches(given: string, target: string, strict = false): boolean {
+  const clean = (t: string) => normalizeAnswer(t, strict, strict).replace(/[.,!?;:'"]/g, '').replace(/\s+/g, ' ').trim();
+  return clean(given) === clean(target);
+}
 
 export function DictationEditor({ config, onChange }: EditorProps<DictationConfig>) {
   return (
@@ -40,6 +51,14 @@ export function DictationEditor({ config, onChange }: EditorProps<DictationConfi
           </select>
         </Field>
       </div>
+      <label className="checkbox-row" style={{ marginBottom: 10 }}>
+        <input type="checkbox" checked={config.strict ?? false}
+          onChange={(e) => onChange({ ...config, strict: e.target.checked || undefined })} />
+        <span>
+          Streng: hoofdletters en accenten tellen mee{' '}
+          <span className="hint">(standaard is "brussel" ook goed voor "Brussel" en "een" voor "één"; leestekens tellen nooit mee)</span>
+        </span>
+      </label>
       <button
         className="btn btn-sm btn-ghost"
         onClick={() => {
@@ -56,7 +75,7 @@ export function DictationEditor({ config, onChange }: EditorProps<DictationConfi
   );
 }
 
-export function DictationPlayer({ widget, onComplete }: PlayerProps<DictationConfig>) {
+export function DictationPlayer({ widget, timeUp, onComplete }: PlayerProps<DictationConfig>) {
   const sentences = useMemo(() => widget.config.sentences.filter((s) => s.text.trim()), [widget.id]);
   const [idx, setIdx] = useState(0);
   const [typed, setTyped] = useState<string[]>([]);
@@ -65,6 +84,40 @@ export function DictationPlayer({ widget, onComplete }: PlayerProps<DictationCon
   const [done, setDone] = useState(false);
   const supported = typeof speechSynthesis !== 'undefined';
   const submittedRef = useRef(false);
+  const strict = widget.config.strict ?? false;
+  const isCorrect = (given: string | undefined, target: string) => dictationMatches(given ?? '', target, strict);
+
+  /**
+   * Afronden en indienen: bij de laatste zin, of wanneer de tijd om is. Zinnen
+   * zonder antwoord tellen als fout; de zin die je aan het typen was, telt mee.
+   */
+  const finish = (answers: string[]) => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    if (supported) speechSynthesis.cancel();
+    const itemScores: Record<string, ItemScore> = {};
+    let earned = 0;
+    sentences.forEach((s, i) => {
+      const ok = isCorrect(answers[i], s.text);
+      itemScores[s.id] = { earned: ok ? 1 : 0, max: 1, mode: 'auto' };
+      if (ok) earned++;
+    });
+    onComplete({
+      answers: Object.fromEntries(sentences.map((s, i) => [s.id, answers[i] ?? ''])),
+      itemScores,
+      earned,
+      max: sentences.length,
+    });
+    setTyped(answers);
+    setDone(true);
+  };
+
+  // tijdslimiet verstreken: met de deelscore afronden, daarna het resultaatscherm
+  // (zonder spraakweergave kon de leerling niets doen: dan niets indienen)
+  useEffect(() => {
+    if (timeUp && !done && supported && sentences.length > 0) finish([...typed, current]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeUp]);
 
   if (!supported) return <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>Je browser ondersteunt geen spraakweergave. Probeer een andere browser.</p>;
   if (sentences.length === 0) return <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>Nog geen zinnen ingesteld.</p>;
@@ -79,36 +132,17 @@ export function DictationPlayer({ widget, onComplete }: PlayerProps<DictationCon
   };
 
   const next = () => {
+    if (done) return;
     const answers = [...typed, current];
     setTyped(answers);
     setCurrent('');
     setPlayCount(0);
-    if (idx + 1 >= sentences.length) {
-      if (submittedRef.current) return;
-      submittedRef.current = true;
-      const itemScores: Record<string, ItemScore> = {};
-      let earned = 0;
-      sentences.forEach((s, i) => {
-        const ok = normalizeAnswer(answers[i] ?? '').replace(/[.,!?;:'"]/g, '') === normalizeAnswer(s.text).replace(/[.,!?;:'"]/g, '');
-        itemScores[s.id] = { earned: ok ? 1 : 0, max: 1, mode: 'auto' };
-        if (ok) earned++;
-      });
-      onComplete({
-        answers: Object.fromEntries(sentences.map((s, i) => [s.id, answers[i] ?? ''])),
-        itemScores,
-        earned,
-        max: sentences.length,
-      });
-      setDone(true);
-    } else {
-      setIdx((i) => i + 1);
-    }
+    if (idx + 1 >= sentences.length) finish(answers);
+    else setIdx((i) => i + 1);
   };
 
   if (done) {
-    const correct = sentences.filter((s, i) =>
-      normalizeAnswer(typed[i] ?? '').replace(/[.,!?;:'"]/g, '') === normalizeAnswer(s.text).replace(/[.,!?;:'"]/g, '')
-    ).length;
+    const correct = sentences.filter((s, i) => isCorrect(typed[i], s.text)).length;
     return (
       <div>
         <ResultHero earned={correct} max={sentences.length} showScore={widget.settings.showScore} />
@@ -116,7 +150,7 @@ export function DictationPlayer({ widget, onComplete }: PlayerProps<DictationCon
           <div className="card card-pad" style={{ marginTop: 16 }}>
             <h3>Verbetering</h3>
             {sentences.map((s, i) => {
-              const ok = normalizeAnswer(typed[i] ?? '').replace(/[.,!?;:'"]/g, '') === normalizeAnswer(s.text).replace(/[.,!?;:'"]/g, '');
+              const ok = isCorrect(typed[i], s.text);
               return (
                 <div key={s.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
                   <div style={{ fontWeight: 600, color: ok ? 'var(--ok)' : 'var(--err)', display: 'flex', alignItems: 'center', gap: 6 }}>

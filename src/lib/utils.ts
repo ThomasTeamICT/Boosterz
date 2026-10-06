@@ -20,16 +20,43 @@ export function shuffled<T>(arr: T[]): T[] {
   return a;
 }
 
+/**
+ * Schudden, maar nooit zo dat de volgorde al "juist" is: bij twee items komt
+ * gewoon schudden in de helft van de gevallen terug in de beginvolgorde, en
+ * dan staat een rangschik- of koppelvraag al opgelost voor de leerling.
+ * Opnieuw schudden zolang het resultaat gelijk is aan het origineel (max. 10
+ * keer); lukt dat niet, dan één plaats doorschuiven, wat bij niet-gelijke
+ * items altijd een andere volgorde geeft. Eén item, of allemaal gelijke items
+ * (volgens `same`): dan bestaat er geen andere volgorde en komt een kopie terug.
+ */
+export function shuffledNotIdentity<T>(arr: readonly T[], same: (a: T, b: T) => boolean = Object.is): T[] {
+  const orig = arr.slice();
+  if (orig.length < 2 || orig.every((x) => same(x, orig[0]))) return orig;
+  const isIdentity = (a: T[]) => a.every((x, i) => same(x, orig[i]));
+  let out = shuffled(orig);
+  for (let tries = 0; tries < 10 && isIdentity(out); tries++) out = shuffled(orig);
+  if (isIdentity(out)) out = [...orig.slice(1), orig[0]];
+  return out;
+}
+
 export function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
-/** Tekst normaliseren voor antwoordvergelijking. */
-export function normalizeAnswer(s: string, caseSensitive = false): string {
+/**
+ * Tekst normaliseren voor antwoordvergelijking: spaties samenvoegen,
+ * typografische aanhalingstekens en apostrofs gelijkstellen aan de gewone
+ * (een tablet maakt van "foto's" vaak "foto’s"), en standaard hoofdletters en
+ * accenten negeren. `accentSensitive` laat accenten wél meetellen (opt-in per
+ * vraag of dictee); losstaand van `caseSensitive`.
+ */
+export function normalizeAnswer(s: string, caseSensitive = false, accentSensitive = false): string {
   let t = s.trim().replace(/\s+/g, ' ');
+  t = t.replace(/[\u2018\u2019\u201A\u201B\u02BC\u00B4`]/g, "'").replace(/[\u201C\u201D\u201E\u201F]/g, '"');
   if (!caseSensitive) t = t.toLocaleLowerCase('nl');
-  // accenten negeren
-  t = t.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  // accenten negeren (NFD splitst é in e + combinerend teken), of bij
+  // accentgevoelig samengesteld vergelijken (NFC: e + los accent wordt één é)
+  t = accentSensitive ? t.normalize('NFC') : t.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   return t;
 }
 
@@ -164,9 +191,16 @@ export function downloadFile(name: string, content: string, mime = 'application/
   URL.revokeObjectURL(url);
 }
 
-/** CSV-veld veilig quoten. */
+/**
+ * CSV-veld veilig maken. Tekst die met = + - @, een tab of een regelterugloop
+ * begint, voert een rekenblad uit als formule (CSV-injectie: een leerlingnaam
+ * "=HYPERLINK(…)" in de export). Daar komt een ' voor, behalve bij een zuiver
+ * getal zoals -5, +3,5 of -12%. Velden met een scheidingsteken, aanhalingsteken,
+ * regeleinde of tab gaan tussen aanhalingstekens.
+ */
 export function csvCell(v: unknown): string {
-  const s = String(v ?? '');
-  if (/[",\n;]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  let s = String(v ?? '');
+  if (/^[=+\-@\t\r]/.test(s) && !/^[+-]?\d+([.,]\d+)?%?$/.test(s)) s = "'" + s;
+  if (/[",\n;\r\t]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
   return s;
 }

@@ -606,8 +606,13 @@ ${payload}`;
         }
         const strOpts = opts as string[];
         const correctIdx = q.type === 'mc' ? [q.correctIndex] : q.correctIndices;
+        // Zonder (geldig) juist antwoord valt er niets te versterken (bv. net verwijderd: correctIndex -1).
+        if (correctIdx.length === 0 || correctIdx.some((i) => !Number.isInteger(i) || i < 0 || i >= q.options.length)) {
+          warnings.push(`"${shortText(q.prompt)}" overgeslagen: duid eerst het juiste antwoord aan.`);
+          return q;
+        }
         // Controle: het juiste antwoord bleef tekstueel behouden op zijn plaats.
-        const intact = correctIdx.every((i) => strOpts[i].trim() === q.options[i].trim());
+        const intact = correctIdx.every((i) => strOpts[i]?.trim() === q.options[i]?.trim());
         if (!intact) {
           warnings.push(`"${shortText(q.prompt)}" overgeslagen: het juiste antwoord bleef niet behouden.`);
           return q;

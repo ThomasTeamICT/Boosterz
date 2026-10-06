@@ -2190,6 +2190,104 @@ check(`afdrukken in donker thema: donkere tekst op wit (body ${opPapier.body.toF
 await page.emulateMedia({ media: null });
 await page.evaluate((t) => { if (t === null) delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t; }, themaVoor);
 await page.setViewportSize({ width: 1360, height: 900 });
+// ── 30. Quiz: optie verwijderen, hintladder, getalvelden, nabespreking ──────
+console.log('30. Quiz-editor en -speler (debugronde)');
+await page.evaluate(() => {
+  const ws = JSON.parse(localStorage.getItem('wf.widgets.v1')).filter((w) => !String(w.id).startsWith('smoke-qfix-'));
+  const settings = {
+    accentColor: '#4f46e5', shuffle: false, showFeedback: true, showScore: true,
+    timeLimitMin: 0, maxAttempts: 0, requireName: false, instructions: '',
+  };
+  const now = Date.now();
+  ws.push({
+    id: 'smoke-qfix-ed', type: 'quiz', title: 'Rooktest quiz-editor', folderId: null, code: 'QFIXED',
+    createdAt: now, updatedAt: now, settings,
+    config: {
+      layout: 'single',
+      questions: [
+        { id: 'qf1', type: 'mc', prompt: 'Wat is de hoofdstad van België?', points: 1, explanation: 'x',
+          options: ['Parijs', 'Lyon', 'Brussel', 'Gent'], correctIndex: 2 },
+        { id: 'qf2', type: 'number', prompt: 'Hoeveel is 3 - 8?', points: 1, explanation: 'x', answer: 0, tolerance: 0 },
+      ],
+    },
+  });
+  ws.push({
+    id: 'smoke-qfix-sp', type: 'quiz', title: 'Rooktest quiz-speler', folderId: null, code: 'QFIXSP',
+    createdAt: now, updatedAt: now, settings,
+    config: {
+      layout: 'single',
+      questions: [
+        { id: 'qs1', type: 'mc', prompt: 'Wat is de hoofdstad van België?', points: 1, explanation: '',
+          options: ['Antwerpen', 'Brussel', 'Gent'], correctIndex: 1 },
+        { id: 'qs2', type: 'tf', prompt: 'De zon is een ster.', points: 1, explanation: '', answer: true },
+      ],
+    },
+  });
+  localStorage.setItem('wf.widgets.v1', JSON.stringify(ws));
+});
+const qfixStored = () => page.evaluate(() => JSON.parse(localStorage.getItem('wf.widgets.v1')).find((w) => w.id === 'smoke-qfix-ed').config.questions);
+await go('/#/bewerk/smoke-qfix-ed');
+await page.waitForSelector('.editor-item', { timeout: 10000 }).catch(() => {});
+const qfixMc = page.locator('.editor-item').nth(0);
+// W1: een foute optie vóór het juiste antwoord verwijderen
+await qfixMc.getByRole('button', { name: 'Optie 1 verwijderen' }).click();
+await sleep(900);
+let qf = await qfixStored();
+check('optie verwijderen: de optie is echt weg', JSON.stringify(qf[0].options) === JSON.stringify(['Lyon', 'Brussel', 'Gent']));
+check('optie verwijderen: het juiste antwoord blijft "Brussel"', qf[0].options[qf[0].correctIndex] === 'Brussel');
+check('optie verwijderen: het vinkje in de editor volgt mee',
+  (await qfixMc.locator('input[type=radio]').evaluateAll((es) => es.findIndex((e) => e.checked))) === 1);
+// het juiste antwoord zelf verwijderen: geen juist antwoord meer, en dat wordt gemeld
+await qfixMc.getByRole('button', { name: 'Optie 2 verwijderen' }).click();
+await sleep(900);
+qf = await qfixStored();
+check('juiste optie verwijderen: geen andere optie stil juist gemaakt', qf[0].correctIndex === -1 && qf[0].options.join() === 'Lyon,Gent');
+check('juiste optie verwijderen: melding in de editor', await qfixMc.locator('text=Nog geen juist antwoord aangeduid').isVisible());
+check('juiste optie verwijderen: vraag-check meldt het', await page.locator('aside li', { hasText: 'Geen juist antwoord aangeduid' }).first().isVisible());
+// W2: hint toevoegen en typen met spaties
+await qfixMc.locator('summary', { hasText: 'Extra: afbeelding' }).click();
+await qfixMc.getByRole('button', { name: '+ Hint toevoegen' }).click();
+const hint1 = qfixMc.getByLabel('Hint 1', { exact: true });
+check('hint toevoegen: er verschijnt een invulveld', await hint1.isVisible().catch(() => false));
+await hint1.click();
+await page.keyboard.type('herlees de vraag ', { delay: 20 });
+await sleep(900);
+qf = await qfixStored();
+check('hint typen: spaties blijven staan (veld en opslag)',
+  (await hint1.inputValue()) === 'herlees de vraag ' && qf[0].hints?.[0] === 'herlees de vraag ');
+// W13: negatief getal en decimale komma in het getalveld
+const qfixNum = page.locator('.editor-item').nth(1).getByLabel('Juiste antwoord', { exact: true });
+await qfixNum.click();
+await qfixNum.press('Control+a');
+await page.keyboard.type('-5', { delay: 60 });
+await sleep(900);
+qf = await qfixStored();
+check('getalveld: "-5" wordt -5 (niet 5)', qf[1].answer === -5 && (await qfixNum.inputValue()) === '-5');
+await qfixNum.press('Control+a');
+await page.keyboard.type('2,5', { delay: 60 });
+await qfixNum.blur();
+await sleep(900);
+qf = await qfixStored();
+check('getalveld: "2,5" wordt 2,5 (niet 25)', qf[1].answer === 2.5 && (await qfixNum.inputValue()) === '2,5');
+// A11Y6 + A11Y10: speler, één vraag per scherm, nabespreking
+await go('/#/speel/QFIXSP');
+// zonder verplichte naam is er geen naamveld, wel de knop "Starten"
+if (await page.locator('#student-name').isVisible().catch(() => false)) await page.fill('#student-name', 'Testleerling');
+await page.getByRole('button', { name: /Starten/ }).click();
+await page.waitForSelector('.question-card', { timeout: 10000 }).catch(() => {});
+await page.locator('.answer-option', { hasText: 'Antwerpen' }).click();
+await page.getByRole('button', { name: /Volgende/ }).click();
+await sleep(300);
+check('na "Volgende" ligt de focus in de nieuwe vraag',
+  await page.evaluate(() => !!document.activeElement?.closest('.quiz-vraag-focus') && document.body.innerText.includes('De zon is een ster.')));
+await page.locator('.answer-option', { hasText: 'Juist' }).first().click();
+await page.getByRole('button', { name: /Indienen/ }).click();
+await sleep(700);
+const qfixFout = page.locator('.question-card').filter({ has: page.locator('.badge', { hasText: '0/1' }) }).first();
+check('nabespreking: fout gekozen optie zegt "jouw keuze" (niet alleen kleur)',
+  await qfixFout.locator('.answer-option.incorrect', { hasText: 'jouw keuze' }).isVisible().catch(() => false));
+check('nabespreking: juiste optie zegt "goed antwoord"',
+  await qfixFout.locator('.answer-option.correct', { hasText: 'goed antwoord' }).isVisible().catch(() => false));
 
 // ── Slot ────────────────────────────────────────────────────────────────────
 console.log('\n──────────');

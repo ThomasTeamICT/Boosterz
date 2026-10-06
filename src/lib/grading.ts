@@ -37,6 +37,22 @@ function withinTolerance(given: number, answer: number, tolerance: number): bool
   return Math.abs(given - answer) <= tolerance + 1e-9;
 }
 
+/**
+ * Is de keuze bij koppelen juist? `chosen` is de index van het gekozen
+ * rechteritem voor links-item `left`. Juist als het precies het bijhorende
+ * item is, of een ander rechteritem met dezelfde tekst (na normalisatie):
+ * staat "zoogdier" er twee keer, dan is elke "zoogdier" goed, want de
+ * leerling ziet geen verschil. Een lege rechtertekst telt nooit als gelijk.
+ * Gebruikt door de beoordeling én de verbeterweergave, zodat die nooit
+ * uiteenlopen.
+ */
+export function matchChoiceCorrect(pairs: readonly { right: string }[], left: number, chosen: unknown): boolean {
+  if (typeof chosen !== 'number' || !Number.isInteger(chosen) || chosen < 0 || chosen >= pairs.length) return false;
+  if (chosen === left) return true;
+  const want = normalizeAnswer(pairs[left]?.right ?? '');
+  return want !== '' && normalizeAnswer(pairs[chosen]?.right ?? '') === want;
+}
+
 /** Eén quizvraag automatisch beoordelen. Antwoordvormen zijn per type gedocumenteerd in de speler. */
 export function gradeQuestion(q: Question, answer: unknown): ItemScore {
   const max = q.type === 'info' ? 0 : q.points;
@@ -64,9 +80,11 @@ export function gradeQuestion(q: Question, answer: unknown): ItemScore {
       const given = typeof answer === 'string' ? answer : '';
       // blanco is nooit juist, en lege regels in de antwoordenlijst tellen niet mee
       if (normalizeAnswer(given) === '') return wrong;
-      const ok = q.accepted
+      // accentSensitive is opt-in; standaard tellen accenten niet mee
+      const strictCase = q.caseSensitive, strictAccent = q.accentSensitive ?? false;
+      const ok = (q.accepted ?? [])
         .filter((a) => normalizeAnswer(a) !== '')
-        .some((a) => normalizeAnswer(a, q.caseSensitive) === normalizeAnswer(given, q.caseSensitive));
+        .some((a) => normalizeAnswer(a, strictCase, strictAccent) === normalizeAnswer(given, strictCase, strictAccent));
       return ok ? right : wrong;
     }
     case 'number': {
@@ -97,7 +115,7 @@ export function gradeQuestion(q: Question, answer: unknown): ItemScore {
       const n = q.pairs.length;
       if (n === 0) return { earned: 0, max: 0, mode: 'auto' };
       let good = 0;
-      for (let i = 0; i < n; i++) if (given[i] === i) good++;
+      for (let i = 0; i < n; i++) if (matchChoiceCorrect(q.pairs, i, given[i])) good++;
       const earned = Math.round((good / n) * max * 100) / 100;
       return { earned, max, mode: 'auto' };
     }

@@ -149,6 +149,8 @@ export interface QuestionBase {
   prompt: string;
   /** Afbeelding als data-URL of extern adres. */
   imageUrl?: string;
+  /** Beschrijving van de afbeelding voor wie ze niet ziet (alt-tekst); leeg = versiering. */
+  imageAlt?: string;
   points: number;
   /** Uitleg die bij feedback getoond wordt. */
   explanation?: string;
@@ -188,6 +190,11 @@ export interface ShortQuestion extends QuestionBase {
   /** Meerdere juiste antwoorden toegelaten. */
   accepted: string[];
   caseSensitive: boolean;
+  /**
+   * Accenten tellen mee (é ≠ e). Opt-in: standaard is de verbetering soepel
+   * voor accenten. Staat los van caseSensitive.
+   */
+  accentSensitive?: boolean;
 }
 export interface LongQuestion extends QuestionBase {
   type: 'long';
@@ -370,6 +377,8 @@ export interface DictationConfig {
   sentences: { id: string; text: string; hint?: string }[];
   lang: string;
   rate: number;
+  /** Streng verbeteren: hoofdletters en accenten tellen mee (leestekens nooit). */
+  strict?: boolean;
 }
 
 export interface PollConfig {

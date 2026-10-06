@@ -10,8 +10,8 @@ import type {
   OrderQuestion, Question, QuestionType, QuizConfig, ShortQuestion, SliderQuestion,
   TFQuestion, LongQuestion,
 } from '../lib/types';
-import { extractGaps, gradeQuestion, gradeQuiz, splitGapText } from '../lib/grading';
-import { normalizeAnswer, shuffled, uid } from '../lib/utils';
+import { extractGaps, gradeQuestion, gradeQuiz, matchChoiceCorrect, splitGapText } from '../lib/grading';
+import { normalizeAnswer, shuffled, shuffledNotIdentity, uid } from '../lib/utils';
 import { Field, ImagePicker, Modal, useToast } from '../components/ui';
 import {
   BackIcon, CheckIcon, CloseIcon, DeleteIcon, GoalIcon, InfoIcon, LinkIcon, MoveDownIcon,
@@ -174,6 +174,17 @@ export function questionHints(q: Question): string[] {
   return q.hint?.trim() ? [q.hint.trim()] : [];
 }
 
+/**
+ * Hintladder zoals de editor ze toont: de ruwe lijst, met lege en half
+ * getypte hints erbij. questionHints() snoeit en filtert (voor de speler);
+ * de editor daarop laten werken maakte een nieuwe, lege hint onzichtbaar en
+ * at elke spatie op die je aan het eind typte.
+ */
+export function editorHints(q: Question): string[] {
+  if (Array.isArray(q.hints) && q.hints.length > 0) return q.hints;
+  return q.hint ? [q.hint] : [];
+}
+
 /** Zinnen met hun tekstposities, voor zin-per-zin voorlezen. */
 function splitSentences(text: string): { start: number; end: number }[] {
   const out: { start: number; end: number }[] = [];
@@ -193,13 +204,13 @@ const ACCENTS = ['é', 'è', 'ê', 'ë', 'à', 'â', 'ç', 'î', 'ï', 'ô', 'û
 
 function AccentBar({ onInsert }: { onInsert: (ch: string) => void }) {
   return (
-    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }} role="toolbar" aria-label="Speciale tekens invoegen">
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }} role="toolbar" aria-label="Speciale tekens invoegen">
       {ACCENTS.map((ch) => (
         <button
           key={ch}
           type="button"
           className="btn btn-quiet btn-sm"
-          style={{ minWidth: 30, minHeight: 28, padding: '2px 6px', fontSize: '0.95rem' }}
+          style={{ minWidth: 44, minHeight: 44, padding: '2px 6px', fontSize: '1.05rem' }}
           onClick={() => onInsert(ch)}
           aria-label={`Teken ${ch} invoegen`}
           tabIndex={-1}
@@ -257,19 +268,133 @@ export function questionLabel(q: Question): string {
 
 // ── EDITOR ──────────────────────────────────────────────────────────────────
 
+/**
+ * Getal uit een editorveld lezen: komma of punt als decimaalteken, spaties
+ * rond het getal mogen. Null als er (nog) geen eindig getal staat ("", "-",
+ * ","). Gebruikt door NumberField.
+ */
+export function parseNumberInput(raw: string): number | null {
+  const n = parseFloat(raw.trim().replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+
+type NumberFieldProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type' | 'min' | 'max'> & {
+  value: number;
+  onChange: (n: number) => void;
+  /** Kleinere waarden worden opgetrokken tot dit minimum (bv. 0 voor een tolerantie). */
+  min?: number;
+  max?: number;
+  /** Extra voorwaarde; een getal dat ze niet haalt, wordt niet bewaard (bv. stap > 0). */
+  allow?: (n: number) => boolean;
+};
+
+/**
+ * Getalveld voor de editor met eigen teksttoestand. Een gewoon
+ * `type="number"`-veld met `parseFloat(v) || 0` maakte van "-5" een 5 (het
+ * minteken alleen werd 0 en daarna kwam de 5) en van "2,5" soms 25. Hier
+ * blijft wat je typt staan, en wordt alleen een eindig getal bewaard; bij
+ * het verlaten van het veld toont het weer de bewaarde waarde. Mogen
+ * negatieve getallen (geen minimum, of een minimum onder 0), dan krijgt het
+ * veld het gewone toetsenbord: het decimale toetsenbord van iPad en iPhone
+ * heeft geen minteken. Exporteerbaar voor andere editors (bv. rekenen).
+ */
+export function NumberField({ value, onChange, min, max, allow, onBlur, ...rest }: NumberFieldProps) {
+  const show = (n: number) => (Number.isFinite(n) ? String(n) : '');
+  const [text, setText] = useState(() => show(value));
+  const committed = useRef(value);
+
+  // waarde van buitenaf gewijzigd (andere vraag, ongedaan maken): tekst volgen
+  useEffect(() => {
+    if (!Object.is(value, committed.current)) {
+      committed.current = value;
+      setText(show(value));
+    }
+  }, [value]);
+
+  const resolve = (raw: string): number | null => {
+    const n = parseNumberInput(raw);
+    if (n === null || (allow && !allow(n))) return null;
+    let v = n;
+    if (min !== undefined) v = Math.max(min, v);
+    if (max !== undefined) v = Math.min(max, v);
+    return v;
+  };
+  // ongeldig: geen getal, geweigerd, of buiten de grenzen (dan wordt de grens bewaard)
+  const typed = parseNumberInput(text);
+  const invalid = typed === null || !Object.is(resolve(text), typed);
+  const allowsNegative = min === undefined || min < 0;
+
+  return (
+    <input
+      {...rest}
+      type="text"
+      inputMode={allowsNegative ? 'text' : 'decimal'}
+      autoComplete="off"
+      value={text}
+      aria-invalid={invalid || undefined}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setText(raw);
+        const v = resolve(raw);
+        if (v !== null && !Object.is(v, committed.current)) {
+          committed.current = v;
+          onChange(v);
+        }
+      }}
+      onBlur={(e) => {
+        // onvolledige, geweigerde of afgetopte invoer ("-", "", stap 0, tolerantie -1):
+        // terug naar wat echt bewaard is; "2,50" blijft gewoon staan
+        const shown = parseNumberInput(text);
+        if (shown === null || !Object.is(shown, committed.current)) setText(show(committed.current));
+        onBlur?.(e);
+      }}
+    />
+  );
+}
+
+/** Sleutel van een meerkeuzevraag zonder juist antwoord (bv. na het verwijderen ervan). */
+export const NO_CORRECT_INDEX = -1;
+
+/**
+ * Optie `i` verwijderen en de sleutel laten meeschuiven, zodat die naar
+ * dezelfde tekst blijft wijzen. Verwijder je het juiste antwoord zelf, dan is
+ * er geen juist antwoord meer (-1 bij één juist, weg uit de lijst bij
+ * meerdere): nooit stil een andere optie juist maken. De linter meldt dan
+ * "Geen juist antwoord aangeduid".
+ */
+export function removeOptionAt(
+  options: readonly string[], correct: number | readonly number[], i: number,
+): { options: string[]; correct: number | number[] } {
+  const next = options.filter((_, j) => j !== i);
+  if (typeof correct === 'number') {
+    const c = correct === i ? NO_CORRECT_INDEX : correct > i ? correct - 1 : correct;
+    return { options: next, correct: c };
+  }
+  const cs = [...new Set(correct.filter((x) => x !== i).map((x) => (x > i ? x - 1 : x)))].sort((a, b) => a - b);
+  return { options: next, correct: cs };
+}
+
 function OptionListEditor({
-  options, onChange, correct, correctMode, onCorrectChange,
+  options, correct, correctMode, onChange,
 }: {
   options: string[];
-  onChange: (opts: string[]) => void;
   correct: number | number[];
   correctMode: 'single' | 'multi';
-  onCorrectChange: (v: number | number[]) => void;
+  /**
+   * Opties en sleutel altijd samen doorgeven: twee losse onChange-aanroepen
+   * op dezelfde (verouderde) vraag overschrijven elkaar, en dan verwijderde
+   * "Optie verwijderen" niets en verschoof de sleutel stil.
+   */
+  onChange: (options: string[], correct: number | number[]) => void;
 }) {
+  const correctList = correctMode === 'single' ? [] : (Array.isArray(correct) ? correct : []);
+  const noneCorrect = correctMode === 'single'
+    ? !(typeof correct === 'number' && correct >= 0 && correct < options.length)
+    : correctList.length === 0;
   return (
     <div>
       {options.map((opt, i) => {
-        const isCorrect = correctMode === 'single' ? correct === i : (correct as number[]).includes(i);
+        const isCorrect = correctMode === 'single' ? correct === i : correctList.includes(i);
         return (
           <div className="option-row" key={i}>
             <input
@@ -279,11 +404,11 @@ function OptionListEditor({
               title="Markeer als juist antwoord"
               style={{ width: 18, height: 18, accentColor: 'var(--ok)' }}
               onChange={(e) => {
-                if (correctMode === 'single') onCorrectChange(i);
+                if (correctMode === 'single') onChange(options, i);
                 else {
-                  const cur = new Set(correct as number[]);
+                  const cur = new Set(correctList);
                   if (e.target.checked) cur.add(i); else cur.delete(i);
-                  onCorrectChange([...cur].sort((a, b) => a - b));
+                  onChange(options, [...cur].sort((a, b) => a - b));
                 }
               }}
             />
@@ -291,34 +416,38 @@ function OptionListEditor({
               className="input input-sm"
               value={opt}
               placeholder={`Antwoordoptie ${i + 1}`}
+              aria-label={`Antwoordoptie ${i + 1}`}
               onChange={(e) => {
                 const next = options.slice();
                 next[i] = e.target.value;
-                onChange(next);
+                onChange(next, correct);
               }}
             />
             <button
               className="btn btn-quiet btn-icon btn-sm"
-              aria-label="Optie verwijderen"
+              aria-label={`Optie ${i + 1} verwijderen`}
+              title="Optie verwijderen"
               disabled={options.length <= 2}
               onClick={() => {
-                const next = options.filter((_, j) => j !== i);
-                onChange(next);
-                if (correctMode === 'single') {
-                  const c = correct as number;
-                  onCorrectChange(c === i ? 0 : c > i ? c - 1 : c);
-                } else {
-                  onCorrectChange((correct as number[]).filter((x) => x !== i).map((x) => (x > i ? x - 1 : x)));
-                }
+                const key = correctMode === 'single'
+                  ? (typeof correct === 'number' ? correct : NO_CORRECT_INDEX) // oude data zonder sleutel
+                  : correctList;
+                const r = removeOptionAt(options, key, i);
+                onChange(r.options, r.correct);
               }}
             ><CloseIcon size={16} aria-hidden /></button>
           </div>
         );
       })}
-      <button className="btn btn-sm btn-ghost" onClick={() => onChange([...options, ''])}>+ Optie toevoegen</button>
+      <button className="btn btn-sm btn-ghost" onClick={() => onChange([...options, ''], correct)}>+ Optie toevoegen</button>
       <p className="hint" style={{ marginTop: 6 }}>
         {correctMode === 'single' ? 'Vink het juiste antwoord aan.' : 'Vink alle juiste antwoorden aan.'}
       </p>
+      {noneCorrect && (
+        <p className="hint" role="status" style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 2 }}>
+          <WarningIcon size={16} className="icon-inline" aria-hidden /> Nog geen juist antwoord aangeduid.
+        </p>
+      )}
     </div>
   );
 }
@@ -329,20 +458,18 @@ function QuestionBodyEditor({ q, onChange }: { q: Question; onChange: (q: Questi
       return (
         <OptionListEditor
           options={q.options}
-          onChange={(options) => onChange({ ...q, options })}
           correct={q.correctIndex}
           correctMode="single"
-          onCorrectChange={(v) => onChange({ ...q, correctIndex: v as number })}
+          onChange={(options, correct) => onChange({ ...q, options, correctIndex: correct as number })}
         />
       );
     case 'multi':
       return (
         <OptionListEditor
           options={q.options}
-          onChange={(options) => onChange({ ...q, options })}
-          correct={q.correctIndices}
+          correct={q.correctIndices ?? []}
           correctMode="multi"
-          onCorrectChange={(v) => onChange({ ...q, correctIndices: v as number[] })}
+          onChange={(options, correct) => onChange({ ...q, options, correctIndices: correct as number[] })}
         />
       );
     case 'tf':
@@ -369,6 +496,11 @@ function QuestionBodyEditor({ q, onChange }: { q: Question; onChange: (q: Questi
             <input type="checkbox" checked={q.caseSensitive} onChange={(e) => onChange({ ...q, caseSensitive: e.target.checked })} />
             <span>Hoofdlettergevoelig</span>
           </label>
+          <label className="checkbox-row">
+            <input type="checkbox" checked={q.accentSensitive ?? false}
+              onChange={(e) => onChange({ ...q, accentSensitive: e.target.checked || undefined })} />
+            <span>Accenten tellen mee <span className="hint">(standaard is "cafe" ook goed voor "café")</span></span>
+          </label>
         </>
       );
     case 'long':
@@ -390,11 +522,11 @@ function QuestionBodyEditor({ q, onChange }: { q: Question; onChange: (q: Questi
                       rubric[ri] = { ...r, criterion: e.target.value };
                       onChange({ ...q, rubric });
                     }} />
-                  <input className="input input-sm" type="number" min={0} step={0.5} style={{ maxWidth: 80 }} value={r.points}
+                  <NumberField className="input input-sm" min={0} style={{ maxWidth: 80 }} value={r.points}
                     aria-label="Punten voor dit criterium"
-                    onChange={(e) => {
+                    onChange={(points) => {
                       const rubric = (q.rubric ?? []).slice();
-                      rubric[ri] = { ...r, points: Math.max(0, parseFloat(e.target.value) || 0) };
+                      rubric[ri] = { ...r, points };
                       onChange({ ...q, rubric });
                     }} />
                   <button className="btn btn-quiet btn-icon btn-sm" aria-label="Criterium verwijderen"
@@ -462,25 +594,25 @@ function QuestionBodyEditor({ q, onChange }: { q: Question; onChange: (q: Questi
       );
     case 'number':
       return (
-        <div style={{ display: 'flex', gap: 12 }}>
-          <Field label="Juiste antwoord">
-            <input className="input input-sm" type="number" value={q.answer} step="any"
-              onChange={(e) => onChange({ ...q, answer: parseFloat(e.target.value) || 0 })} />
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <Field label="Juiste antwoord" hint="Negatief of met komma mag, bv. -5 of 2,5.">
+            <NumberField className="input input-sm" value={q.answer} style={{ maxWidth: 160 }}
+              onChange={(answer) => onChange({ ...q, answer })} />
           </Field>
           <Field label="Tolerantie (±)" hint="0 = exact">
-            <input className="input input-sm" type="number" value={q.tolerance} min={0} step="any"
-              onChange={(e) => onChange({ ...q, tolerance: Math.max(0, parseFloat(e.target.value) || 0) })} />
+            <NumberField className="input input-sm" value={q.tolerance ?? 0} min={0} style={{ maxWidth: 160 }}
+              onChange={(tolerance) => onChange({ ...q, tolerance })} />
           </Field>
         </div>
       );
     case 'slider':
       return (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10 }}>
-          <Field label="Minimum"><input className="input input-sm" type="number" value={q.min} onChange={(e) => onChange({ ...q, min: parseFloat(e.target.value) || 0 })} /></Field>
-          <Field label="Maximum"><input className="input input-sm" type="number" value={q.max} onChange={(e) => onChange({ ...q, max: parseFloat(e.target.value) || 0 })} /></Field>
-          <Field label="Stap"><input className="input input-sm" type="number" value={q.step} min={0} step="any" onChange={(e) => onChange({ ...q, step: parseFloat(e.target.value) || 1 })} /></Field>
-          <Field label="Juiste waarde"><input className="input input-sm" type="number" value={q.answer} onChange={(e) => onChange({ ...q, answer: parseFloat(e.target.value) || 0 })} /></Field>
-          <Field label="Tolerantie (±)"><input className="input input-sm" type="number" value={q.tolerance} min={0} onChange={(e) => onChange({ ...q, tolerance: Math.max(0, parseFloat(e.target.value) || 0) })} /></Field>
+          <Field label="Minimum"><NumberField className="input input-sm" value={q.min} onChange={(min) => onChange({ ...q, min })} /></Field>
+          <Field label="Maximum"><NumberField className="input input-sm" value={q.max} onChange={(max) => onChange({ ...q, max })} /></Field>
+          <Field label="Stap"><NumberField className="input input-sm" value={q.step} min={0} allow={(n) => n > 0} onChange={(step) => onChange({ ...q, step })} /></Field>
+          <Field label="Juiste waarde"><NumberField className="input input-sm" value={q.answer} onChange={(answer) => onChange({ ...q, answer })} /></Field>
+          <Field label="Tolerantie (±)"><NumberField className="input input-sm" value={q.tolerance ?? 0} min={0} onChange={(tolerance) => onChange({ ...q, tolerance })} /></Field>
         </div>
       );
     case 'info':
@@ -493,21 +625,25 @@ function QuestionBodyEditor({ q, onChange }: { q: Question; onChange: (q: Questi
   }
 }
 
-/** Bulk-import: "? vraag" / "* juiste optie" / "- foute optie" / "= juist kort antwoord". */
+/**
+ * Bulk-import: "? vraag" / "* juiste optie" / "- foute optie" / "= juist kort
+ * antwoord". De opties blijven in de getypte volgorde: wie altijd "* juist"
+ * bovenaan zette, kreeg anders elke vraag met het juiste antwoord op A.
+ */
 export function parseBulkQuestions(text: string): Question[] {
   const out: Question[] = [];
-  let current: { prompt: string; correct: string[]; wrong: string[]; short: string[] } | null = null;
+  let current: { prompt: string; options: { text: string; correct: boolean }[]; short: string[] } | null = null;
   const flush = () => {
     if (!current || !current.prompt.trim()) { current = null; return; }
     const base = { id: uid(), prompt: current.prompt.trim(), points: 1, explanation: '' };
+    const options = current.options.map((o) => o.text);
+    const correct = current.options.flatMap((o, i) => (o.correct ? [i] : []));
     if (current.short.length > 0) {
       out.push({ ...base, type: 'short', accepted: current.short, caseSensitive: false });
-    } else if (current.correct.length === 1) {
-      const options = [...current.correct, ...current.wrong];
-      out.push({ ...base, type: 'mc', options, correctIndex: 0 });
-    } else if (current.correct.length > 1) {
-      const options = [...current.correct, ...current.wrong];
-      out.push({ ...base, type: 'multi', options, correctIndices: current.correct.map((_, i) => i) });
+    } else if (correct.length === 1) {
+      out.push({ ...base, type: 'mc', options, correctIndex: correct[0] });
+    } else if (correct.length > 1) {
+      out.push({ ...base, type: 'multi', options, correctIndices: correct });
     } else {
       out.push({ ...base, type: 'long', modelAnswer: '' });
     }
@@ -515,11 +651,11 @@ export function parseBulkQuestions(text: string): Question[] {
   };
   for (const raw of text.split('\n')) {
     const line = raw.trim();
-    if (line.startsWith('? ')) { flush(); current = { prompt: line.slice(2), correct: [], wrong: [], short: [] }; }
-    else if (line.startsWith('* ') && current) current.correct.push(line.slice(2).trim());
-    else if (line.startsWith('- ') && current) current.wrong.push(line.slice(2).trim());
+    if (line.startsWith('? ')) { flush(); current = { prompt: line.slice(2), options: [], short: [] }; }
+    else if (line.startsWith('* ') && current) current.options.push({ text: line.slice(2).trim(), correct: true });
+    else if (line.startsWith('- ') && current) current.options.push({ text: line.slice(2).trim(), correct: false });
     else if (line.startsWith('= ') && current) current.short.push(line.slice(2).trim());
-    else if (line && current && current.correct.length === 0 && current.wrong.length === 0 && current.short.length === 0) {
+    else if (line && current && current.options.length === 0 && current.short.length === 0) {
       current.prompt += '\n' + line; // meerregelige vraag
     }
   }
@@ -635,11 +771,11 @@ function BulkImportModal({ onImport, onClose }: { onImport: (qs: Question[]) => 
       <p className="hint" style={{ marginBottom: 8 }}>
         Plak vragen als tekst — handig vanuit Word of een AI-hulpmiddel. Formaat:
         {' '}<code>?</code> vraag · <code>*</code> juiste optie · <code>-</code> foute optie · <code>=</code> juist kort antwoord.
-        Zonder opties wordt het een open vraag.
+        Zonder opties wordt het een open vraag. De opties blijven in de volgorde waarin je ze typt.
       </p>
       <textarea
         className="textarea" rows={10}
-        placeholder={'? Wat is de hoofdstad van Frankrijk?\n* Parijs\n- Lyon\n- Marseille\n\n? 12 x 12 =\n= 144'}
+        placeholder={'? Wat is de hoofdstad van Frankrijk?\n- Lyon\n* Parijs\n- Marseille\n\n? 12 x 12 =\n= 144'}
         value={text}
         onChange={(e) => setText(e.target.value)}
         style={{ fontFamily: 'monospace' }}
@@ -837,10 +973,19 @@ export function QuizEditor({ config, onChange }: EditorProps<QuizConfig>) {
               </summary>
               <div style={{ paddingTop: 10 }}>
                 <ImagePicker value={q.imageUrl} onChange={(imageUrl) => update(i, { ...q, imageUrl })} />
+                {q.imageUrl && (
+                  <Field
+                    label="Beschrijving voor wie de afbeelding niet ziet"
+                    hint="Wordt voorgelezen door een schermlezer. Laat leeg als de afbeelding alleen versiering is."
+                  >
+                    <input className="input input-sm" value={q.imageAlt ?? ''} placeholder='bv. "Kaart van België met de tien provincies"'
+                      onChange={(e) => update(i, { ...q, imageAlt: e.target.value || undefined })} />
+                  </Field>
+                )}
                 {q.type !== 'info' && (
                   <Field label="Punten">
-                    <input className="input input-sm" type="number" min={0} step="0.5" value={q.points} style={{ maxWidth: 110 }}
-                      onChange={(e) => update(i, { ...q, points: Math.max(0, parseFloat(e.target.value) || 0) })} />
+                    <NumberField className="input input-sm" min={0} value={q.points} style={{ maxWidth: 110 }}
+                      onChange={(points) => update(i, { ...q, points })} />
                   </Field>
                 )}
                 <Field label="Uitleg bij feedback" hint="Wordt getoond nadat de leerling heeft ingediend (als feedback aanstaat).">
@@ -852,25 +997,25 @@ export function QuizEditor({ config, onChange }: EditorProps<QuizConfig>) {
                     hint="Trede 1: strategie (“herlees de vraag”), trede 2: inhoudelijke aanwijzing, trede 3: bijna-voorbeeld. De leerling opent ze zelf, één voor één; het gebruik zie je bij de resultaten."
                   >
                     <div>
-                      {questionHints(q).map((h, hi) => (
+                      {editorHints(q).map((h, hi) => (
                         <div className="option-row" key={hi}>
                           <span className="badge">{hi + 1}</span>
-                          <input className="input input-sm" value={h}
+                          <input className="input input-sm" value={h} aria-label={`Hint ${hi + 1}`}
                             onChange={(e) => {
-                              const hints = questionHints(q).slice();
+                              const hints = editorHints(q).slice();
                               hints[hi] = e.target.value;
                               update(i, { ...q, hints, hint: undefined });
                             }} />
                           <button className="btn btn-quiet btn-icon btn-sm" aria-label={`Hint ${hi + 1} verwijderen`}
                             onClick={() => {
-                              const hints = questionHints(q).filter((_, j) => j !== hi);
+                              const hints = editorHints(q).filter((_, j) => j !== hi);
                               update(i, { ...q, hints, hint: undefined });
                             }}><CloseIcon size={16} aria-hidden /></button>
                         </div>
                       ))}
-                      {questionHints(q).length < 3 && (
+                      {editorHints(q).length < 3 && (
                         <button className="btn btn-sm btn-ghost"
-                          onClick={() => update(i, { ...q, hints: [...questionHints(q), ''], hint: undefined })}>
+                          onClick={() => update(i, { ...q, hints: [...editorHints(q), ''], hint: undefined })}>
                           + Hint toevoegen
                         </button>
                       )}
@@ -999,6 +1144,36 @@ export function QuizEditor({ config, onChange }: EditorProps<QuizConfig>) {
 
 type Answers = Record<string, unknown>;
 
+/**
+ * Juist en fout in de nabespreking ook in tekst en vorm, niet alleen in kleur
+ * (WCAG 1.4.1): op het goede antwoord een vinkje met "goed antwoord", op een
+ * fout gekozen optie een kruisje met "jouw keuze".
+ */
+function ReviewTag({ correct, chosen, ownLine }: {
+  correct: boolean; chosen: boolean;
+  /** Op een eigen regel (smalle knoppen zoals juist/onjuist), anders rechts. */
+  ownLine?: boolean;
+}) {
+  if (!correct && !chosen) return null;
+  const iconStyle = { flex: 'none' } as const;
+  return (
+    <span
+      className="review-tag"
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+        fontSize: '0.8rem', fontWeight: 650,
+        ...(ownLine
+          ? { flexBasis: '100%', justifyContent: 'center', textAlign: 'center' }
+          : { marginLeft: 'auto', textAlign: 'right' }),
+      }}
+    >
+      {correct
+        ? <><CheckIcon size={16} style={iconStyle} aria-hidden /> goed antwoord</>
+        : <><CloseIcon size={16} style={iconStyle} aria-hidden /> jouw keuze</>}
+    </span>
+  );
+}
+
 function MCAnswer({ q, value, onChange, review }: { q: MCQuestion; value: unknown; onChange: (v: unknown) => void; review: boolean }) {
   return (
     <div role="radiogroup" aria-label="Antwoordopties">
@@ -1013,7 +1188,7 @@ function MCAnswer({ q, value, onChange, review }: { q: MCQuestion; value: unknow
           <button key={i} type="button" role="radio" aria-checked={sel} className={cls} disabled={review} onClick={() => onChange(i)}>
             <span className="marker" aria-hidden>{String.fromCharCode(65 + i)}</span>
             <span>{opt}</span>
-            {review && i === q.correctIndex && <span style={{ marginLeft: 'auto' }} aria-label="juist"><CheckIcon size={18} aria-hidden /></span>}
+            {review && <ReviewTag correct={i === q.correctIndex} chosen={sel} />}
           </button>
         );
       })}
@@ -1044,7 +1219,7 @@ function MultiAnswer({ q, value, onChange, review }: { q: MultiQuestion; value: 
           >
             <span className="marker" aria-hidden style={{ borderRadius: 7 }}>{isSel && <CheckIcon size={14} />}</span>
             <span>{opt}</span>
-            {review && isCor && <span style={{ marginLeft: 'auto' }} aria-label="juist"><CheckIcon size={18} aria-hidden /></span>}
+            {review && <ReviewTag correct={isCor} chosen={isSel} />}
           </button>
         );
       })}
@@ -1064,8 +1239,9 @@ function TFAnswer({ q, value, onChange, review }: { q: TFQuestion; value: unknow
           else if (sel) cls += ' incorrect';
         } else if (sel) cls += ' selected';
         return (
-          <button key={String(v)} type="button" className={cls} style={{ justifyContent: 'center' }} disabled={review} onClick={() => onChange(v)} aria-pressed={sel}>
+          <button key={String(v)} type="button" className={cls} style={{ justifyContent: 'center', flexWrap: review ? 'wrap' : undefined }} disabled={review} onClick={() => onChange(v)} aria-pressed={sel}>
             {v ? <><CheckIcon size={18} aria-hidden /> Juist</> : <><CloseIcon size={18} aria-hidden /> Onjuist</>}
+            {review && <ReviewTag correct={v === q.answer} chosen={sel} ownLine />}
           </button>
         );
       })}
@@ -1073,13 +1249,24 @@ function TFAnswer({ q, value, onChange, review }: { q: TFQuestion; value: unknow
   );
 }
 
+/**
+ * Juist/fout tonen bij de verbetering? Niet bij een vraag op 0 punten (bv.
+ * een zelfinschattingsschuiver): daar levert niets punten op, dus zou elk
+ * antwoord als "fout" kleuren.
+ */
+function verdict(q: Question, value: unknown, review: boolean): { show: boolean; ok: boolean } {
+  if (!review) return { show: false, ok: false };
+  const s = gradeQuestion(q, value);
+  return { show: s.max > 0, ok: s.max > 0 && s.earned > 0 };
+}
+
 function ShortAnswer({ q, value, onChange, review }: { q: ShortQuestion; value: unknown; onChange: (v: unknown) => void; review: boolean }) {
-  const ok = review && gradeQuestion(q, value).earned > 0;
+  const { show, ok } = verdict(q, value, review);
   return (
     <div>
       <input
         className="input"
-        style={review ? { borderColor: ok ? 'var(--ok)' : 'var(--err)' } : undefined}
+        style={show ? { borderColor: ok ? 'var(--ok)' : 'var(--err)' } : undefined}
         value={typeof value === 'string' ? value : ''}
         placeholder="Typ je antwoord…"
         disabled={review}
@@ -1087,8 +1274,8 @@ function ShortAnswer({ q, value, onChange, review }: { q: ShortQuestion; value: 
         aria-label="Je antwoord"
       />
       {!review && <AccentBar onInsert={(ch) => onChange((typeof value === 'string' ? value : '') + ch)} />}
-      {review && !ok && (
-        <p style={{ marginTop: 8, color: 'var(--ok)', fontWeight: 600 }}>Juist antwoord: {q.accepted.filter(Boolean).join(' / ')}</p>
+      {show && !ok && (
+        <p style={{ marginTop: 8, color: 'var(--ok)', fontWeight: 600 }}>Juist antwoord: {(q.accepted ?? []).filter(Boolean).join(' / ')}</p>
       )}
     </div>
   );
@@ -1375,14 +1562,19 @@ function GapAnswer({ q, value, onChange, review }: { q: GapQuestion; value: unkn
 }
 
 function MatchAnswer({ q, value, onChange, review }: { q: MatchQuestion; value: unknown; onChange: (v: unknown) => void; review: boolean }) {
-  // rechteropties in vaste, geschudde volgorde tonen
-  const rightOrder = useMemo(() => shuffled(q.pairs.map((_, i) => i)), [q.id]);
+  // rechteropties in vaste, geschudde volgorde tonen, nooit in de volgorde
+  // van links (dan is de oplossing gewoon 1-2-3 kiezen); zelfde tekst = zelfde plaats
+  const rightOrder = useMemo(
+    () => shuffledNotIdentity(q.pairs.map((_, i) => i), (a, b) => normalizeAnswer(q.pairs[a]?.right ?? '') === normalizeAnswer(q.pairs[b]?.right ?? '')),
+    [q.id],
+  );
   const chosen = Array.isArray(value) ? (value as (number | null)[]) : q.pairs.map(() => null);
   return (
     <div style={{ display: 'grid', gap: 10 }}>
       {q.pairs.map((p, li) => {
         const val = chosen[li];
-        const ok = review && val === li;
+        // zelfde regel als de beoordeling: dezelfde rechtertekst telt als juist
+        const ok = review && matchChoiceCorrect(q.pairs, li, val);
         return (
           <div key={li} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 650, flex: '1 1 160px' }}>{p.left}</span>
@@ -1414,8 +1606,12 @@ function MatchAnswer({ q, value, onChange, review }: { q: MatchQuestion; value: 
 }
 
 function OrderAnswer({ q, value, onChange, review }: { q: OrderQuestion; value: unknown; onChange: (v: unknown) => void; review: boolean }) {
-  // value = array van originele indexen in getoonde volgorde
-  const initial = useMemo(() => shuffled(q.items.map((_, i) => i)), [q.id]);
+  // value = array van originele indexen in getoonde volgorde; de beginvolgorde
+  // mag er nooit al juist uitzien (zelfde tekst telt als zelfde plaats)
+  const initial = useMemo(
+    () => shuffledNotIdentity(q.items.map((_, i) => i), (a, b) => normalizeAnswer(q.items[a] ?? '') === normalizeAnswer(q.items[b] ?? '')),
+    [q.id],
+  );
   const order = Array.isArray(value) && (value as number[]).length === q.items.length ? (value as number[]) : initial;
 
   useEffect(() => {
@@ -1459,24 +1655,24 @@ function OrderAnswer({ q, value, onChange, review }: { q: OrderQuestion; value: 
 }
 
 function NumberAnswer({ q, value, onChange, review }: { q: NumberQuestion; value: unknown; onChange: (v: unknown) => void; review: boolean }) {
-  const ok = review && gradeQuestion(q, value).earned > 0;
+  const { show, ok } = verdict(q, value, review);
   return (
     <div>
       <input
-        className="input" type="number" step="any" style={{ maxWidth: 220, ...(review ? { borderColor: ok ? 'var(--ok)' : 'var(--err)' } : {}) }}
+        className="input" type="number" step="any" style={{ maxWidth: 220, ...(show ? { borderColor: ok ? 'var(--ok)' : 'var(--err)' } : {}) }}
         value={value === undefined || value === null ? '' : String(value)}
         disabled={review}
         aria-label="Numeriek antwoord"
         onChange={(e) => onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
       />
-      {review && !ok && <p style={{ marginTop: 8, color: 'var(--ok)', fontWeight: 600 }}>Juist antwoord: {q.answer}{q.tolerance > 0 ? ` (± ${q.tolerance})` : ''}</p>}
+      {show && !ok && <p style={{ marginTop: 8, color: 'var(--ok)', fontWeight: 600 }}>Juist antwoord: {q.answer}{q.tolerance > 0 ? ` (± ${q.tolerance})` : ''}</p>}
     </div>
   );
 }
 
 function SliderAnswer({ q, value, onChange, review }: { q: SliderQuestion; value: unknown; onChange: (v: unknown) => void; review: boolean }) {
   const v = typeof value === 'number' ? value : (q.min + q.max) / 2;
-  const ok = review && gradeQuestion(q, value).earned > 0;
+  const { show, ok } = verdict(q, value, review);
   return (
     <div>
       <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
@@ -1492,7 +1688,7 @@ function SliderAnswer({ q, value, onChange, review }: { q: SliderQuestion; value
           {typeof value === 'number' ? value : '—'}
         </output>
       </div>
-      {review && <p style={{ marginTop: 8, color: ok ? 'var(--ok)' : 'var(--err)', fontWeight: 600 }}>
+      {show && <p style={{ marginTop: 8, color: ok ? 'var(--ok)' : 'var(--err)', fontWeight: 600 }}>
         {ok ? <><CheckIcon size={16} className="icon-inline" aria-hidden /> Juist</> : `Juiste waarde: ${q.answer}${q.tolerance > 0 ? ` (± ${q.tolerance})` : ''}`}
       </p>}
     </div>
@@ -1588,7 +1784,7 @@ export function QuestionView({
             <Globe size={18} aria-hidden />
           </button>
         )}
-        {score && score.mode !== 'pending' && (
+        {score && score.mode !== 'pending' && score.max > 0 && (
           <span className={`badge ${score.earned >= score.max ? 'badge-ok' : score.earned > 0 ? 'badge-warn' : 'badge-err'}`}>
             {score.earned}/{score.max}
           </span>
@@ -1602,7 +1798,7 @@ export function QuestionView({
           <div>{q.support}</div>
         </div>
       )}
-      {q.imageUrl && <img className="question-image" src={q.imageUrl} alt="" />}
+      {q.imageUrl && <img className="question-image" src={q.imageUrl} alt={q.imageAlt?.trim() ?? ''} />}
       {q.type === 'mc' && <MCAnswer q={q} value={value} onChange={onChange} review={review} />}
       {q.type === 'multi' && <MultiAnswer q={q} value={value} onChange={onChange} review={review} />}
       {q.type === 'tf' && <TFAnswer q={q} value={value} onChange={onChange} review={review} />}
@@ -1725,6 +1921,22 @@ export function QuizPlayer({ widget, studentName, preview, timeUp, onComplete }:
   const needRoute = !!config.useRoutes && !restoredQuestions && baseQuestions.some((q) => q.level);
   const [phase, setPhase] = useState<'route' | 'answering' | 'done'>(needRoute ? 'route' : 'answering');
   const [showRestored, setShowRestored] = useState(!!restored && Object.keys(restored.answers).length > 0);
+  /** Telt op bij "Opnieuw beginnen": nieuwe sleutels, dus verse vraagweergaven. */
+  const [round, setRound] = useState(0);
+  /**
+   * Eén vraag per scherm: na "Volgende" of "Vorige" de focus naar de nieuwe
+   * vraag, anders blijft ze op de knop staan terwijl de vraag stil verandert
+   * (een schermlezer merkt dan niets). Niet bij de eerste weergave; via de
+   * vorige index, zodat het dubbel uitvoeren van effecten in de
+   * ontwikkelmodus de focus niet steelt.
+   */
+  const vraagRef = useRef<HTMLDivElement>(null);
+  const prevIdxRef = useRef(idx);
+  useEffect(() => {
+    if (prevIdxRef.current === idx) return;
+    prevIdxRef.current = idx;
+    vraagRef.current?.focus();
+  }, [idx]);
   const submittedRef = useRef(false);
 
   useEffect(() => {
@@ -1776,6 +1988,27 @@ export function QuizPlayer({ widget, studentName, preview, timeUp, onComplete }:
     setShowRestored(false);
     setPhase('answering');
     window.scrollTo({ top: 0 });
+  };
+
+  /**
+   * "Opnieuw beginnen" na teruggezette antwoorden: alles wat bij die poging
+   * hoorde, gaat weg, ook vergrendelde vragen van de getrapte controle,
+   * zekerheden en geopende hints. Met niveauroutes kies je opnieuw een route.
+   * De ronde-teller hertekent de vragen, zodat ook hun eigen toestand
+   * (geopende hints, schudvolgorde) opnieuw begint.
+   */
+  const restart = () => {
+    setAnswers({});
+    setStepState({});
+    setConfs({});
+    hintsRef.current.clear();
+    routeRef.current = null;
+    setIdx(0);
+    setShowRestored(false);
+    setQuestions(baseQuestions);
+    setRound((r) => r + 1);
+    if (config.useRoutes && baseQuestions.some((q) => q.level)) setPhase('route');
+    if (!preview) clearProgress(widget.id, studentName);
   };
 
   useEffect(() => {
@@ -1936,10 +2169,7 @@ export function QuizPlayer({ widget, studentName, preview, timeUp, onComplete }:
       <div style={{ flex: 1 }}>Je eerdere antwoorden op dit toestel zijn teruggezet — je kan gewoon verdergaan.</div>
       <button
         className="btn btn-sm btn-ghost"
-        onClick={() => {
-          setAnswers({}); setIdx(0); setShowRestored(false); setQuestions(baseQuestions);
-          if (!preview) clearProgress(widget.id, studentName);
-        }}
+        onClick={restart}
       >
         <RetryIcon size={16} aria-hidden /> Opnieuw beginnen
       </button>
@@ -1952,7 +2182,7 @@ export function QuizPlayer({ widget, studentName, preview, timeUp, onComplete }:
         {restoredBanner}
         {questions.map((q) => (
           <QuestionView
-            key={q.id} q={q}
+            key={`${round}:${q.id}`} q={q}
             index={gradable.indexOf(q)} total={gradable.length}
             value={answers[q.id]}
             onChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))}
@@ -2007,17 +2237,19 @@ export function QuizPlayer({ widget, studentName, preview, timeUp, onComplete }:
           {idx + 1} / {questions.length}
         </span>
       </div>
-      <QuestionView
-        key={`${q.id}-${isLocked ? 'r' : 'a'}`}
-        q={q} index={gradable.indexOf(q)} total={gradable.length}
-        value={answers[q.id]}
-        onChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))}
-        review={stepMode && isLocked && q.type !== 'info'}
-        confidence={confs[q.id] ?? null}
-        onConfidence={config.askConfidence ? (c) => setConfs((m) => ({ ...m, [q.id]: c })) : undefined}
-        onHintUsed={(lv) => hintsRef.current.set(q.id, Math.max(lv, hintsRef.current.get(q.id) ?? 0))}
-        glossary={config.glossary}
-      />
+      <div ref={vraagRef} tabIndex={-1} className="quiz-vraag-focus" style={{ outline: 'none' }}>
+        <QuestionView
+          key={`${round}:${q.id}-${isLocked ? 'r' : 'a'}`}
+          q={q} index={gradable.indexOf(q)} total={gradable.length}
+          value={answers[q.id]}
+          onChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))}
+          review={stepMode && isLocked && q.type !== 'info'}
+          confidence={confs[q.id] ?? null}
+          onConfidence={config.askConfidence ? (c) => setConfs((m) => ({ ...m, [q.id]: c })) : undefined}
+          onHintUsed={(lv) => hintsRef.current.set(q.id, Math.max(lv, hintsRef.current.get(q.id) ?? 0))}
+          glossary={config.glossary}
+        />
+      </div>
       {stepMode && qStep === 'retry' && (
         <div className="callout warn" role="alert">
           <RetryIcon aria-hidden />
