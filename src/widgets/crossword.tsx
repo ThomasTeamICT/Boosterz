@@ -24,6 +24,8 @@ interface GenResult {
   width: number;
   height: number;
   skipped: string[];
+  /** Woorden die weggelaten zijn omdat hetzelfde woord al in de lijst staat (genormaliseerd). */
+  duplicates: string[];
 }
 
 function cleanWord(w: string): string {
@@ -32,9 +34,17 @@ function cleanWord(w: string): string {
 
 /** Greedy kruiswoordgenerator: langste woord eerst, daarna zoveel mogelijk kruisingen. */
 export function generateCrossword(entries: CrosswordEntry[]): GenResult {
-  const words = entries
-    .map((e) => ({ ...e, clean: cleanWord(e.word) }))
-    .filter((e) => e.clean.length >= 2);
+  // Elk woord één keer: "huis" en "Huis" zijn hetzelfde woord. Het eerste telt, met zijn omschrijving.
+  const words: (CrosswordEntry & { clean: string })[] = [];
+  const duplicates: string[] = [];
+  const seenWords = new Set<string>();
+  for (const e of entries) {
+    const clean = cleanWord(e.word);
+    if (clean.length < 2) continue;
+    if (seenWords.has(clean)) { duplicates.push(e.word.trim()); continue; }
+    seenWords.add(clean);
+    words.push({ ...e, clean });
+  }
   const sorted = words.slice().sort((a, b) => b.clean.length - a.clean.length);
 
   const grid = new Map<string, string>(); // "x,y" → letter
@@ -118,7 +128,7 @@ export function generateCrossword(entries: CrosswordEntry[]): GenResult {
     minX = Math.min(minX, x); maxX = Math.max(maxX, x);
     minY = Math.min(minY, y); maxY = Math.max(maxY, y);
   }
-  if (placed.length === 0) return { placements: [], width: 0, height: 0, skipped };
+  if (placed.length === 0) return { placements: [], width: 0, height: 0, skipped, duplicates };
 
   const norm = placed.map((p) => ({ ...p, x: p.x - minX, y: p.y - minY }));
   // nummering: sorteer op positie
@@ -135,7 +145,7 @@ export function generateCrossword(entries: CrosswordEntry[]): GenResult {
     return { ...p, number: num };
   });
 
-  return { placements, width: maxX - minX + 1, height: maxY - minY + 1, skipped };
+  return { placements, width: maxX - minX + 1, height: maxY - minY + 1, skipped, duplicates };
 }
 
 // ── EDITOR ──────────────────────────────────────────────────────────────────
@@ -165,6 +175,12 @@ export function CrosswordEditor({ config, onChange }: EditorProps<CrosswordConfi
         <div className="callout warn" style={{ marginTop: 14 }}>
           <WarningIcon aria-hidden />
           <div>Deze woorden passen niet in het rooster en worden overgeslagen: <strong>{gen.skipped.join(', ')}</strong>. Voeg woorden toe met gemeenschappelijke letters.</div>
+        </div>
+      )}
+      {gen.duplicates.length > 0 && (
+        <div className="callout warn" style={{ marginTop: 14 }}>
+          <WarningIcon aria-hidden />
+          <div>Dubbele woorden staan maar één keer in het rooster: <strong>{gen.duplicates.join(', ')}</strong>.</div>
         </div>
       )}
       {gen.placements.length > 0 && (

@@ -1739,6 +1739,137 @@ console.log('27. Afdruk verklapt de antwoorden niet');
   check('niet-gevonden-afdruk heeft één main en één h1', (await page.locator('main').count()) === 1 && (await page.locator('main h1').count()) === 1 && (await page.locator('h1').count()) === 1);
 }
 
+// ── 26b. Woordspellen: Galgje en Husselwoorden ──────────────────────────────
+console.log('26b. Woordspellen');
+const spelSettings = { accentColor: '#4f46e5', shuffle: false, showFeedback: true, showScore: true, timeLimitMin: 0, maxAttempts: 0, requireName: false, instructions: '' };
+const spelWidget = (type, code, config, over = {}) => ({
+  id: `smoke-ws-${code}`, type, title: `Smoke ${type} ${code}`, folderId: null, config,
+  settings: { ...spelSettings, ...over }, code, createdAt: Date.now(), updatedAt: Date.now(),
+});
+const spelWidgets = [
+  spelWidget('hangman', 'SMKGLG', { words: [{ word: 'België', hint: '' }], maxErrors: 6 }),
+  spelWidget('hangman', 'SMKGLL', { words: [{ word: 'onwaarschijnlijkheden', hint: '' }], maxErrors: 6 }),
+  spelWidget('hangman', 'SMKGLE', { words: [], maxErrors: 8 }),
+  spelWidget('scramble', 'SMKHUE', { mode: 'sentence', items: [] }),
+  spelWidget('scramble', 'SMKHUS', { mode: 'word', items: [{ id: 'a', text: 'boom', hint: '' }] }),
+  spelWidget('wordsearch', 'SMKWZD', { words: ['huis', 'Huis', 'boom'], size: 8, allowDiagonal: false, allowReverse: false }),
+  spelWidget('crossword', 'SMKKWD', { entries: [{ id: 'e1', word: 'huis', clue: 'een woning' }, { id: 'e2', word: 'Huis', clue: 'een gebouw' }, { id: 'e3', word: 'sluis', clue: 'bij een kanaal' }] }),
+];
+await page.evaluate((ws) => {
+  const all = JSON.parse(localStorage.getItem('wf.widgets.v1') || '[]');
+  localStorage.setItem('wf.widgets.v1', JSON.stringify([...ws, ...all.filter((w) => !ws.some((x) => x.id === w.id))]));
+}, spelWidgets);
+const spelStarten = async (code) => {
+  await go(`/#/speel/${code}`);
+  const naamveld = page.locator('#student-name');
+  if (await naamveld.count()) await naamveld.fill('Testleerling');
+  await page.getByRole('button', { name: /Starten/ }).click();
+  await sleep(500);
+};
+const spelOpgeslagen = (id) => page.evaluate((i) => JSON.parse(localStorage.getItem('wf.widgets.v1')).find((w) => w.id === i)?.config, id);
+
+// Galgje: "België" is op te lossen met gewone letters
+await spelStarten('SMKGLG');
+check('Galgje: de kansen hebben één toegankelijke naam (role=img)', (await page.locator('[role=img][aria-label="Nog 6 van 6 kansen"]').count()) === 1);
+check('Galgje: woord voor schermlezers (sr-only), leeg waar nog niets geraden is', (await page.locator('.sr-only', { hasText: /^Woord: leeg leeg leeg leeg leeg leeg$/ }).count()) === 1);
+check('Galgje: het zichtbare woord is verborgen voor schermlezers', (await page.locator('p[aria-hidden=true]', { hasText: '______' }).count()) === 1);
+{
+  const b = await page.locator('.letter-key').first().boundingBox();
+  check('Galgje: lettertoetsen zijn minstens 44 px breed en hoog', b.width >= 44 && b.height >= 44);
+}
+await page.locator('.letter-key', { hasText: /^Z$/ }).click();
+check('Galgje: een foute letter kost een kans (zichtbaar voor schermlezers)', (await page.locator('[role=img][aria-label="Nog 5 van 6 kansen"]').count()) === 1);
+// toetsenbord: na Enter op een letter blijft de focus op de knop staan
+await page.locator('.letter-key', { hasText: /^A$/ }).focus();
+await page.keyboard.press('Enter');
+await sleep(150);
+check('Galgje: na Enter op een letter blijft de focus op de letterknop', await page.evaluate(() => /^Letter A/.test(document.activeElement?.getAttribute('aria-label') || '')));
+await page.keyboard.press('Enter');
+check('Galgje: dezelfde letter nog eens kiezen kost geen extra kans', (await page.locator('[role=img][aria-label="Nog 4 van 6 kansen"]').count()) === 1);
+await page.locator('.letter-key', { hasText: /^E$/ }).click();
+check('Galgje: E toont ook Ë (en kost geen kans)', (await page.locator('.sr-only', { hasText: /^Woord: leeg E leeg leeg leeg Ë$/ }).count()) === 1
+  && (await page.locator('[role=img][aria-label="Nog 4 van 6 kansen"]').count()) === 1);
+for (const l of 'BLGI') await page.locator('.letter-key:not([aria-disabled=true])', { hasText: new RegExp(`^${l}$`) }).click();
+await sleep(300);
+check('Galgje: "België" opgelost met B, E, L, G en I', await page.locator('text=Geraden!').first().isVisible());
+
+// Galgje op 390 px: een lang woord loopt niet uit beeld
+await page.setViewportSize({ width: 390, height: 844 });
+await spelStarten('SMKGLL');
+check('390 px: Galgje met een woord van 21 letters scrolt niet horizontaal', await passtOpSmal());
+const galgjeWoord = await page.locator('p[aria-hidden=true]', { hasText: '_____' }).first().boundingBox();
+check('390 px: het woord blijft binnen het scherm', galgjeWoord.x >= 0 && galgjeWoord.x + galgjeWoord.width <= 391);
+const galgjeToetsen = await page.locator('.letter-key').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return [r.width, r.height, r.right]; }));
+check('390 px: alle 26 lettertoetsen zijn minstens 44 × 44 en passen in het scherm', galgjeToetsen.length === 26 && galgjeToetsen.every(([w, h, r]) => w >= 44 && h >= 44 && r <= 390));
+
+// Husselwoorden op 390 px: de knoppenrij past
+await spelStarten('SMKHUS');
+check('390 px: Husselwoorden scrolt niet horizontaal', await passtOpSmal());
+const hussel = await page.getByRole('button', { name: /Wissen|Controleren|Overslaan/ }).evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return [r.right, r.height]; }));
+check('390 px: Wissen, Controleren en Overslaan passen binnen het scherm met 44 px hoogte', hussel.length === 3 && hussel.every(([r, h]) => r <= 390 && h >= 44));
+await page.setViewportSize({ width: 1360, height: 900 });
+
+// Galgje-editor: een hint typen blijft staan zoals getypt
+await go('/#/widgets');
+await go('/#/bewerk/smoke-ws-SMKGLE');
+const galgjeVeld = page.getByLabel('Woorden en hints');
+await galgjeVeld.click();
+await page.keyboard.type('appel: een stuk fruit', { delay: 15 });
+await sleep(700);
+check('Galgje-editor: "appel: een stuk fruit" blijft zo in het tekstveld staan', (await galgjeVeld.inputValue()) === 'appel: een stuk fruit');
+check('Galgje-editor: woord en hint zijn gescheiden bewaard', JSON.stringify((await spelOpgeslagen('smoke-ws-SMKGLE')).words) === JSON.stringify([{ word: 'appel', hint: 'een stuk fruit' }]));
+check('Galgje-editor: uitleg over een dubbelepunt in de zin', await page.locator('text=/Staat er zelf een dubbelepunt/').first().isVisible());
+
+// Husselwoorden-editor: een uur met dubbelepunt wordt niet gesplitst
+await go('/#/widgets');
+await go('/#/bewerk/smoke-ws-SMKHUE');
+const husselVeld = page.getByLabel('Zinnen', { exact: true });
+await husselVeld.click();
+await page.keyboard.type('Het is 12:30 nu.', { delay: 15 });
+await sleep(700);
+check('Husselwoorden-editor: "Het is 12:30 nu." blijft heel in het tekstveld', (await husselVeld.inputValue()) === 'Het is 12:30 nu.');
+const husselOpgeslagen = (await spelOpgeslagen('smoke-ws-SMKHUE')).items;
+check('Husselwoorden-editor: de zin is niet gesplitst in zin en hint', husselOpgeslagen.length === 1 && husselOpgeslagen[0].text === 'Het is 12:30 nu.' && !husselOpgeslagen[0].hint);
+
+// Tijd om: Galgje en Husselwoorden dienen de deelscore in
+{
+  const tijdWidgets = [
+    spelWidget('hangman', 'SMKTIJ', { words: [{ word: 'boom', hint: '' }], maxErrors: 8 }, { timeLimitMin: 1 }),
+    spelWidget('scramble', 'SMKTIK', { mode: 'word', items: [{ id: 'a', text: 'boom', hint: '' }] }, { timeLimitMin: 1 }),
+  ];
+  const tijdCtx = await browser.newContext({ viewport: { width: 1000, height: 800 } });
+  await tijdCtx.addInitScript((ws) => {
+    if (!localStorage.getItem('wf.widgets.v1')) {
+      localStorage.setItem('wf.widgets.v1', JSON.stringify(ws));
+      localStorage.setItem('wf.prefs.v1', JSON.stringify({ seeded: true }));
+    }
+  }, tijdWidgets);
+  const tijd = await tijdCtx.newPage();
+  tijd.on('pageerror', (e) => errors.push(`pageerror(tijd): ${e.message}`));
+  tijd.on('console', (m) => { if (m.type() === 'error' && !/ERR_CERT_AUTHORITY_INVALID/.test(m.text())) errors.push(`console(tijd): ${m.text()}`); });
+  await tijd.clock.install();
+  for (const [code, tekst, naam] of [['SMKTIJ', /Spel afgelopen!/, 'Galgje'], ['SMKTIK', /^Klaar!$/, 'Husselwoorden']]) {
+    await tijd.goto(`${BASE}/#/speel/${code}`, { waitUntil: 'networkidle' });
+    await tijd.getByRole('button', { name: /Starten/ }).click();
+    await tijd.clock.runFor(2000);
+    await tijd.clock.runFor(62000);
+    await tijd.waitForTimeout(500);
+    check(`${naam}: bij tijd om verschijnt het resultaatscherm met de deelscore`, await tijd.getByRole('heading', { name: tekst }).isVisible() && await tijd.getByText(/Je behaalde/).first().isVisible());
+    const inzendingen = await tijd.evaluate((c) => JSON.parse(localStorage.getItem('wf.submissions.v1') || '[]').filter((s) => s.widgetCode === c), code);
+    check(`${naam}: bij tijd om is de deelscore bewaard`, inzendingen.length === 1 && inzendingen[0].totalEarned === 0 && inzendingen[0].totalMax === 1);
+  }
+  await tijdCtx.close();
+}
+
+// Dubbele woorden: "huis" en "Huis" tellen als één woord
+await spelStarten('SMKWZD');
+check('woordzoeker: "huis" en "Huis" geven samen één woord (0 / 2 gevonden)', await page.locator('.badge', { hasText: '0 / 2 gevonden' }).first().isVisible());
+await spelStarten('SMKKWD');
+check('kruiswoord: "huis" en "Huis" staan samen één keer in het rooster (0 / 2 woorden)', await page.locator('.badge', { hasText: '0 / 2 woorden' }).first().isVisible());
+await go('/#/widgets');
+await go('/#/bewerk/smoke-ws-SMKKWD');
+check('kruiswoord-editor: melding over het dubbele woord', await page.locator('text=/Dubbele woorden staan maar één keer in het rooster/').first().isVisible());
+
 // ── Slot ────────────────────────────────────────────────────────────────────
 console.log('\n──────────');
 if (errors.length) {

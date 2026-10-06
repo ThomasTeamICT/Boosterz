@@ -9,7 +9,11 @@ import '../styles/leerling.css';
 // ── Generator ───────────────────────────────────────────────────────────────
 
 interface PlacedWord { word: string; cells: [number, number][] }
-interface WSGrid { size: number; letters: string[][]; placed: PlacedWord[]; skipped: string[] }
+interface WSGrid {
+  size: number; letters: string[][]; placed: PlacedWord[]; skipped: string[];
+  /** Woorden die weggelaten zijn omdat hetzelfde woord al in de lijst staat (genormaliseerd). */
+  duplicates: string[];
+}
 
 function cleanWord(w: string): string {
   return normalizeAnswer(w).toUpperCase().replace(/[^A-Z]/g, '');
@@ -23,7 +27,18 @@ export function generateWordsearch(config: WordsearchConfig, seed?: number): WSG
     return s / 2147483648;
   };
 
-  const words = config.words.map(cleanWord).filter((w) => w.length >= 2);
+  // Elk woord één keer: "huis" en "Huis" zijn hetzelfde woord, anders kan de leerling
+  // het tweede nooit apart vinden en blijft de score hangen.
+  const words: string[] = [];
+  const duplicates: string[] = [];
+  const seenWords = new Set<string>();
+  for (const raw of config.words) {
+    const w = cleanWord(raw);
+    if (w.length < 2) continue;
+    if (seenWords.has(w)) { duplicates.push(raw.trim()); continue; }
+    seenWords.add(w);
+    words.push(w);
+  }
   const size = Math.max(config.size, Math.max(0, ...words.map((w) => w.length)));
   const grid: (string | null)[][] = Array.from({ length: size }, () => Array(size).fill(null));
 
@@ -64,7 +79,7 @@ export function generateWordsearch(config: WordsearchConfig, seed?: number): WSG
 
   const ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const letters = grid.map((row) => row.map((c) => c ?? ABC[Math.floor(rnd() * 26)]));
-  return { size, letters, placed, skipped };
+  return { size, letters, placed, skipped, duplicates };
 }
 
 // ── EDITOR ──────────────────────────────────────────────────────────────────
@@ -93,6 +108,12 @@ export function WordsearchEditor({ config, onChange }: EditorProps<WordsearchCon
         <div className="callout warn" style={{ marginTop: 10 }}>
           <TriangleAlert size={18} aria-hidden />
           <div>Passen niet in het rooster: <strong>{gen.skipped.join(', ')}</strong>. Maak het rooster groter.</div>
+        </div>
+      )}
+      {gen.duplicates.length > 0 && (
+        <div className="callout warn" style={{ marginTop: 10 }}>
+          <TriangleAlert size={18} aria-hidden />
+          <div>Dubbele woorden staan maar één keer in het rooster: <strong>{gen.duplicates.join(', ')}</strong>.</div>
         </div>
       )}
     </div>

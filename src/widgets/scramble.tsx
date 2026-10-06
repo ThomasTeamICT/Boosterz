@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { ScrambleConfig } from '../lib/types';
 import { normalizeAnswer, shuffled, uid } from '../lib/utils';
@@ -6,7 +6,52 @@ import { Field } from '../components/ui';
 import { CheckIcon, RetryIcon, TipIcon } from '../components/icons';
 import { EditorProps, GameStatus, PlayerProps, ResultHero } from './shared';
 
+// ── Tekst ⇄ lijst ───────────────────────────────────────────────────────────
+
+type ScrambleItems = ScrambleConfig['items'];
+
+/** Tekst en hint scheiden op de laatste dubbelepunt die door een spatie gevolgd wordt. */
+const HINT_SPLIT = /^(.*):\s+(.*)$/;
+
+/** Eén woord (of zin) per regel, met optioneel `: hint` achteraan. */
+export function parseScrambleLines(text: string, makeId: () => string = uid): ScrambleItems {
+  return text.split('\n').map((line) => {
+    const m = HINT_SPLIT.exec(line);
+    return m
+      ? { id: makeId(), text: m[1].trim(), hint: m[2].trim() }
+      : { id: makeId(), text: line.trim(), hint: '' };
+  });
+}
+
+/** Omgekeerde van `parseScrambleLines`: de tekst voor een bestaande lijst. */
+export function formatScrambleLines(items: ScrambleItems): string {
+  return items
+    .map((w) => {
+      if (w.hint) return `${w.text}: ${w.hint}`;
+      // Een zin met zelf een dubbelepunt + spatie krijgt een lege hint achteraan,
+      // zodat het opnieuw inlezen dezelfde zin teruggeeft.
+      return HINT_SPLIT.test(w.text) ? `${w.text}: ` : w.text;
+    })
+    .join('\n');
+}
+
+// De id's doen niet mee: die zijn bij elke keer inlezen nieuw.
+const itemsKey = (items: ScrambleItems) => JSON.stringify(items.map((w) => [w.text, w.hint ?? '']));
+
+// ── Editor ──────────────────────────────────────────────────────────────────
+
 export function ScrambleEditor({ config, onChange }: EditorProps<ScrambleConfig>) {
+  // De ruwe tekst blijft in het tekstveld staan zoals de leerkracht ze typt; alleen de
+  // geparste lijst gaat naar de config. Verandert de config van buiten (bv. AI of
+  // ongedaan maken), dan wordt het veld opnieuw opgebouwd.
+  const [text, setText] = useState(() => formatScrambleLines(config.items));
+  const [seen, setSeen] = useState(() => itemsKey(config.items));
+  const incoming = itemsKey(config.items);
+  if (incoming !== seen) {
+    setSeen(incoming);
+    setText(formatScrambleLines(config.items));
+  }
+  const word = config.mode === 'word';
   return (
     <div>
       <Field label="Soort oefening">
@@ -20,18 +65,17 @@ export function ScrambleEditor({ config, onChange }: EditorProps<ScrambleConfig>
         </div>
       </Field>
       <Field
-        label={config.mode === 'word' ? 'Woorden' : 'Zinnen'}
-        hint={`Eén ${config.mode === 'word' ? 'woord' : 'zin'} per regel. Optionele hint na een dubbelepunt, bv.: ${config.mode === 'word' ? 'appel: een stuk fruit' : 'De zon schijnt vandaag.: weerbericht'}`}
+        label={word ? 'Woorden' : 'Zinnen'}
+        hint={`Eén ${word ? 'woord' : 'zin'} per regel. Optionele hint na een dubbelepunt en een spatie, bv.: ${word ? 'appel: een stuk fruit' : 'De zon schijnt vandaag.: weerbericht'}. Staat er zelf een dubbelepunt in je ${word ? 'woord' : 'zin'}, zet dan altijd een hint achteraan.`}
       >
         <textarea
           className="textarea" rows={8}
-          value={config.items.map((w) => (w.hint ? `${w.text}: ${w.hint}` : w.text)).join('\n')}
+          value={text}
           onChange={(e) => {
-            const items = e.target.value.split('\n').map((line) => {
-              const ix = line.lastIndexOf(':');
-              if (ix === -1) return { id: uid(), text: line, hint: '' };
-              return { id: uid(), text: line.slice(0, ix).trim(), hint: line.slice(ix + 1).trim() };
-            });
+            const value = e.target.value;
+            const items = parseScrambleLines(value);
+            setText(value);
+            setSeen(itemsKey(items));
             onChange({ ...config, items });
           }}
         />
@@ -40,8 +84,10 @@ export function ScrambleEditor({ config, onChange }: EditorProps<ScrambleConfig>
   );
 }
 
-function scrambleParts(text: string, mode: 'word' | 'sentence'): string[] {
-  const parts = mode === 'word' ? text.split('') : text.split(/\s+/);
+/** De stukjes die de leerling te zien krijgt: letters of woorden, in een andere volgorde dan het origineel. */
+export function scrambleParts(text: string, mode: 'word' | 'sentence'): string[] {
+  const clean = text.trim();
+  const parts = mode === 'word' ? clean.split('') : clean.split(/\s+/);
   if (parts.length < 2) return parts;
   let out = shuffled(parts);
   // zorg dat de husselversie niet toevallig gelijk is aan het origineel
@@ -50,7 +96,7 @@ function scrambleParts(text: string, mode: 'word' | 'sentence'): string[] {
   return out;
 }
 
-export function ScramblePlayer({ widget, onComplete }: PlayerProps<ScrambleConfig>) {
+export function ScramblePlayer({ widget, timeUp, onComplete }: PlayerProps<ScrambleConfig>) {
   const items = useMemo(() => {
     const valid = widget.config.items.filter((i) => i.text.trim().length >= 2);
     return widget.settings.shuffle ? shuffled(valid) : valid;
@@ -64,6 +110,28 @@ export function ScramblePlayer({ widget, onComplete }: PlayerProps<ScrambleConfi
   const [solved, setSolved] = useState(0);
   const [skipped, setSkipped] = useState(0);
   const [done, setDone] = useState(false);
+  const submittedRef = useRef(false);
+
+  const finish = (newSolved: number, newSkipped: number) => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    setSolved(newSolved);
+    setSkipped(newSkipped);
+    setDone(true);
+    onComplete({
+      answers: { opgelost: newSolved, overgeslagen: newSkipped },
+      itemScores: null,
+      earned: newSolved,
+      max: items.length,
+    });
+  };
+
+  // Tijd om: de deelscore indienen en het resultaatscherm tonen. Een goed antwoord dat
+  // nog op zijn bevestiging wacht, telt mee.
+  useEffect(() => {
+    if (timeUp && !done && items.length > 0) finish(solved + (feedback === 'ok' ? 1 : 0), skipped);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeUp]);
 
   if (items.length === 0) return <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>Nog geen items ingesteld.</p>;
 
@@ -73,19 +141,14 @@ export function ScramblePlayer({ widget, onComplete }: PlayerProps<ScrambleConfi
   const isComplete = picked.length === pool.length;
 
   const goNext = (didSolve: boolean) => {
+    if (submittedRef.current) return;
     const newSolved = solved + (didSolve ? 1 : 0);
     const newSkipped = skipped + (didSolve ? 0 : 1);
-    setSolved(newSolved);
-    setSkipped(newSkipped);
     if (round + 1 >= items.length) {
-      setDone(true);
-      onComplete({
-        answers: { opgelost: newSolved, overgeslagen: newSkipped },
-        itemScores: null,
-        earned: newSolved,
-        max: items.length,
-      });
+      finish(newSolved, newSkipped);
     } else {
+      setSolved(newSolved);
+      setSkipped(newSkipped);
       const next = round + 1;
       setRound(next);
       setPool(scrambleParts(items[next].text, mode));
@@ -113,6 +176,7 @@ export function ScramblePlayer({ widget, onComplete }: PlayerProps<ScrambleConfi
         subtitle={`Je loste ${solved} van de ${items.length} puzzels op.`}
       >
         <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => {
+          submittedRef.current = false;
           setRound(0); setPool(scrambleParts(items[0].text, mode)); setPicked([]);
           setSolved(0); setSkipped(0); setDone(false); setFeedback(null);
         }}><RetryIcon size={16} aria-hidden /> Opnieuw</button>
@@ -148,7 +212,7 @@ export function ScramblePlayer({ widget, onComplete }: PlayerProps<ScrambleConfi
             <button
               key={pos}
               className="chip placed"
-              style={{ fontSize: 'inherit' }}
+              style={{ fontSize: 'inherit', minWidth: 44, minHeight: 44 }}
               aria-label={`${pool[pi]} terugleggen`}
               onClick={() => setPicked((p) => p.filter((_, j) => j !== pos))}
             >
@@ -163,7 +227,7 @@ export function ScramblePlayer({ widget, onComplete }: PlayerProps<ScrambleConfi
           <button
             key={i}
             className={`chip ${picked.includes(i) ? 'used' : ''}`}
-            style={{ fontSize: mode === 'word' ? '1.3rem' : '1rem' }}
+            style={{ fontSize: mode === 'word' ? '1.3rem' : '1rem', minWidth: 44, minHeight: 44 }}
             disabled={picked.includes(i)}
             onClick={() => setPicked((p) => [...p, i])}
           >
@@ -172,10 +236,10 @@ export function ScramblePlayer({ widget, onComplete }: PlayerProps<ScrambleConfi
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-        <button className="btn btn-ghost" onClick={() => setPicked([])} disabled={picked.length === 0}>Wissen</button>
-        <button className="btn btn-primary" onClick={check} disabled={!isComplete}><CheckIcon size={16} aria-hidden /> Controleren</button>
-        <button className="btn btn-quiet" onClick={() => goNext(false)}>Overslaan <ArrowRight size={16} aria-hidden /></button>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+        <button className="btn btn-ghost" style={{ minHeight: 44 }} onClick={() => setPicked([])} disabled={picked.length === 0}>Wissen</button>
+        <button className="btn btn-primary" style={{ minHeight: 44 }} onClick={check} disabled={!isComplete}><CheckIcon size={16} aria-hidden /> Controleren</button>
+        <button className="btn btn-quiet" style={{ minHeight: 44 }} onClick={() => goNext(false)}>Overslaan <ArrowRight size={16} aria-hidden /></button>
       </div>
     </div>
   );
