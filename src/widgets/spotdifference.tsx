@@ -42,6 +42,13 @@ const SD_CSS = `
   animation: spotdifference-fade 0.65s ease forwards;
 }
 .spotdifference-shake { animation: spotdifference-shake 0.4s ease; }
+/* Toetsenbordbediening: de stage van afbeelding B is een focusbaar vlak met een kruisje dat alleen bij toetsenbordfocus zichtbaar is. */
+.spotdifference-stage:focus-visible { border-radius: var(--radius-m); outline-offset: 3px; }
+.spotdifference-cursor {
+  position: absolute; transform: translate(-50%, -50%); width: 34px; height: 34px;
+  pointer-events: none; display: none;
+}
+.spotdifference-stage:focus-visible .spotdifference-cursor { display: block; }
 @keyframes spotdifference-pop { from { opacity: 0; } }
 @keyframes spotdifference-fade { to { opacity: 0; } }
 @keyframes spotdifference-shake {
@@ -202,7 +209,9 @@ export function SpotDifferencePlayer({ widget, timeUp, onComplete }: PlayerProps
   const [found, setFound] = useState<Set<string>>(new Set());
   const [misses, setMisses] = useState(0);
   const [missFlash, setMissFlash] = useState<{ x: number; y: number; key: number } | null>(null);
-  const [message, setMessage] = useState<{ text: string; kind: 'ok' | 'err' | 'info' } | null>(null);
+  const [message, setMessage] = useState<{ text: string; kind: 'ok' | 'err' | 'info'; n: number } | null>(null);
+  // Positie van het toetsenbordkruisje, in procent van de afbeelding (start in het midden).
+  const [kbPos, setKbPos] = useState({ x: 50, y: 50 });
   const [end, setEnd] = useState<EndReason | null>(null);
   const submittedRef = useRef(false);
   const missTimer = useRef<number | undefined>(undefined);
@@ -229,7 +238,7 @@ export function SpotDifferencePlayer({ widget, timeUp, onComplete }: PlayerProps
   if (!config.imageA || !config.imageB || diffs.length === 0) {
     return (
       <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>
-        Deze widget heeft nog geen twee afbeeldingen met gemarkeerde verschillen.
+        Deze oefening heeft nog geen twee afbeeldingen met gemarkeerde verschillen.
       </p>
     );
   }
@@ -290,37 +299,71 @@ export function SpotDifferencePlayer({ widget, timeUp, onComplete }: PlayerProps
     );
   }
 
-  const onStageClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  // Het wisselende teken (n) zorgt dat dezelfde melding twee keer na elkaar opnieuw wordt voorgelezen.
+  const say = (text: string, kind: 'ok' | 'err' | 'info') => setMessage((m) => ({ text, kind, n: (m?.n ?? 0) + 1 }));
+
+  // Eén controle voor muis, aanraking en toetsenbord: de plek wordt opgegeven in procent van de afbeelding.
+  const checkAt = (xPct: number, yPct: number) => {
     if (submittedRef.current || !stageRef.current) return;
     const rect = stageRef.current.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
     const within = (d: SpotDifference) => {
-      const dx = px - (d.x / 100) * rect.width;
-      const dy = py - (d.y / 100) * rect.height;
+      const dx = ((xPct - d.x) / 100) * rect.width;
+      const dy = ((yPct - d.y) / 100) * rect.height;
       return Math.hypot(dx, dy) <= (d.radius / 100) * rect.width;
     };
     const hitNew = diffs.find((d) => !found.has(d.id) && within(d));
     if (hitNew) {
       const next = new Set(found).add(hitNew.id);
       setFound(next);
-      setMessage({
-        text: hitNew.label?.trim() ? `Juist! Je vond: ${hitNew.label}.` : `Juist! Verschil ${next.size} van ${diffs.length} gevonden.`,
-        kind: 'ok',
-      });
+      say(
+        hitNew.label?.trim() ? `Juist! Je vond: ${hitNew.label}. (${next.size} van ${diffs.length})` : `Juist! Verschil ${next.size} van ${diffs.length} gevonden.`,
+        'ok',
+      );
       if (next.size === diffs.length) finish('won', next, misses);
       return;
     }
     if (diffs.some((d) => found.has(d.id) && within(d))) {
-      setMessage({ text: 'Dit verschil had je al gevonden.', kind: 'info' });
+      say('Dit verschil had je al gevonden.', 'info');
       return;
     }
     setMisses((m) => m + 1);
-    setMessage({ text: 'Daar zit geen verschil. Kijk nog eens goed!', kind: 'err' });
+    say('Daar zit geen verschil. Kijk nog eens goed!', 'err');
     window.clearTimeout(missTimer.current);
-    setMissFlash({ x: (px / rect.width) * 100, y: (py / rect.height) * 100, key: Date.now() });
+    setMissFlash({ x: xPct, y: yPct, key: Date.now() });
     missTimer.current = window.setTimeout(() => setMissFlash(null), 650);
+  };
+
+  const onStageClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!stageRef.current) return;
+    const rect = stageRef.current.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setKbPos({ x: clamp(x, 0, 100), y: clamp(y, 0, 100) });
+    checkAt(x, y);
+  };
+
+  // Pijltjes verschuiven het kruisje met 5 % (met Shift 1 %); Enter of spatie controleert op die plek.
+  const onStageKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const step = e.shiftKey ? 1 : 5;
+    let { x, y } = kbPos;
+    switch (e.key) {
+      case 'ArrowLeft': x -= step; break;
+      case 'ArrowRight': x += step; break;
+      case 'ArrowUp': y -= step; break;
+      case 'ArrowDown': y += step; break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        checkAt(kbPos.x, kbPos.y);
+        return;
+      default:
+        return;
+    }
+    e.preventDefault();
+    setKbPos({ x: clamp(x, 0, 100), y: clamp(y, 0, 100) });
   };
 
   const remaining = diffs.length - found.size;
@@ -343,7 +386,9 @@ export function SpotDifferencePlayer({ widget, timeUp, onComplete }: PlayerProps
           color: message ? (message.kind === 'ok' ? 'var(--ok)' : message.kind === 'err' ? 'var(--err)' : 'var(--text-soft)') : 'var(--text-soft)',
         }}
       >
-        {message ? message.text : 'Vergelijk de twee afbeeldingen en klik op afbeelding B waar je een verschil ziet.'}
+        {message
+          ? `${message.text}${message.n % 2 === 1 ? '\u00A0' : ''}`
+          : 'Vergelijk de twee afbeeldingen en klik op afbeelding B waar je een verschil ziet, of ga met de pijltjestoetsen naar de plek en druk op Enter.'}
       </p>
       <div style={pairGrid}>
         <div>
@@ -351,7 +396,7 @@ export function SpotDifferencePlayer({ widget, timeUp, onComplete }: PlayerProps
           <div
             className="hotspot-stage"
             style={stageStyle}
-            onClick={() => setMessage({ text: 'Klik op afbeelding B om een verschil aan te duiden.', kind: 'info' })}
+            onClick={() => say('Klik op afbeelding B om een verschil aan te duiden.', 'info')}
           >
             <img src={config.imageA} alt="Afbeelding A — het origineel" style={imgStyle} />
             {rings(false)}
@@ -361,12 +406,27 @@ export function SpotDifferencePlayer({ widget, timeUp, onComplete }: PlayerProps
           <p style={{ ...caption, color: 'color-mix(in srgb, var(--player-accent, var(--brand-fill)) 60%, var(--text))' }}>Afbeelding B — klik op de verschillen</p>
           <div
             ref={stageRef}
-            className={`hotspot-stage ${missFlash ? 'spotdifference-shake' : ''}`}
+            className={`hotspot-stage spotdifference-stage ${missFlash ? 'spotdifference-shake' : ''}`}
             style={{ ...stageStyle, cursor: 'crosshair' }}
+            role="application"
+            tabIndex={0}
+            aria-label="Afbeelding B. Verplaats het kruisje met de pijltjestoetsen, met Shift in kleine stappen. Druk op Enter om te controleren of daar een verschil zit."
             onClick={onStageClick}
+            onKeyDown={onStageKeyDown}
           >
             <img src={config.imageB} alt="Afbeelding B — klik waar je een verschil ziet" style={imgStyle} />
             {rings(false)}
+            <svg
+              className="spotdifference-cursor"
+              data-testid="sd-cursor"
+              viewBox="0 0 34 34"
+              style={{ left: `${kbPos.x}%`, top: `${kbPos.y}%` }}
+              aria-hidden
+              focusable="false"
+            >
+              <path d="M17 2v30M2 17h30" stroke="#fff" strokeWidth="7" strokeLinecap="round" fill="none" />
+              <path d="M17 2v30M2 17h30" stroke="#111" strokeWidth="3" strokeLinecap="round" fill="none" />
+            </svg>
             {missFlash && (
               <div
                 key={missFlash.key}

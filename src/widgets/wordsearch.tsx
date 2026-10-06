@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Check, RotateCcw, SearchCheck, TriangleAlert } from 'lucide-react';
 import type { WordsearchConfig } from '../lib/types';
 import { normalizeAnswer } from '../lib/utils';
@@ -134,6 +134,14 @@ function lineBetween(a: [number, number], b: [number, number]): [number, number]
   return cells;
 }
 
+/** Uitslag van een geselecteerde lijn: een woord, een lijn zonder woord, of niets om te beoordelen (enkele cel). */
+type Uitslag = { soort: 'gevonden'; woord: string } | { soort: 'mis' } | { soort: 'geen' };
+
+// De focusring van de cellen loopt binnen de cel (rooster en scrollvenster knippen anders de rand af).
+const WS_CSS = `
+.ws-grid .ws-cell:focus-visible { outline-offset: -3px; }
+`;
+
 export function WordsearchPlayer({ widget, timeUp, onComplete }: PlayerProps<WordsearchConfig>) {
   const seed = useMemo(() => Math.floor(Math.random() * 1e9), [widget.id]);
   const gen = useMemo(() => generateWordsearch(widget.config, seed), [widget.id, seed]);
@@ -142,6 +150,12 @@ export function WordsearchPlayer({ widget, timeUp, onComplete }: PlayerProps<Wor
   const [start, setStart] = useState<[number, number] | null>(null);
   const [hover, setHover] = useState<[number, number] | null>(null);
   const [dragging, setDragging] = useState(false);
+  // Toetsenbord: één cel is bereikbaar met Tab (roving tabindex); Enter kiest begin en einde van een woord.
+  const [cursor, setCursor] = useState<[number, number]>([0, 0]);
+  const [kbStart, setKbStart] = useState<[number, number] | null>(null);
+  const [melding, setMelding] = useState({ tekst: '', n: 0 });
+  const gridRef = useRef<HTMLTableElement>(null);
+  const hintId = useId();
   const [done, setDone] = useState(false);
   const submittedRef = useRef(false);
   const startedAt = useMemo(() => Date.now(), []);
@@ -165,21 +179,85 @@ export function WordsearchPlayer({ widget, timeUp, onComplete }: PlayerProps<Wor
 
   if (gen.placed.length === 0) return <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>Nog geen woorden ingesteld.</p>;
 
-  const selection = start && hover ? lineBetween(start, hover) : start ? [start] : null;
+  const kbLine = kbStart ? (lineBetween(kbStart, cursor) ?? [kbStart]) : null;
+  const selection = kbLine ?? (start && hover ? lineBetween(start, hover) : start ? [start] : null);
   const selSet = new Set((selection ?? []).map(([x, y]) => `${x},${y}`));
   const foundSet = new Set([...found.values()].flat().map(([x, y]) => `${x},${y}`));
 
-  const commit = (line: [number, number][] | null) => {
-    if (!line || line.length < 2) return;
+  // Zegt het aan schermlezers (aria-live); een wisselend teken zorgt dat dezelfde melding opnieuw voorgelezen wordt.
+  const say = (tekst: string) => setMelding((m) => ({ tekst, n: m.n + 1 }));
+
+  const commit = (line: [number, number][] | null): Uitslag => {
+    if (!line || line.length < 2) return { soort: 'geen' };
     const text = line.map(([x, y]) => gen.letters[y][x]).join('');
     const reversedText = text.split('').reverse().join('');
     const hit = gen.placed.find((p) => !found.has(p.word) && (p.word === text || p.word === reversedText));
-    if (hit) {
-      const next = new Map(found);
-      next.set(hit.word, line);
-      setFound(next);
-      if (next.size === gen.placed.length) finish(true, next);
+    if (!hit) return { soort: 'mis' };
+    const next = new Map(found);
+    next.set(hit.word, line);
+    setFound(next);
+    if (next.size === gen.placed.length) finish(true, next);
+    return { soort: 'gevonden', woord: hit.word };
+  };
+
+  const meld = (u: Uitslag) => {
+    if (u.soort === 'gevonden') say(`Gevonden: ${u.woord}`);
+    else if (u.soort === 'mis') say('Geen woord');
+  };
+
+  const verplaats = (x: number, y: number) => {
+    setCursor([x, y]);
+    gridRef.current?.querySelector<HTMLElement>(`[data-ws="${x},${y}"]`)?.focus();
+  };
+
+  const kiesCel = ([x, y]: [number, number]) => {
+    if (!kbStart) {
+      setKbStart([x, y]);
+      say(`Begin gekozen: ${gen.letters[y][x]}, rij ${y + 1}, kolom ${x + 1}. Ga naar de laatste letter van het woord en druk op Enter.`);
+      return;
     }
+    if (kbStart[0] === x && kbStart[1] === y) {
+      setKbStart(null);
+      say('Selectie geannuleerd');
+      return;
+    }
+    const uitslag = commit(lineBetween(kbStart, [x, y]));
+    setKbStart(null);
+    meld(uitslag);
+  };
+
+  const onGridKeyDown = (e: React.KeyboardEvent<HTMLTableElement>) => {
+    if (e.altKey || e.metaKey) return;
+    const td = (e.target as HTMLElement).closest('[data-ws]') as HTMLElement | null;
+    if (!td) return;
+    const [x, y] = td.dataset.ws!.split(',').map(Number);
+    const max = gen.size - 1;
+    let nx = x;
+    let ny = y;
+    switch (e.key) {
+      case 'ArrowLeft': nx = Math.max(0, x - 1); break;
+      case 'ArrowRight': nx = Math.min(max, x + 1); break;
+      case 'ArrowUp': ny = Math.max(0, y - 1); break;
+      case 'ArrowDown': ny = Math.min(max, y + 1); break;
+      case 'Home': nx = 0; if (e.ctrlKey) ny = 0; break;
+      case 'End': nx = max; if (e.ctrlKey) ny = max; break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        kiesCel([x, y]);
+        return;
+      case 'Escape':
+        if (!kbStart) return; // niets te annuleren: laat Escape door naar de rest van de pagina
+        e.preventDefault();
+        e.stopPropagation();
+        setKbStart(null);
+        say('Selectie geannuleerd');
+        return;
+      default:
+        return;
+    }
+    e.preventDefault();
+    verplaats(nx, ny);
   };
 
   const cellFromPoint = (clientX: number, clientY: number): [number, number] | null => {
@@ -201,6 +279,7 @@ export function WordsearchPlayer({ widget, timeUp, onComplete }: PlayerProps<Wor
         <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => {
           submittedRef.current = false;
           setFound(new Map()); setDone(false); setStart(null); setHover(null);
+          setKbStart(null); setCursor([0, 0]); setMelding({ tekst: '', n: 0 });
         }}><RotateCcw size={16} aria-hidden /> Opnieuw</button>
       </ResultHero>
     );
@@ -208,18 +287,29 @@ export function WordsearchPlayer({ widget, timeUp, onComplete }: PlayerProps<Wor
 
   return (
     <div>
+      <style>{WS_CSS}</style>
       <GameStatus>
         <span className="badge badge-ok"><SearchCheck size={14} aria-hidden /> {found.size} / {gen.placed.length} gevonden</span>
       </GameStatus>
       <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
         <table
+          ref={gridRef}
           className="ws-grid"
+          role="grid"
           aria-label="Woordzoeker"
+          aria-describedby={hintId}
           style={{ ['--ws-size' as any]: gen.size }}
+          onKeyDown={onGridKeyDown}
+          onBlur={(e) => {
+            // focus verlaat het rooster: een half gekozen woord vervalt
+            if (kbStart && !e.currentTarget.contains(e.relatedTarget as Node | null)) setKbStart(null);
+          }}
           onPointerDown={(e) => {
             const c = cellFromPoint(e.clientX, e.clientY);
             if (!c) return;
             e.preventDefault();
+            setKbStart(null);
+            setCursor(c);
             setStart(c); setHover(c); setDragging(true);
           }}
           onPointerMove={(e) => {
@@ -228,18 +318,29 @@ export function WordsearchPlayer({ widget, timeUp, onComplete }: PlayerProps<Wor
             if (c) setHover(c);
           }}
           onPointerUp={() => {
-            if (dragging && start && hover) commit(lineBetween(start, hover));
+            if (dragging && start && hover) meld(commit(lineBetween(start, hover)));
             setDragging(false); setStart(null); setHover(null);
           }}
         >
           <tbody>
             {gen.letters.map((row, y) => (
-              <tr key={y}>
+              <tr key={y} role="row">
                 {row.map((letter, x) => {
                   const k = `${x},${y}`;
-                  const cls = `ws-cell ${foundSet.has(k) ? 'found' : ''} ${selSet.has(k) ? 'sel' : ''}`;
+                  const isFound = foundSet.has(k);
+                  const isSel = selSet.has(k);
+                  const cls = `ws-cell ${isFound ? 'found' : ''} ${isSel ? 'sel' : ''}`;
                   return (
-                    <td key={x} className={cls} data-ws={k} aria-label={`${letter}, rij ${y + 1}, kolom ${x + 1}`}>
+                    <td
+                      key={x}
+                      role="gridcell"
+                      className={cls}
+                      data-ws={k}
+                      tabIndex={cursor[0] === x && cursor[1] === y ? 0 : -1}
+                      aria-selected={isSel || undefined}
+                      aria-label={`Rij ${y + 1}, kolom ${x + 1}: ${letter}${isFound ? ', gevonden' : ''}`}
+                      onFocus={() => setCursor([x, y])}
+                    >
                       {letter}
                     </td>
                   );
@@ -249,8 +350,11 @@ export function WordsearchPlayer({ widget, timeUp, onComplete }: PlayerProps<Wor
           </tbody>
         </table>
       </div>
-      <p style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.88rem' }}>
-        Sleep over de letters om een woord te selecteren.
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {melding.tekst}{melding.n % 2 === 1 ? '\u00A0' : ''}
+      </div>
+      <p id={hintId} style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.88rem' }}>
+        Sleep over de letters om een woord te selecteren, of kies met de pijltjes en Enter de eerste en de laatste letter. Escape annuleert.
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 8 }}>
         {gen.placed.map((p) => (

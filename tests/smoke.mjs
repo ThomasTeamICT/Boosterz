@@ -2745,6 +2745,215 @@ console.log('33. QR van de draagbare link');
   }
 }
 
+// ── 34. Toetsenbord: woordzoeker en zoek-de-verschillen ─────────────────────
+console.log('34. Toetsenbordbediening: woordzoeker en zoek-de-verschillen');
+{
+  const pngUrl = (rgb) => `data:image/png;base64,${buildPng(40, 30, rgb).toString('base64')}`;
+  const sdWidgets = [
+    spelWidget('spotdifference', 'SMKZDV', {
+      imageA: pngUrl([40, 120, 200]), imageB: pngUrl([40, 120, 200]),
+      differences: [
+        { id: 'd1', x: 25, y: 30, radius: 6, label: '' },
+        { id: 'd2', x: 70, y: 40, radius: 6, label: 'de boom' },
+        { id: 'd3', x: 50, y: 80, radius: 6, label: '' },
+      ],
+    }),
+    spelWidget('spotdifference', 'SMKZDL', { imageA: '', imageB: '', differences: [] }),
+  ];
+  await page.setViewportSize({ width: 1360, height: 900 });
+  await go('/#/widgets');
+  await page.evaluate((ws) => {
+    const all = JSON.parse(localStorage.getItem('wf.widgets.v1') || '[]');
+    localStorage.setItem('wf.widgets.v1', JSON.stringify([...ws, ...all.filter((w) => !ws.some((x) => x.id === w.id))]));
+  }, sdWidgets);
+  const voorbeeldWz = await page.evaluate(() => {
+    const w = JSON.parse(localStorage.getItem('wf.widgets.v1')).find((x) => x.type === 'wordsearch' && x.title === 'Voorbeeld: woordzoeker weer');
+    return w ? { code: w.code, words: w.config.words } : null;
+  });
+  check('de voorbeeld-woordzoeker staat in de bibliotheek', !!voorbeeldWz);
+
+  const live = () => page.evaluate(() => [...document.querySelectorAll('[role=status].sr-only')].map((e) => (e.textContent || '').replace(/ /g, '').trim()).join('|'));
+  const tabNaar = async (selector) => {
+    for (let i = 0; i < 30; i++) {
+      await page.keyboard.press('Tab');
+      if (await page.evaluate((s) => !!document.activeElement?.matches(s), selector)) return i + 1;
+    }
+    return -1;
+  };
+
+  // ── Woordzoeker ──
+  await spelStarten(voorbeeldWz.code);
+  const wz = await page.evaluate(() => {
+    const g = document.querySelector('.ws-grid');
+    const cellen = [...g.querySelectorAll('td')];
+    return {
+      rol: g.getAttribute('role'),
+      naam: g.getAttribute('aria-label'),
+      uitleg: document.getElementById(g.getAttribute('aria-describedby') || '')?.textContent || '',
+      aantal: cellen.length,
+      gridcells: cellen.filter((c) => c.getAttribute('role') === 'gridcell').length,
+      rijen: g.querySelectorAll('tr[role=row]').length,
+      tab0: cellen.filter((c) => c.getAttribute('tabindex') === '0').length,
+      tabMin: cellen.filter((c) => c.getAttribute('tabindex') === '-1').length,
+      labelsOk: cellen.every((c) => /^Rij \d+, kolom \d+: [A-Z]$/.test(c.getAttribute('aria-label') || '')),
+    };
+  });
+  check('woordzoeker: een rooster (role=grid) met naam en uitleg over het toetsenbord', wz.rol === 'grid' && wz.naam === 'Woordzoeker' && /pijltjes en Enter/.test(wz.uitleg));
+  check('woordzoeker: 100 gridcells in 10 rijen, elk met een label "Rij 3, kolom 5: K"', wz.aantal === 100 && wz.gridcells === 100 && wz.rijen === 10 && wz.labelsOk);
+  check('woordzoeker: roving tabindex, één cel met tabindex 0 en 99 met -1', wz.tab0 === 1 && wz.tabMin === 99);
+  const tabs = await tabNaar('.ws-cell');
+  check('woordzoeker: met Tab kom je in het rooster, op de eerste cel', tabs > 0 && (await page.evaluate(() => document.activeElement?.getAttribute('aria-label'))).startsWith('Rij 1, kolom 1:'));
+  const cel = () => page.evaluate(() => document.activeElement?.dataset?.ws ?? '');
+  await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowDown');
+  check('woordzoeker: pijltjes verplaatsen de focus (rij 2, kolom 2)', (await cel()) === '1,1');
+  await page.keyboard.press('End');
+  check('woordzoeker: End gaat naar de laatste kolom van de rij', (await cel()) === '9,1');
+  await page.keyboard.press('ArrowRight');
+  check('woordzoeker: aan de rand blijft de focus staan', (await cel()) === '9,1');
+  await page.keyboard.press('Home');
+  check('woordzoeker: Home gaat naar de eerste kolom', (await cel()) === '0,1');
+  await page.keyboard.press('Control+Home');
+  check('woordzoeker: Ctrl+Home gaat naar de eerste cel', (await cel()) === '0,0');
+  check('woordzoeker: na het verplaatsen is de focuscel de enige met tabindex 0', await page.evaluate(() => { const t = [...document.querySelectorAll('.ws-cell[tabindex="0"]')]; return t.length === 1 && t[0] === document.activeElement; }));
+  const ring = await page.evaluate(() => { const cs = getComputedStyle(document.activeElement); return { stijl: cs.outlineStyle, breedte: parseFloat(cs.outlineWidth) }; });
+  check('woordzoeker: de focuscel heeft een zichtbare focusring', ring.stijl === 'solid' && ring.breedte >= 2);
+
+  // Enter zet het begin, Escape annuleert
+  await page.keyboard.press('Enter');
+  check('woordzoeker: Enter kiest het begin (cel gemarkeerd, aria-selected, melding)', (await page.locator('.ws-cell.sel').count()) === 1 && (await page.locator('.ws-cell[aria-selected=true]').count()) === 1 && /Begin gekozen/.test(await live()));
+  await page.keyboard.press('Escape');
+  check('woordzoeker: Escape annuleert de selectie en meldt het', (await page.locator('.ws-cell.sel').count()) === 0 && /Selectie geannuleerd/.test(await live()));
+  await page.keyboard.press('Space');
+  await page.keyboard.press('ArrowRight');
+  check('woordzoeker: spatie kiest ook; de selectie volgt de focus', (await page.locator('.ws-cell.sel').count()) === 2);
+  await page.keyboard.press('Space');
+  check('woordzoeker: twee letters zijn geen woord: "Geen woord"', /Geen woord/.test(await live()) && (await page.locator('.ws-cell.sel').count()) === 0 && (await page.locator('.ws-cell.found').count()) === 0);
+
+  // Alle woorden vinden met alleen toetsen
+  const rooster = await page.evaluate(() => {
+    const r = [];
+    for (const td of document.querySelectorAll('.ws-cell')) {
+      const [x, y] = td.dataset.ws.split(',').map(Number);
+      (r[y] ??= [])[x] = td.getAttribute('aria-label').slice(-1);
+    }
+    return r;
+  });
+  const richtingen = [[1, 0], [0, 1], [1, 1], [1, -1], [-1, 0], [0, -1], [-1, -1], [-1, 1]];
+  const vindWoord = (woord) => {
+    const n = rooster.length;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) for (const [dx, dy] of richtingen) {
+      let ok = true;
+      for (let i = 0; i < woord.length && ok; i++) ok = rooster[y + dy * i]?.[x + dx * i] === woord[i];
+      if (ok) return { van: [x, y], tot: [x + dx * (woord.length - 1), y + dy * (woord.length - 1)] };
+    }
+    return null;
+  };
+  const naarCel = async (x, y) => {
+    const [cx, cy] = (await cel()).split(',').map(Number);
+    for (let i = 0; i < Math.abs(x - cx); i++) await page.keyboard.press(x > cx ? 'ArrowRight' : 'ArrowLeft');
+    for (let i = 0; i < Math.abs(y - cy); i++) await page.keyboard.press(y > cy ? 'ArrowDown' : 'ArrowUp');
+  };
+  const woorden = voorbeeldWz.words.map((w) => w.toUpperCase());
+  let gevonden = 0;
+  for (const w of woorden) {
+    const plek = vindWoord(w);
+    if (!plek) { check(`woordzoeker: ${w} staat in het rooster`, false); continue; }
+    await naarCel(...plek.van); await page.keyboard.press('Enter');
+    await naarCel(...plek.tot); await page.keyboard.press('Enter');
+    gevonden++;
+    if (gevonden < woorden.length) {
+      check(`woordzoeker: met toetsen gevonden: ${w} (melding "Gevonden: ${w}")`, (await live()).includes(`Gevonden: ${w}`) && await page.locator('.badge', { hasText: `${gevonden} / ${woorden.length} gevonden` }).first().isVisible());
+    }
+  }
+  await sleep(300);
+  check(`woordzoeker: alle ${woorden.length} woorden met alleen toetsen gevonden`, await page.locator('text=/Alle woorden gevonden/').first().isVisible());
+
+  // Slepen met de muis blijft werken
+  await page.getByRole('button', { name: /Opnieuw/ }).click();
+  await sleep(300);
+  {
+    const plek = vindWoord(woorden[0]);
+    const doos = async ([x, y]) => (await page.locator(`.ws-cell[data-ws="${x},${y}"]`).boundingBox());
+    const a = await doos(plek.van); const b = await doos(plek.tot);
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 6 });
+    await page.mouse.up();
+    await sleep(200);
+    check('woordzoeker: slepen met de muis vindt nog altijd een woord', await page.locator('.badge', { hasText: `1 / ${woorden.length} gevonden` }).first().isVisible() && (await page.locator('.ws-cell.found').count()) === woorden[0].length);
+  }
+
+  // 390 px
+  await page.setViewportSize({ width: 390, height: 844 });
+  await go('/#/widgets'); // een hash-wissel naar dezelfde code zou het lopende spel laten staan
+  await spelStarten(voorbeeldWz.code);
+  check('390 px: de woordzoeker scrolt niet horizontaal', await passtOpSmal());
+  await tabNaar('.ws-cell');
+  await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter'); await page.keyboard.press('ArrowRight');
+  check('390 px: ook met toetsenbordfocus en een selectie scrolt niets horizontaal', await passtOpSmal());
+  check('390 px: alle cellen blijven binnen het scherm', await page.locator('.ws-cell').evaluateAll((els) => els.every((e) => e.getBoundingClientRect().right <= 391)));
+
+  // ── Zoek de verschillen ──
+  await page.setViewportSize({ width: 1360, height: 900 });
+  await spelStarten('SMKZDV');
+  const sd = await page.evaluate(() => {
+    const s = document.querySelector('.spotdifference-stage');
+    return { rol: s?.getAttribute('role'), tab: s?.getAttribute('tabindex'), label: s?.getAttribute('aria-label') || '', kruisje: s ? getComputedStyle(s.querySelector('[data-testid=sd-cursor]')).display : '' };
+  });
+  check('zoek de verschillen: afbeelding B is focusbaar en heeft een label met uitleg', sd.tab === '0' && sd.rol === 'application' && /pijltjestoetsen/.test(sd.label) && /Enter/.test(sd.label));
+  check('zoek de verschillen: het kruisje is verborgen zolang er geen toetsenbordfocus is', sd.kruisje === 'none');
+  check('zoek de verschillen: er is geen verborgen knop per verschil (geen verklapper)', (await page.locator('.spotdifference-stage button, .spotdifference-stage [tabindex]:not(.spotdifference-stage)').count()) === 0);
+  const sdTabs = await tabNaar('.spotdifference-stage');
+  check('zoek de verschillen: met Tab kom je op afbeelding B', sdTabs > 0);
+  const kruisje = () => page.evaluate(() => { const k = document.querySelector('[data-testid=sd-cursor]'); return { x: k.style.left, y: k.style.top, d: getComputedStyle(k).display }; });
+  const k0 = await kruisje();
+  check('zoek de verschillen: bij focus verschijnt het kruisje in het midden (50 % / 50 %)', k0.d !== 'none' && k0.x === '50%' && k0.y === '50%');
+  const sdRing = await page.evaluate(() => { const cs = getComputedStyle(document.activeElement); return { stijl: cs.outlineStyle, breedte: parseFloat(cs.outlineWidth) }; });
+  check('zoek de verschillen: afbeelding B heeft een zichtbare focusring', sdRing.stijl === 'solid' && sdRing.breedte >= 2);
+  const badgeTekst = () => page.locator('.badge').allTextContents().then((t) => t.join(' | '));
+  const sdMelding = () => page.locator('[role=status][aria-live=assertive]').textContent();
+  await page.keyboard.press('Enter');
+  check('zoek de verschillen: Enter op een lege plek meldt "Daar zit geen verschil" en telt 1 fout', /Daar zit geen verschil/.test(await sdMelding()) && /1 fout/.test(await badgeTekst()));
+  await page.keyboard.press('Enter');
+  check('zoek de verschillen: nog eens Enter telt een tweede fout', /2 fout/.test(await badgeTekst()));
+  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowLeft');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowUp');
+  const k1 = await kruisje();
+  check('zoek de verschillen: pijltjes verschuiven het kruisje met 5 % (nu 25 % / 30 %)', k1.x === '25%' && k1.y === '30%');
+  await page.keyboard.press('Shift+ArrowRight');
+  check('zoek de verschillen: Shift+pijl verschuift met 1 %', (await kruisje()).x === '26%');
+  await page.keyboard.press('Shift+ArrowLeft');
+  await page.keyboard.press('Enter');
+  check('zoek de verschillen: Enter op het eerste verschil vindt het ("Juist! … 1 van 3")', /Juist!.*1 van 3/.test(await sdMelding()) && /1 \/ 3 gevonden/.test(await badgeTekst()));
+  await page.keyboard.press('Space');
+  check('zoek de verschillen: hetzelfde verschil nog eens controleren is geen fout', /al gevonden/.test(await sdMelding()) && /2 fout/.test(await badgeTekst()));
+  for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowLeft');
+  check('zoek de verschillen: het kruisje blijft binnen de afbeelding (0 %)', (await kruisje()).x === '0%');
+  for (let i = 0; i < 14; i++) await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  check('zoek de verschillen: tweede verschil gevonden, met zijn label', /de boom/.test(await sdMelding()) && /2 \/ 3 gevonden/.test(await badgeTekst()));
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowLeft');
+  for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await sleep(300);
+  check('zoek de verschillen: alle drie de verschillen met alleen toetsen gevonden', await page.locator('text=/Alle verschillen gevonden/').first().isVisible());
+
+  // 390 px
+  await page.setViewportSize({ width: 390, height: 844 });
+  await go('/#/widgets');
+  await spelStarten('SMKZDV');
+  await tabNaar('.spotdifference-stage');
+  await page.keyboard.press('ArrowRight');
+  check('390 px: zoek de verschillen scrolt niet horizontaal, ook niet met toetsenbordfocus', await passtOpSmal());
+
+  // Zonder afbeeldingen: "oefening", nooit "widget"
+  await spelStarten('SMKZDL');
+  const leegTekst = await page.locator('main').innerText();
+  check('zoek de verschillen zonder afbeeldingen: "Deze oefening heeft nog geen…", geen "widget"', /Deze oefening heeft nog geen twee afbeeldingen/.test(leegTekst) && !/widget/i.test(leegTekst));
+  await page.setViewportSize({ width: 1360, height: 900 });
+}
+
 // ── Slot ────────────────────────────────────────────────────────────────────
 console.log('\n──────────');
 if (errors.length) {
