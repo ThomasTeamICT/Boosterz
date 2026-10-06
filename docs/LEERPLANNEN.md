@@ -40,7 +40,7 @@ wat erop steunt ook niet. "Sluitend" betekent hier:
 | Een leerplandoel kent zijn minimumdoelen niet | `CurriculumGoal` in `src/lib/curriculumTypes.ts` |
 | Geen herkomst: geen versie, geen "geldig vanaf", geen vingerafdruk van de bron | `Curriculum.source` is vrije tekst |
 | Doelen zijn altijd bewerkbaar, ook als ze officieel zijn | `CurriculaPage.tsx` |
-| Zonder `curriculumId` zoekt `findGoalByCode` over alle leerplannen heen: "LPD 9" van twee vakken botst | `src/lib/curriculum.ts` |
+| Zonder `curriculumId` zoekt `findGoalByCode` over alle leerplannen heen: "LPD 9" van twee vakken botst. **Opgelost voor de scores en de dekking** (oktober 2026): een doelscore draagt het leerplan van de widget (`GoalScore.curriculumId`, sleutel leerplan + code), en een oefening uit een ander leerplan telt niet als dekking (`otherCurriculumWidgets`). Voor de juiste doeltekst moeten de schermen dat `curriculumId` nog meegeven aan `goalLabel` (volgend pakket); zonder `curriculumId` zoekt `findGoalByCode` nog altijd overal | `src/lib/curriculum.ts`; opgelost in `src/lib/goals.ts`, `src/lib/coverage.ts` |
 
 ## 3. Drie lagen
 

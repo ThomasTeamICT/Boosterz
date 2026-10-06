@@ -102,6 +102,45 @@ describe('computeCoverage', () => {
     expect(computeCoverage(course, { ...curriculum, goals: [] }).total).toBe(0);
   });
 
+  it('telt een oefening uit een ánder leerplan met dezelfde code niet als dekking', () => {
+    const vreemd = { ...widget, curriculumId: 'curB' } as Widget;
+    const r = computeCoverage(course, curriculum, [vreemd]);
+    const row = r.rows.find((x) => x.code === 'NW 2.1')!;
+    expect(row.widgets).toEqual([]);
+    expect(row.status).toBe('missing');
+    expect(r.covered).toBe(1);
+    expect(r.unknownCodes).toEqual(['XX 9.9']); // de vreemde code is geen "onbekende code" van dit leerplan
+    expect(r.sectionsWithoutCode.map((s) => s.sectionTitle)).toEqual(['Oefenen', 'Zonder doel']);
+    expect(r.otherCurriculumWidgets).toEqual([{
+      widgetId: 'w1', title: 'Quiz materie', sectionId: 's2', sectionTitle: 'Oefenen', optional: false, curriculumId: 'curB',
+    }]);
+  });
+
+  it('telt een oefening van hetzelfde leerplan of zonder leerplan wel mee', () => {
+    for (const w of [{ ...widget, curriculumId: 'cur1' }, { ...widget, curriculumId: '' }, widget] as Widget[]) {
+      const r = computeCoverage(course, curriculum, [w]);
+      expect(r.rows.find((x) => x.code === 'NW 2.1')!.status).toBe('covered');
+      expect(r.otherCurriculumWidgets).toEqual([]);
+    }
+  });
+
+  it('vergelijkt met het meegegeven leerplan, anders met dat van de cursus', () => {
+    const vreemd = { ...widget, curriculumId: 'curB' } as Widget;
+    // ander leerplan meegegeven dan dat van de cursus: dat leerplan telt
+    const r = computeCoverage(course, { ...curriculum, id: 'curB' }, [vreemd]);
+    expect(r.rows.find((x) => x.code === 'NW 2.1')!.status).toBe('covered');
+    // zonder leerplan: de vreemde oefening wordt toch gemeld via het leerplan van de cursus
+    expect(computeCoverage(course, undefined, [vreemd]).otherCurriculumWidgets).toHaveLength(1);
+    // cursus zonder leerplan en geen leerplan meegegeven: niets om mee te vergelijken
+    const zonder = { ...course, curriculumId: undefined } as Course;
+    expect(computeCoverage(zonder, undefined, [vreemd]).otherCurriculumWidgets).toEqual([]);
+  });
+
+  it('meldt een vreemde oefening zonder doelcodes niet', () => {
+    const leeg = { ...widget, curriculumId: 'curB', config: { questions: [{ id: 'q1' }] } } as unknown as Widget;
+    expect(computeCoverage(course, curriculum, [leeg]).otherCurriculumWidgets).toEqual([]);
+  });
+
   it('levert een percentage en promptregels voor de hiaten', () => {
     expect(coveragePercent(course, curriculum, [widget])).toBe(50);
     expect(uncoveredGoalLines(res)).toEqual([

@@ -21,7 +21,7 @@ import {
   type LiveEntry,
 } from './storage';
 import { getCourse, getCourseByCode, getCourseProgressAll, getCourses } from './courses';
-import { aggregateGoalScores, scoresPerGoal, type GoalScore } from './goals';
+import { aggregateGoalScores, awaitsGrading, scoresPerGoal, type GoalScore } from './goals';
 import { makeCode, uid } from './utils';
 
 const CLASSES_KEY = 'wf.classes.v1';
@@ -185,54 +185,89 @@ function toNumber(part: string): number | null {
  *   "Emma Peeters" · "12 Emma Peeters" · "12. Emma" · "Emma;12" · "12;Emma"
  *   "- Emma" · "Emma Peeters, 12" · tabs uit Excel · lege regels ertussen.
  * Een regel zonder herkenbaar nummer wordt gewoon volledig de naam (zo blijft
- * "Peeters, Emma" één naam). Dubbele namen worden overgeslagen.
+ * "Peeters, Emma" één naam). Dubbele namen worden overgeslagen; welke dat
+ * waren, vertelt `duplicateNames`.
  */
 export function parseStudentList(text: string): ClassStudent[] {
   const out: ClassStudent[] = [];
   const seen = new Set<string>();
   for (const rawLine of text.split(/\r?\n/)) {
-    // opsommingstekens en omringende leestekens weg
-    const line = rawLine.replace(/^\s*[-–—•*]\s*/, '').trim();
-    if (!line) continue;
-    let name = '';
-    let number: number | null = null;
-
-    const parts = line.split(/[;\t]|,(?=\s*\d{1,3}\s*$)|(?<=^\s*\d{1,3}\s*),/).map((p) => p.trim()).filter(Boolean);
-    if (parts.length >= 2) {
-      const first = toNumber(parts[0]);
-      const last = toNumber(parts[parts.length - 1]);
-      if (first !== null) {
-        number = first;
-        name = parts.slice(1).join(' ');
-      } else if (last !== null) {
-        number = last;
-        name = parts.slice(0, -1).join(' ');
-      } else {
-        name = parts.join(' ');
-      }
-    } else {
-      // één stuk: "12 Emma", "12. Emma", "Emma 12" of gewoon "Emma"
-      const leading = /^(\d{1,3})\s*[.)\-:]?\s+(.+)$/.exec(line);
-      const trailing = /^(.+?)\s+(\d{1,3})$/.exec(line);
-      if (leading) {
-        number = toNumber(leading[1]);
-        name = leading[2];
-      } else if (trailing) {
-        number = toNumber(trailing[2]);
-        name = trailing[1];
-      } else {
-        name = line;
-      }
-    }
-
-    name = name.replace(/\s+/g, ' ').trim();
-    if (!name) continue;
+    const parsed = parseStudentLine(rawLine);
+    if (!parsed) continue;
+    const { name, number } = parsed;
     const key = normalizeName(name);
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({ id: uid(), name: name.slice(0, 80), ...(number !== null ? { number } : {}) });
   }
   return out;
+}
+
+/**
+ * Welke namen laat `parseStudentList` als dubbel vallen? Elke naam één keer,
+ * zoals hij op de eerste overgeslagen regel staat, in de volgorde van de
+ * lijst. Leeg als er geen dubbels zijn. Zo kan het scherm zeggen dat "Lucas
+ * Janssens" twee keer in de geplakte lijst staat in plaats van hem stil weg
+ * te laten.
+ */
+export function duplicateNames(text: string): string[] {
+  const seen = new Set<string>();
+  const reported = new Set<string>();
+  const out: string[] = [];
+  for (const rawLine of text.split(/\r?\n/)) {
+    const parsed = parseStudentLine(rawLine);
+    if (!parsed) continue;
+    const key = normalizeName(parsed.name);
+    if (!seen.has(key)) {
+      seen.add(key);
+      continue;
+    }
+    if (reported.has(key)) continue;
+    reported.add(key);
+    out.push(parsed.name.slice(0, 80));
+  }
+  return out;
+}
+
+/** Eén regel van een geplakte klaslijst: naam en (optioneel) klasnummer. */
+function parseStudentLine(rawLine: string): { name: string; number: number | null } | null {
+  // opsommingstekens en omringende leestekens weg
+  const line = rawLine.replace(/^\s*[-–—•*]\s*/, '').trim();
+  if (!line) return null;
+  let name = '';
+  let number: number | null = null;
+
+  const parts = line.split(/[;\t]|,(?=\s*\d{1,3}\s*$)|(?<=^\s*\d{1,3}\s*),/).map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    const first = toNumber(parts[0]);
+    const last = toNumber(parts[parts.length - 1]);
+    if (first !== null) {
+      number = first;
+      name = parts.slice(1).join(' ');
+    } else if (last !== null) {
+      number = last;
+      name = parts.slice(0, -1).join(' ');
+    } else {
+      name = parts.join(' ');
+    }
+  } else {
+    // één stuk: "12 Emma", "12. Emma", "Emma 12" of gewoon "Emma"
+    const leading = /^(\d{1,3})\s*[.)\-:]?\s+(.+)$/.exec(line);
+    const trailing = /^(.+?)\s+(\d{1,3})$/.exec(line);
+    if (leading) {
+      number = toNumber(leading[1]);
+      name = leading[2];
+    } else if (trailing) {
+      number = toNumber(trailing[2]);
+      name = trailing[1];
+    } else {
+      name = line;
+    }
+  }
+
+  name = name.replace(/\s+/g, ' ').trim();
+  if (!name) return null;
+  return { name, number };
 }
 
 /**
@@ -395,8 +430,13 @@ export interface AssignmentStatus {
   progressPct: number | null;
   /** Laatste activiteit (indienen of lezen). */
   lastAt: number | null;
-  /** Er wacht nog iets op verbetering door de leerkracht. */
+  /** Er wacht nog iets op verbetering door de leerkracht (in eender welke poging). */
   needsGrading: boolean;
+  /**
+   * De getoonde score (de beste poging) wacht zelf nog op nakijken: toon ze als
+   * voorlopig. Alleen gezet bij een widgetopdracht met een score.
+   */
+  provisional?: boolean;
   /** Titel van de widget/cursus, of null als die niet op dit toestel staat. */
   title: string | null;
 }
@@ -526,17 +566,30 @@ export function statusForAssignment(
   base.state = 'ingediend';
   base.attempts = subs.length;
   base.lastAt = subs[0].submittedAt;
-  base.needsGrading = subs.some((s) => s.status === 'submitted' && s.totalMax > 0);
-  const scored = subs.filter((s) => s.totalMax > 0);
-  if (scored.length > 0) {
-    const best = scored.reduce((a, b) =>
-      b.totalEarned / b.totalMax > a.totalEarned / a.totalMax ? b : a
-    );
+  base.needsGrading = subs.some((s) => s.totalMax > 0 && awaitsGrading(s));
+  const best = bestAttempt(subs);
+  if (best) {
     base.earned = best.totalEarned;
     base.max = best.totalMax;
     base.scorePct = Math.round((best.totalEarned / best.totalMax) * 100);
+    base.provisional = awaitsGrading(best);
   }
   return base;
+}
+
+/**
+ * De poging die telt: het hoogste totaalpercentage, bij gelijkstand de
+ * nieuwste. `subs` moet nieuwste eerst staan (zoals `submissionsFor` levert).
+ * Pogingen zonder meetbare punten (totalMax 0) tellen niet; zijn er alleen
+ * zulke, dan is er geen beste poging. De matrix (`statusForAssignment`) en de
+ * doelscores (`goalScoresForStudent`) gebruiken allebei deze keuze.
+ */
+export function bestAttempt(subs: Submission[]): Submission | undefined {
+  const scored = subs.filter((s) => s.totalMax > 0);
+  if (scored.length === 0) return undefined;
+  return scored.reduce((a, b) =>
+    b.totalEarned / b.totalMax > a.totalEarned / a.totalMax ? b : a
+  );
 }
 
 /** Korte samenvatting voor een cel in de matrix ("78% · 2 pogingen"). */
@@ -553,8 +606,15 @@ export function statusSummary(status: AssignmentStatus): string {
 // ── Score per leerplandoel, per leerling ────────────────────────────────────
 
 /**
- * Telt de doelcodes van álle inzendingen van deze leerling op — voor de
- * opgedragen widgets én voor de oefeningen die in een opgedragen cursus zitten.
+ * Score per leerplandoel voor deze leerling, over de opgedragen widgets én de
+ * oefeningen die in een opgedragen cursus zitten. Per widget telt één poging:
+ * de beste (`bestAttempt`: hoogste totaalpercentage, bij gelijkstand de
+ * nieuwste), dezelfde die de matrix toont. Heeft geen enkele poging meetbare
+ * punten, dan telt de nieuwste. Een herkansing trekt de doelscore dus niet
+ * meer omlaag.
+ *
+ * Sleutel van de Map: `goalScoreKey` (leerplan + code). Vragen die nog op
+ * nakijken wachten, staan in `GoalScore.pending` en tellen (nog) niet mee.
  */
 export function goalScoresForStudent(
   assignments: Assignment[],
@@ -574,7 +634,9 @@ export function goalScoresForStudent(
   for (const wid of widgetIds) {
     const widget = ctx.widgets.get(wid);
     if (!widget) continue;
-    for (const sub of submissionsFor(wid, student, ctx)) lists.push(scoresPerGoal(sub, widget));
+    const subs = submissionsFor(wid, student, ctx);
+    const pick = bestAttempt(subs) ?? subs[0];
+    if (pick) lists.push(scoresPerGoal(pick, widget));
   }
   return aggregateGoalScores(lists);
 }

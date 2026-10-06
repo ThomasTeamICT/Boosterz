@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  applyStudentList, assignmentsForClass, dueBadge, emptyClassContext, goalScoresForStudent, matchesStudent,
-  parseStudentList, sortedStudents, statusForAssignment, statusSummary, studentsToText, upsertAssignment,
-  type ClassDataContext,
+  applyStudentList, assignmentsForClass, bestAttempt, dueBadge, duplicateNames, emptyClassContext,
+  goalScoresForStudent, matchesStudent, normalizeName, parseStudentList, sortedStudents, statusForAssignment,
+  statusSummary, studentsToText, submissionsFor, upsertAssignment, type ClassDataContext,
 } from './classes';
+import { goalPct, goalScoreKey } from './goals';
 import type { Assignment, ClassStudent } from './classTypes';
 import type { Course, CourseProgress } from './courseTypes';
 import type { Submission, Widget } from './types';
@@ -132,6 +133,39 @@ describe('klaslijst uit geplakte tekst', () => {
     expect(nieuw).toHaveLength(2);
     expect(nieuw[1].name).toBe('Lotte Coppens');
     expect(nieuw.some((s) => s.id === noah.id)).toBe(false); // weggelaten = weg
+  });
+
+  it('vertelt welke namen als dubbel wegvallen', () => {
+    const tekst = ['Lucas Janssens', '2 lucas   janssens', 'Emma Peeters', '- LUCAS JANSSENS', 'emma peeters;4', 'Noah'].join('\n');
+    expect(duplicateNames(tekst)).toEqual(['lucas janssens', 'emma peeters']);
+    expect(parseStudentList(tekst).map((s) => s.name)).toEqual(['Lucas Janssens', 'Emma Peeters', 'Noah']);
+  });
+
+  it('meldt geen dubbels als er geen zijn, ook niet bij lege regels en opsommingstekens', () => {
+    expect(duplicateNames('Emma\n\n- \n•\nNoah\n12')).toEqual([]);
+    expect(duplicateNames('')).toEqual([]);
+  });
+
+  it('ziet "Peeters, Emma" en "PEETERS, EMMA" als dezelfde leerling, zoals parseStudentList', () => {
+    expect(duplicateNames('Peeters, Emma\nPEETERS, EMMA\nDe Smet, Mila, 8')).toEqual(['PEETERS, EMMA']);
+  });
+
+  it('valt samen met wat parseStudentList overslaat', () => {
+    const lijsten = [
+      'Emma\nemma\nEMMA\nNoah\n3 Noah\nNoah;7\nOlivia',
+      '1. Arthur\n2) arthur\nArthur 3\n\tArthur\t',
+      'Mila De Smet\nMila  De Smet\nMila\nDe Smet Mila',
+    ];
+    for (const tekst of lijsten) {
+      const regels = tekst.split('\n').filter((r) => r.replace(/^\s*[-–—•*]\s*/, '').trim());
+      const gehouden = parseStudentList(tekst);
+      const dubbel = duplicateNames(tekst);
+      const gehoudenSleutels = new Set(gehouden.map((s) => normalizeName(s.name)));
+      // elke gemelde naam hoort bij een leerling die wél bleef staan
+      expect(dubbel.every((n) => gehoudenSleutels.has(normalizeName(n)))).toBe(true);
+      // er zijn dubbels gemeld zodra er regels wegvielen, en nooit zonder reden
+      expect(dubbel.length > 0).toBe(gehouden.length < regels.length);
+    }
   });
 
   it('zet de lijst weer om naar plakbare tekst', () => {
@@ -295,8 +329,140 @@ describe('goalScoresForStudent', () => {
       ],
     });
     const goals = goalScoresForStudent([widgetAssignment, courseAssignment], emma, ctx);
-    expect(goals.get('WIS 2.3')).toEqual({ code: 'WIS 2.3', earned: 1, max: 2, items: 2 });
-    expect(goals.get('WIS 1.1')).toEqual({ code: 'WIS 1.1', earned: 2, max: 4, items: 1 });
+    expect(goals.get(goalScoreKey({ code: 'WIS 2.3' }))).toEqual({ code: 'WIS 2.3', earned: 1, max: 2, items: 2 });
+    expect(goals.get(goalScoreKey({ code: 'WIS 1.1' }))).toEqual({ code: 'WIS 1.1', earned: 2, max: 4, items: 1 });
+  });
+
+  // Eén vraag met code 1.1; elke poging scoort 0/1 of 1/1.
+  function poging(widgetId: string, earned: number, submittedAt: number, over: Partial<Submission> = {}): Submission {
+    return submission({
+      widgetId, widgetCode: widgetId.toUpperCase(), studentName: 'Emma Peeters', studentId: emma.id, submittedAt,
+      itemScores: { q1: { earned, max: 1, mode: 'auto' } }, totalEarned: earned, totalMax: 1, ...over,
+    });
+  }
+  function quizMet(id: string, curriculumId?: string, code = '1.1'): Widget {
+    return { ...widget(id, id.toUpperCase(), [{ id: 'q1', goalCode: code }]), ...(curriculumId ? { curriculumId } : {}) };
+  }
+  const opdracht = (targetId: string): Assignment => ({ id: `a-${targetId}`, classId: 'k1', kind: 'widget', targetId, dueAt: null, createdAt: 0 });
+
+  it('telt per widget alleen de beste poging, dezelfde als de matrix (0/1, 0/1, 1/1 → 100 %)', () => {
+    const ctx = ctxWith({
+      widgets: new Map([['wa', quizMet('wa')]]),
+      submissions: [poging('wa', 0, 1000), poging('wa', 0, 2000), poging('wa', 1, 3000)],
+    });
+    const goals = [...goalScoresForStudent([opdracht('wa')], emma, ctx).values()];
+    expect(goals).toEqual([{ code: '1.1', earned: 1, max: 1, items: 1 }]);
+    const st = statusForAssignment(opdracht('wa'), emma, ctx);
+    expect(st.scorePct).toBe(100);
+    expect(goalPct(goals[0])).toBe(st.scorePct);
+    expect(st.attempts).toBe(3);
+  });
+
+  it('een mislukte herkansing trekt de doelscore niet omlaag', () => {
+    const ctx = ctxWith({
+      widgets: new Map([['wa', quizMet('wa')]]),
+      submissions: [poging('wa', 1, 1000), poging('wa', 0, 2000), poging('wa', 0, 3000)],
+    });
+    expect([...goalScoresForStudent([opdracht('wa')], emma, ctx).values()]).toEqual([{ code: '1.1', earned: 1, max: 1, items: 1 }]);
+    expect(statusForAssignment(opdracht('wa'), emma, ctx).scorePct).toBe(100);
+  });
+
+  it('kiest bij gelijkstand de nieuwste poging, net als de matrix', () => {
+    const w = widget('wt', 'WT', [{ id: 'q1', goalCode: 'A' }, { id: 'q2', goalCode: 'B' }]);
+    const oud = submission({
+      id: 'oud', widgetId: 'wt', widgetCode: 'WT', studentName: 'Emma Peeters', studentId: emma.id, submittedAt: 1000,
+      itemScores: { q1: { earned: 1, max: 1, mode: 'auto' }, q2: { earned: 0, max: 1, mode: 'auto' } }, totalEarned: 1, totalMax: 2,
+    });
+    const nieuw = submission({
+      id: 'nieuw', widgetId: 'wt', widgetCode: 'WT', studentName: 'Emma Peeters', studentId: emma.id, submittedAt: 2000,
+      itemScores: { q1: { earned: 0, max: 1, mode: 'auto' }, q2: { earned: 1, max: 1, mode: 'auto' } }, totalEarned: 1, totalMax: 2,
+    });
+    const ctx = ctxWith({ widgets: new Map([['wt', w]]), submissions: [oud, nieuw] });
+    const goals = goalScoresForStudent([opdracht('wt')], emma, ctx);
+    expect(goals.get('|A')).toEqual({ code: 'A', earned: 0, max: 1, items: 1 });
+    expect(goals.get('|B')).toEqual({ code: 'B', earned: 1, max: 1, items: 1 });
+    expect(bestAttempt(submissionsFor('wt', emma, ctx))?.id).toBe('nieuw');
+  });
+
+  it('houdt dezelfde code uit twee leerplannen apart', () => {
+    const ctx = ctxWith({
+      widgets: new Map([['wa', quizMet('wa', 'curA')], ['wb', quizMet('wb', 'curB')]]),
+      submissions: [poging('wa', 1, 1000), poging('wb', 0, 2000)],
+    });
+    const goals = goalScoresForStudent([opdracht('wa'), opdracht('wb')], emma, ctx);
+    expect(goals.size).toBe(2);
+    expect(goals.get('curA|1.1')).toEqual({ code: '1.1', curriculumId: 'curA', earned: 1, max: 1, items: 1 });
+    expect(goals.get('curB|1.1')).toEqual({ code: '1.1', curriculumId: 'curB', earned: 0, max: 1, items: 1 });
+  });
+
+  it('laat een open vraag die nog wacht buiten de doelscore en meldt ze als voorlopig', () => {
+    const w = widget('wo', 'WO', [{ id: 'q1', goalCode: '2.1' }, { id: 'q2', goalCode: '2.1' }]);
+    const ctx = ctxWith({
+      widgets: new Map([['wo', w]]),
+      submissions: [submission({
+        widgetId: 'wo', widgetCode: 'WO', studentName: 'Emma Peeters', studentId: emma.id, status: 'submitted',
+        itemScores: { q1: { earned: 1, max: 1, mode: 'auto' }, q2: { earned: 0, max: 3, mode: 'pending' } },
+        totalEarned: 1, totalMax: 4,
+      })],
+    });
+    const [g] = [...goalScoresForStudent([opdracht('wo')], emma, ctx).values()];
+    expect(g).toEqual({ code: '2.1', earned: 1, max: 1, items: 1, pending: 1 });
+    const st = statusForAssignment(opdracht('wo'), emma, ctx);
+    expect(st.provisional).toBe(true);
+    expect(st.needsGrading).toBe(true);
+  });
+});
+
+describe('bestAttempt', () => {
+  it('kent geen beste poging zonder pogingen of zonder meetbare punten', () => {
+    expect(bestAttempt([])).toBeUndefined();
+    expect(bestAttempt([submission({ widgetId: 'w1', studentName: 'Emma', totalMax: 0 })])).toBeUndefined();
+  });
+
+  it('kiest het hoogste percentage, ook bij een ander maximum', () => {
+    const a = submission({ id: 'a', widgetId: 'w1', studentName: 'Emma', totalEarned: 3, totalMax: 4, submittedAt: 3000 });
+    const b = submission({ id: 'b', widgetId: 'w1', studentName: 'Emma', totalEarned: 8, totalMax: 10, submittedAt: 2000 });
+    expect(bestAttempt([a, b])?.id).toBe('b');
+  });
+});
+
+describe('statusForAssignment — voorlopige score', () => {
+  it('is niet voorlopig als de beste poging nagekeken is, ook al wacht een oudere poging', () => {
+    const ctx = ctxWith({
+      widgets: new Map([['w1', widget('w1', 'ABC123')]]),
+      submissions: [
+        submission({ widgetId: 'w1', studentId: emma.id, studentName: 'Emma', status: 'graded', totalEarned: 4, totalMax: 4, submittedAt: 3000 }),
+        submission({ widgetId: 'w1', studentId: emma.id, studentName: 'Emma', status: 'submitted', totalEarned: 1, totalMax: 4, submittedAt: 2000 }),
+      ],
+    });
+    const st = statusForAssignment(widgetAssignment, emma, ctx);
+    expect(st.scorePct).toBe(100);
+    expect(st.provisional).toBe(false);
+    expect(st.needsGrading).toBe(true);
+  });
+
+  it('meldt nakijkwerk ook als een vraag op "pending" staat bij een verkeerde status', () => {
+    const ctx = ctxWith({
+      widgets: new Map([['w1', widget('w1', 'ABC123')]]),
+      submissions: [submission({
+        widgetId: 'w1', studentId: emma.id, studentName: 'Emma', status: 'graded', totalEarned: 1, totalMax: 4,
+        itemScores: { q1: { earned: 1, max: 1, mode: 'auto' }, q2: { earned: 0, max: 3, mode: 'pending' } },
+      })],
+    });
+    const st = statusForAssignment(widgetAssignment, emma, ctx);
+    expect(st.needsGrading).toBe(true);
+    expect(st.provisional).toBe(true);
+  });
+
+  it('meldt niets voor een poging zonder punten', () => {
+    const ctx = ctxWith({
+      widgets: new Map([['w1', widget('w1', 'ABC123')]]),
+      submissions: [submission({ widgetId: 'w1', studentId: emma.id, studentName: 'Emma', status: 'submitted', totalMax: 0 })],
+    });
+    const st = statusForAssignment(widgetAssignment, emma, ctx);
+    expect(st.needsGrading).toBe(false);
+    expect(st.provisional).toBeUndefined();
+    expect(st.scorePct).toBeNull();
   });
 });
 

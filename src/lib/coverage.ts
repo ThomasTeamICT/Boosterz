@@ -8,6 +8,8 @@
 // Een doel telt als GEDEKT zodra minstens één gewone (niet-optionele) sectie
 // of een oefening in zo'n sectie de code draagt. Komt het alleen in
 // keuzesecties voor, dan is het 'verdieping': niet elke leerling ziet het.
+// Een oefening die aan een ánder leerplan hangt (widget.curriculumId), dekt
+// niets: dezelfde code is daar een ander doel.
 
 import type { Course, CourseChapter, CourseSection } from './courseTypes';
 import { allSections } from './courseTypes';
@@ -33,6 +35,8 @@ export interface CoverageWidgetRef {
   sectionId?: string;
   sectionTitle?: string;
   optional: boolean;
+  /** Leerplan van de oefening; alleen ingevuld in `otherCurriculumWidgets`. */
+  curriculumId?: string;
 }
 
 export interface CoverageRow {
@@ -54,8 +58,17 @@ export interface CoverageResult {
   percent: number;
   /** Codes die in de cursus staan maar niet in dit leerplan voorkomen. */
   unknownCodes: string[];
-  /** Secties zonder enige leerplancode (vrije doelen tellen hier niet mee). */
+  /**
+   * Secties zonder enige code van dit leerplan (vrije doelen en codes van een
+   * oefening uit een ander leerplan tellen hier niet mee).
+   */
   sectionsWithoutCode: CoverageSectionRef[];
+  /**
+   * Ingebedde oefeningen met doelcodes die aan een ánder leerplan hangen dan
+   * dat van de cursus. Hun codes tellen niet mee, ook niet als dezelfde code
+   * in dit leerplan staat (zie docs/LEERPLANNEN.md § 2).
+   */
+  otherCurriculumWidgets: CoverageWidgetRef[];
   /** Kant-en-klare samenvatting, bv. "Dekkend: 14 van 18 doelen". */
   summary: string;
 }
@@ -93,6 +106,9 @@ export function computeCoverage(
   const widgetById = new Map(widgets.map((w) => [w.id, w]));
   const unknown = new Set<string>();
   const sectionsWithoutCode: CoverageSectionRef[] = [];
+  const otherCurriculumWidgets: CoverageWidgetRef[] = [];
+  // Het leerplan waartegen we rekenen: het meegegeven leerplan, anders dat van de cursus.
+  const targetId = curriculum?.id || course.curriculumId || undefined;
 
   for (const { chapter, section } of allSections(course)) {
     const ref = sectionRef(chapter, section);
@@ -114,7 +130,23 @@ export function computeCoverage(
       if (block.type !== 'widget' || !block.widgetId) continue;
       const widget = widgetById.get(block.widgetId);
       if (!widget) continue;
-      for (const code of widgetGoalCodes(widget)) {
+      const codes = widgetGoalCodes(widget);
+      // Een code betekent pas iets binnen zijn leerplan: hangt de oefening aan
+      // een ander leerplan, dan dekt "1.1" daar niet "1.1" van dit leerplan.
+      if (targetId && widget.curriculumId && widget.curriculumId !== targetId) {
+        if (codes.length > 0 && !otherCurriculumWidgets.some((w) => w.widgetId === widget.id && w.sectionId === section.id)) {
+          otherCurriculumWidgets.push({
+            widgetId: widget.id,
+            title: widget.title,
+            sectionId: section.id,
+            sectionTitle: section.title,
+            optional: ref.optional,
+            curriculumId: widget.curriculumId,
+          });
+        }
+        continue;
+      }
+      for (const code of codes) {
         hasAnyCode = true;
         const row = byCode.get(code);
         if (!row) { unknown.add(code); continue; }
@@ -148,6 +180,7 @@ export function computeCoverage(
     percent,
     unknownCodes: [...unknown],
     sectionsWithoutCode,
+    otherCurriculumWidgets,
     summary: total === 0
       ? 'Dit leerplan bevat nog geen doelen.'
       : covered === total
