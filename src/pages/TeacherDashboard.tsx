@@ -252,19 +252,16 @@ export function TeacherDashboard() {
       toast('Dit bestand is geen geldige widget', 'err');
       return;
     }
-    // onbekend widgettype zou het dashboard blijvend laten crashen
-    const def = WIDGET_TYPES.find((t) => t.id === w.type);
-    if (!def) {
-      toast(`Onbekend widgettype “${w.type}”: bestand niet geïmporteerd`, 'err');
-      return;
+    // Zelfde weg als de importpagina: onbekend type weigeren, velden naar de
+    // juiste soort brengen, en alleen "geïmporteerd" melden als het echt
+    // bewaard is (niet bij een volle opslag). Lui geladen: importers.ts is groot.
+    const { ImportError, saveImportedWidget } = await import('../lib/importers');
+    try {
+      const saved = saveImportedWidget(w as Widget);
+      toast(`“${saved.title}” geïmporteerd`, 'ok');
+    } catch (e) {
+      toast(e instanceof ImportError ? e.message : 'Importeren mislukt', 'err');
     }
-    w.id = uid();
-    w.code = makeCode();
-    w.folderId = null;
-    // ontbrekende config-velden aanvullen zodat editor en speler niet crashen
-    w.config = { ...(def.defaultConfig() as object), ...(w.config as object) };
-    saveWidget(w as Widget);
-    toast(`“${w.title}” geïmporteerd`, 'ok');
   };
 
   const exportFolder = async (folder: Folder) => {
@@ -892,37 +889,14 @@ function PackImportModal({ pack, onClose, onImported }: {
 
   const chosen = rows.filter((r) => r.def && checked.has(r.index));
 
-  const doImport = () => {
+  const doImport = async () => {
     if (chosen.length === 0) return;
-    let folderId: string | null = null;
-    if (inNewFolder) {
-      folderId = uid();
-      saveFolder({
-        id: folderId,
-        name: pack.meta.naam,
-        color: FOLDER_COLORS[getFolders().length % FOLDER_COLORS.length].color,
-        createdAt: Date.now(),
-      });
-    }
-    for (const r of chosen) {
-      const raw = JSON.parse(JSON.stringify(r.widget)) as Widget;
-      const copy: Widget = {
-        ...raw,
-        id: uid(),
-        code: makeCode(),
-        folderId,
-        // onvolledige config van een bekend type aanvullen met defaults
-        config: { ...(r.def!.defaultConfig() as object), ...(raw.config as object) },
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-      saveWidget(copy);
-    }
-    toast(
-      `${chosen.length} widget${chosen.length === 1 ? '' : 's'} geïmporteerd${inNewFolder ? ` in map “${pack.meta.naam}”` : ''}`,
-      'ok'
-    );
-    onImported(folderId);
+    // Zelfde weg als de importpagina: eerlijk tellen wat bewaard is (OP2).
+    const { describePackImport, saveImportedPack } = await import('../lib/importers');
+    const res = saveImportedPack({ ...pack, widgets: chosen.map((r) => r.widget) }, { inNewFolder });
+    const msg = describePackImport(res);
+    toast(msg.text, res.failed.length > 0 || msg.tone === 'err' ? 'err' : msg.tone === 'ok' ? 'ok' : 'info');
+    if (res.widgets.length > 0) onImported(res.folderId);
     onClose();
   };
 
