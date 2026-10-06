@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   collectMediaRefs, configureMediaStore, countUnresolvedMedia, dataUrlToBlob, findLargeDataUrls, inlineMedia,
   mediaKeysInStorage, mediaSizeForUrl, mediaStats, MEDIA_REF_PREFIX, migrateDataUrls, parseWithMedia,
@@ -272,6 +272,19 @@ describe('pruneOrphanMedia', () => {
     expect([...map.keys()].sort()).toEqual(['m_fresh', 'm_used']);
   });
 
+  it('wist geen oude wees die net opnieuw gekozen is (zelfde inhoud, nog niet bewaard)', async () => {
+    const blob = new Blob(['zelfde-afbeelding'], { type: 'image/png' });
+    const eerst = setup();
+    await storeMedia(blob);
+    const [rec] = [...eerst.map.values()];
+    // Later: hetzelfde record staat als oude wees in de achterkant.
+    const { map } = setup({ records: [{ ...rec, createdAt: Date.now() - 60 * 60 * 1000 }] });
+    await preloadMedia();
+    await storeMedia(blob); // de leerkracht kiest dezelfde afbeelding opnieuw
+    expect(await pruneOrphanMedia()).toBe(0);
+    expect(map.has(rec.id)).toBe(true);
+  });
+
   it('beperkt zich tot `only` (na het verwijderen van één widget)', async () => {
     const old = Date.now() - 60 * 60 * 1000;
     const { map } = setup({
@@ -491,5 +504,288 @@ describe('svg blijft een data:-URL (V7)', () => {
     expect(url).toBe(svgDataUrl);
     expect(await pruneOrphanMedia()).toBe(1);
     expect(replaceMedia('', url)).toBe(url);
+  });
+});
+
+// ── Andere tabbladen: niets wissen wat elders nog op het scherm staat (P1) ──
+//
+// Twee tabbladen = twee instanties van deze module (vi.resetModules), met
+// dezelfde IndexedDB (geheugen-backend), dezelfde localStorage en één
+// nagebootste LockManager voor de hele origin, zoals in de browser.
+
+interface NepSlot { name: string; mode: LockMode; tab: string }
+
+/** Nagebootste navigator.locks: gedeelde sloten worden meteen toegekend. */
+function nepLocks() {
+  const held: NepSlot[] = [];
+  const pending: NepSlot[] = [];
+  let tab = 'A';
+  const locks = {
+    request: vi.fn((name: string, opts: LockOptions, cb: LockGrantedCallback<unknown>): Promise<unknown> => {
+      const mode = opts.mode ?? 'exclusive';
+      held.push({ name, mode, tab });
+      return Promise.resolve().then(() => cb({ name, mode } as Lock));
+    }),
+    query: vi.fn(async (): Promise<LockManagerSnapshot> => ({
+      held: held.map(({ name, mode }) => ({ name, mode, clientId: 'c' })),
+      pending: pending.map(({ name, mode }) => ({ name, mode, clientId: 'c' })),
+    })),
+  };
+  return {
+    locks,
+    held,
+    pending,
+    /** Wat hierna gevraagd wordt, komt uit dit tabblad. */
+    vanuit(t: string) { tab = t; },
+    /** Tabblad sluiten: de browser geeft zijn sloten vrij. */
+    sluit(t: string) { for (let i = held.length - 1; i >= 0; i--) if (held[i].tab === t) held.splice(i, 1); },
+    sloten: () => held.filter((l) => l.name.startsWith('wf-media-tabblad:')),
+  };
+}
+
+const OUD = () => Date.now() - 60 * 60 * 1000;
+const rec = (id: string, createdAt = OUD()): FileRecord => ({ id, name: '', blob: new Blob([id]), size: 1, createdAt });
+
+/** Een tweede tabblad: verse module, zelfde opslag. */
+async function tweedeTabblad(backend: MediaBackend, storage: Storage) {
+  vi.resetModules();
+  const mod = await import('./mediaStore');
+  mod.configureMediaStore({ backend, storage: () => storage, createObjectUrl: () => `blob:b/${++urlCounter}`, revokeObjectUrl: () => {} });
+  return mod;
+}
+
+describe('pruneOrphanMedia en andere tabbladen (Web Locks)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** Tabblad A met een gebruikte en een verweesde (oude) blob. */
+  function tweeBlobs() {
+    const env = setup({
+      records: [rec('m_used'), rec('m_wees')],
+      storage: { 'wf.widgets.v1': JSON.stringify([{ img: MEDIA_REF_PREFIX + 'm_used' }]) },
+    });
+    const del = vi.spyOn(env.backend, 'delete');
+    return { ...env, del };
+  }
+
+  it('een ander tabblad toont media: een oude wees blijft staan en er wordt niets gewist', async () => {
+    const nep = nepLocks();
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    const { backend, storage, map, del } = tweeBlobs();
+    // tabblad B toont een afbeelding (en neemt zo het slot)
+    nep.vanuit('B');
+    const B = await tweedeTabblad(backend, storage);
+    await B.preloadMedia();
+    expect(B.resolveMediaRef(MEDIA_REF_PREFIX + 'm_used')).toMatch(/^blob:/);
+    // tabblad A toont ook iets en start de opruimronde
+    nep.vanuit('A');
+    await preloadMedia();
+    resolveMediaRef(MEDIA_REF_PREFIX + 'm_used');
+    expect(nep.sloten()).toHaveLength(2);
+    expect(await pruneOrphanMedia()).toBe(0);
+    expect(del).not.toHaveBeenCalled();
+    expect([...map.keys()].sort()).toEqual(['m_used', 'm_wees']);
+  });
+
+  it('ook een vers tabblad zonder eigen slot (opstart van "Als leerling") wist niets', async () => {
+    const nep = nepLocks();
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    const { backend, storage, map, del } = tweeBlobs();
+    nep.vanuit('B');
+    const B = await tweedeTabblad(backend, storage);
+    await B.storeMedia(new Blob(['nieuw, nog niet bewaard'], { type: 'image/png' }));
+    nep.vanuit('A');
+    expect(await pruneOrphanMedia()).toBe(0);
+    expect(del).not.toHaveBeenCalled();
+    expect(map.has('m_wees')).toBe(true);
+  });
+
+  it('na het verwijderen van een widget (only) blijft de blob staan zolang een ander tabblad media toont', async () => {
+    const nep = nepLocks();
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    const { backend, storage, map, del } = tweeBlobs();
+    nep.vanuit('B');
+    const B = await tweedeTabblad(backend, storage);
+    await B.preloadMedia();
+    B.resolveMediaRef(MEDIA_REF_PREFIX + 'm_wees'); // de editor in B toont de afbeelding van de verwijderde widget
+    nep.vanuit('A');
+    expect(await pruneOrphanMedia({ only: ['m_wees'] })).toBe(0);
+    expect(del).not.toHaveBeenCalled();
+    expect(map.has('m_wees')).toBe(true);
+  });
+
+  it('alleen het eigen slot: de oude wees wordt gewist', async () => {
+    const nep = nepLocks();
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    const { map } = tweeBlobs();
+    await preloadMedia();
+    resolveMediaRef(MEDIA_REF_PREFIX + 'm_used');
+    await storeMedia(new Blob(['nog iets'], { type: 'image/png' }));
+    expect(nep.sloten()).toHaveLength(1); // één keer per tabblad
+    expect(await pruneOrphanMedia()).toBe(1);
+    expect(map.has('m_wees')).toBe(false);
+    expect(map.has('m_used')).toBe(true);
+  });
+
+  it('is het andere tabblad gesloten, dan ruimt de volgende ronde de wees alsnog op (geen blijvend lek)', async () => {
+    const nep = nepLocks();
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    const { backend, storage, map } = tweeBlobs();
+    nep.vanuit('B');
+    const B = await tweedeTabblad(backend, storage);
+    await B.preloadMedia();
+    B.resolveMediaRef(MEDIA_REF_PREFIX + 'm_used');
+    nep.vanuit('A');
+    expect(await pruneOrphanMedia()).toBe(0);
+    nep.sluit('B');
+    expect(await pruneOrphanMedia()).toBe(1);
+    expect(map.has('m_wees')).toBe(false);
+  });
+
+  it('minAgeMs: 0 (leerlinggegevens wissen) wist ook als een ander tabblad media toont', async () => {
+    const nep = nepLocks();
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    const { backend, storage, map, del } = tweeBlobs();
+    nep.vanuit('B');
+    const B = await tweedeTabblad(backend, storage);
+    await B.preloadMedia();
+    B.resolveMediaRef(MEDIA_REF_PREFIX + 'm_used');
+    nep.vanuit('A');
+    expect(await pruneOrphanMedia({ only: ['m_wees', 'm_used'], minAgeMs: 0 })).toBe(1);
+    expect(del).toHaveBeenCalledWith('m_wees');
+    expect(map.has('m_wees')).toBe(false);
+    expect(map.has('m_used')).toBe(true); // wat nog gebruikt wordt, blijft
+    expect(nep.locks.query).not.toHaveBeenCalled();
+  });
+
+  it('zonder Web Locks: het oude gedrag (de leeftijdsgrens alleen)', async () => {
+    vi.stubGlobal('navigator', {});
+    const { map } = tweeBlobs();
+    await preloadMedia();
+    resolveMediaRef(MEDIA_REF_PREFIX + 'm_used');
+    expect(await pruneOrphanMedia()).toBe(1);
+    expect(map.has('m_wees')).toBe(false);
+  });
+
+  it('zonder navigator (geen browser): het oude gedrag', async () => {
+    vi.stubGlobal('navigator', undefined);
+    const { map } = tweeBlobs();
+    await storeMedia(new Blob(['x'], { type: 'image/png' }));
+    expect(await pruneOrphanMedia()).toBe(1);
+    expect(map.has('m_wees')).toBe(false);
+  });
+
+  it('een ander tabblad dat nog wacht op het slot telt ook mee', async () => {
+    const nep = nepLocks();
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    const { del } = tweeBlobs();
+    nep.pending.push({ name: 'wf-media-tabblad:ander', mode: 'shared', tab: 'B' });
+    expect(await pruneOrphanMedia()).toBe(0);
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it('sloten met een andere naam tellen niet mee', async () => {
+    const nep = nepLocks();
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    const { map } = tweeBlobs();
+    nep.held.push({ name: 'iets-anders', mode: 'exclusive', tab: 'B' });
+    expect(await pruneOrphanMedia()).toBe(1);
+    expect(map.has('m_wees')).toBe(false);
+  });
+
+  it('lukt query() niet, dan wordt er niets gewist (bij twijfel)', async () => {
+    const nep = nepLocks();
+    nep.locks.query.mockRejectedValue(new Error('kapot'));
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    const { del } = tweeBlobs();
+    expect(await pruneOrphanMedia()).toBe(0);
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it('komt er tijdens de opruimronde een tabblad met media bij, dan stopt het wissen meteen', async () => {
+    const nep = nepLocks();
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    const { backend, storage, map } = setup({ records: [rec('m_w1'), rec('m_w2'), rec('m_w3')], storage: {} });
+    let B: typeof import('./mediaStore') | null = null;
+    const del = backend.delete;
+    backend.delete = async (id) => {
+      await del(id);
+      if (!B) {
+        // net na de eerste wisbeurt opent de leerkracht een tweede tabblad
+        nep.vanuit('B');
+        B = await tweedeTabblad(backend, storage);
+        await B.storeMedia(new Blob(['B kiest een afbeelding'], { type: 'image/png' }));
+        nep.vanuit('A');
+      }
+    };
+    expect(await pruneOrphanMedia()).toBe(1);
+    expect(map.size).toBe(3); // twee wezen + de nieuwe blob van B
+  });
+
+  it('het slot is gedeeld, wordt pas genomen bij het inlezen of bewaren van media, en één keer per tabblad', async () => {
+    const nep = nepLocks();
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    setup({ records: [rec('m_a'), rec('m_b')] });
+    await preloadMedia();
+    await pruneOrphanMedia({ only: [] });
+    expect(nep.locks.request).not.toHaveBeenCalled();
+    resolveMediaRef(MEDIA_REF_PREFIX + 'm_a');
+    resolveMediaRef(MEDIA_REF_PREFIX + 'm_b');
+    await storeMedia(new Blob(['c'], { type: 'image/png' }));
+    expect(nep.locks.request).toHaveBeenCalledTimes(1);
+    const [naam, opties] = nep.locks.request.mock.calls[0];
+    expect(naam).toMatch(/^wf-media-tabblad:/);
+    expect(opties).toEqual({ mode: 'shared' });
+  });
+
+  it('ook een verwijzing waarvan de blob nog geladen moet worden, neemt het slot', async () => {
+    const nep = nepLocks();
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    const { backend, storage, map } = setup({ records: [rec('m_used')], storage: {} });
+    nep.vanuit('B');
+    const B = await tweedeTabblad(backend, storage);
+    // B leest een verwijzing vóór IndexedDB klaar is: nog geen blob:-URL, wel de verwijzing in het geheugen
+    expect(B.resolveMediaRef(MEDIA_REF_PREFIX + 'm_used')).toBe(MEDIA_REF_PREFIX + 'm_used');
+    nep.vanuit('A');
+    expect(await pruneOrphanMedia()).toBe(0);
+    expect(map.has('m_used')).toBe(true);
+  });
+
+  it('storeMedia neemt het slot vóór het bewaren', async () => {
+    const nep = nepLocks();
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    const { backend } = setup();
+    let slotenBijPut = -1;
+    const put = backend.put;
+    backend.put = async (r) => {
+      slotenBijPut = nep.sloten().length;
+      await put(r);
+    };
+    await storeMedia(new Blob(['nieuw'], { type: 'image/png' }));
+    expect(slotenBijPut).toBe(1);
+  });
+
+  it('mislukt de eigen aanvraag, dan probeert het tabblad het bij de volgende keer opnieuw', async () => {
+    const nep = nepLocks();
+    nep.locks.request.mockImplementationOnce(() => Promise.reject(new Error('nog niet')));
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    setup({ records: [rec('m_a')] });
+    await preloadMedia();
+    resolveMediaRef(MEDIA_REF_PREFIX + 'm_a');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(nep.sloten()).toHaveLength(0);
+    await storeMedia(new Blob(['b'], { type: 'image/png' }));
+    expect(nep.locks.request).toHaveBeenCalledTimes(2);
+    expect(nep.sloten()).toHaveLength(1);
+  });
+
+  it('een gooiende request() breekt het tonen niet', async () => {
+    const nep = nepLocks();
+    nep.locks.request.mockImplementation(() => { throw new Error('SecurityError'); });
+    vi.stubGlobal('navigator', { locks: nep.locks });
+    setup({ records: [rec('m_a')] });
+    await preloadMedia();
+    expect(resolveMediaRef(MEDIA_REF_PREFIX + 'm_a')).toMatch(/^blob:/);
   });
 });

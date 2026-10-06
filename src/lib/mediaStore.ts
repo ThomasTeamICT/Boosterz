@@ -28,7 +28,8 @@
 // invoegen kost één blob, en dupliceren of importeren maakt nooit dubbels.
 // Wezen (blobs waar niets meer naar verwijst) ruimt pruneOrphanMedia op, met
 // een leeftijdsgrens zodat een net gekozen maar nog niet bewaarde afbeelding
-// nooit onder je handen verdwijnt.
+// nooit onder je handen verdwijnt, en niet zolang een ander tabblad van de app
+// media toont (zie holdTabLock).
 //
 // VEILIGHEID. Een blob:-URL hoort bij de origin van de app: is het type html
 // of svg, dan voert "afbeelding/link openen in nieuw tabblad" het script erin
@@ -151,6 +152,58 @@ function resetMediaCache() {
   ready = false;
   available = true;
   preloadPromise = null;
+  tabLock = null;
+}
+
+// ── Andere tabbladen (Web Locks) ────────────────────────────────────────────
+//
+// Een tabblad kan media op het scherm hebben waar localStorage (nog) niet naar
+// verwijst: een editor met gepauzeerd bewaren (conflict met een ander
+// tabblad) of mislukt bewaren (opslag vol), of een widget of cursus die net
+// in een ander tabblad verwijderd werd. Wist een ander tabblad die blob als
+// wees, dan bewaart "Mijn versie bewaren" daarna een verwijzing naar niets.
+// Daarom houdt elk tabblad dat media inleest (resolveMediaRef) of bewaart
+// (storeMedia) een gedeeld Web Lock vast (de browser geeft het vrij als het
+// tabblad sluit), en wist de
+// opruimronde niets zolang een ánder tabblad er een heeft. Elk tabblad heeft
+// een eigen slotnaam: zo telt het zichzelf nooit mee, ook niet als zijn eigen
+// aanvraag nog loopt of mislukte. Wezen blijven dan staan tot de app ergens
+// alleen opstart. Zonder Web Locks (oude browser, http op het lan): het oude
+// gedrag, alleen de leeftijdsgrens.
+
+const TAB_LOCK_PREFIX = 'wf-media-tabblad:';
+/** Naam van het slot van dít tabblad, zodra het media toont of bewaart. */
+let tabLock: string | null = null;
+
+const webLocks = (): LockManager | undefined =>
+  typeof navigator === 'undefined' ? undefined : (navigator.locks as LockManager | undefined);
+
+/** Eén keer per tabblad: het slot nemen en houden tot het tabblad sluit. */
+function holdTabLock() {
+  const locks = webLocks();
+  if (tabLock || !locks) return;
+  const name = (tabLock = TAB_LOCK_PREFIX + randomPart());
+  // mislukt: bij een volgende aanroep opnieuw proberen
+  const failed = () => {
+    if (tabLock === name) tabLock = null;
+  };
+  try {
+    void locks.request(name, { mode: 'shared' }, () => new Promise<void>(() => {})).catch(failed);
+  } catch {
+    failed();
+  }
+}
+
+/** Houdt een ander tabblad van de app (mogelijk) media vast? */
+async function mediaOpenElders(): Promise<boolean> {
+  const locks = webLocks();
+  if (!locks) return false;
+  try {
+    const { held = [], pending = [] } = await locks.query();
+    return [...held, ...pending].some((l) => l.name !== tabLock && String(l.name).startsWith(TAB_LOCK_PREFIX));
+  } catch {
+    return true; // bij twijfel niets weggooien
+  }
 }
 
 function safeRevoke(url: string) {
@@ -300,7 +353,11 @@ async function contentId(blob: Blob): Promise<string> {
   } catch {
     // onveilige context (http op het lan) of oude browser: willekeurig id
   }
-  return ID_PREFIX + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+  return ID_PREFIX + randomPart();
+}
+
+function randomPart(): string {
+  return Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
 }
 
 /**
@@ -311,12 +368,18 @@ async function contentId(blob: Blob): Promise<string> {
  * type wordt application/octet-stream (zie de kop van dit bestand).
  */
 export async function storeMedia(input: Blob, name = ''): Promise<string> {
+  holdTabLock(); // vóór het bewaren: een ander tabblad wist deze blob dan niet als wees
   if (isSvgType(input.type)) return svgDataUrl(input);
   if (!available) throw new Error('Mediaopslag niet beschikbaar');
   const blob = passieveBlob(input);
   const id = await contentId(blob);
   const known = byId.get(id);
-  if (known) return urlFor(known);
+  if (known) {
+    // Dezelfde inhoud opnieuw gekozen: telt als nieuw voor de opruimronde, ook
+    // als het oude record een wees was (anders kan ze gewist worden vóór ze bewaard is).
+    known.createdAt = Math.max(known.createdAt, Date.now());
+    return urlFor(known);
+  }
   const rec: FileRecord = { id, name, blob, size: blob.size, createdAt: Date.now() };
   try {
     await env.backend.put(rec);
@@ -347,6 +410,10 @@ export function hasMedia(id: string): boolean {
  * autosave weer bewaard worden, en dan zou de echte verwijzing verloren gaan.
  */
 export function resolveMediaRef(ref: string): string {
+  // Dit tabblad heeft nu media in het geheugen (en schrijft de verwijzing bij
+  // het bewaren terug), ook als de blob nog geladen moet worden: niet laten
+  // wissen door een ander tabblad (zie holdTabLock).
+  holdTabLock();
   const id = ref.slice(MEDIA_REF_PREFIX.length);
   const entry = byId.get(id);
   if (entry) return urlFor(entry);
@@ -668,7 +735,10 @@ function referencedIds(): Set<string> | null {
 /**
  * Blobs zonder verwijzing weg. `only` beperkt het tot bepaalde id's (na het
  * verwijderen van één widget); anders wordt de hele mediaopslag nagekeken.
- * Jonge blobs blijven staan (zie ORPHAN_MIN_AGE_MS).
+ * Jonge blobs blijven staan (zie ORPHAN_MIN_AGE_MS), en zolang een ander
+ * tabblad van de app media toont, blijft alles staan (zie holdTabLock): een
+ * latere opstart ruimt ze op. Expliciet wissen (`minAgeMs: 0`, bv. de
+ * leerlinggegevens op de privacypagina) wacht op niets.
  */
 export async function pruneOrphanMedia(opts: { only?: Iterable<string>; minAgeMs?: number } = {}): Promise<number> {
   if (!available) return 0;
@@ -685,6 +755,8 @@ export async function pruneOrphanMedia(opts: { only?: Iterable<string>; minAgeMs
     // Niet in het geheugen? Dan kennen we de leeftijd niet: laten staan, de
     // volgende opstartbeurt kijkt opnieuw.
     if (!entry || now - entry.createdAt < minAge) continue;
+    // Per blob opnieuw gevraagd: intussen kan er een tabblad bijgekomen zijn.
+    if (minAge > 0 && (await mediaOpenElders())) break;
     try {
       await env.backend.delete(id);
       unregister(id);
