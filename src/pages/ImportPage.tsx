@@ -13,31 +13,38 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FileText, type LucideIcon, Package, Puzzle } from 'lucide-react';
 import {
-  extractFromFile, fromPastedText, ImportError, IMPORT_ACCEPT, MAX_COMFORT_CHARS,
-  markdownToCourse, mergeSourcesToCourse, saveImportedCourse, saveImportedPack, saveImportedWidget,
+  describeCourseImport, describePackImport, extractFromFile, findCourseImportConflicts, fromPastedText,
+  ImportError, IMPORT_ACCEPT, MAX_COMFORT_CHARS, markdownToCourse, mergeSourcesToCourse, saveCourseWithWidgets,
+  saveImportedCourse, saveImportedPack, saveImportedWidget, STORAGE_FULL_HINT,
 } from '../lib/importers';
-import type { ExtractedSource } from '../lib/importers';
+import type { CourseBundle, ExtractedSource, ImportTone } from '../lib/importers';
 import type { Course } from '../lib/courseTypes';
-import { saveCourse } from '../lib/courses';
-import { saveWidget } from '../lib/storage';
+import type { Widget } from '../lib/types';
+import { conflictKey, type SharedChoice, type SharedConflict } from '../lib/courses';
 import { deriveExercises, describeDerived } from '../lib/deriveExercises';
 import { setHandoff } from '../lib/handoff';
 import { getCurricula } from '../lib/curriculum';
 import { suggestCourseTitle } from '../lib/importTitle';
-import { EmptyState, Field, useToast } from '../components/ui';
+import { EmptyState, Field, Modal, useToast } from '../components/ui';
 import { uid } from '../lib/utils';
 import {
-  AddIcon, AIIcon, BackIcon, CheckIcon, CourseIcon, DeleteIcon, EditIcon, ImportIcon, PrivacyIcon,
+  AddIcon, AIIcon, BackIcon, CheckIcon, CourseIcon, DeleteIcon, EditIcon, ImportIcon, PrivacyIcon, RetryIcon,
   WarningIcon,
 } from '../components/icons';
 import '../styles/cursus.css';
 
 interface SourceItem extends ExtractedSource {
   key: string;
-  /** Samenvatting nadat een json-bron geïmporteerd is. */
+  /** Samenvatting nadat een json-bron geïmporteerd is (eerlijk: ook wat niet lukte). */
   imported?: string;
+  /** Hoe het afliep: alles bewaard (ok) of maar een deel (warn). */
+  importTone?: ImportTone;
+  /** Label bij de samenvatting, bv. "geïmporteerd" of "deels bewaard". */
+  importBadge?: string;
   /** Waar je naartoe kan na die import. */
   importedTo?: { label: React.ReactNode; to: string };
+  /** Widgets uit een pakket die niet bewaard konden worden (opslag vol): opnieuw te proberen. */
+  retry?: { widgets: Widget[]; folderId: string | null; folderName: string; saved: number };
 }
 
 const KIND_META: Record<ExtractedSource['kind'], { icon: LucideIcon; label: string }> = {
@@ -61,6 +68,10 @@ export function ImportPage() {
   const [sectionLevel, setSectionLevel] = useState<2 | 3>(2);
   const [mergeTitle, setMergeTitle] = useState('');
   const [deriveOn, setDeriveOn] = useState(true);
+  /** Bron die nu geïmporteerd wordt (knop even uit: niet twee keer importeren). */
+  const [importing, setImporting] = useState<string | null>(null);
+  /** Cursusbestand dat een andere versie bevat van eigen werk: eerst kiezen. */
+  const [courseConflict, setCourseConflict] = useState<{ item: SourceItem; conflicts: SharedConflict[] } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const curricula = useMemo(() => getCurricula(), []);
@@ -156,28 +167,43 @@ export function ImportPage() {
     const built = markdownToCourse(item.text, chosenTitle, { sectionLevel });
     built.title = chosenTitle;
     if (curriculumId) built.curriculumId = curriculumId;
-    const { course, note } = finishCourse(built);
+    const done = finishCourse(built);
+    if (!done) return;
+    const { course, note } = done;
     const sections = course.chapters.reduce((n, ch) => n + ch.sections.length, 0);
-    toast(
+    reportCourse(
       `Cursus “${course.title}” aangemaakt — ${course.chapters.length} hoofdstuk${course.chapters.length === 1 ? '' : 'ken'}, ${sections} sectie${sections === 1 ? '' : 's'}${note}`,
-      'ok'
+      done.failedNote
     );
     navigate(`/cursus/bewerk/${course.id}`);
+  }
+
+  /** Melding na het omzetten: volledig gelukt (ok) of met oefeningen die niet bewaard konden worden (err). */
+  function reportCourse(text: string, failedNote: string) {
+    if (failedNote) toast(`${text}. ${failedNote}`, 'err');
+    else toast(text, 'ok');
   }
 
   /**
    * Optioneel oefeningen afleiden (begrippenquiz, koppelspel, invuloefeningen,
    * werkblad met de opdrachten) en alles bewaren. Zie lib/deriveExercises.ts.
+   * null = de cursus kon niet bewaard worden (opslag vol): dan blijft de
+   * leerkracht hier, met haar tekst nog op het scherm.
    */
-  function finishCourse(built: Course): { course: Course; note: string } {
-    if (!deriveOn) {
-      saveCourse(built);
-      return { course: built, note: '' };
+  function finishCourse(built: Course): { course: Course; note: string; failedNote: string } | null {
+    const derived = deriveOn ? deriveExercises(built, { curriculumId: built.curriculumId }) : null;
+    const res = saveCourseWithWidgets(derived ? derived.course : built, derived ? derived.widgets : []);
+    if (!res.saved) {
+      const msg = `De cursus is niet bewaard: de opslag van dit toestel is vol. Je tekst staat nog hier. ${STORAGE_FULL_HINT}`;
+      setStatus(msg);
+      toast(msg, 'err');
+      return null;
     }
-    const derived = deriveExercises(built, { curriculumId: built.curriculumId });
-    for (const w of derived.widgets) saveWidget(w);
-    saveCourse(derived.course);
-    return { course: derived.course, note: derived.widgets.length ? ` — ${describeDerived(derived.counts)}` : '' };
+    const note = derived && res.widgetsSaved > 0 ? ` — ${describeDerived(derived.counts)}` : '';
+    const failedNote = res.widgetsFailed > 0
+      ? `${res.widgetsFailed} afgeleide oefening${res.widgetsFailed === 1 ? '' : 'en'} kon${res.widgetsFailed === 1 ? '' : 'den'} niet bewaard worden: de opslag van dit toestel is vol`
+      : '';
+    return { course: res.course, note, failedNote };
   }
 
   /** Alle tekstbronnen samen: elk bestand een hoofdstuk (in de volgorde van de lijst). */
@@ -194,48 +220,125 @@ export function ImportPage() {
       { sectionLevel }
     );
     if (curriculumId) built.curriculumId = curriculumId;
-    const { course, note } = finishCourse(built);
+    const done = finishCourse(built);
+    if (!done) return;
+    const { course, note } = done;
     const sections = course.chapters.reduce((n, ch) => n + ch.sections.length, 0);
-    toast(`Cursus “${course.title}” aangemaakt — ${course.chapters.length} hoofdstukken, ${sections} secties${note}`, 'ok');
+    reportCourse(`Cursus “${course.title}” aangemaakt — ${course.chapters.length} hoofdstukken, ${sections} secties${note}`, done.failedNote);
     navigate(`/cursus/bewerk/${course.id}`);
   }
 
-  function importJson(item: SourceItem) {
+  // ── Boosterz-bestanden importeren ─────────────────────────────────────────
+  // Eerlijk melden (OP2, OP11): "geïmporteerd" alleen voor wat echt bewaard
+  // is; bij een volle opslag zegt de kaart wat wel en wat niet lukte.
+
+  /** Eén importactie tegelijk, met een nette foutmelding als er iets misgaat. */
+  async function guarded(key: string, run: () => void | Promise<void>) {
+    if (importing) return;
+    setImporting(key);
     try {
-      if (item.kind === 'widget' && item.widget) {
-        const saved = saveImportedWidget(item.widget);
-        patch(item.key, {
-          imported: `“${saved.title}” staat nu bij je widgets (code ${saved.code}).`,
-          importedTo: { label: <><EditIcon size={16} /> Openen in de editor</>, to: `/bewerk/${saved.id}` },
-        });
-        toast(`“${saved.title}” geïmporteerd`, 'ok');
-        return;
-      }
-      if (item.kind === 'pack' && item.pack) {
-        const res = saveImportedPack(item.pack);
-        const n = res.widgets.length;
-        patch(item.key, {
-          imported:
-            `${n} widget${n === 1 ? '' : 's'} geïmporteerd in de map “${res.folderName}”.` +
-            (res.skipped > 0 ? ` ${res.skipped} onderdeel${res.skipped === 1 ? '' : 'en'} overgeslagen: onbekend widgettype.` : ''),
-          importedTo: { label: <><Puzzle size={16} /> Naar mijn widgets</>, to: '/widgets' },
-        });
-        toast(`${n} widget${n === 1 ? '' : 's'} geïmporteerd`, 'ok');
-        return;
-      }
-      if (item.kind === 'course' && item.course) {
-        const course = saveImportedCourse(item.course);
-        patch(item.key, {
-          imported: `Cursus “${course.title}” staat nu bij je cursussen.`,
-          importedTo: { label: <><CourseIcon size={16} /> Cursus openen</>, to: `/cursus/bewerk/${course.id}` },
-        });
-        toast(`Cursus “${course.title}” geïmporteerd`, 'ok');
-      }
+      await run();
     } catch (e) {
       const msg = e instanceof ImportError ? e.message : 'Importeren is mislukt.';
       toast(msg, 'err');
       setStatus(msg);
+    } finally {
+      setImporting(null);
     }
+  }
+
+  function importJson(item: SourceItem) {
+    void guarded(item.key, async () => {
+      if (item.kind === 'widget' && item.widget) {
+        const saved = saveImportedWidget(item.widget); // gooit een ImportError als de opslag vol is
+        const text = `“${saved.title}” staat nu bij je widgets (code ${saved.code}).`;
+        patch(item.key, {
+          imported: text,
+          importTone: 'ok',
+          importBadge: 'geïmporteerd',
+          importedTo: { label: <><EditIcon size={16} /> Openen in de editor</>, to: `/bewerk/${saved.id}` },
+        });
+        setStatus(text);
+        toast(`“${saved.title}” geïmporteerd`, 'ok');
+        return;
+      }
+      if (item.kind === 'pack' && item.pack) {
+        finishPack(item, saveImportedPack(item.pack), 0);
+        return;
+      }
+      if (item.kind === 'course' && item.course) {
+        // Staat er al een andere versie als eigen werk? Dan eerst kiezen,
+        // nooit stil vervangen (zelfde regels als op de cursuspagina).
+        const conflicts = await findCourseImportConflicts(item.course);
+        if (conflicts.length > 0) {
+          setCourseConflict({ item, conflicts });
+          return;
+        }
+        await finishCourseImport(item, item.course);
+      }
+    });
+  }
+
+  /** Na een pakketimport (of een nieuwe poging): de kaart en de melding bijwerken. */
+  function finishPack(item: SourceItem, res: ReturnType<typeof saveImportedPack>, alreadySaved: number) {
+    const { text, tone } = describePackImport(res, alreadySaved);
+    setStatus(text);
+    if (alreadySaved === 0 && res.widgets.length === 0) {
+      // Niets bewaard: de knop "Nu importeren" blijft, voor na het opruimen.
+      toast(text, 'err');
+      return;
+    }
+    patch(item.key, {
+      imported: text,
+      importTone: tone,
+      importBadge: tone === 'ok' ? 'geïmporteerd' : 'deels bewaard',
+      importedTo: {
+        label: <><Puzzle size={16} /> Naar mijn widgets</>,
+        to: res.folderId ? `/widgets?map=${encodeURIComponent(res.folderId)}` : '/widgets',
+      },
+      retry: res.failed.length > 0
+        ? { widgets: res.failed, folderId: res.folderId, folderName: res.folderName, saved: alreadySaved + res.widgets.length }
+        : undefined,
+    });
+    const total = alreadySaved + res.widgets.length;
+    toast(tone === 'ok' ? `${total} widget${total === 1 ? '' : 's'} geïmporteerd` : text, tone === 'ok' ? 'ok' : 'err');
+  }
+
+  /** De widgets die bij een volle opslag niet bewaard konden worden, opnieuw proberen (in dezelfde map). */
+  function retryPack(item: SourceItem) {
+    const r = item.retry;
+    if (!r || !item.pack) return;
+    void guarded(item.key, () => {
+      const res = saveImportedPack(
+        { ...item.pack!, widgets: r.widgets },
+        { intoFolder: { id: r.folderId, name: r.folderName } }
+      );
+      finishPack(item, res, r.saved);
+    });
+  }
+
+  /** Een cursusbestand bewaren (na de keuze, als die nodig was) en eerlijk melden wat er gebeurde. */
+  async function finishCourseImport(
+    item: SourceItem,
+    bundle: CourseBundle,
+    keuze?: { choice: SharedChoice; conflicts: SharedConflict[] }
+  ) {
+    const res = await saveImportedCourse(bundle, keuze);
+    const { text, tone, badge } = describeCourseImport(res);
+    setStatus(text);
+    if (res.outcome === 'mislukt') {
+      toast(text, 'err');
+      return;
+    }
+    patch(item.key, {
+      imported: text,
+      importTone: tone,
+      importBadge: badge,
+      importedTo: res.courseId
+        ? { label: <><CourseIcon size={16} /> Cursus openen</>, to: `/cursus/bewerk/${res.courseId}` }
+        : undefined,
+    });
+    toast(text, tone === 'ok' ? 'ok' : 'err');
   }
 
   // ── Weergave ──────────────────────────────────────────────────────────────
@@ -457,18 +560,100 @@ export function ImportPage() {
               onWidgetsAI={() => toHandoff(item, 'studio')}
               onCourse={() => toCourseWithoutAI(item)}
               onImport={() => importJson(item)}
+              onRetry={() => retryPack(item)}
+              busy={importing === item.key}
             />
           ))}
         </div>
       )}
+
+      {courseConflict && (
+        <CourseConflictModal
+          conflicts={courseConflict.conflicts}
+          onChoose={(choice) => {
+            const { item, conflicts } = courseConflict;
+            setCourseConflict(null);
+            if (!item.course) return;
+            const bundle = item.course;
+            void guarded(item.key, () => finishCourseImport(item, bundle, { choice, conflicts }));
+          }}
+          onClose={() => {
+            setCourseConflict(null);
+            setStatus('Importeren geannuleerd: er is niets veranderd.');
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * Het cursusbestand bevat een andere versie van een cursus of widget die hier
+ * al als eigen werk staat. Drie keuzes, zoals op de cursuspagina; nooit stil
+ * overschrijven (OP11, V3). Sluiten (Escape of Annuleren) importeert niets.
+ */
+function CourseConflictModal({
+  conflicts, onChoose, onClose,
+}: {
+  conflicts: SharedConflict[];
+  onChoose: (choice: SharedChoice) => void;
+  onClose: () => void;
+}) {
+  const keuzes: { choice: SharedChoice; label: string; uitleg: string; primary?: boolean }[] = [
+    {
+      choice: 'kopie',
+      label: 'Als kopie bewaren',
+      uitleg: 'De versie uit het bestand komt ernaast, met “(kopie)” in de titel. Er gaat niets verloren.',
+      primary: true,
+    },
+    { choice: 'houden', label: 'Mijn versie houden', uitleg: 'Wat hier staat, blijft; de rest van het bestand komt erbij.' },
+    {
+      choice: 'bijwerken',
+      label: 'Vervangen door de versie uit het bestand',
+      uitleg: 'Je huidige versie gaat verloren (exporteer ze eerst als je twijfelt).',
+    },
+  ];
+  return (
+    <Modal
+      title="Er staat al een versie op dit toestel"
+      onClose={onClose}
+      footer={<button type="button" className="btn btn-ghost" onClick={onClose}>Annuleren</button>}
+    >
+      <p>Het bestand bevat een andere versie van:</p>
+      <ul>
+        {conflicts.map((c) => (
+          <li key={conflictKey(c)}>
+            {c.kind === 'course' ? 'Cursus' : 'Widget'} <strong>“{c.title}”</strong>
+            {c.localTitle !== c.title && <> (hier: “{c.localTitle}”)</>}
+            {c.older && <> — de versie in het bestand is <strong>ouder</strong> dan die op dit toestel</>}
+          </li>
+        ))}
+      </ul>
+      <div style={{ display: 'grid', gap: 12 }}>
+        {keuzes.map((k) => (
+          <div key={k.choice}>
+            <button
+              type="button"
+              className={`btn ${k.primary ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ width: '100%' }}
+              aria-describedby={`import-keuze-${k.choice}`}
+              onClick={() => onChoose(k.choice)}
+            >
+              {k.label}
+            </button>
+            <p id={`import-keuze-${k.choice}`} className="hint" style={{ margin: '4px 0 0' }}>{k.uitleg}</p>
+          </div>
+        ))}
+      </div>
+      <p className="hint">Leesvoortgang van leerlingen blijft altijd staan.</p>
+    </Modal>
   );
 }
 
 // ── Eén bron ────────────────────────────────────────────────────────────────
 
 function SourceCard({
-  item, onChange, onRemove, onCourseAI, onWidgetsAI, onCourse, onImport,
+  item, onChange, onRemove, onCourseAI, onWidgetsAI, onCourse, onImport, onRetry, busy,
 }: {
   item: SourceItem;
   onChange: (next: Partial<SourceItem>) => void;
@@ -477,6 +662,9 @@ function SourceCard({
   onWidgetsAI: () => void;
   onCourse: () => void;
   onImport: () => void;
+  onRetry: () => void;
+  /** Deze bron wordt nu geïmporteerd. */
+  busy: boolean;
 }) {
   const counterId = `teller-${item.key}`;
   const tooLong = item.text.length > MAX_COMFORT_CHARS;
@@ -578,14 +766,25 @@ function SourceCard({
           <p style={{ margin: '0 0 10px' }}>{describeBundle(item)}</p>
           {item.imported ? (
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span className="badge badge-ok"><CheckIcon size={13} /> geïmporteerd</span>
-              <span>{item.imported}</span>
+              {item.importTone === 'ok' || !item.importTone ? (
+                <span className="badge badge-ok"><CheckIcon size={13} aria-hidden /> {item.importBadge ?? 'geïmporteerd'}</span>
+              ) : (
+                <span className="badge badge-warn"><WarningIcon size={13} aria-hidden /> {item.importBadge ?? 'deels bewaard'}</span>
+              )}
+              <span style={{ minWidth: 0, flex: '1 1 240px' }}>{item.imported}</span>
               {item.importedTo && (
                 <Link className="btn btn-sm btn-ghost" to={item.importedTo.to}>{item.importedTo.label}</Link>
               )}
+              {item.retry && (
+                <button className="btn btn-sm btn-primary" onClick={onRetry} disabled={busy} aria-busy={busy}>
+                  <RetryIcon size={16} aria-hidden /> Opnieuw proberen ({item.retry.widgets.length})
+                </button>
+              )}
             </div>
           ) : (
-            <button className="btn btn-primary" onClick={onImport}><ImportIcon size={16} /> Nu importeren</button>
+            <button className="btn btn-primary" onClick={onImport} disabled={busy} aria-busy={busy}>
+              <ImportIcon size={16} /> {busy ? 'Bezig met importeren…' : 'Nu importeren'}
+            </button>
           )}
         </div>
       )}
@@ -603,7 +802,11 @@ function describeBundle(item: SourceItem): string {
   }
   if (item.kind === 'course' && item.course) {
     const n = item.course.widgets.length;
-    return `Dit is een cursusbestand${n ? ` met ${n} meegereisde widget${n === 1 ? '' : 's'}` : ''}. Bestaande widgets met hetzelfde id worden nooit overschreven.`;
+    const p = item.course.pdfs?.length ?? 0;
+    const extra = [n ? `${n} meegereisde widget${n === 1 ? '' : 's'}` : '', p ? `${p} pdf${p === 1 ? '' : '’s'}` : '']
+      .filter(Boolean)
+      .join(' en ');
+    return `Dit is een cursusbestand${extra ? ` met ${extra}` : ''}. Staat er al een andere versie op dit toestel, dan kies je eerst: vervangen, je eigen versie houden of als kopie bewaren.`;
   }
   return '';
 }

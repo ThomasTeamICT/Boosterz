@@ -265,12 +265,13 @@ function cleanupOrphanPdf(pdfId: string) {
 export function getFolders(): Folder[] {
   return read<Folder[]>(KEYS.folders, []);
 }
-export function saveFolder(folder: Folder) {
+/** Bewaart een map; false = niet bewaard (volle opslag). */
+export function saveFolder(folder: Folder): boolean {
   const all = getFolders();
   const i = all.findIndex((f) => f.id === folder.id);
   if (i >= 0) all[i] = folder;
   else all.push(folder);
-  write(KEYS.folders, all);
+  return write(KEYS.folders, all);
 }
 export function deleteFolder(id: string) {
   write(KEYS.folders, getFolders().filter((f) => f.id !== id));

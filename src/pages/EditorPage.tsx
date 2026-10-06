@@ -1,7 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom';
 import { Bookmark, FileText } from 'lucide-react';
 import { getSubmissions, getWidget, saveWidget } from '../lib/storage';
+import { onStorageNotice } from '../lib/storageHealth';
+import { syncState, versionOf } from '../lib/editorSync';
+import { readableAccent } from '../lib/color';
+import { exportWidgetJsonWithMedia } from '../lib/share';
+import { downloadFile } from '../lib/utils';
 import { getTypeDef } from '../widgets/registry';
 import { getCurricula } from '../lib/curriculum';
 import type { Widget } from '../lib/types';
@@ -14,10 +19,26 @@ import { lintQuiz } from '../lib/linter';
 import type { QuizConfig } from '../lib/types';
 import { TypeTile } from '../components/TypeTile';
 import {
-  AIIcon, BackIcon, CheckIcon, CloseIcon, EditIcon, PreviewIcon, ResultsIcon,
-  RetryIcon, SearchIcon, SettingsIcon, ShareIcon, PrintIcon, TryIcon,
+  AIIcon, BackIcon, CheckIcon, CloseIcon, DownloadIcon, EditIcon, PreviewIcon, ResultsIcon,
+  RetryIcon, SearchIcon, SettingsIcon, ShareIcon, PrintIcon, TryIcon, WarningIcon,
 } from '../components/icons';
 import '../styles/editor.css';
+
+// ── Eerlijk bewaren (debugronde oktober 2026, OP3 en OP4) ───────────────────
+// - "Bewaard" verschijnt alleen als saveWidget echt lukte; anders "Niet
+//   bewaard" en één duidelijke banner, met opnieuw proberen en downloaden.
+//   Het werk blijft op het scherm; weggaan wordt eerst gevraagd.
+// - Er wordt alleen geschreven als er iets veranderde (openen alleen schrijft
+//   niets), en nooit over een versie heen die een ander tabblad intussen
+//   bewaarde, of over een widget die daar verwijderd werd: zie lib/editorSync.
+
+/** Sleutel van de widgets in localStorage (zie KEYS in lib/storage.ts). */
+const WIDGETS_KEY = 'wf.widgets.v1';
+const FAIL_FALLBACK = 'Bewaren op dit toestel is mislukt — je laatste wijziging is niet bewaard.';
+
+/** Wacht op een keuze van de leerkracht: tot dan schrijft de editor niets weg. */
+type Hold = { kind: 'conflict' | 'verwijderd' };
+type SaveStatus = 'rust' | 'bewaard' | 'bijgewerkt' | 'mislukt';
 
 export function EditorPage() {
   const { id } = useParams();
@@ -25,65 +46,320 @@ export function EditorPage() {
   const toast = useToast();
   const initial = useMemo(() => (id ? getWidget(id) : undefined), [id]);
   const [widget, setWidget] = useState<Widget | undefined>(initial);
-  // Zelfde route, andere widget (terug/vooruit in de browser tussen twee
-  // editors): de pagina blijft gemonteerd en useState houdt anders de vorige
-  // widget vast — met als gevolg de verkeerde inhoud op het scherm.
-  useEffect(() => {
-    if (!initial || widget?.id === initial.id) return;
-    // Eerst de vorige widget wegschrijven: de autosave-debounce hieronder
-    // wordt door de state-wissel geannuleerd en de laatste 500 ms gingen
-    // anders verloren.
-    if (widget) saveWidget(widget);
-    setWidget(initial);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initial]);
   const [tab, setTab] = useState<'content' | 'settings'>('content');
   const [previewMode, setPreviewMode] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
-  const [savedFlash, setSavedFlash] = useState(false);
-  const saveTimer = useRef<number | null>(null);
+  const [status, setStatus] = useState<SaveStatus>('rust');
+  const [failMessage, setFailMessage] = useState<string | null>(null);
+  const [hold, setHoldState] = useState<Hold | null>(null);
+  /** Telt op als de inhoud van buitenaf vervangen werd: de editoronderdelen beginnen dan opnieuw. */
+  const [syncKey, setSyncKey] = useState(0);
 
-  // automatisch opslaan met korte debounce
-  useEffect(() => {
-    if (!widget) return;
-    if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(() => {
-      saveWidget(widget);
-      setSavedFlash(true);
-      window.setTimeout(() => setSavedFlash(false), 1200);
-    }, 500);
-    return () => { if (saveTimer.current) window.clearTimeout(saveTimer.current); };
-  }, [widget]);
-
-  // flush bij unmount: wie binnen de debounce op "Terug" klikt, verliest anders
-  // de wijzigingen van de laatste 500 ms — en bij F5/tabblad sluiten (pagehide),
-  // want dan draait de React-cleanup niet
   const widgetRef = useRef(widget);
   useEffect(() => { widgetRef.current = widget; }, [widget]);
+  /** Wat het laatst bewaard (of uit de opslag gelezen) is; alleen een ander object is een wijziging. */
+  const lastSavedRef = useRef<Widget | undefined>(initial);
+  /** Versie (updatedAt) die deze editor het laatst in de opslag zag of er zelf schreef. */
+  const knownRef = useRef<number>(versionOf(initial) ?? 0);
+  const holdRef = useRef<Hold | null>(null);
+  /** true tijdens saveWidget: een opslagmelding hoort dan bij ons eigen bewaren. */
+  const savingRef = useRef(false);
+  const noticeRef = useRef<string | null>(null);
+  const saveTimer = useRef<number | null>(null);
+  const flashTimer = useRef<number | null>(null);
+
+  const setHold = useCallback((h: Hold | null) => {
+    holdRef.current = h;
+    setHoldState(h);
+  }, []);
+
+  const flash = useCallback((s: 'bewaard' | 'bijgewerkt') => {
+    setStatus(s);
+    if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
+    flashTimer.current = window.setTimeout(() => setStatus((cur) => (cur === s ? 'rust' : cur)), 1200);
+  }, []);
+  useEffect(() => () => { if (flashTimer.current !== null) window.clearTimeout(flashTimer.current); }, []);
+
+  /** De versie uit de opslag tonen (na een wijziging in een ander tabblad, of op vraag). */
+  const adoptStored = useCallback((stored: Widget) => {
+    lastSavedRef.current = stored;
+    knownRef.current = versionOf(stored) ?? 0;
+    widgetRef.current = stored;
+    setHold(null);
+    setFailMessage(null);
+    setStatus('rust');
+    setWidget(stored);
+    setSyncKey((k) => k + 1);
+  }, [setHold]);
+
+  /**
+   * Bewaart als er iets nieuws is. false = niet bewaard: de opslag is vol, of
+   * een ander tabblad bewaarde of verwijderde de widget intussen (dan eerst
+   * een keuze). `force`: de leerkracht koos uitdrukkelijk voor haar versie.
+   */
+  const persist = useCallback((w: Widget, force = false): boolean => {
+    if (!force && w === lastSavedRef.current) return true;
+    if (!force && holdRef.current) return false;
+    if (!force) {
+      const stored = getWidget(w.id);
+      const state = syncState(versionOf(stored), knownRef.current, true);
+      if (state === 'verwijderd') {
+        setHold({ kind: 'verwijderd' });
+        return false;
+      }
+      if (state === 'conflict') {
+        setHold({ kind: 'conflict' });
+        return false;
+      }
+    }
+    savingRef.current = true;
+    noticeRef.current = null;
+    let ok = false;
+    try {
+      ok = saveWidget(w);
+    } finally {
+      savingRef.current = false;
+    }
+    if (!ok) {
+      const notice = noticeRef.current;
+      setFailMessage((cur) => notice ?? cur ?? FAIL_FALLBACK);
+      setStatus('mislukt');
+      return false;
+    }
+    lastSavedRef.current = w;
+    knownRef.current = versionOf(getWidget(w.id)) ?? knownRef.current;
+    setHold(null);
+    setFailMessage(null);
+    flash('bewaard');
+    return true;
+  }, [flash, setHold]);
+
+  // Zelfde route, andere widget (terug/vooruit in de browser tussen twee
+  // editors): de pagina blijft gemonteerd en useState houdt anders de vorige
+  // widget vast. Eerst de vorige wegschrijven (de debounce hieronder wordt
+  // geannuleerd), dan opnieuw beginnen met de nieuwe.
   useEffect(() => {
-    const flush = () => { if (widgetRef.current) saveWidget(widgetRef.current); };
+    const cur = widgetRef.current;
+    if (cur?.id === initial?.id) return;
+    if (saveTimer.current !== null) {
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    if (cur) persist(cur);
+    lastSavedRef.current = initial;
+    knownRef.current = versionOf(initial) ?? 0;
+    widgetRef.current = initial;
+    setHold(null);
+    setFailMessage(null);
+    setStatus('rust');
+    setWidget(initial);
+  }, [initial, persist, setHold]);
+
+  // Automatisch bewaren met een korte debounce, alleen na een wijziging.
+  useEffect(() => {
+    if (!widget || widget === lastSavedRef.current) return;
+    if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      saveTimer.current = null;
+      persist(widget);
+    }, 500);
+    return () => {
+      if (saveTimer.current !== null) {
+        window.clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
+    };
+  }, [widget, persist]);
+
+  // Wegschrijven bij unmount (wie binnen de debounce op "Terug" klikt) en bij
+  // F5/tabblad sluiten (pagehide; dan draait de React-cleanup niet). Lukt
+  // bewaren niet, dan vraagt de browser eerst of je echt weg wil.
+  // Dit effect staat vóór de meldingenluisteraar: bij unmount ruimt React in
+  // deze volgorde op, zodat een mislukte laatste poging nog bij ons
+  // binnenkomt en niet als alert().
+  useEffect(() => {
+    const flush = () => {
+      const w = widgetRef.current;
+      if (w) persist(w);
+    };
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+      const w = widgetRef.current;
+      if (!w || persist(w)) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
     window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', beforeUnload);
     return () => {
       window.removeEventListener('pagehide', flush);
+      window.removeEventListener('beforeunload', beforeUnload);
       flush();
     };
-  }, []);
+  }, [persist]);
+
+  // Opslagmeldingen: de editor valt buiten de leerkrachtschil, dus zonder
+  // luisteraar kwam elke mislukking als alert() (om de 8 seconden). Een
+  // melding bij ons eigen bewaren komt in de banner; andere als toast.
+  useEffect(() => onStorageNotice((n) => {
+    if (!n.severe) return; // een back-uptip toont de schil later zelf
+    if (savingRef.current) {
+      noticeRef.current = n.message;
+      return;
+    }
+    toast(n.message, 'err');
+  }), [toast]);
+
+  // Een ander tabblad bewaarde of verwijderde iets (OP4).
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== null && e.key !== WIDGETS_KEY) return;
+      const cur = widgetRef.current;
+      if (!cur) return;
+      const stored = getWidget(cur.id);
+      const state = syncState(versionOf(stored), knownRef.current, cur !== lastSavedRef.current);
+      if (state === 'gelijk') {
+        if (holdRef.current?.kind === 'verwijderd') setHold(null); // weer terug, ongewijzigd
+        return;
+      }
+      if (state === 'overnemen' && stored) {
+        adoptStored(stored);
+        flash('bijgewerkt');
+        return;
+      }
+      if (state === 'verwijderd') {
+        if (holdRef.current?.kind !== 'verwijderd') setHold({ kind: 'verwijderd' });
+        return;
+      }
+      setHold({ kind: 'conflict' });
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [adoptStored, flash, setHold]);
+
+  // Weggaan binnen de app (Terug, een link, de vorige-knop van de browser):
+  // eerst bewaren; lukt dat niet, dan eerst vragen.
+  const shouldBlock = useCallback(() => {
+    const w = widgetRef.current;
+    return w ? !persist(w) : false;
+  }, [persist]);
+  const blocker = useBlocker(shouldBlock);
+
+  const downloadWidget = async () => {
+    const w = widgetRef.current;
+    if (!w) return;
+    try {
+      const json = await exportWidgetJsonWithMedia(w);
+      downloadFile(`${w.title.replace(/[^\w\dà-ÿ -]/gi, '').trim() || 'widget'}.widget.json`, json);
+      toast('De widget is gedownload als bestand. Terugzetten kan via "Bestaand materiaal verwerken".', 'ok');
+    } catch {
+      toast('Downloaden is mislukt.', 'err');
+    }
+  };
+
+  const retrySave = () => {
+    const w = widgetRef.current;
+    if (w && persist(w)) toast('Alles is bewaard.', 'ok');
+  };
+
+  /** Uitdrukkelijke keuze voor de versie op dit scherm (na een conflict of een verwijdering elders). */
+  const keepMine = () => {
+    const w = widgetRef.current;
+    const wasDeleted = holdRef.current?.kind === 'verwijderd';
+    if (w && persist(w, true)) toast(wasDeleted ? 'De widget is opnieuw bewaard.' : 'Jouw versie is bewaard.', 'ok');
+  };
+
+  const loadTheirs = () => {
+    const cur = widgetRef.current;
+    const stored = cur ? getWidget(cur.id) : undefined;
+    if (!stored) {
+      setHold({ kind: 'verwijderd' });
+      return;
+    }
+    adoptStored(stored);
+    toast('De versie uit het andere tabblad staat nu hier.', 'ok');
+  };
 
   if (!widget) {
     return (
-      <div className="page page-narrow" style={{ textAlign: 'center', paddingTop: 80 }}>
+      <main id="main" className="page page-narrow" style={{ textAlign: 'center', paddingTop: 80 }}>
         <h1>Widget niet gevonden</h1>
         <p style={{ color: 'var(--text-soft)' }}>Deze widget bestaat niet (meer) in deze browser.</p>
         <Link to="/widgets" className="btn btn-primary"><BackIcon size={18} aria-hidden /> Naar mijn widgets</Link>
-      </div>
+      </main>
     );
   }
 
   const def = getTypeDef(widget.type);
   const subCount = getSubmissions(widget.id).length;
+  const unsaved = status === 'mislukt' || hold?.kind === 'conflict';
+
+  const alerts = (hold || status === 'mislukt') && (
+    <>
+      {hold?.kind === 'conflict' && (
+        <div className="callout warn" role="alert">
+          <WarningIcon size={20} aria-hidden style={{ flex: 'none' }} />
+          <div style={{ minWidth: 0 }}>
+            <strong>Deze widget werd intussen in een ander tabblad bewaard.</strong> Je wijzigingen hier zijn nog
+            niet bewaard. Kies welke versie je houdt.
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+              <button type="button" className="btn btn-sm btn-primary" onClick={keepMine}>Mijn versie bewaren</button>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={loadTheirs}>
+                Andere versie laden (mijn wijzigingen vervallen)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {hold?.kind === 'verwijderd' && (
+        <div className="callout warn" role="alert">
+          <WarningIcon size={20} aria-hidden style={{ flex: 'none' }} />
+          <div style={{ minWidth: 0 }}>
+            <strong>Deze widget werd in een ander tabblad verwijderd.</strong> Ze wordt hier niet vanzelf
+            teruggezet. Wil je ze toch houden, bewaar ze dan opnieuw.
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+              <button type="button" className="btn btn-sm btn-primary" onClick={keepMine}>Opnieuw bewaren</button>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => void downloadWidget()}>
+                <DownloadIcon size={16} aria-hidden /> Downloaden als bestand
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {status === 'mislukt' && (
+        <div className="callout err" role="alert">
+          <WarningIcon size={20} aria-hidden style={{ flex: 'none' }} />
+          <div style={{ minWidth: 0 }}>
+            <strong>Niet bewaard.</strong> {failMessage ?? FAIL_FALLBACK}
+            <p style={{ margin: '6px 0 0' }}>
+              Je wijzigingen staan nog op dit scherm. Sluit dit tabblad niet: maak eerst ruimte en klik dan op
+              “Opnieuw proberen”, of download de widget als bestand.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+              <button type="button" className="btn btn-sm btn-primary" onClick={retrySave}>
+                <RetryIcon size={16} aria-hidden /> Opnieuw proberen
+              </button>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => void downloadWidget()}>
+                <DownloadIcon size={16} aria-hidden /> Downloaden als bestand
+              </button>
+              <a className="btn btn-sm btn-ghost" href="#/privacy" target="_blank" rel="noopener noreferrer">
+                Opslag bekijken (nieuw tabblad)
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  const leaveText =
+    hold?.kind === 'conflict'
+      ? 'Een ander tabblad bewaarde intussen een andere versie van deze widget. Als je nu weggaat, gaan je wijzigingen hier verloren.'
+      : hold?.kind === 'verwijderd'
+        ? 'Deze widget werd in een ander tabblad verwijderd. Als je nu weggaat, gaan je wijzigingen hier verloren.'
+        : 'Bewaren op dit toestel lukt niet (de opslag is vol). Als je nu weggaat, gaan je laatste wijzigingen verloren. Download de widget eerst als bestand als je ze wil houden.';
 
   return (
     <div className="appshell">
@@ -100,8 +376,19 @@ export function EditorPage() {
           onChange={(e) => setWidget({ ...widget, title: e.target.value })}
           aria-label="Titel van de widget"
         />
-        <span className="hint" aria-live="polite" style={{ minWidth: 86, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          {savedFlash && <><CheckIcon size={16} aria-hidden /> Bewaard</>}
+        <span
+          className="hint"
+          aria-live="polite"
+          style={{
+            minWidth: 86, display: 'inline-flex', alignItems: 'center', gap: 4,
+            ...(unsaved || hold ? { color: 'var(--err-text)', fontWeight: 600 } : {}),
+          }}
+        >
+          {unsaved ? <><WarningIcon size={16} aria-hidden /> Niet bewaard</>
+            : hold?.kind === 'verwijderd' ? <><WarningIcon size={16} aria-hidden /> Elders verwijderd</>
+              : status === 'bewaard' ? <><CheckIcon size={16} aria-hidden /> Bewaard</>
+                : status === 'bijgewerkt' ? <span title="Bijgewerkt vanuit een ander tabblad" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckIcon size={16} aria-hidden /> Bijgewerkt</span>
+                  : null}
         </span>
         <div className="topbar-spacer" />
         <span className="badge" title="Code van deze widget" style={{ fontFamily: 'monospace', letterSpacing: '0.15em' }}>{widget.code}</span>
@@ -138,7 +425,14 @@ export function EditorPage() {
       </header>
 
       {previewMode ? (
-        <main className="player-shell" style={{ flex: 1, ['--player-accent' as any]: widget.settings.accentColor }}>
+        <main
+          id="main"
+          className="player-shell"
+          // Zelfde leesbare accentkleur als het leerlingscherm (W15d): een te
+          // lichte kleur wordt donkerder tot witte tekst erop leesbaar is.
+          style={{ flex: 1, ['--player-accent' as string]: readableAccent(widget.settings.accentColor) } as React.CSSProperties}
+        >
+          {alerts && <div style={{ maxWidth: 860, margin: '14px auto 0', width: 'calc(100% - 36px)' }}>{alerts}</div>}
           <div className="callout warn" style={{ maxWidth: 860, margin: '14px auto 0', width: 'calc(100% - 36px)' }}>
             <PreviewIcon aria-hidden />
             <div>Voorbeeldmodus — zo ziet je leerling de widget. Er wordt niets opgeslagen.
@@ -152,7 +446,8 @@ export function EditorPage() {
           </div>
         </main>
       ) : (
-        <main className="page" style={{ paddingTop: 20 }}>
+        <main id="main" className="page" style={{ paddingTop: 20 }}>
+          {alerts}
           <div className="editor-layout">
             <div style={{ minWidth: 0 }}>
               <div
@@ -188,7 +483,7 @@ export function EditorPage() {
                 // de editormodule wordt lazy geladen (zie registry): even een laadmelding tonen
                 <div role="tabpanel" id="panel-content" aria-labelledby="tab-content">
                   <React.Suspense fallback={<div className="hint" role="status" style={{ textAlign: 'center', padding: '40px 0' }}>Widget laden…</div>}>
-                    <def.Editor config={widget.config} onChange={(config: unknown) => setWidget({ ...widget, config })} />
+                    <def.Editor key={syncKey} config={widget.config} onChange={(config: unknown) => setWidget({ ...widget, config })} />
                   </React.Suspense>
                 </div>
               ) : (
@@ -248,6 +543,23 @@ export function EditorPage() {
         />
       )}
       {templateOpen && <SaveTemplateModal widget={widget} onClose={() => setTemplateOpen(false)} />}
+      {blocker.state === 'blocked' && (
+        <Modal
+          title="Je wijzigingen zijn niet bewaard"
+          onClose={() => blocker.reset()}
+          footer={
+            <>
+              <button type="button" className="btn btn-primary" onClick={() => blocker.reset()}>Blijven</button>
+              <button type="button" className="btn btn-ghost" onClick={() => void downloadWidget()}>
+                <DownloadIcon size={18} aria-hidden /> Downloaden als bestand
+              </button>
+              <button type="button" className="btn btn-danger" onClick={() => blocker.proceed()}>Toch weggaan</button>
+            </>
+          }
+        >
+          <p>{leaveText}</p>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -298,6 +610,12 @@ function SettingsPanel({ widget, onChange }: { widget: Widget; onChange: (w: Wid
   const def = getTypeDef(widget.type);
   const s = widget.settings;
   const set = (patch: Partial<typeof s>) => onChange({ ...widget, settings: { ...s, ...patch } });
+  // Wat de leerling écht ziet (W15d): een te lichte kleur wordt donkerder.
+  const shownAccent = readableAccent(s.accentColor);
+  // Tijdslimiet en pogingen werken alleen bij soorten met inzendingen (W5).
+  // Staat er bij een andere soort toch een waarde (oude widget), dan blijven
+  // de velden zichtbaar om ze op 0 te zetten.
+  const showLimits = def.hasSubmissions || s.timeLimitMin > 0 || s.maxAttempts > 0;
 
   return (
     <div className="card card-pad">
@@ -307,6 +625,16 @@ function SettingsPanel({ widget, onChange }: { widget: Widget; onChange: (w: Wid
           <input type="color" value={s.accentColor} onChange={(e) => set({ accentColor: e.target.value })} aria-label="Accentkleur" />
           <span className="hint">{s.accentColor}</span>
         </div>
+        {shownAccent !== s.accentColor && (
+          <p className="hint" style={{ margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            Te licht voor witte tekst: leerlingen zien een donkerdere tint
+            <span
+              aria-hidden
+              style={{ display: 'inline-block', width: 16, height: 16, borderRadius: 4, background: shownAccent, border: '1px solid var(--line-strong)' }}
+            />
+            {shownAccent}.
+          </p>
+        )}
       </Field>
       <Field label="Instructies vóór de start (optioneel)">
         <textarea className="textarea" rows={2} value={s.instructions} placeholder="bv. Je mag je woordenboek gebruiken."
@@ -327,20 +655,30 @@ function SettingsPanel({ widget, onChange }: { widget: Widget; onChange: (w: Wid
         <CheckRow checked={s.requireName} onChange={(v) => set({ requireName: v })} label="Leerling moet eerst een naam invullen" />
       )}
 
-      <hr className="divider" />
-      <h2 style={{ fontSize: '1.08rem' }}>Beperkingen</h2>
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-        <Field label="Tijdslimiet (minuten)" hint="0 = geen limiet">
-          <input className="input input-sm" type="number" min={0} max={240} style={{ maxWidth: 110 }}
-            value={s.timeLimitMin}
-            onChange={(e) => set({ timeLimitMin: Math.max(0, parseInt(e.target.value) || 0) })} />
-        </Field>
-        <Field label="Max. pogingen per leerling" hint="0 = onbeperkt">
-          <input className="input input-sm" type="number" min={0} max={20} style={{ maxWidth: 110 }}
-            value={s.maxAttempts}
-            onChange={(e) => set({ maxAttempts: Math.max(0, parseInt(e.target.value) || 0) })} />
-        </Field>
-      </div>
+      {showLimits && (
+        <>
+          <hr className="divider" />
+          <h2 style={{ fontSize: '1.08rem' }}>Beperkingen</h2>
+          {!def.hasSubmissions && (
+            <p className="hint" style={{ marginTop: -4 }}>
+              Deze soort levert geen inzendingen op: na de tijdslimiet wordt niets ingediend en pogingen worden niet
+              geteld. Zet beide best op 0.
+            </p>
+          )}
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <Field label="Tijdslimiet (minuten)" hint="0 = geen limiet">
+              <input className="input input-sm" type="number" min={0} max={240} style={{ maxWidth: 110 }}
+                value={s.timeLimitMin}
+                onChange={(e) => set({ timeLimitMin: Math.max(0, parseInt(e.target.value) || 0) })} />
+            </Field>
+            <Field label="Max. pogingen per leerling" hint="0 = onbeperkt">
+              <input className="input input-sm" type="number" min={0} max={20} style={{ maxWidth: 110 }}
+                value={s.maxAttempts}
+                onChange={(e) => set({ maxAttempts: Math.max(0, parseInt(e.target.value) || 0) })} />
+            </Field>
+          </div>
+        </>
+      )}
 
       <hr className="divider" />
       <h2 style={{ fontSize: '1.08rem' }}>Toets &amp; deadline</h2>

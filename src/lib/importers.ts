@@ -13,15 +13,20 @@
 // een AI-stap kiest, vertrekt er tekst naar de gekozen AI-aanbieder.
 
 import type { Widget } from './types';
+import { referencedPdfIds, referencedWidgetIds } from './courseTypes';
 import type { Course, CourseBlock, CourseChapter, CourseSection } from './courseTypes';
 import type { FolderPack } from './share';
-import { adoptSharedCourse, createCourse, importCourseJson, makeBlock } from './courses';
+import {
+  adoptSharedCourse, conflictKey, createCourse, findSharedConflicts, getCourse, importCourseJson, makeBlock,
+  restoreCoursePdfs, saveCourse,
+  type CoursePdf, type SharedChoice, type SharedConflict,
+} from './courses';
 import { importFolderPack, importWidgetJson } from './share';
 import { extractPdfMarkdown } from './pdfMarkdown';
 import { htmlToMarkdown } from './htmlToMarkdown';
-import { saveFolder, saveWidget } from './storage';
+import { deleteFolder, deleteWidget, getWidget, saveFolder, saveWidget } from './storage';
 import { makeCode, uid } from './utils';
-import { WIDGET_TYPES } from '../widgets/registry';
+import { WIDGET_TYPES, defaultSettings } from '../widgets/registry';
 
 /** Boven dit aantal tekens waarschuwen we: de AI werkt beter met één hoofdstuk per keer. */
 export const MAX_COMFORT_CHARS = 60000;
@@ -30,7 +35,14 @@ export const MAX_COMFORT_CHARS = 60000;
 export const MAX_FILE_MB = 25;
 
 /** Wat de bestandskiezer mag aanbieden (accept-attribuut). */
-export const IMPORT_ACCEPT = '.docx,.pdf,.md,.markdown,.txt,.html,.htm,.json';
+export const IMPORT_ACCEPT = '.docx,.pdf,.md,.markdown,.txt,.csv,.html,.htm,.json';
+
+/** Een cursusbestand zoals importCourseJson het teruggeeft (met de meegereisde pdf's). */
+export interface CourseBundle {
+  course: Course;
+  widgets: Widget[];
+  pdfs: CoursePdf[];
+}
 
 /** Nette, Nederlandstalige fout die rechtstreeks aan de leerkracht getoond mag worden. */
 export class ImportError extends Error {
@@ -57,7 +69,7 @@ export interface ExtractedSource {
   pages?: number;
   widget?: Widget;
   pack?: FolderPack;
-  course?: { course: Course; widgets: Widget[] };
+  course?: CourseBundle;
   /** Zaken om de leerkracht op te wijzen (gescande pdf, erg lange tekst …). */
   warnings: string[];
 }
@@ -77,6 +89,53 @@ function extensionOf(fileName: string): string {
 
 function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
+}
+
+// ── Tekstcodering (OP10) ────────────────────────────────────────────────────
+// `File.text()` leest altijd als UTF-8. Excel op Windows bewaart een "CSV" en
+// Kladblok vaak een .txt in ANSI (windows-1252): dan werd "café" stil
+// "caf�". Ook "Unicode-tekst" (UTF-16 met BOM) komt voor. Volgorde: een BOM
+// beslist; anders strikt UTF-8 proberen, en lukt dat niet, windows-1252.
+
+export type TextEncodingName = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
+
+/** Bytes → tekst, met de codering die gebruikt werd. Gooit nooit. */
+export function decodeTextBytes(input: ArrayBuffer | Uint8Array): { text: string; encoding: TextEncodingName } {
+  const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return { text: new TextDecoder('utf-16le').decode(bytes), encoding: 'utf-16le' };
+  }
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+    return { text: new TextDecoder('utf-16be').decode(bytes), encoding: 'utf-16be' };
+  }
+  try {
+    // fatal: bij één ongeldige reeks een fout in plaats van vervangtekens
+    return { text: new TextDecoder('utf-8', { fatal: true }).decode(bytes), encoding: 'utf-8' };
+  } catch {
+    try {
+      return { text: new TextDecoder('windows-1252').decode(bytes), encoding: 'windows-1252' };
+    } catch {
+      // Een browser zonder windows-1252 (bestaat in de praktijk niet meer):
+      // dan toch liever tekst met vervangtekens dan niets.
+      return { text: new TextDecoder('utf-8').decode(bytes), encoding: 'utf-8' };
+    }
+  }
+}
+
+/** Leest een tekstbestand met de juiste codering (zie decodeTextBytes). */
+export async function readTextFile(file: Blob): Promise<{ text: string; encoding: TextEncodingName }> {
+  if (typeof file.arrayBuffer !== 'function') return { text: await file.text(), encoding: 'utf-8' };
+  return decodeTextBytes(await file.arrayBuffer());
+}
+
+const ANSI_WARNING =
+  'Dit bestand was niet als UTF-8 bewaard en is gelezen als Windows-tekst (ANSI). Kijk letters met ' +
+  'accenten en speciale tekens even na.';
+
+/** Tekstbron uit een bestand, met een waarschuwing als het geen UTF-8 was. */
+function withEncodingNote(src: ExtractedSource, encoding: TextEncodingName): ExtractedSource {
+  if (encoding === 'windows-1252' && src.text) src.warnings.push(ANSI_WARNING);
+  return src;
 }
 
 /** Tekstbron opbouwen, inclusief de waarschuwingen die erbij horen. */
@@ -251,16 +310,19 @@ export async function extractFromFile(file: File): Promise<ExtractedSource> {
     return src;
   }
   if (ext === 'json' || mime === 'application/json') {
-    return fromJson(await file.text(), origin, fallbackTitle);
+    return fromJson((await readTextFile(file)).text, origin, fallbackTitle);
   }
   if (ext === 'html' || ext === 'htm' || mime === 'text/html') {
-    return textSource(htmlToMarkdown(await file.text()), fallbackTitle, origin, 'webpagina (.html)');
+    const { text, encoding } = await readTextFile(file);
+    return withEncodingNote(textSource(htmlToMarkdown(text), fallbackTitle, origin, 'webpagina (.html)'), encoding);
   }
   if (ext === 'md' || ext === 'markdown') {
-    return textSource(await file.text(), fallbackTitle, origin, 'markdown (.md)');
+    const { text, encoding } = await readTextFile(file);
+    return withEncodingNote(textSource(text, fallbackTitle, origin, 'markdown (.md)'), encoding);
   }
   if (ext === 'txt' || ext === 'csv' || mime.startsWith('text/')) {
-    return textSource(await file.text(), fallbackTitle, origin, 'tekstbestand');
+    const { text, encoding } = await readTextFile(file);
+    return withEncodingNote(textSource(text, fallbackTitle, origin, 'tekstbestand'), encoding);
   }
   throw new ImportError(
     `Van “${origin}” kan geen tekst gelezen worden. Werkt wel: .docx, .pdf, .md, .txt, .html en ` +
@@ -642,56 +704,403 @@ export function markdownToCourse(markdown: string, fallbackTitle = 'Nieuwe cursu
 }
 
 // ── Meteen opslaan (json-bestanden) ─────────────────────────────────────────
+//
+// Eerlijk melden (OP2, OP11): elke "bewaard" of "geïmporteerd" volgt uit wat
+// saveWidget/saveCourse écht teruggaven. Een volle opslag halverwege een
+// pakket geeft "7 van 8 bewaard", nooit "8 geïmporteerd"; een cursusbestand
+// vervangt nooit stil eigen werk (zie de regels bij adoptSharedContent).
 
-function adopt(widget: Widget, folderId: string | null): Widget | null {
+/** Wat de leerkracht kan doen als de opslag vol is. */
+export const STORAGE_FULL_HINT =
+  'Maak ruimte (exporteer en verwijder oud materiaal of oude inzendingen) en probeer opnieuw.';
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/**
+ * Een lijst uit een bestand opschonen (OP14): geen null of undefined, en
+ * alleen elementen van de soort die de widget verwacht. De soort komt uit de
+ * standaardwaarde; is die leeg, dan uit de lijst zelf: staat er één object in,
+ * dan is het een lijst van objecten (vragen, kaarten …); anders tekst, of
+ * getallen als alles een getal is.
+ */
+function cleanList(input: unknown[], fallback: unknown[]): unknown[] {
+  const items = input.filter((x) => x !== null && x !== undefined);
+  const sample = fallback.find((x) => x !== null && x !== undefined);
+  const objects = sample !== undefined ? isPlainObject(sample) : items.some(isPlainObject);
+  if (objects) return items.filter(isPlainObject);
+  const prims = items.filter(
+    (x): x is string | number | boolean =>
+      typeof x === 'string' || (typeof x === 'number' && Number.isFinite(x)) || typeof x === 'boolean'
+  );
+  const numbers =
+    sample !== undefined ? typeof sample === 'number' : prims.length > 0 && prims.every((x) => typeof x === 'number');
+  if (numbers) return prims.map(Number).filter(Number.isFinite);
+  return prims.map(String);
+}
+
+/**
+ * Config of instellingen uit een bestand in de vorm brengen die de widget
+ * verwacht (OP14), sleutel per sleutel volgens de standaardwaarden:
+ *  - een lijst verwacht maar iets anders gekregen → de standaardlijst; een
+ *    lijst wordt opgeschoond (cleanList);
+ *  - een object verwacht → alleen een echt object;
+ *  - tekst, getal, ja/nee → alleen dezelfde soort (een getal mag tekst worden
+ *    en omgekeerd), anders de standaardwaarde.
+ * Sleutels zonder standaardwaarde blijven zoals ze zijn. Dieper kijken we
+ * bewust niet: een vraag `{}` blijft een lege vraag.
+ */
+export function normalizeToDefaults(defaults: Record<string, unknown>, input: unknown): Record<string, unknown> {
+  const src = isPlainObject(input) ? input : {};
+  const out: Record<string, unknown> = { ...defaults, ...src };
+  for (const key of Object.keys(defaults)) {
+    if (!Object.prototype.hasOwnProperty.call(src, key)) continue;
+    const def = defaults[key];
+    const v = src[key];
+    if (def === null || def === undefined) continue;
+    if (Array.isArray(def)) {
+      if (!Array.isArray(v)) {
+        out[key] = def;
+      } else {
+        const cleaned = cleanList(v, def);
+        // Alles weggefilterd uit een niet-lege lijst: dan de standaard (bv. twee lege opties).
+        out[key] = cleaned.length === 0 && v.length > 0 ? def : cleaned;
+      }
+    } else if (isPlainObject(def)) {
+      if (!isPlainObject(v)) out[key] = def;
+    } else if (typeof def === 'string') {
+      if (typeof v !== 'string') out[key] = typeof v === 'number' && Number.isFinite(v) ? String(v) : def;
+    } else if (typeof def === 'number') {
+      if (typeof v !== 'number' || !Number.isFinite(v)) {
+        const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN;
+        out[key] = Number.isFinite(n) ? n : def;
+      }
+    } else if (typeof def === 'boolean') {
+      if (typeof v !== 'boolean') out[key] = def;
+    }
+  }
+  return out;
+}
+
+/**
+ * Kopie met een nieuwe id en deelcode, in de vorm die editor en speler
+ * verwachten. null = onbekend widgettype.
+ */
+export function prepareImportedWidget(widget: Widget, folderId: string | null): Widget | null {
   const def = WIDGET_TYPES.find((t) => t.id === widget.type);
   if (!def) return null;
-  const copy: Widget = {
-    ...(JSON.parse(JSON.stringify(widget)) as Widget),
+  const raw = JSON.parse(JSON.stringify(widget)) as Widget;
+  const now = Date.now();
+  return {
+    ...raw,
     id: uid(),
     code: makeCode(),
     folderId,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+    title: typeof raw.title === 'string' && raw.title.trim() ? raw.title : 'Geïmporteerde widget',
+    // Ontbrekende of kapotte velden aanvullen, anders crasht de editor of de speler.
+    config: normalizeToDefaults(def.defaultConfig() as Record<string, unknown>, raw.config) as unknown as Widget['config'],
+    settings: normalizeToDefaults(
+      defaultSettings() as unknown as Record<string, unknown>,
+      raw.settings
+    ) as unknown as Widget['settings'],
+    createdAt: now,
+    updatedAt: now,
   };
-  // Ontbrekende configvelden aanvullen, anders crasht de editor of de speler.
-  copy.config = { ...(def.defaultConfig() as object), ...(copy.config as object) };
-  saveWidget(copy);
-  return copy;
 }
 
-/** Eén geïmporteerde widget bewaren met een nieuwe id en deelcode. */
+type AdoptOutcome = { ok: true; widget: Widget } | { ok: false; reason: 'type' | 'opslag' };
+
+/** Eén widget overnemen: onbekend type en "niet bewaard" (opslag vol) zijn twee verschillende dingen. */
+function adopt(widget: Widget, folderId: string | null): AdoptOutcome {
+  const copy = prepareImportedWidget(widget, folderId);
+  if (!copy) return { ok: false, reason: 'type' };
+  return saveWidget(copy) ? { ok: true, widget: copy } : { ok: false, reason: 'opslag' };
+}
+
+/** Eén geïmporteerde widget bewaren met een nieuwe id en deelcode. Gooit een ImportError als dat niet lukt. */
 export function saveImportedWidget(widget: Widget): Widget {
-  const saved = adopt(widget, null);
-  if (!saved) throw new ImportError(`Onbekend widgettype “${widget.type}” — niet geïmporteerd.`);
-  return saved;
+  const res = adopt(widget, null);
+  if (res.ok) return res.widget;
+  if (res.reason === 'type') throw new ImportError(`Onbekend widgettype “${widget.type}” — niet geïmporteerd.`);
+  throw new ImportError(`De opslag van dit toestel is vol — de widget is niet bewaard. ${STORAGE_FULL_HINT}`);
 }
 
-/** Alle widgets uit een vakgroeppakket bewaren, standaard in een nieuwe map. */
+export interface PackImportResult {
+  /** Wat bewaard is. */
+  widgets: Widget[];
+  /** Wat niet bewaard kon worden (opslag vol): de onderdelen uit het pakket, om opnieuw te proberen. */
+  failed: Widget[];
+  /** Overgeslagen wegens een onbekend widgettype. */
+  skipped: number;
+  folderId: string | null;
+  folderName: string;
+  /** false = er werd een nieuwe map gevraagd, maar die kon niet bewaard worden: de widgets staan in de hoofdmap. */
+  folderSaved: boolean;
+}
+
+/**
+ * Widgets uit een vakgroeppakket bewaren, standaard in een nieuwe map.
+ * `intoFolder`: in een bestaande map (opnieuw proberen na een volle opslag).
+ * Lukt er niets in een gloednieuwe map, dan blijft er geen lege map achter.
+ */
 export function saveImportedPack(
   pack: FolderPack,
-  inNewFolder = true
-): { widgets: Widget[]; folderId: string | null; folderName: string; skipped: number } {
-  const folderName = pack.meta.naam || 'Pakket';
+  opts: { inNewFolder?: boolean; intoFolder?: { id: string | null; name: string } } = {}
+): PackImportResult {
+  let folderName = pack.meta.naam || 'Pakket';
   let folderId: string | null = null;
-  if (inNewFolder) {
-    folderId = uid();
-    saveFolder({ id: folderId, name: folderName, color: '#4f46e5', createdAt: Date.now() });
+  let folderSaved = true;
+  let newFolder = false;
+  if (opts.intoFolder) {
+    folderId = opts.intoFolder.id;
+    folderName = opts.intoFolder.name;
+  } else if (opts.inNewFolder ?? true) {
+    const id = uid();
+    if (saveFolder({ id, name: folderName, color: '#4f46e5', createdAt: Date.now() })) {
+      folderId = id;
+      newFolder = true;
+    } else {
+      folderSaved = false;
+    }
   }
   const widgets: Widget[] = [];
+  const failed: Widget[] = [];
   let skipped = 0;
   for (const w of pack.widgets) {
-    const saved = adopt(w, folderId);
-    if (saved) widgets.push(saved);
-    else skipped++;
+    const res = adopt(w, folderId);
+    if (res.ok) widgets.push(res.widget);
+    else if (res.reason === 'type') skipped++;
+    else failed.push(w);
   }
-  return { widgets, folderId, folderName, skipped };
+  if (newFolder && folderId && widgets.length === 0) {
+    deleteFolder(folderId);
+    folderId = null;
+  }
+  return { widgets, failed, skipped, folderId, folderName, folderSaved };
 }
 
-/** Een cursusbestand overnemen (met de widgets die erin meereisden). */
-export function saveImportedCourse(bundle: { course: Course; widgets: Widget[] }): Course {
-  adoptSharedCourse(bundle.course, bundle.widgets);
-  return bundle.course;
+export type ImportTone = 'ok' | 'warn' | 'err';
+
+/**
+ * Eerlijke melding na een pakketimport: wat wel en wat niet bewaard is.
+ * `alreadySaved`: bij een nieuwe poging, wat de vorige keer al bewaard was.
+ */
+export function describePackImport(res: PackImportResult, alreadySaved = 0): { text: string; tone: ImportTone } {
+  const saved = alreadySaved + res.widgets.length;
+  const failed = res.failed.length;
+  const total = saved + failed;
+  const where = res.folderId
+    ? ` in de map “${res.folderName}”`
+    : res.folderSaved
+      ? ''
+      : ` in je hoofdmap (de map “${res.folderName}” kon niet aangemaakt worden)`;
+  const skipped =
+    res.skipped > 0 ? ` ${plural(res.skipped, 'onderdeel', 'onderdelen')} overgeslagen: onbekend widgettype.` : '';
+  if (total === 0) return { text: `Er is geen enkele widget geïmporteerd.${skipped}`, tone: 'err' };
+  if (saved === 0) {
+    return {
+      text: `Geen enkele widget bewaard: de opslag van dit toestel is vol. ${STORAGE_FULL_HINT}${skipped}`,
+      tone: 'err',
+    };
+  }
+  if (failed > 0) {
+    return {
+      text:
+        `${saved} van ${total} widgets bewaard${where}; ${failed} niet, want de opslag van dit toestel is vol. ` +
+        `${STORAGE_FULL_HINT}${skipped}`,
+      tone: 'warn',
+    };
+  }
+  return {
+    text: `${plural(saved, 'widget', 'widgets')} geïmporteerd${where}.${skipped}`,
+    tone: res.folderSaved ? 'ok' : 'warn',
+  };
+}
+
+// ── Cursusbestand ───────────────────────────────────────────────────────────
+
+export type CourseImportOutcome =
+  | 'nieuw' // stond hier nog niet
+  | 'bijgewerkt' // ongewijzigde kopie van een vorige versie, stil bijgewerkt
+  | 'vervangen' // eigen versie vervangen, op uitdrukkelijke keuze
+  | 'gehouden' // eigen versie gehouden, op uitdrukkelijke keuze
+  | 'kopie' // als kopie ernaast bewaard
+  | 'ongewijzigd' // stond al zo op dit toestel
+  | 'mislukt'; // niet bewaard (opslag vol)
+
+export interface CourseImportResult {
+  outcome: CourseImportOutcome;
+  /** Id van de cursus op dit toestel (anders na "als kopie bewaren"); null als ze er niet staat. */
+  courseId: string | null;
+  /** Titel uit het bestand. */
+  title: string;
+  /** Titel op dit toestel (bv. met "(kopie)"). */
+  localTitle: string;
+  /** false = niet alles kon bewaard worden (opslag vol). */
+  ok: boolean;
+  /** Aantal meegereisde widgets in het bestand. */
+  widgets: number;
+  /** Tellingen over cursus en widgets samen (zie AdoptResult). */
+  added: number;
+  updated: number;
+  copied: number;
+  pdfs: { restored: number; failed: number };
+}
+
+/** Pdf's waar een cursus op dit toestel naar verwijst: pdf-blokken en de widgets die ze toont. */
+function localPdfIds(course: Course): Set<string> {
+  const ids = new Set(referencedPdfIds(course));
+  for (const wid of referencedWidgetIds(course)) {
+    const src = (getWidget(wid)?.config as unknown as { source?: unknown } | undefined)?.source;
+    const pid = isPlainObject(src) ? src.pdfId : undefined;
+    if (typeof pid === 'string' && pid) ids.add(pid);
+  }
+  return ids;
+}
+
+/**
+ * Wat de leerkracht eerst moet beslissen: staat er al een andere versie van
+ * deze cursus of van een meegereisde widget als eigen werk? Ook oudere
+ * versies: een bestand terugzetten (back-up) is een bewuste keuze, en dan mag
+ * er niet stil niets gebeuren. Zelfde regels als op de cursuspagina.
+ */
+export function findCourseImportConflicts(bundle: CourseBundle): Promise<SharedConflict[]> {
+  return findSharedConflicts([bundle.course], bundle.widgets, { includeOlder: true });
+}
+
+/**
+ * Een cursusbestand overnemen (met de widgets en pdf's die erin meereisden),
+ * na de keuze van de leerkracht als er conflicten waren. Zegt eerlijk wat er
+ * gebeurde; zie describeCourseImport.
+ */
+export async function saveImportedCourse(
+  bundle: CourseBundle,
+  keuze?: { choice: SharedChoice; conflicts: SharedConflict[] }
+): Promise<CourseImportResult> {
+  const id = bundle.course.id;
+  const before = getCourse(id);
+  const res = adoptSharedCourse(
+    bundle.course,
+    bundle.widgets,
+    keuze ? { conflicts: { choice: keuze.choice, keys: keuze.conflicts.map(conflictKey) } } : {}
+  );
+  const localId = res.courseIds.get(id) ?? id;
+  const after = getCourse(localId);
+  let outcome: CourseImportOutcome;
+  if (!after) outcome = 'mislukt';
+  else if (localId !== id) outcome = 'kopie';
+  else if (!before) outcome = 'nieuw';
+  // Overnemen bewaart de versie (updatedAt) van het bestand: een andere
+  // versie dan vooraf betekent dat de cursus vervangen werd.
+  else if (after.updatedAt !== before.updatedAt) outcome = keuze?.choice === 'bijwerken' ? 'vervangen' : 'bijgewerkt';
+  else outcome = keuze?.choice === 'houden' ? 'gehouden' : 'ongewijzigd';
+  // Pdf's pas ná de keuze terugzetten, en alleen die waar wat hier nu staat
+  // naar verwijst (G3): niet bewaard of bewust niet overgenomen laat geen
+  // wees-pdf achter in IndexedDB. Een pdf die hier al staat, blijft ongemoeid.
+  const needed = after ? localPdfIds(after) : new Set<string>();
+  const toRestore = (bundle.pdfs ?? []).filter((p) => needed.has(p.id));
+  const pdfs = toRestore.length > 0 ? await restoreCoursePdfs(toRestore) : { restored: 0, failed: 0 };
+  return {
+    outcome,
+    courseId: after ? localId : null,
+    title: bundle.course.title,
+    localTitle: after?.title ?? bundle.course.title,
+    ok: res.ok,
+    widgets: bundle.widgets.length,
+    added: res.added,
+    updated: res.updated,
+    copied: res.copied,
+    pdfs,
+  };
+}
+
+/** Eerlijke melding na een cursusimport, met het label voor de kaart. */
+export function describeCourseImport(r: CourseImportResult): { text: string; tone: ImportTone; badge: string } {
+  const t = `“${r.title}”`;
+  let text: string;
+  let badge = 'geïmporteerd';
+  switch (r.outcome) {
+    case 'mislukt':
+      return {
+        text: `De cursus ${t} is niet bewaard: de opslag van dit toestel is vol. ${STORAGE_FULL_HINT}`,
+        tone: 'err',
+        badge: 'niet bewaard',
+      };
+    case 'nieuw':
+      text = `Cursus ${t} staat nu bij je cursussen${r.widgets ? ` (met ${plural(r.widgets, 'widget', 'widgets')})` : ''}.`;
+      break;
+    case 'bijgewerkt':
+      text = `Cursus ${t} is bijgewerkt naar de nieuwere versie uit het bestand.`;
+      break;
+    case 'vervangen':
+      text = `Je cursus ${t} is vervangen door de versie uit het bestand.`;
+      break;
+    case 'kopie':
+      text = `Er stond al een versie van ${t}; de import staat ernaast als kopie: “${r.localTitle}”.`;
+      break;
+    case 'gehouden':
+      badge = 'niets vervangen';
+      text =
+        `Je eigen versie “${r.localTitle}” bleef staan; de versie uit het bestand is niet overgenomen.` +
+        (r.added + r.updated > 0 ? ' Wat nog ontbrak, kwam erbij.' : '');
+      break;
+    default:
+      badge = 'niets veranderd';
+      text = `Cursus ${t} stond al zo op dit toestel; er is niets veranderd.`;
+  }
+  if (r.outcome !== 'kopie' && r.copied > 0) {
+    text += ` ${plural(r.copied, 'onderdeel staat', 'onderdelen staan')} ernaast als kopie.`;
+  }
+  if (r.pdfs.restored > 0) text += ` ${plural(r.pdfs.restored, 'pdf', 'pdf’s')} teruggezet.`;
+  if (!r.ok || r.pdfs.failed > 0) {
+    const pdfNote = r.pdfs.failed > 0 ? ` (${plural(r.pdfs.failed, 'pdf', 'pdf’s')} niet teruggezet)` : '';
+    return {
+      text: `${text} Let op: niet alles kon bewaard worden${pdfNote}, want de opslag van dit toestel is vol. ${STORAGE_FULL_HINT}`,
+      tone: 'warn',
+      badge: 'deels bewaard',
+    };
+  }
+  return { text, tone: 'ok', badge };
+}
+
+// ── Cursus uit tekst bewaren (zonder AI) ────────────────────────────────────
+
+function withoutWidgetBlocks(course: Course, ids: Set<string>): Course {
+  return {
+    ...course,
+    chapters: course.chapters.map((ch) => ({
+      ...ch,
+      sections: ch.sections.map((se) => ({
+        ...se,
+        blocks: se.blocks.filter((b) => !(b.type === 'widget' && ids.has(b.widgetId))),
+      })),
+    })),
+  };
+}
+
+/**
+ * Cursus en afgeleide oefeningen bewaren. Eerst de oefeningen; wat niet
+ * bewaard kon worden, verdwijnt uit de cursus (anders een blok dat nergens
+ * naar wijst). Lukt de cursus zelf niet, dan worden de net bewaarde
+ * oefeningen weer verwijderd: geen losse oefeningen zonder hun cursus.
+ */
+export function saveCourseWithWidgets(
+  course: Course,
+  widgets: Widget[]
+): { saved: boolean; course: Course; widgetsSaved: number; widgetsFailed: number } {
+  const savedIds: string[] = [];
+  const failedIds = new Set<string>();
+  for (const w of widgets) {
+    if (saveWidget(w)) savedIds.push(w.id);
+    else failedIds.add(w.id);
+  }
+  const final = failedIds.size > 0 ? withoutWidgetBlocks(course, failedIds) : course;
+  if (!saveCourse(final)) {
+    for (const id of savedIds) deleteWidget(id);
+    return { saved: false, course: final, widgetsSaved: 0, widgetsFailed: widgets.length };
+  }
+  return { saved: true, course: final, widgetsSaved: savedIds.length, widgetsFailed: failedIds.size };
 }
 
 // ── Meerdere bronnen → één cursus ───────────────────────────────────────────

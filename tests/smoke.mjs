@@ -494,6 +494,9 @@ await page.evaluate((dataUrl) => {
   });
   localStorage.setItem('wf.widgets.v1', JSON.stringify(ws));
 }, legacyDataUrl);
+// Herladen: de migratie hoort bij het opstarten van de app. Vroeger liep ze
+// toevallig mee met het onvoorwaardelijke wegschrijven van de editor (OP4).
+await page.reload({ waitUntil: 'networkidle' });
 await go(`/#/speel/SMKLEG`);
 await sleep(2500);
 const migrated = await page.evaluate(() => {
