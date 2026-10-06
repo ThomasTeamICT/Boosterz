@@ -11,10 +11,12 @@ import {
   getCourse, getCourseByCode, getStudentProgress, mergeProgressRecords,
   saveStudentProgress, sharedCourseDiffers, startProgress, touchSection,
 } from '../lib/courses';
+import { readableAccent } from '../lib/color';
 import { hasUnresolvedMedia, onMediaChange } from '../lib/mediaStore';
 import { clearStudentContext, getStudentContext } from '../lib/studentContext';
 import { downloadFile, formatDate } from '../lib/utils';
 import { BlockRenderer } from '../components/course/BlockRenderer';
+import { leerlingBlokken } from '../components/course/emptyBlock';
 import { CodeQr } from '../components/CodeQr';
 import { EmptyState } from '../components/ui';
 import { A11yMenu, loadA11y } from '../components/A11yMenu';
@@ -22,6 +24,7 @@ import {
   CheckIcon, CourseIcon, DownloadIcon, PrivacyIcon, QrIcon, SearchIcon, WarningIcon,
 } from '../components/icons';
 import '../styles/leerling.css';
+import '../styles/cursus.css';
 
 // ── /cursus/open?d=… — gedeelde link openen ─────────────────────────────────
 
@@ -77,16 +80,15 @@ export function CourseOpenPage() {
     <div className="player-shell" style={{ minHeight: '100vh' }}>
       <main id="main" className="player-main" style={{ maxWidth: 560 }}>
         {invalid ? (
-          <>
-            <h1 className="sr-only">Deze cursuslink werkt niet</h1>
-            <EmptyState icon={<WarningIcon size={40} />} title="Deze cursuslink werkt niet">
-              <p>
-                De link is onvolledig of beschadigd (misschien is hij afgebroken bij het kopiëren).
-                Vraag je leerkracht om een nieuwe deellink.
-              </p>
-              <Link to="/" className="btn btn-primary">Naar de startpagina</Link>
-            </EmptyState>
-          </>
+          // Voor een leerling is de startpagina van de leerkrachtschil geen bestemming:
+          // die zaait voorbeeldmateriaal. De start voor leerlingen is "Code invoeren".
+          <EmptyState icon={<WarningIcon size={40} />} title="Deze cursuslink werkt niet" level={1}>
+            <p>
+              De link is onvolledig of beschadigd (misschien is hij afgebroken bij het kopiëren).
+              Vraag je leerkracht om een nieuwe deellink.
+            </p>
+            <Link to="/meedoen" className="btn btn-primary">Code invoeren</Link>
+          </EmptyState>
         ) : pending ? (
           <div className="card card-pad" style={{ maxWidth: 480, margin: '60px auto 0', textAlign: 'center' }}>
             <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--brand)' }} aria-hidden><RefreshCw size={42} /></div>
@@ -119,6 +121,11 @@ export function CourseOpenPage() {
 
 export function CourseViewerPage() {
   const { code } = useParams();
+  // "Als leerling" vanuit de editor: #/cursus/lees/CODE?voorbeeld=1. De lezer
+  // bewaart dan niets (geen voortgang, notities of naam) en de oefeningen
+  // draaien in voorbeeldmodus.
+  const [params] = useSearchParams();
+  const preview = params.get('voorbeeld') === '1';
   // Eén keer lezen (zie PlayerPage): alleen opnieuw wanneer er nog een
   // media-verwijzing openstaat die pas later oplost.
   const [mediaTick, setMediaTick] = useState(0);
@@ -132,7 +139,7 @@ export function CourseViewerPage() {
 
   if (!course) return <CourseNotFound code={code} />;
   // key: bij een andere cursuscode volledig opnieuw beginnen
-  return <CourseReader key={course.id} course={course} />;
+  return <CourseReader key={`${course.id}:${preview ? 'voorbeeld' : 'les'}`} course={course} preview={preview} />;
 }
 
 function CourseNotFound({ code }: { code?: string }) {
@@ -144,8 +151,7 @@ function CourseNotFound({ code }: { code?: string }) {
   return (
     <div className="player-shell" style={{ minHeight: '100vh' }}>
       <main id="main" className="player-main" style={{ maxWidth: 560 }}>
-        <h1 className="sr-only">Cursus niet gevonden</h1>
-        <EmptyState icon={<SearchIcon size={40} />} title="Cursus niet gevonden">
+        <EmptyState icon={<SearchIcon size={40} />} title="Cursus niet gevonden" level={1}>
           <p>
             Er staat geen cursus met code{' '}
             <strong style={{ fontFamily: 'monospace' }}>{code}</strong> op dit toestel.<br />
@@ -192,6 +198,29 @@ function readCourseNotes(courseId: string): CourseNotesStore {
   return {};
 }
 
+// Een sectie-id of leerlingnaam kan "__proto__" of "constructor" heten (een beschadigd
+// of geknutseld bestand, of een leerling die dat typt). Op een gewoon object geeft
+// `obj[naam]` dan het prototype terug (en crasht `.trim()`), en `obj[naam] = x` doet
+// niets. Alleen eigen eigenschappen tellen mee.
+const heeftEigen = (obj: object, key: string): boolean => Object.prototype.hasOwnProperty.call(obj, key);
+
+/** Notitietekst van een sectie ('' als er geen eigen notitie is). */
+function noteOf(notes: Record<string, string>, sid: string): string {
+  if (!heeftEigen(notes, sid)) return '';
+  const txt = notes[sid];
+  return typeof txt === 'string' ? txt : '';
+}
+
+/** Eigen waarde van een opzoektabel op id (nooit iets uit het prototype). */
+function eigenOf<T>(obj: Record<string, T> | undefined, key: string): T | undefined {
+  return obj && heeftEigen(obj, key) ? obj[key] : undefined;
+}
+
+/** Zet een eigen eigenschap, ook met de naam "__proto__". */
+function zetEigen<T>(obj: Record<string, T>, key: string, value: T) {
+  Object.defineProperty(obj, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
 function writeCourseNotes(courseId: string, store: CourseNotesStore) {
   try {
     localStorage.setItem(NOTES_KEY_PREFIX + courseId, JSON.stringify(store));
@@ -233,14 +262,15 @@ function useIsNarrow(px = 920): boolean {
   return narrow;
 }
 
-function CourseReader({ course }: { course: Course }) {
+function CourseReader({ course, preview }: { course: Course; preview: boolean }) {
   const flat = useMemo(() => allSections(course), [course]);
   const nameKey = NAME_KEY_PREFIX + course.id;
 
   // Leest deze leerling onder een klasidentiteit (klaslink/klaspakket)? Dan
   // hoeft hij zijn naam niet te typen én draagt zijn voortgang classId en
   // studentId mee — ook in de voortgangscode die hij later doorgeeft.
-  const [studentCtx, setStudentCtx] = useState(() => getStudentContext());
+  // In het voorbeeld voor de leerkracht ("Als leerling") telt een eventuele klasidentiteit niet mee.
+  const [studentCtx, setStudentCtx] = useState(() => (preview ? null : getStudentContext()));
   const [name, setName] = useState('');
   const [draftName, setDraftName] = useState('');
   const [sectionId, setSectionId] = useState<string | null>(null);
@@ -275,20 +305,22 @@ function CourseReader({ course }: { course: Course }) {
     const dirty = noteDirtyRef.current;
     if (dirty.size === 0) return;
     noteDirtyRef.current = new Set();
+    // Voorbeeld voor de leerkracht: notities blijven op het scherm, niet in de opslag.
+    if (preview) return;
     const key = notesKeyRef.current;
     if (!key) return;
     // Vers lezen en alléén de secties toepassen die dít tabblad wijzigde,
     // zodat een tweede tabblad/iframe elkaars notities niet overschrijft.
     const store = readCourseNotes(course.id);
-    const existing = store[key];
+    const existing = heeftEigen(store, key) ? store[key] : undefined;
     const mine: Record<string, string> =
       existing && typeof existing === 'object' && !Array.isArray(existing) ? { ...existing } : {};
     for (const sid of dirty) {
-      const txt = notesRef.current[sid];
-      if (typeof txt === 'string' && txt.trim() !== '') mine[sid] = txt;
+      const txt = noteOf(notesRef.current, sid);
+      if (txt.trim() !== '') zetEigen(mine, sid, txt);
       else delete mine[sid];
     }
-    if (Object.keys(mine).length > 0) store[key] = mine;
+    if (Object.keys(mine).length > 0) zetEigen(store, key, mine);
     else delete store[key];
     writeCourseNotes(course.id, store);
   };
@@ -300,16 +332,17 @@ function CourseReader({ course }: { course: Course }) {
     flushNotesRef.current(); // eerst openstaande notities van de vorige naam bewaren
     const key = name.trim().toLocaleLowerCase('nl');
     notesKeyRef.current = key;
-    const stored = key ? readCourseNotes(course.id)[key] : undefined;
+    const all = preview ? {} : readCourseNotes(course.id);
+    const stored = key && heeftEigen(all, key) ? all[key] : undefined;
     const clean: Record<string, string> = {};
     if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
       for (const [sid, txt] of Object.entries(stored)) {
-        if (typeof txt === 'string' && txt !== '') clean[sid] = txt;
+        if (typeof txt === 'string' && txt !== '') zetEigen(clean, sid, txt);
       }
     }
     notesRef.current = clean;
     setNotes(clean);
-  }, [name, course.id]);
+  }, [name, course.id, preview]);
 
   // "✓ bewaard"-hintje netjes opruimen bij unmount.
   useEffect(() => () => {
@@ -317,7 +350,8 @@ function CourseReader({ course }: { course: Course }) {
   }, []);
 
   const changeNote = (sid: string, text: string) => {
-    const next = { ...notesRef.current, [sid]: text };
+    const next = { ...notesRef.current };
+    zetEigen(next, sid, text);
     notesRef.current = next;
     setNotes(next);
     noteDirtyRef.current.add(sid);
@@ -326,6 +360,7 @@ function CourseReader({ course }: { course: Course }) {
     noteTimerRef.current = window.setTimeout(() => {
       noteTimerRef.current = null;
       flushNotesRef.current();
+      if (preview) return; // niets bewaard, dus ook geen "bewaard"
       setNoteSaved(true);
       if (savedHintTimerRef.current !== null) window.clearTimeout(savedHintTimerRef.current);
       savedHintTimerRef.current = window.setTimeout(() => setNoteSaved(false), 1500);
@@ -340,7 +375,7 @@ function CourseReader({ course }: { course: Course }) {
       '',
     ];
     for (const { chapter, section } of flat) {
-      const txt = (notesRef.current[section.id] ?? '').trim();
+      const txt = noteOf(notesRef.current, section.id).trim();
       if (!txt) continue;
       lines.push(`${chapter.title} › ${section.title}`);
       lines.push(txt);
@@ -375,6 +410,8 @@ function CourseReader({ course }: { course: Course }) {
   const persist = () => {
     const p = progressRef.current;
     if (!p) return;
+    // Voorbeeld voor de leerkracht: de stand leeft alleen in dit scherm.
+    if (preview) return;
     const stored = getStudentProgress(p.courseId, p.studentName);
     const merged = stored ? mergeProgressRecords(stored, p) : p;
     // Klasidentiteit van dít tabblad behouden: mergeProgressRecords vertrekt
@@ -386,8 +423,10 @@ function CourseReader({ course }: { course: Course }) {
     // … en voor de checklist van de sectie die hier open staat (anders zou
     // een uitgevinkt item via de unie meteen weer aangevinkt raken)
     const sid = sectionIdRef.current;
-    if (sid && p.sections[sid] && merged.sections[sid]) {
-      merged.sections[sid] = { ...merged.sections[sid], checks: p.sections[sid].checks };
+    const mijnSectie = sid ? eigenOf(p.sections, sid) : undefined;
+    const bewaardeSectie = sid ? eigenOf(merged.sections, sid) : undefined;
+    if (sid && mijnSectie && bewaardeSectie) {
+      zetEigen(merged.sections, sid, { ...bewaardeSectie, checks: mijnSectie.checks });
     }
     progressRef.current = merged;
     saveStudentProgress(merged);
@@ -396,8 +435,13 @@ function CourseReader({ course }: { course: Course }) {
 
   const begin = (studentName: string) => {
     const n = studentName.trim() || 'Anoniem';
-    try { localStorage.setItem(nameKey, n); } catch { /* best effort */ }
-    const p = startProgress(course, n);
+    if (!preview) {
+      try { localStorage.setItem(nameKey, n); } catch { /* best effort */ }
+    }
+    // Voorbeeld: altijd een verse stand, nooit die van een echte leerling met dezelfde naam.
+    const p: CourseProgress = preview
+      ? { courseId: course.id, courseCode: course.code, studentName: n, sections: {}, lastSeenAt: Date.now(), startedAt: Date.now() }
+      : startProgress(course, n);
     if (studentCtx) {
       p.classId = studentCtx.classId;
       if (studentCtx.studentId) p.studentId = studentCtx.studentId;
@@ -420,6 +464,7 @@ function CourseReader({ course }: { course: Course }) {
   // Automatisch starten: naam al bekend van vorige keer, of geen naam vereist
   useEffect(() => {
     if (progressRef.current) return;
+    if (preview) { begin('Voorbeeld'); return; }
     let stored: string | null = null;
     try { stored = localStorage.getItem(nameKey); } catch { /* geen opslag */ }
     if (studentCtx) begin(studentCtx.studentName);
@@ -494,8 +539,8 @@ function CourseReader({ course }: { course: Course }) {
     if (!p || !sectionId) return;
     const sp = touchSection(p, sectionId);
     const checks = { ...(sp.checks ?? {}) };
-    const cur = checks[blockId] ?? [];
-    checks[blockId] = cur.includes(itemId) ? cur.filter((x) => x !== itemId) : [...cur, itemId];
+    const cur = eigenOf(checks, blockId) ?? [];
+    zetEigen(checks, blockId, cur.includes(itemId) ? cur.filter((x) => x !== itemId) : [...cur, itemId]);
     sp.checks = checks;
     persist();
     bump();
@@ -527,7 +572,8 @@ function CourseReader({ course }: { course: Course }) {
   const shellStyle: React.CSSProperties = {
     minHeight: '100vh',
     fontSize: a11y.scale !== 1 ? `${a11y.scale}em` : undefined,
-    ['--player-accent' as string]: accent,
+    // Een te lichte accentkleur wordt donkerder, zodat tekst en knoppen leesbaar blijven (W15d).
+    ['--player-accent' as string]: readableAccent(accent),
   } as React.CSSProperties;
   const shellClass = `player-shell ${a11y.calm ? 'calm' : ''} ${a11y.spacing ? 'spaced' : ''}`;
 
@@ -576,9 +622,10 @@ function CourseReader({ course }: { course: Course }) {
   const prev = idx > 0 ? flat[idx - 1] : undefined;
   const next = idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : undefined;
   const isLast = idx === flat.length - 1;
+  const zichtbareBlokken = cur ? leerlingBlokken(cur.section.blocks) : [];
   const pctDone = progressPercent(course, progress);
   const progressCode = encodeCourseProgress(progress);
-  const noteCount = flat.filter(({ section }) => (notes[section.id] ?? '').trim() !== '').length;
+  const noteCount = flat.filter(({ section }) => noteOf(notes, section.id).trim() !== '').length;
 
   const sidebar = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 16, height: '100%' }}>
@@ -640,22 +687,19 @@ function CourseReader({ course }: { course: Course }) {
               {ch.emoji && <span aria-hidden>{ch.emoji} </span>}{ch.title}
             </p>
             {visibleSections.map((s) => {
-              const sp = progress.sections[s.id];
+              const sp = eigenOf(progress.sections, s.id);
               const status = sp?.completedAt ? 'afgewerkt' : sp ? 'geopend' : 'nog niet gelezen';
               const StatusIcon = sp?.completedAt ? CircleCheck : sp ? CircleDot : Circle;
               const active = s.id === sectionId;
-              const hasNote = (notes[s.id] ?? '').trim() !== '';
+              const hasNote = noteOf(notes, s.id).trim() !== '';
               return (
                 <button
                   key={s.id}
+                  className="reader-toc-btn"
                   onClick={() => goTo(s.id)}
                   aria-current={active ? 'true' : undefined}
                   aria-label={`${s.title} — ${status}${hasNote ? ' — heeft notitie' : ''}`}
                   style={{
-                    display: 'flex', gap: 8, alignItems: 'flex-start', width: '100%',
-                    textAlign: 'left', padding: '7px 10px', marginBottom: 2,
-                    border: 'none', borderRadius: 'var(--radius-s)', cursor: 'pointer',
-                    font: 'inherit', fontSize: '0.92rem',
                     background: active ? 'var(--brand-soft)' : 'transparent',
                     color: active ? 'var(--brand)' : 'var(--text)',
                     fontWeight: active ? 700 : 500,
@@ -692,15 +736,17 @@ function CourseReader({ course }: { course: Course }) {
           </button>
         </div>
       )}
-      <div className="card" style={{ padding: '12px 14px', flex: 'none' }}>
-        <strong style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <QrIcon size={16} aria-hidden /> Voortgangscode
-        </strong>
-        <p className="hint" style={{ margin: '4px 0 8px' }}>
-          Werk je op je eigen toestel? Toon deze code aan je leerkracht (scannen) of kopieer ze.
-        </p>
-        <CodeQr value={progressCode} label="jouw leesvoortgang" size={140} copyLabel="Code kopiëren" />
-      </div>
+      {!preview && (
+        <div className="card" style={{ padding: '12px 14px', flex: 'none' }}>
+          <strong style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <QrIcon size={16} aria-hidden /> Voortgangscode
+          </strong>
+          <p className="hint" style={{ margin: '4px 0 8px' }}>
+            Werk je op je eigen toestel? Toon deze code aan je leerkracht (scannen) of kopieer ze.
+          </p>
+          <CodeQr value={progressCode} label="jouw leesvoortgang" size={140} copyLabel="Code kopiëren" />
+        </div>
+      )}
       {noteCount > 0 && (
         <button className="btn btn-ghost btn-sm" style={{ flex: 'none' }} onClick={exportNotes}>
           <DownloadIcon size={15} aria-hidden /> Mijn notities exporteren
@@ -727,7 +773,9 @@ function CourseReader({ course }: { course: Course }) {
           {course.settings.showProgressToStudent && (
             <span className="player-chip chip-brand" aria-label={`Voortgang: ${pctDone} procent`}>{pctDone}%</span>
           )}
-          <span className="player-chip"><User size={12} aria-hidden /> {name}</span>
+          {preview
+            ? <span className="player-chip chip-warn">Voorbeeld: niets bewaard</span>
+            : <span className="player-chip"><User size={12} aria-hidden /> {name}</span>}
           <span className="sp" />
           {studentCtx && (
             <Link to={`/leerling/${studentCtx.classCode}`} className="btn btn-sm btn-ghost">
@@ -783,12 +831,9 @@ function CourseReader({ course }: { course: Course }) {
         <main id="main" style={{ flex: 1, minWidth: 0 }}>
           <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 20px 90px', lineHeight: 1.7 }}>
             {!cur ? (
-              <>
-                <h1 className="sr-only">Deze cursus heeft nog geen inhoud</h1>
-                <EmptyState icon={<Inbox size={40} />} title="Deze cursus heeft nog geen inhoud">
-                  <p>Vraag je leerkracht om de cursus aan te vullen.</p>
-                </EmptyState>
-              </>
+              <EmptyState icon={<Inbox size={40} />} title="Deze cursus heeft nog geen inhoud" level={1}>
+                <p>Vraag je leerkracht om de cursus aan te vullen.</p>
+              </EmptyState>
             ) : (
               <>
                 <nav aria-label="Kruimelpad" style={{ color: 'var(--text-soft)', fontSize: '0.88rem', marginBottom: 4 }}>
@@ -817,18 +862,20 @@ function CourseReader({ course }: { course: Course }) {
                 )}
 
                 <div style={{ marginTop: 18 }}>
-                  {cur.section.blocks.map((block) => (
+                  {/* Blokken die de leerkracht nooit invulde, tonen een leerling niets (CU13). */}
+                  {zichtbareBlokken.map((block) => (
                     <BlockRenderer
                       key={block.id}
                       block={block}
                       interactive
                       studentName={name}
                       accent={accent}
-                      checkedIds={progress.sections[cur.section.id]?.checks?.[block.id] ?? []}
+                      preview={preview}
+                      checkedIds={eigenOf(eigenOf(progress.sections, cur.section.id)?.checks, block.id) ?? []}
                       onToggleCheck={(itemId) => toggleCheck(block.id, itemId)}
                     />
                   ))}
-                  {cur.section.blocks.length === 0 && (
+                  {zichtbareBlokken.length === 0 && (
                     <p className="hint">Deze sectie is nog leeg.</p>
                   )}
                 </div>
@@ -850,20 +897,22 @@ function CourseReader({ course }: { course: Course }) {
                   <textarea
                     className="textarea"
                     rows={3}
-                    value={notes[cur.section.id] ?? ''}
+                    value={noteOf(notes, cur.section.id)}
                     placeholder="Schrijf hier wat je wil onthouden van deze pagina…"
                     aria-label="Mijn notities bij deze sectie"
                     onChange={(e) => changeNote(cur.section.id, e.target.value)}
                     style={{ width: '100%', marginTop: 8 }}
                   />
                   <p className="hint" style={{ margin: '6px 0 0' }}>
-                    Alleen voor jou — je notities blijven op dit toestel en zitten níét in je voortgangscode.
+                    {preview
+                      ? 'Voorbeeld: notities worden hier niet bewaard.'
+                      : 'Alleen voor jou — je notities blijven op dit toestel en zitten níét in je voortgangscode.'}
                   </p>
                 </div>
 
                 {/* Sectie afronden + navigatie */}
                 <div style={{ textAlign: 'center', marginTop: 30 }}>
-                  {progress.sections[cur.section.id]?.completedAt ? (
+                  {eigenOf(progress.sections, cur.section.id)?.completedAt ? (
                     <span className="badge badge-ok" style={{ fontSize: '0.95rem', padding: '8px 16px' }}>
                       <CheckIcon size={15} aria-hidden /> Gelezen — je mag altijd nog eens nalezen
                     </span>
@@ -903,13 +952,17 @@ function CourseReader({ course }: { course: Course }) {
                     <div className="progressbar" aria-hidden style={{ maxWidth: 320, margin: '0 auto 16px' }}>
                       <div style={{ width: `${pctDone}%` }} />
                     </div>
-                    <p className="hint" style={{ margin: '0 0 8px' }}>
-                      Werk je op je eigen toestel? Bezorg je leerkracht je voortgangscode — laat
-                      hem de QR scannen, of kopieer de code.
-                    </p>
-                    <div style={{ display: 'flex', justifyContent: 'center' }}>
-                      <CodeQr value={progressCode} label="jouw leesvoortgang" size={170} copyLabel="Voortgangscode kopiëren" />
-                    </div>
+                    {!preview && (
+                      <>
+                        <p className="hint" style={{ margin: '0 0 8px' }}>
+                          Werk je op je eigen toestel? Bezorg je leerkracht je voortgangscode — laat
+                          hem de QR scannen, of kopieer de code.
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                          <CodeQr value={progressCode} label="jouw leesvoortgang" size={170} copyLabel="Voortgangscode kopiëren" />
+                        </div>
+                      </>
+                    )}
                     {studentCtx && (
                       <p style={{ margin: '12px 0 0' }}>
                         <Link to={`/leerling/${studentCtx.classCode}`}>← Terug naar mijn klas</Link>

@@ -137,7 +137,7 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'Hoe deel ik met collega\'s?',
-    a: 'Exporteer een widget of cursus als JSON-bestand, of deel een hele map in één keer als vakgroeppakket (dashboard → map → "Map delen"). Je collega importeert het bestand en heeft meteen alles, inclusief ingebedde oefeningen.',
+    a: 'Exporteer een widget of cursus als JSON-bestand, of deel een hele map in één keer als vakgroeppakket (bij Materiaal, Widgets: open de map, kies "Map" en dan "Delen als pakket"). Je collega importeert het bestand en heeft meteen alles, inclusief ingebedde oefeningen.',
   },
   {
     q: 'Kan ik terug naar een vorige versie?',

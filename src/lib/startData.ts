@@ -5,7 +5,7 @@
 // binnen. Zo is de kernvraag — "is dit een terugkerende leerkracht, en wat
 // moet ze eerst zien?" — met gewone waardes te testen, zonder localStorage.
 
-import { EXAMPLE_COURSE_ID } from './examples';
+import { EXAMPLE_COURSE_ID, EXAMPLE_FOLDER_ID } from './examples';
 import type { WidgetTypeId } from './types';
 
 // ── Wat telt als voorbeeldmateriaal? ────────────────────────────────────────
@@ -20,6 +20,15 @@ export function isExampleWidgetTitle(title: string): boolean {
   return EXAMPLE_WIDGET_PREFIXES.some((p) => title.startsWith(p));
 }
 
+/**
+ * Is deze widget voorbeeldmateriaal? Aan de titel ("Voorbeeld:", "Sjabloon:"), of
+ * omdat ze in de voorbeeldmap staat: de oefeningen van de voorbeeldcursus
+ * natuurwetenschappen dragen geen voorvoegsel maar wel die map (lib/examples.ts).
+ */
+export function isExampleWidgetEntry(w: { title: string; folderId?: string | null }): boolean {
+  return isExampleWidgetTitle(w.title) || w.folderId === EXAMPLE_FOLDER_ID;
+}
+
 /** Democursus (ensureDemoCourse) heet "Voorbeeldcursus: …"; de ingelezen
  * voorbeeldcursus natuurwetenschappen heeft het vaste id EXAMPLE_COURSE_ID. */
 export function isExampleCourse(course: { id: string; title: string }): boolean {
@@ -31,7 +40,7 @@ export function isExampleClassName(name: string): boolean {
 }
 
 export interface OwnMaterialInput {
-  widgets: { title: string }[];
+  widgets: { title: string; folderId?: string | null }[];
   courses: { id: string; title: string }[];
   classes: { name: string; students: unknown[] }[];
 }
@@ -42,7 +51,7 @@ export interface OwnMaterialInput {
  * startpagina het dashboard toont of de uitleg voor een eerste bezoek.
  */
 export function isReturningTeacher(input: OwnMaterialInput): boolean {
-  const hasOwnWidget = input.widgets.some((w) => !isExampleWidgetTitle(w.title));
+  const hasOwnWidget = input.widgets.some((w) => !isExampleWidgetEntry(w));
   if (hasOwnWidget) return true;
   const hasOwnCourse = input.courses.some((c) => !isExampleCourse(c));
   if (hasOwnCourse) return true;

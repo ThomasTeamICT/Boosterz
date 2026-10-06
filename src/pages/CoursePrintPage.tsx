@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { getCourse } from '../lib/courses';
 import { formatDateShort } from '../lib/utils';
 import { BlockRenderer } from '../components/course/BlockRenderer';
+import { leerlingBlokken } from '../components/course/emptyBlock';
 import { EmptyState } from '../components/ui';
 import { BackIcon, GoalIcon, PrintIcon } from '../components/icons';
 
@@ -13,16 +14,16 @@ export function CoursePrintPage() {
 
   if (!course) {
     return (
-      <div className="page page-narrow" style={{ paddingTop: 60 }}>
-        <EmptyState icon={<PrintIcon size={40} aria-hidden />} title="Cursus niet gevonden">
+      <main id="main" className="page page-narrow" style={{ paddingTop: 60 }}>
+        <EmptyState icon={<PrintIcon size={40} aria-hidden />} title="Cursus niet gevonden" level={1}>
           <Link to="/cursussen" className="btn btn-primary"><BackIcon size={18} aria-hidden /> Naar de cursussen</Link>
         </EmptyState>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 20px 60px' }}>
+    <main id="main" style={{ maxWidth: 760, margin: '0 auto', padding: '28px 20px 60px' }}>
       <style>{`
         @media print {
           .no-print { display: none !important; }
@@ -87,13 +88,14 @@ export function CoursePrintPage() {
                   </div>
                 </div>
               )}
-              {se.blocks.map((block) => (
+              {/* Lege blokken (geen afbeelding gekozen, geen oefening) horen niet op papier. */}
+              {leerlingBlokken(se.blocks).map((block) => (
                 <BlockRenderer key={block.id} block={block} interactive={false} />
               ))}
             </article>
           ))}
         </section>
       ))}
-    </div>
+    </main>
   );
 }

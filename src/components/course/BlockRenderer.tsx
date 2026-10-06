@@ -7,14 +7,15 @@ import {
 import type {
   AccordionBlock, AttachmentBlock, AudioBlock, CalloutBlock, ChecklistBlock,
   ColumnsBlock, CourseBlock, EmbedBlock, HeadingBlock, ImageBlock, PdfBlock,
-  QuoteBlock, TableBlock, TermsBlock, TextBlock, VideoBlock, WidgetBlock,
+  QuoteBlock, TableBlock, TermsBlock, VideoBlock, WidgetBlock,
 } from '../../lib/courseTypes';
 import { renderMarkdown } from '../../lib/markdown';
 import { bumpAttemptCount, getAttemptCount, getSubmissions, getWidget, saveSubmission } from '../../lib/storage';
 import { getStudentContext } from '../../lib/studentContext';
 import { getTypeDef, type WidgetTypeDef } from '../../widgets/registry';
 import type { PlayerResult } from '../../widgets/shared';
-import type { Submission } from '../../lib/types';
+import type { Submission, Widget } from '../../lib/types';
+import { readableAccent } from '../../lib/color';
 import { pct, uid } from '../../lib/utils';
 import { deletePdf, getPdf, savePdf } from '../../lib/pdfStore';
 import { isMediaRef, resolveMediaRef } from '../../lib/mediaStore';
@@ -45,6 +46,11 @@ export interface BlockRendererProps {
   onToggleCheck?: (itemId: string) => void;
   /** Accentkleur van de cursus (voor kaders en checkboxen). */
   accent?: string;
+  /**
+   * Voorbeeld voor de leerkracht ("Als leerling"): de oefeningen draaien in
+   * voorbeeldmodus en er wordt niets bewaard (geen inzendingen, geen pogingen).
+   */
+  preview?: boolean;
 }
 
 export function BlockRenderer(props: BlockRendererProps): JSX.Element {
@@ -75,7 +81,9 @@ function renderBlock(block: CourseBlock, interactive: boolean, props: BlockRende
     case 'table': return <TableView block={block} />;
     case 'terms': return <TermsView block={block} />;
     case 'checklist': return <ChecklistView block={block} interactive={interactive} props={props} />;
-    case 'widget': return <WidgetBlockView block={block} interactive={interactive} studentName={props.studentName} accent={props.accent} />;
+    // key op het oefening-id: een ander gekozen oefening begint met een schone lei
+    // (deadline, pogingen en inzending van de vorige horen er niet meer bij).
+    case 'widget': return <WidgetBlockView key={block.widgetId} block={block} interactive={interactive} studentName={props.studentName} accent={props.accent} preview={props.preview} />;
   }
 }
 
@@ -543,7 +551,7 @@ function ChecklistView({ block, interactive, props }: { block: ChecklistBlock; i
               type="checkbox"
               checked={checked.includes(it.id)}
               onChange={() => props.onToggleCheck?.(it.id)}
-              style={props.accent ? { accentColor: props.accent } : undefined}
+              style={props.accent ? { accentColor: readableAccent(props.accent) } : undefined}
             />
             <span style={checked.includes(it.id) ? { color: 'var(--text-soft)' } : undefined}>{it.text}</span>
           </label>
@@ -566,9 +574,12 @@ function ChecklistView({ block, interactive, props }: { block: ChecklistBlock; i
 
 // ── Ingebedde widget (het kroonjuweel) ──────────────────────────────────────
 
+const isExpired = (w: Widget | undefined) =>
+  !!w?.settings.expiresAt && Date.now() > new Date(w.settings.expiresAt).getTime();
+
 function WidgetBlockView({
-  block, interactive, studentName, accent,
-}: { block: WidgetBlock; interactive: boolean; studentName?: string; accent?: string }) {
+  block, interactive, studentName, accent, preview = false,
+}: { block: WidgetBlock; interactive: boolean; studentName?: string; accent?: string; preview?: boolean }) {
   // Memo: anders wordt de hele widgetstore herparset bij elke toetsaanslag elders op de pagina.
   const widget = useMemo(() => (block.widgetId ? getWidget(block.widgetId) : undefined), [block.widgetId]);
   let def: WidgetTypeDef | undefined;
@@ -586,32 +597,34 @@ function WidgetBlockView({
   const bumpedRef = useRef(false);
 
   // Dezelfde grenzen als de gewone speler: deadline en maximum aantal pogingen.
-  const expired = Boolean(
-    widget?.settings.expiresAt && Date.now() > new Date(widget.settings.expiresAt).getTime()
-  );
+  // De deadline houdt alleen het starten tegen. Daarom state, geen berekening
+  // per render (de cursuslezer hertekent bij elke toetsaanslag): wie al bezig is
+  // of net indiende, verliest zijn scherm niet wanneer de deadline intussen
+  // verstrijkt. Alleen een nieuwe poging (retry) kan dit nog omzetten.
+  const [expired, setExpired] = useState(() => isExpired(widget));
   const maxAttempts = widget?.settings.maxAttempts ?? 0;
   // 'sub' en 'attempt' zitten erin zodat de teller ververst na indienen
   // (onComplete bumpt en zet sub) en na "opnieuw proberen"
   const usedAttempts = useMemo(
-    () => (widget ? getAttemptCount(widget.id, name) : 0),
-    [widget?.id, name, attempt, sub] // eslint-disable-line react-hooks/exhaustive-deps
+    () => (widget && !preview ? getAttemptCount(widget.id, name) : 0),
+    [widget?.id, name, attempt, sub, preview] // eslint-disable-line react-hooks/exhaustive-deps
   );
   const attemptsLeft = maxAttempts > 0 ? Math.max(0, maxAttempts - usedAttempts) : Infinity;
 
   // Was er (op dit toestel) al eerder een inzending van deze leerling?
   const alreadySubmitted = useMemo(() => {
-    if (!widget) return false;
+    if (!widget || preview) return false;
     return getSubmissions(widget.id).some(
       (s) => s.studentName.trim().toLowerCase() === name.toLowerCase()
     );
     // 'attempt' zit erin zodat de badge na "opnieuw proberen" mee ververst
-  }, [widget?.id, name, attempt, sub]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [widget?.id, name, attempt, sub, preview]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Stabiele identiteit (net als in PlayerPage): zonder useCallback krijgt de
   // gememoiseerde speler hieronder bij elke render een nieuwe prop.
   // Klasidentiteit (naam gekozen uit de klaslijst) hoort ook op inzendingen
   // die ín een cursus gebeuren, anders matcht het klasoverzicht alleen op naam.
-  const studentCtx = useMemo(() => getStudentContext(), []);
+  const studentCtx = useMemo(() => (preview ? null : getStudentContext()), [preview]);
   const onComplete = useCallback((result: PlayerResult) => {
     // exact hetzelfde patroon als PlayerPage: guard tegen dubbel opslaan en
     // tegen lege "afrondingen" zonder inhoud
@@ -619,7 +632,8 @@ function WidgetBlockView({
     if (result.max === 0 && Object.keys(result.answers).length === 0) return;
     doneRef.current = true;
     // poging meetellen, zodat maxAttempts ook via de cursus geldt
-    if (!bumpedRef.current) {
+    // (niet in het voorbeeld voor de leerkracht: daar wordt niets bewaard)
+    if (!preview && !bumpedRef.current) {
       bumpedRef.current = true;
       bumpAttemptCount(widget.id, name);
     }
@@ -639,9 +653,9 @@ function WidgetBlockView({
       ...(studentCtx ? { classId: studentCtx.classId } : {}),
       ...(studentCtx?.studentId ? { studentId: studentCtx.studentId } : {}),
     };
-    saveSubmission(s);
+    if (!preview) saveSubmission(s);
     setSub(s);
-  }, [widget, def, name, studentCtx]);
+  }, [widget, def, name, studentCtx, preview]);
 
   // De ingebedde oefening is verreweg het duurste onderdeel van een cursusblok.
   // De cursuslezer hertekent bij elke toetsaanslag in het zoekveld of in een
@@ -649,9 +663,9 @@ function WidgetBlockView({
   const Speler = def?.Player;
   const playerNode = useMemo(
     () => (Speler && widget
-      ? <Speler key={attempt} widget={widget} studentName={name} preview={false} onComplete={onComplete} />
+      ? <Speler key={attempt} widget={widget} studentName={name} preview={preview} onComplete={onComplete} />
       : null),
-    [Speler, widget, name, attempt, onComplete]
+    [Speler, widget, name, attempt, onComplete, preview]
   );
 
   if (!widget || !def) {
@@ -678,6 +692,12 @@ function WidgetBlockView({
 
   const retry = () => {
     if (expired || attemptsLeft <= 0) return;
+    // De deadline kan verstreken zijn terwijl de leerling het resultaat las:
+    // een nieuwe poging kan dan niet meer, het resultaat blijft staan.
+    if (isExpired(widget)) {
+      setExpired(true);
+      return;
+    }
     doneRef.current = false;
     bumpedRef.current = false;
     startRef.current = Date.now();
@@ -695,7 +715,8 @@ function WidgetBlockView({
       className="card"
       style={{
         borderLeft: `4px solid ${accent ?? def.color}`,
-        ['--player-accent' as string]: widget.settings.accentColor,
+        // Een te lichte accentkleur wordt donkerder, zodat tekst en knoppen leesbaar blijven (W15d).
+        ['--player-accent' as string]: readableAccent(widget.settings.accentColor),
       } as React.CSSProperties}
     >
       <div
@@ -722,7 +743,7 @@ function WidgetBlockView({
         </p>
       )}
       <div style={{ padding: '16px 18px' }}>
-        {expired ? (
+        {expired && !sub ? (
           <div className="callout warn" style={{ marginBottom: 0 }}>
             <Clock size={18} aria-hidden />
             <div>Deze oefening is afgesloten — de deadline is verstreken.</div>
@@ -737,7 +758,7 @@ function WidgetBlockView({
           </div>
         ) : (
           // Suspense: de spelers uit de registry worden lui geladen (React.lazy)
-          <React.Suspense fallback={<div className="hint" role="status">Widget laden…</div>}>
+          <React.Suspense fallback={<div className="hint" role="status">Oefening laden…</div>}>
             {playerNode}
           </React.Suspense>
         )}
@@ -751,7 +772,10 @@ function WidgetBlockView({
             }}
           >
             <div style={{ flex: 1, minWidth: 180 }}>
-              <strong><CheckIcon size={15} aria-hidden /> Ingediend — goed gedaan!</strong>
+              <strong>
+                <CheckIcon size={15} aria-hidden />{' '}
+                {preview ? 'Klaar — in dit voorbeeld wordt niets bewaard.' : 'Ingediend — goed gedaan!'}
+              </strong>
               {showScore && (
                 <div style={{ fontSize: '0.92rem' }}>
                   Score: {sub.totalEarned}/{sub.totalMax} ({pct(sub.totalEarned, sub.totalMax)}%)
@@ -767,6 +791,11 @@ function WidgetBlockView({
               <button className="btn btn-sm btn-ghost" onClick={retry}>
                 <RotateCcw size={14} aria-hidden /> Opnieuw proberen{maxAttempts > 0 && ` (nog ${attemptsLeft})`}
               </button>
+            )}
+            {expired && (
+              <div className="hint" style={{ display: 'flex', alignItems: 'center', gap: 5, margin: 0 }}>
+                <Clock size={14} aria-hidden /> De deadline is verstreken: opnieuw proberen kan niet meer.
+              </div>
             )}
           </div>
         )}

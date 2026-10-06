@@ -624,11 +624,12 @@ function UploadEditor({ q, onChange }: { q: UploadQuestion; onChange: (q: Upload
       <div className="callout warn" role="note">
         <WarningIcon aria-hidden />
         <div>
-          Ingeleverde bestanden belanden in de browseropslag op <strong>jouw</strong> toestel,
-          en die opslag is beperkt. Hou de maximale grootte dus klein.
+          Een ingeleverd bestand blijft op het toestel van de leerling en reist <strong>niet</strong> mee
+          in de resultaatcode. Werkt een leerling thuis via een link, dan moet het bestand apart bij jou
+          geraken. De browseropslag is beperkt: hou de maximale grootte dus klein.
         </div>
       </div>
-      <p className="hint">Ingeleverde bestanden kijk je zelf na bij de resultaten.</p>
+      <p className="hint">Een bestand dat op jouw toestel is ingeleverd, kijk je na bij de resultaten.</p>
     </div>
   );
 }

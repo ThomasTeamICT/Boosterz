@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { EXAMPLE_COURSE_ID } from './examples';
+import { EXAMPLE_COURSE_ID, EXAMPLE_FOLDER_ID } from './examples';
 import {
   buildRecentItems, computeWeekCounts, EXAMPLE_CLASS_NAME, greeting, isExampleClassName,
-  isExampleCourse, isExampleWidgetTitle, isReturningTeacher, pickNextAssignment, relativeDay,
+  isExampleCourse, isExampleWidgetEntry, isExampleWidgetTitle, isReturningTeacher, pickNextAssignment,
+  relativeDay,
 } from './startData';
 
 describe('isExampleWidgetTitle', () => {
@@ -13,6 +14,21 @@ describe('isExampleWidgetTitle', () => {
   it('laat eigen titels met rust', () => {
     expect(isExampleWidgetTitle('Herhalingstoets hoofdstuk 3')).toBe(false);
     expect(isExampleWidgetTitle('')).toBe(false);
+  });
+});
+
+describe('isExampleWidgetEntry', () => {
+  it('herkent voorbeeldmateriaal aan de titel', () => {
+    expect(isExampleWidgetEntry({ title: 'Voorbeeld: quiz over België' })).toBe(true);
+    expect(isExampleWidgetEntry({ title: 'Sjabloon: exit-ticket', folderId: null })).toBe(true);
+  });
+  it('herkent de oefeningen van de voorbeeldcursus aan de voorbeeldmap', () => {
+    expect(isExampleWidgetEntry({ title: 'Begrippenquiz: krachten', folderId: EXAMPLE_FOLDER_ID })).toBe(true);
+  });
+  it('laat een eigen widget met rust, ook in een eigen map', () => {
+    expect(isExampleWidgetEntry({ title: 'Herhaling hoofdstuk 3' })).toBe(false);
+    expect(isExampleWidgetEntry({ title: 'Herhaling hoofdstuk 3', folderId: null })).toBe(false);
+    expect(isExampleWidgetEntry({ title: 'Herhaling hoofdstuk 3', folderId: 'mijn-map' })).toBe(false);
   });
 });
 
@@ -45,6 +61,37 @@ describe('isReturningTeacher', () => {
       classes: [{ name: EXAMPLE_CLASS_NAME, students: [{ id: '1' }, { id: '2' }] }],
     });
     expect(result).toBe(false);
+  });
+
+  it('is niet terugkerend met enkel de voorbeeldcursus en zijn oefeningen in de voorbeeldmap (CU12)', () => {
+    // De widgets van de voorbeeldcursus dragen geen "Voorbeeld:"-titel, wel de voorbeeldmap.
+    const result = isReturningTeacher({
+      widgets: [
+        { title: 'Begrippenquiz: krachten', folderId: EXAMPLE_FOLDER_ID },
+        { title: 'Koppelspel: soorten krachten', folderId: EXAMPLE_FOLDER_ID },
+        { title: 'Flitskaarten: hoofdstuk 1', folderId: EXAMPLE_FOLDER_ID },
+      ],
+      courses: [{ id: EXAMPLE_COURSE_ID, title: 'Natuurwetenschappen 1e graad' }],
+      classes: [],
+    });
+    expect(result).toBe(false);
+  });
+
+  it('is wel terugkerend zodra er naast de voorbeeldmap een eigen widget bijkomt (CU12)', () => {
+    expect(
+      isReturningTeacher({
+        widgets: [
+          { title: 'Begrippenquiz: krachten', folderId: EXAMPLE_FOLDER_ID },
+          { title: 'Mijn eigen quiz', folderId: null },
+        ],
+        courses: [{ id: EXAMPLE_COURSE_ID, title: 'Natuurwetenschappen 1e graad' }],
+        classes: [],
+      })
+    ).toBe(true);
+    // ook een widget in een eigen map telt als eigen werk
+    expect(
+      isReturningTeacher({ widgets: [{ title: 'Mijn quiz', folderId: 'frans' }], courses: [], classes: [] })
+    ).toBe(true);
   });
 
   it('is niet terugkerend zonder enig materiaal', () => {
