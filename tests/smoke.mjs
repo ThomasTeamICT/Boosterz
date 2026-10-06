@@ -1869,6 +1869,139 @@ check('kruiswoord: "huis" en "Huis" staan samen één keer in het rooster (0 / 2
 await go('/#/widgets');
 await go('/#/bewerk/smoke-ws-SMKKWD');
 check('kruiswoord-editor: melding over het dubbele woord', await page.locator('text=/Dubbele woorden staan maar één keer in het rooster/').first().isVisible());
+// ── 28. Leerlinghub: inleveren, voorlopige scores, Mijn voortgang ───────────
+console.log('28. Leerlinghub en Mijn voortgang (gsm)');
+{
+  const ctx28 = await browser.newContext({ viewport: { width: 390, height: 844 }, permissions: ['clipboard-read', 'clipboard-write'] });
+  const ll = await ctx28.newPage();
+  ll.on('pageerror', (e) => errors.push(`pageerror(hub): ${e.message}`));
+  ll.on('console', (m) => { if (m.type() === 'error' && !/ERR_CERT_AUTHORITY_INVALID|Failed to load resource/.test(m.text())) errors.push(`console(hub): ${m.text()}`); });
+  const goLl = async (hash) => { await ll.goto(BASE + hash, { waitUntil: 'networkidle' }); await sleep(500); };
+  const actief = () => ll.evaluate(() => { const a = document.activeElement; return { tag: a?.tagName ?? '', tekst: (a?.textContent ?? '').trim().slice(0, 60) }; });
+
+  const mkQ = (id, title, code, qs, showScore = true) => ({
+    id, type: 'quiz', title, folderId: null, code,
+    config: { layout: 'single', questions: qs },
+    settings: { accentColor: '#4f46e5', shuffle: false, showFeedback: true, showScore, timeLimitMin: 0, maxAttempts: 0, requireName: true, instructions: '' },
+    createdAt: Date.now(), updatedAt: Date.now(),
+  });
+  const mcQ = (id) => ({ id, type: 'mc', prompt: 'Vraag ' + id, points: 1, options: ['A', 'B', 'C'], correctIndex: 0 });
+  const wOpen = mkQ('w28open', 'Oefening met open vragen', 'SMK281', [mcQ('q1'), { id: 'q2', type: 'long', prompt: 'Leg uit', points: 3, modelAnswer: '' }]);
+  const wGeenScore = mkQ('w28geen', 'Oefening zonder score', 'SMK282', [mcQ('q1')], false);
+  const wGewoon = mkQ('w28gewoon', 'Gewone oefening', 'SMK283', [mcQ('q1')]);
+  const klas28 = { id: 'k28', name: '2B', code: 'SMK280', students: [{ id: 's1', name: 'Anna Peeters' }, { id: 's2', name: 'Bram Janssens' }], createdAt: 1, updatedAt: 1 };
+  const pack28 = {
+    v: 1, kind: 'klas', klas: klas28,
+    opdrachten: [wOpen, wGeenScore, wGewoon].map((w, i) => ({ id: 'a28' + i, classId: 'k28', kind: 'widget', targetId: w.id, createdAt: 10 - i, widget: w })),
+  };
+  const nu = Date.now();
+  const sub = (id, widget, naam, sid, extra) => ({
+    id, widgetId: widget.id, widgetCode: widget.code, studentName: naam, studentId: sid,
+    startedAt: nu - 90000, submittedAt: nu - extra.ago, durationSec: 60, answers: {},
+    itemScores: null, totalEarned: 3, totalMax: 4, status: 'graded', ...extra.rest,
+  });
+  const subsAnna = [
+    sub('sm28a', wOpen, 'Anna Peeters', 's1', { ago: 1000, rest: { status: 'submitted', totalEarned: 1, totalMax: 4, itemScores: { q1: { earned: 1, max: 1, mode: 'auto' }, q2: { earned: 0, max: 3, mode: 'pending' } } } }),
+    sub('sm28b', wGeenScore, 'Anna Peeters', 's1', { ago: 2000, rest: {} }),
+    sub('sm28c', wGewoon, 'Anna Peeters', 's1', { ago: 3000, rest: {} }),
+  ];
+  const zaaiInzendingen = (lijst) => ll.evaluate((l) => localStorage.setItem('wf.submissions.v1', JSON.stringify(l)), lijst);
+
+  await goLl('/#/klas/open?d=' + LZString.compressToEncodedURIComponent(JSON.stringify(pack28)));
+  await sleep(700);
+  check('klaspakket opent de leerlinghub met de naamlijst', /#\/leerling\/SMK280/i.test(ll.url()) && await ll.getByRole('heading', { name: /Wie ben jij/ }).isVisible());
+
+  // A11Y6: na het kiezen van een naam landt de focus op de begroeting, niet op body
+  await ll.getByRole('button', { name: /Anna Peeters/ }).click();
+  await sleep(400);
+  const naKiezen = await actief();
+  check(`focus valt na het kiezen op de begroeting (${naKiezen.tag} "${naKiezen.tekst}")`, naKiezen.tag === 'H1' && /^Dag Anna/.test(naKiezen.tekst));
+
+  await zaaiInzendingen(subsAnna);
+  await ll.reload({ waitUntil: 'networkidle' });
+  await sleep(700);
+  const naLaden = await actief();
+  check('bij het laden met een bekende leerling pakt de focus niets af', naLaden.tag !== 'H1');
+  check('hub: één main en één h1', (await ll.locator('main').count()) === 1 && (await ll.locator('h1').count()) === 1);
+
+  // KL7 + Nieuw-2: voorlopige score, "Score tonen" uit
+  const regel = async (titel) => ((await ll.locator('article', { hasText: titel }).first().locator('p.hint').first().innerText()) || '').replace(/\s+/g, ' ').trim();
+  const r1 = await regel('Oefening met open vragen');
+  check(`open vragen wachten: "${r1}" zonder percentage`, /^Ingediend · nog na te kijken$/.test(r1));
+  const r2 = await regel('Oefening zonder score');
+  check(`"Score tonen" uit: "${r2}" zonder percentage`, r2 === 'Ingediend');
+  const r3 = await regel('Gewone oefening');
+  check(`nagekeken oefening toont het percentage: "${r3}"`, r3 === 'Ingediend · 75%');
+
+  const inlever = ll.locator('section[aria-label=Inleveren]');
+  const kaart = (titel) => inlever.locator('div.card', { hasText: titel }).first();
+  check('inlevercode van een wachtende oefening: percentage als voorlopig', /25% \(voorlopig\)/.test(await kaart('Oefening met open vragen').innerText()));
+  const kaartGeen = await kaart('Oefening zonder score').innerText();
+  check('inlevercode van een oefening zonder score toont geen percentage', !/%/.test(kaartGeen));
+  const kaartGewoon = await kaart('Gewone oefening').innerText();
+  check('inlevercode van een nagekeken oefening: percentage zonder "voorlopig"', /75%/.test(kaartGewoon) && !/voorlopig/.test(kaartGewoon));
+
+  // LL2: kopiëren vinkt niets af, "Doorgegeven" wel, en terugzetten kan
+  const gewoon = kaart('Gewone oefening');
+  await gewoon.getByRole('button', { name: /Toon mijn code/ }).click();
+  await sleep(500);
+  await gewoon.getByRole('button', { name: /^Kopiëren$/ }).click();
+  await sleep(500);
+  check('na "Kopiëren" meldt de app dat de code gekopieerd is', await ll.getByText(/Code gekopieerd/).first().isVisible());
+  check('na "Kopiëren" staat de code er nog (niet afgevinkt)', (await gewoon.getByRole('button', { name: /Doorgegeven/ }).count()) === 1 && (await gewoon.getByRole('button', { name: /^Kopiëren$/ }).count()) === 1);
+  check('na "Kopiëren" is er niets doorgegeven opgeslagen', (await ll.evaluate(() => JSON.parse(localStorage.getItem('wf.handed.v1') || '[]').length)) === 0);
+  check('zonder doorgegeven codes is er geen knop "Toon doorgegeven codes"', (await inlever.getByRole('button', { name: /Toon doorgegeven codes/ }).count()) === 0);
+
+  await gewoon.getByRole('button', { name: /Doorgegeven/ }).click();
+  await sleep(400);
+  check('na "Doorgegeven" verdwijnt de kaart uit de lijst', (await inlever.locator('div.card', { hasText: 'Gewone oefening' }).count()) === 0);
+  const toon = inlever.getByRole('button', { name: 'Toon doorgegeven codes' });
+  check('"Toon doorgegeven codes" staat er, dicht', (await toon.count()) === 1 && (await toon.getAttribute('aria-expanded')) === 'false');
+  await toon.click();
+  await sleep(300);
+  check('"Toon doorgegeven codes" toont de afgevinkte code', (await toon.getAttribute('aria-expanded')) === 'true' && /Gewone oefening/.test(await inlever.locator('#doorgegeven-codes').innerText()));
+  const hoogtes = await Promise.all([toon, inlever.getByRole('button', { name: /Toch opnieuw tonen/ }).first()].map(async (b) => (await b.boundingBox())?.height ?? 0));
+  check(`de nieuwe knoppen zijn minstens 44 px hoog (${hoogtes.map((h) => Math.round(h)).join(' en ')})`, hoogtes.every((h) => h >= 43.5));
+  await inlever.getByRole('button', { name: /Toch opnieuw tonen/ }).first().click();
+  await sleep(500);
+  check('"Toch opnieuw tonen" zet de code terug in de lijst', (await inlever.locator('div.card', { hasText: 'Gewone oefening' }).count()) >= 1 && (await ll.evaluate(() => JSON.parse(localStorage.getItem('wf.handed.v1') || '[]').length)) === 0);
+  const naTerugzetten = await actief();
+  check(`na terugzetten staat de focus op "Toon mijn code" (${naTerugzetten.tag} "${naTerugzetten.tekst}")`, /Toon mijn code/.test(naTerugzetten.tekst));
+
+  // LL6: Bram ziet niet standaard de resultaten van Anna
+  await ll.getByRole('button', { name: /Niet jij\? Wissel\./ }).click();
+  await sleep(300);
+  await ll.getByRole('button', { name: /Bram Janssens/ }).click();
+  await sleep(400);
+  await goLl('/#/voortgang');
+  check('Mijn voortgang: één main en één h1', (await ll.locator('main').count()) === 1 && (await ll.locator('h1').count()) === 1);
+  check('Mijn voortgang: Bram staat geselecteerd, niet Anna', (await ll.locator('#voortgang-naam').inputValue()) === 'Bram Janssens');
+  const bramTekst = await ll.locator('main').innerText();
+  check('Mijn voortgang: Bram ziet de pogingen van Anna niet', !/Poging 1/.test(bramTekst) && /Geen inzendingen voor deze naam/.test(bramTekst));
+
+  // zonder klasidentiteit en met twee namen: eerst zelf kiezen, export uit tot dan
+  await ll.evaluate(() => localStorage.removeItem('wf.student.v1'));
+  await zaaiInzendingen([...subsAnna, sub('sm28d', wGewoon, 'Bram Janssens', 's2', { ago: 500, rest: {} })]);
+  await ll.reload({ waitUntil: 'networkidle' });
+  await sleep(600);
+  check('twee namen, geen identiteit: de keuze staat op "Kies je naam"', (await ll.locator('#voortgang-naam').inputValue()) === '' && (await ll.locator('#voortgang-naam option', { hasText: 'Kies je naam' }).count()) === 1);
+  check('twee namen, geen identiteit: exporteren is uitgeschakeld', await ll.getByRole('button', { name: /Voortgang.*exporteren/ }).isDisabled());
+  check('twee namen, geen identiteit: geen pogingen van iemand getoond', (await ll.locator('section[aria-label^="Voortgang voor"]').count()) === 0 && /Kies eerst je naam/.test(await ll.locator('main').innerText()));
+  await ll.locator('#voortgang-naam').selectOption('Anna Peeters');
+  await sleep(300);
+  check('na een naam kiezen verschijnen de pogingen en kan er geëxporteerd worden', (await ll.locator('section[aria-label^="Voortgang voor"]').count()) >= 1 && await ll.getByRole('button', { name: /Voortgang van Anna Peeters exporteren/ }).isEnabled());
+
+  // precies één naam: die is meteen gekozen; en de widgetwoorden zijn weg
+  await zaaiInzendingen([...subsAnna, sub('sm28e', { id: 'weg28', code: 'WEG280' }, 'Anna Peeters', 's1', { ago: 4000, rest: {} })]);
+  await ll.reload({ waitUntil: 'networkidle' });
+  await sleep(600);
+  check('precies één naam op het toestel: die is gekozen', (await ll.locator('#voortgang-naam').inputValue()) === 'Anna Peeters');
+  const voortgangTekst = await ll.locator('main').innerText();
+  check('een oefening die niet meer op het toestel staat heet "oefening", niet "widget"', /Deze oefening staat niet \(meer\) op dit toestel/.test(voortgangTekst) && !/widget/i.test(voortgangTekst));
+  check('het logo gaat naar /meedoen (leerlingschil), niet naar de startpagina', (await ll.locator('header a.topbar-logo').getAttribute('href')) === '#/meedoen');
+
+  await ctx28.close();
+}
 
 // ── Slot ────────────────────────────────────────────────────────────────────
 console.log('\n──────────');

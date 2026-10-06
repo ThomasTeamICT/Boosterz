@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Calendar, Clock, CloudSun, ClipboardList, Package, Play, Puzzle, Send, TrendingUp, User,
@@ -7,8 +7,10 @@ import type { Assignment, ClassGroup, ClassStudent, StudentContext } from '../li
 import type { Submission } from '../lib/types';
 import {
   clearStudentContext, dueBadge, getStudentContext, handedOverKeys, loadClassContext, markHandedOver,
-  matchesStudent, setStudentContext, sortedStudents, statusForAssignment, type ClassDataContext,
+  matchesStudent, setStudentContext, sortedStudents, statusForAssignment, unmarkHandedOver,
+  type AssignmentStatus, type ClassDataContext,
 } from '../lib/classes';
+import { awaitsGrading } from '../lib/goals';
 import { findStudentClass } from '../lib/classPack';
 import { encodeCourseProgress, getCourse, getStudentProgress } from '../lib/courses';
 import { encodeSubmission } from '../lib/share';
@@ -43,6 +45,10 @@ export function ClassStudentPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const ctx = useMemo(() => loadClassContext(view?.assignments ?? []), [view, tick]);
   const [context, setContext] = useState<StudentContext | null>(() => getStudentContext());
+  // Na het kiezen van een naam verdwijnt de naamlijst, dus ook de knop waar de focus op
+  // stond: zonder verhuizing valt ze op body. Alleen na kiezen, niet bij het laden.
+  const kopRef = useRef<HTMLHeadingElement>(null);
+  const focusNaKiezen = useRef(false);
 
   // Een bewaarde identiteit geldt alleen binnen deze klas.
   const student: ClassStudent | null = useMemo(() => {
@@ -51,6 +57,13 @@ export function ClassStudentPage() {
     const known = view.cls.students.find((s) => s.id === context.studentId);
     return known ?? { id: context.studentId, name: context.studentName };
   }, [view, context]);
+
+  useEffect(() => {
+    if (student && focusNaKiezen.current) {
+      focusNaKiezen.current = false;
+      kopRef.current?.focus();
+    }
+  }, [student]);
 
   if (!view) {
     return (
@@ -84,6 +97,7 @@ export function ClassStudentPage() {
       studentId: id,
       studentName: name,
     };
+    focusNaKiezen.current = true;
     setStudentContext(ctxNew);
     setContext(ctxNew);
   };
@@ -116,7 +130,7 @@ export function ClassStudentPage() {
         ) : (
           <>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-              <h1 style={{ fontSize: '1.4rem', margin: '4px 0' }}>Dag {student.name.split(' ')[0]}!</h1>
+              <h1 ref={kopRef} tabIndex={-1} style={{ fontSize: '1.4rem', margin: '4px 0' }}>Dag {student.name.split(' ')[0]}!</h1>
               <button className="btn btn-sm btn-quiet" onClick={wissel}>Niet jij? Wissel.</button>
             </div>
 
@@ -241,6 +255,20 @@ function NamePicker({ cls, onPick }: { cls: ClassGroup; onPick: (name: string, i
 
 // ── Opdrachten ──────────────────────────────────────────────────────────────
 
+/**
+ * De regel onder een ingediende oefening. Een score die nog niet klopt tonen we
+ * niet: open vragen die nog nagekeken moeten worden staan als 0 in het totaal.
+ * Zet de leerkracht "Score tonen aan de leerling" uit, dan verschijnt ook nooit
+ * een percentage (net als in de speler zelf).
+ */
+function ingediendTekst(status: AssignmentStatus, toonScore: boolean): string {
+  const delen = ['Ingediend'];
+  if (status.needsGrading) delen.push('nog na te kijken');
+  else if (toonScore && status.scorePct !== null) delen.push(`${status.scorePct}%`);
+  if (status.attempts > 1) delen.push(`${status.attempts} pogingen`);
+  return delen.join(' · ');
+}
+
 function AssignmentList({
   assignments, student, ctx, onOpen,
 }: {
@@ -295,7 +323,7 @@ function AssignmentList({
               {status.state === 'ingediend'
                 ? a.kind === 'course'
                   ? 'Je las alles — knap!'
-                  : `Ingediend${status.scorePct !== null ? ` · ${status.scorePct}%` : ''}${status.attempts > 1 ? ` · ${status.attempts} pogingen` : ''}`
+                  : ingediendTekst(status, widget?.settings.showScore !== false)
                 : status.state === 'bezig'
                   ? status.progressPct !== null
                     ? `Bezig · ${status.progressPct}% gelezen`
@@ -345,6 +373,10 @@ function HandInSection({
   ctx: ClassDataContext;
 }) {
   const [tick, setTick] = useState(0);
+  const [toonDoorgegeven, setToonDoorgegeven] = useState(false);
+  // De code die de leerling net terugzette: daar gaat de focus naartoe.
+  const [teruggezet, setTeruggezet] = useState<string | null>(null);
+  const toast = useToast();
 
   const items = useMemo<HandInItem[]>(() => {
     const out: HandInItem[] = [];
@@ -354,10 +386,14 @@ function HandInSection({
       .sort((a, b) => b.submittedAt - a.submittedAt);
     for (const sub of mine) {
       const widget = getWidget(sub.widgetId);
+      const toonScore = widget?.settings.showScore !== false && sub.totalMax > 0;
+      const score = toonScore
+        ? ` · ${Math.round((sub.totalEarned / sub.totalMax) * 100)}%${awaitsGrading(sub) ? ' (voorlopig)' : ''}`
+        : '';
       out.push({
         key: `sub:${sub.id}`,
         title: widget?.title ?? 'Oefening',
-        subtitle: `${formatDate(sub.submittedAt)}${sub.totalMax > 0 ? ` · ${Math.round((sub.totalEarned / sub.totalMax) * 100)}%` : ''}`,
+        subtitle: `${formatDate(sub.submittedAt)}${score}`,
         make: () => encodeSubmission(sub),
       });
     }
@@ -389,7 +425,15 @@ function HandInSection({
   // Eén keer lezen: anders gaat de lijst per item naar de opslag.
   const handed = new Set(handedOverKeys());
   const open = items.filter((i) => !handed.has(i.key));
-  const done = items.length - open.length;
+  const doorgegeven = items.filter((i) => handed.has(i.key));
+  const done = doorgegeven.length;
+
+  const zetTerug = (item: HandInItem) => {
+    unmarkHandedOver(item.key);
+    setTeruggezet(item.key);
+    setTick((t) => t + 1);
+    toast(`“${item.title}” staat weer in de lijst`, 'ok');
+  };
 
   return (
     <section className="card card-pad" style={{ marginTop: 18 }} aria-label="Inleveren">
@@ -405,7 +449,8 @@ function HandInSection({
         <>
           <p style={{ color: 'var(--text-soft)', marginTop: 0 }}>
             Werkte je op je eigen toestel? Toon deze QR-code aan je leerkracht (of kopieer ze en
-            stuur ze door). {done > 0 && <>Je gaf er al {done} door.</>}
+            stuur ze door). Kreeg je leerkracht ze? Tik dan op <strong>Doorgegeven</strong>.{' '}
+            {done > 0 && <>Je gaf er al {done} door.</>}
           </p>
           {open.length === 0 ? (
             <p className="hint" role="status" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -414,15 +459,58 @@ function HandInSection({
           ) : (
             <div style={{ display: 'grid', gap: 10 }}>
               {open.map((item) => (
-                <HandInCard key={item.key} item={item} onHandedOver={() => setTick((t) => t + 1)} />
+                <HandInCard
+                  key={item.key}
+                  item={item}
+                  focusOnMount={item.key === teruggezet}
+                  onHandedOver={() => setTick((t) => t + 1)}
+                />
               ))}
             </div>
           )}
           {done > 0 && (
-            <p className="hint" style={{ marginTop: 10, marginBottom: 0 }}>
-              Al doorgegeven verdwijnt uit deze lijst. Vroeg je leerkracht het toch nog eens? Dien
-              dan gewoon opnieuw in, of gebruik <Link to="/voortgang">Mijn voortgang</Link>.
-            </p>
+            <div style={{ marginTop: 10 }}>
+              <p className="hint" style={{ marginTop: 0, marginBottom: 8 }}>
+                Al doorgegeven verdwijnt uit deze lijst. Vroeg je leerkracht het toch nog eens?
+                Toon dan de doorgegeven codes weer.
+              </p>
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost leerling-tap-target"
+                aria-expanded={toonDoorgegeven}
+                aria-controls="doorgegeven-codes"
+                onClick={() => setToonDoorgegeven((v) => !v)}
+              >
+                Toon doorgegeven codes
+              </button>
+              {toonDoorgegeven && (
+                <ul
+                  id="doorgegeven-codes"
+                  aria-label="Doorgegeven codes"
+                  style={{ listStyle: 'none', margin: '10px 0 0', padding: 0, display: 'grid', gap: 8 }}
+                >
+                  {doorgegeven.map((item) => (
+                    <li
+                      key={item.key}
+                      className="card"
+                      style={{ padding: '10px 14px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}
+                    >
+                      <span style={{ flex: '1 1 160px' }}>
+                        <strong>{item.title}</strong> <span className="hint">{item.subtitle}</span>
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-ghost leerling-tap-target"
+                        aria-label={`Toch opnieuw tonen: ${item.title}, ${item.subtitle}`}
+                        onClick={() => zetTerug(item)}
+                      >
+                        Toch opnieuw tonen
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
         </>
       )}
@@ -430,11 +518,19 @@ function HandInSection({
   );
 }
 
-function HandInCard({ item, onHandedOver }: { item: HandInItem; onHandedOver: () => void }) {
+function HandInCard({
+  item, onHandedOver, focusOnMount = false,
+}: { item: HandInItem; onHandedOver: () => void; focusOnMount?: boolean }) {
   const toast = useToast();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const toonRef = useRef<HTMLButtonElement>(null);
+
+  // Een code die de leerling net terugzette: de knop waar de focus stond is verdwenen.
+  useEffect(() => {
+    if (focusOnMount) toonRef.current?.focus();
+  }, [focusOnMount]);
 
   const maak = async () => {
     setBusy(true);
@@ -451,9 +547,8 @@ function HandInCard({ item, onHandedOver }: { item: HandInItem; onHandedOver: ()
   const kopieer = async () => {
     try {
       await navigator.clipboard.writeText(code);
+      // Bewust niets afvinken: gekopieerd is nog niet aangekomen. Alleen "Doorgegeven" vinkt af.
       toast('Code gekopieerd — stuur ze naar je leerkracht', 'ok');
-      markHandedOver(item.key);
-      onHandedOver();
     } catch {
       toast('Kopiëren lukte niet — selecteer de code en kopieer ze zelf', 'err');
     }
@@ -466,7 +561,7 @@ function HandInCard({ item, onHandedOver }: { item: HandInItem; onHandedOver: ()
         <span className="hint">{item.subtitle}</span>
       </div>
       {!code ? (
-        <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} disabled={busy} onClick={() => { void maak(); }}>
+        <button ref={toonRef} className="btn btn-primary btn-sm" style={{ marginTop: 8 }} disabled={busy} onClick={() => { void maak(); }}>
           {busy ? 'Code wordt gemaakt…' : <><QrIcon size={15} aria-hidden /> Toon mijn code</>}
         </button>
       ) : (

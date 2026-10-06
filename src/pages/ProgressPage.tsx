@@ -69,10 +69,16 @@ export function ProgressPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const studentCtx = useMemo(() => getStudentContext(), [tick]);
   const [gekozen, setGekozen] = useState<string | null>(() => getStudentContext()?.studentName ?? null);
-  // canonieke schrijfwijze teruggeven: anders toont de select niets wanneer
-  // dezelfde naam later met andere hoofdletters opnieuw indient
-  const actieveNaam =
-    (gekozen && namen.find((n) => n.toLowerCase() === gekozen.toLowerCase())) || (namen[0] ?? '');
+  // Wie is er aan het kijken? Nooit stilzwijgend de resultaten van iemand anders
+  // tonen (en exporteren): met een gekozen of klasnaam is dat die naam, ook als
+  // er nog niets van die naam is (dan volgt de lege staat). Zonder naam alleen als
+  // er precies één naam op dit toestel is; anders kiest de leerling eerst zelf.
+  // De canonieke schrijfwijze geven we terug: anders toont de select niets wanneer
+  // dezelfde naam later met andere hoofdletters opnieuw indient.
+  const actieveNaam = gekozen
+    ? (namen.find((n) => n.toLowerCase() === gekozen.toLowerCase()) ?? gekozen)
+    : (namen.length === 1 ? namen[0] : '');
+  const opties = namen.includes(actieveNaam) || !actieveNaam ? namen : [actieveNaam, ...namen];
 
   // ── Voortgang meenemen naar een ander toestel ─────────────────────────────
   const toast = useToast();
@@ -113,9 +119,10 @@ export function ProgressPage() {
   };
 
   const groepen = useMemo<WidgetGroep[]>(() => {
-    const mijn = subs.filter(
-      (s) => s.studentName.trim().toLowerCase() === actieveNaam.trim().toLowerCase()
-    );
+    // zonder naam niets tonen: een inzending zonder naam hoort niet bij "niemand"
+    const mijn = actieveNaam
+      ? subs.filter((s) => s.studentName.trim().toLowerCase() === actieveNaam.trim().toLowerCase())
+      : [];
     const map = new Map<string, WidgetGroep>();
     for (const s of mijn) {
       let g = map.get(s.widgetId);
@@ -141,7 +148,7 @@ export function ProgressPage() {
   return (
     <div className="player-shell" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <header className="player-topbar">
-        <Link to="/" className="topbar-logo" style={{ fontSize: '1.05rem' }}>
+        <Link to="/meedoen" className="topbar-logo" style={{ fontSize: '1.05rem' }}>
           <BrandMark size={28} />
           <span className="wordmark">Booster<b>z</b></span>
         </Link>
@@ -210,9 +217,10 @@ export function ProgressPage() {
                 id="voortgang-naam"
                 className="select"
                 value={actieveNaam}
-                onChange={(e) => setGekozen(e.target.value)}
+                onChange={(e) => setGekozen(e.target.value || null)}
               >
-                {namen.map((n) => (
+                {!actieveNaam && <option value="">Kies je naam</option>}
+                {opties.map((n) => (
                   <option key={n.toLowerCase()} value={n}>{n}</option>
                 ))}
               </select>
@@ -224,7 +232,8 @@ export function ProgressPage() {
                 <button
                   className="btn btn-sm btn-ghost"
                   onClick={exporteerVoortgang}
-                  aria-label={`Voortgang van ${actieveNaam} exporteren als bestand`}
+                  disabled={!actieveNaam}
+                  aria-label={actieveNaam ? `Voortgang van ${actieveNaam} exporteren als bestand` : 'Voortgang exporteren als bestand (kies eerst je naam)'}
                 >
                   <ExportIcon size={15} aria-hidden /> Voortgang exporteren
                 </button>
@@ -243,7 +252,11 @@ export function ProgressPage() {
               </span>
             </div>
 
-            {groepen.length === 0 ? (
+            {!actieveNaam ? (
+              <EmptyState icon={<StudentIcon size={40} />} title="Kies eerst je naam">
+                <p>Kies hierboven je naam om je pogingen te zien.</p>
+              </EmptyState>
+            ) : groepen.length === 0 ? (
               <EmptyState icon={<SearchIcon size={40} />} title="Geen inzendingen voor deze naam">
                 <p>Kies hierboven een andere naam.</p>
               </EmptyState>
@@ -295,7 +308,7 @@ function WidgetGroepKaart({ groep }: { groep: WidgetGroep }) {
       </div>
       {!groep.titel && (
         <p className="hint" style={{ color: 'var(--text-soft)', fontSize: '0.82rem', margin: '0 0 6px' }}>
-          Deze widget staat niet (meer) op dit toestel — je speelde ze wellicht via een draagbare link.
+          Deze oefening staat niet (meer) op dit toestel — je speelde ze wellicht via een draagbare link.
         </p>
       )}
 
