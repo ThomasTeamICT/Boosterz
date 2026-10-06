@@ -116,8 +116,8 @@ function TimelineView({ events, timeUp, onComplete }: { events: TimelineEvent[];
           </button>
         </div>
       )}
-      {completed && !timedOut && <p style={{ textAlign: 'center', color: 'var(--ok)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><CheckIcon size={16} aria-hidden /> Geregistreerd — goed bezig!</p>}
-      {timedOut && <p role="status" style={{ textAlign: 'center', color: 'var(--text-soft)', fontWeight: 700 }}>De tijd is om. Je bezoek is geregistreerd.</p>}
+      {completed && !timedOut && <p style={{ textAlign: 'center', color: 'var(--ok)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><CheckIcon size={16} aria-hidden /> Klaar: je hebt de hele tijdlijn gelezen.</p>}
+      {timedOut && <p role="status" style={{ textAlign: 'center', color: 'var(--text-soft)', fontWeight: 700 }}>De tijd is om. De tijdlijn is afgesloten.</p>}
     </div>
   );
 }

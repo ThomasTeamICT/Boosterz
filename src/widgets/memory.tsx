@@ -142,7 +142,7 @@ export function MemoryPlayer({ widget, timeUp, onComplete }: PlayerProps<MemoryC
         <span className="badge badge-ok"><CheckIcon size={14} className="icon-inline" aria-hidden /> {matched.size} / {totalPairs} paren</span>
         <span className="badge"><GoalIcon size={14} className="icon-inline" aria-hidden /> {tries} pogingen</span>
       </GameStatus>
-      <div className="memory-grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, maxWidth: cols * 130 }}>
+      <div className="memory-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, maxWidth: cols * 130 }}>
         {cards.map((c) => {
           const isFlipped = open.includes(c.key) || matched.has(c.pairId);
           return (

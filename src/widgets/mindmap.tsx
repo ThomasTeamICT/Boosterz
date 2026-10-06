@@ -410,7 +410,7 @@ function MindmapView({ root, outline, timeUp, onComplete }: {
         </div>
       ) : (
         <p role="status" style={{ textAlign: 'center', color: 'var(--ok)', fontWeight: 700, marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-          <CheckIcon size={16} aria-hidden /> Geregistreerd — goed bezig!
+          <CheckIcon size={16} aria-hidden /> Klaar: je hebt de mindmap bekeken.
         </p>
       )}
     </div>
