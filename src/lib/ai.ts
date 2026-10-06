@@ -95,12 +95,183 @@ export function getAISettings(): AISettings {
   }
 }
 
-export function saveAISettings(s: AISettings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+/**
+ * Bewaart de instellingen. Geeft false terug als de opslag van de browser
+ * weigert (vol, geblokkeerd of privévenster): de oproeper meldt dat dan,
+ * in plaats van dat de pagina met een renderfout stopt.
+ */
+export function saveAISettings(s: AISettings): boolean {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function hasAIKey(): boolean {
   return getAISettings().apiKey.trim().length > 0;
+}
+
+// ── Adres van de aanbieder en controle van de sleutel ───────────────────────
+
+const PROVIDER_ENDPOINTS: Record<Exclude<AIProviderId, 'custom'>, string> = {
+  anthropic: 'https://api.anthropic.com/v1/messages',
+  openai: 'https://api.openai.com/v1/chat/completions',
+  // Gemini spreekt het OpenAI-compatibele protocol, maar op een eigen pad
+  // (…/v1beta/openai/chat/completions — zonder extra /v1 ervoor).
+  gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+};
+
+/**
+ * Mag dit basisadres van een eigen aanbieder de sleutel ontvangen? Alleen
+ * https://, of http:// naar dit toestel zelf (localhost of 127.0.0.1, met of
+ * zonder poort). Een adres zonder schema zou een relatieve url worden en de
+ * sleutel naar de eigen website sturen; http naar een ander toestel stuurt
+ * hem onversleuteld over het netwerk.
+ */
+export function isAllowedBaseUrl(raw: string | undefined): boolean {
+  const u = (raw ?? '').trim();
+  if (!u || /[\s?#]/.test(u)) return false;
+  const https = /^https:\/\/[^/\s]/i.test(u);
+  const local = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(u);
+  if (!https && !local) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(u);
+  } catch {
+    return false;
+  }
+  // Gebruikersnaam of wachtwoord in het adres: fetch weigert dat, en het
+  // verbergt waar de aanvraag echt naartoe gaat.
+  if (parsed.username || parsed.password) return false;
+  if (parsed.protocol === 'https:') return parsed.hostname.length > 0;
+  return parsed.protocol === 'http:' && (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1');
+}
+
+/**
+ * Het volledige adres waar een AI-aanvraag (mét sleutel) naartoe gaat. Voor
+ * een eigen aanbieder zonder geldig basisadres volgt een AIError, nog vóór er
+ * iets verstuurd wordt.
+ */
+export function aiEndpoint(s: Pick<AISettings, 'provider' | 'baseUrl'>): string {
+  if (s.provider !== 'custom') return PROVIDER_ENDPOINTS[s.provider];
+  const base = (s.baseUrl ?? '').trim();
+  if (!base) {
+    throw new AIError('Vul bij de AI-instellingen het basisadres van je eigen aanbieder in (bv. https://openrouter.ai/api).');
+  }
+  if (!isAllowedBaseUrl(base)) {
+    throw new AIError(
+      'Het basisadres van je eigen aanbieder moet met https:// beginnen (of http://localhost voor een model op dit toestel). ' +
+      'Pas het aan bij de AI-instellingen.'
+    );
+  }
+  return `${base.replace(/\/+$/, '')}/v1/chat/completions`;
+}
+
+/** De host die de sleutel te zien krijgt, bv. "api.anthropic.com"; leeg als het adres ongeldig is. */
+export function aiEndpointHost(s: Pick<AISettings, 'provider' | 'baseUrl'>): string {
+  try {
+    return new URL(aiEndpoint(s)).host;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Een sleutel bestaat alleen uit zichtbare ASCII-tekens. Een onzichtbaar teken
+ * (bv. een zero-width space uit een chat) of een typografisch streepje laat
+ * fetch anders struikelen met een misleidende netwerkfout.
+ */
+export function aiKeyProblem(key: string): string | null {
+  const k = key.trim();
+  if (!k) return null;
+  return /[^\x21-\x7e]/.test(k) ? 'Je sleutel bevat een onzichtbaar of ongeldig teken. Plak hem opnieuw.' : null;
+}
+
+// ── Instel-links ────────────────────────────────────────────────────────────
+// Een instel-link draagt aanbieder, model en sleutel in het hash-fragment
+// (bereikt dus nooit een server). Omdat iedereen zo'n link kan maken en in
+// een gedeelde cursus kan verstoppen, beslist decideSetupLink wat er mag:
+// - automatisch bewaren alleen als dit toestel nog GEEN sleutel heeft én de
+//   aanbieder geen eigen aanbieder ('custom') is;
+// - een eigen aanbieder zonder geldig adres (https:// of http://localhost)
+//   wordt geweigerd;
+// - in alle andere gevallen enkel invullen: de leerkracht ziet welke sleutel
+//   vervangen wordt en waar de nieuwe heen gaat, en kiest zelf.
+
+export function encodeAISetupLink(s: AISettings): string {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(s))))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+export function decodeAISetupLink(v: string): unknown {
+  try {
+    return JSON.parse(decodeURIComponent(escape(atob(v.replace(/-/g, '+').replace(/_/g, '/')))));
+  } catch {
+    return null;
+  }
+}
+
+const PROVIDER_IDS: readonly AIProviderId[] = ['anthropic', 'openai', 'gemini', 'custom'];
+
+export type SetupLinkDecision =
+  | { action: 'reject'; message: string }
+  | {
+      action: 'save' | 'prefill' | 'unchanged';
+      settings: AISettings;
+      providerName: string;
+      /** Host die de sleutel ontvangt, bv. "api.anthropic.com". */
+      host: string;
+      /** Gemaskeerde huidige sleutel als de link die vervangt, anders ''. */
+      replacesKeyLabel: string;
+    };
+
+/**
+ * Beslist wat een geopende instel-link met dit toestel mag doen. Puur: leest
+ * en schrijft niets, zodat elke regel apart getest kan worden.
+ * @param raw     de gedecodeerde inhoud van de link (onvertrouwd)
+ * @param current de instellingen die nu op dit toestel bewaard zijn
+ * @param auto    de link vraagt om meteen te bewaren (&auto=1)
+ */
+export function decideSetupLink(raw: unknown, current: AISettings, auto: boolean): SetupLinkDecision {
+  const invalid: SetupLinkDecision = { action: 'reject', message: 'Deze instel-link is ongeldig of onvolledig.' };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return invalid;
+  const s = raw as Record<string, unknown>;
+  const provider = PROVIDER_IDS.find((p) => p === s.provider);
+  const apiKey = typeof s.apiKey === 'string' ? s.apiKey.trim() : '';
+  if (!provider || !apiKey) return invalid;
+  if (aiKeyProblem(apiKey)) {
+    return { action: 'reject', message: 'De sleutel in deze instel-link bevat een onzichtbaar of ongeldig teken.' };
+  }
+  let baseUrl: string | undefined;
+  if (provider === 'custom') {
+    const b = typeof s.baseUrl === 'string' ? s.baseUrl.trim() : '';
+    if (!isAllowedBaseUrl(b)) {
+      return {
+        action: 'reject',
+        message: 'Deze instel-link wil een eigen aanbieder instellen zonder geldig adres. ' +
+          'Alleen een adres dat met https:// begint (of http://localhost) is toegestaan.',
+      };
+    }
+    baseUrl = b.replace(/\/+$/, '');
+  }
+  const model = typeof s.model === 'string' && s.model.trim()
+    ? s.model.trim()
+    : (PROVIDER_INFO[provider].models[0]?.id ?? '');
+  const settings: AISettings = { provider, apiKey, model, ...(baseUrl ? { baseUrl } : {}) };
+  const currentKey = current.apiKey.trim();
+  const shown = {
+    settings,
+    providerName: PROVIDER_INFO[provider].name,
+    host: aiEndpointHost(settings),
+    replacesKeyLabel: currentKey && currentKey !== apiKey ? maskAIKey(currentKey) : '',
+  };
+  const sameAsCurrent = currentKey === apiKey && current.provider === provider && current.model === model &&
+    (provider !== 'custom' || (current.baseUrl ?? '').trim().replace(/\/+$/, '') === baseUrl);
+  if (sameAsCurrent) return { action: 'unchanged', ...shown };
+  if (auto && !currentKey && provider !== 'custom') return { action: 'save', ...shown };
+  return { action: 'prefill', ...shown };
 }
 
 // ── Gebruikslog (kostentransparantie) ────────────────────────────────────────
@@ -150,14 +321,19 @@ function friendlyError(status: number, body: string): AIError {
   if (status === 529 || status === 503) {
     return new AIError('De AI-dienst is tijdelijk overbelast. Probeer het over een minuutje opnieuw.', status);
   }
-  let detail = '';
-  try {
-    const j = JSON.parse(body);
-    detail = j?.error?.message ?? j?.message ?? '';
-  } catch {
-    detail = body.slice(0, 200);
+  let detail: unknown = '';
+  // Een html-pagina (bv. een foutpagina van een proxy) is geen bruikbare uitleg.
+  if (!body.trimStart().startsWith('<')) {
+    try {
+      const j = JSON.parse(body);
+      // Gemini's OpenAI-laag antwoordt soms met een array: [{"error":{…}}].
+      detail = Array.isArray(j) ? j[0]?.error?.message : (j?.error?.message ?? j?.message);
+    } catch {
+      detail = body.slice(0, 200);
+    }
   }
-  return new AIError(`De AI-aanvraag mislukte (HTTP ${status}). ${detail}`.trim(), status);
+  const text = typeof detail === 'string' ? detail.trim() : '';
+  return new AIError(`De AI-aanvraag mislukte (HTTP ${status}). ${text}`.trim(), status);
 }
 
 // ── Kernaanroep met streaming ───────────────────────────────────────────────
@@ -185,14 +361,27 @@ export async function askAI(opts: AskAIOptions): Promise<string> {
   if (!s.apiKey.trim()) {
     throw new AIError('Er is nog geen API-sleutel ingesteld. Ga naar de AI-instellingen om er één toe te voegen.');
   }
+  const keyProblem = aiKeyProblem(s.apiKey);
+  if (keyProblem) throw new AIError(keyProblem);
   if (s.provider === 'anthropic') return askAnthropic(s, opts);
   return askOpenAICompatible(s, opts);
 }
 
+const EMPTY_ANSWER = 'De AI-dienst gaf een leeg antwoord.';
+
+/** Fout die de aanbieder midden in een antwoord meldt (in de stroom of in JSON). */
+function providerError(err: unknown): AIError {
+  const msg = typeof err === 'string' ? err : (err as { message?: unknown } | null)?.message;
+  return new AIError(typeof msg === 'string' && msg.trim()
+    ? `De AI-dienst meldde een fout: ${msg.trim()}`
+    : 'De AI-dienst meldde een fout tijdens het genereren.');
+}
+
 async function askAnthropic(s: AISettings, opts: AskAIOptions): Promise<string> {
+  const url = aiEndpoint(s);
   let res: Response;
   try {
-    res = await fetch('https://api.anthropic.com/v1/messages', {
+    res = await fetch(url, {
       method: 'POST',
       signal: opts.signal,
       headers: {
@@ -241,7 +430,7 @@ async function askAnthropic(s: AISettings, opts: AskAIOptions): Promise<string> 
           refused = true;
         }
         if (ev.type === 'message_delta' && ev.delta?.stop_reason === 'max_tokens') truncated = true;
-        if (ev.type === 'error') throw new AIError(ev.error?.message ?? 'De AI-dienst meldde een fout tijdens het genereren.');
+        if (ev.type === 'error') throw providerError(ev.error);
       } catch (e) {
         if (e instanceof AIError) throw e;
         /* niet-JSON regels negeren */
@@ -260,8 +449,12 @@ async function askAnthropic(s: AISettings, opts: AskAIOptions): Promise<string> 
     );
   }
   if (truncated) throw truncatedError();
+  if (!full.trim()) throw new AIError(EMPTY_ANSWER);
   return full;
 }
+
+/** Uitvoerlimiet van gpt-4o en gpt-4o-mini volgens de documentatie van OpenAI. */
+const OPENAI_MAX_OUTPUT_TOKENS = 16384;
 
 /**
  * Tokenlimiet per aanvraag. Gemini 3.x-modellen denken eerst na, en dat
@@ -270,9 +463,14 @@ async function askAnthropic(s: AISettings, opts: AskAIOptions): Promise<string> 
  * over voor het antwoord. Een hogere limiet kost niets extra (de aanbieder
  * rekent alleen verbruikte tokens aan); Gemini's eigen denkbudget op nul
  * zetten wordt door die modellen genegeerd. Plafond: 65.536 uitvoertokens.
+ *
+ * OpenAI weigert een aanvraag met een max_tokens boven de uitvoerlimiet van
+ * het model (16.384 voor gpt-4o en gpt-4o-mini); de grote cursustaken vragen
+ * 32.000, dus die limiet wordt daar het plafond.
  */
 export function effectiveMaxTokens(provider: AIProviderId, requested: number | undefined): number {
   const wanted = requested ?? 16000;
+  if (provider === 'openai') return Math.min(wanted, OPENAI_MAX_OUTPUT_TOKENS);
   if (provider !== 'gemini') return wanted;
   return Math.min(65536, Math.max(8192, wanted * 2));
 }
@@ -286,14 +484,9 @@ function truncatedError(): AIError {
 }
 
 async function askOpenAICompatible(s: AISettings, opts: AskAIOptions): Promise<string> {
-  // Gemini spreekt hetzelfde OpenAI-compatibele protocol, maar op een eigen pad
-  // (…/v1beta/openai/chat/completions — zonder extra /v1 ervoor).
-  const base = (
-    s.provider === 'gemini'
-      ? 'https://generativelanguage.googleapis.com/v1beta/openai'
-      : s.provider === 'custom' && s.baseUrl ? s.baseUrl : 'https://api.openai.com'
-  ).replace(/\/+$/, '');
-  const url = s.provider === 'gemini' ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
+  // Vóór de fetch: een eigen aanbieder zonder geldig adres stuurt de sleutel
+  // nergens heen (AIError uit aiEndpoint).
+  const url = aiEndpoint(s);
   let res: Response;
   try {
     res = await fetch(url, {
@@ -328,27 +521,68 @@ async function askOpenAICompatible(s: AISettings, opts: AskAIOptions): Promise<s
   let outputTokens = 0;
   let blocked = false;
   let truncated = false;
-  try {
-    await readSSE(res, (data) => {
-      if (data === '[DONE]') return;
+  /** Verwerkt één stuk antwoord: een stroomgebeurtenis of het hele JSON-antwoord. */
+  const handle = (raw: unknown): void => {
+    // Gemini's OpenAI-laag verpakt een fout soms in een array: [{"error":{…}}].
+    if (Array.isArray(raw)) return handle(raw[0]);
+    if (!raw || typeof raw !== 'object') return;
+    const ev = raw as {
+      error?: unknown;
+      choices?: { finish_reason?: unknown; delta?: { content?: unknown }; message?: { content?: unknown } }[];
+      usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
+    };
+    // Sommige aanbieders (bv. OpenRouter) melden een fout met status 200,
+    // als gebeurtenis in de stroom of als JSON-antwoord.
+    if (ev.error) throw providerError(ev.error);
+    const choice = Array.isArray(ev.choices) ? ev.choices[0] : undefined;
+    const finish = choice?.finish_reason;
+    if (finish === 'error') throw providerError(null);
+    if (finish === 'content_filter' || finish === 'safety') blocked = true;
+    if (finish === 'length' || finish === 'max_tokens') truncated = true;
+    const text = choice?.delta?.content ?? choice?.message?.content;
+    if (typeof text === 'string' && text) {
+      full += text;
       try {
-        const ev = JSON.parse(data);
-        const finish = ev.choices?.[0]?.finish_reason;
-        if (finish === 'content_filter' || finish === 'safety') blocked = true;
-        if (finish === 'length' || finish === 'max_tokens') truncated = true;
-        const delta = ev.choices?.[0]?.delta?.content;
-        if (typeof delta === 'string' && delta) {
-          full += delta;
-          opts.onDelta?.(delta);
-        }
-        if (ev.usage) {
-          inputTokens = ev.usage.prompt_tokens ?? inputTokens;
-          outputTokens = ev.usage.completion_tokens ?? outputTokens;
-        }
+        opts.onDelta?.(text);
       } catch {
-        /* niet-JSON regels negeren */
+        /* een fout in de tussentijdse weergave breekt het antwoord niet af */
       }
-    });
+    }
+    if (ev.usage && typeof ev.usage === 'object') {
+      if (typeof ev.usage.prompt_tokens === 'number') inputTokens = ev.usage.prompt_tokens;
+      if (typeof ev.usage.completion_tokens === 'number') outputTokens = ev.usage.completion_tokens;
+    }
+  };
+  try {
+    const contentType = res.headers.get('content-type') ?? '';
+    if (/application\/json/i.test(contentType)) {
+      // Geen stroom maar één JSON-antwoord (eigen aanbieders die stream negeren).
+      let body: string;
+      try {
+        body = await res.text();
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') throw e;
+        throw new AIError(CONNECTION_LOST);
+      }
+      let ev: unknown;
+      try {
+        ev = JSON.parse(body);
+      } catch {
+        throw new AIError('De AI-dienst gaf een antwoord dat de app niet kon lezen.');
+      }
+      handle(ev);
+    } else {
+      await readSSE(res, (data) => {
+        if (data === '[DONE]') return;
+        let ev: unknown;
+        try {
+          ev = JSON.parse(data);
+        } catch {
+          return; /* niet-JSON regels negeren */
+        }
+        handle(ev);
+      });
+    }
   } finally {
     // Aanbieders zonder usage in de stream (of afgebroken streams): ruw
     // schatten op tekstlengte, zodat het logboek nooit stil onderrapporteert.
@@ -362,17 +596,29 @@ async function askOpenAICompatible(s: AISettings, opts: AskAIOptions): Promise<s
     );
   }
   if (truncated) throw truncatedError();
+  if (!full.trim()) throw new AIError(EMPTY_ANSWER);
   return full;
 }
+
+const CONNECTION_LOST = 'De verbinding viel weg tijdens het antwoord. Probeer het opnieuw.';
 
 /** Leest een SSE-stroom en roept onData aan per "data:"-regel. */
 export async function readSSE(res: Response, onData: (data: string) => void): Promise<void> {
   const reader = res.body?.getReader();
-  if (!reader) throw new AIError('De AI-dienst gaf een leeg antwoord.');
+  if (!reader) throw new AIError(EMPTY_ANSWER);
   const decoder = new TextDecoder();
   let buffer = '';
   for (;;) {
-    const { done, value } = await reader.read();
+    let chunk: ReadableStreamReadResult<Uint8Array>;
+    try {
+      chunk = await reader.read();
+    } catch (e) {
+      // Netwerk halverwege weg: de browser gooit een TypeError ("network
+      // error"). Annuleren (AbortError) en andere fouten gaan ongewijzigd door.
+      if (e instanceof TypeError) throw new AIError(CONNECTION_LOST);
+      throw e;
+    }
+    const { done, value } = chunk;
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');
