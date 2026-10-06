@@ -40,15 +40,22 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 // ── Modal ───────────────────────────────────────────────────────────────────
 
 export function Modal({
-  title, onClose, children, footer, wide,
+  title, onClose, children, footer, wide, describe,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
   footer?: React.ReactNode;
   wide?: boolean;
+  /**
+   * De inhoud is een korte uitleg (bv. een bevestigingsvraag): schermlezers
+   * lezen ze voor bij het openen (aria-describedby). Niet voor formulieren:
+   * dan zou de hele inhoud voorgelezen worden.
+   */
+  describe?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const bodyId = useId();
   // Een inline onClose van de ouder is bij elke render een nieuwe functie: via een ref
   // blijft het effect één keer lopen (anders steelt het bij elke toets de focus).
   const onCloseRef = useRef(onClose);
@@ -88,12 +95,13 @@ export function Modal({
 
   return createPortal(
     <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`modal ${wide ? 'modal-lg' : ''}`} role="dialog" aria-modal="true" aria-label={title} ref={ref}>
+      <div className={`modal ${wide ? 'modal-lg' : ''}`} role="dialog" aria-modal="true" aria-label={title}
+        aria-describedby={describe ? bodyId : undefined} ref={ref}>
         <div className="modal-header">
           <h2 style={{ margin: 0, fontSize: '1.15rem' }}>{title}</h2>
           <button className="btn btn-quiet btn-icon" onClick={onClose} aria-label="Sluiten"><X size={20} /></button>
         </div>
-        <div className="modal-body">{children}</div>
+        <div className="modal-body" id={describe ? bodyId : undefined}>{children}</div>
         {footer && <div className="modal-footer">{footer}</div>}
       </div>
     </div>,
@@ -117,6 +125,7 @@ export function ConfirmModal({
     <Modal
       title={title}
       onClose={onClose}
+      describe
       footer={
         <>
           <button className="btn btn-ghost" onClick={onClose}>Annuleren</button>

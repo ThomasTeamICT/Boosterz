@@ -733,6 +733,7 @@ function DeleteWidgetModal({ widget, subCount, warning, onConfirm, onClose }: {
     <Modal
       title="Widget verwijderen?"
       onClose={onClose}
+      describe
       footer={
         <>
           <button className="btn btn-ghost" onClick={onClose}>Annuleren</button>
