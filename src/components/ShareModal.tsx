@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import QRCode from 'qrcode';
 import { Accessibility, ArrowRight, Globe, Mail, School } from 'lucide-react';
 import type { Widget } from '../lib/types';
 import { encodeWidgetToUrl, exportWidgetJson, playUrlForCode } from '../lib/share';
@@ -11,6 +10,7 @@ import {
   AddIcon, AssignIcon, CheckIcon, ExportIcon, LinkIcon, WarningIcon,
 } from './icons';
 import { CheckRow, CopyButton, Field, Modal, useToast } from './ui';
+import { CodeQr } from './CodeQr';
 
 interface Inlined {
   /** Widget met de media als data-URL (null zolang dat nog loopt). */
@@ -43,19 +43,9 @@ export function ShareModal({ widget, onClose }: { widget: Widget; onClose: () =>
   const codeUrl = playUrlForCode(widget.code);
   const inlined = useInlinedWidget(widget);
   const portableUrl = useMemo(() => (inlined.widget ? encodeWidgetToUrl(inlined.widget) : ''), [inlined.widget]);
-  const [qr, setQr] = useState<string>('');
   const embedCode = `<iframe src="${portableUrl}" width="100%" height="640" style="border:0;border-radius:12px" allowfullscreen title="${widget.title.replace(/"/g, '&quot;')}"></iframe>`;
   const classroomUrl = `https://classroom.google.com/share?url=${encodeURIComponent(portableUrl)}`;
   const mailUrl = `mailto:?subject=${encodeURIComponent(`Oefening: ${widget.title}`)}&body=${encodeURIComponent(`Dag!\n\nMaak deze oefening: ${portableUrl}\n\nVeel succes!`)}`;
-
-  useEffect(() => {
-    let alive = true;
-    if (!portableUrl) { setQr(''); return; }
-    QRCode.toDataURL(portableUrl, { width: 240, margin: 1 })
-      .then((url) => { if (alive) setQr(url); })
-      .catch(() => { if (alive) setQr(''); /* te lang voor een QR (grote afbeeldingen) */ });
-    return () => { alive = false; };
-  }, [portableUrl]);
 
   const exportJson = async () => {
     try {
@@ -140,21 +130,21 @@ export function ShareModal({ widget, onClose }: { widget: Widget; onClose: () =>
                 <p className="hint" role="status" aria-busy>Link wordt klaargemaakt (afbeeldingen worden ingevoegd)…</p>
               )}
             </div>
-            {qr && (
-              <figure style={{ margin: 0, textAlign: 'center' }}>
-                <img
-                  src={qr}
-                  alt={`QR-code voor de draagbare link van ${widget.title}`}
-                  style={{ width: 132, height: 132, borderRadius: 10, border: '1px solid var(--line)', background: '#fff' }}
-                />
-                <figcaption className="hint" style={{ marginTop: 4 }}>
-                  Scan met tablet of gsm
-                  <br />
-                  <a href={qr} download={`qr-${widget.code}.png`}>QR downloaden</a>
-                </figcaption>
-              </figure>
-            )}
           </div>
+          {portableUrl && (
+            <div style={{ marginBottom: 12 }}>
+              <CodeQr
+                value={portableUrl}
+                label={`de draagbare link van ${widget.title}`}
+                size={220}
+                hint="Scan met tablet of gsm. Op een projector of smartboard: download de QR en toon hem op volledig scherm."
+                copyLabel="Link kopiëren"
+                downloadName={`qr-${widget.code}.png`}
+                tooLongText="Deze widget bevat te veel (bv. afbeeldingen of veel vragen) om in één QR-code te passen. Kopieer de link en deel ze via mail of Google Classroom."
+                enlarge={false}
+              />
+            </div>
+          )}
 
           <hr className="divider" />
 

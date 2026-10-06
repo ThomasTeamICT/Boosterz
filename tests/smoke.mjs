@@ -2636,6 +2636,115 @@ for (const metTijd of [true, false]) {
   await ctx.close();
 }
 
+// ── 33. QR van de draagbare link is leesbaar (of eerlijk te lang) ───────────
+console.log('33. QR van de draagbare link');
+{
+  // Links van ±524, ±1700 en ±2240 tekens (de laatste blijft ruim onder
+  // QR_MAX_CHARS) en één boven QR_MAX_CHARS (2300). Elke widget heeft
+  // onsamendrukbare tekst in de instructie; de aantallen zijn geijkt op de
+  // lz-stringcompressie. jsQR draait in de pagina, op de echte afbeelding van
+  // de deelmodal én op een schermafdruk van wat de leerkracht op een
+  // 1x-scherm ziet.
+  const ALFABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const willekeurig = (n) => { let x = 7; let s = ''; for (let i = 0; i < n; i++) { x = (x * 1103515245 + 12345) & 0x7fffffff; s += ALFABET[x % ALFABET.length]; } return s; };
+  const gevallen = [
+    { id: 'smokeqr1', code: 'SMKQR1', tekens: 70, minLink: 450 },
+    { id: 'smokeqr2', code: 'SMKQR2', tekens: 1040, minLink: 1500 },
+    { id: 'smokeqr3', code: 'SMKQR3', tekens: 1500, minLink: 2000 },
+    { id: 'smokeqr4', code: 'SMKQR4', tekens: 1700, minLink: 2301 },
+  ];
+  await page.evaluate((lijst) => {
+    const ws = JSON.parse(localStorage.getItem('wf.widgets.v1'));
+    for (const g of lijst) {
+      ws.unshift({
+        id: g.id, type: 'imageviewer', title: `Smoke QR ${g.code.slice(-1)}`, folderId: null,
+        config: { imageUrl: '', description: 'test' },
+        settings: { accentColor: '#4f46e5', shuffle: false, showFeedback: true, showScore: true, timeLimitMin: 0, maxAttempts: 0, requireName: false, instructions: g.tekst },
+        code: g.code, createdAt: Date.now(), updatedAt: Date.now(),
+      });
+    }
+    localStorage.setItem('wf.widgets.v1', JSON.stringify(ws));
+  }, gevallen.map((g) => ({ ...g, tekst: willekeurig(g.tekens) })));
+
+  const jsqrBron = readFileSync(new URL('../node_modules/jsqr/dist/jsQR.js', import.meta.url), 'utf8');
+  const lees = (src) => page.evaluate(async (bron) => {
+    if (typeof window.jsQR !== 'function') (0, eval)(bron.js);
+    const img = new Image();
+    img.src = bron.src;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, c.width, c.height);
+    const r = window.jsQR(d.data, d.width, d.height);
+    return r ? r.data : null;
+  }, { src, js: jsqrBron });
+
+  const QR_ALT = 'img[alt^="QR-code van de draagbare link"]';
+  for (const g of gevallen) {
+    await go('/#/widgets');
+    await go(`/#/bewerk/${g.id}`);
+    await page.getByRole('button', { name: /^Delen$/ }).first().click();
+    await page.waitForFunction(() => /^http/.test(document.querySelector('input[aria-label="Draagbare deellink"]')?.value ?? ''), null, { timeout: 8000 }).catch(() => {});
+    await page.locator('summary', { hasText: 'Meer manieren om te delen' }).click();
+    await page.waitForSelector(`${QR_ALT}, .modal .callout:has-text("Te groot voor een QR-code")`, { timeout: 10000 }).catch(() => {});
+    const link = await page.locator('input[aria-label="Draagbare deellink"]').inputValue();
+    const lang = link.length > 2300;
+    console.log(`  – link van ${link.length} tekens${lang ? ' (boven QR_MAX_CHARS)' : ''}`);
+    check(`link van ${link.length} tekens ligt in het bedoelde bereik`, link.length >= g.minLink && (g.minLink > 2300 || link.length <= 2300));
+
+    const qrImg = page.locator(QR_ALT);
+    if (lang) {
+      check('te lange link: geen QR-afbeelding', (await qrImg.count()) === 0);
+      const uitleg = page.locator('.modal .callout', { hasText: 'Te groot voor een QR-code' });
+      check('te lange link: duidelijke uitleg met de reden', await uitleg.isVisible() && /te veel/.test(await uitleg.innerText()) && /Kopieer de link/.test(await uitleg.innerText()));
+      check('te lange link: kopieerknop "Link kopiëren" als alternatief', await uitleg.getByRole('button', { name: 'Link kopiëren' }).isVisible());
+      await page.keyboard.press('Escape');
+      continue;
+    }
+    check('QR-afbeelding zichtbaar', await qrImg.isVisible());
+    const m = await qrImg.evaluate((img) => {
+      const r = img.getBoundingClientRect();
+      return { natuurlijk: img.naturalWidth, breedte: r.width, rendering: getComputedStyle(img).imageRendering };
+    });
+    const modules = m.natuurlijk / 4;
+    check(`gehele schaal: ${m.natuurlijk} px is een veelvoud van 4 (${modules} modules)`, Number.isInteger(modules));
+    check(`QR is minstens 200 css-px breed (${Math.round(m.breedte)})`, m.breedte >= 200);
+    check(`minstens 2 css-px per module (${(m.breedte / modules).toFixed(2)})`, m.breedte / modules >= 2 - 1e-9);
+    check('geheel aantal css-px per module (scherp)', Math.abs(m.breedte / modules - Math.round(m.breedte / modules)) < 1e-6);
+    check('image-rendering: pixelated', m.rendering === 'pixelated');
+    const src = await qrImg.getAttribute('src');
+    check('jsQR leest de afbeelding en vindt precies de link terug', (await lees(src)) === link);
+    const scherm = await qrImg.screenshot();
+    check('jsQR leest ook de QR zoals hij op een 1x-scherm staat', (await lees(`data:image/png;base64,${scherm.toString('base64')}`)) === link);
+    check('"QR downloaden" biedt een png aan', (await page.locator('.modal a[download$=".png"]', { hasText: 'QR downloaden' }).getAttribute('download')) === `qr-${g.code}.png`);
+    check('"Link kopiëren" naast de QR', await page.locator('.modal').getByRole('button', { name: 'Link kopiëren' }).isVisible());
+
+    if (g === gevallen[2]) {
+      // Smal scherm (390 px): de modal en de pagina scrollen niet horizontaal.
+      await page.setViewportSize({ width: 390, height: 844 });
+      await sleep(300);
+      const smal = await page.evaluate(() => {
+        const body = document.querySelector('.modal-body');
+        const img = document.querySelector('.modal img[alt^="QR-code van de draagbare link"]');
+        const kader = body.getBoundingClientRect();
+        const r = img.getBoundingClientRect();
+        return {
+          pagina: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+          modal: body.scrollWidth <= body.clientWidth,
+          binnen: r.left >= kader.left - 1 && r.right <= kader.right + 1,
+        };
+      });
+      check('op 390 px: pagina scrolt niet horizontaal', smal.pagina);
+      check('op 390 px: de modal scrolt niet horizontaal en de QR past erin', smal.modal && smal.binnen);
+      await page.setViewportSize({ width: 1360, height: 900 });
+      await sleep(200);
+    }
+    await page.keyboard.press('Escape');
+  }
+}
+
 // ── Slot ────────────────────────────────────────────────────────────────────
 console.log('\n──────────');
 if (errors.length) {
