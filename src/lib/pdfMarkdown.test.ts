@@ -147,3 +147,46 @@ describe('begrippenlijst met krappe regelafstand', () => {
     expect(md).toContain('**Kracht** Een duw of een trek.\n\n**Contactkracht** Werkt alleen bij aanraking.\n\n**Zwaartekracht** Trekt voorwerpen naar de aarde. Gewone vervolgregel');
   });
 });
+
+describe('afgebroken woorden en streepjes', () => {
+  // opeenvolgende regels met de gewone regelafstand: één alinea
+  const para = (...texts: string[]): PdfLine[] => texts.map((t, i) => L(1, 700 - i * 14, t));
+
+  it('plakt een woord dat op een regeleinde is afgebroken weer aan elkaar', () => {
+    expect(pdfLinesToMarkdown(para('Ook de zee-', 'water en het regenwater komen aan bod.'))).toBe(
+      'Ook de zeewater en het regenwater komen aan bod.\n'
+    );
+    expect(pdfLinesToMarkdown(para('het ver-', 'enigd koninkrijk'))).toBe('het verenigd koninkrijk\n');
+  });
+
+  it('laat "voor- en nadelen" en "massa- en volume-eenheden" binnen één regel staan', () => {
+    const md = pdfLinesToMarkdown(para('We bespreken de voor- en nadelen van water.', 'Ook massa- en volume-eenheden komen aan bod.'));
+    expect(md).toBe('We bespreken de voor- en nadelen van water. Ook massa- en volume-eenheden komen aan bod.\n');
+  });
+
+  it('houdt het streepje en zet een spatie als een voegwoord op de volgende regel staat', () => {
+    expect(pdfLinesToMarkdown(para('We bespreken de voor-', 'en nadelen van water.'))).toBe('We bespreken de voor- en nadelen van water.\n');
+    expect(pdfLinesToMarkdown(para('Ook de massa-', 'en volume-eenheden.'))).toBe('Ook de massa- en volume-eenheden.\n');
+    expect(pdfLinesToMarkdown(para('natuur-', 'of milieu'))).toBe('natuur- of milieu\n');
+    expect(pdfLinesToMarkdown(para('tien-', 'tot twintigjarigen'))).toBe('tien- tot twintigjarigen\n');
+    expect(pdfLinesToMarkdown(para('noch zee-', 'noch land'))).toBe('noch zee- noch land\n');
+  });
+
+  it('plakt niet als er een hoofdletter volgt: het streepje blijft en de letters raken niet aan elkaar', () => {
+    const md = pdfLinesToMarkdown(para('in Noord-', 'Amerika'));
+    expect(md).toContain('Noord-');
+    expect(md).not.toContain('NoordAmerika');
+  });
+
+  it('laat een streepje midden in een regel met rust', () => {
+    expect(pdfLinesToMarkdown(para('a - b is anders dan a- b', 'maar c-d blijft'))).toBe('a - b is anders dan a- b maar c-d blijft\n');
+  });
+
+  it('plakt ook in een vervolgregel van een lijstitem', () => {
+    expect(pdfLinesToMarkdown([L(1, 700, '• Het water-'), L(1, 686, 'verbruik daalt.')])).toBe('- Het waterverbruik daalt.\n');
+  });
+
+  it('werkt ook met letters met accenten', () => {
+    expect(pdfLinesToMarkdown(para('de café-', 'tafel'))).toBe('de cafétafel\n');
+  });
+});

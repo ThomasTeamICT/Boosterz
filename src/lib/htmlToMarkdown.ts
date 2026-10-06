@@ -10,7 +10,9 @@
 //  - koppen h1–h3 → #/##/### (h4–h6 vallen samen met ###: dieper gaat het
 //    cursusmodel niet)
 //  - p, ul/ol (genest), blockquote, pre, hr
-//  - strong/b → **, em/i → _, code → `, del/s → ~~, a[href] → [tekst](url)
+//  - strong/b → **, em/i → *, code → `, del/s → ~~, a[href] → [tekst](url)
+//  - sup/sub → Unicode-hoog/laag (m², H₂O); lukt dat niet voor alle tekens,
+//    dan ^(…) voor sup en gewone tekst voor sub
 //  - table → markdown-tabel als alle rijen even breed zijn, anders platte rijen
 //  - afbeeldingen vallen weg (ze zouden als base64 megabytes meeslepen)
 //  - onbekende tags: alleen hun tekst blijft over
@@ -202,6 +204,49 @@ function rawText(n: HNode): string {
   return isEl(n) ? n.children.map(rawText).join('') : decodeEntities(n);
 }
 
+// ── Hoog en laag ────────────────────────────────────────────────────────────
+
+/** Cijfers en tekens waarvoor Unicode een hoge variant heeft (m², 10⁻³, xⁿ). */
+const SUPERSCRIPT: Record<string, string> = {
+  '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+  '+': '⁺', '-': '⁻', '−': '⁻', '=': '⁼', '(': '⁽', ')': '⁾', n: 'ⁿ',
+};
+
+/** Cijfers en tekens waarvoor Unicode een lage variant heeft (H₂O, CO₂). */
+const SUBSCRIPT: Record<string, string> = {
+  '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄', '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
+  '+': '₊', '-': '₋', '−': '₋', '=': '₌', '(': '₍', ')': '₎',
+};
+
+/** Elk teken omzetten via de tabel; `null` zodra er één teken geen variant heeft. */
+function mapChars(text: string, table: Record<string, string>): string | null {
+  let out = '';
+  for (const ch of text) {
+    const mapped = table[ch];
+    if (mapped === undefined) return null;
+    out += mapped;
+  }
+  return out;
+}
+
+/**
+ * <sup> en <sub>: markdown kent ze niet, en de lezer toonde anders "H2O" en
+ * "m2". Waar het kan worden het Unicode-tekens; anders ^(…) voor hoog en de
+ * gewone tekst voor laag. Spaties aan de rand blijven buiten de omzetting.
+ */
+function scriptOf(el: ElNode): string {
+  const sup = el.tag === 'sup';
+  const inner = inlineOf(el.children);
+  const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(inner);
+  if (!m || !m[2]) return inner;
+  const plain = rawText(el).replace(/\s+/g, ' ').trim();
+  const mapped = mapChars(plain, sup ? SUPERSCRIPT : SUBSCRIPT);
+  // Alleen letters ("2<sup>de</sup> graad", "1<sup>e</sup>", "XIX<sup>e</sup>"): gewoon tekst, geen ^(…).
+  const rangtelwoord = sup && /^\p{L}+$/u.test(plain);
+  const core = mapped ?? (rangtelwoord ? m[2] : sup ? `^(${m[2]})` : m[2]);
+  return `${m[1]}${core}${m[3]}`;
+}
+
 // ── Inline ──────────────────────────────────────────────────────────────────
 
 function inlineOf(nodes: HNode[]): string {
@@ -225,7 +270,12 @@ function inlineOf(nodes: HNode[]): string {
       case 'i':
       case 'cite':
       case 'var':
-        out += wrapMark(inlineOf(n.children), '_');
+        // `*` en niet `_`: de lezer (lib/markdown.ts) kent alleen `*cursief*`.
+        out += wrapMark(inlineOf(n.children), '*');
+        break;
+      case 'sup':
+      case 'sub':
+        out += scriptOf(n);
         break;
       case 'code':
       case 'kbd':

@@ -41,8 +41,39 @@ describe('htmlToMarkdown — koppen en alinea\'s', () => {
 describe('htmlToMarkdown — inline-opmaak', () => {
   it('zet vet, cursief en doorhalen om, met de spaties buiten de markers', () => {
     expect(htmlToMarkdown('<p>Dit is <strong>heel </strong>belangrijk en <em>schuin</em>.</p>')).toBe(
-      'Dit is **heel** belangrijk en _schuin_.'
+      'Dit is **heel** belangrijk en *schuin*.'
     );
+  });
+  it('zet doorgehaald om naar ~~', () => {
+    expect(htmlToMarkdown('<p>Dit is <del>fout</del> en <s>ook</s>.</p>')).toBe('Dit is ~~fout~~ en ~~ook~~.');
+  });
+  it('laat een sterretje in gewone tekst met rust', () => {
+    expect(htmlToMarkdown('<p>5 * 3 = 15 en 2 * 4 = 8</p>')).toBe('5 * 3 = 15 en 2 * 4 = 8');
+  });
+  it('nest cursief en vet met sterretjes', () => {
+    expect(htmlToMarkdown('<p><strong>De <em>Quercus</em></strong> en <em>de <strong>eik</strong></em></p>')).toBe(
+      '**De *Quercus*** en *de **eik***'
+    );
+  });
+  it('zet hoog en laag om naar Unicode-tekens', () => {
+    expect(htmlToMarkdown('<p>H<sub>2</sub>O, m<sup>2</sup>, 10<sup>-3</sup></p>')).toBe('H₂O, m², 10⁻³');
+    expect(htmlToMarkdown('<p>CO<sub>2</sub> en x<sup>n</sup> en 10<sup>&minus;12</sup> en (a+b)<sup>(n+1)</sup></p>')).toBe(
+      'CO₂ en xⁿ en 10⁻¹² en (a+b)⁽ⁿ⁺¹⁾'
+    );
+    expect(htmlToMarkdown('<p>x<sub>(1+2)</sub> = 2<sup>10</sup></p>')).toBe('x₍₁₊₂₎ = 2¹⁰');
+  });
+  it('valt voor hoog terug op ^(…) en voor laag op gewone tekst', () => {
+    expect(htmlToMarkdown('<p>x<sup>a+b</sup></p>')).toBe('x^(a+b)');
+    expect(htmlToMarkdown('<p>a<sub>n+1</sub> en U<sub>aan</sub></p>')).toBe('an+1 en Uaan');
+  });
+  it('zet rangtelwoorden in hoog (alleen letters) om naar gewone tekst', () => {
+    expect(htmlToMarkdown('<p>de 2<sup>de</sup> klas, de 1<sup>e</sup> graad en de 1<sup>ste</sup> graad</p>')).toBe(
+      'de 2de klas, de 1e graad en de 1ste graad'
+    );
+    expect(htmlToMarkdown('<p>de XIX<sup>e</sup> eeuw</p>')).toBe('de XIXe eeuw');
+  });
+  it('houdt spaties rond hoog en laag en laat lege exemplaren weg', () => {
+    expect(htmlToMarkdown('<p>m<sup>2 </sup>per<sup> </sup>s</p>')).toBe('m² per s');
   });
   it('zet links om en laat onveilige href\'s vallen', () => {
     expect(htmlToMarkdown('<p><a href="https://example.org">Bron</a></p>')).toBe('[Bron](https://example.org)');

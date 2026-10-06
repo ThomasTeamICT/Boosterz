@@ -62,20 +62,43 @@ function lineSize(line: PdfLine): number {
   return best;
 }
 
-/** Vette en cursieve spans als markdown; aangrenzende gelijke spans samengevoegd. */
+/** Na zo'n woord hoort een streepje aan het regeleinde bij een opsomming: "voor- en nadelen". */
+const HYPHEN_CONJUNCTIONS = new Set(['en', 'of', 'tot', 'noch']);
+
+/**
+ * Twee regels aan elkaar, alleen op de regelgrens. Eindigt de vorige regel op
+ * een letter met een streepje en begint de volgende met een kleine letter, dan
+ * is het een afgebroken woord ("zee-" + "water" → "zeewater"). Volgt er een
+ * voegwoord ("voor-" + "en nadelen") of een hoofdletter ("Noord-" + "Amerika"),
+ * dan hoort het streepje bij de tekst en komt er gewoon een spatie.
+ */
+function glueLines(prev: string, next: string): string {
+  if (/\p{L}-$/u.test(prev) && /^\p{Ll}/u.test(next)) {
+    const first = /^\p{L}+/u.exec(next)?.[0] ?? '';
+    if (!HYPHEN_CONJUNCTIONS.has(first)) return prev.slice(0, -1) + next;
+  }
+  return `${prev} ${next}`;
+}
+
 /**
  * Regels van één alinea aan elkaar. Vette of cursieve tekst die over een
  * regeleinde doorloopt ("**7**" + "**meter**") wordt weer één markering.
  */
 function joinPara(lines: string[]): string {
-  return lines
-    .join(' ')
+  let joined = '';
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    joined = joined ? glueLines(joined, line) : line;
+  }
+  return joined
     .replace(/\s+/g, ' ')
     .replace(/\*\* \*\*/g, ' ')
     .replace(/(^|[^*])\* \*(?!\*)/g, '$1 ')
     .trim();
 }
 
+/** Vette en cursieve spans als markdown; aangrenzende gelijke spans samengevoegd. */
 function spansToMarkdown(spans: PdfSpan[]): string {
   const merged: PdfSpan[] = [];
   for (const s of spans) {
@@ -167,7 +190,7 @@ export function pdfLinesToMarkdown(lines: PdfLine[], opts: PdfMarkdownOptions = 
 
   const flushPara = () => {
     if (para.length) {
-      out.push(joinPara(para).replace(/(\w)- (\w)/g, '$1$2'));
+      out.push(joinPara(para));
       out.push('');
       para = [];
     }
