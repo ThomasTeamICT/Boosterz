@@ -20,6 +20,8 @@ import {
   parseLucideExports,
   renderServiceWorker,
 } from './src/lib/swBuild';
+import { injectCsp, verifyCsp } from './src/offline/csp';
+import { fontRefsInCss } from './src/offline/lettertypes';
 
 /**
  * Bundelbudget — bewaken i.p.v. onderdrukken.
@@ -253,8 +255,9 @@ const EAGER_ICON_FILES = iconFiles(EAGER_ICON_NAMES, LUCIDE_EXPORTS);
  * Het sjabloon staat in src/offline/serviceWorker.js (strategie en uitleg
  * daar). Deze plugin vult het aan met wat pas na het bundelen vastligt:
  *  - de voorcache: index.html, het kritieke leerlingpad (de hoofdbundel en
- *    'vendor', met hun css), het manifest en het icoon: dezelfde statische
- *    sluiting als in bundleBudget. Lazy chunks (pagina's, widgets,
+ *    'vendor', met hun css), de lettertypes waar die css naar verwijst (zelf
+ *    gehost, zie src/offline/lettertypes.ts), het manifest en het icoon:
+ *    dezelfde statische sluiting als in bundleBudget. Lazy chunks (pagina's, widgets,
  *    'widget-icons', pdf.js, mammoth, jsQR) en de
  *    voorbeeldcursus komen er niet in; die bewaart de service worker pas
  *    wanneer ze voor het eerst gebruikt worden;
@@ -295,7 +298,20 @@ function offlineShell(): Plugin {
       );
       const publicFiles = listFiles(publicDir);
       const precachePublic = PRECACHE_PUBLIC.filter((f) => publicFiles.includes(f));
-      const precache = [...shell.files, ...precachePublic];
+      // De lettertypes van de schil-css: anders mist een toestel dat offline
+      // opstart de stijlen die bij het eerste bezoek nog niet nodig waren.
+      const fonts = new Set<string>();
+      for (const file of shell.files.filter((f) => f.endsWith('.css'))) {
+        const css = bundle[file];
+        if (css?.type !== 'asset') continue;
+        const src = typeof css.source === 'string' ? css.source : Buffer.from(css.source).toString('utf8');
+        const refs = fontRefsInCss(src, file, Object.keys(bundle));
+        refs.found.forEach((f) => fonts.add(f));
+        if (refs.missing.length > 0) {
+          this.warn(`offlineShell: lettertypes in ${file} niet gevonden in de build (niet in de voorcache): ${refs.missing.join(', ')}`);
+        }
+      }
+      const precache = [...shell.files, ...[...fonts].sort(), ...precachePublic];
       const zwaar = precache.filter((f) => NEVER_PRECACHE.test(f));
       if (zwaar.length > 0) {
         this.warn(`offlineShell: zware bibliotheek in de voorcache (statisch geïmporteerd?): ${zwaar.join(', ')}`);
@@ -318,6 +334,40 @@ function offlineShell(): Plugin {
   };
 }
 
+/**
+ * Content-Security-Policy als tweede verdedigingslinie (debugronde okt. 2026,
+ * V1). Uitleg en het beleid zelf: src/offline/csp.ts.
+ *  - alleen bij de build: de dev-server gebruikt een inline React-refresh-script;
+ *  - transformIndexHtml, order 'post': pas als Vite zijn eigen tags in
+ *    index.html gezet heeft, zodat de hashes over de echte inline scripts gaan;
+ *  - generateBundle, order 'post': een tweede controle op de index.html zoals
+ *    ze werkelijk in dist/ komt. Wijzigt een latere stap een inline script,
+ *    dan faalt de build, in plaats van dat de browser het vangnet stil weigert.
+ */
+function contentSecurityPolicy(): Plugin {
+  const sha256 = (text: string) => createHash('sha256').update(text, 'utf8').digest('base64');
+  return {
+    name: 'boosterz-csp',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html) {
+        return injectCsp(html, sha256);
+      },
+    },
+    generateBundle: {
+      order: 'post',
+      handler(_options, bundle) {
+        const html = bundle['index.html'];
+        if (!html || html.type !== 'asset') this.error('csp: index.html ontbreekt in de bundel');
+        const source = typeof html.source === 'string' ? html.source : Buffer.from(html.source).toString('utf8');
+        const errors = verifyCsp(source, sha256);
+        if (errors.length > 0) this.error(`\nContent-Security-Policy in index.html:\n${errors.map((e) => `  ${e}`).join('\n')}\n`);
+      },
+    },
+  };
+}
+
 /** Alle bestanden onder een map, relatief en met '/' als scheiding. */
 function listFiles(dir: string): string[] {
   if (!dir || !existsSync(dir)) return [];
@@ -336,7 +386,7 @@ function listFiles(dir: string): string[] {
 // Relative base zodat de build ook werkt op GitHub Pages of een subpad.
 export default defineConfig({
   base: './',
-  plugins: [react(), bundleBudget(), offlineShell()],
+  plugins: [react(), contentSecurityPolicy(), bundleBudget(), offlineShell()],
   build: {
     // Vite's eigen grens stond op 1200 kB: dat onderdrukte élke waarschuwing.
     // Nu ligt ze net boven de pdf.js-chunk (de enige legitiem grote chunk), en

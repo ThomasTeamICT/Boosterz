@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Brush, CalendarClock, Save } from 'lucide-react';
-import { cleanupStudentFiles, collectFileIds, getSubmissions, getWidgets, onStorageChange } from '../lib/storage';
+import { getSubmissions, getWidgets, onStorageChange } from '../lib/storage';
+import { hasStudentData, wipeStudentData } from '../lib/leerlingWissen';
 import { ConfirmModal, useToast } from '../components/ui';
 import {
   CheckIcon, DeleteIcon, ExportIcon, PrintIcon, PrivacyIcon, WarningIcon,
 } from '../components/icons';
-import { clearAllFiles, collectMediaRefs, mediaStats, pruneOrphanMedia } from '../lib/mediaStore';
+import { clearAllFiles, mediaStats } from '../lib/mediaStore';
 import {
   formatBytes, formatPct, LOCALSTORAGE_BUDGET_BYTES, readStorageHealth,
   rememberPersistenceResult, requestPersistence, storageBreakdown, type StorageHealth,
@@ -23,6 +24,9 @@ const LEVEL_BADGE: Record<StorageHealth['level'], string> = {
   warn: 'badge-warn',
   critical: 'badge-err',
 };
+
+/** Tussenkoppen in de kaarten: h2 voor de structuur, op de maat van de vroegere h3. */
+const H2: React.CSSProperties = { fontSize: '1.08rem' };
 
 /** Transparantiepagina: welke data staat waar, en hoe ruim je ze op (AVG). */
 export function PrivacyPage() {
@@ -51,35 +55,15 @@ export function PrivacyPage() {
   const breakdown = storageBreakdown();
   const media = mediaStats();
   const names = new Set(subs.map((s) => s.studentName));
+  // Ook zonder inzendingen kan er iets te wissen zijn: notities, voortgang,
+  // tussentijds werk met ingeleverde bestanden …
+  const canWipeStudentData = subs.length > 0 || hasStudentData();
 
   const wipeSubmissions = () => {
-    // Vóór het wissen noteren welke tekeningen, opnames en ingeleverde
-    // bestanden erbij horen: die moeten mee weg, ook de allerjongste.
-    let rawSubs = '';
-    try {
-      rawSubs = localStorage.getItem('wf.submissions.v1') ?? '';
-    } catch {
-      rawSubs = '';
-    }
-    const mediaIds = collectMediaRefs(rawSubs);
-    const fileIds = collectFileIds(rawSubs);
-    localStorage.removeItem('wf.submissions.v1');
-    localStorage.removeItem('wf.attempts.v1');
-    localStorage.removeItem('wf.live.v1');
-    localStorage.removeItem('wf.courseprogress.v1');
-    // Op een gedeeld leerlingtoestel: ook wie er ingelogd was en welke
-    // klaslijsten via een klaspakket binnenkwamen (namen van leerlingen).
-    ['wf.student.v1', 'wf.handed.v1', 'wf.classpacks.v1'].forEach((k) => localStorage.removeItem(k));
-    Object.keys(localStorage)
-      .filter((k) => k.startsWith('wf.autosave.') || k.startsWith('wf.coursename.')
-        || k.startsWith('wf.coursenotes.') || k.startsWith('wf.deadline.'))
-      .forEach((k) => localStorage.removeItem(k));
-    // tekeningen/foto's van de gewiste inzendingen mogen ook weg (best-effort);
-    // een expliciete wisactie kent geen leeftijdsgrens
-    void pruneOrphanMedia({ only: mediaIds, minAgeMs: 0 }).catch(() => { /* genegeerd */ }).finally(refreshHealth);
-    cleanupStudentFiles(fileIds);
-    // storage-laag opnieuw laten emitten
-    localStorage.setItem('wf.submissions.v1', '[]');
+    // Inzendingen, tussentijds werk en de rest, met de ingeleverde bestanden
+    // en tekeningen waar ze naar verwijzen (zie lib/leerlingWissen.ts).
+    const { media } = wipeStudentData();
+    void media.finally(refreshHealth);
     refreshHealth();
     toast('Alle leerlinggegevens gewist', 'ok');
   };
@@ -123,14 +107,43 @@ export function PrivacyPage() {
       </div>
 
       <div className="card card-pad" style={{ marginBottom: 16 }}>
-        <h3>Waar staan de gegevens?</h3>
+        <h2 style={H2}>Waar staan de gegevens?</h2>
         <p>
-          <strong>Alles staat uitsluitend in de browser van dit toestel</strong> (localStorage).
-          Er is geen server, geen account en er wordt <strong>niets naar het internet verstuurd</strong>.
-          Deellinks bevatten de oefening zelf (vragen en antwoorden), nooit leerlingresultaten —
+          <strong>Alles wat je maakt of invult, staat alleen in de browser van dit toestel</strong>:
+          oefeningen, cursussen, namen, antwoorden en resultaten. Boosterz heeft geen eigen server en
+          geen accounts. Die gegevens vertrekken pas als jij of een leerling bewust iets deelt (een
+          deellink, klaspakket, resultaatcode, voortgangscode of export), of als je de AI-assistent
+          gebruikt. Deellinks bevatten de oefening zelf (vragen en antwoorden), nooit leerlingresultaten —
           behalve wanneer een leerling bewust zijn <em>resultaatcode</em> of <em>voortgangscode</em> doorstuurt.
         </p>
-        <h3>Wat wordt bewaard?</h3>
+        <h2 style={H2}>Met welke websites maakt de app verbinding?</h2>
+        <p>
+          Sommige onderdelen laden iets van een andere website. Die website ziet dan het IP-adres en de
+          browser van het toestel, maar niet wat je in Boosterz maakt of invult.
+        </p>
+        <ul style={{ paddingLeft: 20 }}>
+          <li>
+            <strong>GitHub Pages</strong> (van GitHub, een Amerikaans bedrijf): daar staat Boosterz zelf. De app, de
+            lettertypes, de officiële minimumdoelen en de voorbeeldcursus komen allemaal van daar.
+          </li>
+          <li>
+            <strong>YouTube en Vimeo</strong>: alleen als er een video in een cursus of oefening staat.
+            YouTube-video's spelen in de privacymodus van YouTube (youtube-nocookie.com): volgens
+            YouTube zonder cookies die het kijkgedrag volgen. Bij een videoquiz laadt ook de
+            afspeelsoftware van youtube.com.
+          </li>
+          <li>
+            <strong>Websites die jij zelf in je inhoud zet</strong>: een afbeelding, geluid of pdf via een
+            link, of een ingesloten kader (bv. een Google-formulier of GeoGebra). Die laden rechtstreeks
+            van die website, ook op de toestellen van je leerlingen.
+          </li>
+          <li>
+            <strong>De AI-aanbieder die jij kiest</strong>: alleen als je zelf een AI-sleutel instelt
+            (zie hieronder).
+          </li>
+        </ul>
+        <p>Boosterz zelf zet geen cookies en gebruikt geen advertenties of statistiekdiensten.</p>
+        <h2 style={H2}>Wat wordt bewaard?</h2>
         <ul style={{ paddingLeft: 20 }}>
           <li><strong>Widgets</strong> ({widgets.length}): jouw oefeningen.</li>
           <li><strong>Afbeeldingen, audio en bijlagen</strong> ({media.count}, {formatBytes(media.bytes)}): apart bewaard in de bestandsopslag van de browser (IndexedDB), samen met geüploade pdf's en ingeleverde bestanden.</li>
@@ -138,11 +151,11 @@ export function PrivacyPage() {
           <li><strong>Klassen &amp; opdrachten</strong>: klaslijsten (namen en eventueel klasnummers van leerlingen), de opdrachten per klas en, op een leerlingtoestel, de gekozen naam uit de klaslijst. Een klaslijst zijn persoonsgegevens van minderjarigen: deel klaslinks en klaspakketten alleen met de klas zelf.</li>
           <li><strong>Leerplannen</strong>: doelenlijsten die je invoerde of inlas, en bij een nagekeken leerplan de naam die je bij het nakijken invulde (die gaat mee als je exporteert).</li>
           <li><strong>Inzendingen</strong> ({subs.length}, van {names.size} {names.size === 1 ? 'naam' : 'verschillende namen'}): naam, antwoorden, score, tijdstip en duur.</li>
-          <li><strong>Tussentijds werk</strong>: automatisch opgeslagen antwoorden zodat leerlingen kunnen hervatten.</li>
-          <li><strong>Notities &amp; deadlines</strong>: privénotities van leerlingen bij cursussen en de einddeadline per leerling bij oefeningen met tijdslimiet.</li>
+          <li><strong>Tussentijds werk</strong>: automatisch opgeslagen antwoorden (ook een ingeleverd bestand dat nog niet ingediend is), zodat leerlingen kunnen hervatten. Na zeven dagen vervalt het.</li>
+          <li><strong>Notities, markeringen &amp; deadlines</strong>: privénotities van leerlingen bij cursussen, markeringen in een gesplitst werkblad, voortgang bij flitskaarten en de einddeadline per leerling bij oefeningen met tijdslimiet.</li>
           <li><strong>Voorkeuren</strong>: thema en weergave-instellingen.</li>
         </ul>
-        <h3>En de AI-assistent?</h3>
+        <h2 style={H2}>En de AI-assistent?</h2>
         <p>
           De AI-functies zijn <strong>uit</strong> tot jij zelf een API-sleutel instelt. Gebruik je ze,
           dan vertrekt <strong>alleen wat jij intikt of plakt</strong> (bronmateriaal, leerplandoelen,
@@ -151,7 +164,7 @@ export function PrivacyPage() {
           Stuur nooit namen of gevoelige leerlinggegevens mee. Je sleutel en het gebruikslogboek staan
           alleen op dit toestel — beheer ze bij de <a href="#/ai-instellingen">AI-instellingen</a>.
         </p>
-        <h3>Tips voor dataminimalisatie</h3>
+        <h2 style={H2}>Tips om zo weinig mogelijk gegevens te bewaren</h2>
         <ul style={{ paddingLeft: 20 }}>
           <li>Een <strong>voornaam of klasnummer volstaat</strong> — vraag geen volledige namen als het niet hoeft.</li>
           <li>Wis inzendingen <strong>op het einde van het schooljaar</strong> of zodra je ze verwerkt hebt.</li>
@@ -161,7 +174,7 @@ export function PrivacyPage() {
       </div>
 
       <div className="card card-pad" style={{ marginBottom: 16 }}>
-        <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Save size={20} aria-hidden /> Opslag op dit toestel</h3>
+        <h2 style={{ ...H2, display: 'flex', alignItems: 'center', gap: 8 }}><Save size={20} aria-hidden /> Opslag op dit toestel</h2>
         {!health ? (
           <p style={{ color: 'var(--text-soft)' }}>Het opslaggebruik wordt gemeten…</p>
         ) : (
@@ -204,7 +217,7 @@ export function PrivacyPage() {
 
             <hr className="divider" />
 
-            <h4 style={{ marginBottom: 6 }}>Beveiligd tegen automatisch wissen?</h4>
+            <h3 style={{ fontSize: '1rem', marginBottom: 6 }}>Beveiligd tegen automatisch wissen?</h3>
             <p style={{ margin: '0 0 10px' }}>
               <span className={`badge ${health.persisted ? 'badge-ok' : 'badge-warn'}`}>
                 {health.persisted ? <><CheckIcon size={14} className="icon-inline" aria-hidden /> Ja — persistente opslag</> : <><WarningIcon size={14} className="icon-inline" aria-hidden /> Nee — niet beveiligd</>}
@@ -247,9 +260,9 @@ export function PrivacyPage() {
       </div>
 
       <div className="card card-pad">
-        <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Brush size={20} aria-hidden /> Gegevens opruimen</h3>
+        <h2 style={{ ...H2, display: 'flex', alignItems: 'center', gap: 8 }}><Brush size={20} aria-hidden /> Gegevens opruimen</h2>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button className="btn btn-danger" onClick={() => setConfirm('subs')} disabled={subs.length === 0}>
+          <button className="btn btn-danger" onClick={() => setConfirm('subs')} disabled={!canWipeStudentData}>
             Alle inzendingen &amp; leerlinggegevens wissen ({subs.length})
           </button>
           <button className="btn btn-ghost" onClick={() => setConfirm('all')}>
@@ -264,7 +277,7 @@ export function PrivacyPage() {
       {confirm === 'subs' && (
         <ConfirmModal
           title="Alle leerlinggegevens wissen?"
-          message={`${subs.length} inzendingen, pogingtellers, tussentijds opgeslagen werk, leerlingnotities en deadlines worden definitief verwijderd. Je widgets blijven bestaan.`}
+          message={`${subs.length} ${subs.length === 1 ? 'inzending' : 'inzendingen'}, pogingtellers, tussentijds opgeslagen werk, ingeleverde bestanden, leerlingnotities, markeringen, voortgang en deadlines worden definitief verwijderd. Je widgets blijven bestaan. Klaslijsten en je feedbackbank blijven staan.`}
           onConfirm={wipeSubmissions}
           onClose={() => setConfirm(null)}
         />

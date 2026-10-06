@@ -12,7 +12,7 @@ import {
   CheckIcon, CloseIcon, DeleteIcon, InfoIcon, TryIcon, WarningIcon,
 } from '../components/icons';
 import { EditorProps, GameStatus, PlayerProps, ResultHero } from './shared';
-import { QuestionView, makeQuestion } from './quiz';
+import { QuestionView, makeQuestion, removeOptionAt } from './quiz';
 
 // ── YouTube IFrame API-typen ────────────────────────────────────────────────
 
@@ -26,6 +26,8 @@ interface YTPlayerInstance {
 
 interface YTPlayerOptions {
   videoId: string;
+  /** Domein van de speler; youtube-nocookie.com = de privacymodus van YouTube. */
+  host?: string;
   width?: string | number;
   height?: string | number;
   playerVars?: Record<string, string | number>;
@@ -53,6 +55,14 @@ declare global {
 // ── Hulpfuncties ────────────────────────────────────────────────────────────
 
 const YT_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+
+/**
+ * Privacymodus van YouTube: geen volgcookies tot de leerling afspeelt. De
+ * iframe-API zelf (YT_SCRIPT_SRC) komt wel van www.youtube.com; die host staat
+ * daarom in de CSP (src/offline/csp.ts).
+ */
+const YT_PLAYER_HOST = 'https://www.youtube-nocookie.com';
+const ytEmbedUrl = (videoId: string) => `${YT_PLAYER_HOST}/embed/${videoId}`;
 
 /** Haalt de video-id uit een YouTube-URL of accepteert een losse video-id. */
 function parseYouTubeId(input: string | undefined): string | null {
@@ -171,9 +181,9 @@ function McCompact({ q, onChange }: { q: MCQuestion; onChange: (q: Question) => 
             aria-label="Optie verwijderen"
             disabled={q.options.length <= 2}
             onClick={() => {
-              const options = q.options.filter((_, j) => j !== i);
-              const correctIndex = q.correctIndex === i ? 0 : q.correctIndex > i ? q.correctIndex - 1 : q.correctIndex;
-              onChange({ ...q, options, correctIndex });
+              // Het juiste antwoord verwijderen maakt geen andere optie stil juist.
+              const r = removeOptionAt(q.options, q.correctIndex, i);
+              onChange({ ...q, options: r.options, correctIndex: r.correct as number });
             }}
           ><CloseIcon size={16} aria-hidden /></button>
         </div>
@@ -181,7 +191,13 @@ function McCompact({ q, onChange }: { q: MCQuestion; onChange: (q: Question) => 
       <button className="btn btn-sm btn-ghost" onClick={() => onChange({ ...q, options: [...q.options, ''] })}>
         + Optie toevoegen
       </button>
-      <p className="hint" style={{ marginTop: 6 }}>Vink het juiste antwoord aan.</p>
+      {q.correctIndex >= 0 && q.correctIndex < q.options.length ? (
+        <p className="hint" style={{ marginTop: 6 }}>Vink het juiste antwoord aan.</p>
+      ) : (
+        <p className="hint" role="status" style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 6 }}>
+          <WarningIcon size={16} className="icon-inline" aria-hidden /> Nog geen juist antwoord aangeduid. Vink het juiste antwoord aan.
+        </p>
+      )}
     </div>
   );
 }
@@ -274,7 +290,7 @@ export function VideoQuizEditor({ config, onChange }: EditorProps<VideoQuizConfi
         <div style={{ marginBottom: 16 }}>
           <div style={{ position: 'relative', aspectRatio: '16 / 9', maxWidth: 480, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--line)', background: '#000' }}>
             <iframe
-              src={`https://www.youtube.com/embed/${videoId}`}
+              src={ytEmbedUrl(videoId)}
               title="Voorbeeld van de gekozen video"
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
               allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -467,6 +483,7 @@ export function VideoQuizPlayer({ widget, timeUp, onComplete }: PlayerProps<Vide
       const holder = document.createElement('div');
       wrap.appendChild(holder);
       playerRef.current = new yt.Player(holder, {
+        host: YT_PLAYER_HOST,
         videoId,
         width: '100%',
         height: '100%',
@@ -630,7 +647,7 @@ export function VideoQuizPlayer({ widget, timeUp, onComplete }: PlayerProps<Vide
         <div className="card" style={{ overflow: 'hidden', marginBottom: 18 }}>
           <div style={{ position: 'relative', aspectRatio: '16 / 9', background: '#000' }}>
             <iframe
-              src={`https://www.youtube.com/embed/${videoId}`}
+              src={ytEmbedUrl(videoId)}
               title={`Video: ${widget.title}`}
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
               allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
