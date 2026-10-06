@@ -143,7 +143,7 @@ describe('verklaarWeigeringen (S2)', () => {
     const codes = splitCodes(text);
     const report = processCodes(text, deps());
     expect(report.rows.map((r) => r.outcome)).toEqual(['ongeldig', 'ongeldig']);
-    expect(report.rows[0].message).toMatch(/onvolledig of beschadigd/); // de algemene melding van lib/inbox
+    expect(report.rows[0].message).toMatch(/veel meer antwoorden of tekst/); // lib/inbox zegt de reden nu zelf
     const rijen = verklaarWeigeringen(report.rows, codes);
     expect(rijen[0].message).toMatch(/Niet bewaard: deze code bevat veel meer antwoorden of tekst/);
     expect(rijen[1].message).toBe(report.rows[1].message); // een kapotte code blijft "beschadigd"

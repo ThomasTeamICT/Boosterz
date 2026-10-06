@@ -20,7 +20,7 @@ import {
 } from './courses';
 import { getSubmissions, getWidget, getWidgetByCode, saveSubmission } from './storage';
 import { getClasses, normalizeName } from './classes';
-import { sanitizeSubmission, submissionDupKey } from './progressTransfer';
+import { sanitizeSubmission, submissionDupKey, submissionTooLarge } from './progressTransfer';
 import { uid } from './utils';
 
 export type InboxOutcome = 'nieuw' | 'dubbel' | 'onbekend' | 'ongeldig';
@@ -405,15 +405,18 @@ export function processCodes(text: string, deps: InboxDeps = defaultInboxDeps())
 
     try {
       // Compacte bewaking bij het decoderen, daarna de volledige sanering (KL2).
-      const sub = code.startsWith('WF1.') ? sanitizeSubmission(decodeSubmission(code)) : null;
+      const decoded = code.startsWith('WF1.') ? decodeSubmission(code) : null;
+      const sub = decoded ? sanitizeSubmission(decoded) : null;
       const prog = !sub && code.startsWith('WFC1.') ? decodeProgressCode(code) : null;
       if (sub) verwerkResultaat(sub, row, beurt);
       else if (prog) verwerkVoortgang(prog, row, beurt);
       else {
         row.outcome = 'ongeldig';
-        row.message = code.startsWith('WF1.') || code.startsWith('WFC1.')
-          ? 'Deze code is onvolledig of beschadigd (afgebroken bij het kopiëren?).'
-          : 'Dit lijkt geen resultaat- of voortgangscode.';
+        // Een te grote code (S2) is niet beschadigd: zeg de echte reden.
+        row.message = (decoded ? submissionTooLarge(decoded) : null)
+          ?? (code.startsWith('WF1.') || code.startsWith('WFC1.')
+            ? 'Deze code is onvolledig of beschadigd (afgebroken bij het kopiëren?).'
+            : 'Dit lijkt geen resultaat- of voortgangscode.');
       }
     } catch {
       // Een geknutselde of onverwachte code mag de rest van de beurt nooit

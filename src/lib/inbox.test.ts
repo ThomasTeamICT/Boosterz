@@ -130,6 +130,15 @@ describe('processCodes — resultaatcodes', () => {
     expect(report.rows[1].message).toMatch(/stond hier al/i);
   });
 
+  it('zegt bij een te grote code de echte reden, niet "beschadigd" (S2)', () => {
+    const { deps, savedSubs } = makeDeps();
+    const report = processCodes(resultCode(submission({ answers: { x: 'a'.repeat(2_000_000) } })), deps);
+    expect(report.rows[0].outcome).toBe('ongeldig');
+    expect(report.rows[0].message).toMatch(/veel meer antwoorden of tekst/);
+    expect(report.rows[0].message).not.toMatch(/beschadigd/);
+    expect(savedSubs).toHaveLength(0);
+  });
+
   it('herkent werk dat hier al staat (zelfde widget, naam en indienmoment)', () => {
     const { deps, savedSubs } = makeDeps({ submissions: [submission({ id: 'ander-id' })] });
     const report = processCodes(resultCode(submission()), deps);
