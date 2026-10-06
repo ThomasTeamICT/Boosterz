@@ -3,13 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Inbox } from 'lucide-react';
 import type { ClassGroup, ClassStudent } from '../lib/classTypes';
 import {
-  assignmentsForClass, createClass, deleteClass, getClasses, parseStudentList, saveClass, seedExampleClass,
+  assignmentsForClass, createClass, deleteClass, duplicateNames, getClasses, parseStudentList, saveClass, seedExampleClass,
 } from '../lib/classes';
 import { onStorageChange } from '../lib/storage';
 import { ConfirmModal, EmptyState, Field, Modal, useToast } from '../components/ui';
 import { formatDateShort } from '../lib/utils';
 import { useNewParam } from '../lib/useNewParam';
-import { AddIcon, AssignIcon, DeleteIcon, PrivacyIcon, StudentIcon } from '../components/icons';
+import { AddIcon, AssignIcon, DeleteIcon, PrivacyIcon, StudentIcon, WarningIcon } from '../components/icons';
+import { duplicateStudentNames, pastedDuplicatesMessage } from './klasWeergave';
 
 /**
  * /klassen — het overzicht van de leerkracht.
@@ -66,6 +67,7 @@ export function ClassesPage() {
         <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
           {classes.map((cls) => {
             const opdrachten = assignmentsForClass(cls.id).length;
+            const dubbel = duplicateStudentNames(cls.students);
             return (
               <div key={cls.id} className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <h2 style={{ margin: 0, fontSize: '1.1rem' }}>{cls.name}</h2>
@@ -74,6 +76,14 @@ export function ClassesPage() {
                   {cls.students.length} leerling{cls.students.length === 1 ? '' : 'en'} ·{' '}
                   {opdrachten} opdracht{opdrachten === 1 ? '' : 'en'}
                 </p>
+                {dubbel.length > 0 && (
+                  <p className="hint" style={{ margin: 0 }}>
+                    <WarningIcon size={14} className="icon-inline" />{' '}
+                    {dubbel.length === 1
+                      ? `“${dubbel[0]}” staat meer dan eens in de lijst.`
+                      : `${dubbel.length} namen staan meer dan eens in de lijst: ${dubbel.join(', ')}.`}
+                  </p>
+                )}
                 <p className="hint" style={{ margin: 0 }}>
                   Klascode <strong style={{ fontFamily: 'monospace', letterSpacing: '0.12em' }}>{cls.code}</strong>
                   {' · '}bijgewerkt {formatDateShort(cls.updatedAt)}
@@ -132,6 +142,7 @@ function NewClassModal({ onClose, onCreate }: { onClose: () => void; onCreate: (
   const [year, setYear] = useState('');
   const [list, setList] = useState('');
   const students: ClassStudent[] = useMemo(() => parseStudentList(list), [list]);
+  const dubbel = useMemo(() => duplicateNames(list), [list]);
 
   const submit = () => {
     if (!name.trim()) return;
@@ -175,11 +186,19 @@ function NewClassModal({ onClose, onCreate }: { onClose: () => void; onCreate: (
           onChange={(e) => setList(e.target.value)}
         />
       </Field>
-      <p className="hint" role="status" style={{ marginTop: -6 }}>
-        {students.length === 0
-          ? 'Nog geen leerlingen herkend — je kan ze ook later toevoegen.'
-          : `${students.length} leerling${students.length === 1 ? '' : 'en'} herkend: ${students.slice(0, 4).map((s) => s.name).join(', ')}${students.length > 4 ? '…' : ''}`}
-      </p>
+      <div role="status" style={{ marginTop: -6 }}>
+        <p className="hint">
+          {students.length === 0
+            ? 'Nog geen leerlingen herkend — je kan ze ook later toevoegen.'
+            : `${students.length} leerling${students.length === 1 ? '' : 'en'} herkend: ${students.slice(0, 4).map((s) => s.name).join(', ')}${students.length > 4 ? '…' : ''}`}
+        </p>
+        {dubbel.length > 0 && (
+          <p className="hint">
+            <WarningIcon size={14} className="icon-inline" /> {pastedDuplicatesMessage(dubbel)}. Geef twee leerlingen met dezelfde naam een eigen naam,
+            bijvoorbeeld met een letter erachter.
+          </p>
+        )}
+      </div>
     </Modal>
   );
 }

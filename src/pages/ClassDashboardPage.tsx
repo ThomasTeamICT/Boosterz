@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ArrowRight, Calendar, Clock, ClipboardCheck, ClipboardList, FileText, Globe, Inbox, Puzzle, School, Search,
@@ -7,23 +7,27 @@ import type { Assignment, ClassGroup, ClassStudent } from '../lib/classTypes';
 import type { Course } from '../lib/courseTypes';
 import type { Widget } from '../lib/types';
 import {
-  applyStudentList, assignmentsForClass, deleteAssignment, dueBadge, getClass,
+  applyStudentList, assignmentsForClass, deleteAssignment, dueBadge, duplicateNames, getClass,
   goalScoresForStudent, loadClassContext, saveClass, sortedStudents, statusForAssignment,
-  statusSummary, submissionsFor, upsertAssignment, type AssignmentStatus, type ClassDataContext,
+  submissionsFor, upsertAssignment, type AssignmentStatus, type ClassDataContext,
 } from '../lib/classes';
 import { classPackFileName, classPackToJson, encodeClassPackToUrl, QR_MAX_CHARS } from '../lib/classPack';
 import { getCourses } from '../lib/courses';
 import { getWidgets, onStorageChange } from '../lib/storage';
 import { goalLabel } from '../lib/curriculum';
-import { goalPct } from '../lib/goals';
+import { awaitsGrading, goalScoreKey } from '../lib/goals';
 import { getTypeDef } from '../widgets/registry';
-import { csvCell, downloadFile, formatDate, formatDateShort, uid } from '../lib/utils';
+import { downloadFile, formatDate, formatDateShort, uid } from '../lib/utils';
 import { CodeQr } from '../components/CodeQr';
 import { ConfirmModal, CopyButton, EmptyState, Field, Modal, useToast } from '../components/ui';
 import {
   AddIcon, AssignIcon, BackIcon, CheckIcon, CourseIcon, DeleteIcon, EditIcon, ExportIcon,
   GoalIcon, LinkIcon, PrivacyIcon, StudentIcon, WarningIcon,
 } from '../components/icons';
+import {
+  duplicateStudentIds, duplicateStudentNames, duplicatesInClassMessage, goalScoreView,
+  klasCsv, nameTaken, nameTakenMessage, pastedDuplicatesMessage, statusSummaryProvisional, toDateInputValue,
+} from './klasWeergave';
 import '../styles/opvolgen.css';
 
 /** Leerlinglink van een klas (de hub waar de leerling zijn opdrachten ziet). */
@@ -65,6 +69,7 @@ export function ClassDashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const ctx = useMemo(() => loadClassContext(assignments), [assignments, tick]);
   const students = useMemo(() => (cls ? sortedStudents(cls.students) : []), [cls]);
+  const dubbeleNamen = useMemo(() => duplicateStudentNames(students), [students]);
 
   const statuses = useMemo(() => {
     const map = new Map<string, AssignmentStatus>();
@@ -92,7 +97,7 @@ export function ClassDashboardPage() {
       const widget = ctx.widgets.get(a.targetId);
       if (!widget) continue;
       const count = students.reduce(
-        (sum, s) => sum + submissionsFor(widget.id, s, ctx).filter((x) => x.status === 'submitted' && x.totalMax > 0).length,
+        (sum, s) => sum + submissionsFor(widget.id, s, ctx).filter((x) => x.totalMax > 0 && awaitsGrading(x)).length,
         0
       );
       if (count > 0) out.push({ widget, count });
@@ -103,7 +108,7 @@ export function ClassDashboardPage() {
   if (!cls) {
     return (
       <div className="page page-narrow" style={{ paddingTop: 60 }}>
-        <EmptyState icon={<AssignIcon size={40} />} title="Klas niet gevonden">
+        <EmptyState icon={<AssignIcon size={40} />} title="Klas niet gevonden" level={1}>
           <p>Deze klas staat niet (meer) op dit toestel.</p>
           <Link to="/klassen" className="btn btn-primary"><BackIcon size={16} /> Naar mijn klassen</Link>
         </EmptyState>
@@ -112,26 +117,8 @@ export function ClassDashboardPage() {
   }
 
   const exportCsv = () => {
-    const head = ['nummer', 'naam', ...assignments.flatMap((a) => [titleOf(a), `${titleOf(a)} — score/voortgang`])];
-    const lines = [head.map(csvCell).join(';')];
-    for (const s of students) {
-      const cells: (string | number)[] = [s.number ?? '', s.name];
-      for (const a of assignments) {
-        const st = statuses.get(`${s.id}|${a.id}`);
-        cells.push(st ? st.state : 'niet gestart');
-        cells.push(
-          !st || st.state === 'niet gestart'
-            ? ''
-            : st.progressPct !== null
-              ? `${st.progressPct}%`
-              : st.scorePct !== null
-                ? `${st.earned}/${st.max}`
-                : ''
-        );
-      }
-      lines.push(cells.map(csvCell).join(';'));
-    }
-    downloadFile(`klas - ${cls.name}.csv`, lines.join('\n'), 'text/csv');
+    const csv = klasCsv(students, assignments, titleOf, (s, a) => statuses.get(`${s.id}|${a.id}`));
+    downloadFile(`klas - ${cls.name}.csv`, csv, 'text/csv;charset=utf-8');
     toast('CSV gedownload', 'ok');
   };
 
@@ -153,6 +140,18 @@ export function ClassDashboardPage() {
           <button className="btn btn-primary" onClick={() => setShareOpen(true)}><LinkIcon size={18} /> Klaslink & pakket</button>
         </div>
       </div>
+
+      {dubbeleNamen.length > 0 && (
+        <div className="callout warn" role="status">
+          <span aria-hidden><WarningIcon size={18} /></span>
+          <div>
+            {duplicatesInClassMessage(dubbeleNamen)}{' '}
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEditList(true)}>
+              <EditIcon size={16} /> Klaslijst aanpassen
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Opdrachten ───────────────────────────────────────────────────── */}
       <section className="card card-pad" style={{ marginBottom: 20 }} aria-label="Opdrachten">
@@ -272,7 +271,7 @@ export function ClassDashboardPage() {
                       <td key={a.id} style={{ textAlign: 'center', padding: '6px 8px' }}>
                         <StateBadge status={st} />
                         {st.state !== 'niet gestart' && (
-                          <span className="hint" style={{ display: 'block' }}>{statusSummary(st)}</span>
+                          <span className="hint" style={{ display: 'block' }}>{statusSummaryProvisional(st)}</span>
                         )}
                         {st.needsGrading && (
                           <span className="hint" style={{ display: 'block' }}>
@@ -385,7 +384,7 @@ function StudentPanel({
                   <span aria-hidden><AssignmentKindIcon kind={a.kind} /></span>
                   <span style={{ flex: '1 1 160px' }}>{titleOf(a)}</span>
                   <StateBadge status={st} />
-                  <span className="hint">{statusSummary(st)}</span>
+                  <span className="hint">{statusSummaryProvisional(st)}</span>
                   {st.lastAt && <span className="hint">{formatDate(st.lastAt)}</span>}
                 </li>
               );
@@ -404,17 +403,21 @@ function StudentPanel({
         ) : (
           <div style={{ display: 'grid', gap: 6 }}>
             {goals.map((g) => {
-              const p = goalPct(g) ?? 0;
-              const kleur = p >= 70 ? 'var(--ok)' : p >= 45 ? 'var(--warn)' : 'var(--err)';
+              const label = goalLabel(g.code, g.curriculumId);
+              const view = goalScoreView(g);
+              // Een voorlopige score krijgt geen drempelkleur: wat nog wacht, kan ze nog veranderen.
+              const kleur = view.provisional || view.pct === null
+                ? 'var(--text-soft)'
+                : view.pct >= 70 ? 'var(--ok)' : view.pct >= 45 ? 'var(--warn)' : 'var(--err)';
               return (
-                <div key={g.code} style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 320px) 1fr auto', gap: 10, alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.86rem', overflow: 'hidden', textOverflow: 'ellipsis' }} title={goalLabel(g.code)}>
-                    {goalLabel(g.code, undefined, 60)}
+                <div key={goalScoreKey(g)} className="klas-doelrij">
+                  <span style={{ fontSize: '0.86rem', overflow: 'hidden', textOverflow: 'ellipsis' }} title={label}>
+                    {goalLabel(g.code, g.curriculumId, 60)}
                   </span>
-                  <div className="scorebar" role="img" aria-label={`${goalLabel(g.code)}: ${p} procent (${g.earned} van ${g.max} punten)`}>
-                    <div className="bar"><div style={{ width: `${p}%`, background: kleur }} /></div>
+                  <div className="scorebar" role="img" aria-label={`${label}: ${view.aria}`}>
+                    <div className="bar"><div style={{ width: `${view.pct ?? 0}%`, background: kleur }} /></div>
                   </div>
-                  <span className="hint" style={{ whiteSpace: 'nowrap' }}>{g.earned}/{g.max} · {p}%</span>
+                  <span className="hint klas-doelscore">{view.text}</span>
                 </div>
               );
             })}
@@ -568,8 +571,31 @@ function NewAssignmentModal({
   const [targetId, setTargetId] = useState('');
   const [due, setDue] = useState('');
   const [note, setNote] = useState('');
+  // Zijn deadline en instructie overgenomen van een bestaande opdracht? Dan
+  // horen ze bij die opdracht en mogen ze weg bij een andere keuze. Wat de
+  // leerkracht zelf intikte, blijft staan.
+  const overgenomen = useRef(false);
 
   const alReeds = (id: string) => existing.some((a) => a.kind === kind && a.targetId === id);
+
+  // Bij een wissel van cursus of oefening de deadline en instructie van de
+  // bestaande opdracht tonen: "bijwerken" overschrijft ze, en leeg laten zou
+  // ze zonder waarschuwing wissen (zoals bij ShareModal).
+  useEffect(() => {
+    if (!targetId) return;
+    const a = existing.find((x) => x.kind === kind && x.targetId === targetId);
+    if (a) {
+      setDue(a.dueAt ? toDateInputValue(a.dueAt) : '');
+      setNote(a.note ?? '');
+      overgenomen.current = true;
+    } else if (overgenomen.current) {
+      setDue('');
+      setNote('');
+      overgenomen.current = false;
+    }
+    // `existing` is bewust geen afhankelijkheid: alleen een wissel van keuze telt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, targetId]);
 
   const submit = () => {
     if (!targetId) return;
@@ -669,8 +695,12 @@ function EditStudentsModal({
 }: { cls: ClassGroup; onClose: () => void; onSave: (students: ClassStudent[]) => void }) {
   const [draft, setDraft] = useState<ClassStudent[]>(() => sortedStudents(cls.students));
   const [nieuw, setNieuw] = useState('');
+  const [nieuwFout, setNieuwFout] = useState('');
   const [plak, setPlak] = useState('');
+  const [vervangStatus, setVervangStatus] = useState('');
   const nieuwRef = useRef<HTMLInputElement>(null);
+  const basisId = useId();
+  const nieuwFoutId = `${basisId}-nieuw-fout`;
 
   const wijzig = (id: string, patch: Partial<ClassStudent>) =>
     setDraft((cur) => cur.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -678,18 +708,32 @@ function EditStudentsModal({
   const voegToe = () => {
     const naam = nieuw.trim();
     if (!naam) return;
+    // Dezelfde naam twee keer geeft twee leerlingen die Boosterz op naam niet uit elkaar houdt.
+    if (nameTaken(draft, naam)) {
+      setNieuwFout(nameTakenMessage(naam));
+      nieuwRef.current?.focus();
+      return;
+    }
     setDraft((cur) => [...cur, { id: uid(), name: naam.slice(0, 80) }]);
     setNieuw('');
+    setNieuwFout('');
     nieuwRef.current?.focus();
   };
 
   const vervang = () => {
     if (!plak.trim()) return;
-    setDraft(applyStudentList(draft, plak));
+    const dubbel = pastedDuplicatesMessage(duplicateNames(plak));
+    const lijst = applyStudentList(draft, plak);
+    setDraft(lijst);
     setPlak('');
+    setVervangStatus(`Lijst vervangen: ${lijst.length} leerling${lijst.length === 1 ? '' : 'en'}.${dubbel ? ` ${dubbel}.` : ''}`);
   };
 
   const verdwijnen = cls.students.filter((s) => !draft.some((d) => d.id === s.id));
+  // Een lege naam laat `getClasses` bij het lezen stil vallen: dan bewaren we niet.
+  const legeRijen = draft.filter((s) => !s.name.trim()).length;
+  const dubbeleNamen = duplicateStudentNames(draft);
+  const dubbelIds = duplicateStudentIds(draft);
 
   return (
     <Modal
@@ -699,7 +743,7 @@ function EditStudentsModal({
       footer={
         <>
           <button className="btn btn-ghost" onClick={onClose}>Annuleren</button>
-          <button className="btn btn-primary" onClick={() => { onSave(draft); onClose(); }}>Bewaren</button>
+          <button className="btn btn-primary" disabled={legeRijen > 0} onClick={() => { onSave(draft); onClose(); }}>Bewaren</button>
         </>
       }
     >
@@ -708,37 +752,64 @@ function EditStudentsModal({
         alleen de naam uit de lijst — zijn inzendingen blijven bij de resultaten staan.
       </p>
 
-      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
-        {draft.map((s, i) => (
-          <li key={s.id} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input
-              className="input input-sm"
-              type="number"
-              min={1}
-              max={999}
-              style={{ width: 74 }}
-              value={s.number ?? ''}
-              aria-label={`Klasnummer van ${s.name || `leerling ${i + 1}`}`}
-              onChange={(e) =>
-                wijzig(s.id, { number: e.target.value === '' ? undefined : Math.max(1, Math.min(999, Number(e.target.value))) })
-              }
-            />
-            <input
-              className="input input-sm"
-              style={{ flex: '1 1 180px' }}
-              value={s.name}
-              aria-label={`Naam van leerling ${i + 1}`}
-              onChange={(e) => wijzig(s.id, { name: e.target.value })}
-            />
-            <button
-              className="btn btn-sm btn-quiet btn-icon"
-              aria-label={`${s.name || 'Leerling'} uit de lijst verwijderen`}
-              onClick={() => setDraft((cur) => cur.filter((x) => x.id !== s.id))}
-            >
-              <DeleteIcon size={16} />
-            </button>
-          </li>
-        ))}
+      <div role="status">
+        {legeRijen > 0 && (
+          <div className="callout err">
+            <span aria-hidden><WarningIcon size={18} /></span>
+            <div>Geef elke leerling een naam, of verwijder de lege {legeRijen === 1 ? 'rij' : 'rijen'}.</div>
+          </div>
+        )}
+        {dubbeleNamen.length > 0 && (
+          <div className="callout warn">
+            <span aria-hidden><WarningIcon size={18} /></span>
+            <div>{duplicatesInClassMessage(dubbeleNamen)}</div>
+          </div>
+        )}
+      </div>
+
+      <ul className="klas-lijst" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
+        {draft.map((s, i) => {
+          const leeg = !s.name.trim();
+          const dubbel = dubbelIds.has(s.id);
+          const meldingId = `${basisId}-rij-${s.id}`;
+          return (
+            <li key={s.id} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                className="input input-sm"
+                type="number"
+                min={1}
+                max={999}
+                style={{ width: 74 }}
+                value={s.number ?? ''}
+                aria-label={`Klasnummer van ${s.name || `leerling ${i + 1}`}`}
+                onChange={(e) =>
+                  wijzig(s.id, { number: e.target.value === '' ? undefined : Math.max(1, Math.min(999, Number(e.target.value))) })
+                }
+              />
+              <input
+                className="input input-sm klas-invoer"
+                style={{ flex: '1 1 180px' }}
+                value={s.name}
+                aria-label={`Naam van leerling ${i + 1}`}
+                aria-invalid={leeg || dubbel ? true : undefined}
+                aria-describedby={leeg || dubbel ? meldingId : undefined}
+                onChange={(e) => wijzig(s.id, { name: e.target.value })}
+              />
+              {(leeg || dubbel) && (
+                <span id={meldingId} className="hint klas-rijmelding">
+                  <WarningIcon size={14} className="icon-inline" /> {leeg ? 'geen naam' : 'dubbele naam'}
+                </span>
+              )}
+              <button
+                className="btn btn-sm btn-quiet btn-icon"
+                aria-label={`${s.name || 'Leerling'} uit de lijst verwijderen`}
+                onClick={() => setDraft((cur) => cur.filter((x) => x.id !== s.id))}
+              >
+                <DeleteIcon size={16} />
+              </button>
+            </li>
+          );
+        })}
       </ul>
       {draft.length === 0 && <p className="hint">Nog geen leerlingen in deze klas.</p>}
 
@@ -747,10 +818,12 @@ function EditStudentsModal({
           <Field label="Leerling toevoegen">
             <input
               ref={nieuwRef}
-              className="input"
+              className="input klas-invoer"
               value={nieuw}
               placeholder="Voornaam en naam"
-              onChange={(e) => setNieuw(e.target.value)}
+              aria-invalid={nieuwFout ? true : undefined}
+              aria-describedby={nieuwFout ? nieuwFoutId : undefined}
+              onChange={(e) => { setNieuw(e.target.value); setNieuwFout(''); }}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); voegToe(); } }}
             />
           </Field>
@@ -759,6 +832,12 @@ function EditStudentsModal({
           <AddIcon size={16} /> Toevoegen
         </button>
       </div>
+      {nieuwFout && (
+        <div id={nieuwFoutId} className="callout err" role="alert">
+          <span aria-hidden><WarningIcon size={18} /></span>
+          <div>{nieuwFout}</div>
+        </div>
+      )}
 
       <details>
         <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
@@ -774,9 +853,12 @@ function EditStudentsModal({
           value={plak}
           aria-label="Klaslijst plakken"
           placeholder={'1 Emma Peeters\n2 Noah Claes'}
-          onChange={(e) => setPlak(e.target.value)}
+          onChange={(e) => { setPlak(e.target.value); setVervangStatus(''); }}
           style={{ width: '100%' }}
         />
+        <p className="hint" role="status" style={{ margin: '6px 0 0' }}>
+          {plak.trim() ? pastedDuplicatesMessage(duplicateNames(plak)) : vervangStatus}
+        </p>
         <button className="btn btn-ghost btn-sm" style={{ marginTop: 6 }} disabled={!plak.trim()} onClick={vervang}>
           Lijst vervangen
         </button>

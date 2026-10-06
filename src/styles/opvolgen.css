@@ -30,3 +30,27 @@
   background: var(--ok-strong);
   flex: none;
 }
+
+/* ── Klasdashboard en klaslijst ──────────────────────────────────────────── */
+
+/* Eén rij per leerplandoel: label, balk en score. Op een smal scherm staat het
+   label boven de balk, zodat er niets buiten het scherm valt. */
+.klas-doelrij {
+  display: grid;
+  grid-template-columns: minmax(140px, 320px) 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+.klas-doelrij .klas-doelscore { white-space: nowrap; }
+@media (max-width: 600px) {
+  .klas-doelrij { grid-template-columns: 1fr auto; gap: 4px 10px; }
+  .klas-doelrij > :first-child { grid-column: 1 / -1; }
+  .klas-doelrij .scorebar { min-width: 0; }
+  .klas-doelrij .klas-doelscore { white-space: normal; text-align: right; }
+}
+
+/* Een naam in de klaslijst die niet klopt (leeg of dubbel): rand in de foutkleur,
+   en de reden staat ook als tekst naast het veld, niet alleen als kleur. */
+.klas-invoer[aria-invalid="true"],
+.klas-invoer[aria-invalid="true"]:focus { border-color: var(--err); }
+.klas-rijmelding { display: inline-flex; align-items: center; gap: 4px; }
