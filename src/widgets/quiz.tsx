@@ -24,6 +24,11 @@ import { allGoalOptions, findGoalByCode } from '../lib/curriculum';
 import { loadA11y } from '../components/A11yMenu';
 import type { Widget } from '../lib/types';
 import { EXTRA_QTYPES, extraQType } from './qtypes';
+import { NumberField } from '../components/NumberField';
+
+// NumberField en parseNumberInput wonen in components/NumberField.tsx (zodat andere editors
+// niet de hele quiz meeladen); hier opnieuw geëxporteerd voor bestaande importen.
+export { NumberField, parseNumberInput } from '../components/NumberField';
 
 // ── Voorlezen (tekst-naar-spraak) met meeleesmarkering ──────────────────────
 
@@ -267,90 +272,6 @@ export function questionLabel(q: Question): string {
 }
 
 // ── EDITOR ──────────────────────────────────────────────────────────────────
-
-/**
- * Getal uit een editorveld lezen: komma of punt als decimaalteken, spaties
- * rond het getal mogen. Null als er (nog) geen eindig getal staat ("", "-",
- * ","). Gebruikt door NumberField.
- */
-export function parseNumberInput(raw: string): number | null {
-  const n = parseFloat(raw.trim().replace(',', '.'));
-  return Number.isFinite(n) ? n : null;
-}
-
-type NumberFieldProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type' | 'min' | 'max'> & {
-  value: number;
-  onChange: (n: number) => void;
-  /** Kleinere waarden worden opgetrokken tot dit minimum (bv. 0 voor een tolerantie). */
-  min?: number;
-  max?: number;
-  /** Extra voorwaarde; een getal dat ze niet haalt, wordt niet bewaard (bv. stap > 0). */
-  allow?: (n: number) => boolean;
-};
-
-/**
- * Getalveld voor de editor met eigen teksttoestand. Een gewoon
- * `type="number"`-veld met `parseFloat(v) || 0` maakte van "-5" een 5 (het
- * minteken alleen werd 0 en daarna kwam de 5) en van "2,5" soms 25. Hier
- * blijft wat je typt staan, en wordt alleen een eindig getal bewaard; bij
- * het verlaten van het veld toont het weer de bewaarde waarde. Mogen
- * negatieve getallen (geen minimum, of een minimum onder 0), dan krijgt het
- * veld het gewone toetsenbord: het decimale toetsenbord van iPad en iPhone
- * heeft geen minteken. Exporteerbaar voor andere editors (bv. rekenen).
- */
-export function NumberField({ value, onChange, min, max, allow, onBlur, ...rest }: NumberFieldProps) {
-  const show = (n: number) => (Number.isFinite(n) ? String(n) : '');
-  const [text, setText] = useState(() => show(value));
-  const committed = useRef(value);
-
-  // waarde van buitenaf gewijzigd (andere vraag, ongedaan maken): tekst volgen
-  useEffect(() => {
-    if (!Object.is(value, committed.current)) {
-      committed.current = value;
-      setText(show(value));
-    }
-  }, [value]);
-
-  const resolve = (raw: string): number | null => {
-    const n = parseNumberInput(raw);
-    if (n === null || (allow && !allow(n))) return null;
-    let v = n;
-    if (min !== undefined) v = Math.max(min, v);
-    if (max !== undefined) v = Math.min(max, v);
-    return v;
-  };
-  // ongeldig: geen getal, geweigerd, of buiten de grenzen (dan wordt de grens bewaard)
-  const typed = parseNumberInput(text);
-  const invalid = typed === null || !Object.is(resolve(text), typed);
-  const allowsNegative = min === undefined || min < 0;
-
-  return (
-    <input
-      {...rest}
-      type="text"
-      inputMode={allowsNegative ? 'text' : 'decimal'}
-      autoComplete="off"
-      value={text}
-      aria-invalid={invalid || undefined}
-      onChange={(e) => {
-        const raw = e.target.value;
-        setText(raw);
-        const v = resolve(raw);
-        if (v !== null && !Object.is(v, committed.current)) {
-          committed.current = v;
-          onChange(v);
-        }
-      }}
-      onBlur={(e) => {
-        // onvolledige, geweigerde of afgetopte invoer ("-", "", stap 0, tolerantie -1):
-        // terug naar wat echt bewaard is; "2,50" blijft gewoon staan
-        const shown = parseNumberInput(text);
-        if (shown === null || !Object.is(shown, committed.current)) setText(show(committed.current));
-        onBlur?.(e);
-      }}
-    />
-  );
-}
 
 /** Sleutel van een meerkeuzevraag zonder juist antwoord (bv. na het verwijderen ervan). */
 export const NO_CORRECT_INDEX = -1;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { ChecklistConfig } from '../lib/types';
 import { Field } from '../components/ui';
 import { CheckIcon } from '../components/icons';
@@ -23,10 +23,27 @@ export function ChecklistEditor({ config, onChange }: EditorProps<ChecklistConfi
   );
 }
 
-export function ChecklistPlayer({ widget, onComplete }: PlayerProps<ChecklistConfig>) {
+export function ChecklistPlayer({ widget, timeUp, onComplete }: PlayerProps<ChecklistConfig>) {
   const items = widget.config.items.filter((i) => i.text.trim());
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [done, setDone] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const submittedRef = useRef(false);
+
+  // Tijd om: indienen wat al afgevinkt is, eenmalig.
+  useEffect(() => {
+    if (!timeUp || submittedRef.current || items.length === 0) return;
+    submittedRef.current = true;
+    setDone(true);
+    setTimedOut(true);
+    onComplete({
+      answers: { afgevinkt: items.filter((i) => checked.has(i.id)).map((i) => i.text) },
+      itemScores: null,
+      earned: checked.size,
+      max: items.length,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeUp]);
 
   if (items.length === 0) return <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>Nog geen stappen ingesteld.</p>;
 
@@ -34,7 +51,7 @@ export function ChecklistPlayer({ widget, onComplete }: PlayerProps<ChecklistCon
     return (
       <ResultHero
         earned={checked.size} max={items.length} showScore={false}
-        title="Checklist ingediend!"
+        title={timedOut ? 'De tijd is om!' : 'Checklist ingediend!'}
         subtitle={`${checked.size} van de ${items.length} stappen afgevinkt.`}
       />
     );
@@ -70,6 +87,7 @@ export function ChecklistPlayer({ widget, onComplete }: PlayerProps<ChecklistCon
         <button
           className="btn btn-primary"
           onClick={() => {
+            submittedRef.current = true;
             setDone(true);
             onComplete({
               answers: { afgevinkt: items.filter((i) => checked.has(i.id)).map((i) => i.text) },

@@ -24,6 +24,11 @@ export function WhiteboardEditor({ config, onChange }: EditorProps<WhiteboardCon
 
 const COLORS = ['#111827', '#dc2626', '#2563eb', '#16a34a', '#d97706', '#9333ea', '#ffffff'];
 const SIZES = [3, 6, 12, 22];
+// Toegankelijke namen: een schermlezer moet "rood" zeggen, geen kleurcode.
+const COLOR_NAMES: Record<string, string> = {
+  '#111827': 'zwart', '#dc2626': 'rood', '#2563eb': 'blauw', '#16a34a': 'groen',
+  '#d97706': 'oranje', '#9333ea': 'paars', '#ffffff': 'wit',
+};
 
 export function WhiteboardPlayer({ widget, timeUp, onComplete }: PlayerProps<WhiteboardConfig>) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -111,7 +116,7 @@ export function WhiteboardPlayer({ widget, timeUp, onComplete }: PlayerProps<Whi
             key={c}
             className={`wb-swatch ${color === c && !eraser ? 'active' : ''}`}
             style={{ background: c, boxShadow: c === '#ffffff' ? 'inset 0 0 0 1px var(--line-strong)' : undefined }}
-            aria-label={`Kleur ${c}`}
+            aria-label={`Kleur ${COLOR_NAMES[c] ?? c}`}
             aria-pressed={color === c && !eraser}
             onClick={() => { setColor(c); setEraser(false); }}
           />
@@ -123,7 +128,8 @@ export function WhiteboardPlayer({ widget, timeUp, onComplete }: PlayerProps<Whi
             className="btn btn-quiet btn-icon"
             aria-label={`Dikte ${s}`}
             aria-pressed={size === s}
-            style={{ outline: size === s ? '2px solid var(--brand)' : 'none' }}
+            // geen inline outline: die wint van de focusring (:focus-visible); de gekozen dikte tonen we met een schaduw
+            style={{ boxShadow: size === s ? '0 0 0 2px var(--brand)' : undefined }}
             onClick={() => setSize(s)}
           >
             <span style={{ width: Math.min(s + 4, 22), height: Math.min(s + 4, 22), borderRadius: '50%', background: 'var(--text)' }} />

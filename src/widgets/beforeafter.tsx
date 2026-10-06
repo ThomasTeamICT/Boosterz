@@ -285,13 +285,14 @@ export function BeforeAfterPlayer({ widget, timeUp, onComplete }: PlayerProps<Be
   const labelAfter = (config.labelAfter ?? '').trim() || 'Na';
 
   const submittedRef = useRef(false);
-  const [registered, setRegistered] = useState(false);
+  // Alleen echt verkend als de leerling de lijn bewoog; bij "tijd om" is er niets verkend.
+  const [verkend, setVerkend] = useState(false);
 
-  const complete = (verkend: boolean) => {
+  const complete = (heeftVerkend: boolean) => {
     if (submittedRef.current) return;
     submittedRef.current = true;
-    setRegistered(true);
-    onComplete({ answers: { verkend }, itemScores: null, earned: 0, max: 0 });
+    setVerkend(heeftVerkend);
+    onComplete({ answers: { verkend: heeftVerkend }, itemScores: null, earned: 0, max: 0 });
   };
 
   useEffect(() => {
@@ -303,7 +304,7 @@ export function BeforeAfterPlayer({ widget, timeUp, onComplete }: PlayerProps<Be
   if (!config.imageBefore || !config.imageAfter) {
     return (
       <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>
-        Deze widget heeft nog geen voor- en na-afbeelding. Vraag je leerkracht om ze toe te voegen.
+        Deze oefening heeft nog geen voor- en na-afbeelding. Vraag je leerkracht om ze toe te voegen.
       </p>
     );
   }
@@ -311,8 +312,8 @@ export function BeforeAfterPlayer({ widget, timeUp, onComplete }: PlayerProps<Be
   return (
     <div style={{ maxWidth: 760, margin: '0 auto' }}>
       <GameStatus>
-        {registered ? (
-          <span className="badge badge-ok"><CheckIcon size={14} className="icon-inline" aria-hidden /> Je verkenning is geregistreerd</span>
+        {verkend ? (
+          <span className="badge badge-ok"><CheckIcon size={14} className="icon-inline" aria-hidden /> Je hebt beide afbeeldingen verkend.</span>
         ) : (
           <span>Sleep de lijn (of gebruik de pijltjestoetsen) om voor en na te vergelijken.</span>
         )}

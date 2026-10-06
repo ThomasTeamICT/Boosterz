@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { MemoryConfig, MemoryPair } from '../lib/types';
 import { shuffled, uid } from '../lib/utils';
 import { Field, ImagePicker } from '../components/ui';
@@ -46,7 +46,7 @@ export function MemoryEditor({ config, onChange }: EditorProps<MemoryConfig>) {
 
 interface Card { key: string; pairId: string; text: string; image?: string }
 
-export function MemoryPlayer({ widget, onComplete }: PlayerProps<MemoryConfig>) {
+export function MemoryPlayer({ widget, timeUp, onComplete }: PlayerProps<MemoryConfig>) {
   const cards: Card[] = useMemo(() => {
     const valid = widget.config.pairs.filter((p) => (p.a || p.aImage) && (p.b || p.bImage));
     return shuffled(
@@ -62,10 +62,13 @@ export function MemoryPlayer({ widget, onComplete }: PlayerProps<MemoryConfig>) 
   const [tries, setTries] = useState(0);
   const [locked, setLocked] = useState(false);
   const [done, setDone] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const submittedRef = useRef(false);
   const totalPairs = cards.length / 2;
 
   useEffect(() => {
-    if (!done && totalPairs > 0 && matched.size === totalPairs) {
+    if (!done && !submittedRef.current && totalPairs > 0 && matched.size === totalPairs) {
+      submittedRef.current = true;
       setDone(true);
       onComplete({
         answers: { pogingen: tries, paren: totalPairs },
@@ -76,6 +79,22 @@ export function MemoryPlayer({ widget, onComplete }: PlayerProps<MemoryConfig>) 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matched, done]);
+
+  // Tijd om: de deelscore indienen, eenmalig.
+  useEffect(() => {
+    if (!timeUp || submittedRef.current || totalPairs === 0) return;
+    submittedRef.current = true;
+    setDone(true);
+    setTimedOut(true);
+    setOpen([]);
+    onComplete({
+      answers: { pogingen: tries, paren: totalPairs, gevonden: matched.size },
+      itemScores: null,
+      earned: matched.size,
+      max: totalPairs,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeUp]);
 
   if (cards.length === 0) return <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>Nog geen paren in dit spel.</p>;
 
@@ -101,13 +120,18 @@ export function MemoryPlayer({ widget, onComplete }: PlayerProps<MemoryConfig>) 
   if (done) {
     return (
       <ResultHero
-        earned={totalPairs} max={totalPairs} showScore={false}
-        title="Alle paren gevonden! 🧠"
-        subtitle={`Je had ${tries} pogingen nodig voor ${totalPairs} paren.`}
+        earned={matched.size} max={totalPairs} showScore={false}
+        title={timedOut ? 'De tijd is om!' : 'Alle paren gevonden! 🧠'}
+        subtitle={timedOut
+          ? `Je vond ${matched.size} van de ${totalPairs} paren in ${tries} pogingen.`
+          : `Je had ${tries} pogingen nodig voor ${totalPairs} paren.`}
       >
-        <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => {
-          setMatched(new Set()); setOpen([]); setTries(0); setDone(false);
-        }}><RetryIcon size={16} aria-hidden /> Opnieuw spelen</button>
+        {!timedOut && (
+          <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => {
+            submittedRef.current = false;
+            setMatched(new Set()); setOpen([]); setTries(0); setDone(false);
+          }}><RetryIcon size={16} aria-hidden /> Opnieuw spelen</button>
+        )}
       </ResultHero>
     );
   }

@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import type { ArithmeticConfig, ArithmeticOp, ItemScore } from '../lib/types';
 import { Field } from '../components/ui';
+import { NumberField } from '../components/NumberField';
 import { CheckIcon, CloseIcon } from '../components/icons';
 import { EditorProps, GameStatus, PlayerProps, ResultHero } from './shared';
 
@@ -34,17 +35,18 @@ export function ArithmeticEditor({ config, onChange }: EditorProps<ArithmeticCon
         </div>
       </Field>
       <div style={{ display: 'flex', gap: 12 }}>
+        {/* NumberField: negatieve getallen en 0 kunnen gewoon getypt worden (geen terugval op 0 of 10) */}
         <Field label="Kleinste getal">
-          <input className="input input-sm" type="number" value={config.min}
-            onChange={(e) => onChange({ ...config, min: parseInt(e.target.value) || 0 })} />
+          <NumberField className="input input-sm" value={config.min} allow={Number.isInteger}
+            onChange={(min) => onChange({ ...config, min })} />
         </Field>
         <Field label="Grootste getal">
-          <input className="input input-sm" type="number" value={config.max}
-            onChange={(e) => onChange({ ...config, max: parseInt(e.target.value) || 10 })} />
+          <NumberField className="input input-sm" value={config.max} allow={Number.isInteger}
+            onChange={(max) => onChange({ ...config, max })} />
         </Field>
         <Field label="Aantal oefeningen">
-          <input className="input input-sm" type="number" min={1} max={50} value={config.count}
-            onChange={(e) => onChange({ ...config, count: Math.max(1, Math.min(50, parseInt(e.target.value) || 10)) })} />
+          <NumberField className="input input-sm" min={1} max={50} value={config.count} allow={Number.isInteger}
+            onChange={(count) => onChange({ ...config, count })} />
         </Field>
       </div>
       {config.ops.includes('mul') && (
@@ -63,6 +65,9 @@ export function ArithmeticEditor({ config, onChange }: EditorProps<ArithmeticCon
 }
 
 interface Sum { a: number; b: number; op: ArithmeticOp; answer: number }
+
+/** De som als tekst; een negatief tweede getal krijgt haakjes ("2 − (-3)"). */
+const sumText = (s: Sum) => `${s.a} ${OP_META[s.op].symbol} ${s.b < 0 ? `(${s.b})` : s.b}`;
 
 function makeSums(config: ArithmeticConfig): Sum[] {
   const rint = (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1));
@@ -111,11 +116,13 @@ export function ArithmeticPlayer({ widget, timeUp, onComplete }: PlayerProps<Ari
       if (ok) earned++;
     });
     onComplete({
-      answers: Object.fromEntries(sums.map((s, i) => [`sum${i}`, `${s.a} ${OP_META[s.op].symbol} ${s.b} = ${answers[i] ?? '—'}`])),
+      answers: Object.fromEntries(sums.map((s, i) => [`sum${i}`, `${sumText(s)} = ${answers[i] ?? '—'}`])),
       itemScores,
       earned,
       max: sums.length,
     });
+    // het resultaatscherm leest `given`: ook bij "tijd om" moet daar het laatste antwoord in staan
+    setGiven(answers);
     setDone(true);
   };
 
@@ -130,7 +137,11 @@ export function ArithmeticPlayer({ widget, timeUp, onComplete }: PlayerProps<Ari
     const val = current === '' ? null : parseFloat(current.replace(',', '.'));
     const ok = val === sums[idx].answer;
     setFeedback(ok ? 'ok' : 'nok');
+    // het veld is tijdens de feedback readOnly (niet disabled), dus de focus blijft; ook na
+    // een klik op OK (die knop wordt uitgeschakeld) brengen we ze terug naar het veld
+    inputRef.current?.focus();
     setTimeout(() => {
+      if (submittedRef.current) return; // tijd om: de oefening is al ingediend
       const answers = [...given, val];
       setGiven(answers);
       setCurrent('');
@@ -152,7 +163,7 @@ export function ArithmeticPlayer({ widget, timeUp, onComplete }: PlayerProps<Ari
               const ok = given[i] === s.answer;
               return (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line)', fontVariantNumeric: 'tabular-nums' }}>
-                  <span style={{ fontWeight: 600 }}>{s.a} {OP_META[s.op].symbol} {s.b} = {given[i] ?? '—'}</span>
+                  <span style={{ fontWeight: 600 }}>{sumText(s)} = {given[i] ?? '—'}</span>
                   <span style={{ color: ok ? 'var(--ok)' : 'var(--err)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     {ok ? <CheckIcon size={16} aria-hidden /> : <><CloseIcon size={16} aria-hidden /> ({s.answer})</>}
                   </span>
@@ -182,7 +193,7 @@ export function ArithmeticPlayer({ widget, timeUp, onComplete }: PlayerProps<Ari
         }}
         aria-live="polite"
       >
-        {s.a} {OP_META[s.op].symbol} {s.b} = {feedback === 'nok' ? <span style={{ color: 'var(--err)' }}>{current || '?'}</span> : current || '?'}
+        {sumText(s)} = {feedback === 'nok' ? <span style={{ color: 'var(--err)' }}>{current || '?'}</span> : current || '?'}
         {feedback === 'nok' && <div style={{ fontSize: '1.1rem', color: 'var(--err)', fontWeight: 700 }}>Juiste antwoord: {s.answer}</div>}
         {feedback === 'ok' && <div style={{ fontSize: '1.3rem', color: 'var(--ok)' }} aria-label="juist"><CheckIcon aria-hidden /></div>}
       </div>
@@ -198,7 +209,7 @@ export function ArithmeticPlayer({ widget, timeUp, onComplete }: PlayerProps<Ari
           step="any"
           style={{ maxWidth: 180, fontSize: '1.4rem', textAlign: 'center', fontWeight: 700 }}
           value={current}
-          disabled={!!feedback}
+          readOnly={!!feedback}
           onChange={(e) => setCurrent(e.target.value)}
           aria-label="Jouw antwoord"
           autoFocus

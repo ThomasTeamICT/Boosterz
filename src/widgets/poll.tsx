@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Vote } from 'lucide-react';
 import type { PollConfig } from '../lib/types';
 import { getSubmissions } from '../lib/storage';
@@ -19,14 +19,34 @@ export function PollEditor({ config, onChange }: EditorProps<PollConfig>) {
       </Field>
       <CheckRow checked={config.allowMultiple} onChange={(v) => onChange({ ...config, allowMultiple: v })} label="Meerdere antwoorden toestaan" />
       <CheckRow checked={config.showResults} onChange={(v) => onChange({ ...config, showResults: v })} label="Resultaten tonen aan de leerling na het stemmen" />
+      {config.showResults && (
+        <p className="hint" style={{ marginTop: 4 }}>
+          De leerling ziet alleen de stemmen die op hetzelfde toestel zijn uitgebracht. Een peiling telt dus per toestel: stemmen van andere toestellen komen er niet bij.
+        </p>
+      )}
     </div>
   );
 }
 
-export function PollPlayer({ widget, preview, onComplete }: PlayerProps<PollConfig>) {
+export function PollPlayer({ widget, preview, timeUp, onComplete }: PlayerProps<PollConfig>) {
   const options = widget.config.options.filter((o) => o.trim());
   const [selected, setSelected] = useState<number[]>([]);
   const [voted, setVoted] = useState(false);
+  const submittedRef = useRef(false);
+
+  // Tijd om: de gekozen opties indienen (zonder keuze wordt er geen stem geteld), eenmalig.
+  useEffect(() => {
+    if (!timeUp || submittedRef.current || options.length < 2) return;
+    submittedRef.current = true;
+    setVoted(true);
+    onComplete({
+      answers: { keuzes: selected.map((i) => options[i]) },
+      itemScores: null,
+      earned: 0,
+      max: 0,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeUp]);
 
   if (options.length < 2) return <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>Voeg minstens 2 opties toe.</p>;
 
@@ -40,6 +60,8 @@ export function PollPlayer({ widget, preview, onComplete }: PlayerProps<PollConf
   };
 
   const vote = () => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
     setVoted(true);
     onComplete({
       answers: { keuzes: selected.map((i) => options[i]) },
@@ -49,8 +71,9 @@ export function PollPlayer({ widget, preview, onComplete }: PlayerProps<PollConf
     });
   };
 
-  if (voted && widget.config.showResults) {
-    // alle stemmen in deze browser optellen (incl. deze stem)
+  if (voted && widget.config.showResults && selected.length > 0) {
+    // alle stemmen in deze browser optellen (incl. deze stem). Een peiling heeft geen server:
+    // wat hier staat zijn dus alleen de stemmen op dit toestel.
     const subs = preview ? [] : getSubmissions(widget.id);
     const counts = options.map((o) =>
       subs.filter((s) => Array.isArray((s.answers as any).keuzes) && ((s.answers as any).keuzes as string[]).includes(o)).length
@@ -60,7 +83,7 @@ export function PollPlayer({ widget, preview, onComplete }: PlayerProps<PollConf
     return (
       <div style={{ maxWidth: 560, margin: '0 auto' }}>
         <h2 style={{ textAlign: 'center' }}>{widget.config.question}</h2>
-        <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>Bedankt voor je stem! Dit zijn de resultaten tot nu toe:</p>
+        <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>Bedankt voor je stem! Dit zijn de stemmen op dit toestel:</p>
         {options.map((o, i) => {
           const p = Math.round((counts[i] / total) * 100);
           return (
@@ -81,7 +104,7 @@ export function PollPlayer({ widget, preview, onComplete }: PlayerProps<PollConf
     return (
       <div className="card result-hero">
         <Vote size={48} aria-hidden />
-        <h2>Je stem is geregistreerd!</h2>
+        <h2>{selected.length > 0 ? 'Je stem is geregistreerd!' : 'De tijd is om. Er is geen stem uitgebracht.'}</h2>
       </div>
     );
   }

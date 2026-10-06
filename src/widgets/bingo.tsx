@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Star } from 'lucide-react';
 import type { BingoConfig } from '../lib/types';
 import { shuffled } from '../lib/utils';
 import { CheckRow, Field } from '../components/ui';
 import { WarningIcon } from '../components/icons';
-import { EditorProps, GameStatus, PlayerProps } from './shared';
+import { EditorProps, GameStatus, PlayerProps, ResultHero } from './shared';
 
 export function BingoEditor({ config, onChange }: EditorProps<BingoConfig>) {
   const needed = config.size * config.size - (config.freeCenter && config.size % 2 === 1 ? 1 : 0);
@@ -50,7 +50,7 @@ function hasBingo(marked: boolean[], size: number): boolean {
   return false;
 }
 
-export function BingoPlayer({ widget, onComplete }: PlayerProps<BingoConfig>) {
+export function BingoPlayer({ widget, timeUp, onComplete }: PlayerProps<BingoConfig>) {
   const { size, freeCenter } = widget.config;
   const centerIdx = size % 2 === 1 && freeCenter ? Math.floor((size * size) / 2) : -1;
 
@@ -69,13 +69,30 @@ export function BingoPlayer({ widget, onComplete }: PlayerProps<BingoConfig>) {
     Array.from({ length: size * size }, (_, i) => i === centerIdx)
   );
   const [won, setWon] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const submittedRef = useRef(false);
+
+  // Tijd om: indienen wat er is aangekruist (nog geen bingo = 0 van 1), eenmalig.
+  useEffect(() => {
+    if (!timeUp || submittedRef.current) return;
+    submittedRef.current = true;
+    setTimedOut(true);
+    onComplete({
+      answers: { aangekruist: cells.filter((_, j) => marked[j]) },
+      itemScores: null,
+      earned: 0,
+      max: 1,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeUp]);
 
   const toggle = (i: number) => {
-    if (i === centerIdx || won) return;
+    if (i === centerIdx || won || timedOut || submittedRef.current) return;
     const next = marked.slice();
     next[i] = !next[i];
     setMarked(next);
     if (hasBingo(next, size)) {
+      submittedRef.current = true;
       setWon(true);
       onComplete({
         answers: { aangekruist: cells.filter((_, j) => next[j]) },
@@ -85,6 +102,17 @@ export function BingoPlayer({ widget, onComplete }: PlayerProps<BingoConfig>) {
       });
     }
   };
+
+  if (timedOut) {
+    const aangekruist = marked.filter((m, j) => m && j !== centerIdx).length;
+    return (
+      <ResultHero
+        earned={0} max={1} showScore={false}
+        title="De tijd is om!"
+        subtitle={`Je had ${aangekruist} ${aangekruist === 1 ? 'vakje' : 'vakjes'} aangekruist en nog geen bingo.`}
+      />
+    );
+  }
 
   return (
     <div>
@@ -96,7 +124,7 @@ export function BingoPlayer({ widget, onComplete }: PlayerProps<BingoConfig>) {
           🎉 BINGO! 🎉
         </p>
       )}
-      <div className="bingo-grid" style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}>
+      <div className="bingo-grid" style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}>
         {cells.map((c, i) => (
           <button
             key={i}

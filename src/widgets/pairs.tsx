@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import type { PairsConfig } from '../lib/types';
-import { shuffled, uid } from '../lib/utils';
+import { normalizeAnswer, shuffled, shuffledNotIdentity, uid } from '../lib/utils';
+import { matchChoiceCorrect } from '../lib/grading';
 import { CheckIcon, CloseIcon, RetryIcon } from '../components/icons';
 import { EditorProps, GameStatus, PlayerProps, ResultHero } from './shared';
 
@@ -30,27 +31,54 @@ export function PairsEditor({ config, onChange }: EditorProps<PairsConfig>) {
   );
 }
 
-export function PairsPlayer({ widget, onComplete }: PlayerProps<PairsConfig>) {
+export function PairsPlayer({ widget, timeUp, onComplete }: PlayerProps<PairsConfig>) {
   const pairs = useMemo(() => widget.config.pairs.filter((p) => p.left && p.right), [widget.id]);
   const leftOrder = useMemo(() => (widget.settings.shuffle ? shuffled(pairs) : pairs), [widget.id]);
-  const rightOrder = useMemo(() => shuffled(pairs), [widget.id]);
+  // De rechterkolom staat nooit meteen goed naast de linkerkolom (tenzij alle rechtertekens gelijk zijn).
+  const rightOrder = useMemo(
+    () => shuffledNotIdentity(leftOrder, (a, b) => normalizeAnswer(a.right) === normalizeAnswer(b.right)),
+    [widget.id],
+  );
 
   const [selLeft, setSelLeft] = useState<string | null>(null);
   const [selRight, setSelRight] = useState<string | null>(null);
-  const [matched, setMatched] = useState<Set<string>>(new Set());
+  // Aparte sets: bij twee keer dezelfde rechtertekst kan een leerling de ene of de andere kaart kiezen.
+  const [matchedLeft, setMatchedLeft] = useState<Set<string>>(new Set());
+  const [matchedRight, setMatchedRight] = useState<Set<string>>(new Set());
   const [mistakes, setMistakes] = useState(0);
   const [shake, setShake] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const submittedRef = useRef(false);
+
+  // Tijd om: de deelscore indienen, eenmalig.
+  useEffect(() => {
+    if (!timeUp || submittedRef.current || pairs.length === 0) return;
+    submittedRef.current = true;
+    setDone(true);
+    setTimedOut(true);
+    onComplete({
+      answers: { fouten: mistakes, paren: pairs.length, gekoppeld: matchedLeft.size },
+      itemScores: null,
+      earned: matchedLeft.size,
+      max: pairs.length,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeUp]);
 
   if (pairs.length === 0) return <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>Nog geen paren ingesteld.</p>;
 
   const tryMatch = (leftId: string | null, rightId: string | null) => {
-    if (!leftId || !rightId) return;
-    if (leftId === rightId) {
-      const nextMatched = new Set(matched).add(leftId);
-      setMatched(nextMatched);
+    if (!leftId || !rightId || submittedRef.current) return;
+    // Juist: dezelfde kaart, of een kaart met dezelfde (genormaliseerde) rechtertekst.
+    const idx = (id: string) => pairs.findIndex((p) => p.id === id);
+    if (matchChoiceCorrect(pairs, idx(leftId), idx(rightId))) {
+      const nextLeft = new Set(matchedLeft).add(leftId);
+      setMatchedLeft(nextLeft);
+      setMatchedRight((m) => new Set(m).add(rightId));
       setSelLeft(null); setSelRight(null);
-      if (nextMatched.size === pairs.length) {
+      if (nextLeft.size === pairs.length) {
+        submittedRef.current = true;
         setDone(true);
         onComplete({
           answers: { fouten: mistakes, paren: pairs.length },
@@ -69,13 +97,18 @@ export function PairsPlayer({ widget, onComplete }: PlayerProps<PairsConfig>) {
   if (done) {
     return (
       <ResultHero
-        earned={pairs.length} max={pairs.length} showScore={false}
-        title="Alles gekoppeld!"
-        subtitle={`Je vond alle ${pairs.length} paren met ${mistakes} ${mistakes === 1 ? 'fout' : 'fouten'}.`}
+        earned={matchedLeft.size} max={pairs.length} showScore={false}
+        title={timedOut ? 'De tijd is om!' : 'Alles gekoppeld!'}
+        subtitle={timedOut
+          ? `Je koppelde ${matchedLeft.size} van de ${pairs.length} paren, met ${mistakes} ${mistakes === 1 ? 'fout' : 'fouten'}.`
+          : `Je vond alle ${pairs.length} paren met ${mistakes} ${mistakes === 1 ? 'fout' : 'fouten'}.`}
       >
-        <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => {
-          setMatched(new Set()); setMistakes(0); setDone(false); setSelLeft(null); setSelRight(null);
-        }}><RetryIcon size={16} aria-hidden /> Opnieuw spelen</button>
+        {!timedOut && (
+          <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => {
+            submittedRef.current = false;
+            setMatchedLeft(new Set()); setMatchedRight(new Set()); setMistakes(0); setDone(false); setSelLeft(null); setSelRight(null);
+          }}><RetryIcon size={16} aria-hidden /> Opnieuw spelen</button>
+        )}
       </ResultHero>
     );
   }
@@ -83,7 +116,7 @@ export function PairsPlayer({ widget, onComplete }: PlayerProps<PairsConfig>) {
   const col = (items: typeof pairs, side: 'left' | 'right') => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 9, flex: 1, minWidth: 0 }}>
       {items.map((p) => {
-        const isMatched = matched.has(p.id);
+        const isMatched = (side === 'left' ? matchedLeft : matchedRight).has(p.id);
         const isSel = side === 'left' ? selLeft === p.id : selRight === p.id;
         const isShake = side === 'right' && shake === p.id;
         return (
@@ -108,7 +141,7 @@ export function PairsPlayer({ widget, onComplete }: PlayerProps<PairsConfig>) {
   return (
     <div>
       <GameStatus>
-        <span className="badge badge-ok"><CheckIcon size={14} className="icon-inline" aria-hidden /> {matched.size} / {pairs.length}</span>
+        <span className="badge badge-ok"><CheckIcon size={14} className="icon-inline" aria-hidden /> {matchedLeft.size} / {pairs.length}</span>
         <span className="badge badge-err"><CloseIcon size={14} className="icon-inline" aria-hidden /> {mistakes} fouten</span>
       </GameStatus>
       <p style={{ textAlign: 'center', color: 'var(--text-faint)', marginBottom: 14, fontSize: '0.9rem' }}>

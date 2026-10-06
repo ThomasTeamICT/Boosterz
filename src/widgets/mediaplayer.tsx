@@ -396,7 +396,7 @@ export function MediaPlayerPlayer({ widget, timeUp, onComplete }: PlayerProps<Me
   if (!parsed) {
     return (
       <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>
-        Er is nog geen geldige video ingesteld. Vraag je leerkracht om de widget na te kijken.
+        Er is nog geen geldige video ingesteld. Vraag je leerkracht om de oefening na te kijken.
       </p>
     );
   }
@@ -424,7 +424,7 @@ export function MediaPlayerPlayer({ widget, timeUp, onComplete }: PlayerProps<Me
       <div aria-live="polite">
         {done && (
           <p style={{ textAlign: 'center', color: 'var(--ok)', fontWeight: 700, marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <CheckIcon size={16} aria-hidden /> Geregistreerd — je bent klaar met deze video.
+            <CheckIcon size={16} aria-hidden /> Klaar met deze video.
           </p>
         )}
       </div>

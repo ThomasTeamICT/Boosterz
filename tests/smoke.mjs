@@ -2956,6 +2956,227 @@ console.log('34. Toetsenbordbediening: woordzoeker en zoek-de-verschillen');
   await page.setViewportSize({ width: 1360, height: 900 });
 }
 
+// ── 35. Spelers: tijd om, rekenen, koppelspel, tijdlijn, sneltoetsen ────────
+// Herstel uit de debugronde (widgets): negen spelers lazen "tijd om" niet, de
+// rekenoefening verloor de focus en kon geen negatieve getallen typen, het
+// koppelspel telde dubbele rechtertekst fout, de tijdlijn kon al juist beginnen.
+console.log('35. Spelers: tijd om, rekenen, koppelspel, tijdlijn (debugronde)');
+await page.setViewportSize({ width: 1360, height: 900 });
+const prik31 = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200"><rect width="320" height="200" fill="#cde"/></svg>');
+const kaarten31 = [{ id: 'f1', front: 'een', back: 'one' }, { id: 'f2', front: 'twee', back: 'two' }, { id: 'f3', front: 'drie', back: 'three' }];
+const spelers31 = [
+  spelWidget('arithmetic', 'SMKRKN', { ops: ['add'], min: 1, max: 5, count: 3, tables: [] }),
+  spelWidget('pairs', 'SMKKPD', { pairs: [{ id: 'p1', left: 'a', right: 'x' }, { id: 'p2', left: 'b', right: 'x' }, { id: 'p3', left: 'c', right: 'x' }, { id: 'p4', left: 'd', right: 'x' }, { id: 'p5', left: 'e', right: 'y' }] }),
+  spelWidget('pairs', 'SMKKPE', { pairs: [{ id: 'p1', left: 'a', right: 'b' }, { id: 'p2', left: 'c', right: 'd' }] }),
+  spelWidget('timeline', 'SMKTLN', { mode: 'exercise', events: [{ id: 'e1', date: '1900', title: 'Eerste' }, { id: 'e2', date: '2000', title: 'Tweede' }] }),
+  spelWidget('flashcards', 'SMKFLK', { autoFlipSec: 0, cards: kaarten31 }),
+  spelWidget('carousel', 'SMKCRS', { slides: [1, 2, 3].map((n) => ({ id: `s${n}`, imageUrl: prik31, caption: `Dia ${n}` })) }),
+  spelWidget('whiteboard', 'SMKWBK', { prompt: 'Teken iets' }),
+  spelWidget('beforeafter', 'SMKBNA', { imageBefore: prik31, imageAfter: prik31, labelBefore: 'Voor', labelAfter: 'Na' }),
+  spelWidget('beforeafter', 'SMKBNL', { imageBefore: '', imageAfter: '', labelBefore: 'Voor', labelAfter: 'Na' }),
+  spelWidget('mediaplayer', 'SMKMPL', { provider: 'youtube', videoUrl: '', title: '' }),
+];
+await page.evaluate((ws) => {
+  const all = JSON.parse(localStorage.getItem('wf.widgets.v1') || '[]');
+  localStorage.setItem('wf.widgets.v1', JSON.stringify([...ws, ...all.filter((w) => !ws.some((x) => x.id === w.id))]));
+}, spelers31);
+
+// W6: rekenoefening, de focus blijft in het antwoordveld (readOnly i.p.v. disabled)
+await spelStarten('SMKRKN');
+{
+  const veld = page.getByLabel('Jouw antwoord', { exact: true });
+  const som = async () => {
+    const t = (await page.locator('div.card.card-pad[aria-live=polite]').first().innerText()).split('\n')[0];
+    const m = t.match(/(\d+) \+ (\d+)/);
+    return String(Number(m[1]) + Number(m[2]));
+  };
+  const opVeld = () => page.evaluate(() => document.activeElement?.getAttribute('aria-label') === 'Jouw antwoord');
+  await page.keyboard.type(await som());
+  await page.keyboard.press('Enter');
+  check('rekenen: na Enter staat de focus nog in het antwoordveld', await opVeld());
+  check('rekenen: tijdens de feedback is het veld readOnly (niet uitgeschakeld)', await veld.evaluate((e) => e.readOnly && !e.disabled));
+  await sleep(900);
+  check('rekenen: na de feedback staat de volgende som er, met de focus in het veld', await page.getByText('Oefening 2 / 3').first().isVisible() && await opVeld());
+  await page.keyboard.type('7');
+  check('rekenen: meteen doortypen zonder te klikken werkt', (await veld.inputValue()) === '7');
+}
+
+// W13: rekenoefening-editor, negatieve getallen en 0 kunnen getypt worden
+await go('/#/bewerk/smoke-ws-SMKRKN');
+{
+  const klein = page.getByLabel('Kleinste getal', { exact: true });
+  const groot = page.getByLabel('Grootste getal', { exact: true });
+  await klein.waitFor({ timeout: 10000 }).catch(() => {});
+  await klein.click();
+  await klein.press('Control+a');
+  await page.keyboard.type('-5', { delay: 60 });
+  await groot.click();
+  await groot.press('Control+a');
+  await page.keyboard.type('0', { delay: 60 });
+  await sleep(900);
+  const rekenCfg = await spelOpgeslagen('smoke-ws-SMKRKN');
+  check('rekenen-editor: "-5" wordt -5 als kleinste getal', rekenCfg.min === -5 && (await klein.inputValue()) === '-5');
+  check('rekenen-editor: "0" blijft 0 als grootste getal (geen terugval op 10)', rekenCfg.max === 0 && (await groot.inputValue()) === '0');
+}
+
+// W10: koppelspel met vier keer dezelfde rechtertekst: elke "x"-kaart is juist voor elke linkerkaart
+// (met vier gelijke kaarten faalt de oude koppeling op id's in 23 van de 24 schuddingen)
+await go('/#/widgets'); // zelfde url opnieuw laden doet niets: eerst weg van het eindscherm
+await spelStarten('SMKKPD');
+{
+  const kaart = (t) => page.locator('.answer-option', { hasText: new RegExp(`^${t}$`) });
+  for (const [i, links] of ['a', 'b', 'c', 'd'].entries()) {
+    await kaart(links).click();
+    await kaart('x').nth(i).click();
+  }
+  check('koppelspel: vier keer dezelfde rechtertekst, elke "x"-kaart past bij elke linkerkaart (0 fouten)', await page.locator('.badge-err', { hasText: '0 fouten' }).isVisible());
+  await kaart('e').click();
+  await kaart('y').click();
+  check('koppelspel: alles gekoppeld met 0 fouten',
+    await page.getByRole('heading', { name: 'Alles gekoppeld!' }).isVisible() && await page.getByText(/met 0 fouten/).first().isVisible());
+}
+
+// W9: de geschudde beginvolgorde is nooit meteen de juiste (twee items: altijd omgekeerd)
+{
+  let tijdlijnJuistBegonnen = 0;
+  let koppelJuistBegonnen = 0;
+  for (let i = 0; i < 6; i++) {
+    await spelStarten('SMKTLN');
+    if ((await page.locator('.order-item strong').first().innerText()) === 'Eerste') tijdlijnJuistBegonnen++;
+    await spelStarten('SMKKPE');
+    // linkerkolom: a, c; de rechterkolom mag niet meteen b, d zijn
+    const knoppen = await page.locator('.answer-option').evaluateAll((es) => es.map((e) => e.textContent));
+    if (knoppen[2] === 'b' && knoppen[3] === 'd') koppelJuistBegonnen++;
+  }
+  check('tijdlijn: in 6 keer starten staat de eerste gebeurtenis nooit meteen bovenaan', tijdlijnJuistBegonnen === 0);
+  check('koppelspel: in 6 keer starten staat de rechterkolom nooit meteen naast de juiste links', koppelJuistBegonnen === 0);
+}
+
+// W15b: flitskaarten, zichtbare sneltoetsen en pijltjes negeren invoervelden
+await spelStarten('SMKFLK');
+check('flitskaarten: de sneltoetsen staan zichtbaar op het scherm', await page.getByText('Sneltoetsen: ← nog eens herhalen · → die ken ik · spatie: omdraaien').isVisible());
+await page.keyboard.press('ArrowRight');
+check('flitskaarten: pijl rechts beoordeelt de kaart (kaart 2 van 3)', await page.getByText('Kaart 2 / 3').first().isVisible());
+await page.evaluate(() => {
+  const i = document.createElement('input');
+  i.id = 'smoke-invoer-flits';
+  const s = document.createElement('select');
+  s.id = 'smoke-keuze-flits';
+  s.innerHTML = '<option>a</option><option>b</option>';
+  document.body.append(i, s);
+  i.focus();
+});
+await page.keyboard.press('ArrowRight');
+await page.keyboard.press('ArrowLeft');
+check('flitskaarten: pijltjes in een invoerveld beoordelen geen kaart', await page.getByText('Kaart 2 / 3').first().isVisible());
+await page.locator('#smoke-keuze-flits').focus();
+await page.keyboard.press('ArrowRight');
+check('flitskaarten: pijltjes in een keuzelijst beoordelen geen kaart', await page.getByText('Kaart 2 / 3').first().isVisible());
+await page.evaluate(() => { document.activeElement?.blur(); });
+await page.keyboard.press('ArrowLeft');
+check('flitskaarten: buiten invoervelden werkt pijl links wel (kaart 3 van 3)', await page.getByText('Kaart 3 / 3').first().isVisible());
+
+// W12: carrouselbolletjes hebben een tikvlak van minstens 44 px
+await go('/#/speel/SMKCRS');
+await page.getByRole('button', { name: /Ga naar dia 1/ }).waitFor({ timeout: 10000 }).catch(() => {});
+{
+  const bolletjes = await page.getByRole('button', { name: /Ga naar dia/ }).evaluateAll((es) => es.map((e) => { const b = e.getBoundingClientRect(); return [b.width, b.height]; }));
+  check('carrousel: drie bolletjes, elk minstens 44 × 44 px', bolletjes.length === 3 && bolletjes.every(([b, h]) => b >= 44 && h >= 44));
+}
+
+// Whiteboard: kleuren met een naam, en de dikteknoppen tonen een focusring
+await spelStarten('SMKWBK');
+check('whiteboard: kleurknoppen hebben een kleurnaam ("Kleur rood")',
+  (await page.getByRole('button', { name: 'Kleur rood', exact: true }).count()) === 1 && (await page.getByRole('button', { name: /^Kleur #/ }).count()) === 0);
+{
+  await page.getByRole('button', { name: 'Kleur zwart', exact: true }).focus();
+  let label = '';
+  for (let i = 0; i < 12 && !label.startsWith('Dikte'); i++) {
+    await page.keyboard.press('Tab');
+    label = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? '');
+  }
+  const ring = await page.evaluate(() => { const c = getComputedStyle(document.activeElement); return { stijl: c.outlineStyle, breedte: parseFloat(c.outlineWidth) }; });
+  check('whiteboard: de dikteknop heeft een zichtbare focusring bij het toetsenbord', label.startsWith('Dikte') && ring.stijl !== 'none' && ring.breedte >= 2);
+  const gekozen = await page.getByRole('button', { name: 'Dikte 6', exact: true }).evaluate((e) => getComputedStyle(e).boxShadow);
+  check('whiteboard: de gekozen dikte blijft zichtbaar (schaduw i.p.v. outline)', gekozen !== 'none');
+}
+
+// W14: teksten zonder "widget" en zonder valse "geregistreerd"
+await go('/#/speel/SMKBNL');
+check('voor/na zonder afbeeldingen: zegt "oefening", niet "widget"', await page.getByText(/Deze oefening heeft nog geen voor- en na-afbeelding/).isVisible());
+await go('/#/speel/SMKMPL');
+check('video zonder link: zegt "de oefening na te kijken", niet "widget"', await page.getByText(/Vraag je leerkracht om de oefening na te kijken/).isVisible());
+await go('/#/speel/SMKBNA');
+await page.getByRole('slider').first().focus();
+await page.keyboard.press('ArrowRight');
+check('voor/na: na het verkennen staat er "Je hebt beide afbeeldingen verkend." (geen "geregistreerd")',
+  (await page.getByText('Je hebt beide afbeeldingen verkend.').isVisible()) && (await page.getByText(/geregistreerd/i).count()) === 0);
+
+// Tijd om: elke speler dient de deelscore eenmalig in en toont daarna het resultaatscherm
+{
+  const hotspots31 = [{ id: 'h1', x: 25, y: 30, label: 'Eén' }, { id: 'h2', x: 70, y: 60, label: 'Twee' }];
+  const kopTijd = (p) => p.getByRole('heading', { name: 'De tijd is om!' });
+  const kaartKlik = (p, t) => p.locator('.answer-option', { hasText: new RegExp(`^${t}$`) });
+  const tijdSpelers = [
+    { naam: 'Koppelspel', w: spelWidget('pairs', 'SMKTP1', { pairs: [{ id: 'p1', left: 'a', right: 'b' }, { id: 'p2', left: 'c', right: 'd' }] }, { timeLimitMin: 1 }),
+      voor: async (p) => { await kaartKlik(p, 'a').click(); await kaartKlik(p, 'b').click(); }, zichtbaar: kopTijd, verdiend: 1, max: 2 },
+    { naam: 'Tijdlijn', w: spelWidget('timeline', 'SMKTP2', { mode: 'exercise', events: [{ id: 'e1', date: '1900', title: 'Eerste' }, { id: 'e2', date: '2000', title: 'Tweede' }, { id: 'e3', date: '2100', title: 'Derde' }] }, { timeLimitMin: 1 }),
+      zichtbaar: kopTijd, max: 3 },
+    { naam: 'Memory', w: spelWidget('memory', 'SMKTP3', { pairs: [{ id: 'm1', a: 'x', b: 'y' }, { id: 'm2', a: 'p', b: 'q' }] }, { timeLimitMin: 1 }),
+      zichtbaar: kopTijd, verdiend: 0, max: 2 },
+    { naam: 'Bingo', w: spelWidget('bingo', 'SMKTP4', { items: ['een', 'twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen'], size: 3, freeCenter: true }, { timeLimitMin: 1 }),
+      zichtbaar: kopTijd, verdiend: 0, max: 1 },
+    { naam: 'Flitskaarten', w: spelWidget('flashcards', 'SMKTP5', { autoFlipSec: 0, cards: kaarten31 }, { timeLimitMin: 1 }),
+      voor: async (p) => { await p.getByText('Kaart 1 / 3').first().waitFor(); await p.keyboard.press('ArrowRight'); }, zichtbaar: kopTijd, verdiend: 1, max: 3 },
+    { naam: 'Checklist', w: spelWidget('checklist', 'SMKTP6', { title: 'Stappen', items: [{ id: 'c1', text: 'Eerst dit' }, { id: 'c2', text: 'Dan dat' }] }, { timeLimitMin: 1 }),
+      voor: async (p) => { await p.getByRole('checkbox').first().check(); }, zichtbaar: kopTijd, verdiend: 1, max: 2 },
+    { naam: 'Aanwijzen (hotspot)', w: spelWidget('hotspot', 'SMKTP7', { imageUrl: prik31, mode: 'quiz', hotspots: hotspots31 }, { timeLimitMin: 1 }),
+      zichtbaar: kopTijd, verdiend: 0, max: 2 },
+    { naam: 'Verkennen (hotspot)', w: spelWidget('hotspot', 'SMKTP8', { imageUrl: prik31, mode: 'explore', hotspots: hotspots31 }, { timeLimitMin: 1 }),
+      voor: async (p) => { await p.getByRole('button', { name: 'Punt 1' }).click(); },
+      zichtbaar: (p) => p.getByText('De tijd is om. Je verkende 1 van de 2 punten.'), verdiend: 0, max: 0 },
+    { naam: 'Peiling', w: spelWidget('poll', 'SMKTP9', { question: 'Kies', options: ['Ja', 'Nee'], allowMultiple: false, showResults: true }, { timeLimitMin: 1 }),
+      voor: async (p) => { await p.locator('.answer-option', { hasText: 'Ja' }).click(); },
+      zichtbaar: (p) => p.getByText('Bedankt voor je stem! Dit zijn de stemmen op dit toestel:'), verdiend: 0, max: 0 },
+    { naam: 'Rekenen', w: spelWidget('arithmetic', 'SMKTPA', { ops: ['add'], min: 1, max: 5, count: 3, tables: [] }, { timeLimitMin: 1 }),
+      voor: async (p) => {
+        const t = (await p.locator('div.card.card-pad[aria-live=polite]').first().innerText()).split('\n')[0];
+        const m = t.match(/(\d+) \+ (\d+)/);
+        await p.keyboard.type(String(Number(m[1]) + Number(m[2])));
+      },
+      zichtbaar: (p) => p.getByRole('heading', { name: 'Verbetering' }), verdiend: 1, max: 3,
+      // het scherm toont dezelfde score als de inzending (het laatst getypte antwoord telt mee)
+      tekst: /Je behaalde 1 van 3 punten/ },
+  ];
+  const tijdCtx31 = await browser.newContext({ viewport: { width: 1000, height: 800 } });
+  await tijdCtx31.addInitScript((ws) => {
+    if (!localStorage.getItem('wf.widgets.v1')) {
+      localStorage.setItem('wf.widgets.v1', JSON.stringify(ws));
+      localStorage.setItem('wf.prefs.v1', JSON.stringify({ seeded: true }));
+    }
+  }, tijdSpelers.map((t) => t.w));
+  const tijd31 = await tijdCtx31.newPage();
+  tijd31.on('pageerror', (e) => errors.push(`pageerror(tijd31): ${e.message}`));
+  tijd31.on('console', (m) => { if (m.type() === 'error' && !/ERR_CERT_AUTHORITY_INVALID/.test(m.text())) errors.push(`console(tijd31): ${m.text()}`); });
+  await tijd31.clock.install();
+  for (const t of tijdSpelers) {
+    await tijd31.goto(`${BASE}/#/speel/${t.w.code}`, { waitUntil: 'networkidle' });
+    await tijd31.getByRole('button', { name: /Starten/ }).click();
+    if (t.voor) await t.voor(tijd31);
+    await tijd31.clock.runFor(2000);
+    await tijd31.clock.runFor(62000);
+    await tijd31.waitForTimeout(500);
+    check(`${t.naam}: bij tijd om verschijnt het resultaatscherm`, await t.zichtbaar(tijd31).first().isVisible());
+    const inzendingen = await tijd31.evaluate((c) => JSON.parse(localStorage.getItem('wf.submissions.v1') || '[]').filter((s) => s.widgetCode === c), t.w.code);
+    check(`${t.naam}: bij tijd om is er precies 1 inzending bewaard`, inzendingen.length === 1);
+    check(`${t.naam}: de deelscore klopt (${t.verdiend ?? '?'} van ${t.max})`,
+      inzendingen.length === 1 && inzendingen[0].totalMax === t.max && (t.verdiend === undefined || inzendingen[0].totalEarned === t.verdiend));
+    if (t.tekst) check(`${t.naam}: het resultaatscherm toont dezelfde score als de inzending`, await tijd31.getByText(t.tekst).first().isVisible());
+    check(`${t.naam}: de leerling kan niet doorwerken (geen "Opnieuw"-knop)`, (await tijd31.getByRole('button', { name: /^Opnieuw/ }).count()) === 0);
+  }
+  await tijdCtx31.close();
+}
+
 // ── Slot ────────────────────────────────────────────────────────────────────
 console.log('\n──────────');
 if (errors.length) {

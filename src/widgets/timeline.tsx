@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Brain } from 'lucide-react';
 import type { TimelineConfig, TimelineEvent } from '../lib/types';
-import { shuffled, uid } from '../lib/utils';
+import { normalizeAnswer, shuffledNotIdentity, uid } from '../lib/utils';
 import { Field, ImagePicker } from '../components/ui';
 import { CheckIcon, MoveDownIcon, MoveUpIcon } from '../components/icons';
 import { EditorProps, GameStatus, ItemHeader, moveItem, PlayerProps, ResultHero } from './shared';
@@ -68,17 +68,30 @@ export function TimelineEditor({ config, onChange }: EditorProps<TimelineConfig>
   );
 }
 
-export function TimelinePlayer({ widget, onComplete }: PlayerProps<TimelineConfig>) {
+export function TimelinePlayer({ widget, timeUp, onComplete }: PlayerProps<TimelineConfig>) {
   const events = useMemo(() => widget.config.events.filter((e) => e.title.trim()), [widget.id]);
 
   if (events.length === 0) return <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>Nog geen gebeurtenissen ingesteld.</p>;
 
-  if (widget.config.mode === 'view') return <TimelineView events={events} onComplete={onComplete} />;
-  return <TimelineExercise widget={widget} events={events} onComplete={onComplete} />;
+  if (widget.config.mode === 'view') return <TimelineView events={events} timeUp={timeUp} onComplete={onComplete} />;
+  return <TimelineExercise widget={widget} events={events} timeUp={timeUp} onComplete={onComplete} />;
 }
 
-function TimelineView({ events, onComplete }: { events: TimelineEvent[]; onComplete: PlayerProps['onComplete'] }) {
+function TimelineView({ events, timeUp, onComplete }: { events: TimelineEvent[]; timeUp?: boolean; onComplete: PlayerProps['onComplete'] }) {
   const [completed, setCompleted] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const submittedRef = useRef(false);
+
+  // Tijd om: het bezoek registreren, maar niet doen alsof alles gelezen is.
+  useEffect(() => {
+    if (!timeUp || submittedRef.current) return;
+    submittedRef.current = true;
+    setCompleted(true);
+    setTimedOut(true);
+    onComplete({ answers: { bekeken: false }, itemScores: null, earned: 0, max: 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeUp]);
+
   return (
     <div>
       <div className="timeline-rail">
@@ -95,6 +108,7 @@ function TimelineView({ events, onComplete }: { events: TimelineEvent[]; onCompl
         <div className="player-nav">
           <span />
           <button className="btn btn-primary" onClick={() => {
+            submittedRef.current = true;
             setCompleted(true);
             onComplete({ answers: { bekeken: true }, itemScores: null, earned: 0, max: 0 });
           }}>
@@ -102,14 +116,22 @@ function TimelineView({ events, onComplete }: { events: TimelineEvent[]; onCompl
           </button>
         </div>
       )}
-      {completed && <p style={{ textAlign: 'center', color: 'var(--ok)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><CheckIcon size={16} aria-hidden /> Geregistreerd — goed bezig!</p>}
+      {completed && !timedOut && <p style={{ textAlign: 'center', color: 'var(--ok)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><CheckIcon size={16} aria-hidden /> Geregistreerd — goed bezig!</p>}
+      {timedOut && <p role="status" style={{ textAlign: 'center', color: 'var(--text-soft)', fontWeight: 700 }}>De tijd is om. Je bezoek is geregistreerd.</p>}
     </div>
   );
 }
 
-function TimelineExercise({ widget, events, onComplete }: { widget: PlayerProps<TimelineConfig>['widget']; events: TimelineEvent[]; onComplete: PlayerProps['onComplete'] }) {
-  const [order, setOrder] = useState<number[]>(() => shuffled(events.map((_, i) => i)));
+function TimelineExercise({ widget, events, timeUp, onComplete }: { widget: PlayerProps<TimelineConfig>['widget']; events: TimelineEvent[]; timeUp?: boolean; onComplete: PlayerProps['onComplete'] }) {
+  // De beginvolgorde is nooit meteen de juiste. Twee gebeurtenissen met dezelfde zichtbare tekst
+  // zijn onderling niet te onderscheiden, dus die tellen als dezelfde plaats.
+  const [order, setOrder] = useState<number[]>(() => {
+    const zichtbaar = (i: number) => `${normalizeAnswer(events[i].title)}\u0000${normalizeAnswer(events[i].description ?? '')}`;
+    return shuffledNotIdentity(events.map((_, i) => i), (a, b) => zichtbaar(a) === zichtbaar(b));
+  });
   const [phase, setPhase] = useState<'playing' | 'done'>('playing');
+  const [timedOut, setTimedOut] = useState(false);
+  const submittedRef = useRef(false);
 
   const move = (from: number, to: number) => {
     if (to < 0 || to >= order.length) return;
@@ -122,6 +144,8 @@ function TimelineExercise({ widget, events, onComplete }: { widget: PlayerProps<
   const correctCount = order.filter((orig, pos) => orig === pos).length;
 
   const submit = () => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
     setPhase('done');
     onComplete({
       answers: { volgorde: order.map((i) => events[i].title) },
@@ -132,10 +156,19 @@ function TimelineExercise({ widget, events, onComplete }: { widget: PlayerProps<
     window.scrollTo({ top: 0 });
   };
 
+  // Tijd om: de huidige volgorde indienen, eenmalig.
+  useEffect(() => {
+    if (!timeUp || submittedRef.current) return;
+    setTimedOut(true);
+    submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeUp]);
+
   if (phase === 'done') {
     return (
       <div>
         <ResultHero earned={correctCount} max={events.length} showScore={widget.settings.showScore}
+          title={timedOut ? 'De tijd is om!' : undefined}
           subtitle={`${correctCount} van de ${events.length} op de juiste plaats.`} />
         {widget.settings.showFeedback && (
           <div className="card card-pad" style={{ marginTop: 16 }}>

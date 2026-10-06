@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapPin, MousePointerClick } from 'lucide-react';
 import type { HotspotConfig, HotspotPoint } from '../lib/types';
 import { shuffled, uid } from '../lib/utils';
@@ -83,27 +83,40 @@ export function HotspotEditor({ config, onChange }: EditorProps<HotspotConfig>) 
   );
 }
 
-export function HotspotPlayer({ widget, onComplete }: PlayerProps<HotspotConfig>) {
+export function HotspotPlayer({ widget, timeUp, onComplete }: PlayerProps<HotspotConfig>) {
   const config = widget.config;
   if (!config.imageUrl || config.hotspots.length === 0) {
     return <p style={{ textAlign: 'center', color: 'var(--text-soft)' }}>Deze oefening heeft nog geen afbeelding of stippen.</p>;
   }
   return config.mode === 'explore'
-    ? <HotspotExplore widget={widget} onComplete={onComplete} />
-    : <HotspotQuiz widget={widget} onComplete={onComplete} />;
+    ? <HotspotExplore widget={widget} timeUp={timeUp} onComplete={onComplete} />
+    : <HotspotQuiz widget={widget} timeUp={timeUp} onComplete={onComplete} />;
 }
 
-function HotspotExplore({ widget, onComplete }: { widget: PlayerProps<HotspotConfig>['widget']; onComplete: PlayerProps['onComplete'] }) {
+function HotspotExplore({ widget, timeUp, onComplete }: { widget: PlayerProps<HotspotConfig>['widget']; timeUp?: boolean; onComplete: PlayerProps['onComplete'] }) {
   const config = widget.config;
   const [openSpot, setOpenSpot] = useState<HotspotPoint | null>(null);
   const [seen, setSeen] = useState<Set<string>>(new Set());
   const [finished, setFinished] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const submittedRef = useRef(false);
+
+  // Tijd om: indienen hoeveel punten je al bekeken hebt, eenmalig.
+  useEffect(() => {
+    if (!timeUp || submittedRef.current) return;
+    submittedRef.current = true;
+    setFinished(true);
+    setTimedOut(true);
+    onComplete({ answers: { bekeken: seen.size }, itemScores: null, earned: 0, max: 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeUp]);
 
   const open = (h: HotspotPoint) => {
     setOpenSpot(h);
     const next = new Set(seen).add(h.id);
     setSeen(next);
-    if (next.size === config.hotspots.length && !finished) {
+    if (next.size === config.hotspots.length && !finished && !submittedRef.current) {
+      submittedRef.current = true;
       setFinished(true);
       onComplete({ answers: { bekeken: config.hotspots.length }, itemScores: null, earned: 0, max: 0 });
     }
@@ -134,12 +147,13 @@ function HotspotExplore({ widget, onComplete }: { widget: PlayerProps<HotspotCon
           <p style={{ margin: 0, color: 'var(--text-soft)' }}>{openSpot.description || 'Geen extra uitleg.'}</p>
         </div>
       )}
-      {finished && <p style={{ color: 'var(--ok)', fontWeight: 700, marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><CheckIcon aria-hidden /> Je hebt alle punten verkend!</p>}
+      {finished && !timedOut && <p style={{ color: 'var(--ok)', fontWeight: 700, marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><CheckIcon aria-hidden /> Je hebt alle punten verkend!</p>}
+      {timedOut && <p role="status" style={{ color: 'var(--text-soft)', fontWeight: 700, marginTop: 14 }}>De tijd is om. Je verkende {seen.size} van de {config.hotspots.length} punten.</p>}
     </div>
   );
 }
 
-function HotspotQuiz({ widget, onComplete }: { widget: PlayerProps<HotspotConfig>['widget']; onComplete: PlayerProps['onComplete'] }) {
+function HotspotQuiz({ widget, timeUp, onComplete }: { widget: PlayerProps<HotspotConfig>['widget']; timeUp?: boolean; onComplete: PlayerProps['onComplete'] }) {
   const config = widget.config;
   const order = useMemo(() => shuffled(config.hotspots), [widget.id]);
   const [idx, setIdx] = useState(0);
@@ -147,17 +161,35 @@ function HotspotQuiz({ widget, onComplete }: { widget: PlayerProps<HotspotConfig
   const [wrongClicks, setWrongClicks] = useState(0);
   const [flash, setFlash] = useState<'ok' | 'nok' | null>(null);
   const [done, setDone] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const submittedRef = useRef(false);
 
   const target = order[idx];
 
+  // Tijd om: de deelscore indienen (de punten die je al vond), eenmalig.
+  useEffect(() => {
+    if (!timeUp || submittedRef.current) return;
+    submittedRef.current = true;
+    setDone(true);
+    setTimedOut(true);
+    onComplete({
+      answers: { fouteKlikken: wrongClicks, gevonden: found.size },
+      itemScores: null,
+      earned: found.size,
+      max: order.length,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeUp]);
+
   const clickSpot = (h: HotspotPoint) => {
-    if (done || found.has(h.id)) return;
+    if (done || submittedRef.current || found.has(h.id)) return;
     if (h.id === target.id) {
       const nextFound = new Set(found).add(h.id);
       setFound(nextFound);
       setFlash('ok');
       setTimeout(() => setFlash(null), 500);
       if (nextFound.size === order.length) {
+        submittedRef.current = true;
         setDone(true);
         onComplete({
           answers: { fouteKlikken: wrongClicks },
@@ -178,13 +210,18 @@ function HotspotQuiz({ widget, onComplete }: { widget: PlayerProps<HotspotConfig
   if (done) {
     return (
       <ResultHero
-        earned={order.length} max={order.length} showScore={false}
-        title="Alles gevonden!"
-        subtitle={`Je vond alle ${order.length} punten met ${wrongClicks} ${wrongClicks === 1 ? 'foute klik' : 'foute klikken'}.`}
+        earned={found.size} max={order.length} showScore={false}
+        title={timedOut ? 'De tijd is om!' : 'Alles gevonden!'}
+        subtitle={timedOut
+          ? `Je vond ${found.size} van de ${order.length} punten met ${wrongClicks} ${wrongClicks === 1 ? 'foute klik' : 'foute klikken'}.`
+          : `Je vond alle ${order.length} punten met ${wrongClicks} ${wrongClicks === 1 ? 'foute klik' : 'foute klikken'}.`}
       >
-        <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => {
-          setFound(new Set()); setIdx(0); setWrongClicks(0); setDone(false);
-        }}><RetryIcon size={16} aria-hidden /> Opnieuw</button>
+        {!timedOut && (
+          <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => {
+            submittedRef.current = false;
+            setFound(new Set()); setIdx(0); setWrongClicks(0); setDone(false);
+          }}><RetryIcon size={16} aria-hidden /> Opnieuw</button>
+        )}
       </ResultHero>
     );
   }

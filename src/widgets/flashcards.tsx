@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, RotateCcw } from 'lucide-react';
 import type { Flashcard, FlashcardsConfig } from '../lib/types';
 import { shuffled, uid } from '../lib/utils';
@@ -77,7 +77,7 @@ const BOX_META = [
   { box: 3, badge: 'badge-ok', label: 'gekend' },
 ];
 
-export function FlashcardsPlayer({ widget, preview, onComplete }: PlayerProps<FlashcardsConfig>) {
+export function FlashcardsPlayer({ widget, preview, timeUp, onComplete }: PlayerProps<FlashcardsConfig>) {
   const cards = useMemo(() => {
     const valid = (widget.settings.shuffle ? shuffled(widget.config.cards) : widget.config.cards)
       .filter((c) => c.front || c.back || c.frontImage || c.backImage);
@@ -94,8 +94,25 @@ export function FlashcardsPlayer({ widget, preview, onComplete }: PlayerProps<Fl
   const [known, setKnown] = useState<Set<string>>(new Set());
   const [again, setAgain] = useState<Set<string>>(new Set());
   const [done, setDone] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const submittedRef = useRef(false);
 
   const card = cards[idx];
+
+  // Tijd om: de deelscore indienen (de kaarten die je al beoordeelde), eenmalig.
+  useEffect(() => {
+    if (!timeUp || submittedRef.current || cards.length === 0) return;
+    submittedRef.current = true;
+    setDone(true);
+    setTimedOut(true);
+    onComplete({
+      answers: { gekend: known.size, teHerhalen: cards.length - known.size },
+      itemScores: null,
+      earned: known.size,
+      max: cards.length,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeUp]);
 
   useEffect(() => {
     if (!widget.config.autoFlipSec || flipped || done) return;
@@ -106,12 +123,14 @@ export function FlashcardsPlayer({ widget, preview, onComplete }: PlayerProps<Fl
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (done) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
       if (e.key === ' ' || e.key === 'Enter') {
-        const tag = (e.target as HTMLElement).tagName;
         if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'TEXTAREA') return;
         e.preventDefault();
         setFlipped((f) => !f);
       }
+      // pijltjes beoordelen de kaart; in een invoerveld bewegen ze de cursor, dus dan negeren
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
       if (e.key === 'ArrowRight') next(true);
       if (e.key === 'ArrowLeft') next(false);
     };
@@ -134,6 +153,7 @@ export function FlashcardsPlayer({ widget, preview, onComplete }: PlayerProps<Fl
     setBoxes(nextBoxes);
     if (!preview) saveBoxes(widget.id, nextBoxes);
     if (idx + 1 >= cards.length) {
+      submittedRef.current = true;
       setDone(true);
       const knownCount = known.size + (knewIt ? 1 : 0);
       onComplete({
@@ -154,7 +174,7 @@ export function FlashcardsPlayer({ widget, preview, onComplete }: PlayerProps<Fl
       <ResultHero
         earned={known.size} max={cards.length}
         showScore={widget.settings.showScore}
-        title="Set afgewerkt! 🎓"
+        title={timedOut ? 'De tijd is om!' : 'Set afgewerkt! 🎓'}
         subtitle={`Je kende ${known.size} van de ${cards.length} kaarten.`}
       >
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 10, flexWrap: 'wrap' }}>
@@ -165,12 +185,15 @@ export function FlashcardsPlayer({ widget, preview, onComplete }: PlayerProps<Fl
         <p className="hint" style={{ marginTop: 8 }}>
           De app onthoudt dit op dit toestel: bij de volgende ronde komen de lastige kaarten eerst.
         </p>
-        <button className="btn btn-primary" style={{ marginTop: 10 }} onClick={() => {
-          setIdx(0); setFlipped(false); setKnown(new Set()); setAgain(new Set()); setDone(false);
-        }}>
-          <RotateCcw size={16} aria-hidden /> Opnieuw oefenen
-        </button>
-        {Object.keys(boxes).length > 0 && (
+        {!timedOut && (
+          <button className="btn btn-primary" style={{ marginTop: 10 }} onClick={() => {
+            submittedRef.current = false;
+            setIdx(0); setFlipped(false); setKnown(new Set()); setAgain(new Set()); setDone(false);
+          }}>
+            <RotateCcw size={16} aria-hidden /> Opnieuw oefenen
+          </button>
+        )}
+        {!timedOut && Object.keys(boxes).length > 0 && (
           <button className="btn btn-quiet btn-sm" style={{ marginTop: 8 }} onClick={() => {
             setBoxes({});
             if (!preview) saveBoxes(widget.id, {});
@@ -214,6 +237,9 @@ export function FlashcardsPlayer({ widget, preview, onComplete }: PlayerProps<Fl
       </div>
       <p style={{ textAlign: 'center', color: 'var(--text-faint)', marginTop: 12, fontSize: '0.88rem' }}>
         Klik op de kaart (of druk op spatie) om ze om te draaien.
+      </p>
+      <p style={{ textAlign: 'center', color: 'var(--text-faint)', margin: '4px 0 0', fontSize: '0.88rem' }}>
+        Sneltoetsen: ← nog eens herhalen · → die ken ik · spatie: omdraaien
       </p>
       <div className="player-nav" style={{ justifyContent: 'center', gap: 14 }}>
         <button className="btn btn-lg" style={{ background: 'var(--warn-soft)', color: 'var(--warn-text)', flex: '1 1 0', maxWidth: 240 }} onClick={() => next(false)}>

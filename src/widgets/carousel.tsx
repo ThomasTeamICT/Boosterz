@@ -259,11 +259,12 @@ export function CarouselPlayer({ widget, timeUp, onComplete }: PlayerProps<Carou
         <div
           role="group"
           aria-label="Kies een dia"
-          style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 14 }}
+          style={{ display: 'flex', gap: 0, justifyContent: 'center', flexWrap: 'wrap', marginTop: 6 }}
         >
           {slides.map((s, i) => {
             const active = i === idx;
             const seen = viewed.has(s.id);
+            // De knop is het tikvlak (minstens 44 × 44 px); de zichtbare stip erin blijft klein.
             return (
               <button
                 key={s.id}
@@ -272,20 +273,34 @@ export function CarouselPlayer({ widget, timeUp, onComplete }: PlayerProps<Carou
                 aria-current={active ? 'true' : undefined}
                 title={s.caption || `Dia ${i + 1}`}
                 style={{
-                  width: active ? 30 : 14,
-                  height: 14,
+                  minWidth: 44,
+                  minHeight: 44,
                   padding: 0,
-                  borderRadius: 999,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'none',
+                  border: 'none',
                   cursor: 'pointer',
-                  border: seen || active ? '2px solid transparent' : '2px solid var(--line-strong)',
-                  background: active
-                    ? 'var(--player-accent, var(--brand))'
-                    : seen
-                      ? 'color-mix(in srgb, var(--player-accent, var(--brand)) 45%, var(--bg-sunken))'
-                      : 'transparent',
-                  transition: 'width 0.15s ease, background 0.15s ease',
                 }}
-              />
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    display: 'block',
+                    width: active ? 30 : 14,
+                    height: 14,
+                    borderRadius: 999,
+                    border: seen || active ? '2px solid transparent' : '2px solid var(--line-strong)',
+                    background: active
+                      ? 'var(--player-accent, var(--brand))'
+                      : seen
+                        ? 'color-mix(in srgb, var(--player-accent, var(--brand)) 45%, var(--bg-sunken))'
+                        : 'transparent',
+                    transition: 'width 0.15s ease, background 0.15s ease',
+                  }}
+                />
+              </button>
             );
           })}
         </div>
