@@ -37,11 +37,17 @@ export function FoutenAnalysePanel({
   const [labels, setLabels] = useState<Record<string, string>>({});
   const [nextTime, setNextTime] = useState('');
   const [saved, setSaved] = useState(!!(submission.answers as Record<string, unknown>)['_foutenanalyse']);
+  // Opslag vol: de analyse zit wel in de resultaatcode, maar niet op dit toestel.
+  const [nietOpToestel, setNietOpToestel] = useState(false);
 
   if (!questions || wrong.length === 0 || saved) {
     return saved && wrong.length > 0 ? (
-      <div className="callout" role="status" style={{ marginTop: 18 }}>
-        <div>Je foutenanalyse is bewaard — sterk dat je naar je eigen fouten keek!</div>
+      <div className={nietOpToestel ? 'callout warn' : 'callout'} role="status" style={{ marginTop: 18 }}>
+        <div>
+          {nietOpToestel
+            ? 'Je foutenanalyse zit in je resultaatcode, maar kon niet op dit toestel bewaard worden: de opslag is vol.'
+            : 'Je foutenanalyse is bewaard — sterk dat je naar je eigen fouten keek!'}
+        </div>
       </div>
     ) : null;
   }
@@ -92,7 +98,7 @@ export function FoutenAnalysePanel({
               _foutenanalyse: { labels, volgendeKeer: nextTime.trim() },
             },
           };
-          saveSubmission(updated);
+          setNietOpToestel(!saveSubmission(updated));
           onSaved(updated);
           setSaved(true);
         }}
@@ -115,6 +121,7 @@ export function DoelKaart({
   const doel = answers['_doel'] as PersoonlijkDoel | undefined;
   const [reflectie, setReflectie] = useState('');
   const [saved, setSaved] = useState(!!answers['_doelreflectie']);
+  const [nietOpToestel, setNietOpToestel] = useState(false);
 
   if (!doel || (!doel.proces && doel.streef === undefined && !doel.vrij)) return null;
 
@@ -147,8 +154,12 @@ export function DoelKaart({
         </p>
       )}
       {saved ? (
-        <div className="callout" role="status" style={{ marginTop: 8 }}>
-          <div>Je reflectie is bewaard bij je resultaat — knap dat je terugkeek op je doel!</div>
+        <div className={nietOpToestel ? 'callout warn' : 'callout'} role="status" style={{ marginTop: 8 }}>
+          <div>
+            {nietOpToestel
+              ? 'Je reflectie zit in je resultaatcode, maar kon niet op dit toestel bewaard worden: de opslag is vol.'
+              : 'Je reflectie is bewaard bij je resultaat — knap dat je terugkeek op je doel!'}
+          </div>
         </div>
       ) : (
         <>
@@ -170,7 +181,7 @@ export function DoelKaart({
                 ...submission,
                 answers: { ...submission.answers, _doelreflectie: reflectie.trim() },
               };
-              saveSubmission(updated);
+              setNietOpToestel(!saveSubmission(updated));
               onSaved(updated);
               setSaved(true);
             }}

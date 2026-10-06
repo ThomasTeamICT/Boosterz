@@ -10,7 +10,7 @@ import {
 import type { CustomTemplate } from '../lib/customTemplates';
 import { normalizeText } from '../lib/library';
 import { formatDateShort } from '../lib/utils';
-import { ConfirmModal, EmptyState, Field, Modal } from '../components/ui';
+import { ConfirmModal, EmptyState, Field, Modal, useToast } from '../components/ui';
 import type { Widget, WidgetTypeId } from '../lib/types';
 import { TypeTile } from '../components/TypeTile';
 import { AIIcon, DeleteIcon, SearchIcon } from '../components/icons';
@@ -39,6 +39,7 @@ function matches(query: string, ...texts: string[]): boolean {
 
 export function NewWidgetPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [params] = useSearchParams();
   const preselect = params.get('type');
   const [customTemplates, setCustomTemplates] = React.useState<CustomTemplate[]>(() => getCustomTemplates());
@@ -46,14 +47,17 @@ export function NewWidgetPage() {
   const [fill, setFill] = React.useState<FillState | null>(null);
   const [query, setQuery] = React.useState('');
 
+  // Lukt bewaren niet (opslag vol), dan niet naar een editor van een widget
+  // die niet bestaat, maar hier blijven met een duidelijke melding.
+  const VOL = 'Niet aangemaakt: de opslag van dit toestel is vol. Maak ruimte en probeer opnieuw.';
   const create = (type: WidgetTypeId) => {
     const w = createWidget(type);
-    saveWidget(w);
+    if (!saveWidget(w)) { toast(VOL, 'err'); return; }
     navigate(`/bewerk/${w.id}`, { replace: true });
   };
 
   const finishWidget = (w: Widget) => {
-    saveWidget(w);
+    if (!saveWidget(w)) { toast(VOL, 'err'); return; }
     navigate(`/bewerk/${w.id}`);
   };
 

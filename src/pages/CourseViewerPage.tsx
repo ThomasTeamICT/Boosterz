@@ -40,6 +40,9 @@ export function CourseOpenPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [invalid, setInvalid] = useState(false);
+  // Opslag vol en de cursus staat hier (nog) niet: eerlijk zeggen in plaats
+  // van naar een lezer te sturen die "niet gevonden" toont.
+  const [vol, setVol] = useState(false);
   // Staat de cursus of een oefening uit de link hier al als eigen werk, in
   // een andere versie? Dan eerst vragen, en de vraag noemt alles wat
   // "bijwerken" zou vervangen (S3). Een ongewijzigde kopie uit een eerdere
@@ -77,7 +80,11 @@ export function CourseOpenPage() {
       }
       // Ook bij identieke inhoud adopteren: zo reizen ontbrekende widgets mee
       // (bv. een lokaal verwijderde oefening wordt hersteld).
-      adoptSharedCourse(decoded.course, decoded.widgets, { partial: decoded.partial, gedeeld: true });
+      const res = adoptSharedCourse(decoded.course, decoded.widgets, { partial: decoded.partial, gedeeld: true });
+      if (!res.ok && !getCourse(decoded.course.id)) {
+        setVol(true);
+        return;
+      }
       navigate(leesRoute(decoded.course.id, decoded.course.code), { replace: true });
     });
     return () => { alive = false; };
@@ -85,7 +92,12 @@ export function CourseOpenPage() {
 
   const accept = () => {
     if (!pending) return;
-    adoptSharedLinkUpdate(pending.decoded, pending.question);
+    const res = adoptSharedLinkUpdate(pending.decoded, pending.question);
+    if (!res.ok && !getCourse(pending.decoded.course.id)) {
+      setPending(null);
+      setVol(true);
+      return;
+    }
     navigate(leesRoute(pending.decoded.course.id, pending.decoded.course.code), { replace: true });
   };
   const keepLocal = () => {
@@ -103,6 +115,14 @@ export function CourseOpenPage() {
             <p>
               De link is onvolledig of beschadigd (misschien is hij afgebroken bij het kopiëren).
               Vraag je leerkracht om een nieuwe deellink.
+            </p>
+            <Link to="/meedoen" className="btn btn-primary">Code invoeren</Link>
+          </EmptyState>
+        ) : vol ? (
+          <EmptyState icon={<WarningIcon size={40} />} title="Deze cursus kon niet bewaard worden" level={1}>
+            <p>
+              De opslag van dit toestel is vol, dus de cursus kan hier niet geopend worden. Maak ruimte
+              (bijvoorbeeld een oude cursus verwijderen) en open de link opnieuw, of vraag je leerkracht om hulp.
             </p>
             <Link to="/meedoen" className="btn btn-primary">Code invoeren</Link>
           </EmptyState>

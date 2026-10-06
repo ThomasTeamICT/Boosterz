@@ -48,7 +48,10 @@ function SharedRunner({ d }: { d: string }) {
           onClick={() => {
             const existing = getWidget(widget.id);
             const copy = existing ? { ...widget, id: uid(), code: makeCode() } : widget;
-            saveWidget(copy);
+            if (!saveWidget(copy)) {
+              toast('Niet bewaard: de opslag van dit toestel is vol.', 'err');
+              return;
+            }
             setSaved(true);
             toast('Bewaard bij je materiaal', 'ok');
           }}

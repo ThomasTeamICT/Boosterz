@@ -221,8 +221,8 @@ export function TeacherDashboard() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    saveWidget(copy);
-    toast('Widget gedupliceerd', 'ok');
+    if (saveWidget(copy)) toast('Widget gedupliceerd', 'ok');
+    else toast('Niet gedupliceerd: de opslag van dit toestel is vol.', 'err');
   };
 
   const exportOne = async (w: Widget) => {
@@ -806,7 +806,10 @@ function MoveModal({ widget, folders, onClose }: { widget: Widget; folders: Fold
       folderName = name;
       saveFolder({ id: folderId, name, color: FOLDER_COLORS[folders.length % FOLDER_COLORS.length].color, createdAt: Date.now() });
     }
-    saveWidget({ ...widget, folderId });
+    if (!saveWidget({ ...widget, folderId })) {
+      toast('Niet verplaatst: de opslag van dit toestel is vol.', 'err');
+      return;
+    }
     toast(folderId ? `Verplaatst naar “${folderName}”` : 'Uit de map gehaald', 'ok');
     onClose();
   };
