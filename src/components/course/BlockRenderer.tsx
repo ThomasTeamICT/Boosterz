@@ -133,7 +133,8 @@ export function videoEmbedUrl(url: string): string | null {
   const yt = u.match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,20})/i);
   if (yt) return `https://www.youtube-nocookie.com/embed/${yt[1]}`;
   const vimeo = u.match(/vimeo\.com\/(?:video\/)?(\d{6,12})/i);
-  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`;
+  // dnt=1: Vimeo volgt de kijker dan niet (zoals in de videospeler-widget).
+  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}?dnt=1`;
   return null;
 }
 

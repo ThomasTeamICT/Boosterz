@@ -99,6 +99,9 @@ export function quizSchemaText(opts: { goalCode?: boolean } = {}): string {
 ${questionDoc(opts.goalCode !== false)}`;
 }
 
+/** Soorten waarvan het schema naar "vraag" verwijst (uitleg in questionDoc). */
+const QUESTION_TYPES_USING_DOC: ReadonlySet<WidgetTypeId> = new Set<WidgetTypeId>(['worksheet', 'exitticket', 'splitworksheet']);
+
 function schemaDoc(type: WidgetTypeId, withGoalCode: boolean): string | undefined {
   return type === 'quiz' ? quizSchemaText({ goalCode: withGoalCode }) : SCHEMA_DOCS[type];
 }
@@ -130,7 +133,14 @@ export interface WidgetGenRequest {
 
 export function buildWidgetGenPrompt(req: WidgetGenRequest): { system: string; prompt: string } {
   const withGoalCode = Boolean(req.goalCodes && req.goalCodes.length > 0);
-  const docs = req.types.filter(isGenType).map((t) => schemaDoc(t, withGoalCode)).filter(Boolean).join('\n\n');
+  const genTypes = req.types.filter(isGenType);
+  const docList = genTypes.map((t) => schemaDoc(t, withGoalCode)).filter((d): d is string => Boolean(d));
+  // Werkblad, exit-ticket en gesplitst werkblad gebruiken "vraag" uit het
+  // quizschema: zonder quiz in de keuze moet die uitleg er apart bij.
+  if (!genTypes.includes('quiz') && genTypes.some((t) => QUESTION_TYPES_USING_DOC.has(t))) {
+    docList.push(questionDoc(withGoalCode));
+  }
+  const docs = docList.join('\n\n');
   const system = `Je bent een ervaren Vlaamse leerkracht en toetsontwikkelaar die lesmateriaal maakt voor Boosterz.
 Kwaliteitsregels:
 - Schrijf in helder Nederlands (Vlaanderen), afgestemd op de doelgroep.

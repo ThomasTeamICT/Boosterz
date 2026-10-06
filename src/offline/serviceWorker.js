@@ -17,8 +17,9 @@
 //   assets/…                cache eerst: gehashte namen, dus onveranderlijk
 //   andere eigen bestanden  netwerk eerst, cache als terugval
 //                           (manifest, voorbeelden/…)
-//   al de rest              ongemoeid: andere origins (AI-API's, Google
-//                           Fonts), POST, Range, blob:, data:, sw.js zelf
+//   al de rest              ongemoeid: andere origins (AI-API's, video's,
+//                           externe afbeeldingen), POST, Range, blob:, data:,
+//                           sw.js zelf
 //
 // Updates mogen nooit blijven hangen. Daarom:
 //   - navigaties gaan altijd eerst naar het netwerk (met revalidatie van de
@@ -176,7 +177,7 @@ function routeFor(request) {
     return null;
   }
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return null; // blob:, data:, …
-  if (url.origin !== self.location.origin) return null; // AI-API's, Google Fonts, …
+  if (url.origin !== self.location.origin) return null; // AI-API's, video's, …
   if (!url.pathname.startsWith(ROOT_PATH)) return null; // buiten onze map
   if (request.mode === 'navigate') return 'navigate';
   const path = url.pathname.slice(ROOT_PATH.length);

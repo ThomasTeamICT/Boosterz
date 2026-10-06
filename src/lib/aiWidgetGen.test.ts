@@ -84,6 +84,23 @@ describe('buildWidgetGenPrompt — leerplandoelen', () => {
   });
 });
 
+describe('buildWidgetGenPrompt — vraagschema bij werkbladen', () => {
+  const telVraagschema = (types: Parameters<typeof buildWidgetGenPrompt>[0]['types']) => {
+    const { system, prompt } = buildWidgetGenPrompt({ source: '', wish: 'iets', types });
+    return ((system + prompt).match(/Een "vraag" is een JSON-object/g) ?? []).length;
+  };
+  it('legt "vraag" uit als alleen een werkblad, exit-ticket of gesplitst werkblad gekozen is', () => {
+    expect(telVraagschema(['worksheet'])).toBe(1);
+    expect(telVraagschema(['exitticket'])).toBe(1);
+    expect(telVraagschema(['splitworksheet'])).toBe(1);
+    expect(telVraagschema(['worksheet', 'exitticket'])).toBe(1);
+  });
+  it('herhaalt de uitleg niet als de quiz er al bij is, en voegt ze niet toe zonder vragen', () => {
+    expect(telVraagschema(['quiz', 'worksheet'])).toBe(1);
+    expect(telVraagschema(['flashcards'])).toBe(0);
+  });
+});
+
 describe('sanitizeQuestion: varianten van het antwoordveld (gezien bij Gemini)', () => {
   const opts = ['De dunne darm', 'De maag', 'De slokdarm', 'De dikke darm'];
   it('mc: "correctAnswer" als nummer, als optietekst of als letter', () => {

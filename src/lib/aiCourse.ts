@@ -122,7 +122,7 @@ export function buildNewCoursePrompt(req: NewCourseRequest): { system: string; p
   if (req.withQuizzes) {
     envelope = envelope.slice(0, -1) + `,"widgets":[{"type":"quiz","title":"…","config":{…}}]}
 Maak per hoofdstuk één oefenquiz van 4 à 6 vragen over dat hoofdstuk, in dezelfde volgorde als de hoofdstukken.
-${quizSchemaText()}`;
+${quizSchemaText({ goalCode: curGoals.length > 0 })}`;
     if (curGoals.length) {
       envelope += `\nGeef elke vraag ook een "goalCode": de code van het leerplandoel dat ze toetst, uit dezelfde lijst.`;
     }
@@ -477,7 +477,7 @@ Kwaliteitsregels:
       ? `=== INHOUD VAN DE SECTIE ===\n${content}\n=== EINDE ===`
       : 'De sectie bevat nog geen tekst: baseer je op de titel en de leerdoelen hierboven.'
   );
-  parts.push(quizSchemaText());
+  parts.push(quizSchemaText({ goalCode: goals.length > 0 }));
   parts.push(`Geef terug: {"widgets":[{"type":"quiz","title":"…","config":{"questions":[vraag,…],"layout":"single"}}]}`);
   return { system, prompt: parts.join('\n\n') };
 }

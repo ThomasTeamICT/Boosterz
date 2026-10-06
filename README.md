@@ -232,7 +232,7 @@ De app gebruikt een **hash-router** en een relatieve basis-URL, dus de `dist/`-m
 
 - **Naam en beeldmerk**: Boosterz, met een bliksemschicht op een vlak in het merkverloop (violet → oranje). Het woordmerk schrijft de *z* in de accentkleur. Alles staat in `src/components/Brand.tsx` (`BRAND`, `BrandMark`) en wordt gebruikt in de leerkrachtschil, de leerlingpagina's en de laadschermen.
 - **Kleur**: elektrisch violet (`--brand`) als merkkleur, "boost"-oranje (`--accent`) enkel in het beeldmerk, de AI-knoppen en de kopregel van de startpagina. Betekeniskleuren (ok, warn, err) blijven groen, amber en rood; beide thema's (licht/donker) zijn afgestemd.
-- **Letter**: Atkinson Hyperlegible voor lopende tekst (ontworpen voor leesbaarheid, ook bij dyslexie), Outfit voor koppen, knoppen en het woordmerk. Beide via Google Fonts, met de systeemletter als terugval op netwerken die dat blokkeren.
+- **Letter**: Atkinson Hyperlegible voor lopende tekst (ontworpen voor leesbaarheid, ook bij dyslexie), Outfit voor koppen, knoppen en het woordmerk. Beide staan in de app zelf (`src/assets/fonts/`, OFL-licentie): geen verbinding met Google, en ze werken offline.
 
 ## 🗂️ Architectuur
 

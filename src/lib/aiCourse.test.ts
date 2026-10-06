@@ -463,6 +463,17 @@ describe('plaatshouders als doelcode (AI9)', () => {
     expect(met.prompt).toContain('"goalCodes":["…"]');
   });
 
+  it('legt "goalCode" in het vraagschema alleen uit als er leerplandoelen zijn', () => {
+    const zonder = buildNewCoursePrompt({ goals: '', sourceText: 'De waterkringloop.', withQuizzes: true });
+    expect(zonder.prompt).not.toContain('"goalCode"');
+    const met = buildNewCoursePrompt({ goals: '', curriculumGoals: goals, withQuizzes: true });
+    expect(met.prompt).toContain('"goalCode"');
+    const course = sanitizeAICourse(aiAnswer).course as Course;
+    const section: CourseSection = course.chapters[0].sections[0];
+    expect(buildSectionExercisesPrompt({ course, section }).prompt).not.toContain('"goalCode"');
+    expect(buildSectionExercisesPrompt({ course, section, goals: [goals[0]] }).prompt).toContain('"goalCode"');
+  });
+
   const answer = (goalCodes: unknown[]) => ({
     course: {
       title: 'Water',
