@@ -18,8 +18,11 @@ import type { Course } from './courseTypes';
 import { referencedWidgetIds } from './courseTypes';
 import type { Widget } from './types';
 import { assignmentsForClass, getClassByCode, sanitizeAssignment, sanitizeClass } from './classes';
-import { adoptSharedCourse, getCourse, sanitizeCourse } from './courses';
-import { getWidget, notifyChange, reportWriteFailure, saveWidget } from './storage';
+import {
+  adoptSharedContent, findSharedConflicts, getCourse, sanitizeCourse,
+  type AdoptOptions, type SharedConflict,
+} from './courses';
+import { getWidget, notifyChange, reportWriteFailure } from './storage';
 import { countUnresolvedMedia, inlineMedia } from './mediaStore';
 import { sanitizeSharedWidget } from './share';
 
@@ -155,36 +158,116 @@ export function importClassPackJson(json: string): ClassPack | null {
   }
 }
 
+function veiligDecoderen(v: string): string | null {
+  try {
+    return decodeURIComponent(v);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Geplakte klaslink lezen, hoe hij ook binnenkomt (LL12): een volledige link,
+ * alleen het stuk na "d=", met %-codering (bv. %2B voor "+") of met spaties
+ * waar een "+" stond (sommige mailprogramma's), of het pakketbestand zelf
+ * (JSON). Regeleinden van een afgebroken link vallen weg.
+ */
+export function readPastedClassPack(value: string): ClassPack | null {
+  const text = value.trim();
+  if (!text) return null;
+  if (text.startsWith('{')) return importClassPackJson(text);
+  const flat = text.replace(/[\r\n\t]+/g, '');
+  const kandidaten: string[] = [];
+  const vraag = flat.indexOf('?');
+  if (vraag >= 0) {
+    // Zoals de router het leest: URLSearchParams decodeert %-tekens; een
+    // spatie (of "+", die het als spatie leest) zet LZString zelf weer om.
+    const d = new URLSearchParams(flat.slice(vraag + 1)).get('d');
+    if (d) kandidaten.push(d);
+  }
+  const los = /(?:^|[?&])d=([^&]+)/.exec(flat);
+  if (los) kandidaten.push(los[1]);
+  kandidaten.push(flat);
+  for (const k of [...kandidaten]) {
+    const decoded = k.includes('%') ? veiligDecoderen(k) : null;
+    if (decoded) kandidaten.push(decoded);
+  }
+  for (const k of kandidaten) {
+    const pack = decodeClassPack(k);
+    if (pack) return pack;
+  }
+  return null;
+}
+
 // ── Overnemen op het leerlingtoestel ────────────────────────────────────────
 
 export interface AdoptReport {
   courses: number;
   widgets: number;
   assignments: number;
+  /** false = niet alles kon bewaard worden (opslag vol): eerlijk melden. */
+  ok: boolean;
+  /** Bijgewerkt naar een nieuwere versie van dezelfde bron. */
+  updated: number;
+  /** Bewaard naast de eigen versie, als kopie. */
+  copied: number;
+}
+
+/** Alle cursussen en widgets die in het pakket meereizen. */
+function packContent(pack: ClassPack): { courses: Course[]; widgets: Widget[] } {
+  const courses: Course[] = [];
+  const widgets: Widget[] = [];
+  for (const a of pack.opdrachten) {
+    if (a.course) {
+      courses.push(a.course);
+      widgets.push(...(a.widgets ?? []));
+    } else if (a.widget) {
+      widgets.push(a.widget);
+    }
+  }
+  return { courses, widgets };
 }
 
 /**
- * Bewaart de inhoud van het pakket lokaal: cursussen (met hun widgets) via de
- * bestaande sanering van de cursusmodule, losse widgets via saveWidget —
- * bestaande widgets worden nooit overschreven. De klas zelf komt in de
- * leerlingopslag ('wf.classpacks.v1'), niet in de klassenlijst van de
- * leerkracht.
+ * Wat moet de gebruiker beslissen vóór het overnemen (V3)? Cursussen en
+ * widgets die hier als eigen werk staan en in een andere, nieuwere versie in
+ * het pakket zitten. Een zuivere kopie van een vorig pakket wordt zonder vraag
+ * bijgewerkt, een oudere versie zet niets terug (zie lib/courses.ts).
  */
-export function adoptClassPack(pack: ClassPack): AdoptReport {
-  const report: AdoptReport = { courses: 0, widgets: 0, assignments: pack.opdrachten.length };
-  for (const a of pack.opdrachten) {
-    if (a.course) {
-      adoptSharedCourse(a.course, a.widgets ?? [], {});
-      report.courses++;
-      report.widgets += a.widgets?.length ?? 0;
-      continue;
-    }
-    if (a.widget) {
-      if (!getWidget(a.widget.id)) saveWidget(a.widget);
-      report.widgets++;
-    }
-  }
-  saveClassPack(pack);
+export function classPackConflicts(pack: ClassPack): Promise<SharedConflict[]> {
+  const { courses, widgets } = packContent(pack);
+  return findSharedConflicts(courses, widgets);
+}
+
+/**
+ * Bewaart de inhoud van het pakket lokaal, volgens de regels van
+ * adoptSharedContent (lib/courses.ts): nieuw wordt bewaard, een nieuwere
+ * versie van dezelfde bron werkt een ongewijzigde kopie bij, een oudere
+ * versie zet niets terug, en eigen werk wordt nooit stil overschreven —
+ * daarvoor beslist de gebruiker vooraf (`opts.conflicts`, zie
+ * classPackConflicts). Bewaart de gebruiker iets als kopie, dan wijzen de
+ * opdrachten naar die kopie. De klas zelf komt in de leerlingopslag
+ * ('wf.classpacks.v1'), niet in de klassenlijst van de leerkracht.
+ */
+export function adoptClassPack(pack: ClassPack, opts: AdoptOptions = {}): AdoptReport {
+  const { courses, widgets } = packContent(pack);
+  const res = adoptSharedContent(courses, widgets, opts);
+  const report: AdoptReport = {
+    courses: courses.length,
+    widgets: new Set(widgets.map((w) => w.id)).size,
+    assignments: pack.opdrachten.length,
+    ok: res.ok,
+    updated: res.updated,
+    copied: res.copied,
+  };
+  // Opdrachten laten wijzen naar wat er op dit toestel staat (een kopie
+  // heeft een eigen id).
+  const opdrachten = pack.opdrachten.map((a) => {
+    const map = a.kind === 'course' ? res.courseIds : res.widgetIds;
+    const target = map.get(a.targetId);
+    return target && target !== a.targetId ? { ...a, targetId: target } : a;
+  });
+  if (!saveClassPack({ ...pack, opdrachten })) report.ok = false;
   return report;
 }
 
@@ -226,20 +309,23 @@ function readPacks(): StoredClassPack[] {
   }
 }
 
-function writePacks(list: StoredClassPack[]) {
+function writePacks(list: StoredClassPack[]): boolean {
+  let ok = true;
   try {
     localStorage.setItem(PACKS_KEY, JSON.stringify(list));
   } catch (e) {
+    ok = false;
     reportWriteFailure(PACKS_KEY, e);
   }
   notifyChange();
+  return ok;
 }
 
 /** Klas + opdrachten uit een pakket bewaren (vervangt een eerdere versie). */
-export function saveClassPack(pack: ClassPack) {
+export function saveClassPack(pack: ClassPack): boolean {
   const kale: Assignment[] = pack.opdrachten.map(({ course: _c, widgets: _w, widget: _wg, ...rest }) => rest);
   const others = readPacks().filter((p) => p.klas.id !== pack.klas.id && p.klas.code !== pack.klas.code);
-  writePacks([{ klas: pack.klas, opdrachten: kale, adoptedAt: Date.now() }, ...others]);
+  return writePacks([{ klas: pack.klas, opdrachten: kale, adoptedAt: Date.now() }, ...others]);
 }
 
 export function getClassPacks(): StoredClassPack[] {

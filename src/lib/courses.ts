@@ -7,11 +7,12 @@ import type {
   CourseSection, SectionProgress,
 } from './courseTypes';
 import { allSections, referencedPdfIds, referencedWidgetIds } from './courseTypes';
-import { deletePdf } from './pdfStore';
+import { deletePdf, getPdf, importPdfFromDataUrl, pdfToDataUrl } from './pdfStore';
 import { makeCode, uid } from './utils';
 import { EXAMPLE_CURRICULUM_ID, getCurriculum, normalizeGoalCodes } from './curriculum';
 import { cleanupOrphanMedia, getWidget, getWidgets, notifyChange, reportWriteFailure, saveWidget } from './storage';
 import { collectMediaRefs, countUnresolvedMedia, inlineMedia, isMediaRef, parseWithMedia, stringifyWithMedia } from './mediaStore';
+import { sharedVersion } from './share';
 import { isBestandUrl, webUrl } from './veiligeUrl';
 import { defaultSettings, getTypeDef, WIDGET_TYPES } from '../widgets/registry';
 
@@ -54,13 +55,20 @@ export function getCourseByCode(code: string): Course | undefined {
   const c = code.trim().toUpperCase();
   return getCourses().find((k) => k.code.toUpperCase() === c);
 }
-export function saveCourse(course: Course) {
+/**
+ * Bewaart een cursus. Geeft false terug als er niets bewaard is (volle of
+ * geblokkeerde opslag), zodat een editor geen "Bewaard" toont terwijl het
+ * mislukte (CU7). `keepUpdatedAt`: de versie van de bron behouden — alleen
+ * voor overgenomen gedeelde inhoud (zie adoptSharedContent).
+ */
+export function saveCourse(course: Course, opts: { keepUpdatedAt?: boolean } = {}): boolean {
   const all = getCourses();
   const i = all.findIndex((c) => c.id === course.id);
-  const updated = { ...course, updatedAt: Date.now() };
+  const keep = opts.keepUpdatedAt && typeof course.updatedAt === 'number' && Number.isFinite(course.updatedAt);
+  const updated = { ...course, updatedAt: keep ? course.updatedAt : Date.now() };
   if (i >= 0) all[i] = updated;
   else all.unshift(updated);
-  write(COURSES_KEY, all);
+  return write(COURSES_KEY, all);
 }
 export function deleteCourse(id: string) {
   const course = getCourse(id);
@@ -188,7 +196,15 @@ export function getStudentProgress(courseId: string, studentName: string): Cours
   );
 }
 
-export function saveStudentProgress(progress: CourseProgress) {
+/**
+ * Bewaart de voortgang van één leerling (vervangt de vorige record op cursus +
+ * naam). Standaard wordt "laatst gezien" op nu gezet: dat is de lezer die
+ * bewaart. Bij het inlezen van een voortgangscode (importProgressCode) blijft
+ * de tijd uit de code staan (`keepLastSeenAt`), anders wordt "laatst gezien"
+ * het moment van inlezen en lijkt elke latere code van een ander toestel ouder.
+ * Geeft false terug als er niets bewaard is.
+ */
+export function saveStudentProgress(progress: CourseProgress, opts: { keepLastSeenAt?: boolean } = {}): boolean {
   const all = readAllProgress();
   const name = progress.studentName.trim().toLowerCase();
   const i = all.findIndex(
@@ -196,11 +212,29 @@ export function saveStudentProgress(progress: CourseProgress) {
   );
   // lastSeenAt óók op het doorgegeven object bijwerken: de viewer serialiseert
   // ditzelfde object naar de voortgangscode.
-  progress.lastSeenAt = Date.now();
+  if (!opts.keepLastSeenAt || !Number.isFinite(progress.lastSeenAt)) progress.lastSeenAt = Date.now();
   const updated = { ...progress };
   if (i >= 0) all[i] = updated;
   else all.push(updated);
-  write(PROGRESS_KEY, all);
+  return write(PROGRESS_KEY, all);
+}
+
+/**
+ * Eigen sleutel lezen uit een object dat op id geïndexeerd is (secties,
+ * vinkjes). Zonder deze controle geeft een id als "constructor" of "toString"
+ * een functie uit Object.prototype terug in plaats van "niets".
+ */
+function eigen<T>(obj: Record<string, T> | undefined, key: string): T | undefined {
+  return obj && Object.prototype.hasOwnProperty.call(obj, key) ? obj[key] : undefined;
+}
+
+/** Toewijzen op een id; "__proto__" zou anders het prototype vervangen. */
+function zetEigen<T>(obj: Record<string, T>, key: string, value: T): void {
+  if (key === '__proto__') {
+    Object.defineProperty(obj, key, { value, enumerable: true, writable: true, configurable: true });
+  } else {
+    obj[key] = value;
+  }
 }
 
 /**
@@ -218,24 +252,26 @@ export function mergeProgressRecords(a: CourseProgress, b: CourseProgress): Cour
     startedAt: Math.min(a.startedAt || Date.now(), b.startedAt || Date.now()),
     lastSeenAt: Math.max(a.lastSeenAt, b.lastSeenAt),
     lastSectionId: newer.lastSectionId ?? a.lastSectionId ?? b.lastSectionId,
-    sections: { ...a.sections },
+    sections: {},
   };
+  for (const [sid, sp] of Object.entries(a.sections)) zetEigen(merged.sections, sid, sp);
   for (const [sid, sp] of Object.entries(b.sections)) {
-    const cur = merged.sections[sid];
+    const cur = eigen(merged.sections, sid);
     if (!cur) {
-      merged.sections[sid] = sp;
+      zetEigen(merged.sections, sid, sp);
       continue;
     }
-    const checks: Record<string, string[]> = { ...(cur.checks ?? {}) };
+    const checks: Record<string, string[]> = {};
+    for (const [blockId, items] of Object.entries(cur.checks ?? {})) zetEigen(checks, blockId, items);
     for (const [blockId, items] of Object.entries(sp.checks ?? {})) {
-      checks[blockId] = [...new Set([...(checks[blockId] ?? []), ...items])];
+      zetEigen(checks, blockId, [...new Set([...(eigen(checks, blockId) ?? []), ...items])]);
     }
-    merged.sections[sid] = {
+    zetEigen(merged.sections, sid, {
       openedAt: Math.min(cur.openedAt, sp.openedAt),
       completedAt: cur.completedAt ?? sp.completedAt,
       secondsSpent: Math.max(cur.secondsSpent, sp.secondsSpent),
       checks: Object.keys(checks).length ? checks : undefined,
-    };
+    });
   }
   return merged;
 }
@@ -265,10 +301,10 @@ export function startProgress(course: Course, studentName: string): CourseProgre
 }
 
 export function touchSection(progress: CourseProgress, sectionId: string): SectionProgress {
-  const existing = progress.sections[sectionId];
+  const existing = eigen(progress.sections, sectionId);
   if (existing) return existing;
   const fresh: SectionProgress = { openedAt: Date.now(), secondsSpent: 0 };
-  progress.sections[sectionId] = fresh;
+  zetEigen(progress.sections, sectionId, fresh);
   return fresh;
 }
 
@@ -332,7 +368,8 @@ function sanitizeSharedWidget(raw: unknown): Widget | null {
     // de vragen terug op "onbekend leerplan" bij de dekking en het klasoverzicht.
     curriculumId: typeof w.curriculumId === 'string' && w.curriculumId ? (w.curriculumId as string) : undefined,
     createdAt: typeof w.createdAt === 'number' ? (w.createdAt as number) : Date.now(),
-    updatedAt: Date.now(),
+    // Versie van de bron (nooit in de toekomst), zie sharedVersion in lib/share.ts.
+    updatedAt: sharedVersion(w.updatedAt),
   };
 }
 
@@ -359,64 +396,468 @@ export function decodeCourseFromParam(d: string): DecodedCourse | null {
   }
 }
 
-/**
- * Slaat een gedeelde cursus + meegereisde widgets lokaal op (voor de
- * leerling die via een link opent). Bestaande widgets worden nooit
- * overschreven. Een gedeeltelijke link (enkele hoofdstukken) wordt per
- * hoofdstuk samengevoegd met de lokale kopie, zodat eerder gedeelde
- * hoofdstukken blijven bestaan.
- */
-export function adoptSharedCourse(course: Course, widgets: Widget[], opts: { partial?: boolean; force?: boolean } = {}) {
-  for (const w of widgets) {
-    if (!getWidget(w.id)) saveWidget(w);
+// ── Gedeelde inhoud overnemen: versies, eigen werk en kopieën ───────────────
+//
+// Cursussen en widgets komen binnen via een deellink, een klaspakket of een
+// bestand. Drie regels (debugronde oktober 2026, LL3/CU5 en V3):
+//
+//  1. Een nieuwere versie van iets dat hier ongewijzigd uit een eerdere link
+//     of een eerder pakket staat ("zuivere kopie"), wordt stil bijgewerkt.
+//     Zo krijgt een leerling de verbeterde oefening.
+//  2. Een oudere of even oude versie overschrijft nooit wat hier staat: een
+//     oude link die later nog eens geopend wordt, zet niets terug.
+//  3. Eigen werk (zelf gemaakt, of na het overnemen nog aangepast) wordt nooit
+//     stil overschreven. Is de binnenkomende versie nieuwer én anders, dan
+//     beslist de gebruiker: bijwerken, eigen versie houden of als kopie
+//     bewaren (findSharedConflicts + AdoptOptions.conflicts).
+//
+// "Versie" is updatedAt: de bron geeft die mee (begrensd op nu, zie
+// sharedVersion) en bij het overnemen bewaren we ze ongewijzigd. Wat we zo
+// overnamen, staat in een klein register (id → versie). Een lokale bewerking
+// stempelt updatedAt opnieuw; komt de versie niet meer overeen met het
+// register, dan is het eigen werk geworden. Oude data zonder register telt
+// daardoor als eigen werk: bij twijfel vragen, nooit stil overschrijven.
+
+const SHARED_KEY = 'wf.gedeeld.v1';
+
+type SharedKind = 'course' | 'widget';
+
+interface SharedRegistry {
+  course: Map<string, number>;
+  widget: Map<string, number>;
+}
+
+function readRegistry(): SharedRegistry {
+  const reg: SharedRegistry = { course: new Map(), widget: new Map() };
+  try {
+    const raw = localStorage.getItem(SHARED_KEY);
+    if (!raw) return reg;
+    const data: unknown = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return reg;
+    const d = data as Record<string, unknown>;
+    const lees = (list: unknown, into: Map<string, number>) => {
+      if (!Array.isArray(list)) return;
+      for (const e of list) {
+        if (Array.isArray(e) && typeof e[0] === 'string' && typeof e[1] === 'number' && Number.isFinite(e[1])) {
+          into.set(e[0], e[1]);
+        }
+      }
+    };
+    lees(d.c, reg.course);
+    lees(d.w, reg.widget);
+  } catch {
+    // genegeerd: zonder register telt alles als eigen werk (er wordt dan gevraagd)
   }
-  const existing = getCourse(course.id);
-  if (!existing) {
-    saveCourse(course);
-    return;
-  }
-  if (opts.partial) {
-    // Hoofdstukken uit de link vervangen hun lokale naamgenoot (op id) of
-    // komen er achteraan bij; niet-gedeelde hoofdstukken blijven staan.
-    const incoming = new Map(course.chapters.map((ch) => [ch.id, ch]));
-    const merged: CourseChapter[] = existing.chapters.map((ch) => incoming.get(ch.id) ?? ch);
-    for (const ch of course.chapters) {
-      if (!existing.chapters.some((x) => x.id === ch.id)) merged.push(ch);
-    }
-    saveCourse({ ...course, chapters: merged });
-    return;
-  }
-  if (opts.force || (course.updatedAt ?? 0) >= (existing.updatedAt ?? 0)) {
-    saveCourse(course);
+  return reg;
+}
+
+function writeRegistry(reg: SharedRegistry) {
+  // Alleen id's die nog bestaan: zo groeit het register niet eindeloos aan.
+  const courseIds = new Set(getCourses().map((c) => c.id));
+  const widgetIds = new Set(getWidgets().map((w) => w.id));
+  const payload = {
+    v: 1,
+    c: [...reg.course].filter(([id]) => courseIds.has(id)),
+    w: [...reg.widget].filter(([id]) => widgetIds.has(id)),
+  };
+  try {
+    localStorage.setItem(SHARED_KEY, JSON.stringify(payload));
+  } catch {
+    // genegeerd: zonder register wordt er later gevraagd in plaats van stil bijgewerkt
   }
 }
 
+/** Staat dit hier ongewijzigd zoals het uit een link of pakket overgenomen werd? */
+function isPureCopy(reg: SharedRegistry, kind: SharedKind, local: { id: string; updatedAt: number }): boolean {
+  return reg[kind].get(local.id) === local.updatedAt;
+}
+
 /**
- * Is dit een wezenlijk andere versie dan wat er lokaal staat? (Voor een
- * eerlijke bevestigingsvraag vóór overschrijven — een gedeelde link kan
- * door iedereen met de link nagemaakt worden.)
+ * Deterministische JSON (sleutels gesorteerd, undefined weg): twee versies met
+ * dezelfde inhoud maar een andere sleutelvolgorde zijn gelijk (CU15a).
  */
-/**
- * Verschilt de binnengekomen cursus (link of bestand) van de lokale versie?
- * Async: lokaal staan de media als blob:-URL, in de binnengekomen versie als
- * data-URL — vergelijken kan pas als de lokale media weer inline staan.
- * Met `chapterIds` (gedeeltelijke link) worden alleen die hoofdstukken
- * vergeleken; een hoofdstuk dat lokaal ontbreekt telt als verschil.
- */
-export async function sharedCourseDiffers(course: Course, chapterIds?: string[]): Promise<boolean> {
-  const existing = getCourse(course.id);
-  if (!existing) return false;
-  const local = await inlineMedia(existing);
-  if (chapterIds) {
-    return course.chapters
-      .filter((ch) => chapterIds.includes(ch.id))
-      .some((ch) => {
-        const mine = local.chapters.find((x) => x.id === ch.id);
-        return !mine || JSON.stringify(mine) !== JSON.stringify(ch);
-      });
+function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return '[' + v.map((x) => (x === undefined ? 'null' : stableJson(x))).join(',') + ']';
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    return '{' + Object.keys(o).sort()
+      .filter((k) => o[k] !== undefined && typeof o[k] !== 'function')
+      .map((k) => JSON.stringify(k) + ':' + stableJson(o[k]))
+      .join(',') + '}';
   }
-  const strip = (c: Course) => JSON.stringify({ ...c, updatedAt: 0, createdAt: 0 });
-  return strip(local) !== strip(course);
+  return JSON.stringify(v) ?? 'null';
+}
+
+/** Vergelijkbare vorm: door dezelfde sanering, zonder tijdstempels en map. */
+function comparable(kind: SharedKind, x: unknown): string {
+  if (kind === 'course') {
+    const c = sanitizeCourse(x);
+    return c ? stableJson({ ...c, createdAt: 0, updatedAt: 0 }) : '';
+  }
+  const w = sanitizeSharedWidget(x);
+  return w ? stableJson({ ...w, createdAt: 0, updatedAt: 0, folderId: null }) : '';
+}
+
+/**
+ * Zelfde inhoud? Async: lokaal staan media als verwijzing of blob:-URL, in
+ * gedeelde inhoud als data-URL; vergelijken kan pas als beide inline staan.
+ * Bij een fout: "anders" (dan wordt er gevraagd, er gaat niets verloren).
+ */
+async function sameContent(kind: SharedKind, incoming: unknown, local: unknown): Promise<boolean> {
+  try {
+    const [a, b] = await Promise.all([inlineMedia(incoming), inlineMedia(local)]);
+    const ca = comparable(kind, a);
+    return ca !== '' && ca === comparable(kind, b);
+  } catch {
+    return false;
+  }
+}
+
+export type SharedChoice = 'bijwerken' | 'houden' | 'kopie';
+
+/** Iets wat binnenkomt en hier al in een andere versie staat als eigen werk. */
+export interface SharedConflict {
+  kind: SharedKind;
+  id: string;
+  /** Titel van de binnenkomende versie. */
+  title: string;
+  /** Titel van de versie op dit toestel. */
+  localTitle: string;
+  /** true = de binnenkomende versie is ouder dan die op dit toestel. */
+  older: boolean;
+}
+
+export function conflictKey(c: { kind: SharedKind; id: string }): string {
+  return `${c.kind}:${c.id}`;
+}
+
+export interface AdoptOptions {
+  /**
+   * Uitdrukkelijk "bijwerken" (de gebruiker koos het al): de cursus wordt
+   * altijd vervangen, widgets alleen door een nieuwere versie.
+   */
+  force?: boolean;
+  /** De keuze van de gebruiker voor de conflicten uit findSharedConflicts. */
+  conflicts?: { choice: SharedChoice; keys: string[] };
+}
+
+export interface AdoptResult {
+  /** false = minstens één onderdeel kon niet bewaard worden (opslag vol). */
+  ok: boolean;
+  /** Id van de bron → id op dit toestel (anders bij "als kopie bewaren"). */
+  courseIds: Map<string, string>;
+  widgetIds: Map<string, string>;
+  /** Tellingen over cursussen en widgets samen. */
+  added: number;
+  updated: number;
+  kept: number;
+  copied: number;
+}
+
+type AdoptAction = 'nieuw' | SharedChoice;
+
+function decideAction(
+  kind: SharedKind,
+  incoming: { id: string; updatedAt: number },
+  local: { id: string; updatedAt: number } | undefined,
+  reg: SharedRegistry,
+  opts: AdoptOptions
+): AdoptAction {
+  if (!local) return 'nieuw';
+  if (opts.conflicts && opts.conflicts.keys.includes(conflictKey({ kind, id: incoming.id }))) {
+    return opts.conflicts.choice;
+  }
+  const newer = incoming.updatedAt > local.updatedAt;
+  if (newer && isPureCopy(reg, kind, local)) return 'bijwerken';
+  if (opts.force && (kind === 'course' || newer)) return 'bijwerken';
+  return 'houden';
+}
+
+/** Per id de nieuwste versie (dezelfde widget kan in meerdere cursussen zitten). */
+function newestById<T extends { id: string; updatedAt: number }>(items: T[]): Map<string, T> {
+  const out = new Map<string, T>();
+  for (const it of items) {
+    const cur = out.get(it.id);
+    if (!cur || it.updatedAt > cur.updatedAt) out.set(it.id, it);
+  }
+  return out;
+}
+
+/** Widgetblokken laten wijzen naar de id's op dit toestel (na een kopie). */
+function remapWidgetBlocks(course: Course, widgetIds: Map<string, string>): Course {
+  const needs = referencedWidgetIds(course).some((id) => (widgetIds.get(id) ?? id) !== id);
+  if (!needs) return course;
+  return {
+    ...course,
+    chapters: course.chapters.map((ch) => ({
+      ...ch,
+      sections: ch.sections.map((se) => ({
+        ...se,
+        blocks: se.blocks.map((b) =>
+          b.type === 'widget' && widgetIds.has(b.widgetId) ? { ...b, widgetId: widgetIds.get(b.widgetId) as string } : b
+        ),
+      })),
+    })),
+  };
+}
+
+function kopieTitel(title: string): string {
+  return `${title} (kopie)`;
+}
+
+/**
+ * Neemt gedeelde cursussen en widgets over volgens de drie regels hierboven.
+ * Gebruikt door het klaspakket (alle cursussen en widgets in één keer, zodat
+ * kopieën overal juist verwijzen) en door adoptSharedCourse.
+ */
+export function adoptSharedContent(courses: Course[], widgets: Widget[], opts: AdoptOptions = {}): AdoptResult {
+  const reg = readRegistry();
+  const res: AdoptResult = {
+    ok: true, courseIds: new Map(), widgetIds: new Map(), added: 0, updated: 0, kept: 0, copied: 0,
+  };
+  const localWidgets = new Map(getWidgets().map((w) => [w.id, w] as const));
+  const localCourses = new Map(getCourses().map((c) => [c.id, c] as const));
+
+  // 1. Beslissen (widgets eerst: een cursus die naar een gekopieerde widget
+  //    wijst, moet dat weten).
+  const incomingWidgets = newestById(widgets.map((w) => ({ ...w, updatedAt: sharedVersion(w.updatedAt) })));
+  const widgetAction = new Map<string, AdoptAction>();
+  for (const w of incomingWidgets.values()) {
+    const action = decideAction('widget', w, localWidgets.get(w.id), reg, opts);
+    widgetAction.set(w.id, action);
+    res.widgetIds.set(w.id, action === 'kopie' ? uid() : w.id);
+  }
+  const incomingCourses = newestById(courses.map((c) => ({ ...c, updatedAt: sharedVersion(c.updatedAt) })));
+  const courseAction = new Map<string, AdoptAction>();
+  for (const c of incomingCourses.values()) {
+    let action = decideAction('course', c, localCourses.get(c.id), reg, opts);
+    // Kopie van een widget gekozen, maar de cursus zelf blijft staan? Dan zou
+    // de lokale cursus naar de kopie moeten wijzen (eigen werk wijzigen) of
+    // de kopie wees blijven. Daarom gaat de cursus van de bron mee als kopie.
+    if (action === 'houden' && referencedWidgetIds(c).some((id) => widgetAction.get(id) === 'kopie')) {
+      action = 'kopie';
+    }
+    courseAction.set(c.id, action);
+    res.courseIds.set(c.id, action === 'kopie' ? uid() : c.id);
+  }
+
+  // 2. Widgets bewaren.
+  for (const w of incomingWidgets.values()) {
+    const action = widgetAction.get(w.id) as AdoptAction;
+    const local = localWidgets.get(w.id);
+    if (action === 'houden') {
+      res.kept++;
+      continue;
+    }
+    if (action === 'kopie') {
+      const copy: Widget = {
+        ...w,
+        id: res.widgetIds.get(w.id) as string,
+        code: makeCode(),
+        title: kopieTitel(w.title),
+        folderId: local?.folderId ?? w.folderId,
+      };
+      if (saveWidget(copy)) res.copied++;
+      else res.ok = false;
+      continue;
+    }
+    // nieuw of bijwerken: versie van de bron behouden, map van dit toestel.
+    const toSave: Widget = local ? { ...w, folderId: local.folderId } : w;
+    if (saveWidget(toSave, { keepUpdatedAt: true })) {
+      reg.widget.set(w.id, w.updatedAt);
+      if (action === 'nieuw') res.added++;
+      else res.updated++;
+    } else {
+      res.ok = false;
+    }
+  }
+
+  // 3. Cursussen bewaren.
+  for (const c of incomingCourses.values()) {
+    const action = courseAction.get(c.id) as AdoptAction;
+    if (action === 'houden') {
+      res.kept++;
+      continue;
+    }
+    const remapped = remapWidgetBlocks(c, res.widgetIds);
+    if (action === 'kopie') {
+      const copy: Course = {
+        ...remapped,
+        id: res.courseIds.get(c.id) as string,
+        code: makeCode(),
+        title: kopieTitel(c.title),
+      };
+      if (saveCourse(copy)) res.copied++;
+      else res.ok = false;
+      continue;
+    }
+    if (saveCourse(remapped, { keepUpdatedAt: true })) {
+      reg.course.set(c.id, c.updatedAt);
+      if (action === 'nieuw') res.added++;
+      else res.updated++;
+    } else {
+      res.ok = false;
+    }
+  }
+
+  writeRegistry(reg);
+  return res;
+}
+
+/**
+ * Slaat een gedeelde cursus + meegereisde widgets lokaal op (link, bestand,
+ * voorbeeldcursus). De regels staan bij adoptSharedContent. Een
+ * gedeeltelijke link (enkele hoofdstukken) wordt per hoofdstuk samengevoegd
+ * met de lokale versie, zodat eerder gedeelde hoofdstukken blijven bestaan;
+ * zonder `force` alleen bij een zuivere kopie (eigen werk: eerst vragen).
+ */
+export function adoptSharedCourse(
+  course: Course,
+  widgets: Widget[],
+  opts: AdoptOptions & { partial?: boolean } = {}
+): AdoptResult {
+  const existing = getCourse(course.id);
+  if (!opts.partial || !existing) return adoptSharedContent([course], widgets, opts);
+
+  const res = adoptSharedContent([], widgets, opts);
+  const reg = readRegistry();
+  const incomingCourse = remapWidgetBlocks({ ...course, updatedAt: sharedVersion(course.updatedAt) }, res.widgetIds);
+  const pure = isPureCopy(reg, 'course', existing);
+  const newer = incomingCourse.updatedAt > existing.updatedAt;
+  const replace = Boolean(opts.force) || (pure && newer);
+  const append = Boolean(opts.force) || pure;
+  // Hoofdstukken uit de link vervangen hun lokale naamgenoot (op id) of
+  // komen er achteraan bij; niet-gedeelde hoofdstukken blijven staan.
+  const incoming = new Map(incomingCourse.chapters.map((ch) => [ch.id, ch] as const));
+  let changed = false;
+  const merged: CourseChapter[] = existing.chapters.map((ch) => {
+    const inc = incoming.get(ch.id);
+    if (inc && replace) {
+      changed = true;
+      return inc;
+    }
+    return ch;
+  });
+  if (append) {
+    const have = new Set(existing.chapters.map((ch) => ch.id));
+    for (const ch of incomingCourse.chapters) {
+      if (!have.has(ch.id)) {
+        merged.push(ch);
+        changed = true;
+      }
+    }
+  }
+  res.courseIds.set(course.id, course.id);
+  if (!changed) {
+    res.kept++;
+    return res;
+  }
+  const base = replace ? incomingCourse : existing;
+  let ok: boolean;
+  if (opts.force) {
+    // Na een uitdrukkelijke keuze is het een mengvorm: eigen werk vanaf nu.
+    ok = saveCourse({ ...base, chapters: merged });
+    reg.course.delete(course.id);
+  } else {
+    const version = Math.max(existing.updatedAt, incomingCourse.updatedAt);
+    ok = saveCourse({ ...base, chapters: merged, updatedAt: version }, { keepUpdatedAt: true });
+    if (ok) reg.course.set(course.id, version);
+  }
+  if (ok) res.updated++;
+  else res.ok = false;
+  writeRegistry(reg);
+  return res;
+}
+
+/** Zou het overnemen zonder vraag hier een andere, nieuwere versie laten liggen? */
+async function isConflict(
+  kind: SharedKind,
+  incoming: { id: string; updatedAt: number },
+  local: { id: string; updatedAt: number },
+  reg: SharedRegistry,
+  includeOlder: boolean
+): Promise<boolean> {
+  const newer = sharedVersion(incoming.updatedAt) > local.updatedAt;
+  if (newer && isPureCopy(reg, kind, local)) return false; // wordt stil bijgewerkt
+  if (!newer && !includeOlder) return false; // oudere versie: wat hier staat, blijft
+  return !(await sameContent(kind, incoming, local));
+}
+
+/**
+ * Wat zou de gebruiker moeten beslissen vóór het overnemen? Eigen werk (of
+ * een aangepaste kopie) dat in een andere, nieuwere versie binnenkomt.
+ * `includeOlder`: ook oudere versies voorleggen (een bestand terugzetten,
+ * zoals een back-up, is een bewuste keuze van de leerkracht).
+ */
+export async function findSharedConflicts(
+  courses: Course[],
+  widgets: Widget[],
+  opts: { includeOlder?: boolean } = {}
+): Promise<SharedConflict[]> {
+  const reg = readRegistry();
+  const out: SharedConflict[] = [];
+  const localCourses = new Map(getCourses().map((c) => [c.id, c] as const));
+  for (const c of newestById(courses).values()) {
+    const local = localCourses.get(c.id);
+    if (local && (await isConflict('course', c, local, reg, Boolean(opts.includeOlder)))) {
+      out.push({ kind: 'course', id: c.id, title: c.title, localTitle: local.title, older: sharedVersion(c.updatedAt) < local.updatedAt });
+    }
+  }
+  const localWidgets = new Map(getWidgets().map((w) => [w.id, w] as const));
+  for (const w of newestById(widgets).values()) {
+    const local = localWidgets.get(w.id);
+    if (local && (await isConflict('widget', w, local, reg, Boolean(opts.includeOlder)))) {
+      out.push({ kind: 'widget', id: w.id, title: w.title, localTitle: local.title, older: sharedVersion(w.updatedAt) < local.updatedAt });
+    }
+  }
+  return out;
+}
+
+/**
+ * Moet er gevraagd worden vóór deze link overgenomen wordt? (De naam is
+ * historisch; de vraag is: zou overnemen zonder `force` hier eigen werk laten
+ * liggen dat in een andere, nieuwere versie binnenkomt?)
+ *
+ *  - Een zuivere kopie wordt stil bijgewerkt: geen vraag.
+ *  - Een oudere link zet niets terug: geen vraag, de lokale versie blijft.
+ *  - Eigen werk in een nieuwere, andere versie: wel een vraag.
+ *
+ * Vergelijken gebeurt na dezelfde sanering en met gesorteerde sleutels, zodat
+ * een ongewijzigd eigen bestand niet als "anders" telt (CU15a). Met
+ * `chapterIds` (gedeeltelijke link) tellen alleen die hoofdstukken; een
+ * hoofdstuk dat lokaal ontbreekt, telt bij eigen werk als verschil.
+ * `widgets`: ook de meereizende widgets nagaan.
+ */
+export async function sharedCourseDiffers(course: Course, chapterIds?: string[], widgets: Widget[] = []): Promise<boolean> {
+  const existing = getCourse(course.id);
+  const reg = readRegistry();
+  if (existing) {
+    if (chapterIds) {
+      if (!isPureCopy(reg, 'course', existing)) {
+        const newer = sharedVersion(course.updatedAt) > existing.updatedAt;
+        let local: Course;
+        try {
+          local = sanitizeCourse(await inlineMedia(existing)) ?? existing;
+        } catch {
+          return true;
+        }
+        const inc = sanitizeCourse(course) ?? course;
+        for (const ch of inc.chapters.filter((x) => chapterIds.includes(x.id))) {
+          const mine = local.chapters.find((x) => x.id === ch.id);
+          if (!mine) return true;
+          if (newer && stableJson(mine) !== stableJson(ch)) return true;
+        }
+      }
+    } else if (await isConflict('course', course, existing, reg, false)) {
+      return true;
+    }
+  }
+  const localWidgets = new Map(getWidgets().map((w) => [w.id, w] as const));
+  for (const w of newestById(widgets).values()) {
+    const local = localWidgets.get(w.id);
+    if (local && (await isConflict('widget', w, local, reg, false))) return true;
+  }
+  return false;
 }
 
 export function courseReadUrl(code: string): string {
@@ -451,16 +892,16 @@ export function decodeCourseProgress(code: string): CourseProgress | null {
         if (sp.checks && typeof sp.checks === 'object' && !Array.isArray(sp.checks)) {
           for (const [bid, items] of Object.entries(sp.checks as Record<string, unknown>)) {
             if (Array.isArray(items)) {
-              checks[bid] = items.filter((x): x is string => typeof x === 'string');
+              zetEigen(checks, bid, items.filter((x): x is string => typeof x === 'string'));
             }
           }
         }
-        sections[sid] = {
+        zetEigen(sections, sid, {
           openedAt: typeof sp.openedAt === 'number' ? sp.openedAt : Date.now(),
           completedAt: typeof sp.completedAt === 'number' ? sp.completedAt : undefined,
           secondsSpent: typeof sp.secondsSpent === 'number' && sp.secondsSpent >= 0 ? Math.min(sp.secondsSpent, 1e7) : 0,
           checks: Object.keys(checks).length ? checks : undefined,
-        };
+        });
       }
     }
     return {
@@ -473,7 +914,9 @@ export function decodeCourseProgress(code: string): CourseProgress | null {
       studentId: typeof p.studentId === 'string' && p.studentId ? p.studentId : undefined,
       sections,
       lastSectionId: typeof p.lastSectionId === 'string' ? p.lastSectionId : undefined,
-      lastSeenAt: typeof p.lastSeenAt === 'number' ? p.lastSeenAt : Date.now(),
+      // Nooit in de toekomst: anders blijft een geknutselde of scheve klok
+      // voor altijd "laatst gezien" (samenvoegen neemt het maximum).
+      lastSeenAt: typeof p.lastSeenAt === 'number' && Number.isFinite(p.lastSeenAt) ? Math.min(p.lastSeenAt, Date.now()) : Date.now(),
       startedAt: typeof p.startedAt === 'number' ? p.startedAt : Date.now(),
     };
   } catch {
@@ -481,24 +924,95 @@ export function decodeCourseProgress(code: string): CourseProgress | null {
   }
 }
 
-/** Binnengekomen voortgangscode samenvoegen met wat er al lokaal staat. */
-export function importProgressCode(p: CourseProgress) {
+/**
+ * Binnengekomen voortgangscode samenvoegen met wat er al lokaal staat (KL1).
+ * Samenvoegen verliest niets (zie mergeProgressRecords) en "laatst gezien"
+ * blijft het maximum uit de codes, niet het moment van inlezen: zo telt een
+ * code van een tweede toestel nooit als "ouder" en gaat ze niet verloren.
+ * Geeft false terug als er niets bewaard is.
+ */
+export function importProgressCode(p: CourseProgress): boolean {
   const existing = getStudentProgress(p.courseId, p.studentName);
-  saveStudentProgress(existing ? mergeProgressRecords(existing, p) : p);
+  return saveStudentProgress(existing ? mergeProgressRecords(existing, p) : p, { keepLastSeenAt: true });
 }
 
 // ── JSON-export/-import & defensieve sanering ───────────────────────────────
 
-/** Cursusbestand mét ingebedde widgets; media gaan als data-URL mee (async). */
+/** Een geüploade pdf die in een cursusbestand meereist (base64). */
+export interface CoursePdf {
+  id: string;
+  name: string;
+  dataUrl: string;
+}
+
+const PDF_DATA_PREFIX = 'data:application/pdf;base64,';
+
+/** pdfId van een widget met een pdf als bron (bv. gesplitst werkblad: config.source.pdfId). */
+function widgetPdfId(w: Widget): string | null {
+  const src = (w.config as unknown as { source?: unknown }).source;
+  if (!src || typeof src !== 'object') return null;
+  const pid = (src as Record<string, unknown>).pdfId;
+  return typeof pid === 'string' && pid ? pid : null;
+}
+
+/** Alle pdf's waar de cursus en haar widgets naar verwijzen. */
+function coursePdfIds(course: Course, widgets: Widget[]): Set<string> {
+  const ids = new Set(referencedPdfIds(course));
+  for (const w of widgets) {
+    const pid = widgetPdfId(w);
+    if (pid) ids.add(pid);
+  }
+  return ids;
+}
+
+/**
+ * Cursusbestand mét ingebedde widgets; media gaan als data-URL mee (async).
+ * Ook de geüploade pdf's reizen mee (CU4/OP12): de export is voor veel
+ * leerkrachten hun enige back-up, en zonder pdf's is die onvolledig.
+ */
 export async function exportCourseJson(course: Course): Promise<string> {
   const widgets = referencedWidgetIds(course)
     .map((id) => getWidget(id))
     .filter((x): x is Widget => Boolean(x));
+  const pdfs: CoursePdf[] = [];
+  for (const id of coursePdfIds(course, widgets)) {
+    try {
+      const pdf = await pdfToDataUrl(id);
+      if (!pdf) continue;
+      // Altijd als pdf markeren: een blob zonder type geeft anders
+      // "application/octet-stream" en dan weigert de import hem.
+      const komma = pdf.dataUrl.indexOf(';base64,');
+      if (komma < 0) continue;
+      pdfs.push({ id, name: pdf.name || 'document.pdf', dataUrl: PDF_DATA_PREFIX + pdf.dataUrl.slice(komma + 8) });
+    } catch {
+      // Een pdf die niet te lezen is, houdt de rest van de export niet tegen.
+    }
+  }
   const payload = await inlineMedia({ app: 'boosterz', kind: 'cursus', v: 1, course, widgets });
-  return JSON.stringify(payload, null, 2);
+  return JSON.stringify(pdfs.length ? { ...payload, pdfs } : payload, null, 2);
 }
 
-export function importCourseJson(json: string): { course: Course; widgets: Widget[] } | null {
+/** Pdf's uit een cursusbestand: alleen echte pdf-data, alleen waar de cursus naar verwijst. */
+function sanitizeCoursePdfs(raw: unknown, allowed: Set<string>): CoursePdf[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CoursePdf[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const p = item as Record<string, unknown>;
+    const id = typeof p.id === 'string' ? p.id : '';
+    if (!/^[\w-]{1,100}$/.test(id) || !allowed.has(id) || seen.has(id)) continue;
+    const dataUrl = typeof p.dataUrl === 'string' ? p.dataUrl : '';
+    if (!dataUrl.startsWith(PDF_DATA_PREFIX)) continue;
+    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(dataUrl.slice(PDF_DATA_PREFIX.length))) continue;
+    const name = typeof p.name === 'string' && p.name.trim() ? p.name.trim().slice(0, 200) : 'document.pdf';
+    seen.add(id);
+    out.push({ id, name, dataUrl });
+  }
+  return out;
+}
+
+export function importCourseJson(json: string): { course: Course; widgets: Widget[]; pdfs: CoursePdf[] } | null {
   try {
     const data = JSON.parse(json);
     if (!data || typeof data !== 'object') return null;
@@ -507,10 +1021,31 @@ export function importCourseJson(json: string): { course: Course; widgets: Widge
     const widgets = Array.isArray(data.widgets ?? data.w)
       ? (data.widgets ?? data.w).map(sanitizeSharedWidget).filter((x: Widget | null): x is Widget => x !== null)
       : [];
-    return { course, widgets };
+    const pdfs = sanitizeCoursePdfs(data.pdfs, coursePdfIds(course, widgets));
+    return { course, widgets, pdfs };
   } catch {
     return null;
   }
+}
+
+/**
+ * Pdf's uit een cursusbestand terugzetten in IndexedDB. Een pdf die hier al
+ * staat (zelfde id), blijft ongemoeid. `failed` telt wat niet lukte (bv.
+ * volle opslag), zodat de pagina het eerlijk kan melden.
+ */
+export async function restoreCoursePdfs(pdfs: CoursePdf[]): Promise<{ restored: number; failed: number }> {
+  let restored = 0;
+  let failed = 0;
+  for (const p of pdfs) {
+    try {
+      if (await getPdf(p.id)) continue;
+      if (await importPdfFromDataUrl(p.id, p.name, p.dataUrl)) restored++;
+      else failed++;
+    } catch {
+      failed++;
+    }
+  }
+  return { restored, failed };
 }
 
 const BLOCK_TYPES: CourseBlockType[] = [
@@ -520,6 +1055,11 @@ const BLOCK_TYPES: CourseBlockType[] = [
 
 function s(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback;
+}
+
+/** Minstens één letter of cijfer (dus niet leeg, niet alleen "…" of "-"). */
+function heeftInhoud(v: string): boolean {
+  return /[\p{L}\p{N}]/u.test(v);
 }
 
 /**
@@ -662,12 +1202,14 @@ export function sanitizeCourse(raw: unknown): Course | null {
               // Leerplancodes zijn de ruggengraat (zie lib/curriculum.ts):
               // normaliseren en ontdubbelen zodat "wis 2.3" en "WIS  2.3" één
               // doel blijven, hier én in de widgets en het klasoverzicht.
-              const goalCodes = normalizeGoalCodes(se.goalCodes);
+              // Een "code" of doel zonder één letter of cijfer (bv. "…" dat een
+              // AI uit het voorbeeld overnam) is geen doel: weglaten (AI9).
+              const goalCodes = normalizeGoalCodes(se.goalCodes).filter(heeftInhoud);
               return {
                 id: veiligId(se.id),
                 title: s(se.title).trim() || 'Sectie',
                 blocks,
-                goals: Array.isArray(se.goals) ? se.goals.filter((g): g is string => typeof g === 'string' && g.trim() !== '') : undefined,
+                goals: Array.isArray(se.goals) ? se.goals.filter((g): g is string => typeof g === 'string' && heeftInhoud(g)) : undefined,
                 goalCodes: goalCodes.length ? goalCodes : undefined,
                 optional: se.optional === true,
               };
@@ -700,15 +1242,43 @@ export function sanitizeCourse(raw: unknown): Course | null {
       showProgressToStudent: st.showProgressToStudent !== false,
     },
     createdAt: typeof c.createdAt === 'number' ? c.createdAt : Date.now(),
-    updatedAt: typeof c.updatedAt === 'number' ? c.updatedAt : Date.now(),
+    // Versie van de bron, nooit in de toekomst (zie sharedVersion).
+    updatedAt: sharedVersion(c.updatedAt),
   };
 }
 
 // ── Democursus (eerste kennismaking) ────────────────────────────────────────
 
+/**
+ * Vlag: de democursus is al eens aangemaakt (of er stonden al cursussen).
+ * Eigen sleutel, zoals 'wf.classes.seeded.v1': wie de democursus verwijdert,
+ * krijgt ze niet terug (CU11). Niet in de voorkeuren, want een scherm dat zijn
+ * voorkeuren met een oudere kopie wegschrijft, zou de vlag wissen.
+ */
+const DEMO_COURSE_FLAG = 'wf.democursus.v1';
+
 export function ensureDemoCourse() {
-  if (getCourses().length > 0) return;
-  const demoWidget = getWidgets().find((w) => ['quiz', 'worksheet', 'exitticket', 'flashcards'].includes(w.type));
+  try {
+    if (localStorage.getItem(DEMO_COURSE_FLAG)) return;
+  } catch {
+    return; // zonder opslag ook geen democursus
+  }
+  const markeer = () => {
+    try {
+      localStorage.setItem(DEMO_COURSE_FLAG, '1');
+    } catch {
+      // genegeerd: hoogstens komt de democursus nog eens terug
+    }
+  };
+  if (getCourses().length > 0) {
+    markeer();
+    return;
+  }
+  // Alleen een voorbeeldoefening insluiten, nooit eigen werk van de leerkracht
+  // (vroeger: de eerste de beste quiz, ook een eigen).
+  const demoWidget = getWidgets().find(
+    (w) => w.title.startsWith('Voorbeeld:') && ['quiz', 'worksheet', 'exitticket', 'flashcards'].includes(w.type)
+  );
   const course = createCourse('Voorbeeldcursus: de waterkringloop');
   course.subtitle = 'Zo ziet een digitale cursus voor je leerlingen eruit';
   course.coverEmoji = '💧';
@@ -761,5 +1331,5 @@ export function ensureDemoCourse() {
       ],
     },
   ];
-  saveCourse(course);
+  if (saveCourse(course)) markeer();
 }

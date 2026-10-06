@@ -4,8 +4,9 @@
 // bewaren we ze als Blob in IndexedDB — daar is doorgaans honderden MB ruimte.
 // Widgets/cursussen verwijzen ernaar met een pdfId. Let op bij delen:
 // een geüploade pdf zit in dít toestel; via de draagbare link reist hij NIET
-// mee (te groot voor een URL). Wel mee: in het export-bestand (base64) als hij
-// klein genoeg is, of via een openbare URL als bron.
+// mee (te groot voor een URL). Wel mee: in het cursusbestand (export, als
+// base64; zie exportCourseJson en restoreCoursePdfs in lib/courses.ts), of via
+// een openbare URL als bron.
 //
 // Dezelfde database en object store (zie lib/idb.ts) bewaart óók ingeleverde
 // bestanden van leerlingen (upload-vraagtype), via saveStudentFile/
@@ -70,11 +71,30 @@ export async function pdfToDataUrl(id: string): Promise<{ name: string; dataUrl:
   return { name: rec.name, dataUrl };
 }
 
+const PDF_DATA_PREFIX = 'data:application/pdf;base64,';
+
+/**
+ * Data-URL van een pdf (base64) terug naar een Blob van type application/pdf.
+ * Zonder fetch: werkt overal en hangt niet af van netwerkregels. Geeft null
+ * voor alles wat geen pdf-data-URL is.
+ */
+export function pdfDataUrlToBlob(dataUrl: string): Blob | null {
+  if (typeof dataUrl !== 'string' || !dataUrl.startsWith(PDF_DATA_PREFIX)) return null;
+  try {
+    const bin = atob(dataUrl.slice(PDF_DATA_PREFIX.length));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: 'application/pdf' });
+  } catch {
+    return null;
+  }
+}
+
 /** Voor import uit een bestand: data-URL terug naar IndexedDB. */
 export async function importPdfFromDataUrl(id: string, name: string, dataUrl: string): Promise<boolean> {
+  const blob = pdfDataUrlToBlob(dataUrl);
+  if (!blob) return false;
   try {
-    const res = await fetch(dataUrl);
-    const blob = await res.blob();
     await savePdf(id, name, blob);
     return true;
   } catch {

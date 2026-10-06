@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  adoptClassPack, classPackFileName, classPackToJson, decodeClassPack, encodeClassPackToUrl,
-  findStudentClass, getClassPacks, importClassPackJson,
+  adoptClassPack, classPackConflicts, classPackFileName, classPackToJson, decodeClassPack, encodeClassPackToUrl,
+  findStudentClass, getClassPacks, importClassPackJson, readPastedClassPack,
 } from './classPack';
 import {
   createAssignment, createClass, getClassByCode, getStudentContext, loadClassContext, saveAssignment,
@@ -9,7 +9,7 @@ import {
 } from './classes';
 import { processCodes } from './inbox';
 import { encodeSubmission } from './share';
-import { getCourse, saveCourse } from './courses';
+import { conflictKey, getCourse, saveCourse } from './courses';
 import { getWidget, saveSubmission, saveWidget } from './storage';
 import type { Course } from './courseTypes';
 import type { Submission, Widget } from './types';
@@ -252,5 +252,160 @@ describe('de keten klas → leerling → inleverpunt', () => {
     expect(status.scorePct).toBe(100);
     // Dezelfde code een tweede keer verandert niets meer.
     expect(processCodes(code).dubbel).toBe(1);
+  });
+});
+
+// ── LL3 + V3: een nieuw pakket werkt bij, een oud nooit, eigen werk nooit stil ──
+
+describe('klaspakket opnieuw openen: versies (LL3) en eigen werk (V3)', () => {
+  /** Pakket met één widgetopdracht, zoals de leerkracht het deelt. */
+  function pakket(w: Partial<Widget> = {}, c?: Partial<Course>) {
+    const widget = { ...testWidget(), ...w };
+    const opdrachten: unknown[] = [{ id: 'a-w', classId: 'k1', kind: 'widget', targetId: widget.id, createdAt: 1, widget }];
+    if (c) {
+      const course = { ...testCourse(), ...c };
+      opdrachten.push({ id: 'a-c', classId: 'k1', kind: 'course', targetId: course.id, createdAt: 2, course, widgets: [widget] });
+    }
+    return importClassPackJson(JSON.stringify({
+      v: 1, kind: 'klas',
+      klas: { id: 'k1', name: '1A', code: 'KLAS01', students: [{ id: 'st1', name: 'Emma' }] },
+      opdrachten,
+    }))!;
+  }
+  const antwoord = () => (getWidget('w-quiz')!.config as unknown as { questions: { answer: boolean }[] }).questions[0].answer;
+  const metAntwoord = (answer: boolean, updatedAt: number): Partial<Widget> => ({
+    updatedAt,
+    config: { questions: [{ id: 'q1', type: 'tf', prompt: 'België is een federale staat.', points: 1, answer }] } as unknown as Widget['config'],
+  });
+
+  it('v1 → v2 nieuwer: de oefening (met de verbeterde sleutel) wordt bijgewerkt', async () => {
+    adoptClassPack(pakket(metAntwoord(false, 1000)));
+    expect(antwoord()).toBe(false);
+    const v2 = pakket(metAntwoord(true, 2000));
+    expect(await classPackConflicts(v2)).toEqual([]);
+    const r = adoptClassPack(v2);
+    expect(r.updated).toBe(1);
+    expect(antwoord()).toBe(true);
+  });
+
+  it('v2 → v1 ouder (oude link later opnieuw geopend): blijft v2', async () => {
+    adoptClassPack(pakket(metAntwoord(true, 2000)));
+    const oud = pakket(metAntwoord(false, 1000));
+    expect(await classPackConflicts(oud)).toEqual([]);
+    adoptClassPack(oud);
+    expect(antwoord()).toBe(true);
+  });
+
+  it('lokaal nieuwer dan het pakket (zelf aangepast): blijft', async () => {
+    adoptClassPack(pakket(metAntwoord(false, 1000)));
+    saveWidget({ ...getWidget('w-quiz')!, title: 'Zelf aangepast' }); // stempelt nu
+    adoptClassPack(pakket(metAntwoord(true, 2000)));
+    expect(getWidget('w-quiz')!.title).toBe('Zelf aangepast');
+  });
+
+  it('een geknutseld pakket met de id van een eigen cursus overschrijft niets zonder vraag (V3)', async () => {
+    // Leerkrachttoestel: eigen cursus en widget.
+    saveWidget(testWidget());
+    saveCourse({ ...testCourse(), title: 'Mijn cursus' });
+    // Het pakket komt later binnen dan de laatste eigen bewerking (dezelfde
+    // milliseconde zou als "niet nieuwer" tellen: dan blijft alles sowieso staan).
+    await new Promise((r) => setTimeout(r, 5));
+    const kaap = pakket({ title: 'Gekaapte quiz', updatedAt: 9_999_999_999_999 }, { title: 'Gekaapt', updatedAt: 9_999_999_999_999 });
+    const conflicten = await classPackConflicts(kaap);
+    expect(conflicten.map((c) => `${c.kind}:${c.id}`).sort()).toEqual(['course:c-water', 'widget:w-quiz']);
+
+    adoptClassPack(kaap);
+    expect(getCourse('c-water')!.title).toBe('Mijn cursus');
+    expect(getWidget('w-quiz')!.title).toBe('Quiz over België');
+  });
+
+  it('"als kopie bewaren": eigen werk blijft, de opdrachten wijzen naar de kopieën', async () => {
+    saveWidget(testWidget());
+    saveCourse({ ...testCourse(), title: 'Mijn cursus' });
+    await new Promise((r) => setTimeout(r, 5));
+    const ander = pakket({ title: 'Quiz collega', updatedAt: Date.now() }, { title: 'Cursus collega', updatedAt: Date.now() });
+    const conflicten = await classPackConflicts(ander);
+    const r = adoptClassPack(ander, { conflicts: { choice: 'kopie', keys: conflicten.map(conflictKey) } });
+    expect(r.copied).toBe(2);
+    expect(getCourse('c-water')!.title).toBe('Mijn cursus');
+    expect(getWidget('w-quiz')!.title).toBe('Quiz over België');
+    const opdrachten = getClassPacks()[0].opdrachten;
+    const cursusDoel = opdrachten.find((a) => a.kind === 'course')!.targetId;
+    const widgetDoel = opdrachten.find((a) => a.kind === 'widget')!.targetId;
+    expect(cursusDoel).not.toBe('c-water');
+    expect(widgetDoel).not.toBe('w-quiz');
+    expect(getCourse(cursusDoel)!.title).toBe('Cursus collega (kopie)');
+    expect(getWidget(widgetDoel)!.title).toBe('Quiz collega (kopie)');
+  });
+
+  it('"bijwerken": vervangt eigen werk na de keuze', async () => {
+    saveWidget(testWidget());
+    saveCourse({ ...testCourse(), title: 'Mijn cursus' });
+    await new Promise((r) => setTimeout(r, 5));
+    const ander = pakket({ title: 'Quiz collega', updatedAt: Date.now() }, { title: 'Cursus collega', updatedAt: Date.now() });
+    const conflicten = await classPackConflicts(ander);
+    adoptClassPack(ander, { conflicts: { choice: 'bijwerken', keys: conflicten.map(conflictKey) } });
+    expect(getCourse('c-water')!.title).toBe('Cursus collega');
+    expect(getWidget('w-quiz')!.title).toBe('Quiz collega');
+  });
+
+  it('de leraar opent zijn eigen pakket om te testen: niets verandert, geen vraag', async () => {
+    const { cls, opdrachten } = setupTeacherDevice();
+    const encoded = await encodeClassPackToUrl(cls, opdrachten);
+    const pack = decodeClassPack(encoded.url.split('d=')[1])!;
+    expect(await classPackConflicts(pack)).toEqual([]);
+    const voor = JSON.stringify([getCourse('c-water'), getWidget('w-quiz')]);
+    adoptClassPack(pack);
+    expect(JSON.stringify([getCourse('c-water'), getWidget('w-quiz')])).toBe(voor);
+  });
+
+  it('opslag vol: het rapport zegt het (ok: false)', () => {
+    const vol = memoryStorage();
+    const setItem = vol.setItem.bind(vol);
+    vol.setItem = (k: string, v: string) => {
+      if (k === 'wf.widgets.v1') throw Object.assign(new Error('vol'), { name: 'QuotaExceededError' });
+      setItem(k, v);
+    };
+    (globalThis as unknown as { localStorage: Storage }).localStorage = vol;
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(adoptClassPack(pakket()).ok).toBe(false);
+    spy.mockRestore();
+  });
+});
+
+// ── LL12: geplakte klaslink ─────────────────────────────────────────────────
+
+describe('readPastedClassPack (LL12)', () => {
+  async function link() {
+    const { cls, opdrachten } = setupTeacherDevice();
+    const encoded = await encodeClassPackToUrl(cls, opdrachten);
+    return { url: encoded.url, d: encoded.url.split('d=')[1], code: cls.code };
+  }
+
+  it('leest een volledige link, alleen het d-stuk en het pakketbestand', async () => {
+    const { url, d, code } = await link();
+    expect(readPastedClassPack(url)?.klas.code).toBe(code);
+    expect(readPastedClassPack(`d=${d}`)?.klas.code).toBe(code);
+    expect(readPastedClassPack(d)?.klas.code).toBe(code);
+    const { pack } = await encodeClassPackToUrl(getClassByCode(code)!, []);
+    expect(readPastedClassPack(classPackToJson(pack))?.klas.code).toBe(code);
+  });
+
+  it('leest een link met %-codering, spaties in plaats van "+" en een afgebroken regel', async () => {
+    const { url, d, code } = await link();
+    expect(d).toMatch(/[+$-]/); // de proef is pas zinvol als er zulke tekens in zitten
+    const procent = url.replace(/\+/g, '%2B').replace(/\$/g, '%24');
+    expect(readPastedClassPack(procent)?.klas.code).toBe(code);
+    expect(readPastedClassPack(encodeURIComponent(d))?.klas.code).toBe(code);
+    expect(readPastedClassPack(url.replace(/\+/g, ' '))?.klas.code).toBe(code);
+    const half = Math.floor(url.length / 2);
+    expect(readPastedClassPack(`  ${url.slice(0, half)}\n${url.slice(half)}  `)?.klas.code).toBe(code);
+  });
+
+  it('rommel blijft rommel', () => {
+    expect(readPastedClassPack('')).toBeNull();
+    expect(readPastedClassPack('hallo juf')).toBeNull();
+    expect(readPastedClassPack('https://example.org/#/klas/open?d=kapot%')).toBeNull();
+    expect(readPastedClassPack('{"kind":"cursus"}')).toBeNull();
   });
 });

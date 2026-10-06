@@ -5,9 +5,10 @@ import type { Course } from '../lib/courseTypes';
 import type { Curriculum } from '../lib/curriculumTypes';
 import type { Widget } from '../lib/types';
 import {
-  adoptSharedCourse, createCourse, deleteCourse, ensureDemoCourse,
-  exportCourseJson, getCourse, getCourseProgressAll, getCourses,
-  importCourseJson, saveCourse, sharedCourseDiffers,
+  adoptSharedCourse, conflictKey, createCourse, deleteCourse, ensureDemoCourse,
+  exportCourseJson, findSharedConflicts, getCourse, getCourseProgressAll, getCourses,
+  importCourseJson, restoreCoursePdfs, saveCourse,
+  type CoursePdf, type SharedChoice, type SharedConflict,
 } from '../lib/courses';
 import { getCurricula } from '../lib/curriculum';
 import { computeCoverage } from '../lib/coverage';
@@ -54,7 +55,7 @@ export function CoursesPage() {
   const [shareTarget, setShareTarget] = useState<Course | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
   const [reloadExampleAsk, setReloadExampleAsk] = useState(false);
-  const [importConflict, setImportConflict] = useState<{ course: Course; widgets: Widget[] } | null>(null);
+  const [importConflict, setImportConflict] = useState<{ bundle: ImportBundle; conflicten: SharedConflict[] } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [exampleBusy, setExampleBusy] = useState(false);
   // Tijdens het installeren van de voorbeeldcursus schrijft de opslag honderden
@@ -183,6 +184,39 @@ export function CoursesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, setSearchParams, toast]);
 
+  /**
+   * Cursusbestand overnemen (na de vraag, als die nodig was). Eerst de pdf's
+   * terugzetten (CU4), dan de cursus en haar widgets; eerlijk melden wat er
+   * gebeurde, ook als de opslag vol was.
+   */
+  const finishImport = async (bundle: ImportBundle, keuze?: { choice: SharedChoice; conflicten: SharedConflict[] }) => {
+    try {
+      const hadCourse = Boolean(getCourse(bundle.course.id));
+      const pdf = await restoreCoursePdfs(bundle.pdfs);
+      const res = adoptSharedCourse(
+        bundle.course,
+        bundle.widgets,
+        keuze ? { conflicts: { choice: keuze.choice, keys: keuze.conflicten.map(conflictKey) } } : {}
+      );
+      const titel = bundle.course.title;
+      let melding: string;
+      if (keuze?.choice === 'kopie') melding = `"${titel}" geïmporteerd: wat al bestond, staat ernaast als kopie`;
+      else if (keuze?.choice === 'houden') melding = `"${titel}" geïmporteerd: je eigen versie bleef staan`;
+      else if (keuze?.choice === 'bijwerken') melding = `"${titel}" vervangen door de versie uit het bestand`;
+      else if (!hadCourse) melding = `Cursus "${titel}" geïmporteerd${bundle.widgets.length ? ` (met ${n(bundle.widgets.length, 'widget', 'widgets')})` : ''}`;
+      else if (res.updated > 0 || res.added > 0) melding = `Cursus "${titel}" bijgewerkt`;
+      else melding = `Cursus "${titel}" stond al zo op dit toestel`;
+      if (pdf.restored > 0) melding += ` · ${n(pdf.restored, 'pdf', "pdf's")} teruggezet`;
+      if (!res.ok || pdf.failed > 0) {
+        toast(`${melding}. Let op: niet alles kon bewaard worden, de opslag van dit toestel is vol.`, 'err');
+      } else {
+        toast(melding, 'ok');
+      }
+    } catch {
+      toast('Importeren mislukt', 'err');
+    }
+  };
+
   const importFile = async (f: File) => {
     try {
       const res = importCourseJson(await f.text());
@@ -190,15 +224,16 @@ export function CoursesPage() {
         toast('Dit is geen geldig cursusbestand', 'err');
         return;
       }
-      // Bestaat er al een (andere) versie van deze cursus? Dan is een
-      // stille overschrijving of een stille no-op allebei fout: vraag het.
-      // Dit maakt ook "back-up terugzetten" betrouwbaar.
-      if (getCourse(res.course.id) && (await sharedCourseDiffers(res.course))) {
-        setImportConflict(res);
+      // Staat er al een andere versie van deze cursus of van een van haar
+      // widgets als eigen werk? Dan nooit stil overschrijven en ook geen
+      // stille no-op: vraag het (V3). Ook oudere versies, want een bestand
+      // terugzetten (back-up) is een bewuste keuze.
+      const conflicten = await findSharedConflicts([res.course], res.widgets, { includeOlder: true });
+      if (conflicten.length > 0) {
+        setImportConflict({ bundle: res, conflicten });
         return;
       }
-      adoptSharedCourse(res.course, res.widgets, { force: true });
-      toast(`Cursus "${res.course.title}" geïmporteerd${res.widgets.length ? ` (met ${res.widgets.length} widget${res.widgets.length === 1 ? '' : 's'})` : ''}`, 'ok');
+      await finishImport(res);
     } catch {
       toast('Importeren mislukt', 'err');
     }
@@ -388,13 +423,12 @@ export function CoursesPage() {
         />
       )}
       {importConflict && (
-        <ConfirmModal
-          title="Bestaande cursus vervangen?"
-          message={`Er staat al een versie van "${importConflict.course.title}" op dit toestel. Vervangen door de versie uit het bestand? De huidige versie ben je dan kwijt (exporteer ze eerst als je twijfelt); leesvoortgang blijft staan.`}
-          confirmLabel="Vervangen"
-          onConfirm={() => {
-            adoptSharedCourse(importConflict.course, importConflict.widgets, { force: true });
-            toast(`Cursus "${importConflict.course.title}" vervangen door de versie uit het bestand`, 'ok');
+        <ImportConflictModal
+          conflicten={importConflict.conflicten}
+          onKies={(choice) => {
+            const { bundle, conflicten } = importConflict;
+            setImportConflict(null);
+            void finishImport(bundle, { choice, conflicten });
           }}
           onClose={() => setImportConflict(null)}
         />
@@ -418,6 +452,67 @@ export function CoursesPage() {
         />
       )}
     </div>
+  );
+}
+
+type ImportBundle = { course: Course; widgets: Widget[]; pdfs: CoursePdf[] };
+
+/**
+ * Het bestand bevat een andere versie van een cursus of widget die hier al als
+ * eigen werk staat. Drie keuzes, nooit stil overschrijven (V3). Sluiten
+ * (Escape of Annuleren) importeert niets.
+ */
+function ImportConflictModal({
+  conflicten, onKies, onClose,
+}: {
+  conflicten: SharedConflict[];
+  onKies: (choice: SharedChoice) => void;
+  onClose: () => void;
+}) {
+  const keuzes: { choice: SharedChoice; label: string; uitleg: string; primary?: boolean }[] = [
+    {
+      choice: 'bijwerken',
+      label: 'Vervangen door de versie uit het bestand',
+      uitleg: 'Je huidige versie gaat verloren (exporteer ze eerst als je twijfelt).',
+      primary: true,
+    },
+    { choice: 'houden', label: 'Mijn versie houden', uitleg: 'Wat hier staat, blijft; de rest van het bestand komt erbij.' },
+    { choice: 'kopie', label: 'Als kopie bewaren', uitleg: 'De versie uit het bestand komt ernaast, met “(kopie)” in de titel.' },
+  ];
+  return (
+    <Modal
+      title="Er staat al een versie op dit toestel"
+      onClose={onClose}
+      footer={<button type="button" className="btn btn-ghost" onClick={onClose}>Annuleren</button>}
+    >
+      <p>Het bestand bevat een andere versie van:</p>
+      <ul>
+        {conflicten.map((c) => (
+          <li key={conflictKey(c)}>
+            {c.kind === 'course' ? 'Cursus' : 'Widget'} <strong>“{c.title}”</strong>
+            {c.localTitle !== c.title && <> (hier: “{c.localTitle}”)</>}
+            {c.older && <> — de versie in het bestand is <strong>ouder</strong> dan die op dit toestel</>}
+          </li>
+        ))}
+      </ul>
+      <div style={{ display: 'grid', gap: 12 }}>
+        {keuzes.map((k) => (
+          <div key={k.choice}>
+            <button
+              type="button"
+              className={`btn ${k.primary ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ width: '100%' }}
+              aria-describedby={`import-keuze-${k.choice}`}
+              onClick={() => onKies(k.choice)}
+            >
+              {k.label}
+            </button>
+            <p id={`import-keuze-${k.choice}`} className="hint" style={{ margin: '4px 0 0' }}>{k.uitleg}</p>
+          </div>
+        ))}
+      </div>
+      <p className="hint">Leesvoortgang van leerlingen blijft altijd staan.</p>
+    </Modal>
   );
 }
 

@@ -16,11 +16,11 @@ import type { Course, CourseProgress } from './courseTypes';
 import type { Submission, Widget } from './types';
 import { decodeSubmission } from './share';
 import {
-  decodeCourseProgress, getCourse, getCourseByCode, getStudentProgress, importProgressCode,
+  decodeCourseProgress, getCourse, getCourseByCode, getStudentProgress, importProgressCode, mergeProgressRecords,
 } from './courses';
 import { getSubmissions, getWidget, getWidgetByCode, saveSubmission } from './storage';
 import { getClasses, normalizeName } from './classes';
-import { submissionDupKey } from './progressTransfer';
+import { sanitizeSubmission, submissionDupKey } from './progressTransfer';
 import { uid } from './utils';
 
 export type InboxOutcome = 'nieuw' | 'dubbel' | 'onbekend' | 'ongeldig';
@@ -63,8 +63,10 @@ export interface InboxDeps {
   findCourse(p: CourseProgress): Course | undefined;
   /** Bestaande leesvoortgang van deze leerling voor deze cursus. */
   findProgress(courseId: string, studentName: string): CourseProgress | undefined;
-  saveSubmission(sub: Submission): void;
-  saveProgress(p: CourseProgress): void;
+  /** Bewaren; `false` betekent: niet bewaard (bv. volle opslag). */
+  saveSubmission(sub: Submission): boolean | void;
+  /** Voortgang samenvoegen met wat er staat en bewaren; `false` = niet bewaard. */
+  saveProgress(p: CourseProgress): boolean | void;
   /** Nieuw id voor een inzending waarvan het id hier al bestaat. */
   newId(): string;
 }
@@ -157,20 +159,231 @@ function describeStudent(
   };
 }
 
+/** Eigen sleutel (geen erfenis uit Object.prototype bij een id als "constructor"). */
+function eigen<T>(obj: Record<string, T> | undefined, key: string): T | undefined {
+  return obj && Object.prototype.hasOwnProperty.call(obj, key) ? obj[key] : undefined;
+}
+
+/**
+ * Voegt deze voortgangscode iets toe aan wat er al staat? Een nieuwe geopende
+ * of afgewerkte sectie, een nieuw vinkje, meer leestijd, een later "laatst
+ * gezien" of de klas/leerling die nog ontbrak. Zo niet, dan is ze "dubbel".
+ */
+function progressAdds(existing: CourseProgress, incoming: CourseProgress): boolean {
+  if (incoming.lastSeenAt > existing.lastSeenAt) return true;
+  if ((incoming.classId && !existing.classId) || (incoming.studentId && !existing.studentId)) return true;
+  for (const [sid, sp] of Object.entries(incoming.sections)) {
+    const cur = eigen(existing.sections, sid);
+    if (!cur) return true;
+    if (sp.completedAt && !cur.completedAt) return true;
+    if (sp.secondsSpent > cur.secondsSpent) return true;
+    for (const [bid, items] of Object.entries(sp.checks ?? {})) {
+      const have = new Set(eigen(cur.checks, bid) ?? []);
+      if (items.some((item) => !have.has(item))) return true;
+    }
+  }
+  return false;
+}
+
+/** Wat een leerling na het indienen nog toevoegt aan zijn inzending (zie PlayerFeedback). */
+const REFLECTIE_SLEUTELS = ['_foutenanalyse', '_doelreflectie'] as const;
+
+function leeg(v: unknown): boolean {
+  return v === undefined || v === null || v === '';
+}
+
+/** Gelijke JSON, ongeacht de volgorde van de sleutels. */
+function zelfdeJson(a: unknown, b: unknown): boolean {
+  const norm = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(norm);
+    if (v && typeof v === 'object') {
+      const o = v as Record<string, unknown>;
+      return Object.keys(o).sort().filter((k) => o[k] !== undefined).map((k) => [k, norm(o[k])]);
+    }
+    return v;
+  };
+  return JSON.stringify(norm(a)) === JSON.stringify(norm(b));
+}
+
+const NIET_BEWAARD =
+  'Niet bewaard: de opslag van dit toestel is vol of geblokkeerd. Maak ruimte en verwerk deze code opnieuw.';
+
+interface Beurt {
+  deps: InboxDeps;
+  /** Ontdubbelsleutel → de bewaarde inzending (al aanwezig of uit deze beurt). */
+  seenSubs: Map<string, Submission>;
+  existingIds: Set<string>;
+  /** Samengevoegde voortgang per cursus + naam, binnen deze beurt. */
+  batchProgress: Map<string, CourseProgress>;
+}
+
+/**
+ * Een code die al binnen is, kan toch nog iets bijbrengen:
+ *  - de reflectie of foutenanalyse die de leerling pas na de eerste code
+ *    invulde (LL13). Alleen wat ontbreekt, wordt aangevuld; scores en
+ *    feedback van de leerkracht blijven altijd staan;
+ *  - de koppeling aan de widget: eerst ingelezen toen de widget hier nog niet
+ *    stond (bewaard onder het id van de bron), nu wel (nieuw 1).
+ */
+function aanvullingBijDubbel(
+  earlier: Submission,
+  sub: Submission,
+  widget: Widget | undefined,
+  deps: InboxDeps
+): { sub: Submission; message: string } | null {
+  let next: Submission | null = null;
+  const wat: string[] = [];
+  if (
+    widget &&
+    earlier.widgetId !== widget.id &&
+    earlier.widgetId === sub.widgetId &&
+    deps.findWidget(earlier)?.id === widget.id
+  ) {
+    next = { ...earlier, widgetId: widget.id };
+    wat.push('nu gekoppeld aan deze widget');
+  }
+  const extra: Record<string, unknown> = {};
+  for (const k of REFLECTIE_SLEUTELS) {
+    const nieuw = eigen(sub.answers, k);
+    if (!leeg(nieuw) && leeg(eigen(earlier.answers, k))) extra[k] = nieuw;
+  }
+  if (Object.keys(extra).length) {
+    const basis = next ?? earlier;
+    next = { ...basis, answers: { ...basis.answers, ...extra } };
+    wat.push('de reflectie van de leerling is toegevoegd');
+  }
+  return next ? { sub: next, message: `Stond hier al — ${wat.join(' en ')}.` } : null;
+}
+
+function verwerkResultaat(sub: Submission, row: InboxRow, beurt: Beurt) {
+  const { deps, seenSubs, existingIds } = beurt;
+  row.kind = 'widget';
+  const widget = deps.findWidget(sub);
+  const who = describeStudent(sub, deps.classes);
+  row.studentName = who.studentName;
+  row.className = who.className;
+  row.title = widget?.title ?? null;
+  row.at = sub.submittedAt;
+  row.detail =
+    sub.totalMax > 0
+      ? `${sub.totalEarned}/${sub.totalMax} · ${Math.round((sub.totalEarned / sub.totalMax) * 100)}%`
+      : 'geen score bij deze opdracht';
+
+  // Het id van de widget op dít toestel wint (de leerling kan de widget via
+  // een draagbare link met een ander id gekregen hebben). Ontdubbelen op
+  // beide id's: dezelfde code kan eerst binnengekomen zijn toen de widget hier
+  // nog niet stond (bewaard onder het id van de bron), en nu opnieuw.
+  const localId = widget?.id ?? sub.widgetId;
+  const keys = [...new Set([
+    submissionDupKey(localId, sub.studentName, sub.submittedAt),
+    submissionDupKey(sub.widgetId, sub.studentName, sub.submittedAt),
+  ])];
+  const earlier = keys.map((k) => seenSubs.get(k)).find((x): x is Submission => Boolean(x));
+  if (earlier) {
+    row.outcome = 'dubbel';
+    row.message = 'Stond hier al — niets toegevoegd.';
+    const aanvulling = aanvullingBijDubbel(earlier, sub, widget, deps);
+    if (aanvulling) {
+      if (deps.saveSubmission(aanvulling.sub) === false) {
+        row.message = 'Stond hier al. De aanvulling kon niet bewaard worden: de opslag van dit toestel is vol.';
+      } else {
+        for (const k of keys) seenSubs.set(k, aanvulling.sub);
+        seenSubs.set(submissionDupKey(aanvulling.sub.widgetId, aanvulling.sub.studentName, aanvulling.sub.submittedAt), aanvulling.sub);
+        row.saved = true;
+        row.message = aanvulling.message;
+      }
+    }
+    return;
+  }
+
+  const stored: Submission = {
+    ...sub,
+    id: existingIds.has(sub.id) ? deps.newId() : sub.id,
+    widgetId: localId,
+  };
+  if (deps.saveSubmission(stored) === false) {
+    row.outcome = 'ongeldig';
+    row.message = NIET_BEWAARD;
+    return;
+  }
+  existingIds.add(stored.id);
+  for (const k of keys) seenSubs.set(k, stored);
+  row.saved = true;
+  if (!widget) {
+    row.outcome = 'onbekend';
+    row.message = 'Bewaard, maar deze widget staat niet op dit toestel — importeer ze om het resultaat te zien.';
+  } else {
+    row.outcome = 'nieuw';
+  }
+}
+
+function verwerkVoortgang(prog: CourseProgress, row: InboxRow, beurt: Beurt) {
+  const { deps, batchProgress } = beurt;
+  row.kind = 'course';
+  const course = deps.findCourse(prog);
+  const who = describeStudent(prog, deps.classes);
+  row.studentName = who.studentName;
+  row.className = who.className;
+  row.title = course?.title ?? null;
+  row.at = prog.lastSeenAt;
+
+  // Zelfde sleutel als de opslag (getStudentProgress): cursus + naam zonder
+  // hoofdletters. Binnen de beurt telt de al samengevoegde versie, zodat de
+  // volgorde van de codes (school, thuis) niets uitmaakt (KL1).
+  const key = `${prog.courseId}::${prog.studentName.trim().toLowerCase()}`;
+  const existing = batchProgress.get(key) ?? deps.findProgress(prog.courseId, prog.studentName);
+  const merged = existing ? mergeProgressRecords(existing, prog) : prog;
+  const adds = !existing || progressAdds(existing, prog);
+  row.detail = progressDetail(merged, course);
+
+  // Bewaren zodra er iets verandert (ook een kleinigheid als een vroegere
+  // starttijd): samenvoegen verliest niets, wegschrijven gebeurt in de opslag.
+  if (!existing || !zelfdeJson(merged, existing)) {
+    if (deps.saveProgress(prog) === false) {
+      if (adds) {
+        row.outcome = 'ongeldig';
+        row.message = NIET_BEWAARD;
+        return;
+      }
+    } else {
+      batchProgress.set(key, merged);
+      if (adds) row.saved = true;
+    }
+  }
+  if (!adds) {
+    row.outcome = 'dubbel';
+    row.message = 'Deze voortgang stond hier al — niets bijgewerkt.';
+    return;
+  }
+  if (!course) {
+    row.outcome = 'onbekend';
+    row.message = 'Bewaard, maar deze cursus staat niet op dit toestel — neem ze over om de voortgang te zien.';
+  } else {
+    row.outcome = 'nieuw';
+  }
+}
+
 /**
  * Verwerkt alle codes uit een geplakte tekst. Elke code levert één regel op;
  * dubbels worden herkend tegenover de bestaande opslag én binnen dezelfde
  * beurt (zelfde widget, naam en indienmoment — zie lib/progressTransfer).
  * Werk voor een widget of cursus die hier niet staat, wordt wél bewaard: het
- * is werk van een leerling, dat gooien we nooit weg.
+ * is werk van een leerling, dat gooien we nooit weg. Voortgangscodes van
+ * dezelfde leerling worden samengevoegd, in welke volgorde ze ook komen.
+ * Eén kapotte code houdt de rest nooit tegen: ze wordt "ongeldig".
  */
 export function processCodes(text: string, deps: InboxDeps = defaultInboxDeps()): InboxReport {
   const report: InboxReport = { rows: [], nieuw: 0, dubbel: 0, onbekend: 0, ongeldig: 0 };
-  const seenSubs = new Set(
-    deps.submissions.map((s) => submissionDupKey(s.widgetId, s.studentName, s.submittedAt))
-  );
-  const existingIds = new Set(deps.submissions.map((s) => s.id));
-  const seenProgress = new Map<string, number>();
+  const beurt: Beurt = {
+    deps,
+    seenSubs: new Map(),
+    existingIds: new Set(deps.submissions.map((s) => s.id)),
+    batchProgress: new Map(),
+  };
+  for (const s of deps.submissions) {
+    const key = submissionDupKey(s.widgetId, s.studentName, s.submittedAt);
+    if (!beurt.seenSubs.has(key)) beurt.seenSubs.set(key, s);
+  }
 
   let index = 0;
   for (const code of splitCodes(text)) {
@@ -190,97 +403,27 @@ export function processCodes(text: string, deps: InboxDeps = defaultInboxDeps())
       at: null,
     };
 
-    const sub = code.startsWith('WF1.') ? decodeSubmission(code) : null;
-    const prog = !sub && code.startsWith('WFC1.') ? decodeProgressCode(code) : null;
-
-    if (sub) {
-      row.kind = 'widget';
-      const widget = deps.findWidget(sub);
-      const who = describeStudent(sub, deps.classes);
-      row.studentName = who.studentName;
-      row.className = who.className;
-      row.title = widget?.title ?? null;
-      row.at = sub.submittedAt;
-      row.detail =
-        sub.totalMax > 0
-          ? `${sub.totalEarned}/${sub.totalMax} · ${Math.round((sub.totalEarned / sub.totalMax) * 100)}%`
-          : 'geen score bij deze opdracht';
-
-      const key = submissionDupKey(widget?.id ?? sub.widgetId, sub.studentName, sub.submittedAt);
-      if (seenSubs.has(key)) {
-        row.outcome = 'dubbel';
-        row.message = 'Stond hier al — niets toegevoegd.';
-        report.dubbel++;
-        report.rows.push(row);
-        continue;
+    try {
+      // Compacte bewaking bij het decoderen, daarna de volledige sanering (KL2).
+      const sub = code.startsWith('WF1.') ? sanitizeSubmission(decodeSubmission(code)) : null;
+      const prog = !sub && code.startsWith('WFC1.') ? decodeProgressCode(code) : null;
+      if (sub) verwerkResultaat(sub, row, beurt);
+      else if (prog) verwerkVoortgang(prog, row, beurt);
+      else {
+        row.outcome = 'ongeldig';
+        row.message = code.startsWith('WF1.') || code.startsWith('WFC1.')
+          ? 'Deze code is onvolledig of beschadigd (afgebroken bij het kopiëren?).'
+          : 'Dit lijkt geen resultaat- of voortgangscode.';
       }
-      seenSubs.add(key);
-      const stored: Submission = {
-        ...sub,
-        id: existingIds.has(sub.id) ? deps.newId() : sub.id,
-        // Het id van de widget op dít toestel wint: de leerling kan de widget
-        // via een draagbare link gekregen hebben met een ander id.
-        widgetId: widget?.id ?? sub.widgetId,
-      };
-      existingIds.add(stored.id);
-      deps.saveSubmission(stored);
-      row.saved = true;
-      if (!widget) {
-        row.outcome = 'onbekend';
-        row.message = 'Bewaard, maar deze widget staat niet op dit toestel — importeer ze om het resultaat te zien.';
-        report.onbekend++;
-      } else {
-        row.outcome = 'nieuw';
-        report.nieuw++;
+    } catch {
+      // Een geknutselde of onverwachte code mag de rest van de beurt nooit
+      // tegenhouden (KL2). Was ze al bewaard, dan blijft de uitkomst staan.
+      if (!row.saved) {
+        row.outcome = 'ongeldig';
+        row.message = 'Deze code kon niet verwerkt worden — ze is beschadigd of ongeldig.';
       }
-      report.rows.push(row);
-      continue;
     }
-
-    if (prog) {
-      row.kind = 'course';
-      const course = deps.findCourse(prog);
-      const who = describeStudent(prog, deps.classes);
-      row.studentName = who.studentName;
-      row.className = who.className;
-      row.title = course?.title ?? null;
-      row.at = prog.lastSeenAt;
-      row.detail = progressDetail(prog, course);
-
-      const batchKey = `${prog.courseId}::${normalizeName(prog.studentName)}`;
-      const existing = deps.findProgress(prog.courseId, prog.studentName);
-      const eerderGezien = seenProgress.get(batchKey) ?? 0;
-      const niets =
-        (!!existing &&
-          existing.lastSeenAt >= prog.lastSeenAt &&
-          completedSections(existing) >= completedSections(prog)) ||
-        eerderGezien >= prog.lastSeenAt;
-      if (niets) {
-        row.outcome = 'dubbel';
-        row.message = 'Deze voortgang stond hier al — niets bijgewerkt.';
-        report.dubbel++;
-        report.rows.push(row);
-        continue;
-      }
-      seenProgress.set(batchKey, prog.lastSeenAt);
-      deps.saveProgress(prog);
-      row.saved = true;
-      if (!course) {
-        row.outcome = 'onbekend';
-        row.message = 'Bewaard, maar deze cursus staat niet op dit toestel — neem ze over om de voortgang te zien.';
-        report.onbekend++;
-      } else {
-        row.outcome = 'nieuw';
-        report.nieuw++;
-      }
-      report.rows.push(row);
-      continue;
-    }
-
-    row.message = code.startsWith('WF1.') || code.startsWith('WFC1.')
-      ? 'Deze code is onvolledig of beschadigd (afgebroken bij het kopiëren?).'
-      : 'Dit lijkt geen resultaat- of voortgangscode.';
-    report.ongeldig++;
+    report[row.outcome]++;
     report.rows.push(row);
   }
 

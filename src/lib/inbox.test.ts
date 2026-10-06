@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import LZString from 'lz-string';
 import { processCodes, splitCodes, summarizeReport, type InboxDeps } from './inbox';
-import { encodeCourseProgress } from './courses';
+import { encodeCourseProgress, getStudentProgress, mergeProgressRecords } from './courses';
 import type { ClassGroup } from './classTypes';
 import type { Course, CourseProgress } from './courseTypes';
 import type { Submission, Widget } from './types';
@@ -57,24 +57,34 @@ function progress(over: Partial<CourseProgress> = {}): CourseProgress {
   };
 }
 
-/** Deps met alles in het geheugen; `saved` legt vast wat er bewaard werd. */
+/**
+ * Deps met alles in het geheugen; `savedSubs`/`savedProgress` leggen elke
+ * bewaaractie vast. De voortgangsopslag voegt samen zoals de echte
+ * (importProgressCode): `progressStore` is wat er daarna "op het toestel" staat.
+ */
 function makeDeps(over: Partial<InboxDeps> = {}) {
   const savedSubs: Submission[] = [];
   const savedProgress: CourseProgress[] = [];
+  const progressStore = new Map<string, CourseProgress>();
+  const sleutel = (courseId: string, naam: string) => `${courseId}::${naam.trim().toLowerCase()}`;
   const bestaand: Submission[] = (over.submissions ?? []) as Submission[];
   const deps: InboxDeps = {
     classes: [klas],
     submissions: bestaand,
     findWidget: (sub) => (sub.widgetId === quiz.id || sub.widgetCode === quiz.code ? quiz : undefined),
     findCourse: (p) => (p.courseId === cursus.id || p.courseCode === cursus.code ? cursus : undefined),
-    findProgress: (courseId, studentName) =>
-      savedProgress.find((p) => p.courseId === courseId && p.studentName.toLowerCase() === studentName.toLowerCase()),
+    findProgress: (courseId, studentName) => progressStore.get(sleutel(courseId, studentName)),
     saveSubmission: (s) => { savedSubs.push(s); },
-    saveProgress: (p) => { savedProgress.push(p); },
+    saveProgress: (p) => {
+      savedProgress.push(p);
+      const k = sleutel(p.courseId, p.studentName);
+      const cur = progressStore.get(k);
+      progressStore.set(k, cur ? mergeProgressRecords(cur, p) : p);
+    },
     newId: () => 'nieuw-id',
     ...over,
   };
-  return { deps, savedSubs, savedProgress };
+  return { deps, savedSubs, savedProgress, progressStore };
 }
 
 // ── Codes uit tekst halen ───────────────────────────────────────────────────
@@ -218,5 +228,239 @@ describe('samenvatting', () => {
     const report = processCodes(`${code} ${code} WF1.kapot`, deps);
     expect(summarizeReport(report)).toBe('1 nieuw, 1 al aanwezig, 1 ongeldig');
     expect(summarizeReport({ rows: [], nieuw: 0, dubbel: 0, onbekend: 0, ongeldig: 0 })).toBe('Geen codes gevonden.');
+  });
+});
+
+// ── KL1: voortgangscodes van twee toestellen samenvoegen ────────────────────
+
+describe('processCodes — voortgang van twee toestellen (KL1)', () => {
+  const sectie = (n: number) => ({ openedAt: n, completedAt: n + 1, secondsSpent: 30 });
+  /** Op school s1–s3 gelezen, later gezien dan thuis. */
+  const school = () => progress({
+    studentName: 'Emma Peeters', lastSeenAt: 9000,
+    sections: { s1: sectie(1), s2: sectie(2), s3: sectie(3) },
+  });
+  /** Thuis s4–s5 gelezen, vroeger dan op school. */
+  const thuis = () => progress({
+    studentName: 'emma peeters', lastSeenAt: 7000,
+    sections: { s4: sectie(4), s5: sectie(5) },
+  });
+  const secties = (p: CourseProgress | undefined) => Object.keys(p?.sections ?? {}).sort();
+
+  for (const [naam, volgorde] of [
+    ['school dan thuis', [school, thuis]],
+    ['thuis dan school', [thuis, school]],
+  ] as const) {
+    it(`${naam}, in één beurt: beide nieuw, s1–s5 samen`, () => {
+      const { deps, progressStore } = makeDeps();
+      const report = processCodes(volgorde.map((f) => encodeCourseProgress(f())).join('\n'), deps);
+      expect(report.rows.map((r) => r.outcome)).toEqual(['nieuw', 'nieuw']);
+      const opgeslagen = [...progressStore.values()];
+      expect(opgeslagen).toHaveLength(1);
+      expect(secties(opgeslagen[0])).toEqual(['s1', 's2', 's3', 's4', 's5']);
+      // "Laatst gezien" is het maximum uit de codes, niet het moment van inlezen.
+      expect(opgeslagen[0].lastSeenAt).toBe(9000);
+    });
+
+    it(`${naam}, in twee beurten: beide nieuw, s1–s5 samen`, () => {
+      const { deps, progressStore } = makeDeps();
+      const eerste = processCodes(encodeCourseProgress(volgorde[0]()), deps);
+      const tweede = processCodes(encodeCourseProgress(volgorde[1]()), deps);
+      expect([eerste.rows[0].outcome, tweede.rows[0].outcome]).toEqual(['nieuw', 'nieuw']);
+      const opgeslagen = [...progressStore.values()][0];
+      expect(secties(opgeslagen)).toEqual(['s1', 's2', 's3', 's4', 's5']);
+      expect(opgeslagen.lastSeenAt).toBe(9000);
+    });
+  }
+
+  it('dezelfde code twee keer (ook binnen één beurt) is dubbel en bewaart niets extra', () => {
+    const { deps, savedProgress } = makeDeps();
+    const code = encodeCourseProgress(school());
+    const report = processCodes(`${code}\n${code}`, deps);
+    expect(report.rows.map((r) => r.outcome)).toEqual(['nieuw', 'dubbel']);
+    expect(savedProgress).toHaveLength(1);
+    expect(processCodes(code, deps).rows[0].outcome).toBe('dubbel');
+    expect(savedProgress).toHaveLength(1);
+  });
+
+  it('een oudere code die toch een nieuw vinkje meebrengt, is niet dubbel', () => {
+    const { deps, progressStore } = makeDeps();
+    processCodes(encodeCourseProgress(school()), deps);
+    const metVinkje = progress({
+      studentName: 'Emma Peeters', lastSeenAt: 100,
+      sections: { s1: { ...sectie(1), checks: { b1: ['item-a'] } } },
+    });
+    const report = processCodes(encodeCourseProgress(metVinkje), deps);
+    expect(report.rows[0].outcome).toBe('nieuw');
+    const opgeslagen = [...progressStore.values()][0];
+    expect(opgeslagen.sections.s1.checks).toEqual({ b1: ['item-a'] });
+    expect(opgeslagen.lastSeenAt).toBe(9000);
+  });
+
+  it('de detailregel toont de samengevoegde voortgang', () => {
+    const { deps } = makeDeps();
+    const report = processCodes(
+      [encodeCourseProgress(progress({ sections: { s1: sectie(1) } })),
+        encodeCourseProgress(progress({ lastSeenAt: 1, sections: { s2: sectie(2) } }))].join(' '),
+      deps,
+    );
+    expect(report.rows[1].detail).toBe('100% gelezen (2/2 secties)');
+  });
+});
+
+describe('processCodes — voortgang met de echte opslag (KL1)', () => {
+  beforeEach(() => {
+    const data = new Map<string, string>();
+    (globalThis as unknown as { localStorage: Storage }).localStorage = {
+      get length() { return data.size; },
+      key: (i: number) => [...data.keys()][i] ?? null,
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => { data.set(k, String(v)); },
+      removeItem: (k: string) => { data.delete(k); },
+      clear: () => data.clear(),
+    } as Storage;
+  });
+
+  it('thuis dan school in twee beurten: niets verloren, laatst gezien uit de codes', () => {
+    const thuisCode = encodeCourseProgress(progress({ lastSeenAt: 7000, sections: { s4: { openedAt: 4, completedAt: 5, secondsSpent: 1 } } }));
+    const schoolCode = encodeCourseProgress(progress({ lastSeenAt: 9000, sections: { s1: { openedAt: 1, completedAt: 2, secondsSpent: 1 } } }));
+    expect(processCodes(thuisCode).rows[0].outcome).toBe('onbekend'); // cursus staat niet op dit toestel
+    expect(processCodes(schoolCode).rows[0].outcome).toBe('onbekend');
+    const p = getStudentProgress('c1', 'Noah Claes')!;
+    expect(Object.keys(p.sections).sort()).toEqual(['s1', 's4']);
+    expect(p.lastSeenAt).toBe(9000);
+    // Nog eens dezelfde code: niets nieuws.
+    expect(processCodes(thuisCode).rows[0].outcome).toBe('dubbel');
+  });
+
+  it('oude opgeslagen voortgang (zonder klas of leerling-id) blijft bruikbaar en wordt aangevuld', () => {
+    localStorage.setItem('wf.courseprogress.v1', JSON.stringify([
+      { courseId: 'c1', courseCode: 'CWATER', studentName: 'Noah Claes', sections: { s1: { openedAt: 1, secondsSpent: 5 } }, lastSeenAt: 500, startedAt: 1 },
+    ]));
+    const report = processCodes(encodeCourseProgress(progress({ classId: 'k1', studentId: 'st2', lastSeenAt: 400, sections: { s1: { openedAt: 1, secondsSpent: 5 } } })));
+    expect(report.rows[0].outcome).toBe('onbekend');
+    const p = getStudentProgress('c1', 'noah claes')!;
+    expect(p.studentId).toBe('st2');
+    expect(p.lastSeenAt).toBe(500);
+  });
+});
+
+// ── KL2: geknutselde of kapotte codes ──────────────────────────────────────
+
+describe('processCodes — geknutselde codes (KL2)', () => {
+  const ruweCode = (o: unknown) => 'WF1.' + LZString.compressToEncodedURIComponent(JSON.stringify(o));
+
+  it('een naam die geen tekst is, wordt ongeldig en houdt de rest niet tegen', () => {
+    const { deps, savedSubs } = makeDeps();
+    const kapot = ruweCode({ ...submission(), studentName: 12345 });
+    const goed = resultCode(submission({ submittedAt: 3000 }));
+    const report = processCodes(`${kapot}\n${goed}`, deps);
+    expect(report.rows.map((r) => r.outcome)).toEqual(['ongeldig', 'nieuw']);
+    expect(savedSubs).toHaveLength(1);
+  });
+
+  it('rommel in scores en totalen wordt nooit zo bewaard', () => {
+    const { deps, savedSubs } = makeDeps();
+    processCodes(ruweCode({ ...submission(), itemScores: 'nee', totalMax: 'x', totalEarned: null, status: 'hack' }), deps);
+    expect(savedSubs).toHaveLength(1);
+    expect(savedSubs[0].itemScores).toBeNull();
+    expect(savedSubs[0].totalMax).toBe(0);
+    expect(savedSubs[0].totalEarned).toBe(0);
+    expect(savedSubs[0].status).toBe('submitted');
+  });
+
+  it('een onverwachte fout bij één code geeft "ongeldig" en de beurt loopt door', () => {
+    let eerste = true;
+    const { deps, savedSubs } = makeDeps({
+      findWidget: (sub) => {
+        if (eerste) { eerste = false; throw new Error('kapot'); }
+        return sub.widgetId === quiz.id ? quiz : undefined;
+      },
+    });
+    const report = processCodes(`${resultCode(submission())}\n${resultCode(submission({ submittedAt: 3000 }))}`, deps);
+    expect(report.rows.map((r) => r.outcome)).toEqual(['ongeldig', 'nieuw']);
+    expect(report.rows[0].message).toMatch(/kon niet verwerkt worden/);
+    expect(savedSubs).toHaveLength(1);
+  });
+
+  it('niet bewaard (volle opslag) wordt eerlijk gemeld, niet als bewaard', () => {
+    const { deps } = makeDeps({ saveSubmission: () => false });
+    const report = processCodes(resultCode(submission()), deps);
+    expect(report.rows[0].saved).toBe(false);
+    expect(report.rows[0].outcome).toBe('ongeldig');
+    expect(report.rows[0].message).toMatch(/Niet bewaard/);
+  });
+});
+
+// ── LL13: reflectie na de eerste code ───────────────────────────────────────
+
+describe('processCodes — reflectie die later binnenkomt (LL13)', () => {
+  it('vult alleen de reflectie aan, de uitkomst blijft "dubbel"', () => {
+    const bewaard = submission({ id: 'hier', teacherFeedback: 'Goed gedaan', totalEarned: 9 });
+    const { deps, savedSubs } = makeDeps({ submissions: [bewaard] });
+    const metReflectie = submission({
+      answers: { q1: true, _foutenanalyse: { labels: { q1: 'slordig' }, volgendeKeer: 'Rustig lezen' }, _doelreflectie: 'Gehaald' },
+    });
+    const report = processCodes(resultCode(metReflectie), deps);
+    expect(report.rows[0].outcome).toBe('dubbel');
+    expect(report.rows[0].message).toBe('Stond hier al — de reflectie van de leerling is toegevoegd.');
+    expect(savedSubs).toHaveLength(1);
+    const nieuw = savedSubs[0];
+    expect(nieuw.id).toBe('hier');
+    expect(nieuw.teacherFeedback).toBe('Goed gedaan');
+    expect(nieuw.totalEarned).toBe(9);
+    expect(nieuw.answers._foutenanalyse).toEqual({ labels: { q1: 'slordig' }, volgendeKeer: 'Rustig lezen' });
+    expect(nieuw.answers._doelreflectie).toBe('Gehaald');
+  });
+
+  it('overschrijft een reflectie die er al staat nooit', () => {
+    const bewaard = submission({ id: 'hier', answers: { q1: true, _doelreflectie: 'Eerste versie' } });
+    const { deps, savedSubs } = makeDeps({ submissions: [bewaard] });
+    const report = processCodes(resultCode(submission({ answers: { q1: true, _doelreflectie: 'Andere' } })), deps);
+    expect(report.rows[0].outcome).toBe('dubbel');
+    expect(report.rows[0].message).toBe('Stond hier al — niets toegevoegd.');
+    expect(savedSubs).toHaveLength(0);
+  });
+
+  it('werkt ook binnen dezelfde beurt', () => {
+    const { deps, savedSubs } = makeDeps();
+    const zonder = resultCode(submission());
+    const met = resultCode(submission({ answers: { q1: true, _doelreflectie: 'Gehaald' } }));
+    const report = processCodes(`${zonder}\n${met}`, deps);
+    expect(report.rows.map((r) => r.outcome)).toEqual(['nieuw', 'dubbel']);
+    expect(savedSubs).toHaveLength(2);
+    expect(savedSubs[1].id).toBe(savedSubs[0].id);
+    expect(savedSubs[1].answers._doelreflectie).toBe('Gehaald');
+  });
+});
+
+// ── Nieuw 1: eerst zonder widget, daarna met ────────────────────────────────
+
+describe('processCodes — eerst ingelezen zonder widget, daarna mét (nieuw 1)', () => {
+  it('telt niet als tweede poging en koppelt het eerdere werk aan de widget', () => {
+    const vanThuis = submission({ widgetId: 'id-van-thuis', widgetCode: 'WQUIZ1' });
+    // Eerste keer: de widget staat hier nog niet.
+    const zonderWidget = makeDeps({ findWidget: () => undefined });
+    const eerste = processCodes(resultCode(vanThuis), zonderWidget.deps);
+    expect(eerste.rows[0].outcome).toBe('onbekend');
+    const opgeslagen = zonderWidget.savedSubs[0];
+    expect(opgeslagen.widgetId).toBe('id-van-thuis');
+
+    // Daarna staat de widget er (via de code gevonden, met een ander id).
+    const metWidget = makeDeps({ submissions: [opgeslagen] });
+    const tweede = processCodes(resultCode(vanThuis), metWidget.deps);
+    expect(tweede.rows[0].outcome).toBe('dubbel');
+    expect(tweede.rows[0].message).toMatch(/gekoppeld aan deze widget/);
+    expect(metWidget.savedSubs).toHaveLength(1);
+    expect(metWidget.savedSubs[0].id).toBe(opgeslagen.id);
+    expect(metWidget.savedSubs[0].widgetId).toBe('w1');
+  });
+
+  it('herkent ook de omgekeerde volgorde binnen één beurt', () => {
+    const { deps, savedSubs } = makeDeps();
+    const code = resultCode(submission({ widgetId: 'id-van-thuis', widgetCode: 'WQUIZ1' }));
+    const report = processCodes(`${code}\n${code}`, deps);
+    expect(report.rows.map((r) => r.outcome)).toEqual(['nieuw', 'dubbel']);
+    expect(savedSubs).toHaveLength(1);
   });
 });

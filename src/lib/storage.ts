@@ -132,13 +132,23 @@ export function getWidgetByCode(code: string): Widget | undefined {
   const c = code.trim().toUpperCase();
   return getWidgets().find((w) => w.code.toUpperCase() === c);
 }
-export function saveWidget(widget: Widget) {
+/**
+ * Bewaart een widget; geeft false terug als er niets bewaard is (volle opslag).
+ * `keepUpdatedAt`: de versie (updatedAt) van de bron behouden in plaats van
+ * "nu" te stempelen. Alleen voor gedeelde inhoud die overgenomen wordt (zie
+ * adoptSharedContent in lib/courses.ts): daar is updatedAt het versienummer van de
+ * bron, en een latere, nieuwere versie moet daar nog tegen te vergelijken zijn.
+ */
+export function saveWidget(widget: Widget, opts: { keepUpdatedAt?: boolean } = {}): boolean {
   const all = getWidgets();
   const i = all.findIndex((w) => w.id === widget.id);
-  const updated = { ...widget, updatedAt: Date.now() };
+  const keep = opts.keepUpdatedAt && typeof widget.updatedAt === 'number' && Number.isFinite(widget.updatedAt);
+  const updated = { ...widget, updatedAt: keep ? widget.updatedAt : Date.now() };
   if (i >= 0) all[i] = updated;
   else all.unshift(updated);
-  if (write(KEYS.widgets, all)) protectStorageOnce();
+  const ok = write(KEYS.widgets, all);
+  if (ok) protectStorageOnce();
+  return ok;
 }
 
 /**
@@ -275,12 +285,13 @@ export function getSubmissions(widgetId?: string): Submission[] {
   const all = read<Submission[]>(KEYS.submissions, []);
   return widgetId ? all.filter((s) => s.widgetId === widgetId) : all;
 }
-export function saveSubmission(sub: Submission) {
+/** Bewaart een inzending; false = niet bewaard (de melding loopt via write()). */
+export function saveSubmission(sub: Submission): boolean {
   const all = read<Submission[]>(KEYS.submissions, []);
   const i = all.findIndex((s) => s.id === sub.id);
   if (i >= 0) all[i] = sub;
   else all.unshift(sub);
-  write(KEYS.submissions, all);
+  return write(KEYS.submissions, all);
 }
 export function deleteSubmission(id: string) {
   const all = getSubmissions();

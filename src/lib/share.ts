@@ -30,6 +30,17 @@ export async function encodeWidgetToUrlWithMedia(widget: Widget): Promise<string
 const KNOWN_TYPES = new Set(WIDGET_TYPES.map((t) => t.id));
 
 /**
+ * Versie (updatedAt) uit gedeelde inhoud: die van de bron, maar nooit in de
+ * toekomst. Zo kan een nieuwere versie van dezelfde bron een oudere bijwerken
+ * (en niet omgekeerd), en kan een geknutselde link zich niet "voor altijd
+ * nieuwer" maken. Ontbreekt de versie, dan telt ze als nu.
+ */
+export function sharedVersion(v: unknown): number {
+  const now = Date.now();
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(v, now) : now;
+}
+
+/**
  * Widget uit een draagbare link defensief saneren: onbekend type weigeren,
  * ontbrekende velden aanvullen zodat spelen/bewaren niet crasht.
  * Ook gebruikt door lib/classPack.ts (widgets die in een klaspakket meereizen).
@@ -42,7 +53,8 @@ export function sanitizeSharedWidget(raw: unknown): Widget | null {
   return {
     id: typeof w.id === 'string' && w.id ? w.id : uid(),
     type: w.type as Widget['type'],
-    title: typeof w.title === 'string' && w.title.trim() ? w.title : 'Gedeelde widget',
+    // Leerlingen zien deze titel: "oefening", nooit "widget".
+    title: typeof w.title === 'string' && w.title.trim() ? w.title : 'Gedeelde oefening',
     folderId: typeof w.folderId === 'string' ? (w.folderId as string) : null,
     config: w.config,
     settings: { ...FALLBACK_SETTINGS, ...(typeof w.settings === 'object' && w.settings ? (w.settings as Partial<WidgetSettings>) : {}) },
@@ -51,7 +63,9 @@ export function sanitizeSharedWidget(raw: unknown): Widget | null {
     // de vragen terug op "onbekend doel" bij de ontvanger (zie lib/goals.ts).
     ...(typeof w.curriculumId === 'string' && w.curriculumId ? { curriculumId: w.curriculumId } : {}),
     createdAt: typeof w.createdAt === 'number' ? (w.createdAt as number) : Date.now(),
-    updatedAt: Date.now(),
+    // De versie van de bron behouden (vroeger: altijd "nu", waardoor een link
+    // altijd "nieuwer" leek en niet op versie vergeleken kon worden).
+    updatedAt: sharedVersion(w.updatedAt),
   };
 }
 
@@ -83,15 +97,37 @@ export async function encodeSubmission(sub: Submission): Promise<string> {
   return 'WF1.' + LZString.compressToEncodedURIComponent(JSON.stringify(await inlineMedia(sub)));
 }
 
+/**
+ * Resultaatcode lezen. Dit bestand zit op het kritieke leerlingpad, dus hier
+ * alleen een compacte bewaking tegen wat een scherm kan laten crashen (KL2):
+ * widgetId en naam als niet-lege tekst, antwoorden als gewoon object, een
+ * eindig indienmoment, scores per vraag alleen als {earned, max}-getallen en
+ * getallen als totaal. De volledige sanering (alle velden getypt, naam
+ * gesnoeid) doet sanitizeSubmission in lib/progressTransfer.ts; het
+ * inleverpunt en de voortgangsimport halen elke inzending daar nog door.
+ */
 export function decodeSubmission(code: string): Submission | null {
   try {
     const raw = code.trim();
     if (!raw.startsWith('WF1.')) return null;
     const json = LZString.decompressFromEncodedURIComponent(raw.slice(4));
     if (!json) return null;
-    const sub = JSON.parse(json) as Submission;
-    if (!sub || typeof sub !== 'object' || !sub.widgetId || !sub.studentName || !sub.answers) return null;
-    return sub;
+    const s: unknown = JSON.parse(json);
+    const obj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+    const getal = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+    if (
+      !obj(s) || typeof s.widgetId !== 'string' || !s.widgetId.trim() ||
+      typeof s.studentName !== 'string' || !s.studentName.trim() ||
+      !obj(s.answers) || !getal(s.submittedAt)
+    ) return null;
+    return {
+      ...s,
+      itemScores: obj(s.itemScores)
+        ? Object.fromEntries(Object.entries(s.itemScores).filter(([, v]) => obj(v) && getal(v.earned) && getal(v.max)))
+        : null,
+      totalEarned: getal(s.totalEarned) ? s.totalEarned : 0,
+      totalMax: getal(s.totalMax) ? s.totalMax : 0,
+    } as unknown as Submission;
   } catch {
     return null;
   }
@@ -117,19 +153,27 @@ const FALLBACK_SETTINGS = {
   instructions: '',
 };
 
+/**
+ * Widget uit een bestand: type en config moeten er zijn; ontbrekende of
+ * kapotte velden worden ter plaatse aangevuld zodat spelen/bewerken niet
+ * crasht. Gedeeld door importWidgetJson en importFolderPack.
+ */
+function importedWidget(raw: unknown): Widget | null {
+  const w = raw as Record<string, unknown> | null;
+  if (!w || typeof w !== 'object' || typeof w.type !== 'string') return null;
+  if (!w.config || typeof w.config !== 'object') return null;
+  w.title = typeof w.title === 'string' && w.title.trim() ? w.title : 'Geïmporteerde widget';
+  w.settings = { ...FALLBACK_SETTINGS, ...(typeof w.settings === 'object' && w.settings ? w.settings : {}) };
+  w.folderId = typeof w.folderId === 'string' ? w.folderId : null;
+  w.createdAt = typeof w.createdAt === 'number' ? w.createdAt : Date.now();
+  w.updatedAt = Date.now();
+  return w as unknown as Widget;
+}
+
 export function importWidgetJson(json: string): Widget | null {
   try {
     const data = JSON.parse(json);
-    const w = data?.widget ?? data;
-    if (!w || typeof w !== 'object' || typeof w.type !== 'string') return null;
-    if (!w.config || typeof w.config !== 'object') return null;
-    // ontbrekende of kapotte velden aanvullen zodat spelen/bewerken niet crasht
-    w.title = typeof w.title === 'string' && w.title.trim() ? w.title : 'Geïmporteerde widget';
-    w.settings = { ...FALLBACK_SETTINGS, ...(typeof w.settings === 'object' && w.settings ? w.settings : {}) };
-    w.folderId = typeof w.folderId === 'string' ? w.folderId : null;
-    w.createdAt = typeof w.createdAt === 'number' ? w.createdAt : Date.now();
-    w.updatedAt = Date.now();
-    return w as Widget;
+    return importedWidget(data?.widget ?? data);
   } catch {
     return null;
   }
@@ -188,15 +232,8 @@ export function importFolderPack(json: string): FolderPack | null {
 
     const widgets: Widget[] = [];
     for (const raw of data.widgets as unknown[]) {
-      const w = raw as Record<string, unknown> | null;
-      if (!w || typeof w !== 'object' || typeof w.type !== 'string') continue;
-      if (!w.config || typeof w.config !== 'object') continue;
-      w.title = typeof w.title === 'string' && w.title.trim() ? w.title : 'Geïmporteerde widget';
-      w.settings = { ...FALLBACK_SETTINGS, ...(typeof w.settings === 'object' && w.settings ? w.settings : {}) };
-      w.folderId = typeof w.folderId === 'string' ? w.folderId : null;
-      w.createdAt = typeof w.createdAt === 'number' ? w.createdAt : Date.now();
-      w.updatedAt = Date.now();
-      widgets.push(w as unknown as Widget);
+      const w = importedWidget(raw);
+      if (w) widgets.push(w);
     }
 
     const m = (data.meta && typeof data.meta === 'object' ? data.meta : {}) as Record<string, unknown>;
