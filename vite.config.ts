@@ -57,8 +57,10 @@ import {
  *    scherm "Stel je eigen doelenlijst samen" (okt. 2026) 326,3 kB (103,0 kB
  *    gzip); een route kost ±0,4 kB. De herstelronde na de debugronde
  *    (okt. 2026: soepeler verbeteren in utils.ts, focus en focusval in
- *    ui.tsx/Layout.tsx) bracht het op 327,4 kB (103,5 kB gzip). Het budget
- *    ligt ±0,6 kB boven die meting, zodat elke groei meteen opvalt; wie meer nodig heeft,
+ *    ui.tsx/Layout.tsx) bracht het op 327,4 kB (103,5 kB gzip); daarna de
+ *    beveiliging van links en bestanden (veiligeUrl.ts) en het eerlijker
+ *    leerlingscherm (deadline, timer, pogingen in PlayerPage): 329,5 kB
+ *    (104,2 kB gzip). Het budget ligt ±0,5 kB boven die meting, zodat elke groei meteen opvalt; wie meer nodig heeft,
  *    verhoogt het bewust, hier. Let op: vóór sep. 2026 mat dit budget vóór
  *    Vite de preloadlijst invulde, dus ±9 kB te licht (zie order: 'post').
  *  - vendor: React, React DOM, scheduler, de lucide-basis en de iconen van het
@@ -72,7 +74,7 @@ import {
  */
 const CRITICAL_PATH = {
   label: 'hoofdbundel (kritieke leerlingpad)',
-  maxKb: 328,
+  maxKb: 330,
   /** boven 5 % te veel faalt de build */
   hardFactor: 1.05,
   /** wat naast de hoofdbundel in de statische sluiting mag zitten */
