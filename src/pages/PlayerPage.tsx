@@ -9,6 +9,7 @@ import { getTypeDef } from '../widgets/registry';
 import type { Submission, Widget } from '../lib/types';
 import type { PlayerResult } from '../widgets/shared';
 import { uid } from '../lib/utils';
+import { readableAccent } from '../lib/color';
 import { hasProgress } from '../lib/autosave';
 import { encodeSubmission } from '../lib/share';
 import { clearStudentContext, getStudentContext } from '../lib/studentContext';
@@ -295,7 +296,8 @@ export function WidgetRunner({ widget, recordSubmission }: { widget: Widget; rec
       style={{
         minHeight: '100vh',
         fontSize: a11y.scale !== 1 ? `${a11y.scale}em` : undefined,
-        ['--player-accent' as any]: widget.settings.accentColor,
+        // Een te lichte accentkleur wordt donkerder, zodat tekst en knoppen leesbaar blijven (W15d).
+        ['--player-accent' as any]: readableAccent(widget.settings.accentColor),
       }}
     >
       <header className="player-topbar">

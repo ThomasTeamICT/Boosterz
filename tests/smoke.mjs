@@ -107,6 +107,8 @@ check('resultaatscherm', await page.locator('.result-hero').isVisible());
 // ── 6. Resultaten bij de leerkracht ─────────────────────────────────────────
 console.log('6. Resultaten');
 await go('/#/resultaten');
+// Wachten op de rij in plaats van een vaste pauze: onder last laadt de lijst later.
+await page.locator('table.data tbody tr').first().waitFor({ timeout: 8000 }).catch(() => {});
 check('resultatenrij', (await page.locator('table.data tbody tr').count()) >= 1);
 await page.locator('table.data tbody tr').first().click();
 await sleep(700);

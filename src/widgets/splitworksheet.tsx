@@ -14,7 +14,7 @@ import type { HighlightColor, PdfHighlight } from '../components/pdf/PdfViewer';
 import { deletePdf, formatBytes, getPdf, savePdf } from '../lib/pdfStore';
 import { pdfReferenceCount } from '../lib/courses';
 import { EditorProps, ItemHeader, moveItem, PlayerProps, ResultHero } from './shared';
-import { makeQuestion, QUESTION_TYPES, questionLabel, QuestionView } from './quiz';
+import { makeQuestion, QUESTION_TYPES, questionLabel, QuestionView, removeOptionAt } from './quiz';
 
 // ── Hulpjes ─────────────────────────────────────────────────────────────────
 
@@ -131,9 +131,9 @@ function CompactQuestionEditor({ q, onChange }: { q: Question; onChange: (q: Que
                 aria-label="Optie verwijderen"
                 disabled={q.options.length <= 2}
                 onClick={() => {
-                  const options = q.options.filter((_, j) => j !== i);
-                  const correctIndex = q.correctIndex === i ? 0 : q.correctIndex > i ? q.correctIndex - 1 : q.correctIndex;
-                  onChange({ ...q, options, correctIndex });
+                  // Het juiste antwoord verwijderen maakt geen andere optie stil juist.
+                  const r = removeOptionAt(q.options, q.correctIndex, i);
+                  onChange({ ...q, options: r.options, correctIndex: r.correct as number });
                 }}
               ><CloseIcon size={16} aria-hidden /></button>
             </div>
