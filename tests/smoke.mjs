@@ -2706,6 +2706,9 @@ console.log('33. QR van de draagbare link');
       continue;
     }
     check('QR-afbeelding zichtbaar', await qrImg.isVisible());
+    // Eerst de openingsanimatie van de modal laten uitlopen (scale 0,96 → 1):
+    // tijdens die animatie meet getBoundingClientRect 321 in plaats van 322 px.
+    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'), null, { timeout: 3000 }).catch(() => {});
     const m = await qrImg.evaluate((img) => {
       const r = img.getBoundingClientRect();
       return { natuurlijk: img.naturalWidth, breedte: r.width, rendering: getComputedStyle(img).imageRendering };
