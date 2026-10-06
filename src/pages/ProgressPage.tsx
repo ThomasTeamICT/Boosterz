@@ -89,8 +89,13 @@ export function ProgressPage() {
     const safe =
       actieveNaam.trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '-').toLowerCase() ||
       'leerling';
-    void exportProgress(actieveNaam).then((json) => downloadFile(`voortgang-${safe}.json`, json));
-    toast(`Voortgang van ${actieveNaam} gedownload`, 'ok');
+    const naam = actieveNaam;
+    void exportProgress(naam)
+      .then((json) => {
+        downloadFile(`voortgang-${safe}.json`, json);
+        toast(`Voortgang van ${naam} gedownload`, 'ok');
+      })
+      .catch(() => toast('Exporteren mislukt. Probeer het opnieuw.', 'err'));
   };
 
   const importeerBestand = async (f: File) => {
