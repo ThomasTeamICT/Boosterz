@@ -1659,6 +1659,86 @@ await sleep(1500);
 const exImg = await page.evaluate(() => [...document.querySelectorAll('img')].filter((i) => /voorbeelden\/nw\//.test(i.src)).map((i) => i.naturalWidth));
 check('afbeelding uit de pdf rendert in de viewer (naast de app, niet in de opslag)', exImg.length >= 1 && exImg[0] > 0);
 
+// ── 27. Afdruk: de toets verklapt de antwoorden niet ────────────────────────
+console.log('27. Afdruk verklapt de antwoorden niet');
+{
+  const pq = await page.evaluate(() => {
+    const w = JSON.parse(localStorage.getItem('wf.widgets.v1')).find((x) => x.title === 'Voorbeeld: quiz over België');
+    const qs = w.config.questions;
+    return { id: w.id, match: qs.find((q) => q.type === 'match'), order: qs.find((q) => q.type === 'order') };
+  });
+  const designRight = pq.match.pairs.map((p) => p.right);
+  const designItems = pq.order.items;
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const sameSet = (a, b) => same([...a].sort(), [...b].sort());
+  const printedColumns = async () => {
+    await page.locator('main ol', { hasText: designItems[0] }).first().waitFor();
+    const rightCol = await page.locator('main ol', { hasText: pq.match.pairs[0].right }).locator('li').allInnerTexts();
+    const leftCol = await page.locator('main ol', { hasText: pq.match.pairs[0].left }).locator('li').allInnerTexts();
+    const orderCol = await page.locator('main ol', { hasText: designItems[0] }).locator('li').allInnerTexts();
+    return { rightCol: rightCol.map((t) => t.trim()), leftCol: leftCol.map((t) => t.trim()), orderCol: orderCol.map((t) => t.trim()) };
+  };
+
+  await go(`/#/print/${pq.id}`);
+  await page.locator('main h1').waitFor();
+  check('afdruk: één main en één h1', (await page.locator('main').count()) === 1 && (await page.locator('h1').count()) === 1);
+  const zonder = await printedColumns();
+  const orderZonder = zonder.orderCol.map((t) => t.replace(/^_+\s*/, '').trim());
+  check('zonder sleutel: koppelvraag toont de rechterkolom niet in de juiste volgorde', sameSet(zonder.rightCol, designRight) && !same(zonder.rightCol, designRight));
+  check('zonder sleutel: ordenvraag toont de stappen niet in de juiste volgorde', sameSet(orderZonder, designItems) && !same(orderZonder, designItems));
+  check('zonder sleutel: nergens een sleutel zichtbaar', !/\(plaats \d+\)/.test(await page.locator('main').innerText()));
+
+  // Opnieuw laden: dezelfde volgorde (vast per vraag, geen toeval per render)
+  await go(`/#/print/${pq.id}`);
+  const nogmaals = await printedColumns();
+  check('de afgedrukte volgorde ligt vast bij elke render', same(nogmaals.rightCol, zonder.rightCol) && same(nogmaals.orderCol, zonder.orderCol));
+
+  await page.getByLabel('Correctiesleutel tonen').check();
+  await sleep(300);
+  const met = await printedColumns();
+  check('met sleutel: dezelfde rechterkolom als zonder sleutel', same(met.rightCol, zonder.rightCol));
+  const letterOk = pq.match.pairs.every((p, i) => {
+    const m = /\(([a-z]+)\)\s*$/.exec(met.leftCol[i] ?? '');
+    return !!m && met.rightCol[m[1].charCodeAt(0) - 97] === p.right;
+  });
+  check('met sleutel: de letter bij elk linkeritem wijst naar het juiste rechteritem', letterOk);
+  const placeOk = met.orderCol.length === designItems.length && met.orderCol.every((t) => {
+    const m = /^_+\s*(.*?)\s*\(plaats (\d+)\)\s*$/.exec(t);
+    return !!m && designItems[Number(m[2]) - 1] === m[1];
+  });
+  check('met sleutel: het plaatsnummer bij elke stap is de juiste plaats', placeOk);
+
+  // Donker thema: de bedieningsbalk blijft leesbaar, het papier blijft zwart op wit
+  const themaVoor = await page.evaluate(() => { const v = document.documentElement.getAttribute('data-theme'); document.documentElement.setAttribute('data-theme', 'dark'); return v; });
+  await sleep(200);
+  const kleuren = await page.evaluate(() => {
+    const parse = (c) => (c.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+    const lum = ([r, g, b]) => [r, g, b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }).reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+    const label = document.querySelector('label.checkbox-row span');
+    const bar = document.querySelector('header.topbar');
+    const fg = getComputedStyle(label).color;
+    const bg = getComputedStyle(bar).backgroundColor;
+    const [l1, l2] = [lum(parse(fg)), lum(parse(bg))].sort((a, b) => b - a);
+    return { fg, bg, contrast: (l1 + 0.05) / (l2 + 0.05), paper: getComputedStyle(document.querySelector('main')).color };
+  });
+  check(`donker thema: "Correctiesleutel tonen" heeft voldoende contrast (${kleuren.contrast.toFixed(1)}:1)`, kleuren.contrast >= 4.5);
+  check('donker thema: het papier blijft zwart op wit', kleuren.paper === 'rgb(17, 17, 17)');
+  await page.evaluate((v) => { if (v === null) document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', v); }, themaVoor);
+
+  // Smal scherm: de rij Naam/Klas/Datum loopt niet over
+  await page.setViewportSize({ width: 390, height: 844 });
+  await go(`/#/print/${pq.id}`);
+  await page.locator('main h1').waitFor();
+  const breedte = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+  check(`op 390 px geen horizontale scroll (${breedte.scroll} ≤ ${breedte.client})`, breedte.scroll <= breedte.client);
+  await page.setViewportSize({ width: 1360, height: 900 });
+
+  // Niet-gevonden: eigen main en h1
+  await go('/#/print/xxx');
+  await page.locator('main h1').waitFor();
+  check('niet-gevonden-afdruk heeft één main en één h1', (await page.locator('main').count()) === 1 && (await page.locator('main h1').count()) === 1 && (await page.locator('h1').count()) === 1);
+}
+
 // ── Slot ────────────────────────────────────────────────────────────────────
 console.log('\n──────────');
 if (errors.length) {

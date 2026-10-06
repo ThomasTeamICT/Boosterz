@@ -7,6 +7,7 @@ import { extractGaps, gapPreview, quizMaxScore } from '../lib/grading';
 import { CheckRow } from '../components/ui';
 import { BackIcon, CheckIcon, PrintIcon } from '../components/icons';
 import { markTokens as playerMarkTokens, ZoneCircle } from '../widgets/qtypes/interactTypes';
+import { matchKeyLetters, orderKeyPlaces, printOrdered, printPermutation } from '../lib/printOrder';
 
 /** Afdrukbare versie van quiz/werkblad/exit-ticket, met of zonder correctiesleutel. */
 export function PrintPage() {
@@ -16,11 +17,11 @@ export function PrintPage() {
 
   if (!widget || !['quiz', 'worksheet', 'exitticket'].includes(widget.type)) {
     return (
-      <div className="page" style={{ textAlign: 'center', paddingTop: 60 }}>
+      <main className="page" style={{ textAlign: 'center', paddingTop: 60 }}>
         <h1>Niet afdrukbaar</h1>
         <p style={{ color: 'var(--text-soft)' }}>Deze widget bestaat niet of heeft geen afdrukbare versie.</p>
         <Link to="/widgets" className="btn btn-primary"><BackIcon size={18} aria-hidden /> Naar mijn widgets</Link>
-      </div>
+      </main>
     );
   }
 
@@ -29,21 +30,22 @@ export function PrintPage() {
   let printNum = 0;
 
   return (
-    <div style={{ background: '#fff', color: '#111', minHeight: '100vh' }}>
-      <div className="topbar" style={{ position: 'static' }}>
+    // Het papier is altijd zwart op wit; de bedieningsbalk volgt het thema van de app.
+    <div style={{ background: '#fff', minHeight: '100vh' }}>
+      <header className="topbar" style={{ position: 'static', flexWrap: 'wrap', color: 'var(--text)', background: 'var(--bg-raised)' }}>
         <Link to={`/bewerk/${widget.id}`} className="btn btn-sm btn-quiet"><BackIcon size={16} aria-hidden /> Terug naar de editor</Link>
         <div className="topbar-spacer" />
         <CheckRow checked={withKey} onChange={setWithKey} label="Correctiesleutel tonen" />
         <button className="btn btn-sm btn-primary" onClick={() => window.print()}><PrintIcon size={16} aria-hidden /> Afdrukken / PDF</button>
-      </div>
+      </header>
 
-      <div style={{ maxWidth: 780, margin: '0 auto', padding: '28px 24px 60px', fontSize: '15px', lineHeight: 1.6 }}>
+      <main style={{ color: '#111', maxWidth: 780, margin: '0 auto', padding: '28px 24px 60px', fontSize: '15px', lineHeight: 1.6 }}>
         <header style={{ borderBottom: '2px solid #111', paddingBottom: 10, marginBottom: 20 }}>
           <h1 style={{ margin: 0, fontSize: '1.5rem' }}>
             {widget.title}
             {withKey && <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#b91c1c' }}> — CORRECTIESLEUTEL</span>}
           </h1>
-          <div style={{ display: 'flex', gap: 26, marginTop: 10, fontSize: '0.95rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 26px', marginTop: 10, fontSize: '0.95rem' }}>
             <span>Naam: ________________________________</span>
             <span>Klas: __________</span>
             <span>Datum: ____ / ____ / ______</span>
@@ -79,7 +81,7 @@ export function PrintPage() {
         <footer style={{ marginTop: 34, borderTop: '1px solid #d1d5db', paddingTop: 8, fontSize: '0.8rem', color: '#6b7280' }}>
           Gemaakt met Boosterz · code {widget.code}
         </footer>
-      </div>
+      </main>
     </div>
   );
 }
@@ -136,27 +138,36 @@ function PrintAnswerArea({ q, withKey }: { q: Question; withKey: boolean }) {
       }
       return <p style={{ margin: '4px 0', whiteSpace: 'pre-wrap' }}>{gapPreview(gq)}</p>;
     }
-    case 'match':
+    case 'match': {
+      // De speler schudt de rechterkolom; op papier moet ze ook gehusseld staan.
+      // De sleutel volgt uit dezelfde (vaste) volgorde.
+      const perm = printPermutation(q.pairs.length, q.id);
+      const letters = matchKeyLetters(perm);
       return (
         <div style={{ display: 'flex', gap: 40 }}>
           <ol style={{ margin: 0, paddingLeft: 20 }}>
-            {q.pairs.map((p, i) => <li key={i}>{p.left} <ArrowRight size={14} className="icon-inline" aria-hidden /> ____ {withKey && <Key>({String.fromCharCode(97 + i)})</Key>}</li>)}
+            {q.pairs.map((p, i) => <li key={i}>{p.left} <ArrowRight size={14} className="icon-inline" aria-hidden /> ____ {withKey && <Key>({letters[i]})</Key>}</li>)}
           </ol>
           <ol style={{ margin: 0, paddingLeft: 20, listStyleType: 'lower-alpha' }}>
-            {q.pairs.map((p, i) => <li key={i}>{p.right}</li>)}
+            {perm.map((designIndex) => <li key={designIndex}>{q.pairs[designIndex].right}</li>)}
           </ol>
         </div>
       );
-    case 'order':
+    }
+    case 'order': {
+      // De items staan in ontwerpvolgorde = juiste volgorde: op papier gehusseld, sleutel = juiste plaats.
+      const perm = printPermutation(q.items.length, q.id);
+      const places = orderKeyPlaces(perm);
       return (
         <ol style={{ margin: 0, paddingLeft: 20 }}>
-          {q.items.map((it, i) => (
-            <li key={i} style={{ margin: '3px 0' }}>
-              ____ {it} {withKey && <Key>(plaats {i + 1})</Key>}
+          {perm.map((designIndex, i) => (
+            <li key={designIndex} style={{ margin: '3px 0' }}>
+              ____ {q.items[designIndex]} {withKey && <Key>(plaats {places[i]})</Key>}
             </li>
           ))}
         </ol>
       );
+    }
     case 'slider':
       return withKey
         ? <p style={{ margin: '4px 0' }}><Key>{q.answer}{q.tolerance > 0 ? ` (± ${q.tolerance})` : ''}</Key> (schaal {q.min}–{q.max})</p>
@@ -222,7 +233,7 @@ function PrintAnswerArea({ q, withKey }: { q: Question; withKey: boolean }) {
         <div>
           {items.length > 0 && (
             <p style={{ margin: '4px 0' }}>
-              {items.map((it, i) => (
+              {printOrdered(items, q.id).map((it, i) => (
                 <span key={it.id ?? i} style={{ display: 'inline-block', border: '1px solid #9ca3af', borderRadius: 6, padding: '1px 8px', margin: '2px 6px 2px 0' }}>
                   {it.text}
                 </span>
@@ -321,7 +332,7 @@ function PrintAnswerArea({ q, withKey }: { q: Question; withKey: boolean }) {
       return (
         <p style={{ margin: '4px 0', fontStyle: 'italic' }}>
           <Paperclip size={14} className="icon-inline" aria-hidden /> In te leveren: {q.accept?.trim() ? `bestand (${q.accept.trim()})` : 'bestand'}
-          {q.maxMb ? `, max. ${q.maxMb} MB` : ''} — digitaal via de widget, niet op papier.
+          {q.maxMb ? `, max. ${q.maxMb} MB` : ''} — digitaal via de oefening, niet op papier.
         </p>
       );
     case 'imagepoint': {
