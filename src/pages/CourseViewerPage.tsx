@@ -5,11 +5,11 @@ import {
 } from 'lucide-react';
 import type { Course, CourseProgress, CourseSection } from '../lib/courseTypes';
 import { allSections, progressPercent } from '../lib/courseTypes';
-import type { DecodedCourse } from '../lib/courses';
+import type { DecodedCourse, SharedLinkQuestion } from '../lib/courses';
 import {
-  adoptSharedCourse, decodeCourseFromParam, encodeCourseProgress,
+  adoptSharedCourse, adoptSharedLinkUpdate, decodeCourseFromParam, encodeCourseProgress,
   getCourse, getCourseByCode, getStudentProgress, mergeProgressRecords,
-  saveStudentProgress, sharedCourseDiffers, startProgress, touchSection,
+  saveStudentProgress, sharedLinkQuestion, startProgress, touchSection,
 } from '../lib/courses';
 import { readableAccent } from '../lib/color';
 import { hasUnresolvedMedia, onMediaChange } from '../lib/mediaStore';
@@ -28,13 +28,25 @@ import '../styles/cursus.css';
 
 // ── /cursus/open?d=… — gedeelde link openen ─────────────────────────────────
 
+/** Zoveel oefeningen noemt de vraag bij naam; de rest als telling. */
+const MAX_GENOEMD = 5;
+
+/** De lokale code na het overnemen: een cursus die bleef staan, kan een andere code hebben. */
+function leesRoute(courseId: string, linkCode: string): string {
+  return '/cursus/lees/' + (getCourse(courseId)?.code ?? linkCode);
+}
+
 export function CourseOpenPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [invalid, setInvalid] = useState(false);
-  // Link wil een BESTAANDE lokale cursus wijzigen → eerst expliciet vragen.
-  // (Iedereen met de link kan er één namaken; stil overschrijven is dus uit den boze.)
-  const [pending, setPending] = useState<DecodedCourse | null>(null);
+  // Staat de cursus of een oefening uit de link hier al als eigen werk, in
+  // een andere versie? Dan eerst vragen, en de vraag noemt alles wat
+  // "bijwerken" zou vervangen (S3). Een ongewijzigde kopie uit een eerdere
+  // link of een klaspakket wordt stil bijgewerkt (LL3); een bestand of het
+  // voorbeeld telt als eigen werk (S1). Iedereen met de link kan er één
+  // namaken: eigen werk stil overschrijven is dus uit den boze.
+  const [pending, setPending] = useState<{ decoded: DecodedCourse; question: SharedLinkQuestion; localTitle: string } | null>(null);
 
   useEffect(() => {
     const d = params.get('d');
@@ -47,33 +59,38 @@ export function CourseOpenPage() {
     const existing = getCourse(decoded.course.id);
     // Vergelijken is async: lokale media staan als blob:-URL, die in de link
     // als data-URL (lib/mediaStore). Bij een gedeeltelijke link tellen alleen
-    // de meegestuurde hoofdstukken.
-    const wouldChange: Promise<boolean> = existing
-      ? sharedCourseDiffers(decoded.course, decoded.partial ? decoded.course.chapters.map((ch) => ch.id) : undefined)
-      : Promise.resolve(false);
-    void wouldChange.catch(() => true).then((differs) => {
+    // de meegestuurde hoofdstukken. De meereizende oefeningen tellen ook mee.
+    const vraag: Promise<SharedLinkQuestion | null> = existing
+      ? sharedLinkQuestion(
+          decoded.course,
+          decoded.partial ? decoded.course.chapters.map((ch) => ch.id) : undefined,
+          decoded.widgets,
+        )
+      : Promise.resolve(null);
+    // Kon er niet vergeleken worden: vragen over de cursus. "Bijwerken"
+    // vervangt dan alleen de cursus; eigen oefeningen blijven staan.
+    void vraag.catch((): SharedLinkQuestion => ({ course: true, widgets: [] })).then((question) => {
       if (!alive) return;
-      if (existing && differs) {
-        setPending(decoded);
+      if (existing && question) {
+        setPending({ decoded, question, localTitle: existing.title });
         return;
       }
       // Ook bij identieke inhoud adopteren: zo reizen ontbrekende widgets mee
       // (bv. een lokaal verwijderde oefening wordt hersteld).
-      adoptSharedCourse(decoded.course, decoded.widgets, { partial: decoded.partial });
-      navigate('/cursus/lees/' + decoded.course.code, { replace: true });
+      adoptSharedCourse(decoded.course, decoded.widgets, { partial: decoded.partial, gedeeld: true });
+      navigate(leesRoute(decoded.course.id, decoded.course.code), { replace: true });
     });
     return () => { alive = false; };
   }, [params, navigate]);
 
   const accept = () => {
     if (!pending) return;
-    adoptSharedCourse(pending.course, pending.widgets, { partial: pending.partial, force: true });
-    navigate('/cursus/lees/' + pending.course.code, { replace: true });
+    adoptSharedLinkUpdate(pending.decoded, pending.question);
+    navigate(leesRoute(pending.decoded.course.id, pending.decoded.course.code), { replace: true });
   };
   const keepLocal = () => {
     if (!pending) return;
-    const existing = getCourse(pending.course.id);
-    navigate('/cursus/lees/' + (existing?.code ?? pending.course.code), { replace: true });
+    navigate(leesRoute(pending.decoded.course.id, pending.decoded.course.code), { replace: true });
   };
 
   return (
@@ -90,19 +107,13 @@ export function CourseOpenPage() {
             <Link to="/meedoen" className="btn btn-primary">Code invoeren</Link>
           </EmptyState>
         ) : pending ? (
-          <div className="card card-pad" style={{ maxWidth: 480, margin: '60px auto 0', textAlign: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--brand)' }} aria-hidden><RefreshCw size={42} /></div>
-            <h1 style={{ fontSize: '1.3rem' }}>Cursus bijwerken?</h1>
-            <p style={{ color: 'var(--text-soft)' }}>
-              Deze link bevat {pending.partial ? 'een deel van' : 'een andere versie van'} de cursus{' '}
-              <strong>“{pending.course.title}”</strong>, die al op dit toestel staat.
-              Je leesvoortgang blijft in beide gevallen bewaard.
-            </p>
-            <div style={{ display: 'grid', gap: 8 }}>
-              <button className="btn btn-primary" onClick={accept}><CheckIcon size={16} aria-hidden /> Bijwerken en openen</button>
-              <button className="btn btn-ghost" onClick={keepLocal}>Huidige versie behouden en openen</button>
-            </div>
-          </div>
+          <LinkVraag
+            decoded={pending.decoded}
+            question={pending.question}
+            localTitle={pending.localTitle}
+            onAccept={accept}
+            onKeep={keepLocal}
+          />
         ) : (
           <>
             <h1 className="sr-only">Cursus wordt geopend</h1>
@@ -113,6 +124,71 @@ export function CourseOpenPage() {
           </>
         )}
       </main>
+    </div>
+  );
+}
+
+/**
+ * De vraag vóór een link iets vervangt. Eerlijk: ze noemt de cursus als die
+ * zelf verandert, en elke oefening die "bijwerken" zou vervangen (S3).
+ * Leerlingscherm: "oefening", nooit "widget".
+ */
+function LinkVraag({ decoded, question, localTitle, onAccept, onKeep }: {
+  decoded: DecodedCourse;
+  question: SharedLinkQuestion;
+  /** Titel van de cursus op dit toestel. */
+  localTitle: string;
+  onAccept: () => void;
+  onKeep: () => void;
+}) {
+  const n = question.widgets.length;
+  const genoemd = question.widgets.slice(0, MAX_GENOEMD);
+  const rest = n - genoemd.length;
+  const titel = question.course ? 'Cursus bijwerken?' : n === 1 ? 'Oefening bijwerken?' : 'Oefeningen bijwerken?';
+  let overOefeningen = '';
+  if (n > 0 && question.course) {
+    overOefeningen = n === 1 ? ' Ook deze oefening staat hier al, in een andere versie:' : ' Ook deze oefeningen staan hier al, in een andere versie:';
+  } else if (n > 0) {
+    overOefeningen = n === 1 ? ' De link bevat een andere versie van deze oefening:' : ' De link bevat een andere versie van deze oefeningen:';
+  }
+  return (
+    <div className="card card-pad" style={{ maxWidth: 480, margin: '60px auto 0', textAlign: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--brand)' }} aria-hidden><RefreshCw size={42} /></div>
+      <h1 style={{ fontSize: '1.3rem' }}>{titel}</h1>
+      <p style={{ color: 'var(--text-soft)' }}>
+        {question.course ? (
+          <>
+            Deze link bevat {decoded.partial ? 'een deel van' : 'een andere versie van'} de cursus{' '}
+            <strong>“{localTitle}”</strong>
+            {decoded.course.title !== localTitle && <> (in de link: “{decoded.course.title}”)</>}, die al op dit toestel staat.
+          </>
+        ) : (
+          <>De cursus <strong>“{localTitle}”</strong> staat al op dit toestel.</>
+        )}
+        {overOefeningen}
+      </p>
+      {n > 0 && (
+        <ul
+          aria-label="Oefeningen die zouden veranderen"
+          style={{ textAlign: 'left', margin: '0 0 14px', paddingLeft: 22, overflowWrap: 'anywhere' }}
+        >
+          {genoemd.map((c) => (
+            <li key={c.id}>
+              <strong>“{c.localTitle}”</strong>
+              {c.title !== c.localTitle && <> (in de link: “{c.title}”)</>}
+            </li>
+          ))}
+          {rest > 0 && <li>en nog {rest} {rest === 1 ? 'andere oefening' : 'andere oefeningen'}</li>}
+        </ul>
+      )}
+      <p style={{ color: 'var(--text-soft)' }}>
+        Kies je bijwerken, dan komt de versie uit de link in de plaats.
+        Je leesvoortgang blijft in beide gevallen bewaard.
+      </p>
+      <div style={{ display: 'grid', gap: 8 }}>
+        <button className="btn btn-primary" onClick={onAccept}><CheckIcon size={16} aria-hidden /> Bijwerken en openen</button>
+        <button className="btn btn-ghost" onClick={onKeep}>Huidige versie behouden en openen</button>
+      </div>
     </div>
   );
 }

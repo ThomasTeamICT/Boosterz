@@ -1,10 +1,15 @@
 import { readFileSync } from 'node:fs';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   absolutizeExampleUrls, EXAMPLE_COURSE_ID, EXAMPLE_FOLDER_ID, EXAMPLE_FOLDER_NAME, installExampleBundle,
 } from './examples';
-import { createCourse, getCourse, importCourseJson } from './courses';
-import { deleteFolder, getFolders, getWidgets, saveFolder, saveWidget } from './storage';
+import {
+  adoptSharedCourse, createCourse, getCourse, importCourseJson, sanitizeCourse, sharedCourseDiffers, sharedLinkQuestion,
+} from './courses';
+import type { Course } from './courseTypes';
+import { deleteFolder, getFolders, getWidget, getWidgets, saveFolder, saveWidget } from './storage';
+import type { Widget } from './types';
+import { defaultSettings } from '../widgets/registry';
 
 describe('absolutizeExampleUrls', () => {
   it('zet relatieve voorbeeld-URL\'s om naar de app-basis en laat andere URL\'s met rust', () => {
@@ -112,4 +117,83 @@ describe('installExampleBundle', () => {
     installExampleBundle({ course: b.course, widgets: [] });
     expect(getFolders()).toEqual([]);
   }, 60_000);
+});
+
+// ── Opnieuw laden met een herbouwde (nieuwere) bundel: G1, G7 en S1 ─────────
+
+describe('installExampleBundle met een nieuwere bundel', () => {
+  beforeEach(() => {
+    (globalThis as unknown as { localStorage: Storage }).localStorage = memoryStorage();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(1_000_000_000);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+  const later = (ms = 1000) => vi.setSystemTime(Date.now() + ms);
+
+  function oefening(id: string, title: string, updatedAt: number): Widget {
+    return {
+      id, type: 'quiz', title, folderId: null, code: id.toUpperCase().padEnd(6, 'X'),
+      config: { questions: [{ id: 'q1', type: 'tf', prompt: title, points: 1, answer: true }] } as unknown as Widget['config'],
+      settings: defaultSettings(), createdAt: 1, updatedAt,
+    };
+  }
+
+  /** Een kleine voorbeeldbundel met twee oefeningen, zoals tools/build-voorbeeldcursus.py ze maakt. */
+  function kleineBundel(versie: string, updatedAt: number): { course: Course; widgets: Widget[] } {
+    const course = sanitizeCourse({
+      id: EXAMPLE_COURSE_ID, title: 'Voorbeeld ' + versie, code: 'VBNW01', updatedAt,
+      chapters: [{ id: 'h1', title: 'H1', sections: [{ id: 's1', title: 'S', blocks: [
+        { id: 'b1', type: 'widget', widgetId: 'vw1' },
+        { id: 'b2', type: 'widget', widgetId: 'vw2' },
+      ] }] }],
+    })!;
+    return { course, widgets: [oefening('vw1', 'Quiz 1 ' + versie, updatedAt), oefening('vw2', 'Quiz 2 ' + versie, updatedAt)] };
+  }
+
+  it('opnieuw laden met een nieuwere bundel laat een aangepaste voorbeeldoefening staan (G1)', () => {
+    installExampleBundle(kleineBundel('v1', Date.now() - 9000));
+    later();
+    saveWidget({ ...getWidget('vw1')!, title: 'EIGEN' });
+    later();
+    installExampleBundle(kleineBundel('v2', Date.now() - 10));
+    expect(getCourse(EXAMPLE_COURSE_ID)!.title).toBe('Voorbeeld v2');
+    expect(getWidget('vw1')!.title).toBe('EIGEN');
+  });
+
+  it('verwijderde voorbeeldmap en een nieuwere bundel: geen oude inhoud terug, map hersteld (G7)', () => {
+    // De oefeningen kwamen eerst via een klaspakket of deellink van een collega
+    // (zuivere kopie, zonder map); daarna laadt de leerkracht het voorbeeld zelf.
+    const v1 = kleineBundel('v1', Date.now() - 9000);
+    adoptSharedCourse(v1.course, v1.widgets, { gedeeld: true });
+    later();
+    installExampleBundle(kleineBundel('v2', Date.now() - 10));
+    for (const id of ['vw1', 'vw2']) {
+      expect(getWidget(id)!.title).toMatch(/ v2$/);
+      expect(getWidget(id)!.folderId).toBe(EXAMPLE_FOLDER_ID);
+    }
+    // En met een eigen aanpassing na een verwijderde map: de map komt terug, de aanpassing blijft.
+    later();
+    saveWidget({ ...getWidget('vw1')!, title: 'EIGEN' });
+    deleteFolder(EXAMPLE_FOLDER_ID);
+    later();
+    installExampleBundle(kleineBundel('v3', Date.now() - 10));
+    expect(getWidget('vw1')).toMatchObject({ title: 'EIGEN', folderId: EXAMPLE_FOLDER_ID });
+    expect(getWidget('vw2')!.folderId).toBe(EXAMPLE_FOLDER_ID);
+  });
+
+  it('het voorbeeld telt als eigen werk: een link met dezelfde id\'s vraagt eerst (S1)', async () => {
+    installExampleBundle(kleineBundel('v1', Date.now() - 9000));
+    later();
+    const nep = kleineBundel('NEP', Date.now());
+    expect(await sharedCourseDiffers(nep.course, undefined, nep.widgets)).toBe(true);
+    const vraag = await sharedLinkQuestion(nep.course, undefined, nep.widgets);
+    expect(vraag?.course).toBe(true);
+    expect(vraag?.widgets.map((c) => c.id).sort()).toEqual(['vw1', 'vw2']);
+    // Overnemen zonder keuze (zoals de linkroute zonder vraag) verandert niets.
+    adoptSharedCourse(nep.course, nep.widgets, { gedeeld: true });
+    expect(getCourse(EXAMPLE_COURSE_ID)!.title).toBe('Voorbeeld v1');
+    expect(getWidget('vw1')!.title).toBe('Quiz 1 v1');
+  });
 });

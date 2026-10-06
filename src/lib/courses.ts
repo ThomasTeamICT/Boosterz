@@ -403,9 +403,11 @@ export function decodeCourseFromParam(d: string): DecodedCourse | null {
 //
 //  1. Een nieuwere versie van iets dat hier ongewijzigd uit een eerdere link
 //     of een eerder pakket staat ("zuivere kopie"), wordt stil bijgewerkt.
-//     Zo krijgt een leerling de verbeterde oefening.
-//  2. Een oudere of even oude versie overschrijft nooit wat hier staat: een
-//     oude link die later nog eens geopend wordt, zet niets terug.
+//     Zo krijgt een leerling de verbeterde oefening. Bij een zuivere cursus
+//     volstaat "even oud" (G4): dat is dezelfde momentopname van de bron, die
+//     vollediger kan binnenkomen (eerst één hoofdstuk, daarna de hele cursus).
+//  2. Een oudere versie overschrijft nooit wat hier staat: een oude link die
+//     later nog eens geopend wordt, zet niets terug.
 //  3. Eigen werk (zelf gemaakt, of na het overnemen nog aangepast) wordt nooit
 //     stil overschreven. Is de binnenkomende versie nieuwer én anders, dan
 //     beslist de gebruiker: bijwerken, eigen versie houden of als kopie
@@ -417,6 +419,13 @@ export function decodeCourseFromParam(d: string): DecodedCourse | null {
 // stempelt updatedAt opnieuw; komt de versie niet meer overeen met het
 // register, dan is het eigen werk geworden. Oude data zonder register telt
 // daardoor als eigen werk: bij twijfel vragen, nooit stil overschrijven.
+//
+// Alleen wat via een deellink of klaspakket binnenkwam, komt in het register
+// (AdoptOptions.gedeeld, S1). Een cursusbestand (bv. een teruggezette
+// back-up) of de voorbeeldcursus telt als eigen werk: wie de id's kent,
+// kan dat dus niet stil vervangen. Links zijn niet ondertekend; een kopie
+// die zelf uit een link komt, kan wel stil bijgewerkt worden door iemand met
+// een echte link (ontwerpgrens).
 
 const SHARED_KEY = 'wf.gedeeld.v1';
 
@@ -533,12 +542,21 @@ export function conflictKey(c: { kind: SharedKind; id: string }): string {
 
 export interface AdoptOptions {
   /**
-   * Uitdrukkelijk "bijwerken" (de gebruiker koos het al): de cursus wordt
-   * altijd vervangen, widgets alleen door een nieuwere versie.
+   * Alles "bijwerken", zonder lijst: de cursus wordt altijd vervangen, elke
+   * widget door een nieuwere versie, ook eigen werk dat niemand noemde.
+   * Liever `conflicts` met de keuze 'bijwerken' en precies de onderdelen die
+   * de gebruiker zag (zoals adoptSharedLinkUpdate en de voorbeeldcursus).
    */
   force?: boolean;
   /** De keuze van de gebruiker voor de conflicten uit findSharedConflicts. */
   conflicts?: { choice: SharedChoice; keys: string[] };
+  /**
+   * Binnengekomen via een deellink of klaspakket (S1): wat zo bewaard wordt,
+   * is een zuivere kopie en mag later stil bijgewerkt worden. Zonder deze
+   * optie (een bestand, het voorbeeld) telt het als eigen werk en wordt er
+   * eerst gevraagd. Standaard dus veilig.
+   */
+  gedeeld?: boolean;
 }
 
 export interface AdoptResult {
@@ -564,13 +582,25 @@ function decideAction(
   opts: AdoptOptions
 ): AdoptAction {
   if (!local) return 'nieuw';
-  if (opts.conflicts && opts.conflicts.keys.includes(conflictKey({ kind, id: incoming.id }))) {
-    return opts.conflicts.choice;
-  }
+  const chosen = chosenFor(opts, kind, incoming.id);
+  if (chosen) return chosen;
   const newer = incoming.updatedAt > local.updatedAt;
-  if (newer && isPureCopy(reg, kind, local)) return 'bijwerken';
+  if (isPureCopy(reg, kind, local)) {
+    if (newer) return 'bijwerken';
+    // Even oud is bij een zuivere kopie dezelfde momentopname van de bron
+    // (G4). Een cursus kan dan toch vollediger binnenkomen (eerst een
+    // gedeeltelijke link, daarna de hele cursus): vervangen. Een widget komt
+    // altijd in zijn geheel; dan valt er niets bij te werken en hoeft een
+    // leerling die zijn link opnieuw opent, niet alles opnieuw te bewaren.
+    if (kind === 'course' && incoming.updatedAt === local.updatedAt) return 'bijwerken';
+  }
   if (opts.force && (kind === 'course' || newer)) return 'bijwerken';
   return 'houden';
+}
+
+/** Koos de gebruiker al iets voor dit onderdeel (AdoptOptions.conflicts)? */
+function chosenFor(opts: AdoptOptions, kind: SharedKind, id: string): SharedChoice | undefined {
+  return opts.conflicts && opts.conflicts.keys.includes(conflictKey({ kind, id })) ? opts.conflicts.choice : undefined;
 }
 
 /** Per id de nieuwste versie (dezelfde widget kan in meerdere cursussen zitten). */
@@ -664,7 +694,9 @@ export function adoptSharedContent(courses: Course[], widgets: Widget[], opts: A
     // nieuw of bijwerken: versie van de bron behouden, map van dit toestel.
     const toSave: Widget = local ? { ...w, folderId: local.folderId } : w;
     if (saveWidget(toSave, { keepUpdatedAt: true })) {
-      reg.widget.set(w.id, w.updatedAt);
+      // Alleen via link of pakket een zuivere kopie (S1); anders eigen werk.
+      if (opts.gedeeld) reg.widget.set(w.id, w.updatedAt);
+      else reg.widget.delete(w.id);
       if (action === 'nieuw') res.added++;
       else res.updated++;
     } else {
@@ -692,7 +724,8 @@ export function adoptSharedContent(courses: Course[], widgets: Widget[], opts: A
       continue;
     }
     if (saveCourse(remapped, { keepUpdatedAt: true })) {
-      reg.course.set(c.id, c.updatedAt);
+      if (opts.gedeeld) reg.course.set(c.id, c.updatedAt);
+      else reg.course.delete(c.id);
       if (action === 'nieuw') res.added++;
       else res.updated++;
     } else {
@@ -709,7 +742,8 @@ export function adoptSharedContent(courses: Course[], widgets: Widget[], opts: A
  * voorbeeldcursus). De regels staan bij adoptSharedContent. Een
  * gedeeltelijke link (enkele hoofdstukken) wordt per hoofdstuk samengevoegd
  * met de lokale versie, zodat eerder gedeelde hoofdstukken blijven bestaan;
- * zonder `force` alleen bij een zuivere kopie (eigen werk: eerst vragen).
+ * zonder uitdrukkelijke keuze (`force`, of 'bijwerken' voor deze cursus in
+ * `conflicts`) alleen bij een zuivere kopie (eigen werk: eerst vragen).
  */
 export function adoptSharedCourse(
   course: Course,
@@ -723,9 +757,11 @@ export function adoptSharedCourse(
   const reg = readRegistry();
   const incomingCourse = remapWidgetBlocks({ ...course, updatedAt: sharedVersion(course.updatedAt) }, res.widgetIds);
   const pure = isPureCopy(reg, 'course', existing);
-  const newer = incomingCourse.updatedAt > existing.updatedAt;
-  const replace = Boolean(opts.force) || (pure && newer);
-  const append = Boolean(opts.force) || pure;
+  const forced = Boolean(opts.force) || chosenFor(opts, 'course', course.id) === 'bijwerken';
+  // Zuivere kopie: "niet ouder" volstaat (G4). Twee gedeeltelijke links van
+  // dezelfde versie (na één bewerking) geven samen de nieuwe stand.
+  const replace = forced || (pure && incomingCourse.updatedAt >= existing.updatedAt);
+  const append = forced || pure;
   // Hoofdstukken uit de link vervangen hun lokale naamgenoot (op id) of
   // komen er achteraan bij; niet-gedeelde hoofdstukken blijven staan.
   const incoming = new Map(incomingCourse.chapters.map((ch) => [ch.id, ch] as const));
@@ -754,14 +790,15 @@ export function adoptSharedCourse(
   }
   const base = replace ? incomingCourse : existing;
   let ok: boolean;
-  if (opts.force) {
+  if (forced) {
     // Na een uitdrukkelijke keuze is het een mengvorm: eigen werk vanaf nu.
     ok = saveCourse({ ...base, chapters: merged });
     reg.course.delete(course.id);
   } else {
     const version = Math.max(existing.updatedAt, incomingCourse.updatedAt);
     ok = saveCourse({ ...base, chapters: merged, updatedAt: version }, { keepUpdatedAt: true });
-    if (ok) reg.course.set(course.id, version);
+    if (ok && opts.gedeeld) reg.course.set(course.id, version);
+    else if (ok) reg.course.delete(course.id);
   }
   if (ok) res.updated++;
   else res.ok = false;
@@ -777,8 +814,11 @@ async function isConflict(
   reg: SharedRegistry,
   includeOlder: boolean
 ): Promise<boolean> {
-  const newer = sharedVersion(incoming.updatedAt) > local.updatedAt;
-  if (newer && isPureCopy(reg, kind, local)) return false; // wordt stil bijgewerkt
+  const version = sharedVersion(incoming.updatedAt);
+  // Zuivere kopie, niet ouder: wordt stil bijgewerkt (of is dezelfde
+  // momentopname van de bron, G4). Geen vraag.
+  if (version >= local.updatedAt && isPureCopy(reg, kind, local)) return false;
+  const newer = version > local.updatedAt;
   if (!newer && !includeOlder) return false; // oudere versie: wat hier staat, blijft
   return !(await sameContent(kind, incoming, local));
 }
@@ -815,8 +855,9 @@ export async function findSharedConflicts(
 
 /**
  * Moet er gevraagd worden vóór deze link overgenomen wordt? (De naam is
- * historisch; de vraag is: zou overnemen zonder `force` hier eigen werk laten
- * liggen dat in een andere, nieuwere versie binnenkomt?)
+ * historisch; de vraag is: zou overnemen zonder keuze hier eigen werk laten
+ * liggen dat in een andere, nieuwere versie binnenkomt?) De linkroute
+ * gebruikt sharedLinkQuestion: dezelfde beslissing, met de onderdelen erbij.
  *
  *  - Een zuivere kopie wordt stil bijgewerkt: geen vraag.
  *  - Een oudere link zet niets terug: geen vraag, de lokale versie blijft.
@@ -860,6 +901,49 @@ export async function sharedCourseDiffers(course: Course, chapterIds?: string[],
   return false;
 }
 
+/** Wat de vraag op de linkroute moet noemen (S3). */
+export interface SharedLinkQuestion {
+  /** De cursus zelf staat hier als eigen werk en komt in een andere versie binnen. */
+  course: boolean;
+  /** Widgets die hier als eigen werk staan en in een andere, nieuwere versie meekomen. */
+  widgets: SharedConflict[];
+}
+
+/**
+ * Moet de link eerst vragen, en wat noemt die vraag dan? null = geen vraag.
+ * Dezelfde beslissing als sharedCourseDiffers(course, chapterIds, widgets),
+ * maar met de onderdelen erbij: de vraag noemt alles wat "bijwerken" zou
+ * vervangen (S3), zie adoptSharedLinkUpdate.
+ */
+export async function sharedLinkQuestion(
+  course: Course,
+  chapterIds?: string[],
+  widgets: Widget[] = []
+): Promise<SharedLinkQuestion | null> {
+  const [cursus, oefeningen] = await Promise.all([
+    sharedCourseDiffers(course, chapterIds),
+    findSharedConflicts([], widgets),
+  ]);
+  return cursus || oefeningen.length > 0 ? { course: cursus, widgets: oefeningen } : null;
+}
+
+/**
+ * "Bijwerken en openen" na de vraag op de linkroute: alleen wat de vraag
+ * noemde, wordt vervangen. De rest volgt de gewone regels: een zuivere kopie
+ * wordt stil bijgewerkt, nieuwe onderdelen komen erbij en eigen werk dat de
+ * vraag niet noemde, blijft staan (S3). Zo zet ook een oudere cursus uit de
+ * link niets terug als de vraag alleen over een oefening ging.
+ */
+export function adoptSharedLinkUpdate(decoded: DecodedCourse, question: SharedLinkQuestion): AdoptResult {
+  const keys = question.widgets.map(conflictKey);
+  if (question.course) keys.push(conflictKey({ kind: 'course', id: decoded.course.id }));
+  return adoptSharedCourse(decoded.course, decoded.widgets, {
+    partial: decoded.partial,
+    gedeeld: true,
+    conflicts: { choice: 'bijwerken', keys },
+  });
+}
+
 export function courseReadUrl(code: string): string {
   const base = location.origin + location.pathname;
   return `${base}#/cursus/lees/${code}`;
@@ -869,6 +953,14 @@ export function courseReadUrl(code: string): string {
 
 export function encodeCourseProgress(progress: CourseProgress): string {
   return 'WFC1.' + LZString.compressToEncodedURIComponent(JSON.stringify(progress));
+}
+
+/**
+ * Tijdstip uit een voortgangscode: een eindig getal, niet negatief (S9).
+ * `1e999` wordt Infinity en zou als null in de opslag belanden.
+ */
+function tijdstip(v: unknown): number | undefined {
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined;
 }
 
 export function decodeCourseProgress(code: string): CourseProgress | null {
@@ -897,8 +989,8 @@ export function decodeCourseProgress(code: string): CourseProgress | null {
           }
         }
         zetEigen(sections, sid, {
-          openedAt: typeof sp.openedAt === 'number' ? sp.openedAt : Date.now(),
-          completedAt: typeof sp.completedAt === 'number' ? sp.completedAt : undefined,
+          openedAt: tijdstip(sp.openedAt) ?? Date.now(),
+          completedAt: tijdstip(sp.completedAt),
           secondsSpent: typeof sp.secondsSpent === 'number' && sp.secondsSpent >= 0 ? Math.min(sp.secondsSpent, 1e7) : 0,
           checks: Object.keys(checks).length ? checks : undefined,
         });
@@ -917,7 +1009,7 @@ export function decodeCourseProgress(code: string): CourseProgress | null {
       // Nooit in de toekomst: anders blijft een geknutselde of scheve klok
       // voor altijd "laatst gezien" (samenvoegen neemt het maximum).
       lastSeenAt: typeof p.lastSeenAt === 'number' && Number.isFinite(p.lastSeenAt) ? Math.min(p.lastSeenAt, Date.now()) : Date.now(),
-      startedAt: typeof p.startedAt === 'number' ? p.startedAt : Date.now(),
+      startedAt: tijdstip(p.startedAt) ?? Date.now(),
     };
   } catch {
     return null;
@@ -992,6 +1084,14 @@ export async function exportCourseJson(course: Course): Promise<string> {
   return JSON.stringify(pdfs.length ? { ...payload, pdfs } : payload, null, 2);
 }
 
+/**
+ * Voorvoegsel van de media-id's in dezelfde bestandsopslag (ID_PREFIX in
+ * lib/mediaStore.ts). Die id's zijn een hash van de inhoud, dus voorspelbaar:
+ * een pdf uit een bestand mag er nooit één vooraf bezetten (S7c). Een echte
+ * pdf-id (uid()) bevat geen "_".
+ */
+const MEDIA_ID_PREFIX = 'm_';
+
 /** Pdf's uit een cursusbestand: alleen echte pdf-data, alleen waar de cursus naar verwijst. */
 function sanitizeCoursePdfs(raw: unknown, allowed: Set<string>): CoursePdf[] {
   if (!Array.isArray(raw)) return [];
@@ -1001,7 +1101,7 @@ function sanitizeCoursePdfs(raw: unknown, allowed: Set<string>): CoursePdf[] {
     if (!item || typeof item !== 'object') continue;
     const p = item as Record<string, unknown>;
     const id = typeof p.id === 'string' ? p.id : '';
-    if (!/^[\w-]{1,100}$/.test(id) || !allowed.has(id) || seen.has(id)) continue;
+    if (!/^[\w-]{1,100}$/.test(id) || id.startsWith(MEDIA_ID_PREFIX) || !allowed.has(id) || seen.has(id)) continue;
     const dataUrl = typeof p.dataUrl === 'string' ? p.dataUrl : '';
     if (!dataUrl.startsWith(PDF_DATA_PREFIX)) continue;
     if (!/^[A-Za-z0-9+/]*={0,2}$/.test(dataUrl.slice(PDF_DATA_PREFIX.length))) continue;

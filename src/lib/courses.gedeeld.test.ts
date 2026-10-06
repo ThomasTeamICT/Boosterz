@@ -6,13 +6,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import LZString from 'lz-string';
 import {
-  adoptSharedContent, adoptSharedCourse, conflictKey, decodeCourseProgress, deleteCourse, encodeCourseProgress,
+  adoptSharedContent, adoptSharedCourse, adoptSharedLinkUpdate, conflictKey, decodeCourseFromParam,
+  decodeCourseProgress, deleteCourse, encodeCourseProgress,
   ensureDemoCourse, exportCourseJson, findSharedConflicts, getCourse, getCourses, importCourseJson,
   importProgressCode, mergeProgressRecords, restoreCoursePdfs, sanitizeCourse, saveCourse, saveStudentProgress,
-  sharedCourseDiffers, startProgress, touchSection, getStudentProgress,
+  sharedCourseDiffers, sharedLinkQuestion, startProgress, touchSection, getStudentProgress,
+  type DecodedCourse, type SharedLinkQuestion,
 } from './courses';
 import { getWidget, getWidgets, saveWidget } from './storage';
-import type { Course, CourseProgress } from './courseTypes';
+import type { Course, CourseChapter, CourseProgress } from './courseTypes';
 import type { Widget } from './types';
 import { defaultSettings } from '../widgets/registry';
 
@@ -115,48 +117,48 @@ function widgetTitel(id: string): string | undefined {
 
 describe('versies van gedeelde inhoud (LL3/CU5)', () => {
   it('bewaart de versie van de bron in plaats van "nu" te stempelen', () => {
-    adoptSharedCourse(viaLink(course()), [widget()]);
+    adoptSharedCourse(viaLink(course()), [widget()], { gedeeld: true });
     expect(getCourse('c1')!.updatedAt).toBe(50_000);
     expect(getWidget('w1')!.updatedAt).toBe(50_000);
   });
 
   it('v1 → v2 nieuwer: vervangen; v2 → v1 ouder (oude link): blijft v2', () => {
-    const r1 = adoptSharedCourse(viaLink(course()), [widget()]);
+    const r1 = adoptSharedCourse(viaLink(course()), [widget()], { gedeeld: true });
     expect(r1.added).toBe(2);
 
     const v2 = course({ title: 'Waterkringloop v2', updatedAt: 60_000 });
     const w2 = widget({ title: 'Quiz v2', updatedAt: 60_000 });
-    const r2 = adoptSharedCourse(viaLink(v2), [w2]);
+    const r2 = adoptSharedCourse(viaLink(v2), [w2], { gedeeld: true });
     expect(r2.updated).toBe(2);
     expect(getCourse('c1')!.title).toBe('Waterkringloop v2');
     expect(widgetTitel('w1')).toBe('Quiz v2');
 
-    const r3 = adoptSharedCourse(viaLink(course()), [widget()]);
+    const r3 = adoptSharedCourse(viaLink(course()), [widget()], { gedeeld: true });
     expect(r3.updated).toBe(0);
     expect(getCourse('c1')!.title).toBe('Waterkringloop v2');
     expect(widgetTitel('w1')).toBe('Quiz v2');
   });
 
   it('een versie uit de toekomst wordt nu: ze kan later gewoon bijgewerkt worden', () => {
-    adoptSharedContent([], [widget({ updatedAt: 9_999_999_999_999 })]);
+    adoptSharedContent([], [widget({ updatedAt: 9_999_999_999_999 })], { gedeeld: true });
     expect(getWidget('w1')!.updatedAt).toBe(100_000);
     later();
-    adoptSharedContent([], [widget({ title: 'Echte v2', updatedAt: Date.now() })]);
+    adoptSharedContent([], [widget({ title: 'Echte v2', updatedAt: Date.now() })], { gedeeld: true });
     expect(widgetTitel('w1')).toBe('Echte v2');
   });
 
   it('een aangepaste kopie is eigen werk geworden: geen stille update meer', () => {
-    adoptSharedContent([], [widget()]);
+    adoptSharedContent([], [widget()], { gedeeld: true });
     later();
     saveWidget({ ...getWidget('w1')!, title: 'Mijn aanpassing' });
     later();
-    const res = adoptSharedContent([], [widget({ title: 'Versie van de bron', updatedAt: Date.now() })]);
+    const res = adoptSharedContent([], [widget({ title: 'Versie van de bron', updatedAt: Date.now() })], { gedeeld: true });
     expect(res.kept).toBe(1);
     expect(widgetTitel('w1')).toBe('Mijn aanpassing');
   });
 
   it('dezelfde widget in twee cursussen: de nieuwste versie wint', () => {
-    adoptSharedContent([], [widget({ title: 'oud', updatedAt: 1000 }), widget({ title: 'nieuw', updatedAt: 2000 })]);
+    adoptSharedContent([], [widget({ title: 'oud', updatedAt: 1000 }), widget({ title: 'nieuw', updatedAt: 2000 })], { gedeeld: true });
     expect(widgetTitel('w1')).toBe('nieuw');
   });
 });
@@ -179,7 +181,7 @@ describe('eigen werk van de leerkracht (V3)', () => {
     expect(conflicten.map(conflictKey).sort()).toEqual(['course:c1', 'widget:w1']);
     expect(conflicten.every((c) => !c.older)).toBe(true);
 
-    const res = adoptSharedCourse(gekaapt, [w]);
+    const res = adoptSharedCourse(gekaapt, [w], { gedeeld: true });
     expect(res.kept).toBe(2);
     expect(getCourse('c1')!.title).toBe('Mijn cursus');
     expect(widgetTitel('w1')).toBe('Mijn quiz');
@@ -192,13 +194,13 @@ describe('eigen werk van de leerkracht (V3)', () => {
     const nieuw = viaLink(course({ title: 'Nieuwe versie', updatedAt: Date.now() }));
     const w = widget({ title: 'Nieuwe quiz', folderId: 'map-van-collega', updatedAt: Date.now() });
     const conflicten = await findSharedConflicts([nieuw], [w]);
-    adoptSharedCourse(nieuw, [w], { conflicts: { choice: 'bijwerken', keys: conflicten.map(conflictKey) } });
+    adoptSharedCourse(nieuw, [w], { gedeeld: true, conflicts: { choice: 'bijwerken', keys: conflicten.map(conflictKey) } });
     expect(getCourse('c1')!.title).toBe('Nieuwe versie');
     expect(getWidget('w1')!.title).toBe('Nieuwe quiz');
     expect(getWidget('w1')!.folderId).toBe('mijn-map');
     // Vanaf nu een zuivere kopie: een nog nieuwere versie werkt stil bij.
     later();
-    adoptSharedContent([], [widget({ title: 'Nog nieuwer', updatedAt: Date.now() })]);
+    adoptSharedContent([], [widget({ title: 'Nog nieuwer', updatedAt: Date.now() })], { gedeeld: true });
     expect(widgetTitel('w1')).toBe('Nog nieuwer');
   });
 
@@ -207,7 +209,7 @@ describe('eigen werk van de leerkracht (V3)', () => {
     const nieuw = viaLink(course({ title: 'Versie collega', updatedAt: Date.now() }));
     const w = widget({ title: 'Quiz collega', updatedAt: Date.now() });
     const conflicten = await findSharedConflicts([nieuw], [w]);
-    const res = adoptSharedCourse(nieuw, [w], { conflicts: { choice: 'kopie', keys: conflicten.map(conflictKey) } });
+    const res = adoptSharedCourse(nieuw, [w], { gedeeld: true, conflicts: { choice: 'kopie', keys: conflicten.map(conflictKey) } });
     expect(res.copied).toBe(2);
     // Eigen werk ongewijzigd.
     expect(getCourse('c1')!.title).toBe('Mijn cursus');
@@ -235,7 +237,7 @@ describe('eigen werk van de leerkracht (V3)', () => {
     const w = widget({ title: 'Quiz collega', updatedAt: Date.now() });
     const conflicten = await findSharedConflicts([zelfde], [w]);
     expect(conflicten.map(conflictKey)).toEqual(['widget:w1']);
-    const res = adoptSharedCourse(zelfde, [w], { conflicts: { choice: 'kopie', keys: conflicten.map(conflictKey) } });
+    const res = adoptSharedCourse(zelfde, [w], { gedeeld: true, conflicts: { choice: 'kopie', keys: conflicten.map(conflictKey) } });
     const kopieCursus = getCourse(res.courseIds.get('c1')!)!;
     expect(kopieCursus.id).not.toBe('c1');
     const blok = kopieCursus.chapters[0].sections[0].blocks[1];
@@ -249,7 +251,7 @@ describe('eigen werk van de leerkracht (V3)', () => {
     const nieuw = viaLink(course({ title: 'Versie collega', updatedAt: Date.now() }));
     const extra = widget({ id: 'w2', code: 'WEXTRA', title: 'Extra oefening', updatedAt: Date.now() });
     const conflicten = await findSharedConflicts([nieuw], [extra]);
-    adoptSharedCourse(nieuw, [extra], { conflicts: { choice: 'houden', keys: conflicten.map(conflictKey) } });
+    adoptSharedCourse(nieuw, [extra], { gedeeld: true, conflicts: { choice: 'houden', keys: conflicten.map(conflictKey) } });
     expect(getCourse('c1')!.title).toBe('Mijn cursus');
     expect(widgetTitel('w2')).toBe('Extra oefening');
   });
@@ -267,10 +269,10 @@ describe('eigen werk van de leerkracht (V3)', () => {
     const metOuder = await findSharedConflicts([ouder], [], { includeOlder: true });
     expect(metOuder).toHaveLength(1);
     expect(metOuder[0].older).toBe(true);
-    adoptSharedCourse(ouder, []);
+    adoptSharedCourse(ouder, [], { gedeeld: true });
     expect(getCourse('c1')!.title).toBe('Mijn cursus');
     // Bewust terugzetten mag wel.
-    adoptSharedCourse(ouder, [], { conflicts: { choice: 'bijwerken', keys: metOuder.map(conflictKey) } });
+    adoptSharedCourse(ouder, [], { gedeeld: true, conflicts: { choice: 'bijwerken', keys: metOuder.map(conflictKey) } });
     expect(getCourse('c1')!.title).toBe('Oude back-up');
   });
 
@@ -282,37 +284,37 @@ describe('eigen werk van de leerkracht (V3)', () => {
     const nieuw = viaLink(course({ title: 'Nieuw', updatedAt: 90_000 }));
     const w = widget({ title: 'Nieuwe quiz', updatedAt: 90_000 });
     expect((await findSharedConflicts([nieuw], [w])).map(conflictKey).sort()).toEqual(['course:c1', 'widget:w1']);
-    adoptSharedCourse(nieuw, [w]);
+    adoptSharedCourse(nieuw, [w], { gedeeld: true });
     expect(getCourse('c1')!.title).toBe('Oude cursus');
     expect(widgetTitel('w1')).toBe('Oude kopie');
   });
 
   it('een kapot register breekt niets (alles telt dan als eigen werk)', async () => {
-    adoptSharedContent([], [widget()]);
+    adoptSharedContent([], [widget()], { gedeeld: true });
     localStorage.setItem('wf.gedeeld.v1', '{kapot');
     later();
-    const res = adoptSharedContent([], [widget({ title: 'v2', updatedAt: Date.now() })]);
+    const res = adoptSharedContent([], [widget({ title: 'v2', updatedAt: Date.now() })], { gedeeld: true });
     expect(res.kept).toBe(1);
     expect(widgetTitel('w1')).toBe('Quiz over België');
     localStorage.setItem('wf.gedeeld.v1', JSON.stringify({ c: 'x', w: [[1, 2], ['w1', 'x'], null] }));
-    expect(adoptSharedContent([], [widget({ title: 'v3', updatedAt: Date.now() })]).kept).toBe(1);
+    expect(adoptSharedContent([], [widget({ title: 'v3', updatedAt: Date.now() })], { gedeeld: true }).kept).toBe(1);
   });
 
   it('force (uitdrukkelijk "bijwerken"): cursus altijd, widgets alleen als ze nieuwer zijn', () => {
     eigenWerk();
-    adoptSharedCourse(viaLink(course({ title: 'Origineel voorbeeld', updatedAt: 10 })), [widget({ title: 'Oude quiz', updatedAt: 10 })], { force: true });
+    adoptSharedCourse(viaLink(course({ title: 'Origineel voorbeeld', updatedAt: 10 })), [widget({ title: 'Oude quiz', updatedAt: 10 })], { gedeeld: true, force: true });
     expect(getCourse('c1')!.title).toBe('Origineel voorbeeld');
     expect(widgetTitel('w1')).toBe('Mijn quiz');
   });
 
   it('een id "__proto__" of "constructor" breekt het overnemen niet', () => {
     const rare = [widget({ id: '__proto__', code: 'PROTO1' }), widget({ id: 'constructor', code: 'CONST1' })];
-    const res = adoptSharedContent([], rare);
+    const res = adoptSharedContent([], rare, { gedeeld: true });
     expect(res.added).toBe(2);
     expect(getWidgets().map((w) => w.id).sort()).toEqual(['__proto__', 'constructor']);
     later();
     // Zuivere kopieën: het register vindt ze terug (Map, geen object met prototype).
-    const r2 = adoptSharedContent([], rare.map((w) => ({ ...w, title: 'v2', updatedAt: Date.now() })));
+    const r2 = adoptSharedContent([], rare.map((w) => ({ ...w, title: 'v2', updatedAt: Date.now() })), { gedeeld: true });
     expect(r2.updated).toBe(2);
     expect(({} as Record<string, unknown>).title).toBeUndefined();
   });
@@ -356,10 +358,10 @@ describe('sharedCourseDiffers', () => {
   });
 
   it('zuivere kopie, nieuwere versie: geen vraag, overnemen werkt stil bij', async () => {
-    adoptSharedCourse(viaLink(course()), [widget()]);
+    adoptSharedCourse(viaLink(course()), [widget()], { gedeeld: true });
     const v2 = viaLink(course({ title: 'v2', updatedAt: 60_000 }));
     expect(await sharedCourseDiffers(v2)).toBe(false);
-    adoptSharedCourse(v2, []);
+    adoptSharedCourse(v2, [], { gedeeld: true });
     expect(getCourse('c1')!.title).toBe('v2');
   });
 
@@ -385,7 +387,7 @@ describe('gedeeltelijke link', () => {
   });
 
   it('zuivere kopie: vervangt het gedeelde hoofdstuk, voegt nieuwe toe, laat de rest staan', async () => {
-    adoptSharedCourse(viaLink(metHoofdstukken()), []);
+    adoptSharedCourse(viaLink(metHoofdstukken()), [], { gedeeld: true });
     const deel = viaLink(course({
       updatedAt: 70_000,
       chapters: [
@@ -394,7 +396,7 @@ describe('gedeeltelijke link', () => {
       ],
     }));
     expect(await sharedCourseDiffers(deel, ['ch2', 'ch3'])).toBe(false);
-    adoptSharedCourse(deel, [], { partial: true });
+    adoptSharedCourse(deel, [], { gedeeld: true, partial: true });
     expect(getCourse('c1')!.chapters.map((ch) => ch.title)).toEqual(['Hoofdstuk ch1', 'H2 nieuw', 'H3']);
   });
 
@@ -406,10 +408,255 @@ describe('gedeeltelijke link', () => {
       chapters: [{ id: 'ch2', title: 'H2 van de link', sections: [{ id: 's-ch2', title: 'S', blocks: [] }] }],
     }));
     expect(await sharedCourseDiffers(deel, ['ch2'])).toBe(true);
-    adoptSharedCourse(deel, [], { partial: true });
+    adoptSharedCourse(deel, [], { gedeeld: true, partial: true });
     expect(getCourse('c1')!.chapters.map((ch) => ch.title)).toEqual(['Hoofdstuk ch1', 'Hoofdstuk ch2']);
-    adoptSharedCourse(deel, [], { partial: true, force: true });
+    adoptSharedCourse(deel, [], { gedeeld: true, partial: true, force: true });
     expect(getCourse('c1')!.chapters.map((ch) => ch.title)).toEqual(['Hoofdstuk ch1', 'H2 van de link']);
+  });
+});
+
+// ── Herstelpakket H1: de linkroute zoals CourseOpenPage ze doorloopt ───────
+
+/** Een deellink zoals de lezer ze krijgt: door decodeCourseFromParam. */
+function link(c: Course, w: Widget[] = [], partial = false): DecodedCourse {
+  const d = LZString.compressToEncodedURIComponent(JSON.stringify({ v: 1, kind: 'cursus', c, w, ...(partial ? { partial: true } : {}) }));
+  return decodeCourseFromParam(d)!;
+}
+
+/**
+ * Hetzelfde pad als CourseOpenPage: eerst de vraag (sharedLinkQuestion), bij
+ * een vraag de keuze van de gebruiker, anders stil overnemen met `gedeeld`.
+ * Geeft de vraag terug (null = geen vraag).
+ */
+async function openLink(d: DecodedCourse, kies: 'bijwerken' | 'houden' = 'houden'): Promise<SharedLinkQuestion | null> {
+  const existing = getCourse(d.course.id);
+  const vraag = existing
+    ? await sharedLinkQuestion(d.course, d.partial ? d.course.chapters.map((ch) => ch.id) : undefined, d.widgets)
+    : null;
+  if (existing && vraag) {
+    if (kies === 'bijwerken') adoptSharedLinkUpdate(d, vraag);
+    return vraag;
+  }
+  adoptSharedCourse(d.course, d.widgets, { partial: d.partial, gedeeld: true });
+  return null;
+}
+
+function hfst(id: string, tekst: string): CourseChapter {
+  return { id, title: id, sections: [{ id: `s-${id}`, title: 'S', optional: false, blocks: [{ id: `b-${id}`, type: 'text', markdown: tekst }] }] };
+}
+
+/** De tekst van het eerste blok van elk hoofdstuk van c1. */
+function teksten(): string[] {
+  return getCourse('c1')!.chapters.map((ch) => {
+    const b = ch.sections[0].blocks[0];
+    return b.type === 'text' ? b.markdown : b.type;
+  });
+}
+
+describe('S1: alleen wat via link of pakket binnenkwam, wordt stil bijgewerkt', () => {
+  it('bestand of voorbeeld: een latere link met dezelfde id\'s vraagt eerst en overschrijft zonder keuze niets', async () => {
+    // Een teruggezette back-up (CoursesPage.finishImport): zonder `gedeeld`.
+    adoptSharedCourse(viaLink(course({ title: 'Mijn back-up' })), [widget({ title: 'Mijn quiz' })]);
+    later();
+    // Een leerling met een deellink past de cursus aan en deelt ze opnieuw:
+    // zelfde id's, stempel "nu".
+    const nep = link(course({ title: 'Nagemaakt', updatedAt: Date.now() }), [widget({ title: 'Nagemaakte quiz', updatedAt: Date.now() })]);
+    expect(await sharedCourseDiffers(nep.course, undefined, nep.widgets)).toBe(true);
+    const vraag = await openLink(nep, 'houden');
+    expect(vraag).not.toBeNull();
+    expect(vraag!.course).toBe(true);
+    expect(vraag!.widgets.map(conflictKey)).toEqual(['widget:w1']);
+    // Ook wie de vraag overslaat (gewoon overnemen met `gedeeld`), overschrijft niets.
+    const res = adoptSharedCourse(nep.course, nep.widgets, { gedeeld: true });
+    expect(res.kept).toBe(2);
+    expect(getCourse('c1')!.title).toBe('Mijn back-up');
+    expect(widgetTitel('w1')).toBe('Mijn quiz');
+  });
+
+  it('een bestand over een zuivere kopie maakt er eigen werk van: de volgende link vraagt eerst', async () => {
+    await openLink(link(course(), [widget()]));
+    later();
+    // Zelfde cursus nu uit een bestand, nieuwere versie (de leerkracht zette ze terug).
+    adoptSharedCourse(viaLink(course({ title: 'Uit het bestand', updatedAt: Date.now() })), [widget({ title: 'Quiz uit het bestand', updatedAt: Date.now() })]);
+    expect(getCourse('c1')!.title).toBe('Uit het bestand');
+    later();
+    const vraag = await openLink(link(course({ title: 'Link', updatedAt: Date.now() }), [widget({ title: 'Quiz uit de link', updatedAt: Date.now() })]));
+    expect(vraag?.course).toBe(true);
+    expect(vraag?.widgets.map(conflictKey)).toEqual(['widget:w1']);
+    expect(getCourse('c1')!.title).toBe('Uit het bestand');
+    expect(widgetTitel('w1')).toBe('Quiz uit het bestand');
+  });
+
+  it('LL3: link v1 → link v2 gaat stil, een oude link daarna zet niets terug', async () => {
+    expect(await openLink(link(course({ title: 'v1', updatedAt: 40_000 }), [widget({ title: 'Quiz v1', updatedAt: 40_000 })]))).toBeNull();
+    later();
+    expect(await openLink(link(course({ title: 'v2', updatedAt: 60_000 }), [widget({ title: 'Quiz v2', updatedAt: 60_000 })]))).toBeNull();
+    expect(getCourse('c1')!.title).toBe('v2');
+    expect(widgetTitel('w1')).toBe('Quiz v2');
+    later();
+    expect(await openLink(link(course({ title: 'v1', updatedAt: 40_000 }), [widget({ title: 'Quiz v1', updatedAt: 40_000 })]))).toBeNull();
+    expect(getCourse('c1')!.title).toBe('v2');
+    expect(widgetTitel('w1')).toBe('Quiz v2');
+  });
+});
+
+describe('S3: de vraag op de linkroute noemt de oefeningen, en bijwerken vervangt alleen wat ze noemde', () => {
+  it('eigen oefening, cursus zuiver: de link vraagt eerst en noemt de oefening', async () => {
+    await openLink(link(course(), [widget({ title: 'Bron v1' })]));
+    later();
+    saveWidget({ ...getWidget('w1')!, title: 'Mijn eigen quiz' });
+    later();
+    const v2 = link(course({ title: 'Cursus v2', updatedAt: Date.now() }), [widget({ title: 'Bron v2', updatedAt: Date.now() })]);
+    const vraag = await openLink(v2, 'houden');
+    expect(vraag).toEqual({
+      course: false,
+      widgets: [expect.objectContaining({ kind: 'widget', id: 'w1', localTitle: 'Mijn eigen quiz', title: 'Bron v2' })],
+    });
+    // "Huidige versie behouden": niets veranderd.
+    expect(widgetTitel('w1')).toBe('Mijn eigen quiz');
+    // "Bijwerken" vervangt wat de vraag noemde; de zuivere cursus volgt de gewone regels.
+    adoptSharedLinkUpdate(v2, vraag!);
+    expect(widgetTitel('w1')).toBe('Bron v2');
+    expect(getCourse('c1')!.title).toBe('Cursus v2');
+  });
+
+  it('bijwerken laat eigen werk staan dat de vraag niet noemde (ook geen oudere cursus terug)', async () => {
+    saveCourse(course({ title: 'Mijn cursus' }));
+    saveWidget(widget({ title: 'Mijn quiz' }));
+    later();
+    // Oudere cursus (zou niets vervangen), nieuwere en andere oefening.
+    const d = link(
+      course({ title: 'Oude cursus', updatedAt: 10 }),
+      [widget({ title: 'Quiz uit de link', updatedAt: Date.now() }), widget({ id: 'w2', code: 'WTWEE1', title: 'Tweede uit de link', updatedAt: Date.now() })],
+    );
+    const vraag = await sharedLinkQuestion(d.course, undefined, d.widgets);
+    expect(vraag).toEqual({ course: false, widgets: [expect.objectContaining({ id: 'w1' })] });
+    // Terwijl de vraag openstaat, maakt de leerkracht in een ander tabblad een eigen w2.
+    later();
+    saveWidget(widget({ id: 'w2', code: 'WTWEE1', title: 'Mijn tweede quiz' }));
+    later();
+    adoptSharedLinkUpdate(d, vraag!);
+    expect(widgetTitel('w1')).toBe('Quiz uit de link');
+    expect(widgetTitel('w2')).toBe('Mijn tweede quiz');
+    expect(getCourse('c1')!.title).toBe('Mijn cursus');
+  });
+
+  it('noemt de vraag de cursus, dan neemt bijwerken ook een gedeeltelijke link in eigen werk over', async () => {
+    saveCourse(course({ title: 'Mijn cursus', chapters: [hfst('ch1', 'eigen 1'), hfst('ch2', 'eigen 2')] }));
+    later();
+    const deel = link(course({ updatedAt: Date.now(), chapters: [hfst('ch2', 'link 2')] }), [], true);
+    const vraag = await openLink(deel, 'bijwerken');
+    expect(vraag).toEqual({ course: true, widgets: [] });
+    expect(teksten()).toEqual(['eigen 1', 'link 2']);
+  });
+
+  it('sharedLinkQuestion geeft dezelfde beslissing als sharedCourseDiffers met de widgets', async () => {
+    await openLink(link(course(), [widget()]));
+    later();
+    const zelfde = link(course(), [widget()]);
+    expect(await sharedLinkQuestion(zelfde.course, undefined, zelfde.widgets)).toBeNull();
+    expect(await sharedCourseDiffers(zelfde.course, undefined, zelfde.widgets)).toBe(false);
+    saveWidget({ ...getWidget('w1')!, title: 'Eigen' });
+    later();
+    const nieuw = link(course(), [widget({ title: 'Nieuw', updatedAt: Date.now() })]);
+    expect(await sharedLinkQuestion(nieuw.course, undefined, nieuw.widgets)).not.toBeNull();
+    expect(await sharedCourseDiffers(nieuw.course, undefined, nieuw.widgets)).toBe(true);
+  });
+});
+
+describe('G4: bij een zuivere kopie volstaat "niet ouder"', () => {
+  it('gedeeltelijk, daarna volledig met dezelfde versie: alle hoofdstukken', async () => {
+    const vol = course({ updatedAt: 60_000, chapters: [hfst('ch1', 'a1'), hfst('ch2', 'a2'), hfst('ch3', 'a3')] });
+    expect(await openLink(link({ ...vol, chapters: [vol.chapters[0]] }, [], true))).toBeNull();
+    expect(teksten()).toEqual(['a1']);
+    later(86_400_000);
+    expect(await openLink(link(vol))).toBeNull();
+    expect(teksten()).toEqual(['a1', 'a2', 'a3']);
+  });
+
+  it('twee gedeeltelijke links na een bewerking geven samen de nieuwe stand', async () => {
+    await openLink(link(course({ updatedAt: 60_000, chapters: [hfst('ch1', 'a1'), hfst('ch2', 'a2'), hfst('ch3', 'a3')] })));
+    const v2 = course({ updatedAt: 70_000, chapters: [hfst('ch1', 'a1'), hfst('ch2', 'N2'), hfst('ch3', 'N3')] });
+    later();
+    expect(await openLink(link({ ...v2, chapters: [v2.chapters[1]] }, [], true))).toBeNull();
+    later();
+    expect(await openLink(link({ ...v2, chapters: [v2.chapters[2]] }, [], true))).toBeNull();
+    expect(teksten()).toEqual(['a1', 'N2', 'N3']);
+  });
+
+  it('een oude volledige link na gedeeltelijke updates zet niets terug', async () => {
+    const v1 = course({ updatedAt: 60_000, chapters: [hfst('ch1', 'a1'), hfst('ch2', 'a2'), hfst('ch3', 'a3')] });
+    await openLink(link(v1));
+    const v2 = course({ updatedAt: 70_000, chapters: [hfst('ch1', 'a1'), hfst('ch2', 'N2'), hfst('ch3', 'N3')] });
+    later();
+    await openLink(link({ ...v2, chapters: [v2.chapters[1], v2.chapters[2]] }, [], true));
+    later();
+    expect(await openLink(link(v1))).toBeNull();
+    expect(teksten()).toEqual(['a1', 'N2', 'N3']);
+  });
+
+  it('een bestand met dezelfde versie over een gedeeltelijke zuivere kopie: geen vraag, alle hoofdstukken', async () => {
+    const vol = course({ updatedAt: 60_000, chapters: [hfst('ch1', 'a1'), hfst('ch2', 'a2')] });
+    await openLink(link({ ...vol, chapters: [vol.chapters[0]] }, [], true));
+    later();
+    // Zoals CoursesPage een bestand inleest: ook oudere versies voorleggen.
+    expect(await findSharedConflicts([viaLink(vol)], [], { includeOlder: true })).toEqual([]);
+    adoptSharedCourse(viaLink(vol), []);
+    expect(teksten()).toEqual(['a1', 'a2']);
+  });
+
+  it('eigen werk: een even oude, andere versie vraagt niets en vervangt niets', async () => {
+    saveCourse(course({ title: 'Mijn cursus' }));
+    const zelfdeStempel = getCourse('c1')!.updatedAt;
+    later();
+    expect(await openLink(link(course({ title: 'Anders', updatedAt: zelfdeStempel })))).toBeNull();
+    expect(getCourse('c1')!.title).toBe('Mijn cursus');
+  });
+
+  it('dezelfde link opnieuw openen bewaart de oefeningen niet opnieuw', async () => {
+    await openLink(link(course(), [widget()]));
+    later();
+    const schrijf = vi.spyOn(localStorage, 'setItem');
+    expect(await openLink(link(course(), [widget()]))).toBeNull();
+    expect(schrijf.mock.calls.filter(([k]) => k === 'wf.widgets.v1')).toHaveLength(0);
+    expect(widgetTitel('w1')).toBe('Quiz over België');
+  });
+});
+
+describe('S7c en S9: invoer uit bestanden en codes', () => {
+  it('een pdf-id met het voorvoegsel van de media wordt geweigerd', () => {
+    const PDF = 'data:application/pdf;base64,JVBERi0xLjQK';
+    const c = course({
+      chapters: [{ id: 'ch1', title: 'H', sections: [{ id: 's1', title: 'S', blocks: [
+        { id: 'p1', type: 'pdf', pdfId: 'm_0123456789abcdef0123456789abcdef', name: 'kaap.pdf' },
+        { id: 'p2', type: 'pdf', pdfId: 'echtepdf1', name: 'werkblad.pdf' },
+      ] }] }],
+    });
+    const res = importCourseJson(JSON.stringify({
+      app: 'boosterz', kind: 'cursus', v: 1, course: c, widgets: [],
+      pdfs: [
+        { id: 'm_0123456789abcdef0123456789abcdef', name: 'kaap.pdf', dataUrl: PDF },
+        { id: 'echtepdf1', name: 'werkblad.pdf', dataUrl: PDF },
+      ],
+    }))!;
+    expect(res.pdfs.map((p) => p.id)).toEqual(['echtepdf1']);
+  });
+
+  it('voortgangscode: 1e999 en negatieve tijdstippen worden geweigerd (geen null in de opslag)', () => {
+    const raw = '{"courseId":"c1","studentName":"Emma","lastSeenAt":1,"startedAt":1e999,'
+      + '"sections":{"s1":{"openedAt":1e999,"completedAt":1e999,"secondsSpent":3},'
+      + '"s2":{"openedAt":-5,"completedAt":-1,"secondsSpent":1},"s3":{"openedAt":7000,"completedAt":8000,"secondsSpent":2}}}';
+    const p = decodeCourseProgress('WFC1.' + LZString.compressToEncodedURIComponent(raw))!;
+    expect(p.startedAt).toBe(100_000);
+    expect(p.sections.s1.openedAt).toBe(100_000);
+    expect(p.sections.s1.completedAt).toBeUndefined();
+    expect(p.sections.s2.openedAt).toBe(100_000);
+    expect(p.sections.s2.completedAt).toBeUndefined();
+    expect(p.sections.s3).toMatchObject({ openedAt: 7000, completedAt: 8000 });
+    expect(importProgressCode(p)).toBe(true);
+    const bewaard = getStudentProgress('c1', 'Emma')!;
+    expect(bewaard.startedAt).toBe(100_000);
+    expect(bewaard.sections.s1.openedAt).toBe(100_000);
   });
 });
 
@@ -486,7 +733,7 @@ describe('saveCourse (CU7)', () => {
 
   it('adoptSharedContent meldt een mislukte bewaring (ok: false)', () => {
     failKey = 'wf.widgets.v1';
-    expect(adoptSharedContent([], [widget()]).ok).toBe(false);
+    expect(adoptSharedContent([], [widget()], { gedeeld: true }).ok).toBe(false);
   });
 });
 

@@ -14,6 +14,14 @@
 //  LL9  "Link of bestand zelf openen" na een kapotte klaslink toont het loket.
 //  LL12 Een geplakte klaslink met %2B of spaties werkt.
 //
+// Herstelpakket H1 (cursuslink, /cursus/open):
+//  S1   Een cursus uit een bestand (back-up) of het voorbeeld is eigen werk:
+//       een link met dezelfde id's vervangt ze niet stil, er komt een vraag.
+//  S3   Een eigen oefening in een zuivere cursus: de link vraagt eerst en
+//       noemt de oefening; "Bijwerken" vervangt alleen wat de vraag noemde.
+//  G4   Eerst een gedeeltelijke link, daarna de volledige met dezelfde
+//       versie: alle hoofdstukken. Leerlinglink v1 → v2 werkt stil bij.
+//
 // Per scenario een vers browserprofiel; verzoeken naar buiten worden
 // afgebroken. Faalt hard (exit 1) bij een mislukte controle of paginafout.
 
@@ -310,6 +318,223 @@ console.log('CU4/CU15a/V3. Cursusbestand exporteren en terug importeren');
     check('"Vervangen": de versie uit het bestand staat er', vind(s.courses, 'c_bestand')?.title === 'Versie collega' && vind(s.widgets, 'w_ged')?.title === 'Quiz collega');
   }
   check('cursusbestand: geen paginafout', t.errors.length === 0, t.errors.join(' | '));
+  await t.ctx.close();
+}
+
+// ── H1: cursuslinks (/cursus/open) ──────────────────────────────────────────
+
+const cursusLink = (c, w = [], partial = false) => `${BASE}#/cursus/open?d=${lz({ v: 1, kind: 'cursus', c, w, ...(partial ? { partial: true } : {}) })}`;
+
+/** Cursuslink openen en wachten tot de lezer of de vraag er staat. */
+async function openCursusLink(page, url) {
+  await page.goto(url);
+  await page.waitForFunction(
+    () => /#\/cursus\/lees\//.test(location.hash) || [...document.querySelectorAll('h1')].some((h) => /bijwerken\?/.test(h.textContent || '')),
+    null, { timeout: 10000 },
+  ).catch(() => {});
+  await sleep(300);
+}
+const inLezer = (page) => /#\/cursus\/lees\//.test(page.url());
+const linkVraag = (page) => page.getByRole('heading', { level: 1, name: /bijwerken\?/ }).isVisible().catch(() => false);
+const genoemd = (page) => page.getByRole('list', { name: 'Oefeningen die zouden veranderen' }).innerText().catch(() => '');
+const register = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('wf.gedeeld.v1') || '{"c":[],"w":[]}'));
+
+/** Cursus met hoofdstukken [id, tekst]. */
+function cursusMet({ id = 'c_g4', title = 'Cursus G4', updatedAt, hoofdstukken }) {
+  return {
+    id, title, author: '', coverEmoji: '💧', code: 'CG4001', createdAt: 1, updatedAt,
+    settings: { accentColor: '#4f46e5', requireName: false, showProgressToStudent: true },
+    chapters: hoofdstukken.map(([hid, tekst]) => ({
+      id: hid, title: 'Hoofdstuk ' + hid,
+      sections: [{ id: 's-' + hid, title: 'Sectie', optional: false, blocks: [{ id: 'b-' + hid, type: 'text', markdown: tekst }] }],
+    })),
+  };
+}
+const tekstenVan = (c) => (c?.chapters ?? []).map((ch) => ch.sections[0].blocks[0].markdown);
+
+console.log('S1. Teruggezette back-up: een leerlinglink met dezelfde id\'s vervangt ze niet stil');
+{
+  const t = await freshPage({ width: 1280, height: 900 });
+  await t.page.goto(BASE + '#/cursussen');
+  await t.page.locator('input[type=file][accept*="json"]').first().waitFor({ state: 'attached', timeout: 10000 }).catch(() => {});
+  const backup = {
+    app: 'boosterz', kind: 'cursus', v: 1,
+    course: cursus({ id: 'c_back', title: 'Mijn back-up', updatedAt: NU - 600_000, widgetId: 'w_back' }),
+    widgets: [quiz({ id: 'w_back', title: 'Mijn quiz', answer: true, updatedAt: NU - 600_000 })],
+  };
+  backup.widgets[0].code = 'BACK01';
+  await t.page.locator('input[type=file][accept*="json"]').first().setInputFiles({ name: 'back-up.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
+  await t.page.getByText(/Mijn back-up" geïmporteerd/).first().waitFor({ timeout: 8000 }).catch(() => {});
+  let s = await opslag(t.page);
+  check('back-up teruggezet', vind(s.courses, 'c_back')?.title === 'Mijn back-up' && vind(s.widgets, 'w_back')?.title === 'Mijn quiz');
+  const reg = await register(t.page);
+  check('een bestand komt niet in het register van gedeelde kopieën', !reg.c.some(([id]) => id === 'c_back') && !reg.w.some(([id]) => id === 'w_back'), JSON.stringify(reg));
+
+  // Een leerling met de deellink past de cursus aan en deelt ze opnieuw.
+  const nepQuiz = { ...quiz({ id: 'w_back', title: 'Nagemaakte quiz', answer: false, updatedAt: NU - 1000 }), code: 'BACK01' };
+  const nep = cursusLink(cursus({ id: 'c_back', title: 'Nagemaakt', updatedAt: NU - 1000, widgetId: 'w_back' }), [nepQuiz]);
+  await openCursusLink(t.page, nep);
+  check('nagemaakte link: eerst een vraag', await linkVraag(t.page) && !inLezer(t.page));
+  check('de vraag noemt de cursus en de oefening',
+    await t.page.getByRole('heading', { level: 1, name: 'Cursus bijwerken?' }).isVisible().catch(() => false)
+    && /Mijn quiz/.test(await genoemd(t.page)));
+  s = await opslag(t.page);
+  check('terwijl de vraag openstaat, is er niets veranderd', vind(s.courses, 'c_back')?.title === 'Mijn back-up' && vind(s.widgets, 'w_back')?.title === 'Mijn quiz');
+  await t.page.getByRole('button', { name: 'Huidige versie behouden en openen' }).click({ timeout: 5000 }).catch(() => {});
+  await t.page.waitForURL(/#\/cursus\/lees\//, { timeout: 8000 }).catch(() => {});
+  s = await opslag(t.page);
+  check('"Huidige versie behouden": de lezer opent, back-up ongewijzigd',
+    inLezer(t.page) && vind(s.courses, 'c_back')?.title === 'Mijn back-up' && vind(s.widgets, 'w_back')?.title === 'Mijn quiz');
+  check('S1 back-up: geen paginafout', t.errors.length === 0, t.errors.join(' | '));
+  await t.ctx.close();
+}
+
+console.log('S1. Voorbeeldcursus: een link met dezelfde id vervangt ze niet stil');
+{
+  const t = await freshPage({ width: 1280, height: 900 });
+  await t.page.goto(BASE + '#/cursussen?voorbeeld=1');
+  await t.page.waitForFunction(
+    () => JSON.parse(localStorage.getItem('wf.courses.v1') || '[]').some((c) => c.id === 'nw-voorbeeld-1e-graad'),
+    null, { timeout: 60000 },
+  ).catch(() => {});
+  let s = await opslag(t.page);
+  const voorbeeld = vind(s.courses, 'nw-voorbeeld-1e-graad');
+  check('voorbeeldcursus geladen', !!voorbeeld);
+  const reg = await register(t.page);
+  check('het voorbeeld komt niet in het register van gedeelde kopieën', !reg.c.some(([id]) => id === 'nw-voorbeeld-1e-graad'), JSON.stringify(reg.c));
+  if (voorbeeld) {
+    const nep = cursusLink(cursus({ id: 'nw-voorbeeld-1e-graad', title: 'Nagemaakt voorbeeld', updatedAt: NU - 1000, widgetId: 'w_nep' }), []);
+    await openCursusLink(t.page, nep);
+    check('link met de id van het voorbeeld: eerst een vraag', await linkVraag(t.page) && !inLezer(t.page));
+    await t.page.getByRole('button', { name: 'Huidige versie behouden en openen' }).click({ timeout: 5000 }).catch(() => {});
+    await t.page.waitForURL(/#\/cursus\/lees\//, { timeout: 8000 }).catch(() => {});
+    s = await opslag(t.page);
+    const na = vind(s.courses, 'nw-voorbeeld-1e-graad');
+    check('"Huidige versie behouden": voorbeeld ongewijzigd en de lezer opent met de eigen code',
+      inLezer(t.page) && na?.title === voorbeeld.title && na?.chapters.length === voorbeeld.chapters.length && t.page.url().includes('/cursus/lees/' + voorbeeld.code));
+  }
+  check('S1 voorbeeld: geen paginafout', t.errors.length === 0, t.errors.join(' | '));
+  await t.ctx.close();
+}
+
+console.log('S3. Eigen oefening in een zuivere cursus: de link vraagt eerst en noemt de oefening');
+{
+  const t = await freshPage();
+  const v1 = cursus({ title: 'Cursus v1', updatedAt: NU - 7200_000 });
+  await openCursusLink(t.page, cursusLink(v1, [quiz({ title: 'Quiz v1', answer: false, updatedAt: NU - 7200_000 })]));
+  check('v1: zonder vraag de lezer in', inLezer(t.page) && !(await linkVraag(t.page)));
+  // De leerling (of leerkracht) past de oefening zelf aan: eigen werk.
+  await t.page.evaluate(() => {
+    const ws = JSON.parse(localStorage.getItem('wf.widgets.v1') || '[]');
+    const w = ws.find((x) => x.id === 'w_ged');
+    w.title = 'Mijn eigen quiz';
+    w.updatedAt = Date.now();
+    localStorage.setItem('wf.widgets.v1', JSON.stringify(ws));
+  });
+  // De bron maakt daarna een nieuwere versie (stempel ná de eigen bewerking).
+  await sleep(50);
+  const T2 = Date.now();
+  const v2 = cursusLink(cursus({ title: 'Cursus v2', updatedAt: T2 }), [quiz({ title: 'Quiz v2', answer: true, updatedAt: T2 })]);
+  await openCursusLink(t.page, v2);
+  check('v2: eerst een vraag (de oefening is eigen werk)', await linkVraag(t.page) && !inLezer(t.page));
+  check('de vraag gaat over de oefening en noemt ze bij naam',
+    await t.page.getByRole('heading', { level: 1, name: 'Oefening bijwerken?' }).isVisible().catch(() => false)
+    && /Mijn eigen quiz/.test(await genoemd(t.page)) && /Quiz v2/.test(await genoemd(t.page)));
+  const tekst = (await t.page.locator('main').innerText()).toLowerCase();
+  check('leerlingtaal: "oefening", nooit "widget"', tekst.includes('oefening') && !tekst.includes('widget'));
+  check('vraag: één main en één h1', (await t.page.locator('main').count()) === 1 && (await t.page.locator('h1').count()) === 1);
+  const hoogtes = [];
+  for (const k of ['Bijwerken en openen', 'Huidige versie behouden en openen']) {
+    hoogtes.push((await t.page.getByRole('button', { name: k }).boundingBox().catch(() => null))?.height ?? 0);
+  }
+  check('twee keuzes, elk minstens 44 px hoog', hoogtes.every((h) => h >= 44), hoogtes.join(','));
+  check('vraag op 390 px zonder horizontaal scrollen', await geenOverloop(t.page));
+
+  await t.page.getByRole('button', { name: 'Huidige versie behouden en openen' }).click({ timeout: 5000 }).catch(() => {});
+  await t.page.waitForURL(/#\/cursus\/lees\//, { timeout: 8000 }).catch(() => {});
+  let s = await opslag(t.page);
+  check('"Huidige versie behouden": eigen oefening blijft', inLezer(t.page) && vind(s.widgets, 'w_ged')?.title === 'Mijn eigen quiz');
+
+  await openCursusLink(t.page, v2);
+  check('opnieuw geopend: weer de vraag', await linkVraag(t.page));
+  await t.page.getByRole('button', { name: 'Bijwerken en openen' }).click({ timeout: 5000 }).catch(() => {});
+  await t.page.waitForURL(/#\/cursus\/lees\//, { timeout: 8000 }).catch(() => {});
+  s = await opslag(t.page);
+  const w = vind(s.widgets, 'w_ged');
+  check('"Bijwerken": de genoemde oefening en de zuivere cursus zijn bijgewerkt',
+    inLezer(t.page) && w?.title === 'Quiz v2' && w?.config.questions[0].answer === true && vind(s.courses, 'c_ged')?.title === 'Cursus v2');
+  check('S3: geen paginafout', t.errors.length === 0, t.errors.join(' | '));
+  await t.ctx.close();
+}
+
+console.log('S3. "Bijwerken" vervangt alleen wat de vraag noemde');
+{
+  const t = await freshPage();
+  // Eigen werk van de leerkracht: cursus en oefening, tien minuten geleden aangepast.
+  await t.page.evaluate(({ c, w }) => {
+    localStorage.setItem('wf.courses.v1', JSON.stringify([c]));
+    localStorage.setItem('wf.widgets.v1', JSON.stringify([w]));
+  }, { c: cursus({ title: 'Mijn cursus', updatedAt: NU - 600_000 }), w: quiz({ title: 'Mijn quiz', answer: true, updatedAt: NU - 600_000 }) });
+  // Een oude cursus (twee uur oud) met een nieuwere oefening en een tweede oefening.
+  const tweede = { ...quiz({ id: 'w_twee', title: 'Tweede uit de link', answer: false, updatedAt: NU - 1000 }), code: 'TWEE01' };
+  const url = cursusLink(cursus({ title: 'Oude cursus', updatedAt: NU - 7200_000 }), [quiz({ title: 'Quiz uit de link', answer: false, updatedAt: NU - 1000 }), tweede]);
+  await openCursusLink(t.page, url);
+  check('vraag over de oefening, niet over de (oudere) cursus',
+    await t.page.getByRole('heading', { level: 1, name: 'Oefening bijwerken?' }).isVisible().catch(() => false)
+    && /Mijn quiz/.test(await genoemd(t.page)) && !/Tweede/.test(await genoemd(t.page)));
+  // Terwijl de vraag openstaat, verschijnt er (bv. vanuit een ander tabblad)
+  // een eigen oefening met dezelfde id, ouder dan die uit de link. De vraag
+  // noemde ze niet, dus "Bijwerken" mag ze niet vervangen.
+  await t.page.evaluate(({ w }) => {
+    const ws = JSON.parse(localStorage.getItem('wf.widgets.v1') || '[]');
+    ws.push(w);
+    localStorage.setItem('wf.widgets.v1', JSON.stringify(ws));
+  }, { w: { ...tweede, title: 'Mijn tweede quiz', updatedAt: NU - 5000 } });
+  await t.page.getByRole('button', { name: 'Bijwerken en openen' }).click({ timeout: 5000 }).catch(() => {});
+  await t.page.waitForURL(/#\/cursus\/lees\//, { timeout: 8000 }).catch(() => {});
+  const s = await opslag(t.page);
+  check('de genoemde oefening is bijgewerkt', vind(s.widgets, 'w_ged')?.title === 'Quiz uit de link');
+  check('een eigen oefening die de vraag niet noemde, blijft', vind(s.widgets, 'w_twee')?.title === 'Mijn tweede quiz');
+  check('de oudere cursus uit de link zet de eigen cursus niet terug', vind(s.courses, 'c_ged')?.title === 'Mijn cursus');
+  check('S3 alleen genoemd: geen paginafout', t.errors.length === 0, t.errors.join(' | '));
+  await t.ctx.close();
+}
+
+console.log('G4 en LL3. Gedeeltelijke link, daarna de volledige met dezelfde versie; v1 → v2 stil');
+{
+  const t = await freshPage();
+  const V = NU - 7200_000;
+  const vol = cursusMet({ updatedAt: V, hoofdstukken: [['h1', 'a1'], ['h2', 'a2'], ['h3', 'a3']] });
+  await openCursusLink(t.page, cursusLink({ ...vol, chapters: [vol.chapters[0]] }, [], true));
+  let s = await opslag(t.page);
+  check('gedeeltelijke link: lezer, één hoofdstuk', inLezer(t.page) && tekstenVan(vind(s.courses, 'c_g4')).join() === 'a1');
+  await openCursusLink(t.page, cursusLink(vol));
+  s = await opslag(t.page);
+  check('volledige link met dezelfde versie: geen vraag, alle hoofdstukken',
+    inLezer(t.page) && !(await linkVraag(t.page)) && tekstenVan(vind(s.courses, 'c_g4')).join() === 'a1,a2,a3', tekstenVan(vind(s.courses, 'c_g4')).join());
+
+  // Tweede cursus: eerst volledig v1, daarna v2 in twee gedeeltelijke links.
+  const b = (over) => cursusMet({ id: 'c_g4b', title: 'Cursus G4b', ...over });
+  const b1 = b({ updatedAt: V, hoofdstukken: [['h1', 'a1'], ['h2', 'a2'], ['h3', 'a3']] });
+  await openCursusLink(t.page, cursusLink(b1));
+  s = await opslag(t.page);
+  check('leerlinglink v1 (volledig): drie hoofdstukken', tekstenVan(vind(s.courses, 'c_g4b')).join() === 'a1,a2,a3');
+  const b2 = b({ title: 'Cursus G4b v2', updatedAt: NU - 3600_000, hoofdstukken: [['h1', 'a1'], ['h2', 'N2'], ['h3', 'N3']] });
+  await openCursusLink(t.page, cursusLink({ ...b2, chapters: [b2.chapters[1]] }, [], true));
+  await openCursusLink(t.page, cursusLink({ ...b2, chapters: [b2.chapters[2]] }, [], true));
+  s = await opslag(t.page);
+  check('twee gedeeltelijke links van v2: samen de nieuwe stand, zonder vraag',
+    inLezer(t.page) && !(await linkVraag(t.page)) && tekstenVan(vind(s.courses, 'c_g4b')).join() === 'a1,N2,N3', tekstenVan(vind(s.courses, 'c_g4b')).join());
+
+  const b3 = b({ title: 'Cursus G4b v3', updatedAt: NU - 1000, hoofdstukken: [['h1', 'V3'], ['h2', 'N2'], ['h3', 'N3']] });
+  await openCursusLink(t.page, cursusLink(b3));
+  s = await opslag(t.page);
+  check('leerlinglink v3 (nieuwer): stil bijgewerkt', inLezer(t.page) && !(await linkVraag(t.page)) && vind(s.courses, 'c_g4b')?.title === 'Cursus G4b v3');
+  await openCursusLink(t.page, cursusLink(b1));
+  s = await opslag(t.page);
+  check('oude volledige link (v1) daarna: geen vraag, zet niets terug',
+    inLezer(t.page) && !(await linkVraag(t.page)) && vind(s.courses, 'c_g4b')?.title === 'Cursus G4b v3' && tekstenVan(vind(s.courses, 'c_g4b')).join() === 'V3,N2,N3');
+  check('G4: geen paginafout', t.errors.length === 0, t.errors.join(' | '));
   await t.ctx.close();
 }
 

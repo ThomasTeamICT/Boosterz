@@ -248,10 +248,12 @@ export function classPackConflicts(pack: ClassPack): Promise<SharedConflict[]> {
  * classPackConflicts). Bewaart de gebruiker iets als kopie, dan wijzen de
  * opdrachten naar die kopie. De klas zelf komt in de leerlingopslag
  * ('wf.classpacks.v1'), niet in de klassenlijst van de leerkracht.
+ * Wat uit een pakket komt, is gedeelde inhoud (`gedeeld`, S1): een latere,
+ * nieuwere versie via link of pakket mag een ongewijzigde kopie stil bijwerken.
  */
 export function adoptClassPack(pack: ClassPack, opts: AdoptOptions = {}): AdoptReport {
   const { courses, widgets } = packContent(pack);
-  const res = adoptSharedContent(courses, widgets, opts);
+  const res = adoptSharedContent(courses, widgets, { ...opts, gedeeld: true });
   const report: AdoptReport = {
     courses: courses.length,
     widgets: new Set(widgets.map((w) => w.id)).size,

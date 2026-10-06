@@ -15,7 +15,7 @@
 // zodat ze de eigen widgets niet overspoelen. Knop én ?voorbeeld=1 op
 // /cursussen gebruiken dezelfde functie: installExampleCourse().
 
-import { adoptSharedCourse, getCourse, importCourseJson } from './courses';
+import { adoptSharedCourse, conflictKey, getCourse, importCourseJson } from './courses';
 import type { Course } from './courseTypes';
 import { getFolders, getWidgets, saveFolder, saveWidget } from './storage';
 import type { Widget } from './types';
@@ -65,8 +65,13 @@ export function ensureExampleFolder(): void {
 
 /**
  * Zet een ingelezen voorbeeldbundel in de bibliotheek. Bestaat de cursus al,
- * dan wordt ze vervangen door de bundelversie (bewust "opnieuw laden");
- * bestaande widgets worden nooit overschreven (adoptSharedCourse).
+ * dan wordt ze vervangen door de bundelversie (bewust "opnieuw laden").
+ * Alleen de cursus wordt gedwongen; de widgets volgen de gewone regels van
+ * adoptSharedContent (G1): een ontbrekende komt terug, een (aangepaste)
+ * voorbeeldoefening blijft zoals ze is. Alleen een ongewijzigde kopie uit een
+ * deellink of klaspakket wordt bijgewerkt naar een nieuwere bundelversie.
+ * Het voorbeeld zelf telt als eigen werk (geen `gedeeld`, S1): een link met
+ * dezelfde id's vervangt het dus nooit stil.
  * Oefeningen zonder map komen in de voorbeeldmap; een map die de leerkracht
  * zelf koos, blijft staan.
  */
@@ -79,8 +84,19 @@ export function installExampleBundle(bundle: { course: Course; widgets: Widget[]
     const folderIds = new Set(getFolders().map((f) => f.id));
     ({ incoming, updates } = planExampleFolder(bundle.widgets, getWidgets(), folderIds));
   }
-  adoptSharedCourse(bundle.course, incoming, { force: true });
-  for (const w of updates) saveWidget(w);
+  adoptSharedCourse(bundle.course, incoming, {
+    conflicts: { choice: 'bijwerken', keys: [conflictKey({ kind: 'course', id: bundle.course.id })] },
+  });
+  // Alleen de map zetten, op de widget zoals ze nu (na het overnemen) is:
+  // `updates` is van vóór het overnemen en zou anders een oudere inhoud
+  // terugzetten (G7).
+  if (updates.length > 0) {
+    const now = new Map(getWidgets().map((w) => [w.id, w] as const));
+    for (const w of updates) {
+      const cur = now.get(w.id);
+      if (cur && cur.folderId !== w.folderId) saveWidget({ ...cur, folderId: w.folderId });
+    }
+  }
   return {
     course: bundle.course,
     widgets: bundle.widgets,

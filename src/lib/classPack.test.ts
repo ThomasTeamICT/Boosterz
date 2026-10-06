@@ -9,7 +9,7 @@ import {
 } from './classes';
 import { processCodes } from './inbox';
 import { encodeSubmission } from './share';
-import { conflictKey, getCourse, saveCourse } from './courses';
+import { adoptSharedCourse, conflictKey, getCourse, saveCourse } from './courses';
 import { getWidget, saveSubmission, saveWidget } from './storage';
 import type { Course } from './courseTypes';
 import type { Submission, Widget } from './types';
@@ -294,6 +294,39 @@ describe('klaspakket opnieuw openen: versies (LL3) en eigen werk (V3)', () => {
     expect(await classPackConflicts(oud)).toEqual([]);
     adoptClassPack(oud);
     expect(antwoord()).toBe(true);
+  });
+
+  it('LL3: link v1 → link v2 → pakket v3 gaat stil (link en pakket zijn gedeelde inhoud)', async () => {
+    const viaLink = (versie: string, updatedAt: number) => adoptSharedCourse(
+      { ...testCourse(), title: 'Cursus ' + versie, updatedAt },
+      [{ ...testWidget(), ...metAntwoord(false, updatedAt), title: 'Quiz ' + versie }],
+      { gedeeld: true },
+    );
+    viaLink('v1', 1000);
+    viaLink('v2', 2000);
+    expect(getCourse('c-water')!.title).toBe('Cursus v2');
+    const v3 = pakket({ ...metAntwoord(true, 3000), title: 'Quiz v3' }, { title: 'Cursus v3', updatedAt: 3000 });
+    expect(await classPackConflicts(v3)).toEqual([]);
+    adoptClassPack(v3);
+    expect(getCourse('c-water')!.title).toBe('Cursus v3');
+    expect(getWidget('w-quiz')!.title).toBe('Quiz v3');
+    expect(antwoord()).toBe(true);
+    // Wat uit het pakket kwam, is nog altijd een zuivere kopie: v4 gaat ook stil.
+    const v4 = pakket({ ...metAntwoord(true, 4000), title: 'Quiz v4' }, { title: 'Cursus v4', updatedAt: 4000 });
+    expect(await classPackConflicts(v4)).toEqual([]);
+    adoptClassPack(v4);
+    expect(getCourse('c-water')!.title).toBe('Cursus v4');
+    expect(getWidget('w-quiz')!.title).toBe('Quiz v4');
+  });
+
+  it('S1: na een teruggezet cursusbestand vraagt een pakket met dezelfde id\'s eerst', async () => {
+    // Back-up terugzetten (CoursesPage.finishImport, zonder `gedeeld`): eigen werk.
+    adoptSharedCourse({ ...testCourse(), title: 'Mijn back-up', updatedAt: 1000 }, [{ ...testWidget(), title: 'Mijn quiz', updatedAt: 1000 }]);
+    const nep = pakket({ title: 'Nagemaakte quiz', updatedAt: 2000 }, { title: 'Nagemaakt', updatedAt: 2000 });
+    expect((await classPackConflicts(nep)).map(conflictKey).sort()).toEqual(['course:c-water', 'widget:w-quiz']);
+    adoptClassPack(nep);
+    expect(getCourse('c-water')!.title).toBe('Mijn back-up');
+    expect(getWidget('w-quiz')!.title).toBe('Mijn quiz');
   });
 
   it('lokaal nieuwer dan het pakket (zelf aangepast): blijft', async () => {
