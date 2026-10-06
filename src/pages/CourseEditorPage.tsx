@@ -2,29 +2,57 @@
 //
 // Eigen paginashell (geen Layout), zoals de widgeteditor. Links de structuur,
 // rechts de geselecteerde sectie met haar blokken. Alles wordt automatisch
-// bewaard met een korte debounce; bij unmount wordt de laatste stand geflusht.
+// bewaard met een korte pauze; bij weggaan wordt de laatste stand bewaard.
+//
+// Het bewaren zelf zit in components/course/editorSync.ts (te testen zonder
+// React): nooit iets overschrijven wat een ander tabblad intussen bewaarde,
+// eerlijk "Niet bewaard" bij een volle opslag, en pdf-bestanden pas opruimen
+// na een geslaagde bewaring.
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Blocks, ExternalLink } from 'lucide-react';
-import type { Course, CourseBlockType, CourseChapter, CourseSection } from '../lib/courseTypes';
+import type { Course, CourseBlock, CourseBlockType, CourseChapter, CourseSection } from '../lib/courseTypes';
 import { allSections } from '../lib/courseTypes';
 import type { Curriculum } from '../lib/curriculumTypes';
-import { courseReadUrl, getCourse, makeBlock, saveCourse } from '../lib/courses';
+import {
+  getCourse, makeBlock, onCoursesChangedElsewhere, pdfReferenceCount, saveCourse, saveCourseGuarded,
+} from '../lib/courses';
+import { deletePdf } from '../lib/pdfStore';
+import { onStorageNotice } from '../lib/storageHealth';
 import { getCurricula, getCurriculum } from '../lib/curriculum';
 import { getWidgets } from '../lib/storage';
-import { uid } from '../lib/utils';
+import { makeCode, uid } from '../lib/utils';
 import { CheckRow, ConfirmModal, EmptyState, Field, Modal, useToast } from '../components/ui';
 import { BLOCK_META, BlockEditor, PALETTE_ORDER, blockIcon, duplicateBlock } from '../components/course/blockEditors';
+import { isEmptyBlock } from '../components/course/emptyBlock';
+import {
+  coursePreviewHash, createCourseDraft, pdfIdsInBlocks, sectionHasContent,
+  type DraftSnapshot, type DraftStore, type EditorConflict,
+} from '../components/course/editorSync';
 import { CourseAIModal } from '../components/course/CourseAIModal';
 import { GoalCodeInput } from '../components/curriculum/GoalCodeInput';
 import { GoalCoverage } from '../components/course/GoalCoverage';
 import type { OptimizePreset } from '../lib/aiCourse';
 import {
-  AddIcon, AIIcon, BackIcon, CheckIcon, CourseIcon, DeleteIcon, DuplicateIcon, GoalIcon,
-  MoveDownIcon, MoveUpIcon, PreviewIcon, PrintIcon, ResultsIcon, SettingsIcon,
+  AddIcon, AIIcon, BackIcon, CheckIcon, CourseIcon, DeleteIcon, DuplicateIcon, GoalIcon, InfoIcon,
+  MoveDownIcon, MoveUpIcon, PreviewIcon, PrintIcon, ResultsIcon, RetryIcon, SettingsIcon, WarningIcon,
 } from '../components/icons';
 import '../styles/cursus.css';
+
+/** De echte opslag achter de bewaarmotor. */
+const COURSE_STORE: DraftStore = {
+  read: (id) => getCourse(id),
+  saveGuarded: (course, expected, opts) => saveCourseGuarded(course, expected, opts),
+  saveNew: (course) => saveCourse(course),
+  pdfRefsSaved: (pdfId) => pdfReferenceCount(pdfId),
+  deletePdf: (pdfId) => { void deletePdf(pdfId); },
+  newId: uid,
+  newCode: makeCode,
+  now: () => Date.now(),
+};
+
+const SAVE_FAILED_TEXT = 'Bewaren op dit toestel is mislukt. Staat de opslag vol, of blokkeert de browser ze?';
 
 // ── Immutabele hulpjes ──────────────────────────────────────────────────────
 
@@ -53,7 +81,36 @@ function patchSection(course: Course, sectionId: string, fn: (s: CourseSection) 
 
 type PendingDelete =
   | { kind: 'chapter'; chapterId: string }
-  | { kind: 'section'; chapterId: string; sectionId: string };
+  | { kind: 'section'; chapterId: string; sectionId: string }
+  | { kind: 'block'; sectionId: string; blockId: string };
+
+function findBlock(course: Course, sectionId: string, blockId: string): CourseBlock | undefined {
+  return allSections(course).find((x) => x.section.id === sectionId)?.section.blocks.find((b) => b.id === blockId);
+}
+
+/** Titel en uitleg van de bevestiging: wat gaat er precies verloren? */
+function deleteQuestion(p: PendingDelete, course: Course): { title: string; message: string } {
+  if (p.kind === 'chapter') {
+    return {
+      title: 'Hoofdstuk verwijderen?',
+      message: 'Dit hoofdstuk bevat nog secties. Alles erin wordt definitief verwijderd (widgets zelf blijven bestaan).',
+    };
+  }
+  if (p.kind === 'section') {
+    return {
+      title: 'Sectie verwijderen?',
+      message: 'Deze sectie bevat nog blokken of leerdoelen. Ze wordt definitief verwijderd (widgets zelf blijven bestaan).',
+    };
+  }
+  const block = findBlock(course, p.sectionId, p.blockId);
+  const name = block ? BLOCK_META[block.type].name : 'blok';
+  let extra = '';
+  if (block?.type === 'widget') extra = ' De widget zelf blijft bestaan.';
+  if (block?.type === 'pdf' && block.pdfId) {
+    extra = ' Gebruikt geen ander blok het pdf-bestand nog, dan verdwijnt ook dat van dit toestel.';
+  }
+  return { title: 'Blok verwijderen?', message: `Het blok “${name}” heeft inhoud. Het wordt definitief verwijderd.${extra}` };
+}
 
 type AIModalState =
   | { mode: 'rework' }
@@ -69,68 +126,83 @@ export function CourseEditorPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const initial = useMemo(() => (id ? getCourse(id) : undefined), [id]);
-  const [course, setCourse] = useState<Course | undefined>(initial);
+  // De bewaarmotor is de enige bron van de cursus op het scherm. Wijzigen gaat
+  // via draft.edit (altijd op de laatste stand); bewaren na 800 ms pauze.
+  const [draft] = useState(() => createCourseDraft(COURSE_STORE, initial));
+  const snap = useSyncExternalStore(draft.subscribe, draft.getSnapshot);
+  const course = snap.course;
   const [selectedSectionId, setSelectedSectionId] = useState<string | undefined>(
     () => initial?.chapters[0]?.sections[0]?.id
   );
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [goalsOpen, setGoalsOpen] = useState(false);
   const [aiModal, setAiModal] = useState<AIModalState>(null);
   const [paletteAt, setPaletteAt] = useState<number | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  /** Laatste ernstige opslagmelding (de editor valt buiten Layout en toont ze zelf). */
+  const [notice, setNotice] = useState<{ message: string; at: number } | null>(null);
 
-  // Automatisch bewaren met debounce (eerste render overslaan: enkel openen
-  // van een cursus mag updatedAt niet aanraken).
-  const firstRun = useRef(true);
-  const dirtyRef = useRef(false);
+  const toastRef = useRef(toast);
+  useEffect(() => { toastRef.current = toast; }, [toast]);
 
-  // Zelfde route, andere cursus (terug/vooruit tussen twee editors): de pagina
-  // blijft gemonteerd en useState zou anders de vorige cursus vasthouden.
-  // Eerst de vorige cursus wegschrijven als ze nog niet bewaard was (de
-  // debounce hieronder wordt door de wissel geannuleerd), en het openen van
-  // de nieuwe mag — net als bij de eerste render — updatedAt niet aanraken.
+  // Na weggaan: zeggen wat er met niet-bewaarde wijzigingen gebeurde.
+  const reportLeave = (out: { copy: Course | null; failed: boolean }) => {
+    if (out.copy) toastRef.current(`Je niet-bewaarde wijzigingen staan in een kopie: “${out.copy.title}”.`, 'info');
+    else if (out.failed) toastRef.current('Je laatste wijzigingen aan de cursus zijn niet bewaard: de opslag van dit toestel is vol of geblokkeerd.', 'err');
+  };
+  const reportLeaveRef = useRef(reportLeave);
+  useEffect(() => { reportLeaveRef.current = reportLeave; });
+
+  // Zelfde route, andere cursus (terug/vooruit tussen twee editors, of de
+  // kopie na een conflict): de pagina blijft gemonteerd. Eerst de vorige
+  // cursus afronden, dan de nieuwe tonen; openen schrijft niets.
   useEffect(() => {
-    if (!initial || course?.id === initial.id) return;
-    if (course && dirtyRef.current) saveCourse(course);
-    dirtyRef.current = false;
-    firstRun.current = true;
-    setCourse(initial);
-    setSelectedSectionId(initial.chapters[0]?.sections[0]?.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initial]);
+    if (draft.current()?.id === initial?.id) return;
+    reportLeaveRef.current(draft.leave());
+    draft.open(initial);
+    setSelectedSectionId(initial?.chapters[0]?.sections[0]?.id);
+  }, [draft, initial]);
 
-  useEffect(() => {
-    if (!course) return;
-    if (firstRun.current) { firstRun.current = false; return; }
-    dirtyRef.current = true;
-    setSaveState('saving');
-    const t = window.setTimeout(() => {
-      saveCourse(course);
-      dirtyRef.current = false;
-      setSaveState('saved');
-    }, 800);
-    return () => window.clearTimeout(t);
-  }, [course]);
+  // Een ander tabblad bewaarde de cursussen (CU2): zonder eigen wijzigingen
+  // gewoon de nieuwe versie tonen, anders pauzeren en de leerkracht laten kiezen.
+  useEffect(() => onCoursesChangedElsewhere(() => { draft.external(); }), [draft]);
 
-  // Flush bij unmount: wie binnen de debounce wegklikt, verliest anders de
-  // laatste wijzigingen. Ook bij F5/tabblad sluiten (pagehide), want dan
-  // draait de React-cleanup niet.
-  const courseRef = useRef(course);
-  useEffect(() => { courseRef.current = course; }, [course]);
+  // Weggaan: wie binnen de pauze wegklikt, verliest anders de laatste
+  // wijzigingen. Ook bij F5/tabblad sluiten (pagehide), want dan draait de
+  // React-cleanup niet. Bij een open conflict komt het werk in een kopie.
+  // (Dit effect staat vóór de meldingen hieronder: bij het afbreken luistert
+  // de editor dan nog, zodat een mislukte laatste bewaring geen alert geeft.)
   useEffect(() => {
-    const flush = () => {
-      if (dirtyRef.current && courseRef.current) {
-        saveCourse(courseRef.current);
-        dirtyRef.current = false;
-      }
-    };
-    window.addEventListener('pagehide', flush);
+    const onHide = () => { draft.leave(); };
+    window.addEventListener('pagehide', onHide);
     return () => {
-      window.removeEventListener('pagehide', flush);
-      flush();
+      window.removeEventListener('pagehide', onHide);
+      reportLeaveRef.current(draft.leave());
+      draft.dispose();
     };
-  }, []);
+  }, [draft]);
+
+  // Mislukt bewaren (CU7): de editor staat buiten Layout, dus de balk van de
+  // schil is er niet. Zolang hier iemand luistert, valt de opslag ook niet
+  // terug op een alert(); de melding komt als balk in de editor.
+  useEffect(() => onStorageNotice((n) => { if (n.severe) setNotice({ message: n.message, at: n.at }); }), []);
+
+  // De AI-hulp vervangt straks de hele cursus: zolang ze openstaat, nooit
+  // stil herladen uit een ander tabblad.
+  useEffect(() => { draft.setBusy(aiModal !== null); }, [draft, aiModal]);
+
+  // Niet-bewaarde wijzigingen die nergens heen kunnen: de browser vraagt eerst
+  // of je echt wil weggaan (tabblad sluiten, herladen).
+  const guardLeave = snap.dirty && (snap.saveFailed || snap.conflict !== null);
+  useEffect(() => {
+    if (!guardLeave) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [guardLeave]);
 
   // Leerplan van de cursus (voor de doelcodes en de dekking). De widgets halen
   // we pas op als het dekkingspaneel echt opengaat — dat scheelt werk bij elke
@@ -143,45 +215,104 @@ export function CourseEditorPage() {
 
   if (!course) {
     return (
-      <div className="page page-narrow" style={{ paddingTop: 60 }}>
-        <EmptyState icon={<CourseIcon size={40} />} title="Cursus niet gevonden">
+      <main id="main" className="page page-narrow" style={{ paddingTop: 60 }}>
+        <EmptyState level={1} icon={<CourseIcon size={40} />} title="Cursus niet gevonden">
           <p style={{ color: 'var(--text-soft)' }}>Deze cursus bestaat niet (meer) in deze browser.</p>
           <Link to="/cursussen" className="btn btn-primary"><BackIcon size={16} /> Naar mijn cursussen</Link>
         </EmptyState>
-      </div>
+      </main>
     );
   }
 
   const sections = allSections(course);
   const selected = sections.find((x) => x.section.id === selectedSectionId) ?? sections[0];
+  const edit = draft.edit;
 
-  /** Onmiddellijk bewaren (vóór voorbeeld/afdruk in een nieuw tabblad). */
-  const flushNow = () => {
-    if (dirtyRef.current && courseRef.current) {
-      saveCourse(courseRef.current);
-      dirtyRef.current = false;
-      setSaveState('saved');
+  /** Onmiddellijk bewaren vóór een voorbeeld of afdruk in een nieuw tabblad. */
+  const saveBeforeOpen = () => {
+    const out = draft.save();
+    if (out === 'mislukt' || out === 'conflict') {
+      toast('Let op: je laatste wijzigingen zijn nog niet bewaard. Het nieuwe tabblad toont de bewaarde versie.', 'err');
     }
   };
 
+  const retrySave = () => {
+    const out = draft.save();
+    if (out === 'mislukt') toast('Nog altijd niet bewaard. Maak eerst plaats vrij op dit toestel.', 'err');
+    else if (out === 'bewaard') toast('Bewaard', 'ok');
+  };
+
+  // Keuzes bij een conflict met een ander tabblad.
+  const loadTheirs = () => {
+    if (draft.loadTheirs()) toast('Je ziet nu de versie uit het andere tabblad.', 'info');
+  };
+  const keepMine = () => {
+    if (draft.keepMine() === 'bewaard') toast('Jouw versie is bewaard.', 'ok');
+    else toast('Bewaren is mislukt. Je versie staat nog op het scherm.', 'err');
+  };
+  const saveCopy = () => {
+    const copy = draft.saveCopy();
+    if (!copy) {
+      toast('De kopie kon niet bewaard worden. Je versie staat nog op het scherm.', 'err');
+      return;
+    }
+    toast(`Je versie staat apart als “${copy.title}”. Het origineel bleef zoals in het andere tabblad.`, 'ok');
+    navigate(`/cursus/bewerk/${copy.id}`);
+  };
+  const discardAndLeave = () => {
+    draft.discard();
+    navigate('/cursussen');
+  };
+
   const mutateSection = (sectionId: string, fn: (s: CourseSection) => CourseSection) =>
-    setCourse((c) => (c ? patchSection(c, sectionId, fn) : c));
+    edit((c) => patchSection(c, sectionId, fn));
 
   const doDelete = (p: PendingDelete) => {
+    const cur = draft.current();
+    if (!cur) return;
     if (p.kind === 'chapter') {
-      setCourse((c) => (c ? { ...c, chapters: c.chapters.filter((ch) => ch.id !== p.chapterId) } : c));
+      // Pdf-bestanden in wat verdwijnt: opruimen na het bewaren, als niets anders ze nog gebruikt.
+      const ch = cur.chapters.find((x) => x.id === p.chapterId);
+      ch?.sections.forEach((s) => pdfIdsInBlocks(s.blocks).forEach((pid) => draft.releasePdf(pid)));
+      edit((c) => ({ ...c, chapters: c.chapters.filter((x) => x.id !== p.chapterId) }));
+      return;
+    }
+    if (p.kind === 'block') {
+      const block = findBlock(cur, p.sectionId, p.blockId);
+      if (block?.type === 'pdf') draft.releasePdf(block.pdfId);
+      mutateSection(p.sectionId, (s) => ({ ...s, blocks: s.blocks.filter((b) => b.id !== p.blockId) }));
       return;
     }
     // Sectie: buur selecteren als de geselecteerde verdwijnt.
-    const ch = course.chapters.find((x) => x.id === p.chapterId);
+    const ch = cur.chapters.find((x) => x.id === p.chapterId);
+    const se = ch?.sections.find((s) => s.id === p.sectionId);
+    if (se) pdfIdsInBlocks(se.blocks).forEach((pid) => draft.releasePdf(pid));
     if (ch && selected?.section.id === p.sectionId) {
       const i = ch.sections.findIndex((s) => s.id === p.sectionId);
       const neighbour = ch.sections[i + 1]?.id ?? ch.sections[i - 1]?.id;
       setSelectedSectionId(neighbour);
     }
-    setCourse((c) =>
-      c ? patchChapter(c, p.chapterId, (chap) => ({ ...chap, sections: chap.sections.filter((s) => s.id !== p.sectionId) })) : c
-    );
+    edit((c) => patchChapter(c, p.chapterId, (chap) => ({ ...chap, sections: chap.sections.filter((s) => s.id !== p.sectionId) })));
+  };
+
+  /** Direct verwijderen als er niets in zit; anders eerst bevestigen (CU3, CU15e). */
+  const askDelete = (p: PendingDelete) => {
+    const cur = draft.current();
+    if (!cur) return;
+    if (p.kind === 'chapter') {
+      const ch = cur.chapters.find((x) => x.id === p.chapterId);
+      if (!ch) return;
+      if (ch.sections.length === 0) { doDelete(p); return; }
+    } else if (p.kind === 'section') {
+      const se = cur.chapters.find((x) => x.id === p.chapterId)?.sections.find((s) => s.id === p.sectionId);
+      if (!se) return;
+      if (!sectionHasContent(se)) { doDelete(p); return; }
+    } else {
+      const block = findBlock(cur, p.sectionId, p.blockId);
+      if (!block) return;
+      if (isEmptyBlock(block)) { doDelete(p); return; }
+    }
+    setPendingDelete(p);
   };
 
   const insertBlockAt = (type: CourseBlockType) => {
@@ -213,26 +344,27 @@ export function CourseEditorPage() {
           style={{ maxWidth: 320, fontWeight: 700, fontSize: '1.02rem' }}
           value={course.title}
           aria-label="Titel van de cursus"
-          onChange={(e) => setCourse({ ...course, title: e.target.value })}
+          onChange={(e) => { const title = e.target.value; edit((c) => ({ ...c, title })); }}
         />
-        <span className="hint" aria-live="polite" style={{ minWidth: 84, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          {saveState === 'saving' ? 'Bewaren…' : saveState === 'saved' ? <><CheckIcon size={14} /> Bewaard</> : ''}
-        </span>
+        <SaveIndicator snap={snap} />
         <div className="topbar-spacer" />
         <span className="badge" title="Cursuscode" style={{ fontFamily: 'monospace', letterSpacing: '0.15em' }}>{course.code}</span>
-        <button
+        <a
           className="btn btn-sm btn-ghost"
-          onClick={() => { flushNow(); window.open(courseReadUrl(course.code), '_blank'); }}
-          title="Open de cursus zoals je leerlingen hem zien"
+          href={coursePreviewHash(course.code)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={saveBeforeOpen}
+          title="Bekijk de cursus zoals je leerlingen hem zien. In dit voorbeeld wordt niets bewaard."
         >
           <PreviewIcon size={16} /> Als leerling
-        </button>
+        </a>
         <a
           className="btn btn-sm btn-ghost"
           href={`#/cursus/print/${course.id}`}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={flushNow}
+          onClick={saveBeforeOpen}
           title="Afdrukken of als PDF bewaren"
         >
           <PrintIcon size={16} /> Afdrukken
@@ -262,24 +394,31 @@ export function CourseEditorPage() {
         </button>
       </header>
 
-      <main className="course-editor-main">
+      <main id="main" className="course-editor-main">
+        {snap.conflict ? (
+          <ConflictBanner
+            conflict={snap.conflict}
+            dirty={snap.dirty}
+            onLoadTheirs={loadTheirs}
+            onKeepMine={keepMine}
+            onSaveCopy={saveCopy}
+            onDiscard={discardAndLeave}
+          />
+        ) : (snap.saveFailed || (notice !== null && notice.at > snap.savedAt)) && (
+          <SaveProblemBanner
+            message={notice !== null && notice.at > snap.savedAt ? notice.message : SAVE_FAILED_TEXT}
+            failed={snap.saveFailed}
+            onRetry={retrySave}
+            onDismiss={() => setNotice(null)}
+          />
+        )}
+
         <StructurePane
           course={course}
           selectedId={selected?.section.id}
           onSelect={setSelectedSectionId}
-          onChange={setCourse}
-          onAskDelete={(p) => {
-            // Direct verwijderen als er niets in zit; anders eerst bevestigen.
-            if (p.kind === 'chapter') {
-              const ch = course.chapters.find((x) => x.id === p.chapterId);
-              if (ch && ch.sections.length === 0) { doDelete(p); return; }
-            } else {
-              const ch = course.chapters.find((x) => x.id === p.chapterId);
-              const se = ch?.sections.find((s) => s.id === p.sectionId);
-              if (se && se.blocks.length === 0) { doDelete(p); return; }
-            }
-            setPendingDelete(p);
-          }}
+          onChange={edit}
+          onAskDelete={askDelete}
         />
 
         {selected ? (
@@ -292,6 +431,8 @@ export function CourseEditorPage() {
             onOpenAI={() => setAiModal({ mode: 'section', sectionId: selected.section.id })}
             onOpenExercises={() => setAiModal({ mode: 'exercises', sectionId: selected.section.id })}
             onOpenPalette={setPaletteAt}
+            onAskDeleteBlock={(blockId) => askDelete({ kind: 'block', sectionId: selected.section.id, blockId })}
+            onPdfReleased={draft.releasePdf}
           />
         ) : (
           <EmptyState icon={<Blocks size={40} />} title="Geen sectie geselecteerd">
@@ -303,7 +444,7 @@ export function CourseEditorPage() {
       {paletteAt !== null && <BlockPalette onPick={insertBlockAt} onClose={() => setPaletteAt(null)} />}
 
       {settingsOpen && (
-        <CourseSettingsModal course={course} onChange={setCourse} onClose={() => setSettingsOpen(false)} />
+        <CourseSettingsModal course={course} onChange={edit} onClose={() => setSettingsOpen(false)} />
       )}
 
       {goalsOpen && (
@@ -320,12 +461,7 @@ export function CourseEditorPage() {
 
       {pendingDelete && (
         <ConfirmModal
-          title={pendingDelete.kind === 'chapter' ? 'Hoofdstuk verwijderen?' : 'Sectie verwijderen?'}
-          message={
-            pendingDelete.kind === 'chapter'
-              ? 'Dit hoofdstuk bevat nog secties. Alles erin wordt definitief verwijderd (widgets zelf blijven bestaan).'
-              : 'Deze sectie bevat nog blokken. Ze wordt definitief verwijderd (widgets zelf blijven bestaan).'
-          }
+          {...deleteQuestion(pendingDelete, course)}
           onConfirm={() => doDelete(pendingDelete)}
           onClose={() => setPendingDelete(null)}
         />
@@ -339,12 +475,123 @@ export function CourseEditorPage() {
           initialPreset={aiModal.mode === 'optimize' ? aiModal.preset : undefined}
           onClose={() => setAiModal(null)}
           onResult={(result: Course) => {
-            setCourse(result);
+            edit(result);
             setAiModal(null);
             toast('Cursus bijgewerkt — kijk alles even na', 'ok');
           }}
         />
       )}
+    </div>
+  );
+}
+
+// ── Bewaarstatus en meldingen ───────────────────────────────────────────────
+
+/** Naast de titel: wat er met je wijzigingen gebeurt. "Bewaard" alleen na een geslaagde bewaring. */
+function SaveIndicator({ snap }: { snap: DraftSnapshot }) {
+  let content: React.ReactNode = '';
+  let problem = false;
+  if (snap.conflict) {
+    content = <><WarningIcon size={14} aria-hidden /> Bewaren gepauzeerd</>;
+    problem = true;
+  } else if (snap.status === 'saving') {
+    content = 'Bewaren…';
+  } else if (snap.saveFailed) {
+    content = <><WarningIcon size={14} aria-hidden /> Niet bewaard</>;
+    problem = true;
+  } else if (snap.status === 'saved') {
+    content = <><CheckIcon size={14} aria-hidden /> Bewaard</>;
+  } else if (snap.status === 'reloaded') {
+    content = 'Bijgewerkt uit een ander tabblad';
+  }
+  return (
+    <span className={`hint course-save-state${problem ? ' course-save-state-problem' : ''}`} aria-live="polite">
+      {content}
+    </span>
+  );
+}
+
+/** Een ander tabblad bewaarde of verwijderde deze cursus (CU2): niets overschrijven, de leerkracht kiest. */
+function ConflictBanner({
+  conflict, dirty, onLoadTheirs, onKeepMine, onSaveCopy, onDiscard,
+}: {
+  conflict: EditorConflict;
+  dirty: boolean;
+  onLoadTheirs: () => void;
+  onKeepMine: () => void;
+  onSaveCopy: () => void;
+  onDiscard: () => void;
+}) {
+  if (conflict.kind === 'verwijderd') {
+    return (
+      <div className="course-editor-alert course-editor-alert-problem" role="alert">
+        <WarningIcon size={20} aria-hidden className="course-editor-alert-icon" />
+        <div className="course-editor-alert-body">
+          <p>
+            <strong>Verwijderd in een ander tabblad.</strong> Deze cursus staat niet meer bij je cursussen.
+            Automatisch bewaren staat hier stil{dirty ? ': je wijzigingen in dit tabblad zijn nog niet bewaard' : ''}.
+          </p>
+          <div className="course-editor-alert-actions">
+            <button className="btn btn-sm btn-primary" onClick={onKeepMine}>Toch bewaren</button>
+            <button className="btn btn-sm btn-ghost" onClick={onDiscard}>
+              {dirty ? 'Wijzigingen weggooien' : 'Naar mijn cursussen'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="course-editor-alert" role="alert">
+      <WarningIcon size={20} aria-hidden className="course-editor-alert-icon" />
+      <div className="course-editor-alert-body">
+        <p>
+          <strong>Gewijzigd in een ander tabblad.</strong> Deze cursus werd intussen ook in een ander tabblad
+          bewaard. Automatisch bewaren staat hier stil tot je kiest, zodat er niets overschreven wordt.
+        </p>
+        <div className="course-editor-alert-actions">
+          <button className="btn btn-sm btn-primary" onClick={onLoadTheirs}>Laad die versie</button>
+          {dirty && <button className="btn btn-sm btn-ghost" onClick={onSaveCopy}>Mijn versie als kopie bewaren</button>}
+          {dirty && <button className="btn btn-sm btn-ghost" onClick={onKeepMine}>Mijn versie bewaren</button>}
+        </div>
+        {dirty && (
+          <p className="hint course-editor-alert-hint">
+            “Laad die versie” laat je wijzigingen in dit tabblad vallen. “Mijn versie bewaren” overschrijft wat
+            het andere tabblad bewaarde. Met een kopie blijven beide versies bestaan.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Bewaren mislukte (CU7): eerlijk zeggen, het werk blijft op het scherm. */
+function SaveProblemBanner({
+  message, failed, onRetry, onDismiss,
+}: {
+  message: string;
+  /** De laatste bewaring van de cursus mislukte (dan: opnieuw proberen, niet wegklikken). */
+  failed: boolean;
+  onRetry: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="course-editor-alert course-editor-alert-problem" role="alert">
+      <WarningIcon size={20} aria-hidden className="course-editor-alert-icon" />
+      <div className="course-editor-alert-body">
+        <p>
+          <strong>Niet bewaard:</strong> {message}
+          {failed && ' Je wijzigingen staan nog op het scherm.'}
+        </p>
+        <div className="course-editor-alert-actions">
+          {failed ? (
+            <button className="btn btn-sm btn-ghost" onClick={onRetry}><RetryIcon size={16} aria-hidden /> Opnieuw proberen</button>
+          ) : (
+            <button className="btn btn-sm btn-ghost" onClick={onDismiss}>Melding sluiten</button>
+          )}
+          <Link to="/privacy" target="_blank" rel="noopener" className="btn btn-sm btn-ghost">Opslag bekijken</Link>
+        </div>
+      </div>
     </div>
   );
 }
@@ -472,7 +719,7 @@ function StructurePane({
 // ── Rechterkolom: de geselecteerde sectie ───────────────────────────────────
 
 function SectionPane({
-  chapter, section, curriculumId, onPatch, onOpenAI, onOpenExercises, onOpenPalette,
+  chapter, section, curriculumId, onPatch, onOpenAI, onOpenExercises, onOpenPalette, onAskDeleteBlock, onPdfReleased,
 }: {
   chapter: CourseChapter;
   section: CourseSection;
@@ -482,10 +729,16 @@ function SectionPane({
   onOpenAI: () => void;
   onOpenExercises: () => void;
   onOpenPalette: (index: number) => void;
+  /** Blok verwijderen: met bevestiging als er inhoud in zit (CU3). */
+  onAskDeleteBlock: (blockId: string) => void;
+  /** Een blok gebruikt een geüpload pdf-bestand niet meer (opruimen na het bewaren). */
+  onPdfReleased: (pdfId: string) => void;
 }) {
   const goals = section.goals ?? [];
   const setGoals = (g: string[]) => onPatch((s) => ({ ...s, goals: g.length ? g : undefined }));
-  const setBlocks = (blocks: CourseSection['blocks']) => onPatch((s) => ({ ...s, blocks }));
+  // Altijd op de laatste stand van de sectie werken (niet op de props van deze render).
+  const patchBlocks = (fn: (blocks: CourseSection['blocks']) => CourseSection['blocks']) =>
+    onPatch((s) => ({ ...s, blocks: fn(s.blocks) }));
 
   return (
     <div style={{ minWidth: 0 }}>
@@ -571,13 +824,18 @@ function SectionPane({
             block={block}
             index={i}
             count={section.blocks.length}
-            onChange={(nb) => setBlocks(section.blocks.map((x) => (x.id === block.id ? nb : x)))}
-            onMove={(d) => setBlocks(moveItem(section.blocks, i, d))}
-            onDuplicate={() => {
+            onChange={(nb) => patchBlocks((bs) => bs.map((x) => (x.id === block.id ? nb : x)))}
+            onMove={(d) => patchBlocks((bs) => {
+              const at = bs.findIndex((x) => x.id === block.id);
+              return at < 0 ? bs : moveItem(bs, at, d);
+            })}
+            onDuplicate={() => patchBlocks((bs) => {
+              const at = bs.findIndex((x) => x.id === block.id);
               const copy = duplicateBlock(block);
-              setBlocks([...section.blocks.slice(0, i + 1), copy, ...section.blocks.slice(i + 1)]);
-            }}
-            onDelete={() => setBlocks(section.blocks.filter((x) => x.id !== block.id))}
+              return at < 0 ? bs : [...bs.slice(0, at + 1), copy, ...bs.slice(at + 1)];
+            })}
+            onDelete={() => onAskDeleteBlock(block.id)}
+            onPdfReleased={onPdfReleased}
           />
         </React.Fragment>
       ))}
@@ -592,7 +850,7 @@ function SectionPane({
 // ── Eén blok-kaart met knoppen + formulier ──────────────────────────────────
 
 function BlockCard({
-  block, index, count, onChange, onMove, onDuplicate, onDelete,
+  block, index, count, onChange, onMove, onDuplicate, onDelete, onPdfReleased,
 }: {
   block: CourseSection['blocks'][number];
   index: number;
@@ -601,6 +859,7 @@ function BlockCard({
   onMove: (delta: number) => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onPdfReleased: (pdfId: string) => void;
 }) {
   const meta = BLOCK_META[block.type];
   const Icon = blockIcon(block);
@@ -620,7 +879,12 @@ function BlockCard({
           onClick={onDelete}><DeleteIcon size={16} /></button>
       </div>
       <div className="editor-item-body">
-        <BlockEditor block={block} onChange={onChange} />
+        {isEmptyBlock(block) && (
+          <p className="hint course-block-empty">
+            <InfoIcon size={14} aria-hidden /> Nog leeg: leerlingen zien dit blok pas als je het invult.
+          </p>
+        )}
+        <BlockEditor block={block} onChange={onChange} onPdfReleased={onPdfReleased} />
       </div>
     </div>
   );

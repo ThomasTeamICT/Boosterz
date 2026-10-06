@@ -21,8 +21,7 @@ import { getTypeDef } from '../../widgets/registry';
 import { fileToMediaUrl, uid } from '../../lib/utils';
 import { mediaSizeForUrl } from '../../lib/mediaStore';
 import { pickAndStorePdf } from '../pdf/PdfViewer';
-import { deletePdf, formatBytes, getPdf } from '../../lib/pdfStore';
-import { pdfReferenceCount } from '../../lib/courses';
+import { formatBytes, getPdf } from '../../lib/pdfStore';
 import { CheckRow, Field, ImagePicker, useToast } from '../ui';
 import { renderMarkdown } from '../../lib/markdown';
 import { hasMarkdownFormatting } from '../../lib/textFormatting';
@@ -128,14 +127,25 @@ function dataUrlSize(url: string): string {
 
 // ── Het schakelpunt ─────────────────────────────────────────────────────────
 
-export function BlockEditor({ block, onChange }: { block: CourseBlock; onChange: OnChange }) {
+export function BlockEditor({
+  block, onChange, onPdfReleased,
+}: {
+  block: CourseBlock;
+  onChange: OnChange;
+  /**
+   * Een geüpload pdf-bestand wordt niet meer gebruikt door dit blok
+   * (verwijderd of vervangen). De editor ruimt het op na de volgende
+   * geslaagde bewaring, en alleen als niets anders het nog gebruikt.
+   */
+  onPdfReleased?: (pdfId: string) => void;
+}) {
   switch (block.type) {
     case 'heading': return <HeadingEditor b={block} onChange={onChange} />;
     case 'text': return <TextEditor b={block} onChange={onChange} />;
     case 'image': return <ImageEditor b={block} onChange={onChange} />;
     case 'video': return <VideoEditor b={block} onChange={onChange} />;
     case 'audio': return <AudioEditor b={block} onChange={onChange} />;
-    case 'pdf': return <PdfBlockEditor b={block} onChange={onChange} />;
+    case 'pdf': return <PdfBlockEditor b={block} onChange={onChange} onPdfReleased={onPdfReleased} />;
     case 'embed': return <EmbedEditor b={block} onChange={onChange} />;
     case 'callout': return <CalloutEditor b={block} onChange={onChange} />;
     case 'quote': return <QuoteEditor b={block} onChange={onChange} />;
@@ -313,10 +323,29 @@ function AudioEditor({ b, onChange }: { b: AudioBlock; onChange: OnChange }) {
 
 const PDF_HEIGHTS = [420, 560, 720];
 
-function PdfBlockEditor({ b, onChange }: { b: PdfBlock; onChange: OnChange }) {
+function PdfBlockEditor({
+  b, onChange, onPdfReleased,
+}: {
+  b: PdfBlock;
+  onChange: OnChange;
+  onPdfReleased?: (pdfId: string) => void;
+}) {
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  // Verwijderen gaat in twee stappen (CU3): eerst vragen, dan pas loskoppelen.
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const removeRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const chooseRef = useRef<HTMLButtonElement>(null);
+  // Waar de focus heen moet na de volgende render (toetsenbord: nooit op <body> belanden).
+  const focusNext = useRef<'cancel' | 'remove' | 'choose' | null>(null);
+  useEffect(() => {
+    const target = focusNext.current;
+    if (!target) return;
+    focusNext.current = null;
+    (target === 'cancel' ? cancelRef : target === 'remove' ? removeRef : chooseRef).current?.focus();
+  });
   // Grootte/naam van de geüploade pdf tonen (die staan in IndexedDB, niet in het blok).
   const [stored, setStored] = useState<{ name: string; size: number } | 'weg' | null>(null);
   useEffect(() => {
@@ -342,18 +371,29 @@ function PdfBlockEditor({ b, onChange }: { b: PdfBlock; onChange: OnChange }) {
       toast(res.error, 'err');
       return;
     }
-    // Bij "Vervangen": de vorige upload opruimen (fire-and-forget) — maar
-    // alleen als dit blok de laatste verwijzing is. Dupliceren (blok, cursus,
-    // widget) deelt bewust hetzelfde pdfId, dus een duplicaat mag het bestand
-    // niet kwijtraken.
-    if (b.pdfId && pdfReferenceCount(b.pdfId) <= 1) void deletePdf(b.pdfId);
+    // Bij "Vervangen": de vorige upload niet meteen wissen. De editor ruimt
+    // hem op na de volgende geslaagde bewaring, en alleen als geen enkel
+    // ander blok (ook een duplicaat dat nog niet bewaard is), geen andere
+    // cursus en geen widget hem nog gebruikt.
+    if (b.pdfId) onPdfReleased?.(b.pdfId);
+    setConfirmRemove(false);
     onChange({ ...b, pdfId: res.pdfId, name: res.name, url: undefined });
   };
 
+  const askRemove = () => {
+    focusNext.current = 'cancel';
+    setConfirmRemove(true);
+  };
+  const cancelRemove = () => {
+    focusNext.current = 'remove';
+    setConfirmRemove(false);
+  };
   const removeUpload = () => {
-    // Zelfde regel als bij "Vervangen": de blob alleen wissen als niets
-    // anders er nog naar verwijst; anders enkel de verwijzing loskoppelen.
-    if (b.pdfId && pdfReferenceCount(b.pdfId) <= 1) void deletePdf(b.pdfId);
+    // Zelfde regel als bij "Vervangen": enkel de verwijzing loskoppelen; het
+    // bestand zelf verdwijnt pas na het bewaren, als niets het nog gebruikt.
+    if (b.pdfId) onPdfReleased?.(b.pdfId);
+    focusNext.current = 'choose';
+    setConfirmRemove(false);
     onChange({ ...b, pdfId: undefined, name: undefined });
   };
 
@@ -372,15 +412,31 @@ function PdfBlockEditor({ b, onChange }: { b: PdfBlock; onChange: OnChange }) {
               <WarningIcon size={14} /> niet gevonden op dit toestel
             </span>
           )}
-          <button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => inputRef.current?.click()}>
-            {busy ? 'Bezig…' : 'Vervangen…'}
-          </button>
-          <button className="btn btn-sm btn-ghost" onClick={removeUpload}>Verwijderen</button>
+          {!confirmRemove && (
+            <>
+              <button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => inputRef.current?.click()}>
+                {busy ? 'Bezig…' : 'Vervangen…'}
+              </button>
+              <button ref={removeRef} className="btn btn-sm btn-ghost" onClick={askRemove}>Verwijderen</button>
+            </>
+          )}
+          {confirmRemove && (
+            <div className="pdf-remove-confirm" role="group" aria-label="Pdf-bestand verwijderen">
+              <p style={{ margin: 0 }}>
+                Dit pdf-bestand uit het blok halen? Gebruikt niets anders het nog, dan verdwijnt het ook van dit
+                toestel. Dat kan je niet ongedaan maken.
+              </p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button className="btn btn-sm btn-danger" onClick={removeUpload}>Ja, verwijderen</button>
+                <button ref={cancelRef} className="btn btn-sm btn-ghost" onClick={cancelRemove}>Annuleren</button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <>
           <div style={{ marginBottom: 10 }}>
-            <button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => inputRef.current?.click()}>
+            <button ref={chooseRef} className="btn btn-sm btn-ghost" disabled={busy} onClick={() => inputRef.current?.click()}>
               <FileText size={16} /> {busy ? 'Bezig met bewaren…' : 'Pdf-bestand kiezen…'}
             </button>
             <span className="hint" style={{ marginLeft: 8 }}>of gebruik een URL:</span>

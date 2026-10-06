@@ -1333,3 +1333,72 @@ export function ensureDemoCourse() {
   ];
   if (saveCourse(course)) markeer();
 }
+
+// ── Bewaren vanuit de cursuseditor: nooit iets overschrijven wat je niet zag ─
+//
+// Twee tabbladen met dezelfde cursus schreven vroeger stil over elkaar heen
+// (CU2/OP4). De editor onthoudt daarom de versie (updatedAt) waarop hij verder
+// bouwt, en bewaart alleen als de opgeslagen versie nog precies díe is.
+// Bewust op gelijkheid en niet op "nieuwer": na een bewust "Vervangen" door
+// een oudere back-up springt updatedAt terug, en ook dat is een wijziging die
+// een ander tabblad niet mag wegvegen.
+
+export type GuardedSaveResult =
+  | { ok: true; updatedAt: number }
+  /** In de opslag staat intussen een andere versie (`stored`): niets geschreven. */
+  | { ok: false; reason: 'gewijzigd'; stored: Course }
+  /** De cursus staat niet meer in de opslag (elders verwijderd): niets geschreven. */
+  | { ok: false; reason: 'verwijderd' }
+  /** Schrijven mislukte (volle of geblokkeerde opslag); gemeld via reportWriteFailure. */
+  | { ok: false; reason: 'mislukt' };
+
+/**
+ * Bewaart `course` alleen als de opgeslagen versie nog `expectedUpdatedAt`
+ * draagt (lezen, vergelijken en schrijven in één synchrone stap). Met
+ * `force` wordt er toch geschreven, ook over een andere versie heen of als
+ * de cursus elders verwijderd werd: alleen na een uitdrukkelijke keuze.
+ * De nieuwe updatedAt verschilt altijd van de vorige, ook binnen dezelfde
+ * milliseconde: anders zou een ander tabblad de wijziging niet opmerken.
+ */
+export function saveCourseGuarded(
+  course: Course,
+  expectedUpdatedAt: number,
+  opts: { force?: boolean } = {}
+): GuardedSaveResult {
+  const all = getCourses();
+  const i = all.findIndex((c) => c.id === course.id);
+  if (!opts.force) {
+    if (i < 0) return { ok: false, reason: 'verwijderd' };
+    if (all[i].updatedAt !== expectedUpdatedAt) return { ok: false, reason: 'gewijzigd', stored: all[i] };
+  }
+  const previous = i >= 0 ? all[i].updatedAt : undefined;
+  let updatedAt = Date.now();
+  // Vlak na elkaar (zelfde milliseconde): toch een nieuwe, hogere versie, zodat
+  // een versie nooit terugkomt die een ander tabblad nog als de zijne kent.
+  if (typeof previous === 'number' && updatedAt <= previous && previous - updatedAt < 60_000) updatedAt = previous + 1;
+  while (updatedAt === previous || updatedAt === expectedUpdatedAt) updatedAt++;
+  const saved = { ...course, updatedAt };
+  if (i >= 0) all[i] = saved;
+  else all.unshift(saved);
+  return write(COURSES_KEY, all) ? { ok: true, updatedAt } : { ok: false, reason: 'mislukt' };
+}
+
+/**
+ * Luistert naar wijzigingen aan de cursussen vanuit een ánder tabblad (het
+ * `storage`-event komt nooit in het tabblad dat zelf schreef). Ook bij
+ * `localStorage.clear()` elders (key null). Geeft een opzegfunctie terug.
+ */
+export function onCoursesChangedElsewhere(fn: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const handler = (e: StorageEvent) => {
+    if (e.key !== null && e.key !== COURSES_KEY) return;
+    try {
+      if (e.storageArea && e.storageArea !== localStorage) return; // sessionStorage telt niet
+    } catch {
+      return; // opslag geblokkeerd: dan valt er ook niets te lezen
+    }
+    fn();
+  };
+  window.addEventListener('storage', handler);
+  return () => window.removeEventListener('storage', handler);
+}

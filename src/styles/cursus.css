@@ -45,6 +45,65 @@
   }
 }
 
+/* Bewaarstatus naast de titel. Een probleem ("Niet bewaard", "Bewaren
+ * gepauzeerd") staat in de fouttekstkleur en vet: niet alleen kleur. */
+.course-save-state {
+  min-width: 84px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.course-save-state-problem {
+  color: var(--err-text);
+  font-weight: 700;
+}
+
+/* Melding bovenaan de editor (conflict met een ander tabblad, mislukt
+ * bewaren). Over de volle breedte van het raster, boven structuur en sectie. */
+.course-editor-alert {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-s);
+  background: var(--warn-soft);
+  color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+  min-width: 0;
+}
+.course-editor-alert-problem {
+  background: var(--err-soft);
+  border-color: color-mix(in srgb, var(--err) 45%, transparent);
+}
+.course-editor-alert-icon { flex: none; margin-top: 2px; color: var(--warn-text); }
+.course-editor-alert-problem .course-editor-alert-icon { color: var(--err-text); }
+.course-editor-alert-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.course-editor-alert-body > p { margin: 0 0 8px; }
+.course-editor-alert-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.course-editor-alert-hint { margin: 8px 0 0; }
+
+/* Leeg blok: leerlingen zien het niet (de lezer slaat het over). */
+.course-block-empty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+/* Pdf-bestand verwijderen: tweede stap, met de gevolgen erbij. */
+.pdf-remove-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-basis: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-s);
+  background: var(--bg-raised);
+  border: 1px solid color-mix(in srgb, var(--err) 45%, transparent);
+  border-left-width: 4px;
+}
+
 /* Blokkenpalet: icoon + naam, wat groter dan in een gewone knop. */
 .block-palette-icon {
   display: flex;
