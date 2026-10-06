@@ -512,6 +512,372 @@ console.log('A11Y19, W15d, W5. Editor: landmarks, accentkleur en beperkingen');
   await ctx.close();
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// BEGIN P3 — herstelpakket P3: kleinere punten in de widget-editor
+// ════════════════════════════════════════════════════════════════════════════
+// Eigen blok met eigen hulpfuncties, los van het importdeel hierboven.
+//
+//  B1   "Opnieuw bewaren" van een elders verwijderde widget: banner en melding
+//       zeggen eerlijk dat de resultaten van de leerlingen niet terugkomen
+//       (alleen bij soorten met inzendingen).
+//  B4   Na het overnemen van een versie met een nieuwe afbeelding wordt de
+//       afbeelding vanzelf zichtbaar (geen herladen nodig).
+//  B5   Overnemen houdt de focus (en cursor) in het veld waar je typte, en
+//       "Bijgewerkt uit een ander tabblad" blijft staan tot de volgende wijziging.
+//  B6   Een open AI-assistent telt als onbewaard werk: een conflict, geen stil
+//       overnemen; sluiten zonder toepassen laadt dan de nieuwe versie.
+//  B8a  Een knop "Downloaden als bestand" in de conflictbanner.
+//  B9   Na een bannerknop staat de focus op het titelveld; de tekst bij
+//       weggaan noemt de echte reden (niet altijd "de opslag is vol").
+
+console.log('P3. Widget-editor: kleinere punten (B1, B4, B5, B6, B8a, B9)');
+{
+  const wacht = async (voorwaarde, ms = 4000) => {
+    const tot = Date.now() + ms;
+    while (Date.now() < tot) {
+      if (await voorwaarde().catch(() => false)) return true;
+      await sleep(80);
+    }
+    return false;
+  };
+  /** Een ander tabblad bewaart een widget (nieuwe updatedAt, zoals saveWidget). */
+  const bewaarElders = (page, id, patch) => page.evaluate(([id, patch]) => {
+    const ws = JSON.parse(localStorage.getItem('wf.widgets.v1'));
+    const w = ws.find((x) => x.id === id);
+    Object.assign(w, patch);
+    w.updatedAt = Math.max(Date.now(), (w.updatedAt || 0) + 1);
+    localStorage.setItem('wf.widgets.v1', JSON.stringify(ws));
+  }, [id, patch]);
+  const verwijderElders = (page, id) => page.evaluate((id) => {
+    const ws = JSON.parse(localStorage.getItem('wf.widgets.v1')).filter((x) => x.id !== id);
+    localStorage.setItem('wf.widgets.v1', JSON.stringify(ws));
+  }, id);
+  /** Waar staat de focus? (label = aria-label, voor het titelveld "Titel van de widget") */
+  const focusOp = (page) => page.evaluate(() => {
+    const a = document.activeElement;
+    return {
+      tag: a?.tagName ?? '', label: a?.getAttribute('aria-label') ?? '',
+      inPaneel: Boolean(a && document.getElementById('panel-content')?.contains(a)),
+    };
+  });
+  const opTitel = async (page) => {
+    const f = await focusOp(page);
+    return f.tag === 'INPUT' && f.label === 'Titel van de widget';
+  };
+  // de nieuwste melding (een oudere kan nog even zichtbaar zijn)
+  const toastTekst = (page) => page.locator('.toast-stack .toast').last().innerText({ timeout: 1500 }).catch(() => '');
+  const alertTekst = (page, deel) => page.getByRole('alert').filter({ hasText: deel }).innerText().catch(() => '').then((t) => t.replace(/\s+/g, ' '));
+  /** Knop focussen en met Enter bedienen, zoals een toetsenbordgebruiker. */
+  const enterOp = async (page, naam) => {
+    const knop = page.getByRole('button', { name: naam });
+    await knop.focus({ timeout: 4000 });
+    await page.keyboard.press('Enter');
+  };
+  /** Twee tabbladen in één profiel: `editor` met de widget open, `elders` zonder. */
+  async function tweeTabs(label, widgets, id) {
+    const ctx = await freshContext();
+    const editor = await openPage(ctx, `${label}-editor`);
+    const elders = await openPage(ctx, `${label}-elders`);
+    await editor.page.goto(BASE + '#/widgets');
+    await sleep(500);
+    await zetWidgets(editor.page, widgets);
+    await elders.page.goto(BASE + '#/widgets');
+    await editor.page.goto(BASE + `#/bewerk/${id}`);
+    await editorKlaar(editor.page);
+    return { ctx, editor, elders };
+  }
+
+  // ── B1 en B9 (verwijderd): Opnieuw bewaren ────────────────────────────────
+  console.log(' B1/B9. Elders verwijderd, dan "Opnieuw bewaren"');
+  {
+    const { ctx, editor, elders } = await tweeTabs('B1', [quiz({ id: 'w_b1', title: 'Toets met resultaten' }), plaat({ id: 'w_b1plaat', title: 'Plaat zonder resultaten' })], 'w_b1');
+    const { page } = editor;
+    await verwijderElders(elders.page, 'w_b1');
+    await wacht(() => page.getByRole('alert').filter({ hasText: 'in een ander tabblad verwijderd' }).isVisible());
+    const banner = await alertTekst(page, 'in een ander tabblad verwijderd');
+    check('B1: de banner zegt dat de resultaten van de leerlingen niet terugkomen', /De resultaten van je leerlingen komen niet terug\./.test(banner), banner);
+    await enterOp(page, 'Opnieuw bewaren');
+    await wacht(async () => (await titelIn(elders.page, 'w_b1')) !== undefined);
+    check('B1: de widget staat weer in de opslag', (await titelIn(elders.page, 'w_b1')) === 'Toets met resultaten');
+    const melding = await toastTekst(page);
+    check('B1: de melding zegt "opnieuw bewaard" én dat de resultaten niet terugkomen',
+      /De widget is opnieuw bewaard\./.test(melding) && /resultaten van je leerlingen komen niet terug/.test(melding), melding);
+    check('B9: na "Opnieuw bewaren" staat de focus op het titelveld (niet op BODY)', await opTitel(page), JSON.stringify(await focusOp(page)));
+    check('de banner is weg', (await page.getByRole('alert').count()) === 0);
+
+    // Een soort zonder inzendingen (plaat) heeft geen resultaten om te verliezen.
+    await page.goto(BASE + '#/bewerk/w_b1plaat');
+    await editorKlaar(page);
+    await verwijderElders(elders.page, 'w_b1plaat');
+    await wacht(() => page.getByRole('alert').filter({ hasText: 'in een ander tabblad verwijderd' }).isVisible());
+    const bannerPlaat = await alertTekst(page, 'in een ander tabblad verwijderd');
+    check('B1: bij een soort zonder inzendingen geen zin over resultaten', bannerPlaat.length > 0 && !/resultaten/.test(bannerPlaat), bannerPlaat);
+    await page.getByRole('button', { name: 'Opnieuw bewaren' }).click();
+    check('B1: ook de melding zwijgt dan over resultaten', !/resultaten/.test(await toastTekst(page)) && /opnieuw bewaard/.test(await toastTekst(page)));
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await verwijderElders(elders.page, 'w_b1plaat');
+    await wacht(() => page.getByRole('alert').filter({ hasText: 'in een ander tabblad verwijderd' }).isVisible());
+    await sleep(200);
+    check('390 px: geen horizontale scroll met de verwijderd-banner', await geenOverloop(page));
+    const fouten = [...editor.errors, ...elders.errors];
+    check('geen paginafout', fouten.length === 0, fouten.join(' | '));
+    await ctx.close();
+  }
+
+  // ── B4: een nieuwe afbeelding na overnemen ────────────────────────────────
+  console.log(' B4. Overnemen met een nieuwe afbeelding');
+  {
+    const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    const { ctx, editor, elders } = await tweeTabs('B4', [plaat({ id: 'w_b4', title: 'Plaat voor B4' })], 'w_b4');
+    const { page } = editor;
+    await sleep(500);
+    const versie0 = (await opslag(elders.page)).widgets.find((w) => w.id === 'w_b4').updatedAt;
+    // Het andere tabblad voegt een afbeelding toe: blob in IndexedDB + verwijzing in de widget.
+    await elders.page.evaluate(async (png) => {
+      const bin = atob(png); const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'image/png' });
+      await new Promise((res, rej) => {
+        const r = indexedDB.open('wf-files', 1);
+        r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains('pdfs')) r.result.createObjectStore('pdfs', { keyPath: 'id' }); };
+        r.onsuccess = () => {
+          const tx = r.result.transaction('pdfs', 'readwrite');
+          tx.objectStore('pdfs').put({ id: 'm_p3nieuw1', name: 'x.png', blob, size: blob.size, createdAt: Date.now() });
+          tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
+        };
+      });
+      const ws = JSON.parse(localStorage.getItem('wf.widgets.v1'));
+      const w = ws.find((x) => x.id === 'w_b4');
+      w.config.imageUrl = 'wfmedia:m_p3nieuw1';
+      w.updatedAt = Date.now() + 5;
+      localStorage.setItem('wf.widgets.v1', JSON.stringify(ws));
+    }, PNG);
+    const geladen = await wacht(() => page.evaluate(() => {
+      const img = document.querySelector('main img');
+      return Boolean(img) && img.src.startsWith('blob:') && img.naturalWidth > 0;
+    }), 3000);
+    const src = await page.locator('main img').first().getAttribute('src').catch(() => 'geen img');
+    check('B4: de nieuwe afbeelding wordt vanzelf zichtbaar (blob: met breedte > 0, zonder herladen)', geladen, String(src));
+    check('B4: de editor zegt nog steeds "Bijgewerkt uit een ander tabblad"', /Bijgewerkt uit een ander tabblad/.test(await status(page)), await status(page));
+    await sleep(1200);
+    const versie1 = (await opslag(elders.page)).widgets.find((w) => w.id === 'w_b4').updatedAt;
+    check('B4: opnieuw lezen schrijft niets terug (versie ongewijzigd)', versie1 > versie0 && versie1 === (await opslag(page)).widgets.find((w) => w.id === 'w_b4').updatedAt);
+    check('B4: in de opslag staat nog de verwijzing, geen blob-URL',
+      (await opslag(page)).widgets.find((w) => w.id === 'w_b4').config.imageUrl === 'wfmedia:m_p3nieuw1');
+    const fouten = [...editor.errors, ...elders.errors];
+    check('geen paginafout', fouten.length === 0, fouten.join(' | '));
+    await ctx.close();
+  }
+
+  // ── B5: focus en toetsaanslagen bij overnemen ─────────────────────────────
+  console.log(' B5. Overnemen houdt de focus en het bericht blijft staan');
+  {
+    const { ctx, editor, elders } = await tweeTabs('B5', [quiz({ id: 'w_b5', title: 'Toets B5' })], 'w_b5');
+    const { page } = editor;
+    const veld = page.locator('#panel-content textarea').first();
+    await veld.click();
+    await veld.press('Home');
+    for (let i = 0; i < 3; i++) await veld.press('ArrowRight');
+    const voor = await page.evaluate(() => ({ s: document.activeElement.selectionStart, v: document.activeElement.value }));
+    await bewaarElders(elders.page, 'w_b5', { title: 'Titel uit ander tabblad' });
+    await wacht(() => page.getByLabel('Titel van de widget').inputValue().then((v) => v === 'Titel uit ander tabblad'));
+    check('B5: de versie van het andere tabblad staat op het scherm', (await page.getByLabel('Titel van de widget').inputValue()) === 'Titel uit ander tabblad');
+    const na = await focusOp(page);
+    check('B5: de focus staat nog in een tekstveld van de editor (niet op BODY)', na.tag === 'TEXTAREA' && na.inPaneel, JSON.stringify(na));
+    const sel = await page.evaluate(() => ({ s: document.activeElement.selectionStart, e: document.activeElement.selectionEnd, v: document.activeElement.value }));
+    check('B5: dezelfde tekst en dezelfde cursorplaats', sel.v === voor.v && sel.s === voor.s && sel.e === voor.s, JSON.stringify({ voor, sel }));
+    await sleep(2500);
+    check('B5: "Bijgewerkt uit een ander tabblad" staat er ook na 2,5 s nog (was 1,2 s)',
+      /Bijgewerkt uit een ander tabblad/.test(await status(page)), await status(page));
+    await page.keyboard.type('XYZ');
+    const opScherm = await page.evaluate(() => document.activeElement.value);
+    check('B5: de toetsaanslagen komen in het veld terecht, op de cursorplaats', opScherm === voor.v.slice(0, 3) + 'XYZ' + voor.v.slice(3), opScherm);
+    await wacht(async () => JSON.stringify((await opslag(page)).widgets.find((w) => w.id === 'w_b5')).includes('XYZ'));
+    const w = (await opslag(page)).widgets.find((x) => x.id === 'w_b5');
+    check('B5: "XYZ" staat in de opslag, de titel van het andere tabblad ook', JSON.stringify(w.config).includes('XYZ') && w.title === 'Titel uit ander tabblad');
+    check('B5: na het typen is "Bijgewerkt" weg (nu "Bewaard")', await wacht(async () => /Bewaard/.test(await status(page)) && !/Bijgewerkt/.test(await status(page)), 2500), await status(page));
+
+    // Focus in het titelveld (niet in het paneel): blijft daar.
+    const titel = page.getByLabel('Titel van de widget');
+    await sleep(1500);
+    await titel.focus();
+    await bewaarElders(elders.page, 'w_b5', { title: 'Tweede titel van elders' });
+    await wacht(() => titel.inputValue().then((v) => v === 'Tweede titel van elders'));
+    check('B5: focus in het titelveld blijft in het titelveld', await opTitel(page), JSON.stringify(await focusOp(page)));
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await sleep(200);
+    check('390 px: geen horizontale scroll met "Bijgewerkt uit een ander tabblad"', await geenOverloop(page));
+    const fouten = [...editor.errors, ...elders.errors];
+    check('geen paginafout', fouten.length === 0, fouten.join(' | '));
+    await ctx.close();
+  }
+
+  // ── B6: AI-assistent open terwijl een ander tabblad bewaart ───────────────
+  console.log(' B6. Open AI-assistent telt als onbewaard werk');
+  {
+    const { ctx, editor, elders } = await tweeTabs('B6', [quiz({ id: 'w_b6', title: 'Toets B6' })], 'w_b6');
+    const { page } = editor;
+    const titel = page.getByLabel('Titel van de widget');
+    const dialoog = page.getByRole('dialog', { name: /AI-hulp/ });
+
+    // Eerst een open assistent zonder dat iets verandert: niets te zien, niets geschreven.
+    const versie0 = (await opslag(page)).widgets.find((w) => w.id === 'w_b6').updatedAt;
+    await page.getByRole('button', { name: /AI-assistent/ }).click();
+    await dialoog.waitFor({ timeout: 4000 });
+    await sleep(700);
+    await dialoog.getByRole('button', { name: 'Sluiten', exact: true }).click();
+    await sleep(500);
+    check('open en weer sluiten zonder verandering: geen banner, niets geschreven',
+      (await page.getByRole('alert').count()) === 0 && (await opslag(page)).widgets.find((w) => w.id === 'w_b6').updatedAt === versie0);
+
+    // Nu bewaart een ander tabblad terwijl de assistent openstaat.
+    await page.getByRole('button', { name: /AI-assistent/ }).click();
+    await dialoog.waitFor({ timeout: 4000 });
+    await bewaarElders(elders.page, 'w_b6', { title: 'Titel uit ander tabblad' });
+    const conflict = await wacht(() => page.getByRole('alert').filter({ hasText: 'intussen in een ander tabblad bewaard' }).isVisible(), 3000);
+    check('B6: er komt een conflictbanner (geen stil overnemen)', conflict);
+    check('B6: de editor zegt niet "Bijgewerkt"', !/Bijgewerkt/.test(await status(page)), await status(page));
+    check('B6: de titel op het scherm is nog die van hier (niets stil vervangen)', (await titel.inputValue()) === 'Toets B6');
+    check('B6: ook een melding boven het venster van de assistent', /Sluit de AI-assistent/.test(await toastTekst(page)), await toastTekst(page));
+    const tekst = await alertTekst(page, 'intussen in een ander tabblad bewaard');
+    check('B6: de banner noemt de assistent in plaats van "je wijzigingen"', /AI-assistent/.test(tekst) && !/Je wijzigingen hier/.test(tekst), tekst);
+    check('B6: de versie van het andere tabblad staat nog in de opslag', (await titelIn(elders.page, 'w_b6')) === 'Titel uit ander tabblad');
+
+    // Sluiten zonder toepassen: er valt niets te verliezen, dus de nieuwe versie laden.
+    await dialoog.getByRole('button', { name: 'Sluiten', exact: true }).click();
+    const geladen = await wacht(async () => (await titel.inputValue()) === 'Titel uit ander tabblad', 3000);
+    check('B6: assistent sluiten zonder toepassen laadt de versie van het andere tabblad', geladen, await titel.inputValue());
+    check('B6: dan geen conflictbanner meer, wel "Bijgewerkt uit een ander tabblad"',
+      (await page.getByRole('alert').count()) === 0 && /Bijgewerkt uit een ander tabblad/.test(await status(page)), await status(page));
+    await sleep(900);
+    check('B6: er werd niets over de versie van het andere tabblad geschreven', (await titelIn(elders.page, 'w_b6')) === 'Titel uit ander tabblad');
+    const fouten = [...editor.errors, ...elders.errors];
+    check('geen paginafout', fouten.length === 0, fouten.join(' | '));
+    await ctx.close();
+  }
+
+  // ── B8a en B9: conflictbanner (downloaden, focus) ─────────────────────────
+  console.log(' B8a/B9. Conflictbanner: downloaden en focus na een keuze');
+  {
+    const { ctx, editor, elders } = await tweeTabs('B9', [quiz({ id: 'w_b9', title: 'Toets B9' })], 'w_b9');
+    const { page } = editor;
+    const titel = page.getByLabel('Titel van de widget');
+    const maakConflict = async (nieuweTitel) => {
+      await titel.click();
+      await titel.press('End');
+      await titel.pressSequentially(' (hier)', { delay: 0 });
+      await bewaarElders(elders.page, 'w_b9', { title: nieuweTitel });
+      await wacht(() => page.getByRole('alert').filter({ hasText: 'intussen in een ander tabblad bewaard' }).isVisible(), 3000);
+    };
+
+    await maakConflict('Elders 1');
+    const knoppen = await page.getByRole('alert').getByRole('button').allInnerTexts();
+    check('B8a: de conflictbanner heeft "Downloaden als bestand" naast de twee keuzes',
+      knoppen.some((k) => /Mijn versie bewaren/.test(k)) && knoppen.some((k) => /Andere versie laden/.test(k)) && knoppen.some((k) => /Downloaden als bestand/.test(k)), JSON.stringify(knoppen));
+    await page.setViewportSize({ width: 390, height: 844 });
+    await sleep(200);
+    check('390 px: geen horizontale scroll met de conflictbanner', await geenOverloop(page));
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const download = page.waitForEvent('download', { timeout: 5000 }).catch(() => null);
+    await page.getByRole('alert').getByRole('button', { name: /Downloaden als bestand/ }).click();
+    const bestand = await download;
+    check('B8a: de knop downloadt de widget als .widget.json', Boolean(bestand) && /\.widget\.json$/.test(bestand.suggestedFilename()), bestand?.suggestedFilename());
+    check('B8a: de banner blijft staan (er werd niets beslist)', await page.getByRole('alert').filter({ hasText: 'intussen in een ander tabblad bewaard' }).isVisible());
+    check('B8a: de versie van het andere tabblad staat nog in de opslag', (await titelIn(elders.page, 'w_b9')) === 'Elders 1');
+
+    await enterOp(page, 'Andere versie laden');
+    await sleep(300);
+    check('B9: na "Andere versie laden" staat de focus op het titelveld', await opTitel(page), JSON.stringify(await focusOp(page)));
+    check('"Andere versie laden": het scherm toont de versie van elders', (await titel.inputValue()) === 'Elders 1');
+
+    await maakConflict('Elders 2');
+    await enterOp(page, 'Mijn versie bewaren');
+    await sleep(400);
+    check('B9: na "Mijn versie bewaren" staat de focus op het titelveld', await opTitel(page), JSON.stringify(await focusOp(page)));
+    check('"Mijn versie bewaren": mijn titel staat in de opslag', (await titelIn(elders.page, 'w_b9')) === 'Elders 1 (hier)', await titelIn(elders.page, 'w_b9'));
+    const fouten = [...editor.errors, ...elders.errors];
+    check('geen paginafout', fouten.length === 0, fouten.join(' | '));
+    await ctx.close();
+  }
+
+  // ── B9: "Opnieuw proberen" en de tekst bij weggaan ────────────────────────
+  console.log(' B9. Mislukt bewaren: focus na "Opnieuw proberen" en de echte reden bij weggaan');
+  {
+    // (a) volle opslag
+    const ctx = await freshContext();
+    const { page, errors } = await openPage(ctx, 'B9vol');
+    await page.goto(BASE + '#/widgets');
+    await sleep(500);
+    await zetWidgets(page, [quiz({ id: 'w_b9vol', title: 'Toets vol' })]);
+    await page.goto(BASE + '#/bewerk/w_b9vol');
+    await editorKlaar(page);
+    await vulOpslag(page, 0);
+    const titel = page.getByLabel('Titel van de widget');
+    await titel.click();
+    await titel.press('End');
+    await titel.pressSequentially(' en nog veel meer tekst'.repeat(10), { delay: 0 });
+    await sleep(1300);
+    await page.getByRole('button', { name: 'Terug', exact: true }).click({ timeout: 4000 }).catch(() => {});
+    const vraag = page.getByRole('dialog', { name: 'Je wijzigingen zijn niet bewaard' });
+    await vraag.waitFor({ timeout: 3000 }).catch(() => {});
+    const volTekst = (await vraag.innerText().catch(() => '')).replace(/\s+/g, ' ');
+    check('B9: bij een volle opslag zegt de vraag dat de opslag vol is', /De opslag van dit toestel is vol/.test(volTekst) && /Download de widget eerst als bestand/.test(volTekst), volTekst);
+    await vraag.getByRole('button', { name: 'Blijven' }).click().catch(() => {});
+    await sleep(300);
+    await leegOpslag(page);
+    await enterOp(page, 'Opnieuw proberen');
+    await sleep(400);
+    check('B9: na "Opnieuw proberen" staat de focus op het titelveld', await opTitel(page), JSON.stringify(await focusOp(page)));
+    check('"Opnieuw proberen" bewaarde alles', (await titelIn(page, 'w_b9vol')) === await titel.inputValue());
+    check('geen paginafout (volle opslag)', errors.length === 0, errors.join(' | '));
+    await ctx.close();
+  }
+  {
+    // (b) een andere fout dan "vol": de opslag weigert (bv. geblokkeerd in privémodus)
+    const ctx = await freshContext();
+    const { page, errors } = await openPage(ctx, 'B9geblokkeerd');
+    await page.goto(BASE + '#/widgets');
+    await sleep(500);
+    await zetWidgets(page, [quiz({ id: 'w_b9blok', title: 'Toets geblokkeerd' })]);
+    await page.goto(BASE + '#/bewerk/w_b9blok');
+    await editorKlaar(page);
+    await page.evaluate(() => {
+      const echt = Storage.prototype.setItem;
+      window.__echteSetItem = echt;
+      Storage.prototype.setItem = function (k, v) {
+        if (k === 'wf.widgets.v1') throw new DOMException('De opslag is geblokkeerd.', 'SecurityError');
+        return echt.call(this, k, v);
+      };
+    });
+    const titel = page.getByLabel('Titel van de widget');
+    await titel.click();
+    await titel.press('End');
+    await titel.pressSequentially(' extra', { delay: 0 });
+    await sleep(1300);
+    const banner = await alertTekst(page, 'Niet bewaard.');
+    check('B9: de banner noemt de echte reden (geen volle opslag)', /Bewaren op dit toestel is mislukt/.test(banner) && !/is vol/.test(banner), banner);
+    await page.getByRole('button', { name: 'Terug', exact: true }).click({ timeout: 4000 }).catch(() => {});
+    const vraag = page.getByRole('dialog', { name: 'Je wijzigingen zijn niet bewaard' });
+    await vraag.waitFor({ timeout: 3000 }).catch(() => {});
+    const tekst = (await vraag.innerText().catch(() => '')).replace(/\s+/g, ' ');
+    check('B9: de vraag bij weggaan zegt níét "de opslag is vol"', tekst.length > 0 && !/\bvol\b/.test(tekst), tekst);
+    check('B9: ze noemt wel de echte reden en wat je kan doen', /Bewaren op dit toestel is mislukt/.test(tekst) && /Download de widget eerst als bestand/.test(tekst), tekst);
+    await vraag.getByRole('button', { name: 'Blijven' }).click().catch(() => {});
+    await page.evaluate(() => { Storage.prototype.setItem = window.__echteSetItem; });
+    await enterOp(page, 'Opnieuw proberen');
+    await sleep(400);
+    check('B9: de opslag werkt weer: "Opnieuw proberen" bewaart en zet de focus op het titelveld',
+      (await titelIn(page, 'w_b9blok')) === 'Toets geblokkeerd extra' && (await opTitel(page)), JSON.stringify(await focusOp(page)));
+    check('geen paginafout (geblokkeerde opslag)', errors.length === 0, errors.join(' | '));
+    await ctx.close();
+  }
+}
+// ════════════════════════════════════════════════════════════════════════════
+// EINDE P3
+// ════════════════════════════════════════════════════════════════════════════
+
 await browser.close();
 console.log(failures ? `\n${failures} controle(s) gefaald` : '\nALLE EDITOR-IMPORT-CHECKS GESLAAGD');
 process.exit(failures ? 1 : 0);

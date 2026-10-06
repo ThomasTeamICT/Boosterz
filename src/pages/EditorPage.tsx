@@ -1,9 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom';
 import { Bookmark, FileText } from 'lucide-react';
 import { getSubmissions, getWidget, saveWidget } from '../lib/storage';
 import { onStorageNotice } from '../lib/storageHealth';
 import { syncState, versionOf } from '../lib/editorSync';
+import {
+  captureFocus, countMediaRefs, leaveMessage, restoreFocus, shouldRefreshMedia, type FocusSlot,
+} from '../lib/editorOvernemen';
+import { onMediaChange } from '../lib/mediaStore';
 import { readableAccent } from '../lib/color';
 import { exportWidgetJsonWithMedia } from '../lib/share';
 import { downloadFile } from '../lib/utils';
@@ -31,14 +35,27 @@ import '../styles/editor.css';
 // - Er wordt alleen geschreven als er iets veranderde (openen alleen schrijft
 //   niets), en nooit over een versie heen die een ander tabblad intussen
 //   bewaarde, of over een widget die daar verwijderd werd: zie lib/editorSync.
+// - Herstelpakket P3: een open AI-assistent telt als onbewaard werk (dan een
+//   conflict in plaats van stil overnemen), nieuwe afbeeldingen verschijnen na
+//   het overnemen vanzelf, de focus blijft in het veld waar je typte, en na een
+//   bannerknop staat de focus op het titelveld: zie lib/editorOvernemen.
 
 /** Sleutel van de widgets in localStorage (zie KEYS in lib/storage.ts). */
 const WIDGETS_KEY = 'wf.widgets.v1';
 const FAIL_FALLBACK = 'Bewaren op dit toestel is mislukt — je laatste wijziging is niet bewaard.';
+/**
+ * Bij het verwijderen van een widget gaan ook de resultaten van de leerlingen
+ * weg (deleteWidget). Opnieuw bewaren zet enkel de widget zelf terug (B1).
+ * Soorten zonder inzendingen hebben geen resultaten om te verliezen.
+ */
+const resultsGoneSentence = (w: Widget): string =>
+  getTypeDef(w.type).hasSubmissions ? ' De resultaten van je leerlingen komen niet terug.' : '';
 
 /** Wacht op een keuze van de leerkracht: tot dan schrijft de editor niets weg. */
 type Hold = { kind: 'conflict' | 'verwijderd' };
 type SaveStatus = 'rust' | 'bewaard' | 'bijgewerkt' | 'mislukt';
+/** Wat adoptStored met de statusmelding doet: "Bijgewerkt" tonen, niets tonen, of laten zoals ze is. */
+type AdoptNotice = 'bijgewerkt' | 'geen' | 'behouden';
 
 export function EditorPage() {
   const { id } = useParams();
@@ -67,6 +84,11 @@ export function EditorPage() {
   const holdRef = useRef<Hold | null>(null);
   /** true tijdens saveWidget: een opslagmelding hoort dan bij ons eigen bewaren. */
   const savingRef = useRef(false);
+  /** De AI-assistent staat open: zij bouwt op de config van het moment van openen (zie B6). */
+  const aiOpenRef = useRef(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+  /** Welk veld in het inhoudspaneel de focus had vóór het overnemen (B5). */
+  const focusSlotRef = useRef<FocusSlot | null>(null);
   const noticeRef = useRef<string | null>(null);
   const saveTimer = useRef<number | null>(null);
   const flashTimer = useRef<number | null>(null);
@@ -76,24 +98,55 @@ export function EditorPage() {
     setHoldState(h);
   }, []);
 
-  const flash = useCallback((s: 'bewaard' | 'bijgewerkt') => {
+  const flash = useCallback((s: 'bewaard') => {
     setStatus(s);
     if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
     flashTimer.current = window.setTimeout(() => setStatus((cur) => (cur === s ? 'rust' : cur)), 1200);
   }, []);
   useEffect(() => () => { if (flashTimer.current !== null) window.clearTimeout(flashTimer.current); }, []);
 
-  /** De versie uit de opslag tonen (na een wijziging in een ander tabblad, of op vraag). */
-  const adoptStored = useCallback((stored: Widget) => {
+  /**
+   * De versie uit de opslag tonen (na een wijziging in een ander tabblad, of op
+   * vraag). De editor bouwt dan opnieuw op: onthoud eerst welk veld de focus had.
+   * "Bijgewerkt" blijft staan tot de volgende wijziging of bewaring (B5).
+   */
+  const adoptStored = useCallback((stored: Widget, notice: AdoptNotice = 'geen') => {
+    focusSlotRef.current = captureFocus(document.getElementById('panel-content'));
+    if (flashTimer.current !== null) {
+      window.clearTimeout(flashTimer.current);
+      flashTimer.current = null;
+    }
     lastSavedRef.current = stored;
     knownRef.current = versionOf(stored) ?? 0;
     widgetRef.current = stored;
     setHold(null);
     setFailMessage(null);
-    setStatus('rust');
+    setStatus((cur) => (notice === 'bijgewerkt' ? 'bijgewerkt' : notice === 'behouden' ? cur : 'rust'));
     setWidget(stored);
     setSyncKey((k) => k + 1);
   }, [setHold]);
+
+  // Na het opnieuw opbouwen van de editor: de focus (en selectie) terugzetten,
+  // zodat verder typen gewoon werkt (B5). Een lui geladen editor kan een
+  // ogenblik later pas klaar zijn: dan nog enkele keren proberen.
+  useLayoutEffect(() => {
+    const slot = focusSlotRef.current;
+    if (!slot) return;
+    focusSlotRef.current = null;
+    const root = document.getElementById('panel-content');
+    if (restoreFocus(root, slot)) return;
+    let tries = 0;
+    let raf = 0;
+    const again = () => {
+      if (++tries > 12) return;
+      // de leerkracht tikte intussen ergens anders: niets afpakken
+      const active = document.activeElement;
+      if (active && active !== document.body && !document.getElementById('panel-content')?.contains(active)) return;
+      if (!restoreFocus(document.getElementById('panel-content'), slot)) raf = window.requestAnimationFrame(again);
+    };
+    raf = window.requestAnimationFrame(again);
+    return () => window.cancelAnimationFrame(raf);
+  }, [syncKey]);
 
   /**
    * Bewaart als er iets nieuws is. false = niet bewaard: de opslag is vol, of
@@ -161,6 +214,8 @@ export function EditorPage() {
   // Automatisch bewaren met een korte debounce, alleen na een wijziging.
   useEffect(() => {
     if (!widget || widget === lastSavedRef.current) return;
+    // De volgende wijziging: "Bijgewerkt uit een ander tabblad" heeft dan zijn werk gedaan.
+    setStatus((cur) => (cur === 'bijgewerkt' ? 'rust' : cur));
     if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => {
       saveTimer.current = null;
@@ -212,32 +267,60 @@ export function EditorPage() {
     toast(n.message, 'err');
   }), [toast]);
 
-  // Een ander tabblad bewaarde of verwijderde iets (OP4).
+  // Een ander tabblad bewaarde of verwijderde iets (OP4). Een open AI-assistent
+  // telt mee als onbewaard werk (B6): ze bouwt op de config van het moment dat
+  // ze openging, dus stil overnemen zou haar "Toepassen" later het andere
+  // tabblad laten overschrijven.
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key !== null && e.key !== WIDGETS_KEY) return;
       const cur = widgetRef.current;
       if (!cur) return;
       const stored = getWidget(cur.id);
-      const state = syncState(versionOf(stored), knownRef.current, cur !== lastSavedRef.current);
+      const onScreen = cur !== lastSavedRef.current;
+      const state = syncState(versionOf(stored), knownRef.current, onScreen || aiOpenRef.current);
       if (state === 'gelijk') {
         if (holdRef.current?.kind === 'verwijderd') setHold(null); // weer terug, ongewijzigd
         return;
       }
       if (state === 'overnemen' && stored) {
-        adoptStored(stored);
-        flash('bijgewerkt');
+        adoptStored(stored, 'bijgewerkt');
         return;
       }
       if (state === 'verwijderd') {
         if (holdRef.current?.kind !== 'verwijderd') setHold({ kind: 'verwijderd' });
         return;
       }
+      // De banner staat achter het venster van de assistent: zeg het daarom ook in een melding.
+      if (!onScreen && aiOpenRef.current && holdRef.current?.kind !== 'conflict') {
+        toast('Een ander tabblad bewaarde deze widget intussen. Sluit de AI-assistent om de nieuwe versie te laden.', 'err');
+      }
       setHold({ kind: 'conflict' });
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, [adoptStored, flash, setHold]);
+  }, [adoptStored, setHold, toast]);
+
+  // Afbeeldingen en andere media die op de achtergrond binnenkomen (B4): na het
+  // overnemen van een versie met een nieuwe afbeelding stond ze als open
+  // verwijzing op het scherm, en niemand las opnieuw. Is er niets onbewaard en
+  // staat in de opslag nog dezelfde versie, dan lezen we stil opnieuw.
+  const refreshMedia = useCallback(() => {
+    const cur = widgetRef.current;
+    if (!cur) return;
+    const stored = getWidget(cur.id);
+    if (!stored) return;
+    const ok = shouldRefreshMedia({
+      unsaved: cur !== lastSavedRef.current || aiOpenRef.current,
+      holding: holdRef.current !== null,
+      storedVersion: versionOf(stored),
+      knownVersion: knownRef.current,
+      shownRefs: countMediaRefs(cur),
+      storedRefs: countMediaRefs(stored),
+    });
+    if (ok) adoptStored(stored, 'behouden');
+  }, [adoptStored]);
+  useEffect(() => onMediaChange(refreshMedia), [refreshMedia]);
 
   // Weggaan binnen de app (Terug, een link, de vorige-knop van de browser):
   // eerst bewaren; lukt dat niet, dan eerst vragen.
@@ -259,16 +342,28 @@ export function EditorPage() {
     }
   };
 
+  /**
+   * Na een bannerknop verdwijnt die knop, en dan viel de focus op BODY (B9).
+   * Het titelveld staat altijd in beeld, ook in de voorbeeldmodus.
+   */
+  const focusTitle = () => titleRef.current?.focus();
+
   const retrySave = () => {
     const w = widgetRef.current;
-    if (w && persist(w)) toast('Alles is bewaard.', 'ok');
+    if (w && persist(w)) {
+      toast('Alles is bewaard.', 'ok');
+      focusTitle();
+    }
   };
 
   /** Uitdrukkelijke keuze voor de versie op dit scherm (na een conflict of een verwijdering elders). */
   const keepMine = () => {
     const w = widgetRef.current;
     const wasDeleted = holdRef.current?.kind === 'verwijderd';
-    if (w && persist(w, true)) toast(wasDeleted ? 'De widget is opnieuw bewaard.' : 'Jouw versie is bewaard.', 'ok');
+    if (w && persist(w, true)) {
+      toast(wasDeleted ? `De widget is opnieuw bewaard.${resultsGoneSentence(w)}` : 'Jouw versie is bewaard.', 'ok');
+      focusTitle();
+    }
   };
 
   const loadTheirs = () => {
@@ -276,10 +371,36 @@ export function EditorPage() {
     const stored = cur ? getWidget(cur.id) : undefined;
     if (!stored) {
       setHold({ kind: 'verwijderd' });
+      focusTitle();
       return;
     }
     adoptStored(stored);
     toast('De versie uit het andere tabblad staat nu hier.', 'ok');
+    focusTitle();
+  };
+
+  const openAi = () => {
+    aiOpenRef.current = true;
+    setAiOpen(true);
+  };
+
+  /**
+   * De assistent sluiten. Stond er een conflict enkel omdat zij openstond (er
+   * is op het scherm niets onbewaard), dan valt er niets te verliezen en laden
+   * we meteen de nieuwere versie uit het andere tabblad.
+   */
+  const closeAi = () => {
+    aiOpenRef.current = false;
+    setAiOpen(false);
+    const cur = widgetRef.current;
+    if (cur && holdRef.current?.kind === 'conflict' && cur === lastSavedRef.current) {
+      const stored = getWidget(cur.id);
+      if (stored) {
+        adoptStored(stored, 'bijgewerkt');
+        return;
+      }
+    }
+    refreshMedia();
   };
 
   if (!widget) {
@@ -294,7 +415,11 @@ export function EditorPage() {
 
   const def = getTypeDef(widget.type);
   const subCount = getSubmissions(widget.id).length;
-  const unsaved = status === 'mislukt' || hold?.kind === 'conflict';
+  // Staat er op het scherm iets dat nog niet bewaard is? (De ref verandert altijd
+  // samen met een state-update, dus dit is hier betrouwbaar.) Zo niet, dan staat
+  // een conflict er enkel omdat de AI-assistent openstaat.
+  const changedOnScreen = widget !== lastSavedRef.current;
+  const unsaved = status === 'mislukt' || (hold?.kind === 'conflict' && changedOnScreen);
 
   const alerts = (hold || status === 'mislukt') && (
     <>
@@ -302,12 +427,17 @@ export function EditorPage() {
         <div className="callout warn" role="alert">
           <WarningIcon size={20} aria-hidden style={{ flex: 'none' }} />
           <div style={{ minWidth: 0 }}>
-            <strong>Deze widget werd intussen in een ander tabblad bewaard.</strong> Je wijzigingen hier zijn nog
-            niet bewaard. Kies welke versie je houdt.
+            <strong>Deze widget werd intussen in een ander tabblad bewaard.</strong>{' '}
+            {changedOnScreen
+              ? 'Je wijzigingen hier zijn nog niet bewaard. Kies welke versie je houdt.'
+              : 'De AI-assistent werkt nog met de oude versie. Sluit de assistent om de nieuwe versie te laden, of kies zelf welke versie je houdt.'}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
               <button type="button" className="btn btn-sm btn-primary" onClick={keepMine}>Mijn versie bewaren</button>
               <button type="button" className="btn btn-sm btn-ghost" onClick={loadTheirs}>
                 Andere versie laden (mijn wijzigingen vervallen)
+              </button>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => void downloadWidget()}>
+                <DownloadIcon size={16} aria-hidden /> Downloaden als bestand
               </button>
             </div>
           </div>
@@ -318,7 +448,7 @@ export function EditorPage() {
           <WarningIcon size={20} aria-hidden style={{ flex: 'none' }} />
           <div style={{ minWidth: 0 }}>
             <strong>Deze widget werd in een ander tabblad verwijderd.</strong> Ze wordt hier niet vanzelf
-            teruggezet. Wil je ze toch houden, bewaar ze dan opnieuw.
+            teruggezet. Wil je ze toch houden, bewaar ze dan opnieuw.{resultsGoneSentence(widget)}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
               <button type="button" className="btn btn-sm btn-primary" onClick={keepMine}>Opnieuw bewaren</button>
               <button type="button" className="btn btn-sm btn-ghost" onClick={() => void downloadWidget()}>
@@ -354,12 +484,7 @@ export function EditorPage() {
     </>
   );
 
-  const leaveText =
-    hold?.kind === 'conflict'
-      ? 'Een ander tabblad bewaarde intussen een andere versie van deze widget. Als je nu weggaat, gaan je wijzigingen hier verloren.'
-      : hold?.kind === 'verwijderd'
-        ? 'Deze widget werd in een ander tabblad verwijderd. Als je nu weggaat, gaan je wijzigingen hier verloren.'
-        : 'Bewaren op dit toestel lukt niet (de opslag is vol). Als je nu weggaat, gaan je laatste wijzigingen verloren. Download de widget eerst als bestand als je ze wil houden.';
+  const leaveText = leaveMessage(hold?.kind ?? 'mislukt', failMessage);
 
   return (
     <div className="appshell">
@@ -370,6 +495,7 @@ export function EditorPage() {
         </button>
         <TypeTile type={def} size="sm" />
         <input
+          ref={titleRef}
           className="input input-sm"
           style={{ maxWidth: 340, fontWeight: 700 }}
           value={widget.title}
@@ -386,9 +512,10 @@ export function EditorPage() {
         >
           {unsaved ? <><WarningIcon size={16} aria-hidden /> Niet bewaard</>
             : hold?.kind === 'verwijderd' ? <><WarningIcon size={16} aria-hidden /> Elders verwijderd</>
-              : status === 'bewaard' ? <><CheckIcon size={16} aria-hidden /> Bewaard</>
-                : status === 'bijgewerkt' ? <span title="Bijgewerkt vanuit een ander tabblad" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckIcon size={16} aria-hidden /> Bijgewerkt</span>
-                  : null}
+              : hold?.kind === 'conflict' ? <><WarningIcon size={16} aria-hidden /> Elders bewaard</>
+                : status === 'bewaard' ? <><CheckIcon size={16} aria-hidden /> Bewaard</>
+                  : status === 'bijgewerkt' ? <><CheckIcon size={16} aria-hidden /> Bijgewerkt uit een ander tabblad</>
+                    : null}
         </span>
         <div className="topbar-spacer" />
         <span className="badge" title="Code van deze widget" style={{ fontFamily: 'monospace', letterSpacing: '0.15em' }}>{widget.code}</span>
@@ -401,7 +528,7 @@ export function EditorPage() {
         {(AI_GEN_TYPES.includes(widget.type) || widget.type === 'videoquiz') && (
           <button
             className="btn btn-sm btn-ai"
-            onClick={() => setAiOpen(true)}
+            onClick={openAi}
             title="Vragen bijmaken, hints aanvullen, afleiders versterken — met AI"
           >
             <AIIcon size={18} aria-hidden /> AI-assistent
@@ -535,10 +662,15 @@ export function EditorPage() {
       {aiOpen && (
         <AIEditorPanel
           widget={widget}
-          onClose={() => setAiOpen(false)}
+          onClose={closeAi}
           onApply={(config: unknown, note: string) => {
             setWidget({ ...widget, config });
-            toast(note, 'ok');
+            if (holdRef.current) {
+              // Het toepassen lukt, maar bewaren wacht op een keuze (B6): niet doen alsof het bewaard is.
+              toast('Toegepast, maar nog niet bewaard. Sluit de assistent en kies welke versie je houdt.', 'err');
+            } else {
+              toast(note, 'ok');
+            }
           }}
         />
       )}
