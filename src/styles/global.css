@@ -71,41 +71,48 @@
   color-scheme: light;
 }
 
-[data-theme='dark'] {
-  --brand: #a394ff;
-  --brand-strong: #b9adff;
-  --brand-soft: #2b2559;
-  --accent: #ff8a52;
-  --accent-soft: #3d2416;
-  --ok: #4ade80;
-  --ok-soft: #14351f;
-  --warn: #fbbf24;
-  --warn-soft: #3a2c0a;
-  --err: #f87171;
-  --err-soft: #431418;
-  --ok-text: #4ade80;
-  --warn-text: #fbbf24;
-  --err-text: #f87171;
+/*
+ * Afdrukken gebruikt altijd de lichte tokens: de donkere staan in
+ * @media screen, anders komt een cursus in het donkere thema als lichte tekst
+ * op wit papier uit de printer.
+ */
+@media screen {
+  [data-theme='dark'] {
+    --brand: #a394ff;
+    --brand-strong: #b9adff;
+    --brand-soft: #2b2559;
+    --accent: #ff8a52;
+    --accent-soft: #3d2416;
+    --ok: #4ade80;
+    --ok-soft: #14351f;
+    --warn: #fbbf24;
+    --warn-soft: #3a2c0a;
+    --err: #f87171;
+    --err-soft: #431418;
+    --ok-text: #4ade80;
+    --warn-text: #fbbf24;
+    --err-text: #f87171;
 
-  --tile-l: 0.31;
-  --tile-c: 0.07;
-  --icon-l: 0.85;
-  --icon-c: 0.12;
+    --tile-l: 0.31;
+    --tile-c: 0.07;
+    --icon-l: 0.85;
+    --icon-c: 0.12;
 
-  --bg: #100e1f;
-  --bg-raised: #1a1730;
-  --bg-sunken: #0b0a18;
-  --text: #ebe8f7;
-  --text-soft: #aaa5c4;
-  --text-faint: #948eb0;
-  --line: #2c2847;
-  --line-strong: #403b62;
+    --bg: #100e1f;
+    --bg-raised: #1a1730;
+    --bg-sunken: #0b0a18;
+    --text: #ebe8f7;
+    --text-soft: #aaa5c4;
+    --text-faint: #948eb0;
+    --line: #2c2847;
+    --line-strong: #403b62;
 
-  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.45);
-  --shadow-3: 0 18px 46px rgba(0, 0, 0, 0.6);
+    --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.45);
+    --shadow-3: 0 18px 46px rgba(0, 0, 0, 0.6);
 
-  color-scheme: dark;
+    color-scheme: dark;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -423,6 +430,8 @@ input[type='color'] {
 .subnav-link:hover { color: var(--text); }
 .subnav-link.active { color: var(--brand); border-bottom-color: var(--brand); }
 @media (max-width: 640px) { .subnav-inner { padding: 0 8px; gap: 0; } .subnav-link { padding-inline: 9px; } }
+/* Op 390 px valt de laatste tab (Leerplannen) anders buiten beeld: zonder icoon past alles. */
+@media (max-width: 420px) { .subnav-link svg { display: none; } }
 
 .page { flex: 1; width: 100%; max-width: 1200px; margin: 0 auto; padding: 26px 22px 60px; }
 .page-narrow { max-width: 820px; }
@@ -552,8 +561,8 @@ input[type='color'] {
 }
 
 .question-card { padding: 22px 24px; margin-bottom: 16px; }
-.question-num { font-size: 0.8rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--player-accent, var(--brand-fill)) 60%, var(--text)); margin-bottom: 6px; display: flex; gap: 10px; align-items: center; }
-.question-prompt { font-size: 1.15rem; font-weight: 650; margin-bottom: 14px; white-space: pre-wrap; }
+.question-num { font-size: 0.8rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--player-accent, var(--brand-fill)) 60%, var(--text)); margin-bottom: 6px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.question-prompt { font-size: 1.15rem; font-weight: 650; margin-bottom: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .question-image { max-width: 100%; max-height: 320px; border-radius: var(--radius-m); margin-bottom: 14px; display: block; }
 
 .answer-option {
@@ -754,11 +763,18 @@ input[type='color'] {
 @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--player-accent, var(--brand-fill)) 55%, transparent); } 55% { box-shadow: 0 0 0 13px transparent; } }
 
 .bingo-grid { display: grid; gap: 8px; max-width: 480px; margin: 0 auto; }
+/*
+ * min-width:0 + overflow-wrap laten de cellen krimpen onder de breedte van hun
+ * langste woord (een spoor 1fr valt anders niet kleiner dan min-content): een
+ * lang begrip breekt af i.p.v. het raster breder te maken dan het scherm.
+ * Werkt ook als bingo.tsx zijn rasterkolommen anders inline zet.
+ */
 .bingo-cell {
   aspect-ratio: 1; border-radius: var(--radius-m); border: 2px solid var(--line-strong);
   background: var(--bg-raised); font: inherit; font-weight: 650; cursor: pointer;
   display: flex; align-items: center; justify-content: center; text-align: center;
   padding: 6px; font-size: clamp(0.65rem, 2.2vw, 0.95rem); color: var(--text);
+  min-width: 0; overflow-wrap: anywhere; hyphens: auto;
   transition: background 0.15s, transform 0.08s;
 }
 .bingo-cell:hover { transform: scale(1.03); }
@@ -766,7 +782,8 @@ input[type='color'] {
   background: var(--player-accent, var(--brand-fill)); color: #fff; border-color: var(--player-accent, var(--brand-fill));
   text-decoration: line-through;
 }
-.bingo-cell.free { background: var(--warn-soft); border-color: var(--warn); }
+/* Het vrije vakje staat standaard ook als aangekruist: geen witte tekst of doorhaling op lichtgeel. */
+.bingo-cell.free { background: var(--warn-soft); border-color: var(--warn); color: var(--warn-text); text-decoration: none; }
 
 .spin-wheel-wrap { display: flex; flex-direction: column; align-items: center; gap: 20px; }
 
@@ -925,6 +942,30 @@ table.data tbody tr:hover { background: var(--bg-sunken); }
   border-radius: 5px;
   padding: 1px 5px;
   font-size: 0.9em;
+}
+/*
+ * Codeblok (<pre><code>): het kader hoort bij het blok, niet bij de code
+ * erin. Lange regels breken af i.p.v. op 390 px horizontaal te scrollen;
+ * overflow-x blijft als vangnet voor wat toch niet afbreekt.
+ */
+.md-body pre {
+  margin: 0 0 0.85em;
+  padding: 10px 14px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+.md-body pre code {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  font-size: inherit;
 }
 .md-body a { color: var(--brand); }
 

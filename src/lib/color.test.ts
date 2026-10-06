@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CATEGORIES, WIDGET_TYPES } from '../widgets/registry';
-import { contrastRatio, oklchToHex, typeAccent } from './color';
+import { contrastRatio, oklchToHex, readableAccent, typeAccent } from './color';
 
 /** Leest de kleurtokens van één blok uit global.css (licht: `:root`, donker: `[data-theme='dark']`). */
 function tokens(selector: string): Record<string, string> {
@@ -138,5 +138,64 @@ describe('knoppen', () => {
     // regel die de tekst in het donkere thema donker maakt, gaf 3,1 : 1.
     const css = readFileSync(new URL('../styles/global.css', import.meta.url), 'utf8');
     expect(css).not.toMatch(/\[data-theme='dark'\]\s*\.btn-primary\s*\{[^}]*color:\s*#(?!fff)/);
+  });
+});
+
+describe('afdrukken (CU6)', () => {
+  it('de donkere tokens staan in @media screen, zodat papier altijd de lichte krijgt', () => {
+    const css = readFileSync(new URL('../styles/global.css', import.meta.url), 'utf8');
+    const start = css.indexOf("[data-theme='dark'] {");
+    expect(start).toBeGreaterThanOrEqual(0);
+    // Het eerste wat vóór het blok staat (zonder witruimte) is de opening van @media screen.
+    expect(css.slice(0, start).trimEnd().endsWith('@media screen {')).toBe(true);
+    // En er staat geen tweede donker tokenblok buiten dat scherm-blok.
+    expect(css.indexOf("[data-theme='dark'] {", start + 1)).toBe(-1);
+  });
+});
+
+describe('readableAccent (W15d)', () => {
+  const WIT = '#ffffff';
+
+  it('laat een kleur die al 4,5 : 1 met wit haalt ongewijzigd', () => {
+    for (const hex of ['#096b97', '#4f46e5', '#5b3df5', '#15803d', '#dc2626', '#000000', '#767676']) {
+      expect(readableAccent(hex), hex).toBe(hex);
+    }
+    // ook met hoofdletters, zonder hekje of als drie cijfers: zoals het was
+    expect(readableAccent('#4F46E5')).toBe('#4F46E5');
+    expect(readableAccent('4f46e5')).toBe('4f46e5');
+    expect(readableAccent('#006')).toBe('#006');
+  });
+
+  it('maakt lichte kleuren donker genoeg voor witte tekst, niet donkerder dan nodig', () => {
+    for (const hex of ['#ffe14d', '#ffff00', '#ffffff', '#a5d8ff', '#fde68a', '#d97706', '#f59e0b', '#16a34a', '#ff0', '#FFE14D']) {
+      const uit = readableAccent(hex);
+      expect(uit, hex).toMatch(/^#[0-9a-f]{6}$/);
+      const c = contrastRatio(uit, WIT);
+      expect(c, `${hex} -> ${uit}`).toBeGreaterThanOrEqual(4.5);
+      // niet verder terug dan nodig: net boven de grens
+      expect(c, `${hex} -> ${uit}`).toBeLessThan(4.7);
+    }
+  });
+
+  it('behoudt de kleurverhoudingen (zelfde tint)', () => {
+    const kanalen = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const [r, g, b] = kanalen(readableAccent('#ffe14d'));
+    expect(r).toBeGreaterThanOrEqual(g);
+    expect(g).toBeGreaterThan(b);
+    const [r2, g2, b2] = kanalen(readableAccent('#a5d8ff'));
+    expect(b2).toBeGreaterThanOrEqual(g2);
+    expect(g2).toBeGreaterThan(r2);
+  });
+
+  it('geeft ongeldige invoer terug zoals ze was', () => {
+    for (const x of ['', 'rood', '#12', '#gggggg', '#12345', '#1234567', 'rgb(255, 255, 255)']) {
+      expect(readableAccent(x), JSON.stringify(x)).toBe(x);
+    }
+    expect(readableAccent(undefined as unknown as string)).toBeUndefined();
+    expect(readableAccent(null as unknown as string)).toBeNull();
+  });
+
+  it('laat de accentkleuren van de widgetsoorten ongemoeid (ze zijn al donker genoeg)', () => {
+    for (const t of WIDGET_TYPES) expect(readableAccent(t.color), t.id).toBe(t.color);
   });
 });

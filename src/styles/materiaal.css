@@ -105,6 +105,8 @@
 .lib-row-title { font-family: var(--font-display); font-weight: 700; overflow-wrap: break-word; hyphens: auto; }
 .lib-row-count { color: var(--text-soft); font-size: 0.9rem; }
 .lib-row-stack { display: flex; flex: none; }
+/* Decoratief (aria-hidden): op heel smalle schermen krijgt de titel de ruimte. */
+@media (max-width: 380px) { .lib-row-stack { display: none; } }
 .lib-row-stack .type-tile { box-shadow: 0 0 0 2px var(--bg-raised); }
 .lib-row-stack .type-tile + .type-tile { margin-left: -5px; }
 .lib-chevron { flex: none; color: var(--text-faint); }
@@ -199,13 +201,14 @@
 .lib-choice:hover { background: var(--bg-sunken); }
 .lib-choice small { display: block; color: var(--text-soft); font-size: 0.85rem; }
 .lib-radio {
-  display: flex; align-items: center; gap: 10px; min-height: 44px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-height: 44px;
   padding: 6px 10px; border-radius: var(--radius-s); cursor: pointer;
 }
 .lib-radio:hover { background: var(--bg-sunken); }
 .lib-radio input { width: 18px; height: 18px; accent-color: var(--brand); flex: none; }
 .lib-radio > svg { flex: none; }
-.lib-fieldset { border: 0; margin: 0 0 12px; padding: 0; display: grid; gap: 2px; }
+/* min-width:0: een fieldset valt anders nooit smaller dan zijn inhoud (modal "Naar map" op 390 px). */
+.lib-fieldset { border: 0; margin: 0 0 12px; padding: 0; display: grid; gap: 2px; min-width: 0; }
 .lib-fieldset legend { font-weight: 600; font-size: 0.9rem; color: var(--text-soft); margin-bottom: 6px; padding: 0; }
 .lib-warning { align-items: flex-start; }
 .lib-warning > svg { flex: none; margin-top: 2px; color: var(--warn-text); }

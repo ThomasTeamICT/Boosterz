@@ -2002,6 +2002,194 @@ console.log('28. Leerlinghub en Mijn voortgang (gsm)');
 
   await ctx28.close();
 }
+// ── 29. Leerlingschermen op 390 px: tikdoelen, overloop, afdrukken ──────────
+// Herstel uit de debugronde: één centrale regel in leerling.css geeft de gedeelde
+// knoppen, keuzelijsten en uitklapkoppen 44 px; lange woorden en url's breken af;
+// bingo past op een gsm; en afdrukken gebruikt altijd de lichte tokens.
+console.log('29. Leerlingschermen op 390 px');
+await page.setViewportSize({ width: 390, height: 844 });
+const overloop = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+const hoogtes = (selector) => page.evaluate((s) => [...document.querySelectorAll(s)]
+  .filter((e) => e.getClientRects().length > 0)
+  .map((e) => Math.round(e.getBoundingClientRect().height * 10) / 10), selector);
+const minstens44 = (lijst) => lijst.length > 0 && lijst.every((h) => h >= 44);
+
+// Eigen testmateriaal in de opslag: een bingo met lange begrippen, een hotspot,
+// galgje, een whiteboard, een quiz met een lange url in de vraag en een cursus
+// met uitklapblok. Het staat los van de voorbeeldinhoud.
+const prik = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200"><rect width="320" height="200" fill="#cde"/></svg>');
+await page.evaluate(({ prik: afbeelding }) => {
+  const ws = JSON.parse(localStorage.getItem('wf.widgets.v1') || '[]');
+  const instellingen = { accentColor: '#4f46e5', shuffle: false, showFeedback: true, showScore: true, timeLimitMin: 0, maxAttempts: 0, requireName: false, instructions: '' };
+  const maak = (type, code, config, title) => ({ id: `w-${code}`, type, title, folderId: null, config, settings: { ...instellingen }, code, createdAt: 1, updatedAt: 1 });
+  const begrippen = ['fotosynthese', 'ademhaling', 'celdeling', 'evenwicht', 'zwaartekracht', 'verdamping', 'stofwisseling', 'bloeiwijze', 'waterkringloop', 'ecosysteem', 'voedselketen', 'koolstofdioxide', 'zuurstof', 'chloroplast', 'mitochondrie', 'ribosoom', 'kernmembraan', 'dwarsdoorsnede', 'lichtenergie', 'glucose', 'zetmeel', 'cellulose', 'eiwitten', 'vetten', 'vitamines'];
+  const quiz = ws.find((w) => w.type === 'quiz');
+  const urlQuiz = { ...structuredClone(quiz), id: 'w-URL390', code: 'URL390', title: 'Quiz met lange url', settings: { ...instellingen } };
+  urlQuiz.config.questions[0] = { ...urlQuiz.config.questions[0], prompt: `Lees https://voorbeeld.example/${'abcdefghij'.repeat(20)}einde en antwoord.` };
+  ws.push(
+    maak('bingo', 'BNG390', { items: begrippen, size: 5, freeCenter: true }, 'Bingo met lange begrippen'),
+    maak('hotspot', 'HOT390', { imageUrl: afbeelding, mode: 'explore', hotspots: [{ id: 'h1', x: 50, y: 50, label: 'Midden' }] }, 'Hotspot'),
+    maak('hangman', 'HNG390', { words: [{ word: 'fotosynthese', hint: 'planten' }], maxErrors: 6 }, 'Galgje'),
+    maak('whiteboard', 'WBD390', { prompt: 'Teken iets' }, 'Whiteboard'),
+    urlQuiz
+  );
+  localStorage.setItem('wf.widgets.v1', JSON.stringify(ws));
+  const cursussen = JSON.parse(localStorage.getItem('wf.courses.v1') || '[]');
+  cursussen.push({
+    id: 'smoke-390-cursus', title: 'Cursus voor het afdrukken', author: 'Rooktest', coverEmoji: '📘', code: 'TIK390',
+    chapters: [{ id: 'h1', title: 'Hoofdstuk', sections: [{ id: 's1', title: 'Sectie', blocks: [
+      { id: 'b1', type: 'text', markdown: 'Een alinea die op papier donker moet zijn, ook in het donkere thema.' },
+      { id: 'b2', type: 'accordion', items: [{ id: 'a1', title: 'Check jezelf', text: 'Het antwoord.' }, { id: 'a2', title: 'Nog een vraag', text: 'Nog een antwoord.' }] },
+    ] }] }],
+    settings: { accentColor: '#4f46e5', requireName: false, showProgressToStudent: true },
+    createdAt: 1, updatedAt: 1,
+  });
+  localStorage.setItem('wf.courses.v1', JSON.stringify(cursussen));
+}, { prik });
+
+// 27a. /voortgang: select en knoppen minstens 44 px (er staan inzendingen van eerdere secties)
+await go('/#/voortgang');
+check('/voortgang op 390 px: keuzelijst "Wie ben jij?" minstens 44 px hoog', minstens44(await hoogtes('.player-shell .select')));
+check('/voortgang op 390 px: kleine knoppen (exporteren, importeren, meedoen) minstens 44 px hoog', minstens44(await hoogtes('.player-shell .btn-sm')));
+check('/voortgang op 390 px: logo-link minstens 44 px hoog', minstens44(await hoogtes('.player-shell .topbar-logo')));
+check('/voortgang op 390 px: geen horizontale overloop', (await overloop()) <= 0);
+
+// 27b. Uitklapkoppen in een cursus (summary) minstens 44 px, en het pijltje blijft
+await go('/#/cursus/lees/TIK390');
+await page.locator('.course-block details summary').first().waitFor({ timeout: 8000 }).catch(() => {});
+check('cursus op 390 px: uitklapkoppen (summary) minstens 44 px hoog', minstens44(await hoogtes('.player-shell summary')));
+check('cursus op 390 px: uitklapkop houdt zijn pijltje (display: list-item)', await page.evaluate(() => getComputedStyle(document.querySelector('.player-shell summary')).display === 'list-item'));
+check('cursus op 390 px: geen horizontale overloop', (await overloop()) <= 0);
+// Codeblok in cursustekst: we zetten een <pre><code> met een zeer lange regel in een .md-body
+// (renderMarkdown levert hetzelfde element) en meten het resultaat.
+const codeblok = await page.evaluate(() => {
+  const doel = document.querySelector('.player-shell .md-body');
+  doel.insertAdjacentHTML('beforeend', `<pre id="smoke-pre"><code>const x = "${'a'.repeat(160)}";</code></pre>`);
+  const pre = document.getElementById('smoke-pre');
+  const code = pre.querySelector('code');
+  const cp = getComputedStyle(pre);
+  const cc = getComputedStyle(code);
+  return {
+    breedte: pre.getBoundingClientRect().width,
+    scherm: document.documentElement.clientWidth,
+    overloop: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    preRand: cp.borderTopWidth, preAchtergrond: cp.backgroundColor, wrap: cp.whiteSpace,
+    codeRand: cc.borderTopWidth, codeAchtergrond: cc.backgroundColor, codePadding: cc.paddingLeft,
+  };
+});
+check(`codeblok op 390 px: lange regel breekt af (blok ${Math.round(codeblok.breedte)} px, overloop ${codeblok.overloop})`, codeblok.overloop <= 0 && codeblok.breedte <= codeblok.scherm && codeblok.wrap === 'pre-wrap');
+check('codeblok: kader en achtergrond op het blok, niet op de code erin', codeblok.preRand === '1px' && codeblok.preAchtergrond !== 'rgba(0, 0, 0, 0)' && codeblok.codeRand === '0px' && codeblok.codeAchtergrond === 'rgba(0, 0, 0, 0)' && codeblok.codePadding === '0px');
+
+// 27c. Resultaatscherm van de quiz: de badge "wordt beoordeeld" mag niet buiten beeld lopen
+await go(`/#/speel/${quiz.code}`);
+await page.fill('#student-name', 'Smalle leerling');
+await page.getByRole('button', { name: /Starten/ }).click();
+await sleep(600);
+for (let i = 0; i < 14; i++) {
+  const opt = page.locator('.answer-option').first();
+  if (await opt.isVisible().catch(() => false)) await opt.click().catch(() => {});
+  const inp = page.locator('.question-card input.input, .question-card textarea.textarea').first();
+  if (await inp.isVisible().catch(() => false)) await inp.fill('5').catch(() => {});
+  const submit = page.getByRole('button', { name: /Indienen/ });
+  if (await submit.isVisible().catch(() => false)) { await submit.click(); break; }
+  const next = page.getByRole('button', { name: /Volgende/ });
+  if (await next.isVisible().catch(() => false)) await next.click();
+  await sleep(150);
+}
+await sleep(600);
+check('quiz op 390 px: resultaatscherm bereikt', await page.locator('.result-hero').isVisible());
+check('quiz op 390 px: badge "wordt beoordeeld" staat op het resultaatscherm', (await page.locator('.badge', { hasText: 'wordt beoordeeld' }).count()) >= 1);
+check('quiz op 390 px: resultaatscherm zonder horizontale overloop', (await overloop()) <= 0);
+
+// 27d. Lange url in een vraag breekt af i.p.v. de pagina breder te maken
+await go('/#/speel/URL390');
+await page.getByRole('button', { name: /Starten/ }).click();
+await sleep(600);
+check('quiz op 390 px: vraag met lange url zichtbaar', await page.locator('.question-prompt', { hasText: 'voorbeeld.example' }).first().isVisible());
+check('quiz op 390 px: lange url in de vraag geeft geen horizontale overloop', (await overloop()) <= 0);
+
+// 27e. Bingo met lange begrippen: raster binnen het scherm, vrije vakje leesbaar
+await go('/#/speel/BNG390');
+await page.getByRole('button', { name: /Starten/ }).click();
+await sleep(500);
+const bingo = await page.evaluate(() => {
+  const kanaal = (c) => { const s = c / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+  const lum = (css) => { const [r, g, b] = css.match(/[\d.]+/g).map(Number); return 0.2126 * kanaal(r) + 0.7152 * kanaal(g) + 0.0722 * kanaal(b); };
+  const vrij = document.querySelector('.bingo-cell.free');
+  const cs = getComputedStyle(vrij);
+  const [hoog, laag] = [lum(cs.color), lum(cs.backgroundColor)].sort((a, b) => b - a);
+  return {
+    cellen: document.querySelectorAll('.bingo-cell').length,
+    rechts: Math.max(...[...document.querySelectorAll('.bingo-cell')].map((c) => c.getBoundingClientRect().right)),
+    breedte: document.documentElement.clientWidth,
+    contrast: (hoog + 0.05) / (laag + 0.05),
+    doorhaling: cs.textDecorationLine,
+  };
+});
+check('bingo op 390 px: 25 vakjes', bingo.cellen === 25);
+check(`bingo op 390 px: raster binnen het scherm (rechterrand ${Math.round(bingo.rechts)} van ${bingo.breedte})`, bingo.rechts <= bingo.breedte);
+check('bingo op 390 px: geen horizontale overloop', (await overloop()) <= 0);
+check(`bingo: tekst in het vrije vakje haalt 4,5 : 1 (${bingo.contrast.toFixed(1)} : 1) en is niet doorgehaald`, bingo.contrast >= 4.5 && bingo.doorhaling === 'none');
+// Het leespaneel "Aa" (portal buiten .player-shell): knoppen en vinkjes minstens 44 px
+await page.locator('button[aria-controls="a11y-panel"]').click();
+await sleep(300);
+check('leespaneel "Aa" op 390 px: knoppen minstens 44 px hoog', minstens44(await hoogtes('.a11y-panel .btn')));
+check('leespaneel "Aa" op 390 px: de sluitknop is ook 44 px breed', await page.evaluate(() => [...document.querySelectorAll('.a11y-panel .btn-icon')].every((e) => e.getBoundingClientRect().width >= 44)));
+check('leespaneel "Aa" op 390 px: keuzevakjes (rijen) minstens 44 px hoog', minstens44(await hoogtes('.a11y-panel .checkbox-row')));
+await page.keyboard.press('Escape');
+
+// 27f. Hotspot: stip blijft 30 px, tikvlak 44 px; galgje en whiteboard krijgen 44 px
+await go('/#/speel/HOT390');
+await page.getByRole('button', { name: /Starten/ }).click();
+await sleep(500);
+const stip = await page.evaluate(() => {
+  const dot = document.querySelector('.hotspot-dot');
+  const r = dot.getBoundingClientRect();
+  const midden = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  // 20 px naast het midden ligt buiten de stip (straal 15) maar binnen het tikvlak (straal 22)
+  const geraakt = document.elementFromPoint(midden.x + 20, midden.y);
+  return { zichtbaar: Math.round(r.width), tikvlak: getComputedStyle(dot, '::after').width, raakt: geraakt === dot };
+});
+check(`hotspot op 390 px: zichtbare stip blijft 30 px (${stip.zichtbaar})`, stip.zichtbaar === 30);
+check(`hotspot op 390 px: tikvlak is 44 px (${stip.tikvlak}) en vangt een tik naast de stip`, stip.tikvlak === '44px' && stip.raakt);
+await go('/#/speel/HNG390');
+await page.getByRole('button', { name: /Starten/ }).click();
+await sleep(500);
+check('galgje op 390 px: lettertoetsen minstens 44 px breed', await page.evaluate(() => { const k = [...document.querySelectorAll('.letter-key')]; return k.length >= 20 && k.every((e) => e.getBoundingClientRect().width >= 44); }));
+check('galgje op 390 px: geen horizontale overloop', (await overloop()) <= 0);
+await go('/#/speel/WBD390');
+await page.getByRole('button', { name: /Starten/ }).click();
+await sleep(500);
+check('whiteboard op 390 px: kleurstaaltjes 44 × 44', await page.evaluate(() => { const k = [...document.querySelectorAll('.wb-swatch')]; return k.length >= 3 && k.every((e) => { const r = e.getBoundingClientRect(); return r.width >= 44 && r.height >= 44; }); }));
+
+// 27g. Een cursus afdrukken in het donkere thema geeft donkere tekst op wit papier
+await go('/#/cursus/print/smoke-390-cursus');
+await page.locator('main h1, h1').first().waitFor({ timeout: 8000 }).catch(() => {});
+const themaVoor = await page.evaluate(() => document.documentElement.dataset.theme ?? null);
+await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+const tekstKleuren = () => page.evaluate(() => {
+  const kanaal = (c) => { const s = c / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+  const lum = (css) => { const [r, g, b] = css.match(/[\d.]+/g).map(Number); return 0.2126 * kanaal(r) + 0.7152 * kanaal(g) + 0.0722 * kanaal(b); };
+  const tegen = (fg, bg) => { const [hoog, laag] = [lum(fg), lum(bg)].sort((a, b) => b - a); return (hoog + 0.05) / (laag + 0.05); };
+  const achtergrond = getComputedStyle(document.body).backgroundColor;
+  const kleur = (el) => getComputedStyle(el).color;
+  return {
+    achtergrond,
+    body: tegen(kleur(document.body), achtergrond),
+    h1: tegen(kleur(document.querySelector('h1')), achtergrond),
+    alinea: tegen(kleur(document.querySelector('.md-body p')), achtergrond),
+  };
+});
+const opScherm = await tekstKleuren();
+check(`afdrukken: het donkere thema is op het scherm echt donker (tekst/achtergrond ${opScherm.body.toFixed(1)} : 1, achtergrond ${opScherm.achtergrond})`, opScherm.achtergrond !== 'rgb(255, 255, 255)' && opScherm.body >= 7);
+await page.emulateMedia({ media: 'print' });
+await sleep(200);
+const opPapier = await tekstKleuren();
+check(`afdrukken in donker thema: witte achtergrond (${opPapier.achtergrond})`, opPapier.achtergrond === 'rgb(255, 255, 255)');
+check(`afdrukken in donker thema: donkere tekst op wit (body ${opPapier.body.toFixed(1)}, kop ${opPapier.h1.toFixed(1)}, alinea ${opPapier.alinea.toFixed(1)} : 1)`, opPapier.body >= 7 && opPapier.h1 >= 7 && opPapier.alinea >= 7);
+await page.emulateMedia({ media: null });
+await page.evaluate((t) => { if (t === null) delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t; }, themaVoor);
+await page.setViewportSize({ width: 1360, height: 900 });
 
 // ── Slot ────────────────────────────────────────────────────────────────────
 console.log('\n──────────');

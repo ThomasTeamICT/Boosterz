@@ -48,16 +48,22 @@ export function oklchToHex(l: number, c: number, h: number): string {
   return '#' + rgb.map((v) => toByte(v).toString(16).padStart(2, '0')).join('');
 }
 
-/** Relatieve luminantie volgens WCAG 2. */
-export function relativeLuminance(hex: string): number {
+/** Lineaire sRGB-kanalen (0–1) van een hexkleur met zes cijfers. */
+function linearChannels(hex: string): [number, number, number] {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) throw new Error(`Geen geldige hexkleur: ${hex}`);
   const n = parseInt(m[1], 16);
-  const lin = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
     const s = v / 255;
     return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
   });
-  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+  return [r, g, b];
+}
+
+/** Relatieve luminantie volgens WCAG 2. */
+export function relativeLuminance(hex: string): number {
+  const [r, g, b] = linearChannels(hex);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 /** Contrastverhouding volgens WCAG 2, van 1 tot 21. */
@@ -72,4 +78,36 @@ export function contrastRatio(a: string, b: string): number {
  */
 export function typeAccent(hue: number): string {
   return oklchToHex(0.5, 0.17, hue);
+}
+
+/** Minimaal contrast van tekst op een gevuld vlak (WCAG 2, niveau AA). */
+const MIN_TEXT_CONTRAST = 4.5;
+
+/**
+ * Maakt een door de leerkracht gekozen accentkleur donker genoeg voor witte
+ * tekst erop (een aangeduid bingovakje, een knop, een voortgangsbalk): het
+ * contrast met wit is dan minstens 4,5 : 1. Een kleur die al genoeg haalt,
+ * komt ongewijzigd terug. Anders schaalt de helderheid (lineair, dus met
+ * dezelfde tint en verhoudingen tussen de kanalen) zover terug als nodig is,
+ * niet verder: een lichtgele #ffe14d wordt een donker olijfgeel (#877624).
+ * Ongeldige invoer (geen
+ * hexkleur van drie of zes cijfers) komt terug zoals ze was.
+ */
+export function readableAccent(hex: string): string {
+  const m = typeof hex === 'string' ? /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim()) : null;
+  if (!m) return hex;
+  const digits = m[1].length === 3 ? m[1].replace(/./g, (c) => c + c) : m[1];
+  const full = `#${digits.toLowerCase()}`;
+  if (contrastRatio(full, '#ffffff') >= MIN_TEXT_CONTRAST) return hex;
+
+  // Luminantie die nog net 4,5 : 1 met wit geeft: (1,05 / (L + 0,05)) = 4,5.
+  const target = 1.05 / MIN_TEXT_CONTRAST - 0.05;
+  const lin = linearChannels(full);
+  const toHex = (k: number) => '#' + lin.map((v) => toByte(v * k).toString(16).padStart(2, '0')).join('');
+  // De afronding naar bytes kan het contrast net onder de grens duwen: stapjes terug.
+  for (let k = target / relativeLuminance(full); k > 0.001; k *= 0.995) {
+    const candidate = toHex(k);
+    if (contrastRatio(candidate, '#ffffff') >= MIN_TEXT_CONTRAST) return candidate;
+  }
+  return '#000000';
 }

@@ -128,6 +128,60 @@
   .player-shell .leerling-tap-target {
     min-height: 44px;
   }
+  /*
+   * Huisregel: tikdoelen van minstens 44 px op leerlingschermen. Eén centrale
+   * regel voor de gedeelde klassen, zodat niet elk scherm ze apart moet
+   * herstellen. Scope: de leerlingschil en het leespaneel "Aa" (dat via een
+   * portal buiten .player-shell hangt); de leerkrachtschil blijft ongemoeid.
+   * Bewust niet: pianotoetsen, kruiswoordcellen, invulvelden in lopende tekst,
+   * inline tekstlinks en native sliders.
+   */
+  .player-shell .btn-sm,
+  .player-shell .btn-icon,
+  .player-shell .select,
+  .player-shell .input-sm,
+  .player-shell .chip,
+  .player-shell .topbar-logo,
+  .a11y-panel .btn,
+  .a11y-panel .checkbox-row {
+    min-height: 44px;
+  }
+  .player-shell .btn-icon,
+  .a11y-panel .btn-icon {
+    min-width: 44px;
+  }
+  /* Uitklapkoppen: padding i.p.v. display:flex, anders verdwijnt het pijltje. */
+  .player-shell summary {
+    padding-block: 10px;
+    min-height: 44px;
+  }
+  .player-shell .letter-key {
+    min-width: 44px;
+  }
+  .player-shell .wb-swatch {
+    width: 44px;
+    height: 44px;
+  }
+  /*
+   * Hotspots: de stip blijft 30 px, het tikvlak wordt 44 px via een onzichtbaar
+   * pseudo-element (dat telt mee voor de klik op de knop).
+   */
+  .player-shell .hotspot-dot::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+  }
+}
+
+/* ── Lange woorden en url's mogen nooit de pagina breder maken ──────────── */
+
+.player-shell .player-main {
+  overflow-wrap: anywhere;
 }
 
 /* ── Meedoen-pagina: linkjes onder de knop als volwaardig tikdoel ───────── */
