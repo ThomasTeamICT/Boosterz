@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Camera, Inbox } from 'lucide-react';
-import { processCodes, summarizeReport, type InboxRow } from '../lib/inbox';
+import { processCodes, splitCodes, summarizeReport, type InboxRow } from '../lib/inbox';
+import { nietVerwerkteCodes, scanRegel, verklaarWeigeringen } from '../components/results/importOutcome';
 import { QrScanner } from '../components/QrScanner';
 import { EmptyState, useToast } from '../components/ui';
 import { formatDate } from '../lib/utils';
@@ -36,31 +37,35 @@ export function InboxPage() {
   };
 
   const verwerkTekst = () => {
+    const codes = splitCodes(text);
     const report = processCodes(text);
     if (report.rows.length === 0) {
       setMelding('Geen codes gevonden. Een resultaatcode begint met WF1., een voortgangscode met WFC1.');
       toast('Geen codes gevonden', 'err');
       return;
     }
-    addRows(report.rows);
-    const samenvatting = summarizeReport(report);
+    addRows(verklaarWeigeringen(report.rows, codes));
+    // Wat niet verwerkt is (onleesbaar, te groot, of niet bewaard door een volle
+    // opslag), blijft in het tekstvak staan om opnieuw te proberen (G5). De
+    // bewaarde codes gaan eruit: opnieuw verwerken geeft er alleen "dubbel" voor.
+    const blijft = nietVerwerkteCodes(report.rows, codes);
+    let samenvatting = summarizeReport(report);
+    if (blijft.length > 0) {
+      samenvatting += `. ${blijft.length} ${blijft.length === 1 ? 'code is' : 'codes zijn'} niet verwerkt en ${blijft.length === 1 ? 'blijft' : 'blijven'} in het tekstvak staan: kijk in de lijst waarom.`;
+    }
     setMelding(samenvatting);
-    toast(samenvatting, report.nieuw > 0 ? 'ok' : 'info');
-    if (report.nieuw > 0 || report.onbekend > 0) setText('');
+    toast(samenvatting, blijft.length > 0 ? 'err' : report.nieuw > 0 ? 'ok' : 'info');
+    if (report.nieuw > 0 || report.onbekend > 0) setText(blijft.join('\n'));
   };
 
   /** Eén gescande code verwerken; de tekst is meteen de log-regel voor de scanner. */
   const verwerkScan = (code: string): string => {
+    const codes = splitCodes(code);
     const report = processCodes(code);
-    const row = report.rows[0];
-    if (!row) return 'Deze QR-code bevat geen Boosterz-code';
-    addRows(report.rows);
-    const wie = row.studentName || 'Onbekende leerling';
-    const wat = row.title ?? (row.kind === 'course' ? 'onbekende cursus' : 'onbekende widget');
-    if (row.outcome === 'nieuw') return `${wie} — ${wat} — ${row.detail}`;
-    if (row.outcome === 'dubbel') return `${wie} — ${wat} — stond hier al`;
-    if (row.outcome === 'onbekend') return `${wie} — bewaard, maar ${wat} staat niet op dit toestel`;
-    return 'Onleesbare of onvolledige code';
+    if (!report.rows[0]) return 'Deze QR-code bevat geen Boosterz-code';
+    const rows = verklaarWeigeringen(report.rows, codes);
+    addRows(rows);
+    return scanRegel(rows[0]);
   };
 
   return (

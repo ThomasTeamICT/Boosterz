@@ -7,7 +7,7 @@ import type { Widget } from '../lib/types';
 import {
   adoptSharedCourse, conflictKey, createCourse, deleteCourse, ensureDemoCourse,
   exportCourseJson, findSharedConflicts, getCourse, getCourseProgressAll, getCourses,
-  importCourseJson, restoreCoursePdfs, saveCourse,
+  importCourseJson, pdfReferenceCount, restoreCoursePdfs, saveCourse,
   type CoursePdf, type SharedChoice, type SharedConflict,
 } from '../lib/courses';
 import { getCurricula } from '../lib/curriculum';
@@ -185,19 +185,21 @@ export function CoursesPage() {
   }, [searchParams, setSearchParams, toast]);
 
   /**
-   * Cursusbestand overnemen (na de vraag, als die nodig was). Eerst de pdf's
-   * terugzetten (CU4), dan de cursus en haar widgets; eerlijk melden wat er
-   * gebeurde, ook als de opslag vol was.
+   * Cursusbestand overnemen (na de vraag, als die nodig was): de cursus en haar
+   * widgets, daarna de pdf's (CU4). De pdf's komen pas na de keuze en alleen
+   * voor wat bewaard werd: bij "Mijn versie houden" blijven er anders pdf's
+   * zonder verwijzing in IndexedDB staan. Eerlijk melden wat er gebeurde, ook
+   * als de opslag vol was.
    */
   const finishImport = async (bundle: ImportBundle, keuze?: { choice: SharedChoice; conflicten: SharedConflict[] }) => {
     try {
       const hadCourse = Boolean(getCourse(bundle.course.id));
-      const pdf = await restoreCoursePdfs(bundle.pdfs);
       const res = adoptSharedCourse(
         bundle.course,
         bundle.widgets,
         keuze ? { conflicts: { choice: keuze.choice, keys: keuze.conflicten.map(conflictKey) } } : {}
       );
+      const pdf = await restoreCoursePdfs(bundle.pdfs.filter((p) => pdfReferenceCount(p.id) > 0));
       const titel = bundle.course.title;
       let melding: string;
       if (keuze?.choice === 'kopie') melding = `"${titel}" geïmporteerd: wat al bestond, staat ernaast als kopie`;
@@ -250,7 +252,11 @@ export function CoursesPage() {
       },
       {
         label: 'Exporteren', hint: 'Als bestand (.json), met de oefeningen', Icon: ExportIcon,
-        onSelect: () => { void exportCourseJson(course).then((json) => downloadFile(`${course.title || 'cursus'}.json`, json)); },
+        onSelect: () => {
+          exportCourseJson(course)
+            .then((json) => downloadFile(`${course.title || 'cursus'}.json`, json))
+            .catch(() => toast('Exporteren mislukt. Probeer opnieuw; lukt het niet, dan is de cursus misschien te groot voor dit toestel.', 'err'));
+        },
       },
     ];
     if (course.id === EXAMPLE_COURSE_ID) {

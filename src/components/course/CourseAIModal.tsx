@@ -881,11 +881,16 @@ function ChapterOptimizeProgress({
 
 /** "Eerst back-up downloaden": herwerken en optimaliseren overschrijven veel. */
 function BackupButton({ course }: { course: Course }) {
+  const toast = useToast();
   return (
     <button
       className="btn btn-sm btn-ghost"
       style={{ justifySelf: 'start' }}
-      onClick={() => { void exportCourseJson(course).then((json) => downloadFile(`${course.title || 'cursus'} (backup).json`, json)); }}
+      onClick={() => {
+        exportCourseJson(course)
+          .then((json) => downloadFile(`${course.title || 'cursus'} (backup).json`, json))
+          .catch(() => toast('De back-up is mislukt. Probeer opnieuw, en ga pas verder als ze gelukt is.', 'err'));
+      }}
     >
       <DownloadIcon size={16} /> Eerst back-up downloaden
     </button>

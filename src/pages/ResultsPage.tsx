@@ -15,6 +15,7 @@ import { gradeQuestion } from '../lib/grading';
 import { goalLabel } from '../lib/curriculum';
 import { awaitsGrading } from '../lib/goals';
 import { processCodes } from '../lib/inbox';
+import { sanitizeMetaAnswers } from '../lib/progressTransfer';
 import { isRenderableMedia } from '../lib/mediaStore';
 import { passieveBlob } from '../lib/veiligeUrl';
 import { askAI, hasAIKey } from '../lib/ai';
@@ -42,6 +43,16 @@ const FOUT_LABELS: Record<string, { Icon: LucideIcon; text: string }> = {
   kennis: { Icon: CourseIcon, text: 'stof niet gekend' },
   aanpak: { Icon: Compass, text: 'aanpak niet gekend' },
 };
+
+/**
+ * Eigen tekstwaarde uit een object met vraag-id's als sleutel. Een id als
+ * "constructor" of "toString" geeft zo niets in plaats van iets uit Object.prototype.
+ */
+function eigenTekst(obj: unknown, key: string): string | undefined {
+  if (!obj || typeof obj !== 'object' || !Object.prototype.hasOwnProperty.call(obj, key)) return undefined;
+  const v = (obj as Record<string, unknown>)[key];
+  return typeof v === 'string' ? v : undefined;
+}
 
 /** Juist- of foutmarkering i.p.v. een ✓/✗-teken (analyses, rubrics, antwoordoverzichten). */
 function OkMark() {
@@ -765,6 +776,11 @@ function SubmissionModal({ widget, submission, onClose }: { widget: Widget; subm
   };
 
   const drawing = (submission.answers as any)?.tekening;
+  // De meta-antwoorden (_doelreflectie, _hints, …) hebben een vaste vorm, maar
+  // kwamen soms uit een code of bestand: eerst saneren, dan tonen (S4). Zo
+  // crasht het detail niet op een object als reflectie of getallen als hints,
+  // ook niet bij inzendingen die al bewaard waren.
+  const meta = useMemo(() => sanitizeMetaAnswers(submission.answers), [submission.answers]);
 
   return (
     <Modal title={`Inzending van ${submission.studentName}`} onClose={onClose} wide
@@ -791,9 +807,9 @@ function SubmissionModal({ widget, submission, onClose }: { widget: Widget; subm
       </div>
 
       {(() => {
-        const fa = submission.answers['_foutenanalyse'] as { volgendeKeer?: string } | undefined;
-        const doel = submission.answers['_doel'] as { proces?: string; streef?: number; vrij?: string } | undefined;
-        const doelReflectie = submission.answers['_doelreflectie'] as string | undefined;
+        const fa = meta['_foutenanalyse'] as { volgendeKeer?: string } | undefined;
+        const doel = meta['_doel'] as { proces?: string; streef?: number; vrij?: string } | undefined;
+        const doelReflectie = meta['_doelreflectie'] as string | undefined;
         if (!fa?.volgendeKeer && !doel && !doelReflectie) return null;
         return (
           <div className="callout" style={{ marginBottom: 12 }}>
@@ -820,7 +836,7 @@ function SubmissionModal({ widget, submission, onClose }: { widget: Widget; subm
 
       {(() => {
         // markeringen in een pdf-bron (gesplitst werkblad met markeerstiften)
-        const hls = submission.answers['_sourceHighlights'];
+        const hls = meta['_sourceHighlights'];
         if (!Array.isArray(hls) || hls.length === 0) return null;
         const palette = (widget.config as Partial<SplitWorksheetConfig>)?.source?.highlightPalette ?? [];
         const labelFor = (color: string) => palette.find((p) => p.color === color)?.label?.trim();
@@ -857,13 +873,13 @@ function SubmissionModal({ widget, submission, onClose }: { widget: Widget; subm
             const score = scores[q.id] ?? gradeQuestion(q, ans);
             // manueel te beoordelen types: open vragen én ingeleverde bestanden
             const isOpen = q.type === 'long' || q.type === 'upload';
-            const conf = (submission.answers['_zekerheid'] as Record<string, string> | undefined)?.[q.id];
+            const conf = eigenTekst(meta['_zekerheid'], q.id);
             // "_hints"-vorm: "vraagid" (1 hint) of "vraagid:2" (twee treden)
-            const hintEntry = Array.isArray(submission.answers['_hints'])
-              ? (submission.answers['_hints'] as string[]).find((h) => h === q.id || h.startsWith(q.id + ':'))
+            const hintEntry = Array.isArray(meta['_hints'])
+              ? (meta['_hints'] as unknown[]).find((h): h is string => typeof h === 'string' && (h === q.id || h.startsWith(q.id + ':')))
               : undefined;
             const hintLevel = hintEntry ? (hintEntry.includes(':') ? parseInt(hintEntry.split(':')[1], 10) || 1 : 1) : 0;
-            const foutLabel = (submission.answers['_foutenanalyse'] as { labels?: Record<string, string> } | undefined)?.labels?.[q.id];
+            const foutLabel = eigenTekst((meta['_foutenanalyse'] as { labels?: unknown } | undefined)?.labels, q.id);
             return (
               <div key={q.id} className="card" style={{ padding: '12px 14px', marginBottom: 10 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
@@ -876,7 +892,7 @@ function SubmissionModal({ widget, submission, onClose }: { widget: Widget; subm
                       <TipIcon size={14} className="icon-inline" /> {hintLevel === 1 ? 'hint' : `${hintLevel} hints`}
                     </span>
                   )}
-                  {foutLabel && FOUT_LABELS[foutLabel] && (
+                  {foutLabel && Object.prototype.hasOwnProperty.call(FOUT_LABELS, foutLabel) && (
                     <span className="badge" title="Eigen foutenanalyse van de leerling">
                       {(() => { const { Icon, text } = FOUT_LABELS[foutLabel]; return <><Icon size={14} className="icon-inline" /> {text}</>; })()}
                     </span>

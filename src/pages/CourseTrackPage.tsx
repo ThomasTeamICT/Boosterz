@@ -7,6 +7,7 @@ import {
   decodeCourseProgress, deleteStudentProgress, getCourse, getCourseProgressAll, importProgressCode,
 } from '../lib/courses';
 import { getSubmissions, getWidget, onStorageChange } from '../lib/storage';
+import { voortgangscodesMelding } from '../lib/progressTransfer';
 import { getTypeDef } from '../widgets/registry';
 import { type ChapterExerciseGroup, filterChapterGroups, groupWidgetIdsByChapter } from '../lib/courseTrack';
 import { downloadFile, formatDate, formatDuration, pct } from '../lib/utils';
@@ -261,7 +262,7 @@ export function CourseTrackPage() {
         <ProgressImportModal
           course={course}
           onClose={() => setImportOpen(false)}
-          onDone={(report) => toast(report, report.includes('ingevoerd') ? 'ok' : 'err')}
+          onDone={(report, kind) => toast(report, kind)}
         />
       )}
       {deleteTarget && (
@@ -334,7 +335,7 @@ function ChapterExerciseDetails({
 
 function ProgressImportModal({
   course, onClose, onDone,
-}: { course: Course; onClose: () => void; onDone: (report: string) => void }) {
+}: { course: Course; onClose: () => void; onDone: (report: string, kind: 'ok' | 'err') => void }) {
   const [text, setText] = useState('');
 
   const doImport = () => {
@@ -342,17 +343,17 @@ function ProgressImportModal({
     let ok = 0;
     let invalid = 0;
     let other = 0;
+    let mislukt = 0;
     for (const code of codes) {
       const p = decodeCourseProgress(code);
       if (!p) { invalid++; continue; }
       if (p.courseId !== course.id && p.courseCode !== course.code) { other++; continue; }
-      importProgressCode(p);
-      ok++;
+      // false = niet bewaard (volle opslag): dat telt niet als ingevoerd (G8)
+      if (importProgressCode(p)) ok++;
+      else mislukt++;
     }
-    const parts = [`${ok} ingevoerd`];
-    if (invalid) parts.push(`${invalid} ongeldig`);
-    if (other) parts.push(`${other} hoorde bij een andere cursus`);
-    onDone(parts.join(', '));
+    const melding = voortgangscodesMelding({ ok, invalid, other, mislukt });
+    onDone(melding.text, melding.kind);
     onClose();
   };
 

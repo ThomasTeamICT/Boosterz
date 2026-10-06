@@ -6,7 +6,7 @@ import { getSubmissions, getWidgets, onStorageChange } from '../lib/storage';
 import type { Submission } from '../lib/types';
 import { EmptyState, useToast } from '../components/ui';
 import { downloadFile, formatDate, pct } from '../lib/utils';
-import { exportProgress, importProgress } from '../lib/progressTransfer';
+import { describeProgressImport, exportProgress, importProgress } from '../lib/progressTransfer';
 import { getStudentContext } from '../lib/studentContext';
 import { ExportIcon, ImportIcon, SearchIcon, StudentIcon } from '../components/icons';
 import '../styles/leerling.css';
@@ -106,14 +106,10 @@ export function ProgressPage() {
       toast('Dit is geen geldig voortgangsbestand van Boosterz', 'err');
       return;
     }
-    if (res.imported === 0) {
-      toast('Geen nieuwe pogingen gevonden — alles stond hier al', 'info');
-    } else {
-      toast(
-        `${res.imported} poging${res.imported === 1 ? '' : 'en'}${res.naam ? ` van ${res.naam}` : ''} geïmporteerd`,
-        'ok'
-      );
-    }
+    // Eerlijk melden: ook wat door een volle opslag niet bewaard werd (G8) en
+    // wat veel te groot was (S2), niet enkel "alles stond hier al".
+    const melding = describeProgressImport(res);
+    toast(melding.text, melding.kind);
     // meteen naar de geïmporteerde naam springen
     if (res.naam) setGekozen(res.naam);
   };
