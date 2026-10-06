@@ -4,6 +4,7 @@ import type { Course, CourseChapter, CourseSection } from '../../lib/courseTypes
 import type { Curriculum } from '../../lib/curriculumTypes';
 import type { Widget } from '../../lib/types';
 import { computeCoverage, type CoverageRow } from '../../lib/coverage';
+import { getCurriculum } from '../../lib/curriculum';
 import { EmptyState } from '../ui';
 import {
   AIIcon, CheckIcon, CloseIcon, GoalIcon, SettingsIcon, TipIcon, WarningIcon,
@@ -111,7 +112,7 @@ function CurriculumCoverage({
         </p>
       )}
 
-      <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
+      <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }} role="region" tabIndex={0} aria-label="Dekking per leerplandoel en hoofdstuk">
         <table className="data" style={{ borderCollapse: 'collapse', width: '100%' }}>
           <thead>
             <tr>
@@ -211,6 +212,26 @@ function CurriculumCoverage({
           <strong>{result.unknownCodes.join(', ')}</strong>. Pas ze aan of voeg ze toe aan je{' '}
           <Link to="/leerplannen">leerplan</Link>.
         </p>
+      )}
+
+      {result.otherCurriculumWidgets.length > 0 && (
+        <div className="callout warn" role="status">
+          <WarningIcon size={16} aria-hidden style={{ flex: 'none', marginTop: 2 }} />
+          <div>
+            <strong>Deze oefeningen horen bij een ander leerplan en tellen niet mee voor de dekking.</strong>{' '}
+            Dezelfde code betekent in een ander leerplan een ander doel.
+            <ul style={{ margin: '6px 0 0', paddingLeft: 20 }}>
+              {result.otherCurriculumWidgets.map((w) => (
+                <li key={`${w.widgetId}:${w.sectionId ?? ''}`}>
+                  {w.title}
+                  <span className="hint">
+                    {' '}— in {w.sectionTitle ?? 'een sectie'}, leerplan {(w.curriculumId && getCurriculum(w.curriculumId)?.title) || 'dat hier niet meer staat'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       )}
 
       <p className="hint" style={{ marginBottom: 0, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
@@ -334,7 +355,7 @@ function FreeTextCoverage({ course, onOpenSettings }: { course: Course; onOpenSe
       </p>
 
       {/* 3. De matrix: doelen × hoofdstukken */}
-      <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }}>
+      <div className="card" style={{ overflowX: 'auto', marginBottom: 16 }} role="region" tabIndex={0} aria-label="Dekking per doel en hoofdstuk">
         <table className="data" style={{ borderCollapse: 'collapse', width: '100%' }}>
           <thead>
             <tr>

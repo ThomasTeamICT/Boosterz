@@ -9,13 +9,16 @@ import {
 import { getSubmissions, getWidget, onStorageChange } from '../lib/storage';
 import { getTypeDef } from '../widgets/registry';
 import { type ChapterExerciseGroup, filterChapterGroups, groupWidgetIdsByChapter } from '../lib/courseTrack';
-import { csvCell, downloadFile, formatDate, formatDuration, pct } from '../lib/utils';
+import { downloadFile, formatDate, formatDuration, pct } from '../lib/utils';
 import { ConfirmModal, EmptyState, Modal, useToast } from '../components/ui';
 import { TypeTile } from '../components/TypeTile';
+import { awaitingCount, courseProgressCsv, CSV_MIME, groupSubmissionsByWidget } from '../components/results/resultsHelpers';
 import {
   AssignIcon, CheckIcon, DeleteIcon, DownloadIcon, EditIcon, InfoIcon, ResultsIcon, SearchIcon,
 } from '../components/icons';
+import type { Submission } from '../lib/types';
 import '../styles/cursus.css';
+import '../styles/opvolgen.css';
 
 export function CourseTrackPage() {
   const { id } = useParams();
@@ -39,11 +42,18 @@ export function CourseTrackPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [chapterGroups, exerciseQuery, tick]
   );
+  // Alle inzendingen één keer lezen en per widget groeperen: elk hoofdstuk en
+  // elke oefening opnieuw laten lezen, ontleedt de hele lijst telkens opnieuw.
+  const subsByWidget = useMemo(
+    () => groupSubmissionsByWidget(getSubmissions()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tick]
+  );
 
   if (!course) {
     return (
       <div className="page page-narrow" style={{ paddingTop: 60 }}>
-        <EmptyState icon={<ResultsIcon size={40} />} title="Cursus niet gevonden">
+        <EmptyState level={1} icon={<ResultsIcon size={40} />} title="Cursus niet gevonden">
           <Link to="/cursussen" className="btn btn-primary">Naar de cursussen</Link>
         </EmptyState>
       </div>
@@ -60,23 +70,9 @@ export function CourseTrackPage() {
     0
   );
 
+  // Met BOM en tekenset (zodat Excel de letters goed leest) en veilige cellen (csvCell).
   const exportCsv = () => {
-    const head = ['naam', 'voortgang %', 'laatst gezien', ...sections.map(({ chapter, section }) => `${chapter.title} › ${section.title}${section.optional ? ' (keuze)' : ''}`)];
-    const lines = [head.map(csvCell).join(';')];
-    for (const p of progress) {
-      lines.push(
-        [
-          p.studentName,
-          progressPercent(course, p),
-          formatDate(p.lastSeenAt),
-          ...sections.map(({ section }) => {
-            const sp = p.sections[section.id];
-            return sp?.completedAt ? 'gelezen' : sp ? 'geopend' : '-';
-          }),
-        ].map(csvCell).join(';')
-      );
-    }
-    downloadFile(`voortgang - ${course.title}.csv`, lines.join('\n'), 'text/csv');
+    downloadFile(`voortgang - ${course.title}.csv`, courseProgressCsv(course, progress), CSV_MIME);
   };
 
   return (
@@ -118,26 +114,31 @@ export function CourseTrackPage() {
         </EmptyState>
       ) : (
         <>
-          <div className="card" style={{ overflowX: 'auto', marginBottom: 20 }}>
+          <div
+            className="card" style={{ overflowX: 'auto', marginBottom: 20, position: 'relative' }}
+            role="region" tabIndex={0} aria-label="Leesvoortgang per leerling en sectie"
+          >
             <table className="data" style={{ minWidth: 640, borderCollapse: 'collapse', width: '100%' }}>
               <thead>
                 <tr>
-                  <th rowSpan={2} style={{ position: 'sticky', left: 0, background: 'var(--bg-raised)', zIndex: 1, textAlign: 'left', padding: '8px 12px' }}>
+                  <th scope="col" rowSpan={2} style={{ position: 'sticky', left: 0, background: 'var(--bg-raised)', zIndex: 1, textAlign: 'left', padding: '8px 12px' }}>
                     Leerling
                   </th>
-                  {course.chapters.map((ch) => (
-                    <th key={ch.id} colSpan={ch.sections.length} style={{ padding: '6px 8px', borderBottom: '1px solid var(--line)', fontSize: '0.82rem' }}>
+                  {/* Een hoofdstuk zonder secties krijgt geen kolomkop: colSpan 0 geldt als 1 en schuift alle koppen op. */}
+                  {course.chapters.filter((ch) => ch.sections.length > 0).map((ch) => (
+                    <th key={ch.id} scope="colgroup" colSpan={ch.sections.length} style={{ padding: '6px 8px', borderBottom: '1px solid var(--line)', fontSize: '0.82rem' }}>
                       {ch.emoji} {ch.title}
                     </th>
                   ))}
-                  <th rowSpan={2} style={{ padding: '6px 10px' }}>%</th>
-                  <th rowSpan={2} style={{ padding: '6px 10px' }}>Laatst gezien</th>
-                  <th rowSpan={2} aria-label="Acties" />
+                  <th scope="col" rowSpan={2} style={{ padding: '6px 10px' }}>%</th>
+                  <th scope="col" rowSpan={2} style={{ padding: '6px 10px' }}>Laatst gezien</th>
+                  <th scope="col" rowSpan={2}><span className="sr-only">Acties</span></th>
                 </tr>
                 <tr>
                   {sections.map(({ section }) => (
                     <th
                       key={section.id}
+                      scope="col"
                       title={`${section.title}${section.optional ? ' (keuzesectie)' : ''}`}
                       style={{ padding: '4px 6px', fontSize: '0.75rem', fontWeight: 500, color: section.optional ? 'var(--text-faint)' : 'var(--text-soft)', maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                     >
@@ -148,10 +149,10 @@ export function CourseTrackPage() {
               </thead>
               <tbody>
                 {progress.map((p) => (
-                  <tr key={p.studentName} style={{ borderTop: '1px solid var(--line)' }}>
-                    <td style={{ position: 'sticky', left: 0, background: 'var(--bg-raised)', fontWeight: 600, padding: '7px 12px', whiteSpace: 'nowrap' }}>
+                  <tr key={p.studentName} style={{ borderTop: '1px solid var(--line)', cursor: 'default' }}>
+                    <th scope="row" style={{ position: 'sticky', left: 0, background: 'var(--bg-raised)', fontWeight: 600, padding: '7px 12px', whiteSpace: 'nowrap', textAlign: 'left' }}>
                       {p.studentName}
-                    </td>
+                    </th>
                     {sections.map(({ section }) => {
                       const sp = p.sections[section.id];
                       const state = sp?.completedAt ? 'done' : sp ? 'open' : 'none';
@@ -165,9 +166,10 @@ export function CourseTrackPage() {
                                 : 'Nog niet geopend'
                           }
                         >
-                          <span aria-label={state === 'done' ? 'gelezen' : state === 'open' ? 'geopend' : 'nog niet geopend'}>
+                          <span aria-hidden>
                             {state === 'done' ? <CheckIcon size={14} className="icon-inline" style={{ color: 'var(--ok)' }} /> : state === 'open' ? '◐' : '·'}
                           </span>
+                          <span className="sr-only">{state === 'done' ? 'gelezen' : state === 'open' ? 'geopend' : 'nog niet geopend'}</span>
                         </td>
                       );
                     })}
@@ -190,7 +192,7 @@ export function CourseTrackPage() {
           </div>
 
           <div className="card card-pad" style={{ marginBottom: 20 }}>
-            <h3 style={{ marginTop: 0 }}>Waar zit de klas? (per sectie)</h3>
+            <h2 style={{ marginTop: 0, fontSize: '1.08rem' }}>Waar zit de klas? (per sectie)</h2>
             <p className="hint" style={{ marginTop: -6 }}>
               Leestijd is context, geen oordeel — snel lezen kan grondig zijn, traag lezen zorgvuldig.
             </p>
@@ -202,7 +204,7 @@ export function CourseTrackPage() {
                 const times = progress.map((p) => p.sections[section.id]?.secondsSpent ?? 0).filter((t) => t > 0);
                 const avgTime = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
                 return (
-                  <div key={section.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, 300px) 1fr auto', gap: 10, alignItems: 'center' }}>
+                  <div key={section.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 300px) minmax(40px, 1fr) auto', gap: 10, alignItems: 'center' }}>
                     <span style={{ fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`${chapter.title} › ${section.title}`}>
                       {section.title}{section.optional && <span className="hint"> ◇ keuze</span>}
                     </span>
@@ -210,7 +212,7 @@ export function CourseTrackPage() {
                       role="img" aria-label={`${done} van ${progress.length} leerlingen lazen "${section.title}"`}>
                       <div style={{ width: `${pctDone}%`, height: '100%', background: 'var(--ok)', borderRadius: 99, transition: 'width 0.4s' }} />
                     </div>
-                    <span className="hint" style={{ whiteSpace: 'nowrap' }}>
+                    <span className="hint" style={{ textAlign: 'right' }}>
                       {done}<CheckIcon size={12} className="icon-inline" /> / {opened}◐{avgTime > 0 && ` (gem. ${formatDuration(avgTime)})`}
                     </span>
                   </div>
@@ -241,7 +243,7 @@ export function CourseTrackPage() {
           {filteredGroups.length === 0 ? (
             <p className="hint">Geen oefening gevonden voor “{exerciseQuery}”.</p>
           ) : (
-            filteredGroups.map((group) => <ChapterExerciseDetails key={group.chapter.id} group={group} />)
+            filteredGroups.map((group) => <ChapterExerciseDetails key={group.chapter.id} group={group} subsByWidget={subsByWidget} />)
           )}
         </div>
       )}
@@ -276,17 +278,20 @@ export function CourseTrackPage() {
 
 // ── Eén hoofdstuk met zijn oefeningen, inklapbaar ────────────────────────────
 
-function ChapterExerciseDetails({ group }: { group: ChapterExerciseGroup }) {
+function ChapterExerciseDetails({
+  group, subsByWidget,
+}: { group: ChapterExerciseGroup; subsByWidget: Map<string, Submission[]> }) {
   const rows = group.widgetIds
     .map((wid) => getWidget(wid))
     .filter((w): w is NonNullable<ReturnType<typeof getWidget>> => Boolean(w))
     .map((w) => {
-      const subs = getSubmissions(w.id);
+      const subs = subsByWidget.get(w.id) ?? [];
       const scored = subs.filter((s) => s.totalMax > 0);
       const avgScore = scored.length
         ? Math.round(scored.reduce((a, s) => a + pct(s.totalEarned, s.totalMax), 0) / scored.length)
         : null;
-      return { widget: w, subs, avgScore };
+      // wat nog nagekeken moet worden staat als 0 in de score: het gemiddelde is dan voorlopig
+      return { widget: w, subs, avgScore, provisional: awaitingCount(subs) > 0 };
     });
   const totalSubs = rows.reduce((a, r) => a + r.subs.length, 0);
   const scoredRows = rows.filter((r): r is typeof r & { avgScore: number } => r.avgScore !== null);
@@ -301,18 +306,18 @@ function ChapterExerciseDetails({ group }: { group: ChapterExerciseGroup }) {
         <span>{group.chapter.emoji ? `${group.chapter.emoji} ` : ''}{group.chapter.title}</span>
         <span className="chapter-track-summary">
           {rows.length} oefening{rows.length === 1 ? '' : 'en'} · {totalSubs} inzending{totalSubs === 1 ? '' : 'en'}
-          {avgAll !== null && ` · gem. ${avgAll}%`}
+          {avgAll !== null && ` · gem. ${avgAll}%${rows.some((r) => r.provisional) ? ' (voorlopig)' : ''}`}
         </span>
       </summary>
       <div className="chapter-track-body" style={{ display: 'grid', gap: 8 }}>
-        {rows.map(({ widget, subs, avgScore }) => {
+        {rows.map(({ widget, subs, avgScore, provisional }) => {
           const def = getTypeDef(widget.type);
           return (
             <div key={widget.id} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
               <TypeTile type={def} size="sm" />
               <strong style={{ flex: '1 1 200px' }}>{widget.title}</strong>
               <span className="hint">
-                {subs.length} inzending{subs.length === 1 ? '' : 'en'}{avgScore !== null && ` · gem. ${avgScore}%`}
+                {subs.length} inzending{subs.length === 1 ? '' : 'en'}{avgScore !== null && ` · gem. ${avgScore}%${provisional ? ' (voorlopig)' : ''}`}
               </span>
               {def.hasSubmissions && (
                 <Link to={`/resultaten/${widget.id}`} className="btn btn-sm btn-ghost">

@@ -54,3 +54,26 @@
 .klas-invoer[aria-invalid="true"],
 .klas-invoer[aria-invalid="true"]:focus { border-color: var(--err); }
 .klas-rijmelding { display: inline-flex; align-items: center; gap: 4px; }
+
+/* Resultatentabellen met het toetsenbord bedienen: de naam of titel in de
+   eerste cel is een echte knop of link (de rij blijft ook klikbaar voor de
+   muis), met rijkoppen i.p.v. gewone cellen. */
+.row-open { color: var(--text); font-weight: 700; text-decoration: none; }
+a.row-open { border-radius: 4px; }
+a.row-open:hover, .row-open.btn:hover { text-decoration: underline; }
+.btn.row-open { margin: -4px 0 -4px -10px; text-align: left; font-weight: 700; color: var(--text); }
+.btn.row-open:hover { color: var(--text); }
+table.data tbody tr:focus-within { background: var(--bg-sunken); }
+
+/* Rijkop: ziet eruit als een gewone cel, niet als een kolomkop. */
+table.data tbody th[scope="row"] {
+  text-transform: none; letter-spacing: normal; font-size: inherit; font-weight: inherit;
+  color: var(--text); background: transparent; white-space: normal;
+  padding: 11px 14px; border-bottom: 1px solid var(--line);
+}
+table.data tbody tr:last-child th[scope="row"] { border-bottom: none; }
+
+/* Een schuifkader hoort ook zijn verborgen tekst (.sr-only) vast te houden:
+   zonder positie ligt zo'n absoluut geplaatst stukje tekst buiten het kader en
+   rekt het de hele pagina breed uit op een smal scherm. */
+.table-wrap { position: relative; }

@@ -12,17 +12,20 @@ import type { PdfHighlight } from '../components/pdf/PdfViewer';
 import { csvCell, downloadFile, formatDate, formatDuration, normalizeAnswer, pct } from '../lib/utils';
 import { ConfirmModal, EmptyState, Modal, ScoreRing, useToast } from '../components/ui';
 import { gradeQuestion } from '../lib/grading';
-import { decodeSubmission } from '../lib/share';
-import { goalLabel, normalizeGoalCode } from '../lib/curriculum';
+import { goalLabel } from '../lib/curriculum';
+import { awaitsGrading } from '../lib/goals';
+import { processCodes } from '../lib/inbox';
 import { isRenderableMedia } from '../lib/mediaStore';
 import { passieveBlob } from '../lib/veiligeUrl';
-import { uid } from '../lib/utils';
 import { askAI, hasAIKey } from '../lib/ai';
 import { markTokens as playerMarkTokens, matchMarkers, ZoneCircle } from '../widgets/qtypes/interactTypes';
 import { getStudentFile } from '../lib/pdfStore';
 import { TypeTile } from '../components/TypeTile';
 import { filterSubmissionsByClass } from '../lib/resultsFilter';
 import { useResultsClassFilter } from '../lib/useResultsClassFilter';
+import { ClassFilterNotice } from '../components/results/ClassFilterNotice';
+import { awaitingCount, CSV_BOM, CSV_MIME, goalRefOf, type GoalRef } from '../components/results/resultsHelpers';
+import { importOutcome, type ImportOutcome } from '../components/results/importOutcome';
 import {
   AddIcon, AIIcon, BackIcon, CheckIcon, CloseIcon, CourseIcon, DeleteIcon, EditIcon,
   ExportIcon, GoalIcon, ImportIcon, SearchIcon, TipIcon, WarningIcon,
@@ -107,11 +110,13 @@ export function ResultsPage() {
   const widget = id ? getWidget(id) : undefined;
   const isQuiz = widget ? QUIZ_FAMILY.has(widget.type) : false;
   const rawSubs = widget ? getSubmissions(widget.id) : [];
-  const subs = filterSubmissionsByClass(rawSubs, filter).sort((a, b) => b.submittedAt - a.submittedAt);
+  // met de klassen erbij: dezelfde inzendingen als het klasdashboard
+  const subs = filterSubmissionsByClass(rawSubs, filter, classes).sort((a, b) => b.submittedAt - a.submittedAt);
+  const hiddenByFilter = rawSubs.length - subs.length;
   const openQuestionsExist = isQuiz && widget
     ? (widget.config as QuizConfig).questions.some((q) => q.type === 'long' || q.type === 'upload')
     : false;
-  const pendingCount = subs.filter((s) => s.status === 'submitted').length;
+  const pendingCount = awaitingCount(subs);
 
   const [detail, setDetail] = useState<Submission | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Submission | null>(null);
@@ -143,6 +148,8 @@ export function ResultsPage() {
   );
   const scored = subs.filter((s) => s.totalMax > 0);
   const avg = scored.length > 0 ? Math.round(scored.reduce((sum, s) => sum + pct(s.totalEarned, s.totalMax), 0) / scored.length) : null;
+  // Wat nog nagekeken moet worden staat als 0 in de score: het gemiddelde is dan voorlopig.
+  const provisional = avg !== null && pendingCount > 0;
 
   const exportCsv = (anonymous = false) => {
     const rows: string[][] = [];
@@ -168,7 +175,7 @@ export function ResultsPage() {
       });
     }
     const csv = rows.map((r) => r.map(csvCell).join(';')).join('\n');
-    downloadFile(`resultaten-${widget.code}${anonymous ? '-anoniem' : ''}.csv`, '﻿' + csv, 'text/csv;charset=utf-8');
+    downloadFile(`resultaten-${widget.code}${anonymous ? '-anoniem' : ''}.csv`, CSV_BOM + csv, CSV_MIME);
     toast(anonymous ? 'Anonieme CSV geëxporteerd' : 'CSV geëxporteerd — dit bestand bevat namen van leerlingen, bewaar het zorgvuldig', 'ok');
   };
 
@@ -217,11 +224,11 @@ export function ResultsPage() {
           <div style={{ fontSize: '1.9rem', fontWeight: 800, color: avg === null ? 'var(--text-faint)' : avg >= 70 ? 'var(--ok)' : avg >= 45 ? 'var(--warn)' : 'var(--err)' }}>
             {avg === null ? '—' : `${avg}%`}
           </div>
-          <div className="hint">gemiddelde score</div>
+          <div className="hint">gemiddelde score{provisional ? ' (voorlopig)' : ''}</div>
         </div>
         <div className="card card-pad" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '1.9rem', fontWeight: 800, color: subs.some((s) => s.status === 'submitted') ? 'var(--warn)' : 'var(--ok)' }}>
-            {subs.filter((s) => s.status === 'submitted').length}
+          <div style={{ fontSize: '1.9rem', fontWeight: 800, color: pendingCount > 0 ? 'var(--warn)' : 'var(--ok)' }}>
+            {pendingCount}
           </div>
           <div className="hint">nog na te kijken</div>
         </div>
@@ -258,10 +265,18 @@ export function ResultsPage() {
         />
       )}
 
+      <ClassFilterNotice hidden={hiddenByFilter} onShowAll={() => setFilter('all')} />
+
       {subs.length === 0 ? (
-        <EmptyState icon={<InboxIcon size={40} />} title="Nog geen inzendingen voor deze widget">
-          <p>Deel de code <strong style={{ fontFamily: 'monospace' }}>{widget.code}</strong> met je klas om resultaten te verzamelen.</p>
-        </EmptyState>
+        rawSubs.length > 0 ? (
+          <EmptyState icon={<InboxIcon size={40} />} title="Geen inzendingen voor dit klasfilter">
+            <p>Er staat wel werk van andere klassen of van leerlingen zonder klas op dit toestel.</p>
+          </EmptyState>
+        ) : (
+          <EmptyState icon={<InboxIcon size={40} />} title="Nog geen inzendingen voor deze widget">
+            <p>Deel de code <strong style={{ fontFamily: 'monospace' }}>{widget.code}</strong> met je klas om resultaten te verzamelen.</p>
+          </EmptyState>
+        )
       ) : (
         <div
           role={isQuiz && subs.length > 0 ? 'tabpanel' : undefined}
@@ -273,24 +288,35 @@ export function ResultsPage() {
           ) : tab === 'grade' && isQuiz ? (
             <GradingCockpit widget={widget} subs={subs} />
           ) : (
-            <div className="table-wrap">
+            <div className="table-wrap" role="region" tabIndex={0} aria-label="Inzendingen per leerling">
               <table className="data">
                 <thead>
                   <tr>
-                    <th>Leerling</th>
-                    <th>Ingediend</th>
-                    <th>Duur</th>
-                    <th>Score</th>
-                    <th>Status</th>
-                    <th aria-label="acties" />
+                    <th scope="col">Leerling</th>
+                    <th scope="col">Ingediend</th>
+                    <th scope="col">Duur</th>
+                    <th scope="col">Score</th>
+                    <th scope="col">Status</th>
+                    <th scope="col"><span className="sr-only">Acties</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {subs.map((s) => {
                     const p = s.totalMax > 0 ? pct(s.totalEarned, s.totalMax) : null;
+                    const waiting = awaitsGrading(s);
                     return (
+                      // De muis mag de hele rij gebruiken; het toetsenbord gebruikt de knop in de eerste cel.
                       <tr key={s.id} onClick={() => setDetail(s)}>
-                        <td><strong>{s.studentName}</strong></td>
+                        <th scope="row">
+                          <button
+                            type="button"
+                            className="btn btn-quiet btn-sm row-open"
+                            aria-label={`Inzending van ${s.studentName} bekijken`}
+                            onClick={() => setDetail(s)}
+                          >
+                            {s.studentName}
+                          </button>
+                        </th>
                         <td className="hint">{formatDate(s.submittedAt)}</td>
                         <td className="hint">{formatDuration(s.durationSec)}</td>
                         <td>
@@ -298,11 +324,12 @@ export function ResultsPage() {
                             <div className="scorebar">
                               <div className="bar"><div style={{ width: `${p}%`, background: p >= 70 ? 'var(--ok)' : p >= 45 ? 'var(--warn)' : 'var(--err)' }} /></div>
                               <strong>{s.totalEarned}/{s.totalMax}</strong>
+                              {waiting && <span className="hint">(voorlopig)</span>}
                             </div>
                           )}
                         </td>
                         <td>
-                          {s.status === 'submitted'
+                          {waiting
                             ? <span className="badge badge-warn"><ClipboardCheck size={14} className="icon-inline" /> na te kijken</span>
                             : <span className="badge badge-ok"><OkMark /> verbeterd</span>}
                         </td>
@@ -324,7 +351,7 @@ export function ResultsPage() {
         <ResultCodeImportModal
           widget={widget}
           onClose={() => setImportOpen(false)}
-          onImported={(n) => toast(`${n} ${n === 1 ? 'resultaat' : 'resultaten'} geïmporteerd`, 'ok')}
+          onDone={(message) => toast(message, 'ok')}
         />
       )}
       {detail && <SubmissionModal widget={widget} submission={detail} onClose={() => setDetail(null)} />}
@@ -670,11 +697,11 @@ function ExtraAnswerView({ q, ans }: { q: Question; ans: unknown }) {
         return accepted.split('|').some((a) => normalizeAnswer(a, q.caseSensitive) === normalizeAnswer(given, q.caseSensitive));
       };
       return (
-        <div className="table-wrap">
+        <div className="table-wrap" role="region" tabIndex={0} aria-label="Ingevulde tabel">
           <table style={{ borderCollapse: 'collapse' }}>
             {cols.length > 0 && (
               <thead>
-                <tr>{cols.map((c, i) => <th key={i} style={{ ...cellStyle, background: 'var(--bg-sunken)', textAlign: 'left' }}>{c}</th>)}</tr>
+                <tr>{cols.map((c, i) => <th key={i} scope="col" style={{ ...cellStyle, background: 'var(--bg-sunken)', textAlign: 'left' }}>{c}</th>)}</tr>
               </thead>
             )}
             <tbody>
@@ -1055,35 +1082,35 @@ function AIFeedbackSuggest({
   );
 }
 
-/** Resultaatcodes van leerlingen (thuiswerk via draagbare link) inlezen. */
+/**
+ * Resultaatcodes van leerlingen (thuiswerk via draagbare link) inlezen, met
+ * dezelfde verwerking als het Inleverpunt (`processCodes`): elke code krijgt
+ * een eerlijke uitkomst, en wat niet bij deze widget hoort of niet lukt,
+ * verdwijnt niet stil. Werk voor een andere widget wordt bewaard (het is werk
+ * van een leerling), en de melding zegt dat.
+ */
 function ResultCodeImportModal({
-  widget, onClose, onImported,
-}: { widget: Widget; onClose: () => void; onImported: (n: number) => void }) {
+  widget, onClose, onDone,
+}: { widget: Widget; onClose: () => void; onDone: (message: string) => void }) {
   const [text, setText] = useState('');
   const [error, setError] = useState('');
+  const [outcome, setOutcome] = useState<ImportOutcome | null>(null);
 
   const doImport = () => {
-    const codes = text.split(/\s+/).map((s) => s.trim()).filter(Boolean);
-    let ok = 0;
-    const existing = getSubmissions();
-    const seen = new Set(existing.map((s) => `${s.widgetId}::${s.studentName}::${s.submittedAt}`));
-    for (const code of codes) {
-      const sub = decodeSubmission(code);
-      if (!sub) continue;
-      if (sub.widgetId !== widget.id && sub.widgetCode !== widget.code) continue;
-      // dubbele import vermijden — ook binnen dezelfde plak-actie
-      const dupKey = `${widget.id}::${sub.studentName}::${sub.submittedAt}`;
-      if (seen.has(dupKey)) continue;
-      seen.add(dupKey);
-      saveSubmission({ ...sub, id: uid(), widgetId: widget.id });
-      ok++;
-    }
-    if (ok === 0) {
-      setError('Geen geldige resultaatcodes voor deze widget gevonden. Controleer of de volledige code geplakt is en of ze bij deze widget hoort.');
+    const before = getSubmissions(widget.id).length;
+    const report = processCodes(text);
+    if (report.rows.length === 0) {
+      setError('Geen codes gevonden. Een resultaatcode begint met WF1. — controleer of de volledige code geplakt is.');
       return;
     }
-    onImported(ok);
-    onClose();
+    const result = importOutcome(report, getSubmissions(widget.id).length - before);
+    // Alles in één keer gelukt, en allemaal voor deze widget: kort melden en sluiten.
+    if (result.clean) {
+      onDone(`${result.saved} ${result.saved === 1 ? 'resultaat' : 'resultaten'} geïmporteerd`);
+      onClose();
+      return;
+    }
+    setOutcome(result);
   };
 
   return (
@@ -1091,24 +1118,51 @@ function ResultCodeImportModal({
       title="Resultaatcodes plakken"
       onClose={onClose}
       footer={
-        <>
-          <button className="btn btn-ghost" onClick={onClose}>Annuleren</button>
-          <button className="btn btn-primary" disabled={!text.trim()} onClick={doImport}>Importeren</button>
-        </>
+        outcome ? (
+          <button className="btn btn-primary" onClick={onClose}>Sluiten</button>
+        ) : (
+          <>
+            <button className="btn btn-ghost" onClick={onClose}>Annuleren</button>
+            <button className="btn btn-primary" disabled={!text.trim()} onClick={doImport}>Importeren</button>
+          </>
+        )
       }
     >
       <p className="hint" style={{ marginBottom: 8 }}>
         Leerlingen die thuis via de draagbare link werkten, krijgen na het indienen een <strong>resultaatcode</strong>.
         Plak hier één of meerdere codes (gescheiden door een spatie of nieuwe regel) om ze aan deze resultaten toe te voegen.
       </p>
+      <label htmlFor="resultaatcodes" className="sr-only">Resultaatcodes</label>
       <textarea
+        id="resultaatcodes"
         className="textarea" rows={6}
         placeholder="WF1.…"
         value={text}
+        readOnly={!!outcome}
         onChange={(e) => { setText(e.target.value); setError(''); }}
         style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}
       />
       {error && <p role="alert" style={{ color: 'var(--err)', fontWeight: 600 }}>{error}</p>}
+      {outcome && (
+        <div className="callout warn" role="status" style={{ marginTop: 12, display: 'block' }}>
+          <p style={{ margin: '0 0 6px' }}><strong>{outcome.summary}</strong></p>
+          {outcome.elsewhere > 0 && (
+            <p style={{ margin: '0 0 6px' }}>
+              {outcome.elsewhere} {outcome.elsewhere === 1 ? 'resultaat hoort' : 'resultaten horen'} niet bij deze widget en
+              {outcome.elsewhere === 1 ? ' is' : ' zijn'} bij de eigen widget of cursus bewaard.
+            </p>
+          )}
+          {outcome.problems.length > 0 && (
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {outcome.problems.map((r) => (
+                <li key={r.index}>
+                  Code {r.index}{r.studentName ? ` (${r.studentName})` : ''}: {r.message}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </Modal>
   );
 }
@@ -1228,34 +1282,21 @@ function DistractorBars({ q, subs }: { q: Question; subs: Submission[] }) {
  * die overal in de app dezelfde betekenis heeft. Staat er geen code, dan valt
  * de vraag terug op de vrije doel-tag (goal), zodat oudere widgets blijven
  * rapporteren zoals voorheen. Beide soorten staan naast elkaar in dezelfde
- * tabel; bij een code tonen we de doeltekst uit het leerplan.
+ * tabel; bij een code tonen we de doeltekst uit het leerplan van de widget.
  */
-interface GoalRow {
-  /** Unieke sleutel: "code:NW 2.3" of "vrij:Werkwoordspelling". */
-  key: string;
-  /** De leerplancode, of null bij een vrije doel-tag. */
-  code: string | null;
+interface GoalRow extends GoalRef {
   /** Wat de leerkracht leest. */
   label: string;
-}
-
-/** Aan welk doel telt deze vraag mee? Leerplancode gaat vóór de vrije tag. */
-function goalKeyOf(q: Question): string | null {
-  if (q.goalCode?.trim()) return `code:${normalizeGoalCode(q.goalCode)}`;
-  if (q.goal?.trim()) return `vrij:${q.goal.trim()}`;
-  return null;
 }
 
 function goalRowsOf(questions: Question[], curriculumId?: string): GoalRow[] {
   const rows: GoalRow[] = [];
   const seen = new Set<string>();
   for (const q of questions) {
-    const key = goalKeyOf(q);
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    const rest = key.slice(5); // "code:" en "vrij:" zijn allebei 5 tekens
-    const code = key.startsWith('code:') ? rest : null;
-    rows.push({ key, code, label: code ? goalLabel(code, curriculumId) : rest });
+    const ref = goalRefOf(q, curriculumId);
+    if (!ref || seen.has(ref.key)) continue;
+    seen.add(ref.key);
+    rows.push({ ...ref, label: ref.code ? goalLabel(ref.code, curriculumId) : (ref.tag ?? '') });
   }
   return rows;
 }
@@ -1265,16 +1306,18 @@ function GoalStats({ widget, subs }: { widget: Widget; subs: Submission[] }) {
   const goals = goalRowsOf(questions, widget.curriculumId);
   if (goals.length === 0 || subs.length === 0) return null;
 
-  const scoreFor = (s: Submission, key: string) => {
-    let earned = 0, max = 0;
+  // Score van één inzending voor één doel. Wat nog nagekeken moet worden telt
+  // niet als 0 mee: de score is dan voorlopig (`pending`).
+  const scoreFor = (s: Submission, key: string): { p: number | null; pending: boolean } => {
+    let earned = 0, max = 0, pending = false;
     for (const q of questions) {
-      if (goalKeyOf(q) !== key) continue;
+      if (goalRefOf(q, widget.curriculumId)?.key !== key) continue;
       if (s.itemScores && !(q.id in s.itemScores)) continue;
       const sc = s.itemScores?.[q.id] ?? gradeQuestion(q, s.answers[q.id]);
-      if (sc.mode === 'pending') continue;
+      if (sc.mode === 'pending') { pending = true; continue; }
       earned += sc.earned; max += sc.max;
     }
-    return max > 0 ? Math.round((earned / max) * 100) : null;
+    return { p: max > 0 ? Math.round((earned / max) * 100) : null, pending };
   };
 
   const cellColor = (p: number | null) =>
@@ -1284,10 +1327,12 @@ function GoalStats({ widget, subs }: { widget: Widget; subs: Submission[] }) {
 
   return (
     <div className="card card-pad" style={{ marginBottom: 14 }}>
-      <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><GoalIcon size={20} /> Beheersing per leerdoel</h3>
+      <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1.08rem' }}><GoalIcon size={20} /> Beheersing per leerdoel</h2>
       {goals.map((g) => {
-        const ps = subs.map((s) => scoreFor(s, g.key)).filter((p): p is number => p !== null);
+        const scores = subs.map((s) => scoreFor(s, g.key));
+        const ps = scores.map((x) => x.p).filter((p): p is number => p !== null);
         const avg = ps.length > 0 ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) : null;
+        const provisional = scores.some((x) => x.pending);
         return (
           <div key={g.key} style={{ marginBottom: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', fontWeight: 600, marginBottom: 3 }}>
@@ -1295,7 +1340,9 @@ function GoalStats({ widget, subs }: { widget: Widget; subs: Submission[] }) {
                 {g.code && <span className="badge badge-brand" style={{ marginRight: 6 }}>leerplan</span>}
                 {g.label}
               </span>
-              <span style={{ color: avg === null ? 'var(--text-faint)' : cellText(avg) }}>{avg === null ? '—' : `${avg}% gem.`}</span>
+              <span style={{ color: avg === null ? 'var(--text-faint)' : cellText(avg) }}>
+                {avg === null ? (provisional ? '— nog na te kijken' : '—') : `${avg}% gem.${provisional ? ' (voorlopig)' : ''}`}
+              </span>
             </div>
             <div className="progressbar">
               <div style={{ width: `${avg ?? 0}%`, background: avg === null ? 'var(--text-faint)' : avg >= 70 ? 'var(--ok)' : avg >= 45 ? 'var(--warn)' : 'var(--err)' }} />
@@ -1307,23 +1354,24 @@ function GoalStats({ widget, subs }: { widget: Widget; subs: Submission[] }) {
         <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-soft)' }}>
           Heatmap per leerling (voor klassenraad of remediëring)
         </summary>
-        <div className="table-wrap" style={{ marginTop: 8 }}>
+        <div className="table-wrap" role="region" tabIndex={0} aria-label="Heatmap per leerling en leerdoel" style={{ marginTop: 8 }}>
           <table className="data" style={{ fontSize: '0.85rem' }}>
             <thead>
               <tr>
-                <th>Leerling</th>
-                {goals.map((g) => <th key={g.key} title={g.label}>{g.code ?? g.label}</th>)}
+                <th scope="col">Leerling</th>
+                {goals.map((g) => <th key={g.key} scope="col" title={g.label}>{g.code ?? g.label}</th>)}
               </tr>
             </thead>
             <tbody>
               {subs.map((s) => (
                 <tr key={s.id} style={{ cursor: 'default' }}>
-                  <td><strong>{s.studentName}</strong></td>
+                  <th scope="row"><strong>{s.studentName}</strong></th>
                   {goals.map((g) => {
-                    const p = scoreFor(s, g.key);
+                    const { p, pending } = scoreFor(s, g.key);
                     return (
                       <td key={g.key} style={{ background: cellColor(p), color: cellText(p), fontWeight: 700, textAlign: 'center' }}>
-                        {p === null ? '—' : `${p}%`}
+                        {p === null ? (pending ? 'na te kijken' : '—') : `${p}%`}
+                        {p !== null && pending && <span style={{ fontWeight: 500 }}> (voorlopig)</span>}
                       </td>
                     );
                   })}
@@ -1456,8 +1504,8 @@ function GradingCockpit({ widget, subs }: { widget: Widget; subs: Submission[] }
         <div>Per <strong>vraag</strong> verbeteren houdt je beoordelingskader constant: sneller én consistenter dan per leerling.</div>
       </div>
       <div className="field" style={{ maxWidth: 520 }}>
-        <label>Na te kijken vraag</label>
-        <select className="select" value={qid} onChange={(e) => setQid(e.target.value)}>
+        <label htmlFor="nakijk-vraag">Na te kijken vraag</label>
+        <select id="nakijk-vraag" className="select" value={qid} onChange={(e) => setQid(e.target.value)}>
           {openQuestions.map((oq, i) => (
             <option key={oq.id} value={oq.id}>
               {i + 1}. {oq.type === 'upload' ? '(bijlage) ' : ''}{oq.prompt.slice(0, 80)}
@@ -1525,7 +1573,7 @@ function CockpitRow({
   return (
     <div className="card" style={{ padding: '13px 16px', marginBottom: 10, borderLeft: graded ? '4px solid var(--ok)' : '4px solid var(--warn)' }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 6 }}>
-        <strong>{submission.studentName}</strong>
+        <strong style={{ overflowWrap: 'anywhere' }}>{submission.studentName}</strong>
         {graded ? <span className="badge badge-ok"><OkMark /> {existing.earned}/{question.points}</span> : <span className="badge badge-warn">na te kijken</span>}
       </div>
       <div style={{ background: 'var(--bg-sunken)', borderRadius: 8, padding: '8px 12px', marginBottom: 8 }}>
