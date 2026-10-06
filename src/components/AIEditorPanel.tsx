@@ -16,8 +16,8 @@ import type {
 import { AIError, askAI, extractJson } from '../lib/ai';
 import { isMediaUrl } from '../lib/mediaStore';
 import {
-  AI_GEN_TYPES, buildWidgetGenPrompt, quizSchemaText, sanitizeGeneratedWidgets,
-  sanitizeQuestion, sanitizeQuestions,
+  AI_GEN_TYPES, MAX_PUZZLE_WORD, buildWidgetGenPrompt, dropDuplicateQuestions, puzzleWord,
+  quizSchemaText, sanitizeGeneratedWidgets, sanitizeQuestion, sanitizeQuestions,
 } from '../lib/aiWidgetGen';
 import { uid } from '../lib/utils';
 import { getCurricula, normalizeGoalCode } from '../lib/curriculum';
@@ -159,8 +159,8 @@ function dedupeKeys(text: string, type: WidgetTypeId): string[] {
   const keys = [norm(text)];
   const stripped = text.normalize('NFD').replace(/[̀-ͯ]/g, '');
   if (type === 'crossword' || type === 'wordsearch') {
-    // Volgt puzzleWord(): accentstrip + spaties weg + max 15 tekens.
-    keys.push(norm(stripped.replace(/\s+/g, '').slice(0, 15)));
+    // Precies wat de sanitizer ervan maakt: accentstrip en spaties weg, nooit inkorten.
+    keys.push(norm(puzzleWord(text)));
   } else if (type === 'hangman') {
     // De galgje-sanitizer stript alleen diakritische tekens.
     keys.push(norm(stripped));
@@ -374,7 +374,7 @@ export function AIEditorPanel({ widget, onClose, onApply }: {
       .map((q, i) => `${i + 1}. ${q.prompt}`)
       .join('\n');
     const wish: string[] = [];
-    wish.push(`Maak precies ${n} NIEUWE vragen voor de bestaande ${typeDef.name.toLowerCase()} "${widget.title}".`);
+    wish.push(`Maak precies ${n} NIEUWE vragen voor de bestaande oefening "${widget.title}" (soort: ${typeDef.name.toLowerCase()}).`);
     if (focus.trim()) wish.push(`Focus/onderwerp: ${focus.trim()}`);
     if (listing) {
       wish.push(`Deze vragen bestaan al — maak GEEN vragen die hiermee overlappen of ze herformuleren:\n${listing}`);
@@ -384,22 +384,23 @@ export function AIEditorPanel({ widget, onClose, onApply }: {
     });
     runAI('vragen bijmaken', system, prompt, (full) => {
       const raw = pluckRawQuestions(extractJson(full));
-      const seen = new Set(existing.map((q) => norm(q.prompt)).filter(Boolean));
-      const fresh: Question[] = [];
-      for (const q of sanitizeQuestions(raw)) {
-        const k = norm(q.prompt);
-        if (k && seen.has(k)) continue;
-        if (k) seen.add(k);
-        fresh.push(q);
-      }
+      // Ontdubbelen op de volledige inhoud, niet op de opdracht alleen: invul-,
+      // keuzelijst- en markeervragen hebben een vaste standaardopdracht.
+      const { fresh, dropped } = dropDuplicateQuestions(existing, sanitizeQuestions(raw));
       if (fresh.length === 0) {
-        throw new AIError('De AI leverde geen bruikbare nieuwe vragen op. Probeer het opnieuw of pas de focus aan.');
+        throw new AIError(
+          dropped > 0
+            ? 'De AI gaf enkel vragen die al in deze widget staan. Probeer het opnieuw of pas de focus aan.'
+            : 'De AI leverde geen bruikbare nieuwe vragen op. Probeer het opnieuw of pas de focus aan.'
+        );
       }
       return {
         config: { ...cfg, questions: [...existing, ...fresh] },
         summary: `+${fresh.length} ${fresh.length === 1 ? 'vraag' : 'vragen'}`,
         details: <QuestionPreviewList qs={fresh} />,
-        warnings: [],
+        warnings: dropped > 0
+          ? [`${dropped} ${dropped === 1 ? 'vraag stond al in deze widget of kwam dubbel voor en is' : 'vragen stonden al in deze widget of kwamen dubbel voor en zijn'} weggelaten.`]
+          : [],
       };
     });
   }
@@ -786,7 +787,7 @@ ${payload}`;
   function runAddItems() {
     const n = clampCount(count);
     const wish: string[] = [];
-    wish.push(`Breid de bestaande ${typeDef.name.toLowerCase()} "${widget.title}" uit met precies ${n} NIEUWE items.`);
+    wish.push(`Breid de bestaande oefening "${widget.title}" (soort: ${typeDef.name.toLowerCase()}) uit met precies ${n} NIEUWE items.`);
     if (focus.trim()) wish.push(`Focus/onderwerp: ${focus.trim()}`);
     if (widget.type === 'mindmap') {
       wish.push(`De mindmap heeft als centraal begrip "${str(cfg.root)}". Bestaande outline:\n${str(cfg.outline) || '(leeg)'}`);
@@ -821,7 +822,13 @@ ${payload}`;
           if (widget.type === 'poll' && !str(rawCfg.question).trim()) rawCfg.question = str(cfg.question) || 'Peiling';
           const existing = Array.isArray(cfg[itemDef.field]) ? (cfg[itemDef.field] as unknown[]) : [];
           const freshRaw = Array.isArray(rawCfg[itemDef.field]) ? (rawCfg[itemDef.field] as unknown[]) : [];
-          rawCfg[itemDef.field] = [...existing, ...freshRaw];
+          // Een bestaand woord van de leerkracht dat langer is dan het rooster aankan, blijft
+          // in de widget staan; het zou hier alleen een valse "weggelaten"-melding opleveren.
+          const isPuzzle = widget.type === 'crossword' || widget.type === 'wordsearch';
+          const padding = isPuzzle
+            ? existing.filter((it) => puzzleWord(itemDef.textOf(it)).length <= MAX_PUZZLE_WORD)
+            : existing;
+          rawCfg[itemDef.field] = [...padding, ...freshRaw];
         }
         return { ...wr, config: rawCfg };
       });
@@ -915,7 +922,7 @@ Antwoord met ALLEEN geldige JSON (geen uitleg, geen markdown).`;
 ${focus.trim() ? `Focus: ${focus.trim()}\n` : ''}${existing.length ? `Er zijn al vragen op deze tijdstippen — vermijd die momenten en die inhoud: ${existing.map((c) => formatTime(c.timeSec)).join(', ')}\n` : ''}
 Formaat: {"checkpoints":[{"time":"M:SS","question":{…}}]} — "time" is het moment waarop de video pauzeert.
 Het vraagschema ("question") is dat van de quiz:
-${quizSchemaText()}
+${quizSchemaText({ goalCode: false })}
 
 === TRANSCRIPT ===
 ${source.trim()}

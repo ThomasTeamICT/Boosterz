@@ -13,7 +13,7 @@ import type {
 } from '../lib/types';
 import type { Curriculum, CurriculumGoal } from '../lib/curriculumTypes';
 import { askAI, extractJson } from '../lib/ai';
-import { AI_GEN_TYPES, buildWidgetGenPrompt, sanitizeGeneratedWidgets } from '../lib/aiWidgetGen';
+import { AI_GEN_TYPES, buildWidgetGenPrompt, sanitizeGeneratedWidgets, typeRetryNote } from '../lib/aiWidgetGen';
 import type { GeneratedResult } from '../lib/aiWidgetGen';
 import { runBatch } from '../lib/aiBatch';
 import type { BatchItemStatus, BatchResult } from '../lib/aiBatch';
@@ -292,8 +292,16 @@ export function AIStudioPage() {
     () => activeTypes.flatMap((t) => typeStates[t]?.warnings ?? []),
     [activeTypes, typeStates]
   );
-  const failedTypes = useMemo(
-    () => activeTypes.filter((t) => typeStates[t]?.status === 'mislukt'),
+  // Soorten waar iets te herstellen valt: mislukt, geannuleerd, bezig met een nieuwe
+  // poging, of "klaar" zonder één bruikbare widget. Elk krijgt een kaart met een
+  // knop "Opnieuw proberen", zodat er nooit een soort stil uit de lijst verdwijnt.
+  const retryCards = useMemo(
+    () => activeTypes
+      .map((t) => ({
+        t,
+        note: typeRetryNote(typeStates[t]?.status, typeStates[t]?.widgets.length ?? 0, typeStates[t]?.error),
+      }))
+      .filter((x): x is { t: WidgetTypeId; note: string } => x.note !== null),
     [activeTypes, typeStates]
   );
   const hasPreview = activeTypes.length > 0;
@@ -666,7 +674,7 @@ export function AIStudioPage() {
               </div>
             )}
 
-            {failedTypes.map((t) => {
+            {retryCards.map(({ t, note }) => {
               const def = getTypeDef(t);
               const st = typeStates[t];
               const retrying = st?.status === 'bezig';
@@ -674,14 +682,15 @@ export function AIStudioPage() {
                 <div
                   key={t}
                   className="card"
-                  style={{ padding: 14, display: 'flex', gap: 12, alignItems: 'center', borderColor: 'var(--err)' }}
+                  style={{
+                    padding: 14, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+                    borderColor: st?.status === 'mislukt' ? 'var(--err)' : 'var(--warn)',
+                  }}
                 >
                   <TypeTile type={def} size="md" />
                   <div style={{ flex: 1, minWidth: 200 }}>
                     <strong>{def.name}</strong>
-                    <span className="hint" style={{ display: 'block' }}>
-                      {retrying ? 'Wordt opnieuw geprobeerd…' : (st?.error || 'Deze soort kon niet gemaakt worden.')}
-                    </span>
+                    <span className="hint" style={{ display: 'block' }}>{note}</span>
                   </div>
                   <button className="btn btn-sm" onClick={() => retryType(t)} disabled={retrying}>
                     <RetryIcon size={16} aria-hidden /> Opnieuw proberen
@@ -712,7 +721,7 @@ export function AIStudioPage() {
                         type="text"
                         value={w.title}
                         onChange={(e) => renameWidget(w.id, e.target.value)}
-                        aria-label={`Titel van de ${def.name.toLowerCase()}`}
+                        aria-label={`Titel (${def.name})`}
                       />
                       <span className="hint" style={{ display: 'block', marginTop: 3 }}>
                         {def.name} · {sum.count} {sum.label}

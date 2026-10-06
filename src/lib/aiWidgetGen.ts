@@ -12,6 +12,7 @@ import type {
 } from './types';
 import { uid } from './utils';
 import { normalizeGoalCode } from './curriculum';
+import type { BatchItemStatus } from './aiBatch';
 import { createWidget, getTypeDef } from '../widgets/registry';
 
 // ── Welke types kan de AI zinvol genereren? ─────────────────────────────────
@@ -27,9 +28,12 @@ export function isGenType(t: string): t is WidgetTypeId {
   return (AI_GEN_TYPES as string[]).includes(t);
 }
 
+/** Langste woord (in letters) dat het kruiswoordraadsel en de woordzoeker aankunnen. */
+export const MAX_PUZZLE_WORD = 15;
+
 // ── Schema-uitleg per type (gaat mee in de prompt) ──────────────────────────
 
-const QUESTION_DOC = `Een "vraag" is een JSON-object met "type" en "prompt" plus:
+const QUESTION_DOC_BASE = `Een "vraag" is een JSON-object met "type" en "prompt" plus:
 - "mc": {"options":["…"],"correctIndex":0} — 3 à 4 opties, plausibele afleiders
 - "multi": {"options":["…"],"correctIndices":[0,2]}
 - "tf": {"answer":true}
@@ -48,18 +52,28 @@ const QUESTION_DOC = `Een "vraag" is een JSON-object met "type" en "prompt" plus
 Genereer NOOIT vragen van het type "rating", "upload" of "imagepoint": die vereisen een mening, een ingeleverd bestand of een afbeelding en kunnen niet zinvol door jou ingevuld worden.
 Elke vraag mag ook hebben: "points" (getal, standaard 1), "explanation" (uitleg bij feedback),
 "hints" (oplopende hulpstapjes: eerst strategie, dan aanwijzing, max 3),
-"goal" (kort leerdoel in eigen woorden), "level" ("basis"|"kern"|"uitbreiding"), "support" (eenvoudiger geformuleerde versie van de vraag),
+"goal" (kort leerdoel in eigen woorden), "level" ("basis"|"kern"|"uitbreiding"), "support" (eenvoudiger geformuleerde versie van de vraag)`;
+
+/**
+ * De "goalCode"-regel gaat alleen mee als er een lijst leerplandoelen is om uit
+ * te kiezen. Zonder lijst vragen we er niet naar: de AI geeft dan de plaatshouder
+ * "…" of een verzonnen code terug. De tekst is bewust ongewijzigd, want de
+ * cursusprompts (aiCourse.ts) gebruiken ze via quizSchemaText().
+ */
+const GOAL_CODE_DOC = `,
 "goalCode" (UITSLUITEND een code die letterlijk in de meegegeven lijst leerplandoelen staat; is er geen lijst of past geen enkel doel, laat het veld dan weg — verzin nooit een code).`;
 
+function questionDoc(withGoalCode: boolean): string {
+  return QUESTION_DOC_BASE + (withGoalCode ? GOAL_CODE_DOC : '.');
+}
+
 const SCHEMA_DOCS: Partial<Record<WidgetTypeId, string>> = {
-  quiz: `"quiz" — config: {"questions":[vraag,…],"layout":"single","glossary":[{"term":"…","uitleg":"…"}]}
-${QUESTION_DOC}`,
   worksheet: `"worksheet" (werkblad, alles onder elkaar) — config: {"questions":[vraag,…],"layout":"scroll","glossary":[…]} — wissel vragen af met "info"-blokken leerstof.`,
   exitticket: `"exitticket" (korte check aan het einde van de les, 2 à 4 vragen) — config: {"questions":[vraag,…],"layout":"single"}`,
   splitworksheet: `"splitworksheet" (bron + vragen naast elkaar) — config: {"source":{"kind":"text","title":"…","text":"de bron- of leestekst"},"questions":[vraag,…]}`,
   flashcards: `"flashcards" — config: {"cards":[{"front":"begrip of vraag","back":"uitleg of antwoord"}]}`,
-  crossword: `"crossword" — config: {"entries":[{"word":"WOORD","clue":"omschrijving"}]} — woorden zonder spaties, 6 à 12 stuks`,
-  wordsearch: `"wordsearch" — config: {"words":["WOORD",…],"size":12} — 8 à 14 woorden zonder spaties`,
+  crossword: `"crossword" — config: {"entries":[{"word":"WOORD","clue":"omschrijving"}]} — woorden zonder spaties, hoogstens ${MAX_PUZZLE_WORD} letters, 6 à 12 stuks`,
+  wordsearch: `"wordsearch" — config: {"words":["WOORD",…],"size":12} — 8 à 14 woorden zonder spaties, hoogstens ${MAX_PUZZLE_WORD} letters`,
   memory: `"memory" — config: {"pairs":[{"a":"begrip","b":"bijpassend"}]} — 6 à 10 paren`,
   hangman: `"hangman" (galgje) — config: {"words":[{"word":"woord","hint":"omschrijving"}]}`,
   pairs: `"pairs" (koppelen) — config: {"pairs":[{"left":"…","right":"…"}]} — 4 à 8 paren`,
@@ -75,9 +89,18 @@ ${QUESTION_DOC}`,
   spinner: `"spinner" (rad) — config: {"items":["naam of opdracht",…]}`,
 };
 
-/** Schema-uitleg van de quiz (voor hergebruik in bv. de cursusgeneratie). */
-export function quizSchemaText(): string {
-  return SCHEMA_DOCS.quiz!;
+/**
+ * Schema-uitleg van de quiz (voor hergebruik in bv. de cursusgeneratie).
+ * `goalCode: false` laat de uitleg over doelcodes weg; gebruik dat overal waar
+ * er geen leerplan is om uit te kiezen. Standaard blijft ze staan.
+ */
+export function quizSchemaText(opts: { goalCode?: boolean } = {}): string {
+  return `"quiz" — config: {"questions":[vraag,…],"layout":"single","glossary":[{"term":"…","uitleg":"…"}]}
+${questionDoc(opts.goalCode !== false)}`;
+}
+
+function schemaDoc(type: WidgetTypeId, withGoalCode: boolean): string | undefined {
+  return type === 'quiz' ? quizSchemaText({ goalCode: withGoalCode }) : SCHEMA_DOCS[type];
 }
 
 // ── Promptopbouw ────────────────────────────────────────────────────────────
@@ -106,7 +129,8 @@ export interface WidgetGenRequest {
 }
 
 export function buildWidgetGenPrompt(req: WidgetGenRequest): { system: string; prompt: string } {
-  const docs = req.types.filter(isGenType).map((t) => SCHEMA_DOCS[t]).filter(Boolean).join('\n\n');
+  const withGoalCode = Boolean(req.goalCodes && req.goalCodes.length > 0);
+  const docs = req.types.filter(isGenType).map((t) => schemaDoc(t, withGoalCode)).filter(Boolean).join('\n\n');
   const system = `Je bent een ervaren Vlaamse leerkracht en toetsontwikkelaar die lesmateriaal maakt voor Boosterz.
 Kwaliteitsregels:
 - Schrijf in helder Nederlands (Vlaanderen), afgestemd op de doelgroep.
@@ -236,7 +260,8 @@ export interface SanitizeOptions {
    * Toegelaten leerplandoelcodes. Staat er een lijst, dan wordt elke andere
    * (verzonnen of verkeerd overgeschreven) code weggelaten — liever geen
    * koppeling dan een koppeling naar een doel dat niet bestaat. Zonder lijst
-   * blijft een code staan zoals ze binnenkwam, genormaliseerd.
+   * blijft een echte code staan zoals ze binnenkwam, genormaliseerd; een
+   * plaatshouder zonder letter of cijfer ("…") valt altijd weg.
    */
   allowedGoalCodes?: string[];
 }
@@ -244,7 +269,9 @@ export interface SanitizeOptions {
 /** Doelcode overnemen, maar alleen als ze binnen de toegelaten lijst valt. */
 function pickGoalCode(raw: unknown, opts?: SanitizeOptions): string | undefined {
   const value = str(raw).trim();
-  if (!value) return undefined;
+  // Een echte code bevat minstens één letter of cijfer. "…", "-" of "?" is de
+  // plaatshouder uit het antwoordsjabloon, geen code: ook zonder lijst weg ermee.
+  if (!value || !/[\p{L}\d]/u.test(value)) return undefined;
   const code = normalizeGoalCode(value);
   const allowed = opts?.allowedGoalCodes;
   if (allowed && allowed.length > 0) {
@@ -460,6 +487,63 @@ export function sanitizeQuestions(raw: unknown, opts?: SanitizeOptions): Questio
   return raw.map((r) => sanitizeQuestion(r, opts)).filter((q): q is Question => q !== null);
 }
 
+// ── Dubbele vragen herkennen ────────────────────────────────────────────────
+
+/** Alle tekst in een waarde (diep), zonder de willekeurige id's van gesaneerde vragen. */
+function textParts(v: unknown, out: string[] = []): string[] {
+  if (typeof v === 'string') out.push(v);
+  else if (typeof v === 'number') out.push(String(v));
+  else if (Array.isArray(v)) v.forEach((x) => textParts(x, out));
+  else if (v && typeof v === 'object') {
+    for (const [k, x] of Object.entries(v)) if (k !== 'id' && k !== 'categoryId') textParts(x, out);
+  }
+  return out;
+}
+
+function normText(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * Sleutel waarmee twee vragen als "dezelfde vraag" gelden: de opdracht, de
+ * tekst met gaten of keuzes, en de inhoud van koppel-, volgorde-, sorteer-,
+ * tabel- en stellingvragen. De opdracht alleen is te weinig: bij invul-,
+ * keuzelijst- en markeervragen vult de sanering een vaste standaardopdracht in
+ * ("Vul in."), en sorteer-, tabel- en stellingvragen hebben een algemene
+ * opdracht. Op de opdracht alleen vielen zo geldige vragen weg als "dubbel".
+ * Bij meerkeuze en dergelijke tellen de opties bewust niet mee: dezelfde vraag
+ * met andere afleiders blijft een dubbele vraag.
+ */
+export function questionDedupeKey(q: Question): string {
+  const r = q as unknown as Record<string, unknown>;
+  const inhoud = textParts([r.pairs, r.items, r.categories, r.columns, r.rows, r.statements]);
+  return [normText(q.prompt ?? ''), normText(str(r.text)), normText(inhoud.join('\u241f'))].join('|');
+}
+
+/**
+ * Haalt uit `candidates` de vragen die al in `existing` staan of die er twee keer
+ * in zitten. `dropped` is het aantal weggelaten vragen, zodat de leerkracht het
+ * te horen krijgt in plaats van dat er stil vragen verdwijnen.
+ */
+export function dropDuplicateQuestions(
+  existing: Question[],
+  candidates: Question[]
+): { fresh: Question[]; dropped: number } {
+  const seen = new Set(existing.map(questionDedupeKey));
+  const fresh: Question[] = [];
+  let dropped = 0;
+  for (const q of candidates) {
+    const key = questionDedupeKey(q);
+    if (seen.has(key)) {
+      dropped++;
+      continue;
+    }
+    seen.add(key);
+    fresh.push(q);
+  }
+  return { fresh, dropped };
+}
+
 function sanitizeGlossary(raw: unknown): { term: string; uitleg: string }[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const items = raw
@@ -476,19 +560,39 @@ function sanitizeGlossary(raw: unknown): { term: string; uitleg: string }[] | un
 // ── Sanering per widgettype ─────────────────────────────────────────────────
 
 /**
- * Woorden voor puzzels: geen spaties, geen diakritische tekens (de spelers
- * hebben een A-Z-klavier: "café" zou onwinbaar zijn), max 15 tekens.
+ * Woorden voor puzzels: geen spaties en geen diakritische tekens (de spelers
+ * hebben een A-Z-klavier: "café" zou onwinbaar zijn). Nooit inkorten: een
+ * afgekapt woord ("bevolkingsdicht") kan de leerling niet juist invullen.
+ * Wat langer is dan MAX_PUZZLE_WORD valt bij de aanroeper weg, zie fitsPuzzle.
  */
-function puzzleWord(w: string): string {
+export function puzzleWord(w: string): string {
   return w
     .trim()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-    .replace(/\s+/g, '')
-    .slice(0, 15);
+    .replace(/\s+/g, '');
 }
 
-type ConfigSanitizer = (cfg: Record<string, unknown>, opts: SanitizeOptions) => Record<string, unknown> | null;
+/** Past het woord in het rooster? Te lange woorden laten we weg, we kappen niets af. */
+function fitsPuzzle(word: string): boolean {
+  return word.length <= MAX_PUZZLE_WORD;
+}
+
+function tooLongNote(words: string[], note: (msg: string) => void) {
+  if (words.length === 0) return;
+  const lijst = words.slice(0, 5).join(', ') + (words.length > 5 ? ` en ${words.length - 5} andere` : '');
+  note(
+    `${words.length === 1 ? 'Dit woord is' : 'Deze woorden zijn'} langer dan ${MAX_PUZZLE_WORD} letters en ` +
+      `${words.length === 1 ? 'is' : 'zijn'} weggelaten (het rooster is er niet voor gemaakt): ${lijst}.`
+  );
+}
+
+type ConfigSanitizer = (
+  cfg: Record<string, unknown>,
+  opts: SanitizeOptions,
+  /** Meldt iets aan de leerkracht zonder de widget af te keuren. */
+  note: (msg: string) => void
+) => Record<string, unknown> | null;
 
 const CONFIG_SANITIZERS: Partial<Record<WidgetTypeId, ConfigSanitizer>> = {
   quiz: (c, o) => quizFamily(c, 'single', o),
@@ -515,19 +619,27 @@ const CONFIG_SANITIZERS: Partial<Record<WidgetTypeId, ConfigSanitizer>> = {
       .filter((x): x is { id: string; front: string; back: string } => x !== null);
     return cards.length ? { cards, autoFlipSec: 0 } : null;
   },
-  crossword: (c) => {
+  crossword: (c, _o, note) => {
+    const tooLong: string[] = [];
     const entries = (Array.isArray(c.entries) ? c.entries : [])
       .map((e) => {
         const ee = e as Record<string, unknown>;
         const word = puzzleWord(str(ee?.word));
         const clue = str(ee?.clue).trim();
+        if (word.length >= 2 && clue && !fitsPuzzle(word)) {
+          tooLong.push(word);
+          return null;
+        }
         return word.length >= 2 && clue ? { id: uid(), word, clue } : null;
       })
       .filter((x): x is { id: string; word: string; clue: string } => x !== null);
+    tooLongNote(tooLong, note);
     return entries.length >= 2 ? { entries } : null;
   },
-  wordsearch: (c) => {
-    const words = strArr(c.words).map(puzzleWord).filter((w) => w.length >= 3);
+  wordsearch: (c, _o, note) => {
+    const all = strArr(c.words).map(puzzleWord).filter((w) => w.length >= 3);
+    tooLongNote(all.filter((w) => !fitsPuzzle(w)), note);
+    const words = all.filter(fitsPuzzle);
     if (words.length < 3) return null;
     const longest = Math.max(...words.map((w) => w.length));
     return {
@@ -694,6 +806,23 @@ export interface GeneratedResult {
 }
 
 /**
+ * Wat de AI-studio bij één gevraagde soort in de voorvertoning toont als er iets
+ * te herstellen valt: de tekst voor de kaart met "Opnieuw proberen", of null als
+ * er niets aan de hand is. Naast een mislukte soort geldt dat ook voor een
+ * geannuleerde, een die opnieuw geprobeerd wordt, en een soort waarvan de
+ * sanering alles weggooide (status "klaar" met nul widgets).
+ */
+export function typeRetryNote(status: BatchItemStatus | undefined, widgetCount: number, error?: string): string | null {
+  switch (status) {
+    case 'mislukt': return error || 'Deze soort kon niet gemaakt worden.';
+    case 'geannuleerd': return 'Geannuleerd.';
+    case 'bezig': return 'Wordt opnieuw geprobeerd…';
+    case 'klaar': return widgetCount === 0 ? 'Niets bruikbaars opgeleverd.' : null;
+    default: return null;
+  }
+}
+
+/**
  * Zet de JSON-envelop van de AI om naar échte, opslaanbare widgets.
  * Ongeldige onderdelen worden overgeslagen met een leesbare waarschuwing.
  */
@@ -718,9 +847,11 @@ export function sanitizeGeneratedWidgets(raw: unknown, opts: SanitizeOptions = {
     }
     const rawCfg = (w.config && typeof w.config === 'object' ? w.config : {}) as Record<string, unknown>;
     const sanitizer = CONFIG_SANITIZERS[type];
-    const cfg = sanitizer ? sanitizer(rawCfg, opts) : null;
+    const cfg = sanitizer ? sanitizer(rawCfg, opts, (msg) => warnings.push(msg)) : null;
     if (!cfg) {
-      warnings.push(`De inhoud van de ${getTypeDef(type).name.toLowerCase()} was onvolledig en is overgeslagen.`);
+      // De soortnaam staat tussen aanhalingstekens: zo is er geen lidwoord nodig
+      // (het is "de quiz" maar "het werkblad" en "het galgje").
+      warnings.push(`De inhoud van “${getTypeDef(type).name}” was onvolledig en is overgeslagen.`);
       continue;
     }
     const widget = createWidget(type, str(w.title).trim() || getTypeDef(type).name);
