@@ -9,12 +9,11 @@ opgelost, in pakketten die elkaars bestanden niet raken, ernstigste eerst.
 
 | Wat | Stand |
 |---|---|
-| Reviews (8 domeinen, ±120 kandidaat-bevindingen) | **Klaar.** Leerlingpad en delen (15), oefeningen en verbeteren (15), klassen en resultaten (15), cursussen en materiaal (15), opslag/import/offline (15), AI-functies (15), beveiliging en privacy (12), toegankelijkheid en taal over de hele app (20). |
-| Rechter beveiliging en privacy | **Klaar.** 8 bevestigd (1 hoog), 4 ontwerpgrens. |
-| Rechters leerlingpad + klassen, oefeningen + cursussen, opslag + AI, toegankelijkheid | Bezig. |
-| Herstel V1 (hoog): `javascript:`-links in gedeelde inhoud | Bezig (kernbouwer), samen met V7 (SVG/html als blob) en V9 (`__proto__` als id). |
-| CSP, lettertypes zelf hosten, YouTube nocookie, privacytekst (V1 tweede linie, V5) | Wacht op het herstel van V1. |
-| Overige herstelpakketten | Wachten op de rechters. |
+| Reviews (8 domeinen, ±127 kandidaat-bevindingen) | **Klaar.** Leerlingpad en delen (15), oefeningen en verbeteren (15), klassen en resultaten (15), cursussen en materiaal (15), opslag/import/offline (15), AI-functies (15), beveiliging en privacy (12), toegankelijkheid en taal over de hele app (20). |
+| Uitspraken van vijf rechters | **Klaar.** Bijna alles bevestigd; weerlegd: OP15 (html-import kwadratisch), CU9 (luie afbeeldingen bij afdrukken), CU10 (onbekend widgettype); enkele punten zijn een ontwerpgrens (zie onder). Hoog: V1 (`javascript:`-links), OP1 (IndexedDB), AI1 (afkappen bij herwerken), LL1 (deadline sluit lopend werk af), KL1 (voortgangscodes van een tweede toestel), W1 (optie verwijderen verschuift het juiste antwoord), CU1 (afgedrukte toets verklapt antwoorden), A11Y1 (skiplink), A11Y2 (resultaten niet met het toetsenbord). |
+| Herstel OP1/OP5 (IndexedDB eerlijk bewaren) | **Klaar en live** (6 oktober 2026), met een rooktest `tests/opslag/quota.mjs`. |
+| Herstel V1/V7/V9 (beveiliging) | Bezig (kernbouwer). Daarna de CSP, lettertypes zelf hosten, YouTube nocookie en een eerlijke privacypagina. |
+| Herstelpakketten | Bezig, in pakketten die elkaars bestanden niet raken, elk in een eigen worktree: tekst importeren (C), AI bij cursussen (D), AI-verbinding en sleutel (E), doelscores en klasfilter (K3), quiz-editor en verbeteren (P1), afgedrukte toets (P2), woordspellen (P3), leerlingscherm (speler), schil en dialogen, centrale css. Daarna: gedeelde inhoud en voortgang, resultatenschermen, klassen, leerlinghub, QR, widget-editor en import, overige spellen, cursuseditor en -lezer. |
 
 ## Beveiliging en privacy: uitspraak
 
