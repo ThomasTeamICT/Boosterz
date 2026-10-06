@@ -32,7 +32,7 @@ import { ConfirmModal, EmptyState, Field, Modal, useToast } from '../components/
 import { downloadFile, formatDateShort, uid } from '../lib/utils';
 import { onStorageChange } from '../lib/storage';
 import { useNewParam } from '../lib/useNewParam';
-import { BadgeCheck, FileBraces, FileText, ListTree } from 'lucide-react';
+import { BadgeCheck, FileBraces, FileText, ListChecks, ListTree } from 'lucide-react';
 import { MenuButton } from '../components/Menu';
 import {
   AddIcon, AIIcon, BackIcon, CheckIcon, DeleteIcon, EditIcon, ExportIcon, GoalIcon, InfoIcon, MoreIcon, MoveDownIcon,
@@ -260,6 +260,7 @@ export function CurriculaPage() {
         <div className="page-head-actions">
           <Link className="btn btn-primary" to="/leerplannen/inlezen"><FileText size={18} /> Leerplan inlezen</Link>
           <Link className="btn btn-ghost" to="/leerplannen/minimumdoelen"><GoalIcon size={18} /> Officiële minimumdoelen</Link>
+          <Link className="btn btn-ghost" to="/leerplannen/samenstellen"><ListChecks size={18} /> Zelf doelen samenstellen</Link>
           <button className="btn btn-ghost" title="Open een Boosterz-bestand (.json) dat een collega met je deelde" onClick={() => fileRef.current?.click()}>
             <FileBraces size={18} /> Bestand van een collega
           </button>
@@ -512,7 +513,7 @@ function CurriculumEditor({
           {status === 'niet-gecontroleerd' && (
             <p className="hint lp-labeluitleg">
               {keuzeAanpassen
-                ? 'Deze lijst kon niet als nagekeken bevestigd worden. Pas de keuze aan en bewaar de lijst opnieuw om het nog eens te proberen.'
+                ? 'Deze lijst kon niet als nagekeken bevestigd worden. Pas de keuze aan en bewaar de lijst opnieuw om het nog eens te proberen. Bewaar je ze opnieuw, dan wordt ze opnieuw samengesteld uit de officiële doelen; wat je zelf in de doelen veranderde, gaat dan verloren.'
                 : 'De doelen zijn nog niet met de bron vergeleken. Kijk ze na om ze vast te leggen.'}
             </p>
           )}

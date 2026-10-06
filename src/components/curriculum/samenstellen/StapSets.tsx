@@ -2,7 +2,7 @@
 // minimumdoelen"; elke set heeft een selectievakje. Bovenaan staan de gekozen sets, in de volgorde van kiezen, met een knop
 // om een set weg te halen en een teller die een schermlezer voorleest.
 
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { MinimumdoelenIndexSet } from '../../../lib/minimumdoelen';
 import {
   SOORT_LABEL, filterSets, geldigheidTekst, geldigheidVan, graadOpties, indexHeeftGeldigheid, oudeVersieIds, soortVanSet, type SoortOnderwijs,
@@ -67,6 +67,27 @@ export function StapSets({
     // De knop verdwijnt: de focus gaat naar de kop van de gekozen sets, anders is hij kwijt.
     gekozenKopRef.current?.focus();
   };
+
+  // "Toon alle sets" in de lege toestand: de knop verdwijnt, dus de focus gaat naar het zoekveld.
+  const toonAlle = () => {
+    onFilter({ ...BEGIN_FILTER, toonOud: true });
+    document.getElementById('sam-zoek')?.focus();
+  };
+
+  // "Toon meer sets" bij de laatste reeks: de knop verdwijnt, dus de focus gaat naar het eerste nieuwe selectievakje.
+  // `focusVanaf` onthoudt hoeveel sets er stonden; het effect zet de focus nadat de nieuwe reeks getoond is.
+  const lijstRef = useRef<HTMLUListElement>(null);
+  const focusVanaf = useRef<number | null>(null);
+  const meer = () => {
+    if (gefilterd.length <= zichtbaar + SETS_PER_KEER) focusVanaf.current = zichtbaar;
+    onMeer();
+  };
+  useEffect(() => {
+    const vanaf = focusVanaf.current;
+    if (vanaf === null) return;
+    focusVanaf.current = null;
+    lijstRef.current?.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[vanaf]?.focus();
+  }, [zichtbaar]);
 
   return (
     <div className="il-stap-inhoud sam-stap">
@@ -145,11 +166,11 @@ export function StapSets({
         <div className="sam-leeg">
           <p><strong>Geen sets die hierbij passen.</strong></p>
           <p>Probeer een kortere zoekterm, een andere graad of soort, of toon ook de oude versies.</p>
-          <button type="button" className="btn btn-sm btn-ghost" onClick={() => onFilter({ ...BEGIN_FILTER, toonOud: true })}>Toon alle sets</button>
+          <button type="button" className="btn btn-sm btn-ghost" onClick={toonAlle}>Toon alle sets</button>
         </div>
       ) : (
         <>
-          <ul className="sam-sets" aria-label="Sets minimumdoelen">
+          <ul className="sam-sets" aria-label="Sets minimumdoelen" ref={lijstRef}>
             {gefilterd.slice(0, zichtbaar).map((s) => {
               const gekozen = isSetGekozen(keuze, s.id);
               const isOud = oud.has(s.id);
@@ -175,7 +196,7 @@ export function StapSets({
           </ul>
           {gefilterd.length > zichtbaar && (
             <div className="sam-meer">
-              <button type="button" className="btn btn-ghost" onClick={onMeer}>
+              <button type="button" className="btn btn-ghost" onClick={meer}>
                 Toon meer sets ({zichtbaar} van {gefilterd.length})
               </button>
             </div>

@@ -57,7 +57,7 @@ export function StapBewaren({
           <WarningIcon size={20} className="il-callout-icoon" />
           <div className="il-callout-tekst">
             <p><strong>{waarschuwingen.length === 1 ? 'Let op' : 'Let op: enkele dingen'}</strong></p>
-            <ul>{waarschuwingen.map((w) => <li key={w}>{w}</li>)}</ul>
+            <ul>{waarschuwingen.map((w, i) => <li key={`${i}:${w}`}>{w}</li>)}</ul>
           </div>
         </div>
       )}
@@ -74,8 +74,8 @@ export function StapBewaren({
             <InfoIcon size={20} className="il-callout-icoon" />
             <div className="il-callout-tekst">
               <p>
-                {aantalDoelen(leerplan.goals.length)} uit {sets} {sets === 1 ? 'set' : 'sets'}. Deze lijst kon niet als nagekeken bevestigd worden. Je kan ze wel
-                bewaren; kijk ze later na bij Leerplannen.
+                {aantalDoelen(leerplan.goals.length)} uit {sets} {sets === 1 ? 'set' : 'sets'}. Deze lijst kon niet als nagekeken bevestigd worden: zie de melding
+                hierboven. Je kan ze wel bewaren; ze krijgt dan het label ‘niet nagekeken’. Pas je keuze aan om dat op te lossen.
               </p>
             </div>
           </div>

@@ -68,13 +68,25 @@ export function setsUitParam(param: string | null | undefined): string[] {
   return uit;
 }
 
-/** Begin met deze sets, elk helemaal gekozen (`?sets=`). Ongeldige ids en dubbels vallen weg. */
-export function beginUitSets(ids: readonly string[]): SamenstelKeuze {
+/**
+ * Hoeveel verschillende sets de link vraagt: de niet-lege delen van `?sets=`, zonder dubbels, ook als ze niet geldig zijn
+ * of buiten het maximum vallen. Min het aantal gekozen sets is dat het aantal dat overgeslagen werd.
+ */
+export function aantalGevraagdeSets(param: string | null | undefined): number {
+  if (typeof param !== 'string') return 0;
+  return new Set(param.split(',').map((deel) => deel.trim()).filter((id) => id !== '')).size;
+}
+
+/**
+ * Begin met deze sets (`?sets=`). Ongeldige ids en dubbels vallen weg. Elke set is helemaal gekozen, tenzij `leeg`
+ * (`?leeg=1`): dan staat er van elke set niets gekozen, bv. om uit een STEM-set alleen de doelen van je vak aan te vinken.
+ */
+export function beginUitSets(ids: readonly string[], leeg = false): SamenstelKeuze {
   const sets: string[] = [];
   for (const id of ids) {
     if (typeof id === 'string' && id.trim() !== '' && !sets.includes(id) && sets.length < MAX_GEKOZEN_SETS) sets.push(id);
   }
-  return maakKeuze(sets, new Map(sets.map((id) => [id, 'alle' as const])));
+  return maakKeuze(sets, new Map<string, SetSelectie>(sets.map((id) => [id, leeg ? new Set<string>() : 'alle'])));
 }
 
 /**

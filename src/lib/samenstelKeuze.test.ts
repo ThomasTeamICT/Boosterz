@@ -6,7 +6,7 @@ import { leerplanUitSelectie, selectieVanLeerplan, telSelectie } from './doelenS
 import type { Minimumdoel, MinimumdoelenIndex, MinimumdoelenSetBestand, MinimumdoelenSetKop } from './minimumdoelen';
 import { zoekTermen } from './minimumdoelenBron';
 import {
-  MAX_GEKOZEN_SETS, aantalGekozen, beginUitSelectie, beginUitSets, bouwSetKeuzes, haalSetWeg, isDoelGekozen, isSetGekozen, kanSetToevoegen,
+  MAX_GEKOZEN_SETS, aantalGekozen, aantalGevraagdeSets, beginUitSelectie, beginUitSets, bouwSetKeuzes, haalSetWeg, isDoelGekozen, isSetGekozen, kanSetToevoegen,
   kiesbareDoelen, leegKeuze, ontbreektInStap1, ontbreektInStap2, ontbreektInStap3, setKenmerken, setNaam, setsUitParam, telGekozen, telGevonden, toestandVanSet,
   vindDoelen, voegSetToe, wisselSet, zegOntbreekt, zetDoel, zetDoelen, zetGevonden, zetHeleSet, type KiesbaarDoel, type SamenstelKeuze,
 } from './samenstelKeuze';
@@ -78,6 +78,38 @@ describe('beginstaat', () => {
     expect(k.sets).toEqual(['ODS_2', 'ODS_1']);
     expect(k.selectie.get('ODS_2')).toBe('alle');
     expect(k.selectie.get('ODS_1')).toBe('alle');
+  });
+
+  it('uit sets met "leeg": elke set gekozen maar met niets aangevinkt, ook niet in het totaal', () => {
+    const kiesbaar = new Map([['ODS_1', kiesA], ['ODS_2', kiesB]]);
+    const k = beginUitSets(['ODS_2', 'ODS_1', 'ODS_2'], true);
+    expect(k.sets).toEqual(['ODS_2', 'ODS_1']);
+    expect(toestandVanSet(k, 'ODS_2', kiesB)).toBe('geen');
+    expect(toestandVanSet(k, 'ODS_1', kiesA)).toBe('geen');
+    expect(telGekozen(k, kiesbaar)).toEqual({ doelen: 0, sets: 0 });
+    expect(bouwSetKeuzes(k, new Map([['ODS_1', A], ['ODS_2', B]]))).toEqual([]);
+    // Een doel aanvinken werkt gewoon vanuit de lege staat.
+    const een = zetDoel(k, 'ODS_2', 'b1', true, kiesB);
+    expect(gekozen(een, 'ODS_2', kiesB)).toEqual(['b1']);
+    expect(telGekozen(een, kiesbaar)).toEqual({ doelen: 1, sets: 1 });
+  });
+
+  it('uit sets zonder "leeg" blijft alles gekozen', () => {
+    const k = beginUitSets(['ODS_1'], false);
+    expect(toestandVanSet(k, 'ODS_1', kiesA)).toBe('alle');
+  });
+
+  it('aantal gevraagde sets in ?sets=: verschillende niet-lege delen, ook de ongeldige en die boven het maximum', () => {
+    expect(aantalGevraagdeSets('ODS_3343,ODS_999999,foo')).toBe(3);
+    expect(aantalGevraagdeSets('foo,bar')).toBe(2);
+    expect(aantalGevraagdeSets(' ODS_1 , foo,ODS_1,,ODS_2 ')).toBe(3);
+    expect(aantalGevraagdeSets('')).toBe(0);
+    expect(aantalGevraagdeSets(',,')).toBe(0);
+    expect(aantalGevraagdeSets(null)).toBe(0);
+    expect(aantalGevraagdeSets(undefined)).toBe(0);
+    const veel = Array.from({ length: MAX_GEKOZEN_SETS + 5 }, (_, i) => `ODS_${i + 1}`).join(',');
+    expect(aantalGevraagdeSets(veel)).toBe(MAX_GEKOZEN_SETS + 5);
+    expect(aantalGevraagdeSets(veel) - setsUitParam(veel).length).toBe(5);
   });
 
   it('uit een bewaarde lijst (selectieVanLeerplan): de sets en doelen van de lijst, in volgorde', () => {

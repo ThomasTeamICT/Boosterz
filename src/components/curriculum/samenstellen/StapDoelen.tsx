@@ -15,6 +15,9 @@ import { groepeerPerRubriek, type DoelRij } from '../DoelenPerRubriek';
 import { FoutBericht, LaadBericht } from '../LaadStatus';
 import type { SetStand } from './useSetBestanden';
 
+/** Vanaf zoveel kiesbare doelen heeft een STEM-set uitleg nodig; een kleine STEM-set kies je gewoon helemaal. */
+const STEM_MIN_DOELEN = 10;
+
 function aantalDoelen(n: number): string {
   return `${n} ${n === 1 ? 'doel' : 'doelen'}`;
 }
@@ -124,7 +127,10 @@ function SetBlok({
   return (
     <section className="card card-pad sam-blok" aria-labelledby={kopId}>
       <div className="sam-blok-kop">
-        <h3 id={kopId}>{naam}</h3>
+        <h3 id={kopId}>
+          {naam}
+          {kenmerk && <span className="sr-only"> ({kenmerk})</span>}
+        </h3>
         {verouderd && <span className="badge badge-warn">{kop && geldigheidVan(kop) === 'N' ? 'Niet meer geldig' : 'Oude versie'}</span>}
       </div>
       <p className="sam-blok-meta">{[kenmerk, geldigheid, setId].filter(Boolean).join(' · ')}</p>
@@ -138,7 +144,7 @@ function SetBlok({
       )}
       {stand.status === 'klaar' && kiesbaar && (
         <GeladenSet
-          setId={setId} naam={naam} keuze={keuze} onKeuze={onKeuze} kiesbaar={kiesbaar} getoond={getoond ?? kiesbaar}
+          setId={setId} naam={naam} kenmerk={kenmerk} keuze={keuze} onKeuze={onKeuze} kiesbaar={kiesbaar} getoond={getoond ?? kiesbaar}
           zoekt={zoekt} zoekTekst={zoekTekst} stem={isStemSet(stand.bestand.set)}
           zonderNummer={stand.bestand.doelen.length - kiesbaar.length}
         />
@@ -150,10 +156,12 @@ function SetBlok({
 const TOESTAND_TEKST: Record<Toestand, string> = { geen: 'niets gekozen', deel: 'een deel gekozen', alle: 'alles gekozen' };
 
 function GeladenSet({
-  setId, naam, keuze, onKeuze, kiesbaar, getoond, zoekt, zoekTekst, stem, zonderNummer,
+  setId, naam, kenmerk, keuze, onKeuze, kiesbaar, getoond, zoekt, zoekTekst, stem, zonderNummer,
 }: {
   setId: string;
   naam: string;
+  /** Wat de set onderscheidt van andere sets met dezelfde naam (bv. de stroom); leeg als er niets is. */
+  kenmerk: string;
   keuze: SamenstelKeuze;
   onKeuze: (wijzig: (k: SamenstelKeuze) => SamenstelKeuze) => void;
   kiesbaar: readonly KiesbaarDoel[];
@@ -166,6 +174,8 @@ function GeladenSet({
 }) {
   const toestand = toestandVanSet(keuze, setId, kiesbaar);
   const gekozen = aantalGekozen(keuze, setId, kiesbaar);
+  // Twee sets met dezelfde naam (bv. Nederlands in de A- en de B-stroom) moeten voor een schermlezer te onderscheiden zijn.
+  const voluit = kenmerk ? `${naam} (${kenmerk})` : naam;
   const groepen = useMemo(() => {
     const rijen: DoelRij[] = getoond.map((d) => ({ key: d.id, code: d.code, tekst: d.tekst, rubriek: d.rubriek }));
     return groepeerPerRubriek(rijen);
@@ -180,7 +190,7 @@ function GeladenSet({
       <div className="sam-hele-rij">
         <label className="sam-hele">
           <input
-            type="checkbox" checked={toestand === 'alle'} aria-label={`Hele set ${naam}`}
+            type="checkbox" checked={toestand === 'alle'} aria-label={`Hele set ${voluit}`}
             ref={(el) => { if (el) el.indeterminate = toestand === 'deel'; }}
             onChange={(e) => onKeuze((k) => zetHeleSet(k, setId, e.target.checked))}
           />
@@ -192,10 +202,12 @@ function GeladenSet({
         </span>
       </div>
 
-      {stem && (
+      {stem && kiesbaar.length >= STEM_MIN_DOELEN && (
         <p className="sam-stem">
-          <InfoIcon size={16} className="icon-inline" /> De bron deelt de doelen van deze set niet per vak in. Zoek met een woord uit je vak
-          (bv. ‘energie’) en vink de gevonden doelen aan.
+          <InfoIcon size={16} className="icon-inline" /> In deze set staan wiskunde, natuurwetenschappen en techniek samen
+          {toestand === 'alle'
+            ? `, en nu zijn alle ${kiesbaar.length} doelen gekozen. Wil je alleen de doelen van je vak? Vink eerst ‘Hele set’ uit. Zoek daarna met een woord uit je vak (bv. ‘energie’) en vink de gevonden doelen aan.`
+            : '. Zoek met een woord uit je vak (bv. ‘energie’) en vink de gevonden doelen aan.'}
         </p>
       )}
       {zonderNummer > 0 && (
@@ -210,7 +222,7 @@ function GeladenSet({
         groepen.map((groep) => (
           <div key={groep.rubriek || '__zonder'} className="sam-groep">
             {metKoppen && <h4 className="sam-rubriek">{groep.rubriek || 'Overige doelen'}</h4>}
-            <ul className="sam-doelen" aria-label={groep.rubriek ? `Doelen van ${naam}: ${groep.rubriek}` : `Doelen van ${naam}`}>
+            <ul className="sam-doelen" aria-label={groep.rubriek ? `Doelen van ${voluit}: ${groep.rubriek}` : `Doelen van ${voluit}`}>
               {groep.rijen.map((rij) => {
                 const d = perId.get(rij.key);
                 if (!d) return null;

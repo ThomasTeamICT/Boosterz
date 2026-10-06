@@ -533,7 +533,7 @@ await go('/#/leerplannen');
 check('wegwijzer: vier wegen om te beginnen', (await page.locator('details.lw .lw-weg').count()) === 4);
 check('wegwijzer: een korte keuzehulp boven de vier kaarten', /Volgt je school het leerplan van een net \(KOV, GO!, OVSG of POV\)\? Kies ‘Leerplan van je net inlezen’\. Wil je enkel de wettelijke basis\? Kies ‘Officiële minimumdoelen’\. Wil je zelf doelen kiezen uit de minimumdoelen, bv\. voor basisgeletterdheid of voor je vak\? Kies ‘Zelf doelen samenstellen’\. Kreeg je een bestand van een collega\? Kies ‘Bestand van een collega’\./.test(await page.locator('details.lw .lw-keuzehulp').innerText()));
 check('wegwijzer: de minimumdoelen-kaart zegt "Kies een set die nog geldt"', /De doelen komen letterlijk uit de officiële bron\. Kies een set die nog geldt\./.test(await page.locator('details.lw .lw-weg').first().innerText()));
-check('kop van de leerplannenpagina: "Leerplan inlezen" eerst, en "Bestand van een collega" in plaats van "JSON importeren"', JSON.stringify((await page.locator('.page-head-actions .btn').allInnerTexts()).map((t) => t.trim())) === JSON.stringify(['Leerplan inlezen', 'Officiële minimumdoelen', 'Bestand van een collega', 'Blanco leerplan']) && (await page.locator('.page-head-actions a.btn-primary', { hasText: 'Leerplan inlezen' }).count()) === 1);
+check('kop van de leerplannenpagina: "Leerplan inlezen" eerst, en "Bestand van een collega" in plaats van "JSON importeren"', JSON.stringify((await page.locator('.page-head-actions .btn').allInnerTexts()).map((t) => t.trim())) === JSON.stringify(['Leerplan inlezen', 'Officiële minimumdoelen', 'Zelf doelen samenstellen', 'Bestand van een collega', 'Blanco leerplan']) && (await page.locator('.page-head-actions a.btn-primary', { hasText: 'Leerplan inlezen' }).count()) === 1);
 check('de netten-tip zegt dat de AI de tekst wel van het toestel haalt', /blijft op dit toestel, behalve als je de AI laat helpen\./.test(await page.locator('details.lw .lw-tip').last().innerText()));
 check('wegwijzer: links naar de netten openen in een nieuw tabblad', (await page.locator('details.lw .lw-links a[target="_blank"][rel*="noopener"]').count()) === 4);
 await page.getByRole('link', { name: /Officiële minimumdoelen/ }).first().click();
@@ -739,11 +739,12 @@ const samTotaal = async () => (await page.locator('.sam-totaal').innerText()).tr
 await go('/#/leerplannen');
 check('wegwijzer: vier wegen, met "Zelf doelen samenstellen" erbij', (await page.locator('details.lw .lw-weg').count()) === 4 && (await page.locator('details.lw a[href="#/leerplannen/samenstellen"]').count()) === 1);
 check('wegwijzer: de zin bij "Zelf doelen samenstellen" en de keuzehulp noemen basisgeletterdheid en de STEM-set', /Kies hele sets of losse doelen uit de officiële minimumdoelen, bv\. voor basisgeletterdheid of de doelen van jouw vak uit de STEM-set\./.test(await page.locator('details.lw a[href="#/leerplannen/samenstellen"]').innerText()) && /Kies ‘Zelf doelen samenstellen’/.test(await page.locator('details.lw .lw-keuzehulp').innerText()));
+check('Leerplannen: bovenaan een knop "Zelf doelen samenstellen" naar het scherm, naast "Officiële minimumdoelen"', (await page.locator('.page-head-actions a.btn[href="#/leerplannen/samenstellen"]', { hasText: 'Zelf doelen samenstellen' }).count()) === 1 && (await page.locator('.page-head-actions a.btn[href="#/leerplannen/minimumdoelen"]').count()) === 1);
 await go('/#/leerplannen/minimumdoelen/ODS_3283');
 await page.waitForSelector('.md-stem', { timeout: 15000 });
 await page.waitForSelector('.dl-rij', { timeout: 15000 });
 check('pagina Officiële minimumdoelen: in de intro een link "Stel je eigen doelenlijst samen"', (await page.locator('.md-intro a[href="#/leerplannen/samenstellen"]', { hasText: 'Stel je eigen doelenlijst samen' }).count()) === 1);
-check('de STEM-uitleg zegt "Wil je alleen de doelen van je vak? Kies ze uit deze set." met een link', /Wil je alleen de doelen van je vak\? Kies ze uit deze set\./.test(await page.locator('.md-stem').innerText()) && (await page.locator('.md-stem a[href="#/leerplannen/samenstellen?sets=ODS_3283"]').count()) === 1);
+check('de STEM-uitleg zegt "Wil je alleen de doelen van je vak? Kies ze uit deze set." met een link', /Wil je alleen de doelen van je vak\? Kies ze uit deze set\./.test(await page.locator('.md-stem').innerText()) && (await page.locator('.md-stem a[href="#/leerplannen/samenstellen?sets=ODS_3283&leeg=1"]').count()) === 1);
 check('het setpaneel heeft "Kies doelen uit deze set"', (await page.locator('.md-acties a[href="#/leerplannen/samenstellen?sets=ODS_3283"]', { hasText: 'Kies doelen uit deze set' }).count()) === 1);
 
 // Het scherm: één main en één h1, "Volgende" zonder set zegt wat ontbreekt
@@ -787,7 +788,7 @@ await sleep(300);
 check('stap 2: de focus staat op de kop "Stap 2 van 3: Doelen kiezen"', (await samKop()) === 'Stap 2 van 3: Doelen kiezen' && (await page.evaluate(() => document.activeElement === document.querySelector('h2.il-stapkop'))));
 check('stap 2: "Je koos 10 doelen uit 3 sets." in een aria-live-zone', (await samTotaal()) === 'Je koos 10 doelen uit 3 sets.' && (await page.locator('.sam-totaal[aria-live="polite"]').count()) === 1);
 check('stap 2: een blok per set, helemaal aangevinkt, met "3 van 3 gekozen"', (await page.locator('.sam-blok').count()) === 3 && (await page.locator('.sam-hele input:checked').count()) === 3 && /3 van 3 gekozen/.test(await page.locator('.sam-telling').first().innerText()) && (await page.locator('.sam-doel input:checked').count()) === 10);
-check('stap 2: bij de STEM-set staat dat de bron de doelen niet per vak indeelt', (await page.locator('.sam-blok', { hasText: 'STEM' }).locator('.sam-stem', { hasText: 'De bron deelt de doelen van deze set niet per vak in' }).count()) === 1);
+check('stap 2: een kleine STEM-set (minder dan 10 doelen) krijgt geen STEM-uitleg', (await page.locator('.sam-blok', { hasText: 'STEM' }).count()) === 1 && (await page.locator('.sam-stem').count()) === 0);
 check('stap 2: de doelen hebben een echt label met code en letterlijke tekst', (await page.locator('label.sam-doel .sam-doel-code', { hasText: 'BG02.01' }).count()) === 1 && /^De leerling/.test((await page.locator('.sam-doel-zin').first().innerText()).trim()));
 // Op de tekst klikken vinkt het doel uit; de set krijgt de toestand "een deel"
 await page.locator('.sam-blok').first().locator('.sam-doel-zin').first().click();
@@ -879,6 +880,30 @@ await page.evaluate((id) => {
   localStorage.setItem('wf.curricula.v1', JSON.stringify(lijst));
 }, samId);
 
+// Een samengestelde lijst die niet nagekeken is: dezelfde waarschuwing bij "Keuze aanpassen" en in de editor van het leerplan
+const samControle = await page.evaluate((id) => {
+  const lijst = JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]');
+  const c = lijst.find((x) => x.id === id);
+  const oud = c.controle;
+  delete c.controle;
+  localStorage.setItem('wf.curricula.v1', JSON.stringify(lijst));
+  return oud;
+}, samId);
+// Eerst naar een andere pagina: een pagina die al openstaat, leest de opslag niet opnieuw
+await go('/#/leerplannen/minimumdoelen');
+await go(`/#/leerplannen/samenstellen/${samId}`);
+await page.waitForSelector('.sam-blok .sam-doel', { timeout: 15000 });
+check('aanpassen: bij een lijst die niet nagekeken is staat bovenaan "Deze lijst is niet nagekeken" met de waarschuwing dat eigen aanpassingen verloren gaan', /^Deze lijst is niet nagekeken\. Bewaar je ze opnieuw, dan wordt ze opnieuw samengesteld uit de officiële doelen; wat je zelf in de doelen veranderde, gaat dan verloren\.$/.test((await page.locator('.sam-gewijzigd[role="note"]').innerText()).trim()));
+await go(`/#/leerplannen?open=${samId}`);
+check('editor: bij "Niet nagekeken" staat bij "Keuze aanpassen" dezelfde waarschuwing', /Pas de keuze aan en bewaar de lijst opnieuw om het nog eens te proberen\. Bewaar je ze opnieuw, dan wordt ze opnieuw samengesteld uit de officiële doelen; wat je zelf in de doelen veranderde, gaat dan verloren\./.test(await page.locator('.lp-labeluitleg').innerText()) && await page.getByRole('link', { name: 'Keuze aanpassen' }).isVisible());
+await page.evaluate(({ id, controle }) => {
+  const lijst = JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]');
+  const c = lijst.find((x) => x.id === id);
+  c.controle = controle;
+  localStorage.setItem('wf.curricula.v1', JSON.stringify(lijst));
+}, { id: samId, controle: samControle });
+await go('/#/leerplannen/minimumdoelen');
+
 // Een eigen kopie, een ander leerplan en een lijst die niet bestaat: een duidelijke melding en een link terug
 await go(`/#/leerplannen?open=${samId}`);
 await page.getByRole('button', { name: 'Eigen kopie maken' }).click();
@@ -903,8 +928,10 @@ await page.waitForSelector('.sam-blok .sam-doel', { timeout: 15000 });
 await sleep(300);
 check('vanuit de set: /leerplannen/samenstellen?sets=ODS_3283 begint bij stap 2 met de STEM-set helemaal aangevinkt', /#\/leerplannen\/samenstellen\?sets=ODS_3283$/.test(page.url()) && (await samKop()) === 'Stap 2 van 3: Doelen kiezen' && (await page.locator('.sam-blok').count()) === 1 && (await samTotaal()) === 'Je koos 44 doelen uit 1 set.');
 const samStemHele = page.locator('.sam-hele input');
+check('vanuit de set: de STEM-uitleg zegt dat alle 44 doelen gekozen zijn en dat je eerst "Hele set" uitvinkt', /^In deze set staan wiskunde, natuurwetenschappen en techniek samen, en nu zijn alle 44 doelen gekozen\. Wil je alleen de doelen van je vak\? Vink eerst ‘Hele set’ uit\. Zoek daarna met een woord uit je vak \(bv\. ‘energie’\) en vink de gevonden doelen aan\.$/.test((await page.locator('.sam-stem').innerText()).trim()) && !/De bron deelt/.test(await page.locator('.sam-blok').innerText()));
 await samStemHele.uncheck();
 await sleep(200);
+check('vanuit de set: met niets gekozen staat in de STEM-uitleg alleen nog de zoektip', /^In deze set staan wiskunde, natuurwetenschappen en techniek samen\. Zoek met een woord uit je vak \(bv\. ‘energie’\) en vink de gevonden doelen aan\.$/.test((await page.locator('.sam-stem').innerText()).trim()));
 check('vanuit de set: "Hele set" uitvinken geeft "Je koos nog geen doelen." en "Volgende" zegt wat ontbreekt', (await samTotaal()) === 'Je koos nog geen doelen.' && (await geblokkeerd(volgende())) && /^Nog nodig: kies minstens één doel\.$/.test((await page.locator('#il-ontbreekt').innerText()).trim()));
 await volgende().click({ force: true });
 await sleep(200);
@@ -937,10 +964,36 @@ await page.waitForSelector('text=/Dit leerplan staat op slot/', { timeout: 10000
 const samStemLijst = (await samLijsten()).find((c) => c.title === 'Natuurwetenschappen uit STEM');
 check(`de lijst met de gevonden doelen is bewaard: ${samGevonden} doelen, nagekeken, vak "Natuurwetenschappen", naast de eerste lijst`, !!samStemLijst && samStemLijst.goals.length === samGevonden && samStemLijst.controle?.status === 'gecontroleerd' && samStemLijst.subject === 'Natuurwetenschappen' && (await samLijsten()).filter((c) => c.kind !== 'eigen').length === 2 && /Natuurwetenschappen uit STEM/.test(await page.locator('main h1').innerText()));
 
+// De STEM-link op de pagina Officiële minimumdoelen opent de set met NIETS aangevinkt: alleen "energie" geeft 3 doelen
+await go('/#/leerplannen/samenstellen?sets=ODS_3283');
+await page.waitForSelector('.sam-blok .sam-doel', { timeout: 15000 });
+await sleep(200);
+check('?sets=ODS_3283 zonder "leeg": de hele STEM-set staat gekozen (44 doelen)', (await samTotaal()) === 'Je koos 44 doelen uit 1 set.');
+await page.evaluate(() => { location.hash = '#/leerplannen/samenstellen?sets=ODS_3283&leeg=1'; });
+await sleep(500);
+check('een link met ?leeg=1 begint de pagina opnieuw, met niets gekozen', (await samTotaal()) === 'Je koos nog geen doelen.' && (await page.locator('.sam-doel input:checked').count()) === 0);
+await go('/#/leerplannen/minimumdoelen/ODS_3283');
+await page.waitForSelector('.md-stem', { timeout: 15000 });
+await page.locator('.md-stem').getByRole('link', { name: 'Kies ze uit deze set' }).click();
+await page.waitForSelector('.sam-blok .sam-doel', { timeout: 15000 });
+await sleep(300);
+check('STEM-link: /leerplannen/samenstellen?sets=ODS_3283&leeg=1 begint bij stap 2 met de set gekozen maar niets aangevinkt', /#\/leerplannen\/samenstellen\?sets=ODS_3283&leeg=1$/.test(page.url()) && (await samKop()) === 'Stap 2 van 3: Doelen kiezen' && (await page.locator('.sam-blok').count()) === 1 && (await samTotaal()) === 'Je koos nog geen doelen.' && (await page.locator('.sam-doel input:checked').count()) === 0 && !(await page.locator('.sam-hele input').isChecked()) && /0 van 44 gekozen/.test(await page.locator('.sam-telling').innerText()));
+await page.fill('#sam-doelzoek', 'energie');
+await sleep(300);
+check('STEM-link: zoeken op "energie" vindt 3 doelen', /^3 doelen gevonden$/.test((await page.locator('.sam-doelzoek .sam-teller').innerText()).trim()));
+await page.getByRole('button', { name: 'Vink de gevonden doelen aan' }).click();
+await sleep(200);
+check('STEM-link: "Vink de gevonden doelen aan" geeft "Je koos 3 doelen uit 1 set."', (await samTotaal()) === 'Je koos 3 doelen uit 1 set.' && (await page.locator('.sam-doel input:checked').count()) === 3 && /3 van 44 gekozen/.test(await page.locator('.sam-telling').innerText()));
+
 // Dezelfde code in twee gekozen sets (Nederlands in de A- en de B-stroom): de codes krijgen een onderscheid, ook in de codekolom
 await go('/#/leerplannen/samenstellen?sets=ODS_3343,ODS_3351');
 await page.waitForSelector('.sam-blok .sam-doel', { timeout: 15000 });
 await sleep(300);
+const samHeleNamen = await page.locator('.sam-hele input').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+const samLijstNamen = await page.locator('.sam-doelen').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+const samKoppen = await page.locator('.sam-blok h3').allInnerTexts();
+check('twee sets met dezelfde naam: "Hele set", de lijst en de kop zijn voor een schermlezer te onderscheiden (met de stroom)', samHeleNamen.length === 2 && new Set(samHeleNamen).size === 2 && samHeleNamen.every((n) => /^Hele set Nederlands \(.*(A|B)-stroom.*\)$/.test(n ?? '')) && new Set(samLijstNamen).size === 2 && samLijstNamen.every((n) => /^Doelen van Nederlands \(.*(A|B)-stroom.*\)$/.test(n ?? '')) && new Set(samKoppen.map((t) => t.replace(/\s+/g, ' ').trim())).size === 2);
+check('twee sets met dezelfde naam: de twee regio\'s hebben een verschillende naam', (await page.getByRole('region', { name: /^Nederlands.*A-stroom/ }).count()) === 1 && (await page.getByRole('region', { name: /^Nederlands.*B-stroom/ }).count()) === 1 && (await page.locator('.sam-blok h3 .sr-only').count()) === 2);
 await volgende().click();
 await page.waitForSelector('#sam-titel', { timeout: 15000 });
 const samCodes = (await page.locator('.dl-code').allInnerTexts()).map((t) => t.trim());
@@ -959,10 +1012,61 @@ await volgende().click();
 await page.waitForSelector('#sam-titel', { timeout: 15000 });
 check('… en in stap 3 een waarschuwing (role="note") dat de set niet meer geldt, zonder het bewaren te blokkeren', /geldt niet meer/.test(await page.locator('.sam-waarschuwing[role="note"]').innerText()) && !(await geblokkeerd(page.getByRole('button', { name: 'Bewaar de lijst' }))));
 
+// Twee sets die niet meer gelden: de waarschuwingen staan netjes samen in één melding met een lijst, ook op 390 px
+await go('/#/leerplannen/samenstellen?sets=ODS_2118,ODS_2443');
+await page.waitForSelector('.sam-blok .sam-doel', { timeout: 15000 });
+await sleep(300);
+await volgende().click();
+await page.waitForSelector('#sam-titel', { timeout: 15000 });
+check('stap 3: meer dan één waarschuwing staat in één melding ("Let op: enkele dingen") met een lijst', (await page.locator('.sam-waarschuwing').count()) === 1 && /^Let op: enkele dingen/.test((await page.locator('.sam-waarschuwing').innerText()).trim()) && (await page.locator('.sam-waarschuwing ul > li').count()) >= 2 && /ODS_2118/.test(await page.locator('.sam-waarschuwing').innerText()) && /ODS_2443/.test(await page.locator('.sam-waarschuwing').innerText()));
+await page.setViewportSize({ width: 390, height: 844 });
+await sleep(200);
+check('390 px: stap 3 met meerdere waarschuwingen scrollt niet horizontaal', await passtOpSmal());
+await page.setViewportSize({ width: 1360, height: 900 });
+
 // Een set uit de link die niet bestaat, en 390 px voor stap 1
 await go('/#/leerplannen/samenstellen?sets=ODS_999999');
 await page.waitForSelector('.sam-sets > li', { timeout: 15000 });
-check('een set uit de link die niet bestaat wordt overgeslagen, met een melding, en de wizard begint bij stap 1', (await samKop()) === 'Stap 1 van 3: Sets kiezen' && /bestaat niet/.test(await page.locator('.callout[role="note"]').innerText()));
+check('een set uit de link die niet bestaat wordt overgeslagen, met een melding, en de wizard begint bij stap 1', (await samKop()) === 'Stap 1 van 3: Sets kiezen' && /^Een gevraagde set werd niet gevonden en is overgeslagen\.$/.test((await page.locator('.callout[role="note"]').innerText()).trim()));
+await go('/#/leerplannen/samenstellen?sets=foo,bar');
+await page.waitForSelector('.sam-sets > li', { timeout: 15000 });
+check('?sets=foo,bar: stap 1 met de melding dat 2 gevraagde sets overgeslagen zijn', (await samKop()) === 'Stap 1 van 3: Sets kiezen' && /^2 gevraagde sets konden niet gekozen worden en zijn overgeslagen\.$/.test((await page.locator('.callout[role="note"]').innerText()).trim()));
+await go('/#/leerplannen/samenstellen?sets=ODS_3343,ODS_999999,foo');
+await page.waitForSelector('.sam-blok .sam-doel', { timeout: 15000 });
+await sleep(300);
+check('?sets= met een goede, een onbekende en een ongeldige set: stap 2 met de melding dat 2 gevraagde sets overgeslagen zijn', (await samKop()) === 'Stap 2 van 3: Doelen kiezen' && (await page.locator('.sam-blok').count()) === 1 && /^2 gevraagde sets konden niet gekozen worden en zijn overgeslagen\.$/.test((await page.locator('.callout[role="note"]').innerText()).trim()));
+await volgende().click();
+await page.waitForSelector('#sam-titel', { timeout: 15000 });
+check('… in stap 3 staat de melding er niet meer, en met "Terug" weer wel', (await page.locator('.callout', { hasText: 'overgeslagen' }).count()) === 0 && (await (async () => { await page.getByRole('button', { name: /^Terug/ }).click(); await sleep(200); return page.locator('.callout', { hasText: 'gevraagde sets konden niet gekozen worden' }).count(); })()) === 1);
+
+// "Toon meer sets" bij de laatste reeks en "Toon alle sets" zonder resultaat: de focus blijft in de lijst of gaat naar het zoekveld
+await go('/#/leerplannen/samenstellen');
+await page.waitForSelector('.sam-sets > li', { timeout: 15000 });
+await page.getByLabel('Graad', { exact: true }).selectOption('1ste graad');
+await sleep(300);
+check('stap 1: de 1ste graad toont 60 van de 80 sets met "Toon meer sets"', (await page.locator('.sam-sets > li').count()) === 60 && await page.getByRole('button', { name: /^Toon meer sets/ }).isVisible());
+await page.getByRole('button', { name: /^Toon meer sets/ }).click();
+await sleep(300);
+check('stap 1: "Toon meer sets" bij de laatste reeks zet de focus op het eerste nieuwe selectievakje', (await page.locator('.sam-sets > li').count()) === 80 && (await page.getByRole('button', { name: /^Toon meer sets/ }).count()) === 0 && (await page.evaluate(() => document.activeElement === document.querySelectorAll('.sam-sets > li input')[60])));
+await page.fill('#sam-zoek', 'zzgeenset');
+await sleep(300);
+check('stap 1: een zoekopdracht zonder resultaat toont "Geen sets die hierbij passen"', /Geen sets die hierbij passen/.test(await page.locator('.sam-leeg').innerText()));
+await page.getByRole('button', { name: 'Toon alle sets' }).click();
+await sleep(300);
+check('stap 1: "Toon alle sets" zet de focus op het zoekveld', (await page.locator('.sam-sets > li').count()) > 0 && (await page.evaluate(() => document.activeElement?.id)) === 'sam-zoek' && (await page.inputValue('#sam-zoek')) === '');
+
+// "Haal deze set weg" na een laadfout in stap 2: de focus gaat naar de kop van de stap. Eigen pagina zonder service worker,
+// anders ziet de test het ophalen van het bestand niet.
+const foutContext = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1360, height: 900 } });
+const foutPagina = await foutContext.newPage();
+await foutPagina.route('**/leerplannen/minimumdoelen/ODS_2119.json', (r) => r.abort());
+await foutPagina.goto(BASE + '/#/leerplannen/samenstellen?sets=ODS_2119', { waitUntil: 'networkidle' });
+await foutPagina.waitForSelector('button:has-text("Haal deze set weg")', { timeout: 15000 });
+check('stap 2: een set die niet laadt toont een fout met "Haal deze set weg"', /^Stap 2 van 3: Doelen kiezen$/.test((await foutPagina.locator('h2.il-stapkop').innerText()).trim()) && (await foutPagina.getByRole('button', { name: 'Haal deze set weg' }).count()) === 1);
+await foutPagina.getByRole('button', { name: 'Haal deze set weg' }).click();
+await sleep(300);
+check('stap 2: na "Haal deze set weg" staat de focus op de kop van de stap', (await foutPagina.evaluate(() => document.activeElement === document.querySelector('h2.il-stapkop'))) && (await foutPagina.locator('.sam-blok').count()) === 0);
+await foutContext.close();
 await page.setViewportSize({ width: 390, height: 844 });
 await go('/#/leerplannen/samenstellen');
 await page.waitForSelector('.sam-sets > li', { timeout: 15000 });

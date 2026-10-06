@@ -501,7 +501,7 @@ function SetPaneel({
               minimumdoelen zijn de ondergrens die de overheid vastlegt.
             </p>
             <p>
-              Wil je alleen de doelen van je vak? <Link to={`${SAMENSTELLEN_ROUTE}?sets=${setId}`}>Kies ze uit deze set</Link>.
+              Wil je alleen de doelen van je vak? <Link to={`${SAMENSTELLEN_ROUTE}?sets=${setId}&leeg=1`}>Kies ze uit deze set</Link>.
             </p>
             {kanZoeken && (
               <div className="md-stem-zoek">

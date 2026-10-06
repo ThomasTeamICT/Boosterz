@@ -1,7 +1,8 @@
 // ── Stel je eigen doelenlijst samen: de wizard in drie stappen ──────────────
 //
 // /leerplannen/samenstellen                       een nieuwe lijst
-// /leerplannen/samenstellen?sets=ODS_1,ODS_2      met deze sets vooraf gekozen (begint bij stap 2)
+// /leerplannen/samenstellen?sets=ODS_1,ODS_2      met deze sets vooraf gekozen, helemaal aangevinkt (begint bij stap 2)
+// /leerplannen/samenstellen?sets=ODS_1&leeg=1     met deze set vooraf gekozen maar niets aangevinkt (bv. de STEM-set)
 // /leerplannen/samenstellen/:curriculumId         de keuze van een bewaarde lijst aanpassen (begint bij stap 2)
 //
 // Stap 1 kiest sets, stap 2 de doelen (hele sets of losse doelen), stap 3 geeft de lijst een naam en bewaart ze. De doelen
@@ -19,8 +20,8 @@ import { leerplanUitSelectie, selectieVanLeerplan, voorstelTitel } from '../lib/
 import { effectieveStatus, isSamengesteld } from '../lib/leerplanStatus';
 import { laadIndex, oudeVersieIds } from '../lib/minimumdoelenBron';
 import {
-  beginUitSelectie, beginUitSets, bouwSetKeuzes, haalSetWeg, kiesbareDoelen, ontbreektInStap1, ontbreektInStap2, ontbreektInStap3, setsUitParam,
-  telGekozen, wisselSet, zegOntbreekt, type SamenstelKeuze,
+  aantalGevraagdeSets, beginUitSelectie, beginUitSets, bouwSetKeuzes, haalSetWeg, kiesbareDoelen, ontbreektInStap1, ontbreektInStap2, ontbreektInStap3,
+  setsUitParam, telGekozen, wisselSet, zegOntbreekt, type SamenstelKeuze,
 } from '../lib/samenstelKeuze';
 import { useLaadstand } from '../lib/useLaadstand';
 import { FoutBericht, LaadBericht } from '../components/curriculum/LaadStatus';
@@ -53,8 +54,9 @@ export function SamenstellenPage() {
   const { curriculumId } = useParams();
   const [params] = useSearchParams();
   const setsParam = params.get('sets');
+  const leeg = params.get('leeg') === '1';
   // Een andere lijst of andere sets in de link is een nieuwe wizard: alle staat begint opnieuw.
-  return <Samenstellen key={`${curriculumId ?? ''}?${setsParam ?? ''}`} curriculumId={curriculumId} setsParam={setsParam} />;
+  return <Samenstellen key={`${curriculumId ?? ''}?${setsParam ?? ''}&${leeg ? 'leeg' : 'alles'}`} curriculumId={curriculumId} setsParam={setsParam} leeg={leeg} />;
 }
 
 type Probleem = 'ontbreekt' | 'niet-samengesteld' | 'eigen-kopie';
@@ -67,7 +69,7 @@ function probleemMet(cur: Curriculum | undefined): Probleem | undefined {
   return undefined;
 }
 
-function Samenstellen({ curriculumId, setsParam }: { curriculumId?: string; setsParam: string | null }) {
+function Samenstellen({ curriculumId, setsParam, leeg }: { curriculumId?: string; setsParam: string | null; leeg: boolean }) {
   const bewerken = curriculumId !== undefined;
   const bestaand = useMemo(() => (curriculumId ? getCurriculum(curriculumId) : undefined), [curriculumId]);
   const probleem = bewerken ? probleemMet(bestaand) : undefined;
@@ -101,7 +103,7 @@ function Samenstellen({ curriculumId, setsParam }: { curriculumId?: string; sets
       ) : index.stand.status === 'fout' ? (
         <FoutBericht fout={index.stand.fout} onOpnieuw={index.opnieuw} />
       ) : (
-        <Wizard sets={index.stand.waarde.sets} bestaand={bestaand} setsParam={setsParam} />
+        <Wizard sets={index.stand.waarde.sets} bestaand={bestaand} setsParam={setsParam} leeg={leeg} />
       )}
     </div>
   );
@@ -139,26 +141,28 @@ function ProbleemMelding({ probleem, cur }: { probleem: Probleem; cur?: Curricul
 
 // ── De wizard ───────────────────────────────────────────────────────────────
 
-function beginKeuze(bestaand: Curriculum | undefined, setsParam: string | null, bekend: ReadonlySet<string>): SamenstelKeuze {
+function beginKeuze(bestaand: Curriculum | undefined, setsParam: string | null, leeg: boolean, bekend: ReadonlySet<string>): SamenstelKeuze {
   if (bestaand) return beginUitSelectie(selectieVanLeerplan(bestaand));
-  return beginUitSets(setsUitParam(setsParam).filter((id) => bekend.has(id)));
+  return beginUitSets(setsUitParam(setsParam).filter((id) => bekend.has(id)), leeg);
 }
 
 function Wizard({
-  sets, bestaand, setsParam,
+  sets, bestaand, setsParam, leeg,
 }: {
   sets: readonly MinimumdoelenIndexSet[];
   bestaand?: Curriculum;
   setsParam: string | null;
+  /** `?leeg=1`: de sets uit de link staan gekozen, maar met niets aangevinkt. */
+  leeg: boolean;
 }) {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [begin] = useState(() => beginKeuze(bestaand, setsParam, new Set(sets.map((s) => s.id))));
+  const [begin] = useState(() => beginKeuze(bestaand, setsParam, leeg, new Set(sets.map((s) => s.id))));
   const [keuze, setKeuze] = useState<SamenstelKeuze>(begin);
   const [stap, setStap] = useState<Stap>(begin.sets.length > 0 ? 2 : 1);
-  // Sets uit de link die niet bestaan, vallen weg: dat zeggen we.
-  const [linkOvergeslagen] = useState(() => (bestaand ? 0 : setsUitParam(setsParam).length - begin.sets.length));
+  // Sets uit de link die niet bestaan, ongeldig zijn of boven het maximum vallen, worden overgeslagen: dat zeggen we, in stap 1 en 2.
+  const [linkOvergeslagen] = useState(() => (bestaand ? 0 : Math.max(0, aantalGevraagdeSets(setsParam) - begin.sets.length)));
 
   // Stap 1
   const [filter, setFilter] = useState<SetFilterStaat>(BEGIN_FILTER);
@@ -208,6 +212,11 @@ function Wizard({
     setTitelEigen(true);
     setTitelTekst(t);
   };
+  // "Haal deze set weg" na een laadfout in stap 2: de knop verdwijnt, dus de focus gaat naar de kop van de stap.
+  const weg = (id: string) => {
+    setKeuze((k) => haalSetWeg(k, id));
+    kopRef.current?.focus();
+  };
 
   // ── Van stap naar stap ──
   const ontbreekt = useMemo(() => {
@@ -252,11 +261,11 @@ function Wizard({
   };
 
   const huidig = STAPPEN[stap - 1];
-  const gewijzigd = bestaand !== undefined && effectieveStatus(bestaand) === 'gewijzigd';
+  const bestaandeStatus = bestaand ? effectieveStatus(bestaand) : undefined;
 
   return (
     <>
-      {gewijzigd && (
+      {bestaandeStatus === 'gewijzigd' && (
         <div className="callout warn sam-gewijzigd" role="note">
           <WarningIcon size={20} className="il-callout-icoon" />
           <div className="il-callout-tekst">
@@ -267,11 +276,26 @@ function Wizard({
           </div>
         </div>
       )}
-      {linkOvergeslagen > 0 && stap === 1 && (
+      {bestaandeStatus === 'niet-gecontroleerd' && (
+        <div className="callout warn sam-gewijzigd" role="note">
+          <WarningIcon size={20} className="il-callout-icoon" />
+          <div className="il-callout-tekst">
+            <p>
+              <strong>Deze lijst is niet nagekeken.</strong> Bewaar je ze opnieuw, dan wordt ze opnieuw samengesteld uit de officiële doelen; wat je zelf in de
+              doelen veranderde, gaat dan verloren.
+            </p>
+          </div>
+        </div>
+      )}
+      {linkOvergeslagen > 0 && stap < 3 && (
         <div className="callout warn" role="note">
           <WarningIcon size={20} className="il-callout-icoon" />
           <div className="il-callout-tekst">
-            <p>{linkOvergeslagen === 1 ? 'Een set uit de link bestaat niet' : `${linkOvergeslagen} sets uit de link bestaan niet`} en {linkOvergeslagen === 1 ? 'is' : 'zijn'} overgeslagen.</p>
+            <p>
+              {linkOvergeslagen === 1
+                ? 'Een gevraagde set werd niet gevonden en is overgeslagen.'
+                : `${linkOvergeslagen} gevraagde sets konden niet gekozen worden en zijn overgeslagen.`}
+            </p>
           </div>
         </div>
       )}
@@ -299,7 +323,7 @@ function Wizard({
       {stap === 2 && (
         <StapDoelen
           keuze={keuze} onKeuze={setKeuze} indexSets={indexSets} oud={oud} stand={stand} kiesbaar={kiesbaar} laden={laden}
-          zoek={zoekDoel} onZoek={setZoekDoel} onOpnieuw={opnieuw} onWeg={(id) => setKeuze((k) => haalSetWeg(k, id))}
+          zoek={zoekDoel} onZoek={setZoekDoel} onOpnieuw={opnieuw} onWeg={weg}
         />
       )}
       {stap === 3 && resultaat && (
