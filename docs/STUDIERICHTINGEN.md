@@ -10,7 +10,7 @@ De opdracht van de eigenaar, letterlijk: "ja, doe die import maar, einddoel is d
 |---|---|---|
 | Ontwerp (dit document) | **Klaar** (9 oktober 2026): drie ontwerpen, drie juryleden, één synthese. De eigenaar gaf het startsein ("doe die import maar"). Voor de open vragen (§ 19) geldt de werkkeuze die erbij staat, tot de eigenaar anders beslist. | hoofdsessie |
 | P0 Ontwerp in de repo, icoon | **Klaar** | hoofdsessie |
-| P1 Datamodule studierichtingen | **Gebouwd**, review: één blokkerende fout (een vast nummer mag in meer sets staan) en ontbrekende tests; herstel bezig | kernbouwer |
+| P1 Datamodule studierichtingen | **Klaar** (review: één blokkerende fout en ontbrekende tests, hersteld en met een mutatieproef nagekeken) | kernbouwer |
 | P2 Ophaalscript, nagebootste API en fixtures | Wacht, op P1 | kernbouwer |
 | P3 Datatest | Wacht, op P1 (opleveren na P2) | bouwer (een andere agent dan die van P2) |
 | P4 Workflow "Leerplangegevens bijwerken" | Wacht, op P2 | bouwer, nagelezen door een reviewer |
@@ -135,7 +135,11 @@ De service worker behandelt de nieuwe bestanden zoals de minimumdoelen: netwerk 
 - `oudNummer?` (`studierichting_nummer_oud` of `afdeling_nummer_oud`), `faseBuso?`, `laatsteWijziging?`, `nietMeerInBron?`;
 - `extra?`: de overige velden, zonder `api_url` (die volgt uit het nummer).
 
-Een sleutel `__proto__` gaat via `defineProperty`, zoals in `normaliseerRecord`. Het rapport bevat de veldinventaris van het echte antwoord, zodat de eerste run toont wat er binnenkomt.
+Een sleutel `__proto__` gaat via `defineProperty`, zoals in `normaliseerRecord`.
+
+**Niets stil verliezen (vastgelegd in P1).** De sleutels van `extra` zijn recursief gesorteerd. Van de lijsten `leerjaren`, `erkenningen` (uit `structuuronderdeel_details`), `hoofdstructuren`, `onderwijsstelsels` en `instellingstypes` staat de rest van elk element (alles wat niet in het getypte element komt, bv. de omschrijving van een hoofdstructuur) in `extra.<lijstnaam>`: een lijst die gelijk loopt met de getypte, gesorteerde lijst, met `{}` waar niets overbleef. Twee elementen met hetzelfde getypte deel maar een andere rest maken de lijst onleesbaar: ze gaat dan letterlijk naar `extra`, en voor een nodig veld komt er een probleem. Bewust weg vallen: de omschrijving bij een bekend {code, omschrijving}-veld bovenaan (graad, finaliteit, type 7de leerjaar), titel en api_url van een verwijzing, `api_url`, null en lege tekst, en de tijd achter een datum. `valideerMatrixBestand` controleert de vorm van `extra.<lijst>` (`controleerLijstRest`) en weigert `api_url` ook bij een groep.
+
+**Een vast nummer mag in meer sets staan** van één koppelingsbestand (een andere versie of de BuSO-kopie delen hun nummers; bv. 73740 in ODS_2118 en ODS_2334). De validator eist uniekheid alleen per set. Het rapport bevat de veldinventaris van het echte antwoord, zodat de eerste run toont wat er binnenkomt.
 
 **Omvang.** De platte verkenning was 676 kB. Verwacht: ±600 tot 800 kB, ±70 tot 90 kB gzip. Het bestand wordt lui geladen, alleen op de richtingschermen en in de richtingkiezer.
 
