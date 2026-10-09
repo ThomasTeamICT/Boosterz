@@ -4,13 +4,16 @@
 // Vraag van de eigenaar: kunnen we de geldende matrix van alle studierichtingen van het secundair
 // onderwijs als data ophalen, en wat zit er verder in de API's van Onderwijs? Zie docs/LEERPLANNEN.md.
 //
-// Drie standen, in drie aparte stappen van de workflow .github/workflows/verken-onderwijs-api.yml:
+// Vijf standen, elk in een aparte stap van de workflow .github/workflows/verken-onderwijs-api.yml:
 //   --met-sleutel  proefoproepen naar onderwijs.api.vlaanderen.be met de sleutel uit de omgeving
 //                  (ONDERWIJSDOELEN_API_KEY). Alleen ingebouwde Node-modules, geen pakketten.
 //   --publiek      publieke bronnen zonder sleutel: het API-portaal, de technische ontwerpen (pdf),
 //                  de export "aanbod-so", omzendbrief SO 37, en de scripts van officiële webapps
 //                  (om te zien welke officiële API-adressen ze gebruiken). Mag pdfjs-dist gebruiken.
 //   --verslag      voegt beide delen samen tot één verslag (markdown op stdout en in de samenvatting).
+//   --matrix       (ronde 3, met sleutel) alleen de matrix: één regel per studierichting uit
+//                  /structuuronderdeelgroep, de filters van de doelen-API en de aantallen van het aanbod.
+//   --parameters   (ronde 3, zonder sleutel) de parameternamen uit de API-clients van de webapps.
 //
 // Veiligheid:
 //   - de sleutel gaat alleen in de kop x-api-key naar de host onderwijs.api.vlaanderen.be, nooit
@@ -30,8 +33,16 @@ const TIMEOUT_MS = 30000;
 const MAX_TEKST = 8 * 1024 * 1024;
 
 const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Sleutels die een webapp zelf in haar scripts meegeeft (bv. api_key: '\u2026' in env.js) komen nooit in
+// het logboek, ook niet als de overheid ze publiek meelevert. Ronde 2 zette er twee in het logboek;
+// sindsdien gaat alle tekst hierlangs. Ook lange reeksen van letters \u00e9n cijfers (sleutelvorm) gaan weg.
+const verberg = (t) =>
+  t
+    .replace(/((?:api[_-]?key|apikey|client[_-]?token|token|secret|password|wachtwoord)["']?\s*[:=]\s*["'`])[^"'`]*/gi, '$1<verborgen>')
+    .replace(/(?<![A-Za-z0-9])(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{24,}(?![A-Za-z0-9])/g, '<verborgen>');
 const schoon = (t, n = 200) =>
-  String(t ?? '').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
+  verberg(String(t ?? '')).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
 
 // ── Vorm van een JSON-antwoord ──────────────────────────────────────────────
 
@@ -374,6 +385,147 @@ async function metSleutel() {
   return { tijd: new Date().toISOString(), resultaten, filters, lijsten };
 }
 
+// ── Stand 4: de matrix (ronde 3) ────────────────────────────────────────────
+
+// Ronde 2 vond de matrix: /structuuronderdeelgroep geeft per groep (graad, finaliteit, soort leerjaar)
+// de structuuronderdelen (studierichtingen) met onderwijsvorm, studiedomein, STEM, duaal, begin- en
+// einddatum en status. Het logboek van GitHub geeft maar de laatste 5000 regels terug; deze stand
+// zet daarom alleen de matrix (één regel per studierichting), de filters van de doelen-API en de
+// aantallen van het aanbod in het logboek.
+const FILTERNAMEN = [
+  'studierichting', 'onderwijsstructuur', 'onderwijsdoelenset', 'onderwijsniveau', 'onderwijssoort', 'graad',
+  'stroom', 'finaliteit', 'opleidingsvorm', 'leerjaar', 'vlaamse_sleutelcompetentie', 'sleutelcompetentie',
+  'onderwijsdoel_type', 'structuuronderdeel', 'domein', 'leergebied', 'vak',
+];
+
+const code = (o) => (o && typeof o === 'object' ? schoon(o.code ?? '', 40) || null : null);
+const oms = (o) => (o && typeof o === 'object' ? schoon(o.omschrijving ?? '', 120) || null : null);
+const codes = (a) => (Array.isArray(a) ? a.map((x) => code(x)).filter(Boolean) : []);
+
+/** Eén studierichting (structuuronderdeel) met de kenmerken van haar groep, plat en ingekort. */
+function richtingRegel(g, so) {
+  const datum = (d) => (typeof d === 'string' ? schoon(d, 10) : null);
+  return {
+    groep: schoon(g.structuuronderdeel_groep_nummer, 20),
+    groepTitel: schoon(g.titel, 140),
+    niveau: code(g.onderwijsniveau),
+    graad: code(g.graad),
+    finaliteit: code(g.finaliteit),
+    soortLeerjaar: oms(g.soort_leerjaar),
+    opleidingsvorm: oms(g.opleidingsvorm),
+    type7: code(g.type_7de_leerjaar),
+    nr: so.structuuronderdeel_nummer ?? null,
+    titel: schoon(so.titel, 160),
+    vorm: code(so.onderwijsvorm),
+    domein: oms(so.studiedomein),
+    stem: so.stem_classificatie ? schoon(so.stem_classificatie, 20) : null,
+    niche: so.niche ?? null,
+    duaal: so.duaal ?? null,
+    aanloop: so.aanloop ?? null,
+    discipline: so.discipline ? schoon(so.discipline, 80) : null,
+    van: datum(so.begindatum),
+    tot: datum(so.einddatum),
+    oud: schoon(so.studierichting_nummer_oud ?? so.afdeling_nummer_oud ?? '', 20) || null,
+    fase: code(so.fase_buso),
+    leerjaren: Array.isArray(so.leerjaren) ? so.leerjaren.map((l) => `${code(l)}${l.einddatum ? `<${datum(l.einddatum)}` : ''}`) : [],
+    stelsels: codes(so.onderwijsstelsels),
+    hoofdstructuren: codes(so.hoofdstructuren),
+    instellingstypes: codes(so.instellingstypes),
+    details: Array.isArray(so.structuuronderdeel_details)
+      ? so.structuuronderdeel_details.map((d) => `${schoon(d.structuuronderdeel_detail_nummer, 20)}:${code(d.status)}:${datum(d.begindatum)}..${datum(d.einddatum) ?? ''}`)
+      : [],
+    voorbereidend: Array.isArray(so.voorbereidende_structuuronderdelen) ? so.voorbereidende_structuuronderdelen.map((x) => x.structuuronderdeel_nummer) : [],
+    vervolg: Array.isArray(so.vervolg_structuuronderdelen) ? so.vervolg_structuuronderdelen.map((x) => x.structuuronderdeel_nummer) : [],
+    vorige: (so.historiek_structuuronderdelen?.vorige_structuuronderdelen || []).map((x) => x.structuuronderdeel_nummer),
+    volgende: (so.historiek_structuuronderdelen?.volgende_structuuronderdelen || []).map((x) => x.structuuronderdeel_nummer),
+  };
+}
+
+async function matrix() {
+  const sleutel = process.env.ONDERWIJSDOELEN_API_KEY;
+  if (!sleutel) throw new Error('ONDERWIJSDOELEN_API_KEY ontbreekt in de omgeving');
+  const uit = { tijd: new Date().toISOString(), filters: [], aanbod: null, groepen: 0, richtingen: 0 };
+
+  // 1. Filters van de doelen-API (onderwijsdoelen.be roept /filters/{naam} op).
+  for (const naam of ['', ...FILTERNAMEN]) {
+    const r = await verzoek(`${API}/onderwijsdoelen/filters${naam ? `/${naam}` : ''}`, { sleutel });
+    const b = beschrijf(r);
+    uit.filters.push({ naam: naam || '(basis)', status: r.status, lijst: b.lijst || null });
+    console.log(`FILTER|${naam || '(basis)'}|${r.status ?? r.fout}|${b.lijst ? `${b.lijst.pad} ${b.lijst.lengte}` : ''}|${r.status === 200 ? JSON.stringify(b.voorbeelden).slice(0, 600) : schoon(r.tekst || '', 160)}`);
+    if (r.status === 200 && r.tekst) {
+      try {
+        const { lijst } = lijstEnTotaal(JSON.parse(r.tekst));
+        const waarden = lijst || (Array.isArray(JSON.parse(r.tekst)) ? JSON.parse(r.tekst) : []);
+        for (const w of waarden.slice(0, naam === 'studierichting' ? 1500 : 200)) console.log(`FILTERWAARDE|${naam || '(basis)'}|${schoon(typeof w === 'object' ? JSON.stringify(w) : w, 300)}`);
+      } catch {
+        /* geen JSON */
+      }
+    }
+    await wacht(WACHT_MS);
+  }
+
+  // 2. Aanbod SO: hoeveel administratieve groepen, en kan de lijst per schooljaar?
+  for (const pad of ['/instellingsgegevens/onderwijsaanbod_so/v2/administratievegroep', '/instellingsgegevens/onderwijsaanbod_so/v2/administratievegroep?schooljaar=2026']) {
+    const r = await verzoek(API + pad, { sleutel });
+    let meta = null;
+    try {
+      meta = JSON.parse(r.tekst).meta ?? null;
+    } catch {
+      /* geen JSON */
+    }
+    console.log(`AANBOD|${pad}|${r.status ?? r.fout}|${JSON.stringify(meta)}`);
+    uit.aanbod = uit.aanbod || [];
+    uit.aanbod.push({ pad, status: r.status, meta });
+    await wacht(WACHT_MS);
+  }
+
+  // 3. De matrix: alle groepen, één regel per studierichting.
+  const d = await doorblader('structuuronderdeelgroep', `${API}${KC}/structuuronderdelen/v2/structuuronderdeelgroep`, sleutel, 80);
+  uit.groepen = d.aantal;
+  console.log(`MATRIX|groepen ${d.aantal}|pagina's ${d.paginas}|eerste status ${d.eerste ? d.eerste.status : null}`);
+  for (const g of d.items) {
+    const lijst = Array.isArray(g.structuuronderdelen) ? g.structuuronderdelen : [];
+    if (lijst.length === 0) console.log(`LEGEGROEP|${schoon(g.structuuronderdeel_groep_nummer, 20)}|${schoon(g.titel, 140)}`);
+    for (const so of lijst) {
+      console.log(`RICHTING|${JSON.stringify(richtingRegel(g, so))}`);
+      uit.richtingen++;
+    }
+  }
+  console.log(`MATRIX|richtingen ${uit.richtingen}`);
+  return uit;
+}
+
+/** Parameternamen uit de gegenereerde API-clients van de officiële webapps (zonder sleutel). */
+async function parameters() {
+  const bronnen = PAGINAS.filter(([naam]) => /Opleidingsinhouden|Onderwijsdoelen\.be: start/.test(naam));
+  const uit = [];
+  for (const [naam, url] of bronnen) {
+    const r = await verzoek(url, { accept: 'text/html,application/xhtml+xml,*/*;q=0.8' });
+    if (!r.tekst) {
+      console.log(`PARAM|${naam}|geen pagina (${r.status ?? r.fout})`);
+      continue;
+    }
+    const scripts = linksUitHtml(r.tekst, url).filter((l) => /\.m?js(\?|$)/i.test(l) && new URL(l).host === new URL(url).host).slice(0, 15);
+    const gezien = new Set();
+    for (const s of scripts) {
+      const js = await verzoek(s, { accept: '*/*' });
+      if (!js.tekst) continue;
+      // methodes van de client: "onderwijsdoelGet(r,n,o,…){" en daarbinnen addToHttpParams(…, "naam")
+      const methodes = [...js.tekst.matchAll(/([A-Za-z_$][\w$]*(?:Get|Post))\(([^)]{0,600})\)\{/g)].map((m) => ({ naam: m[1], index: m.index }));
+      for (const m of js.tekst.matchAll(/addToHttpParams\(\s*[\w$]+\s*,\s*[\w$]+\s*,\s*["']([\w.-]+)["']/g)) {
+        const methode = methodes.filter((x) => x.index < m.index).pop();
+        const sleutelRegel = `${methode ? methode.naam : '?'}|${m[1]}`;
+        if (gezien.has(sleutelRegel)) continue;
+        gezien.add(sleutelRegel);
+        uit.push({ bron: naam, methode: methode ? methode.naam : null, parameter: m[1] });
+        console.log(`PARAM|${naam}|${schoon(sleutelRegel, 160)}`);
+      }
+      await wacht(150);
+    }
+  }
+  return uit;
+}
+
 // ── Stand 2: publiek, zonder sleutel ────────────────────────────────────────
 
 const PAGINAS = [
@@ -664,13 +816,19 @@ async function main() {
   } else if (stand === '--publiek') {
     const d = await publiek();
     fs.writeFileSync(path.join(UIT, 'publiek.json'), JSON.stringify(d, null, 1));
+  } else if (stand === '--matrix') {
+    const d = await matrix();
+    fs.writeFileSync(path.join(UIT, 'matrix.json'), JSON.stringify(d, null, 1));
+  } else if (stand === '--parameters') {
+    const d = await parameters();
+    fs.writeFileSync(path.join(UIT, 'parameters.json'), JSON.stringify(d, null, 1));
   } else if (stand === '--verslag') {
     const tekst = verslag();
     fs.writeFileSync(path.join(UIT, 'verslag.md'), tekst);
     console.log(tekst);
     if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, tekst.slice(0, 900000) + '\n');
   } else {
-    console.error('Gebruik: verken-onderwijs-api.mjs --met-sleutel | --publiek | --verslag');
+    console.error('Gebruik: verken-onderwijs-api.mjs --met-sleutel | --publiek | --verslag | --matrix | --parameters');
     process.exit(2);
   }
 }
@@ -683,4 +841,4 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
   });
 }
 
-export { beschrijf, lijstEnTotaal, velden, inkort, sporen, pdfTekst, apiLinks };
+export { beschrijf, lijstEnTotaal, velden, inkort, sporen, pdfTekst, apiLinks, schoon, richtingRegel };

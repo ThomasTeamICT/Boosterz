@@ -6,11 +6,25 @@ name: Verkenning Onderwijs-API's
 # de samenvatting en als artifact. Script en uitleg: tools/verkenning/verken-onderwijs-api.mjs.
 #
 # De API-sleutel is hetzelfde geheim als bij de minimumdoelen (ONDERWIJSDOELEN_API_KEY). Hij gaat
-# alleen naar onderwijs.api.vlaanderen.be, staat enkel in de omgeving van de eerste stap, en komt
+# alleen naar onderwijs.api.vlaanderen.be, staat enkel in de omgeving van de stap met sleutel, en komt
 # nooit in een log of in het verslag.
+#
+# Stand "matrix" (standaard, ronde 3): alleen de matrix van de studierichtingen (één regel per
+# studierichting), de filters van de doelen-API en de parameternamen uit de webapps. Zo blijft het
+# logboek onder de 5000 regels die de GitHub-koppeling van de cloudsessie kan teruglezen.
+# Stand "volledig": de brede verkenning van ronde 1 en 2 met het verslag.
 
 on:
   workflow_dispatch:
+    inputs:
+      stand:
+        description: 'Wat verkennen'
+        required: false
+        default: matrix
+        type: choice
+        options:
+          - matrix
+          - volledig
 
 permissions:
   contents: read
@@ -32,23 +46,35 @@ jobs:
 
       # Zoals bij de minimumdoelen: de stap met het geheim draait vóór de installatie van de
       # npm-pakketten en gebruikt alleen ingebouwde Node-modules.
+      - name: Matrix en filters (met sleutel)
+        if: inputs.stand != 'volledig'
+        env:
+          ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
+        run: node tools/verkenning/verken-onderwijs-api.mjs --matrix
+
+      - name: Parameternamen uit de webapps (zonder sleutel)
+        if: always() && inputs.stand != 'volledig'
+        continue-on-error: true
+        run: node tools/verkenning/verken-onderwijs-api.mjs --parameters
+
       - name: Proefoproepen met sleutel
+        if: inputs.stand == 'volledig'
         continue-on-error: true
         env:
           ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
         run: node tools/verkenning/verken-onderwijs-api.mjs --met-sleutel
 
       - name: Pakketten installeren
-        if: always()
+        if: always() && inputs.stand == 'volledig'
         run: npm ci --ignore-scripts
 
       - name: Publieke bronnen zonder sleutel
-        if: always()
+        if: always() && inputs.stand == 'volledig'
         continue-on-error: true
         run: node tools/verkenning/verken-onderwijs-api.mjs --publiek
 
       - name: Verslag
-        if: always()
+        if: always() && inputs.stand == 'volledig'
         run: node tools/verkenning/verken-onderwijs-api.mjs --verslag
 
       - name: Verslag bewaren
