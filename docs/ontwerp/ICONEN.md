@@ -46,6 +46,7 @@ Gebruik de namen uit `src/components/icons.ts`, niet zelf een icoon:
 | Verwijderen | `DeleteIcon` | trash |
 | Uittesten, spelen | `TryIcon` | play |
 | Terug | `BackIcon` | arrow-left |
+| Studierichting | `RichtingIcon` | signpost |
 
 En verder: `AddIcon`, `SearchIcon`, `MoreIcon`, `CloseIcon`, `GoalIcon`,
 `CourseIcon`, `StudentIcon`, `QrIcon`, `LinkIcon`, `CopyIcon`, `TipIcon`,

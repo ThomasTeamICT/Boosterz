@@ -22,6 +22,7 @@ export {
   X as CloseIcon,
   Target as GoalIcon,
   BookOpen as CourseIcon,
+  Signpost as RichtingIcon,
   GraduationCap as StudentIcon,
   QrCode as QrIcon,
   Link as LinkIcon,

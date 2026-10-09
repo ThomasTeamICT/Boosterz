@@ -10,8 +10,8 @@ verder? Aanvulling op `docs/LEERPLANNEN.md` (de minimumdoelen komen al uit de On
 |---|---|
 | Verkenning met de sleutel (drie runs van `verken-onderwijs-api.yml`, 9 oktober 2026) | **Klaar.** |
 | Matrix van de studierichtingen als data | **Gevonden:** de API Structuuronderdelen (§ 2). Overzicht van de eerste ophaling in een pagina voor de eigenaar; nog niet in de repo. |
-| Herhaalbare import van de matrix in Boosterz (script, workflow, datatest, zoals de minimumdoelen) | Wacht: op het akkoord van de eigenaar. Voorstel in § 6. |
-| Koppeling studierichting → doelen (filter `studierichting` van de doelen-API) | Wacht: na de import. Namen moeten exact overeenkomen; nog na te gaan (§ 3). |
+| Herhaalbare import van de matrix in Boosterz (script, workflow, datatest, zoals de minimumdoelen) | **Bezig** sinds 9 oktober 2026, met akkoord van de eigenaar. Ontwerp, bouwplan en stand van zaken: `docs/STUDIERICHTINGEN.md`. |
+| Koppeling studierichting → doelen | **Uitgezocht** (runs 4 en 5): de filter op naam mengt graden en breekt op een komma; de filter `structuuronderdeel_groep_nummer` werkt per graad. Zie § 3. Bouw: `docs/STUDIERICHTINGEN.md`. |
 | Aanbod per school (welke school welke richting inricht) | Later: de API's zijn bereikbaar (§ 4), het juiste adres voor het ingerichte aanbod is nog niet gevonden. |
 
 ## 1. Toegang
@@ -63,9 +63,17 @@ A 24), 3de graad 139 (DO 35, DU 53, A 51), en 2 zonder graad (OKAN, basisverplee
   Velden per doel: `code`, `omschrijving`, `attitude`, `optioneel`, `voetnoot`, `memorie`,
   `onderwijsdoel_type`, `geldigheid`, `onderwijsdoelenset` (met `onderwijsstructuur`: niveau, soort,
   graad, stroom, opleidingsvorm; en `vlaamse_sleutelcompetentie`).
-- **Filter `studierichting=<naam>` werkt**, ook al staat hij niet in het Hydra-sjabloon (dat noemt alleen
-  `paginanr` en `rijen_per_pagina`): Humane wetenschappen geeft 1658 doelen. De parameters
-  `structuuronderdeel` en `onderwijsstructuur` worden genegeerd.
+- **Filter `structuuronderdeel_groep_nummer=<G-nummer>` werkt per richting en per graad** (run 5, 9 oktober
+  2026): G-0117 (Humane wetenschappen, 2de graad) geeft 796 doelen in 86 sets, G-0327 (3de graad) 862. Het
+  antwoord bevat ook de sets van het buitengewoon secundair onderwijs (opleidingsvorm 4) en oude versies. De
+  basisvorming komt als volledige set, cesuurdoelen en specifieke eindtermen als deel van een set. Groepen van
+  de 1ste graad geven 404: daar koppelt de bron per stroom, niet per richting.
+- De filter `studierichting=<naam>` werkt ook, maar mengt de graden (Humane wetenschappen: 1658 = beide
+  graden), is hoofdlettergevoelig en breekt op een komma in de naam. Niet gebruiken.
+- Andere werkende filters: `geldig=Geldig`, `versie=2.1`, `leerjaar=3de leerjaar`, `onderwijsdoel_type=Eindtermen`,
+  `onderwijsniveau=Secundair onderwijs`. Genegeerd (alle 24019 doelen): `so_graad`, `stroom`, `so_gr2_finaliteit`,
+  `so_gr3_finaliteit`, `onderwijssoort`, `structuuronderdeel`, `onderwijsstructuur`. De volledige lijst met
+  parameternamen komt uit de webapp onderwijsdoelen.be (run 4).
 - `/onderwijsdoelen/filters/{naam}` antwoordt voor elke naam hetzelfde (`totalItems: 1`); niet bruikbaar.
 - Ook: `/onderwijsdoelen/uitgangspunten/{id}` en `/onderwijsdoel/xls` (Excel-export).
 
@@ -97,7 +105,7 @@ Les uit ronde 2: de scripts van de webapps van de overheid bevatten hun eigen pu
 script verbergt sindsdien alle sleutels en sleutelvormige reeksen; de run met die sleutels in het logboek
 is gewist.
 
-## 6. Voorstel voor de import
+## 6. Voorstel voor de import (vervangen door `docs/STUDIERICHTINGEN.md`)
 
 Zoals de minimumdoelen (`tools/leerplannen/haal-minimumdoelen.mjs`, `minimumdoelen.yml`):
 
