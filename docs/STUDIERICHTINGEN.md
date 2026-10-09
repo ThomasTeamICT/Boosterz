@@ -12,7 +12,7 @@ De opdracht van de eigenaar, letterlijk: "ja, doe die import maar, einddoel is d
 | P0 Ontwerp in de repo, icoon | **Klaar** | hoofdsessie |
 | P1 Datamodule studierichtingen | **Klaar** (review: één blokkerende fout en ontbrekende tests, hersteld en met een mutatieproef nagekeken) | kernbouwer |
 | P2 Ophaalscript, nagebootste API en fixtures | **Klaar** (review met opmerkingen; hersteld: tests voor HTTP-fouten en sleutelfilter, vingerafdruk voor de fixtures, D8 strenger, tweede ronde voor 404) | kernbouwer |
-| P3 Datatest | Wacht, op P1 (opleveren na P2) | bouwer (een andere agent dan die van P2) |
+| P3 Datatest | **Klaar** (review: herstel nodig; hersteld: versiemerktest op een eigen minimale map, elke zelftestcase met de verwachte melding, info zichtbaar) | bouwer (een andere agent dan die van P2) |
 | P4 Workflow "Leerplangegevens bijwerken" | **Klaar** (review veiligheid: goed, met tekstopmerkingen, verwerkt) | bouwer, nagelezen door een reviewer |
 | P5 Doelgroep in het datamodel | **Klaar** (review goed met opmerkingen; de opmerkingen zijn verwerkt) | kernbouwer |
 | P6 Lader, kader en keuzehulp | **Klaar** (review met opmerkingen; hersteld: tests tolerant voor een maandelijkse update, lader behandelt een html-antwoord als 'ontbreekt', test op volledig tegen setAantal) | bouwer |
