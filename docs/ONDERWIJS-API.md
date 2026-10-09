@@ -1,0 +1,109 @@
+# API's van Onderwijs en Vorming: wat zit erin
+
+Verkenning van oktober 2026, op vraag van de eigenaar: kunnen we de geldende matrix van alle
+studierichtingen van het secundair onderwijs als data ophalen, en wat geven de API's van Onderwijs
+verder? Aanvulling op `docs/LEERPLANNEN.md` (de minimumdoelen komen al uit de Onderwijsdoelen-API).
+
+## Stand van zaken
+
+| Wat | Stand |
+|---|---|
+| Verkenning met de sleutel (drie runs van `verken-onderwijs-api.yml`, 9 oktober 2026) | **Klaar.** |
+| Matrix van de studierichtingen als data | **Gevonden:** de API Structuuronderdelen (§ 2). Overzicht van de eerste ophaling in een pagina voor de eigenaar; nog niet in de repo. |
+| Herhaalbare import van de matrix in Boosterz (script, workflow, datatest, zoals de minimumdoelen) | Wacht: op het akkoord van de eigenaar. Voorstel in § 6. |
+| Koppeling studierichting → doelen (filter `studierichting` van de doelen-API) | Wacht: na de import. Namen moeten exact overeenkomen; nog na te gaan (§ 3). |
+| Aanbod per school (welke school welke richting inricht) | Later: de API's zijn bereikbaar (§ 4), het juiste adres voor het ingerichte aanbod is nog niet gevonden. |
+
+## 1. Toegang
+
+- Eén sleutel voor de publieke API's van het API-portaal (https://onderwijs-api-portaal.vlaanderen.be/).
+  Boosterz gebruikt het geheim `ONDERWIJSDOELEN_API_KEY` in GitHub; de sleutel komt nooit in de repo,
+  een chat of een log.
+- Kop `x-api-key`, host `onderwijs.api.vlaanderen.be`. Er is ook een acceptatieomgeving
+  (`onderwijs-acceptatie.api.vlaanderen.be`), die we niet gebruiken.
+- De cloudomgeving van Claude kan de API niet bereiken; GitHub Actions wel. Daarom draait alles in een
+  workflow.
+
+## 2. Matrix: API Structuuronderdelen (Kwalificaties en Curriculum)
+
+`GET /kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep`: 545 groepen in 28
+pagina's van 20 (volgende pagina via `links.next.href`, aantallen in `meta`). Een groep is één
+studierichting zoals ze in de matrix staat; ze bevat één of meer structuuronderdelen (bv. dezelfde
+richting in drie studiedomeinen, of een duale variant), elk met een eigen nummer.
+
+- **Groep:** `structuuronderdeel_groep_nummer` (G-0001), `titel`, `graad`, `finaliteit` (DO doorstroom,
+  DU dubbele finaliteit, A arbeidsmarkt), `onderwijsniveau`, `soort_leerjaar`, `opleidingsvorm` (BuSO),
+  `type_7de_leerjaar`.
+- **Structuuronderdeel:** `structuuronderdeel_nummer`, `titel`, `onderwijsvorm` (ASO, TSO, KSO, BSO),
+  `studiedomein`, `stem_classificatie`, `niche`, `duaal`, `aanloop`, `discipline`, `begindatum`,
+  `einddatum`, `studierichting_nummer_oud`, `leerjaren`, `hoofdstructuren`, `onderwijsstelsels`,
+  `instellingstypes`, `structuuronderdeel_details` (ADV-nummer, versie, status zoals ERKEND, met data),
+  `voorbereidende_` en `vervolg_structuuronderdelen`, `historiek_structuuronderdelen` (vorige en
+  volgende), `api_url` naar `/structuuronderdeel/{nummer}`.
+- Detail per nummer: `/structuuronderdeel/{nummer}` werkt. De lijst `/structuuronderdeel` zonder
+  nummer geeft 404.
+
+Eerste ophaling (9 oktober 2026): 961 structuuronderdelen, waarvan 833 vandaag geldig.
+
+| Deel | Aantal |
+|---|---|
+| Gewoon voltijds secundair onderwijs (de matrix) | 244 |
+| Duale varianten in de 2de en 3de graad | 107 |
+| Aanloopjaren duaal leren | 88 |
+| Zevende leerjaren | 237 |
+| Buitengewoon secundair onderwijs | 157 |
+| Afgebouwd (met einddatum) | 128 |
+
+De 244 per graad: 1ste graad 22 (eerste leerjaar A en B, basisopties), 2de graad 81 (DO 24, DU 33,
+A 24), 3de graad 139 (DO 35, DU 53, A 51), en 2 zonder graad (OKAN, basisverpleegkunde).
+
+## 3. Doelen: Onderwijsdoelen-API
+
+- `GET /onderwijsdoelen/onderwijsdoel?paginanr=&rijen_per_pagina=`: 24019 doelen, Hydra/JSON-LD.
+  Velden per doel: `code`, `omschrijving`, `attitude`, `optioneel`, `voetnoot`, `memorie`,
+  `onderwijsdoel_type`, `geldigheid`, `onderwijsdoelenset` (met `onderwijsstructuur`: niveau, soort,
+  graad, stroom, opleidingsvorm; en `vlaamse_sleutelcompetentie`).
+- **Filter `studierichting=<naam>` werkt**, ook al staat hij niet in het Hydra-sjabloon (dat noemt alleen
+  `paginanr` en `rijen_per_pagina`): Humane wetenschappen geeft 1658 doelen. De parameters
+  `structuuronderdeel` en `onderwijsstructuur` worden genegeerd.
+- `/onderwijsdoelen/filters/{naam}` antwoordt voor elke naam hetzelfde (`totalItems: 1`); niet bruikbaar.
+- Ook: `/onderwijsdoelen/uitgangspunten/{id}` en `/onderwijsdoel/xls` (Excel-export).
+
+## 4. Andere API's met dezelfde sleutel
+
+- **Onderwijsaanbod SO** `/instellingsgegevens/onderwijsaanbod_so/v2/administratievegroep`: 3021
+  administratieve groepen (één leerjaar van een richting), met code, graad, leerjaar, onderwijsvorm,
+  `administratievegroep_ingericht`, `schooljaar` en de koppeling `structuuronderdeel_nummer`. De
+  parameter `schooljaar` verandert niets aan het aantal.
+- **Instellingen** `/instellingsgegevens/instelling/v2/instelling`: lijst van scholen.
+- **Beroepskwalificaties** `/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie`:
+  604, met versies en synoniemen; detail per `BK-…`.
+- **Opleidingstrajecten** `/kwalificaties-en-curriculum/trajecten/v1/opleidingstraject`: 682 (in een
+  steekproef van 141: duaal leren, BuSO OV3 en volwassenenonderwijs), detail per id.
+- **App Opleidingsinhouden** `/app-opleidingsinhouden/v1/secundair-onderwijs/opleidingsinhoud/{ADV-nummer}`
+  (beschrijving, doorstroomprofiel, curriculumdossier): onze sleutel krijgt 401.
+
+Niet bereikbaar vanuit GitHub Actions: data-onderwijs.vlaanderen.be (exports aanbod-so), het portaal
+zelf, de omzendbrief SO 37. Het oude apigee-portaal geeft 404.
+
+## 5. De verkenning opnieuw draaien
+
+Workflow `Verkenning Onderwijs-API's` (`.github/workflows/verken-onderwijs-api.yml`), met de hand te
+starten. Stand `matrix` (standaard) zet één regel per studierichting in het logboek (`RICHTING|{…}`),
+plus de filters en de aantallen van het aanbod; stand `volledig` doet de brede verkenning met verslag.
+Script: `tools/verkenning/verken-onderwijs-api.mjs`.
+
+Les uit ronde 2: de scripts van de webapps van de overheid bevatten hun eigen publieke sleutels. Het
+script verbergt sindsdien alle sleutels en sleutelvormige reeksen; de run met die sleutels in het logboek
+is gewist.
+
+## 6. Voorstel voor de import
+
+Zoals de minimumdoelen (`tools/leerplannen/haal-minimumdoelen.mjs`, `minimumdoelen.yml`):
+
+1. Een ophaalscript schrijft de groepen en structuuronderdelen naar
+   `public/leerplannen/structuur/so-studierichtingen.json`, met bron, ophaaldatum en de velden uit § 2.
+   Afgebouwde richtingen blijven erin, met hun einddatum en opvolger.
+2. Een datatest controleert vorm en aantallen; de workflow opent een pull request bij verschillen.
+3. In de app: bij een studierichting de doelen tonen via de filter `studierichting` (naam eerst
+   controleren tegen de doelen-API), en in "Stel je eigen doelenlijst samen" de matrix als ingang.
