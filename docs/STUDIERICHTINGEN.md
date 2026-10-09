@@ -16,7 +16,7 @@ De opdracht van de eigenaar, letterlijk: "ja, doe die import maar, einddoel is d
 | P4 Workflow "Leerplangegevens bijwerken" | **Klaar** (review veiligheid: goed, met tekstopmerkingen, verwerkt) | bouwer, nagelezen door een reviewer |
 | P5 Doelgroep in het datamodel | **Klaar** (review goed met opmerkingen; de opmerkingen zijn verwerkt) | kernbouwer |
 | P6 Lader, kader en keuzehulp | **Klaar** (review met opmerkingen; hersteld: tests tolerant voor een maandelijkse update, lader behandelt een html-antwoord als 'ontbreekt', test op volledig tegen setAantal) | bouwer |
-| P7 Cursushulp-logica | Wacht, op P6 | bouwer |
+| P7 Cursushulp-logica | **Klaar** (review: herstel nodig; hersteld: STEM-sets herkend op het woord STEM, een ontbrekend setbestand maakt het leerplan niet bevestigd, uitbreidingssets blijven bij bijwerken, randgevallen van vergelijkMetKader en hergebruik) | bouwer |
 | I1 Integratie van de data (P1, P2, P4; P3 volgt) | **Klaar** | hoofdsessie |
 | G1 Eerste echte run, in stappen | **Klaar** (9 oktober 2026). Stap 1 en 2 als proef (PR #4 en #5, gesloten), stap 3 volledig (run 37958333744, ±23 minuten): PR #6 nagekeken en samengevoegd. De data staan in `public/leerplannen/structuur/`. De strenge controles F5, F6 en M5 staan aan. Zie § 17.1. | hoofdsessie |
 | I2 Integratie van de logica (P5 tot P7) en stubs | Wacht | hoofdsessie |
@@ -650,13 +650,17 @@ Het bestand staat niet op het kritieke pad: `courses.ts`, `curriculum.ts` en `ha
 ```ts
 export function leerplanVoorRichting(kader: RichtingKader, bestanden: ReadonlyMap<string, MinimumdoelenSetBestand>, doelgroep: Doelgroep,
   opties?: { sets?: readonly string[]; ookUitbreiding?: boolean; bestaand?: Curriculum; titel?: string; vak?: string; oudeVersies?: ReadonlySet<string> }):
-  Samengesteld & { ontbrekend: { set: string; ids: string[] }[] };
+  Samengesteld & { ontbrekend: { set: string; ids: string[] }[]; ontbrekendeSets: string[] };
+//   een gevraagde set zonder bruikbaar setbestand: waarschuwing vooraan ('De set "…" kon niet geladen worden.'),
+//   in ontbrekendeSets, en bevestigd = false (niets bewaren). Bij bestaand blijven de uitbreidingssets van het
+//   leerplan gevraagd (P7).
 //   = leerplanUitSelectie(naarSetKeuzes(selectieVanKader(kader, opties), bestanden).keuzes,
 //       { titel, vak, bestaand, oudeVersies, doelgroep: { ...doelgroep, jaar: undefined, kader: kaderVingerafdruk(kader, sets), volgtKader: true } })
 export function titelVoorRichtingLeerplan(info: RichtingInfo, kader: RichtingKader, sets?: readonly string[], vak?: string): string;
 export function selectieVanKeuzes(keuzes: readonly SetKeuze[]): Map<string, string[]>;
-export function vindLeerplanMetSelectie(curricula: readonly Curriculum[], selectie: ReadonlyMap<string, readonly string[]>): Curriculum | undefined;
-//   samengesteld, kind ≠ 'eigen', en selectieVanLeerplan gelijk aan selectie (zonder op de volgorde te letten)
+export function vindLeerplanMetSelectie(curricula: readonly Curriculum[], selectie: ReadonlyMap<string, readonly string[]>, doelgroep?: Doelgroep): Curriculum | undefined;
+//   samengesteld, kind ≠ 'eigen', effectieveStatus 'gecontroleerd', geen doelgroep van een andere groep, en
+//   selectieVanLeerplan gelijk aan selectie (zonder op de volgorde te letten) (P7)
 export function vergelijkMetKader(leerplan: Curriculum, kader: RichtingKader): { nieuw: number; vervallen: number; setsNietMeerInKader: string[] };
 ```
 
@@ -697,7 +701,8 @@ Wat het scherm aanbiedt:
 export type Startvorm = 'geraamte' | 'leeg';
 export interface VakVoorstel { sets: string[]; stemSets: string[] }
 export function vakVoorstel(kader: RichtingKader, vak: string): VakVoorstel;
-//   setNoemtVak (setKeuze.ts, nieuw geëxporteerd; met vakZoektabel) op de kadersets; STEM-sets (isStemSet) apart, NOOIT vooraf aangevinkt
+//   setNoemtVak (setKeuze.ts, nieuw geëxporteerd; met vakZoektabel) op de kadersets; STEM-sets apart, NOOIT vooraf aangevinkt.
+//   STEM = isStemSet of het losse woord 'STEM' in korte naam of naam (bv. 'STEM - Cesuurdoelen', ODS_3142) (P7)
 export function voorstelCursusTitel(d: Doelgroep): string;   // "Biologie · Natuurwetenschappen · 4de jaar"
 export function leerplannenBijRichting(curricula: readonly Curriculum[], kaderSleutels: ReadonlySet<string>, groep: string):
   { curriculum: Curriculum; raakt: number; viaDoelgroep: boolean }[];   // kaderSleutels: "set|id"
