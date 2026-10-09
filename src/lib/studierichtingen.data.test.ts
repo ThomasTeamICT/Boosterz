@@ -50,21 +50,24 @@ import {
  * heeft aangetoond dat de geldige SO-sets 0 verschillen geven. Dan wordt ze true: elk verschil in een geldige
  * set van het gewoon secundair is dan een fout. Zolang ze false is, telt ze alleen mee in `info`.
  */
-const KRUISCONTROLE_STRENG = false;
+// Sinds de eerste echte run (9 oktober 2026, PR #6): 0 verschillen op de echte data, dus streng.
+const KRUISCONTROLE_STRENG = true;
 
 /**
  * F5, `onderwijssoort` ("Buitengewoon") tegenover de soort uit de setnaam (`soortVanSet`). Staat op false tot
  * G1 heeft aangetoond dat beide altijd samenvallen. Dan wordt ze true: elk verschil is een fout. Zolang ze
  * false is, wordt het verschil alleen geteld.
  */
-const ONDERWIJSSOORT_STRENG = false;
+// Sinds de eerste echte run (9 oktober 2026, PR #6): 0 verschillen op de echte data, dus streng.
+const ONDERWIJSSOORT_STRENG = true;
 
 /**
  * M5, de verwijzingen vorige, volgende, voorbereidend en vervolg. Staat op false tot G1 heeft aangetoond dat
  * de echte API ze levert. Is het totaal dan 0, dan hebben we ze verkeerd gelezen. Met true wordt een totaal van
  * 0 een fout. Zolang ze false is, worden ze alleen geteld.
  */
-const HISTORIEK_STRENG = false;
+// Sinds de eerste echte run (9 oktober 2026, PR #6): 0 verschillen op de echte data, dus streng.
+const HISTORIEK_STRENG = true;
 
 // Elke controle leest tientallen setbestanden; op een trage machine of onder last heeft 5 seconden niet altijd genoeg.
 vi.setConfig({ testTimeout: 30_000 });
