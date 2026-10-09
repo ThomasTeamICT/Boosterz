@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { MinimumdoelenIndex, MinimumdoelenIndexSet, MinimumdoelenSetBestand } from './minimumdoelen';
-import { gemengdeStromen, geldigheidJaren, geldigheidTekstVanBestand, geldigheidVanBestand, geldigheidVoorLijst, kandidaatSets } from './setKeuze';
+import { gemengdeStromen, geldigheidJaren, geldigheidTekstVanBestand, geldigheidVanBestand, geldigheidVoorLijst, kandidaatSets, setNoemtVak } from './setKeuze';
 
 function set(id: string, korteNaam: string, naam: string, extra: Partial<MinimumdoelenIndexSet> = {}): MinimumdoelenIndexSet {
   return { id, naam, korteNaam, aantal: 3, sha256: 'x', opgehaald: '2026-10-05T10:00:00Z', bestand: `${id}.json`, graad: '1ste graad', stroom: 'A-stroom', ...extra };
@@ -47,6 +47,83 @@ describe('kandidaatSets: het vak eerst, ook de sleutelcompetentie die erbij hoor
       { ...WISKUNDE, geldigheid: 'Geldig', geldigVan: '2019-09-01' },
     ];
     expect(kandidaatSets(index, OPTIES).map((s) => s.id)).toEqual(['ODS_3287', 'ODS_2126']);
+  });
+});
+
+describe('setNoemtVak', () => {
+  it('de naam of de korte naam noemt het vak, zonder accenten en hoofdletters', () => {
+    expect(setNoemtVak(VAK_AAR, 'Aardrijkskunde')).toBe(true);
+    expect(setNoemtVak(VAK_AAR, 'AARDRIJKSKUNDE')).toBe(true);
+    expect(setNoemtVak(WISKUNDE, 'Wiskunde')).toBe(true);
+    expect(setNoemtVak(WISKUNDE, 'Aardrijkskunde')).toBe(false);
+    expect(setNoemtVak({ naam: 'Secundair onderwijs 2de graad -  Économie - Cesuurdoelen' }, 'economie')).toBe(true);
+  });
+
+  it('een vak als "aardrijkskunde" hoort volgens de zoektabel ook bij "Ruimtelijk bewustzijn" (een hulp, geen koppeling)', () => {
+    expect(setNoemtVak(RUIMTE_NU, 'Aardrijkskunde')).toBe(true);
+    expect(setNoemtVak(RUIMTE_NU, 'Wiskunde')).toBe(false);
+  });
+
+  it('een vakwoord van minstens vijf letters vindt ook het begin van een woord in de naam; een korter woord alleen het hele woord', () => {
+    const nw = set('ODS_1', 'Natuurwetenschappen', 'Secundair onderwijs 2de graad -  Natuurwetenschappen - Cesuurdoelen');
+    expect(setNoemtVak(nw, 'Natuur')).toBe(true);
+    expect(setNoemtVak(nw, 'natu')).toBe(false);
+    expect(setNoemtVak(nw, 'natuurwetenschappen')).toBe(true);
+    expect(setNoemtVak({ naam: 'Secundair onderwijs 2de graad -  Taal en cultuur - Cesuurdoelen' }, 'taal')).toBe(true);
+    expect(setNoemtVak({ naam: 'Secundair onderwijs 2de graad -  Taalbeschouwing - Cesuurdoelen' }, 'taal')).toBe(false);
+  });
+
+  it('zonder vak (of met alleen korte woorden) noemt geen enkele set het vak', () => {
+    expect(setNoemtVak(VAK_AAR, '')).toBe(false);
+    expect(setNoemtVak(VAK_AAR, '  ')).toBe(false);
+    expect(setNoemtVak(VAK_AAR, 'en')).toBe(false);
+  });
+
+  it('geeft dezelfde uitkomst als de volgorde in kandidaatSets', () => {
+    const index = [WISKUNDE, BEWEGEN, RUIMTE_OUD, VAK_AAR, RUIMTE_NU];
+    const ids = kandidaatSets(index, OPTIES).map((s) => s.id);
+    const noemen = ids.filter((id) => setNoemtVak(index.find((s) => s.id === id)!, OPTIES.vak));
+    expect(ids.slice(0, noemen.length).sort()).toEqual([...noemen].sort());
+  });
+});
+
+describe('kandidaatSets met richtingSets (het kader van een studierichting)', () => {
+  const index = [WISKUNDE, BEWEGEN, RUIMTE_OUD, VAK_AAR, RUIMTE_NU];
+
+  it('de lijst blijft beperkt tot de kadersets, ook als andere sets bij graad en stroom passen', () => {
+    const ids = kandidaatSets(index, { ...OPTIES, richtingSets: ['ODS_2126', 'ODS_2118'] }).map((s) => s.id);
+    expect(ids.sort()).toEqual(['ODS_2118', 'ODS_2126']);
+  });
+
+  it('het vak staat eerst, daarna de rest van het kader (op naam)', () => {
+    const ids = kandidaatSets(index, { ...OPTIES, richtingSets: ['ODS_2126', 'ODS_2438', 'ODS_2118', 'ODS_3287'] }).map((s) => s.id);
+    expect(ids.slice(0, 2).sort()).toEqual(['ODS_2118', 'ODS_3287']);
+    expect(ids.slice(2)).toEqual(['ODS_2438', 'ODS_2126']);
+  });
+
+  it('graad, stroom en soort onderwijs van de opties sluiten geen kaderset uit: het kader heeft al beslist', () => {
+    const ids = kandidaatSets(index, { graad: '3de graad', stroom: 'B-stroom', onderwijs: 'buso', vak: '', eigen: [], richtingSets: ['ODS_2126'] }).map((s) => s.id);
+    expect(ids).toEqual(['ODS_2126']);
+  });
+
+  it('een kaderset die de index niet kent, verschijnt niet', () => {
+    expect(kandidaatSets(index, { ...OPTIES, richtingSets: ['ODS_9999'] })).toEqual([]);
+  });
+
+  it('een leeg kader laat niets over, behalve de sets die het leerplan al had (die blijven vooraan)', () => {
+    expect(kandidaatSets(index, { ...OPTIES, richtingSets: [] })).toEqual([]);
+    const ids = kandidaatSets(index, { ...OPTIES, richtingSets: [], eigen: ['ODS_2126'] }).map((s) => s.id);
+    expect(ids).toEqual(['ODS_2126']);
+  });
+
+  it('sets die het leerplan al had staan vooraan, zonder dubbele, ook buiten het kader', () => {
+    const ids = kandidaatSets(index, { ...OPTIES, richtingSets: ['ODS_2118', 'ODS_3287'], eigen: ['ODS_2126', 'ODS_2118'] }).map((s) => s.id);
+    expect(ids).toEqual(['ODS_2126', 'ODS_2118', 'ODS_3287']);
+  });
+
+  it('zonder de optie verandert er niets', () => {
+    const zonder = kandidaatSets(index, OPTIES).map((s) => s.id);
+    expect(kandidaatSets(index, { ...OPTIES, richtingSets: undefined }).map((s) => s.id)).toEqual(zonder);
   });
 });
 

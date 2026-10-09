@@ -5,8 +5,9 @@ import { describe, expect, it } from 'vitest';
 import { leerplanUitSelectie, selectieVanLeerplan, telSelectie } from './doelenSamenstellen';
 import type { Minimumdoel, MinimumdoelenIndex, MinimumdoelenSetBestand, MinimumdoelenSetKop } from './minimumdoelen';
 import { zoekTermen } from './minimumdoelenBron';
+import { naarSetKeuzes } from './richtingKader';
 import {
-  MAX_GEKOZEN_SETS, aantalGekozen, aantalGevraagdeSets, beginUitSelectie, beginUitSets, bouwSetKeuzes, haalSetWeg, isDoelGekozen, isSetGekozen, kanSetToevoegen,
+  MAX_GEKOZEN_SETS, aantalGekozen, aantalGevraagdeSets, beginUitKeuze, beginUitSelectie, beginUitSets, bouwSetKeuzes, haalSetWeg, isDoelGekozen, isSetGekozen, kanSetToevoegen,
   kiesbareDoelen, leegKeuze, ontbreektInStap1, ontbreektInStap2, ontbreektInStap3, setKenmerken, setNaam, setsUitParam, telGekozen, telGevonden, toestandVanSet,
   vindDoelen, voegSetToe, wisselSet, zegOntbreekt, zetDoel, zetDoelen, zetGevonden, zetHeleSet, type KiesbaarDoel, type SamenstelKeuze,
 } from './samenstelKeuze';
@@ -131,6 +132,53 @@ describe('beginstaat', () => {
 
   it('uit een bewaarde lijst van een ander leerplan: leeg', () => {
     expect(beginUitSelectie(new Map()).sets).toEqual([]);
+  });
+});
+
+// ── Beginnen met een keuze per set (een studierichting) ─────────────────────
+
+describe('beginUitKeuze', () => {
+  it('"alle" is een hele set, een lijst zijn precies die nummers; in de volgorde van de lijst', () => {
+    const k = beginUitKeuze(new Map<string, 'alle' | readonly string[]>([['ODS_2', ['b1', 'b3']], ['ODS_1', 'alle']]));
+    expect(k.sets).toEqual(['ODS_2', 'ODS_1']);
+    expect(k.selectie.get('ODS_1')).toBe('alle');
+    expect(gekozen(k, 'ODS_2', kiesB)).toEqual(['b1', 'b3']);
+    expect(toestandVanSet(k, 'ODS_2', kiesB)).toBe('deel');
+    expect(toestandVanSet(k, 'ODS_1', kiesA)).toBe('alle');
+  });
+
+  it('een lege lijst is een gekozen set waarvan niets aangevinkt staat (anders dan bij beginUitSelectie)', () => {
+    const k = beginUitKeuze(new Map<string, 'alle' | readonly string[]>([['ODS_1', []], ['ODS_2', 'alle']]));
+    expect(k.sets).toEqual(['ODS_1', 'ODS_2']);
+    expect(isSetGekozen(k, 'ODS_1')).toBe(true);
+    expect(toestandVanSet(k, 'ODS_1', kiesA)).toBe('geen');
+    expect(aantalGekozen(k, 'ODS_1', kiesA)).toBe(0);
+    // Nu kan de leerkracht er doelen bij aanvinken.
+    const meer = zetDoel(k, 'ODS_1', 'a2', true, kiesA);
+    expect(gekozen(meer, 'ODS_1', kiesA)).toEqual(['a2']);
+    // beginUitSelectie laat zo'n set daarentegen weg.
+    expect(beginUitSelectie(new Map([['ODS_1', []]])).sets).toEqual([]);
+  });
+
+  it('een lijst blijft een lijst, ook als ze toevallig alle doelen noemt', () => {
+    const k = beginUitKeuze(new Map([['ODS_1', ['a1', 'a2', 'a3']]]));
+    expect(k.selectie.get('ODS_1')).toBeInstanceOf(Set);
+    expect(toestandVanSet(k, 'ODS_1', kiesA)).toBe('alle');
+  });
+
+  it('een set die twee keer voorkomt, een lege naam en een lijst met rommel tellen niet fout', () => {
+    const k = beginUitKeuze(new Map<string, 'alle' | readonly string[]>([['ODS_1', ['a1', '', ' ', 5 as unknown as string]], ['', 'alle'], ['  ', 'alle']]));
+    expect(k.sets).toEqual(['ODS_1']);
+    expect([...(k.selectie.get('ODS_1') as ReadonlySet<string>)]).toEqual(['a1']);
+  });
+
+  it('hoogstens het maximum aantal sets', () => {
+    const veel = new Map<string, 'alle'>(Array.from({ length: MAX_GEKOZEN_SETS + 3 }, (_, i) => [`ODS_${i + 1}`, 'alle'] as const));
+    expect(beginUitKeuze(veel).sets).toHaveLength(MAX_GEKOZEN_SETS);
+  });
+
+  it('een lege selectie geeft een lege keuze', () => {
+    expect(beginUitKeuze(new Map())).toEqual(leegKeuze());
   });
 });
 
@@ -442,6 +490,61 @@ describe('bouwSetKeuzes', () => {
     const r = leerplanUitSelectie(keuzes, { titel: 'Test' });
     expect(r.leerplan.goals).toHaveLength(totaal.doelen);
     expect(r.bevestigd).toBe(true);
+  });
+});
+
+// ── Valkuil: een deelset blijft een deelset (docs/STUDIERICHTINGEN.md § 9.5) ─
+
+describe('een deelset van een studierichting blijft een deelset', () => {
+  const NAAM = 'Secundair onderwijs 2de graad -  Biologie - Cesuurdoelen';
+  const dertien = maakSet('ODS_13', Array.from({ length: 13 }, (_, i) => doel(`d${i + 1}`, `1.${String(i + 1).padStart(2, '0')}`, `Biologiedoel ${i + 1}.`)), { naam: NAAM, korteNaam: 'Biologie' });
+  const vier = ['d3', 'd5', 'd8', 'd12'];
+  const kiesDertien = kiesbareDoelen(dertien);
+  const bestanden = new Map([['ODS_13', dertien], ['ODS_1', A]]);
+
+  it('4 van 13 blijft 4 doelen na beginUitKeuze en bouwSetKeuzes', () => {
+    const k = beginUitKeuze(new Map([['ODS_13', vier]]));
+    expect(toestandVanSet(k, 'ODS_13', kiesDertien)).toBe('deel');
+    expect(telGekozen(k, new Map([['ODS_13', kiesDertien]]))).toEqual({ doelen: 4, sets: 1 });
+    const keuzes = bouwSetKeuzes(k, bestanden);
+    expect(keuzes).toHaveLength(1);
+    expect(keuzes[0].doelen).not.toBe('alle');
+    expect(keuzes[0].doelen).toHaveLength(4);
+    expect([...(keuzes[0].doelen as string[])].sort()).toEqual([...vier].sort());
+    const r = leerplanUitSelectie(keuzes, { titel: 'Biologie' });
+    expect(r.bevestigd).toBe(true);
+    expect(r.leerplan.goals).toHaveLength(4);
+    expect(telSelectie(keuzes)).toBe(4);
+  });
+
+  it('en ook na naarSetKeuzes: de selectie van het kader gaat via beginUitKeuze naar dezelfde 4 doelen', () => {
+    const { keuzes: eerste } = naarSetKeuzes(new Map<string, 'alle' | readonly string[]>([['ODS_13', vier], ['ODS_1', 'alle']]), bestanden);
+    expect(eerste.map((s) => s.doelen)).toEqual([vier, 'alle']);
+    const k = beginUitKeuze(new Map<string, 'alle' | readonly string[]>([['ODS_13', vier], ['ODS_1', 'alle']]));
+    const keuzes = bouwSetKeuzes(k, bestanden);
+    expect(keuzes.map((s) => (s.doelen === 'alle' ? 'alle' : s.doelen.length))).toEqual([4, 'alle']);
+    const r = leerplanUitSelectie(keuzes, { titel: 'Test' });
+    expect(r.leerplan.goals).toHaveLength(4 + 3);
+  });
+
+  it('een doel erbij of eraf aanvinken in de wizard verandert niets aan de rest van de deelset', () => {
+    let k = beginUitKeuze(new Map([['ODS_13', vier]]));
+    k = zetDoel(k, 'ODS_13', 'd1', true, kiesDertien);
+    expect(gekozen(k, 'ODS_13', kiesDertien).sort()).toEqual(['d1', 'd12', 'd3', 'd5', 'd8']);
+    k = zetDoel(k, 'ODS_13', 'd3', false, kiesDertien);
+    expect(bouwSetKeuzes(k, bestanden)[0].doelen).toHaveLength(4);
+  });
+
+  it('de valkuil zelf: een beperkte lijst "kiesbare" doelen maakt van 4 stilletjes alle 13 (daarom geeft geen scherm er een door)', () => {
+    const beperkt = kiesDertien.filter((d) => vier.includes(d.id));
+    let k = beginUitKeuze(new Map([['ODS_13', vier.slice(0, 3)]]));
+    k = zetDoel(k, 'ODS_13', 'd12', true, beperkt);
+    expect(k.selectie.get('ODS_13')).toBe('alle');
+    expect(bouwSetKeuzes(k, bestanden)[0].doelen).toBe('alle');
+    // Met de doelen van de hele set blijft het bij 4.
+    let goed = beginUitKeuze(new Map([['ODS_13', vier.slice(0, 3)]]));
+    goed = zetDoel(goed, 'ODS_13', 'd12', true, kiesDertien);
+    expect(bouwSetKeuzes(goed, bestanden)[0].doelen).toHaveLength(4);
   });
 });
 

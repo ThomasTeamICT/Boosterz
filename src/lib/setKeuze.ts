@@ -70,6 +70,27 @@ function vakWoorden(vak: string): string[] {
   return zonderAccenten(vak).split(/[^\p{L}\d]+/u).filter((w) => w.length >= 3);
 }
 
+/** Maakt de toets "noemt deze set het vak?" voor één vak; zo wordt het vak maar één keer uitgesplitst. */
+function maakNoemtVak(vak: string): (s: { naam: string; korteNaam?: string }) => boolean {
+  const woorden = vakWoorden(vak);
+  const frases = [...new Set(woorden.flatMap((w) => competentieFrases(w)))];
+  return (s) => {
+    if (woorden.length === 0) return false;
+    const hooi = zonderAccenten(`${s.korteNaam ?? ''} ${s.naam}`);
+    const delen = hooi.split(/[^\p{L}\d]+/u);
+    return woorden.some((w) => delen.some((d) => d === w || (w.length >= 5 && d.startsWith(w)))) || frases.some((f) => bevatFrase(hooi, f));
+  };
+}
+
+/**
+ * Noemt de naam (of korte naam) van de set dit vak, of hoort de set er volgens de zoektabel bij (aardrijkskunde →
+ * "Ruimtelijk bewustzijn")? Zonder vak (of een vak zonder woorden van minstens drie letters) altijd onwaar. Dat is een
+ * hulp bij het zoeken, geen officiële koppeling.
+ */
+export function setNoemtVak(set: { naam: string; korteNaam?: string }, vak: string): boolean {
+  return maakNoemtVak(vak)(set);
+}
+
 export interface KandidaatOpties {
   graad: string;
   stroom: string;
@@ -77,6 +98,12 @@ export interface KandidaatOpties {
   vak: string;
   /** Sets die het leerplan al heeft: die staan altijd bij de kandidaten, vooraan. */
   eigen: readonly string[];
+  /**
+   * De sets van het doelenkader van een studierichting (`RichtingKader.sets`). Met deze optie blijft de lijst beperkt
+   * tot die sets (graad, stroom en soort onderwijs zijn dan al door het kader bepaald) en staan ze in de volgorde van
+   * `stelSetsVoor`, met het vak eerst. Zonder de optie verandert er niets.
+   */
+  richtingSets?: readonly string[];
 }
 
 /**
@@ -86,19 +113,17 @@ export interface KandidaatOpties {
  *
  * Een vak als "aardrijkskunde" noemt de naam van "Ruimtelijk bewustzijn" niet, maar hoort er wel bij: de
  * zoektabel (vakZoektabel.ts) laat zulke sets mee vooraan staan. Dat is een hulp bij het zoeken, geen koppeling.
+ *
+ * Met `richtingSets` (een studierichting) komen alleen de sets van het kader in aanmerking: de lijst blijft daartoe
+ * beperkt. Sets die het leerplan al had (`eigen`) blijven altijd staan, ook buiten het kader: zo verdwijnt er bij het
+ * aanpassen van een lijst geen set ongemerkt.
  */
 export function kandidaatSets(index: readonly MinimumdoelenIndexSet[], opties: KandidaatOpties): MinimumdoelenIndexSet[] {
-  const voorgesteld = stelSetsVoor(index, { graad: opties.graad, stroom: opties.stroom }).filter(
-    (s) => soortVanSet(s.naam) === opties.onderwijs,
-  );
-  const woorden = vakWoorden(opties.vak);
-  const frases = [...new Set(woorden.flatMap((w) => competentieFrases(w)))];
-  const noemtVak = (s: MinimumdoelenIndexSet) => {
-    if (woorden.length === 0) return false;
-    const hooi = zonderAccenten(`${s.korteNaam ?? ''} ${s.naam}`);
-    const delen = hooi.split(/[^\p{L}\d]+/u);
-    return woorden.some((w) => delen.some((d) => d === w || (w.length >= 5 && d.startsWith(w)))) || frases.some((f) => bevatFrase(hooi, f));
-  };
+  const kader = opties.richtingSets ? new Set(opties.richtingSets) : undefined;
+  const voorgesteld = kader
+    ? stelSetsVoor(index.filter((s) => kader.has(s.id)), { alleGeldigheden: true })
+    : stelSetsVoor(index, { graad: opties.graad, stroom: opties.stroom }).filter((s) => soortVanSet(s.naam) === opties.onderwijs);
+  const noemtVak = maakNoemtVak(opties.vak);
   const eigen = opties.eigen.map((id) => index.find((s) => s.id === id)).filter((s): s is MinimumdoelenIndexSet => s !== undefined);
   const gezien = new Set<string>();
   const uit: MinimumdoelenIndexSet[] = [];

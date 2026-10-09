@@ -106,6 +106,27 @@ export function beginUitSelectie(selectie: ReadonlyMap<string, readonly string[]
   return maakKeuze(sets, uit);
 }
 
+/**
+ * Begin met een keuze per set (bv. `selectieVanKader` van een studierichting): de sets in de volgorde van de lijst,
+ * `'alle'` voor een hele set, anders precies de genoemde vaste nummers. Anders dan bij `beginUitSelectie` telt een
+ * set met een lege lijst wél mee: ze is gekozen, maar er staat nog niets aangevinkt (zoals `beginUitSets` met `leeg`).
+ * Een set die twee keer voorkomt telt één keer; hoogstens `MAX_GEKOZEN_SETS` sets.
+ *
+ * Een lijst nummers blijft een lijst: ook als ze toevallig alle doelen van de set noemt, wordt ze hier geen `'alle'`.
+ * (Het omzetten naar `'alle'` gebeurt pas bij het aan- en uitvinken of in `bouwSetKeuzes`, op de kiesbare doelen van de
+ * hele set. Zie `docs/STUDIERICHTINGEN.md` § 9.5.)
+ */
+export function beginUitKeuze(selectie: ReadonlyMap<string, 'alle' | readonly string[]>): SamenstelKeuze {
+  const sets: string[] = [];
+  const uit = new Map<string, SetSelectie>();
+  for (const [set, ids] of selectie) {
+    if (typeof set !== 'string' || set.trim() === '' || uit.has(set) || sets.length >= MAX_GEKOZEN_SETS) continue;
+    sets.push(set);
+    uit.set(set, ids === 'alle' ? 'alle' : new Set((Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string' && id.trim() !== '')));
+  }
+  return maakKeuze(sets, uit);
+}
+
 // ── Sets kiezen (stap 1) ────────────────────────────────────────────────────
 
 /** De korte naam van een set, of anders zijn naam. */

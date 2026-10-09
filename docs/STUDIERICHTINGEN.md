@@ -15,7 +15,7 @@ De opdracht van de eigenaar, letterlijk: "ja, doe die import maar, einddoel is d
 | P3 Datatest | Wacht, op P1 (opleveren na P2) | bouwer (een andere agent dan die van P2) |
 | P4 Workflow "Leerplangegevens bijwerken" | **Klaar** (review veiligheid: goed, met tekstopmerkingen, verwerkt) | bouwer, nagelezen door een reviewer |
 | P5 Doelgroep in het datamodel | **Klaar** (review goed met opmerkingen; de opmerkingen zijn verwerkt) | kernbouwer |
-| P6 Lader, kader en keuzehulp | Wacht, op P1, P2 en P5 | bouwer |
+| P6 Lader, kader en keuzehulp | **Klaar** (review met opmerkingen; hersteld: tests tolerant voor een maandelijkse update, lader behandelt een html-antwoord als 'ontbreekt', test op volledig tegen setAantal) | bouwer |
 | P7 Cursushulp-logica | Wacht, op P6 | bouwer |
 | I1 Integratie van de data (P1, P2, P4; P3 volgt) | **Klaar** | hoofdsessie |
 | G1 Eerste echte run, in stappen | **Bezig** (9 oktober 2026). Stap 1 (alleen de matrix) en stap 2 (10 groepen) geslaagd, PR's #4 en #5 nagekeken en gesloten; stap 3 (alles) loopt. Zie § 17.1. | hoofdsessie |
@@ -554,7 +554,7 @@ export function doelgroepVan(info: RichtingInfo, keuze: RichtingKeuze, extra?: {
 export const STRUCTUUR_MAP = `${import.meta.env.BASE_URL}leerplannen/structuur/`;
 export const FOUT_NOG_NIET_OPGEHAALD = 'De lijst van de studierichtingen staat nog niet in Boosterz. Ze wordt elke maand opgehaald bij de Vlaamse overheid.';
 export const FOUT_STUDIERICHTINGEN = 'De studierichtingen konden niet geladen worden. Controleer je verbinding en probeer opnieuw.';
-export function laadMatrix(): Promise<MatrixBestand>;            // gedeelde belofte; 404 → Error(FOUT_NOG_NIET_OPGEHAALD); fout → belofte gewist
+export function laadMatrix(): Promise<MatrixBestand>;            // gedeelde belofte; 404, 200 met text/html of geen JSON → Error(FOUT_NOG_NIET_OPGEHAALD); fout → belofte gewist
 export function laadRichtingDoelenIndex(): Promise<RichtingDoelenIndex | null>; // 404 → null
 export function laadRichtingDoelen(groep: string): Promise<RichtingDoelenBestand | null>;
 //   ongeldig groepnummer → Error zonder verzoek; 404 → null; cache van 20; groep in het bestand = gevraagde groep
