@@ -1,0 +1,21 @@
+{
+  "app": "boosterz",
+  "kind": "richtingdoelen-index",
+  "v": 1,
+  "bron": "https://www.onderwijsdoelen.be/",
+  "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen/onderwijsdoel?structuuronderdeel_groep_nummer=",
+  "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+  "licentie": "nog te bevestigen",
+  "matrixSha256": "2b20760da4b2b5ae8637202517946cc58f96cbaddb505dbb3772d40528300318",
+  "groepen": [
+{"groep":"G-0002","status":"geen","opgehaald":"2026-10-09T00:00:00Z"},
+{"groep":"G-0008","status":"gekoppeld","methode":"api","aantal":168,"sets":31,"sha256":"856e4c5b5f4c0ead93c3951831f3d61f443735abcf4368bb4daac0b57b05f30e","opgehaald":"2026-10-09T00:00:00Z","bestand":"G-0008.json"},
+{"groep":"G-0009","status":"geen","opgehaald":"2026-10-09T00:00:00Z"},
+{"groep":"G-0117","status":"gekoppeld","methode":"api","aantal":340,"sets":55,"sha256":"ac3f6292c6c512c55f2d1f19a3187657145a97bf0f03fe81475c0c2054a0bffe","opgehaald":"2026-10-09T00:00:00Z","bestand":"G-0117.json"},
+{"groep":"G-0193","status":"gekoppeld","methode":"api","aantal":392,"sets":56,"sha256":"0d57f84a4ebfab163f84dc5c820ca93c4cfc0721cf081ae5150aa9d22406126d","opgehaald":"2026-10-09T00:00:00Z","bestand":"G-0193.json"},
+{"groep":"G-0307","status":"gekoppeld","methode":"graad-en-stroom","aantal":1395,"sets":104,"sha256":"20680df87a82b1b1d43f977f0c292637228442b1441c13834b7d081162815b87","opgehaald":"2026-10-09T00:00:00Z","bestand":"G-0307.json"},
+{"groep":"G-0311","status":"gekoppeld","methode":"graad-en-stroom","aantal":1395,"sets":104,"sha256":"20680df87a82b1b1d43f977f0c292637228442b1441c13834b7d081162815b87","opgehaald":"2026-10-09T00:00:00Z","bestand":"G-0311.json"},
+{"groep":"G-0327","status":"gekoppeld","methode":"api","aantal":526,"sets":69,"sha256":"e580085e96d881bda2525c28c7368beff26824e7eca2b20291e40f9adb40ef05","opgehaald":"2026-10-09T00:00:00Z","bestand":"G-0327.json"},
+{"groep":"G-0429","status":"geen","opgehaald":"2026-10-09T00:00:00Z"}
+  ]
+}

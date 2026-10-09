@@ -1,0 +1,1342 @@
+[
+  {
+    "structuuronderdeel_groepen": [
+      {
+        "structuuronderdeel_groep_nummer": "G-0002",
+        "titel": "Animator",
+        "graad": {
+          "code": "3",
+          "omschrijving": "Derde graad"
+        },
+        "onderwijsniveau": {
+          "code": "3",
+          "omschrijving": "Secundair Onderwijs"
+        },
+        "soort_leerjaar": {
+          "code": "1",
+          "omschrijving": "Leerjaar"
+        },
+        "type_7de_leerjaar": {
+          "code": "BSO_TIJDELIJK"
+        },
+        "structuuronderdelen": [
+          {
+            "structuuronderdeel_nummer": 2,
+            "titel": "Animator duaal",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/2",
+            "begindatum": "2020-09-01",
+            "einddatum": "2025-08-31",
+            "ov4_mogelijk": true,
+            "studierichting_nummer_oud": "1257",
+            "duaal": true,
+            "aanloop": false,
+            "discipline": "Administratie en distributie",
+            "stem_classificatie": "NIET-STEM",
+            "niche": true,
+            "onderwijsvorm": {
+              "code": "BSO",
+              "omschrijving": "Beroepssecundair onderwijs"
+            },
+            "historiek_structuuronderdelen": {
+              "volgende_structuuronderdelen": [
+                {
+                  "structuuronderdeel_nummer": 680,
+                  "titel": "Animator duaal",
+                  "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/680"
+                }
+              ]
+            },
+            "onderwijsstelsels": [
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              },
+              {
+                "code": "M",
+                "omschrijving": "Modulair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "123"
+              },
+              {
+                "code": "121"
+              },
+              {
+                "code": "126"
+              },
+              {
+                "code": "125"
+              },
+              {
+                "code": "122"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "311",
+                "omschrijving": "Secundair onderwijs"
+              },
+              {
+                "code": "312"
+              },
+              {
+                "code": "315"
+              },
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "3",
+                "omschrijving": "Derde leerjaar",
+                "einddatum": "2025-08-31"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-1297",
+                "begindatum": "2020-09-01",
+                "einddatum": "2025-08-31",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "structuuronderdeel_groep_nummer": "G-0429",
+        "titel": "Animator",
+        "graad": {
+          "code": "3",
+          "omschrijving": "Derde graad"
+        },
+        "onderwijsniveau": {
+          "code": "3",
+          "omschrijving": "Secundair Onderwijs"
+        },
+        "soort_leerjaar": {
+          "code": "1",
+          "omschrijving": "Leerjaar"
+        },
+        "type_7de_leerjaar": {
+          "code": "NA_OK3"
+        },
+        "structuuronderdelen": [
+          {
+            "structuuronderdeel_nummer": 679,
+            "titel": "Animator",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/679",
+            "begindatum": "2025-09-01",
+            "ov4_mogelijk": true,
+            "studierichting_nummer_oud": "1555",
+            "duaal": false,
+            "discipline": "Toerisme, taal en cultuur",
+            "stem_classificatie": "NIET-STEM",
+            "niche": true,
+            "studiedomein": {
+              "omschrijving": "TAAL EN CULTUUR"
+            },
+            "onderwijsstelsels": [
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "121"
+              },
+              {
+                "code": "126"
+              },
+              {
+                "code": "122"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "311",
+                "omschrijving": "Secundair onderwijs"
+              },
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "3",
+                "omschrijving": "Derde leerjaar"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-1351",
+                "begindatum": "2025-09-01",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          },
+          {
+            "structuuronderdeel_nummer": 680,
+            "titel": "Animator duaal",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/680",
+            "begindatum": "2025-09-01",
+            "ov4_mogelijk": true,
+            "studierichting_nummer_oud": "1697",
+            "duaal": true,
+            "aanloop": false,
+            "discipline": "Toerisme, taal en cultuur",
+            "stem_classificatie": "NIET-STEM",
+            "niche": true,
+            "studiedomein": {
+              "omschrijving": "TAAL EN CULTUUR"
+            },
+            "historiek_structuuronderdelen": {
+              "vorige_structuuronderdelen": [
+                {
+                  "structuuronderdeel_nummer": 2,
+                  "titel": "Animator duaal",
+                  "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/2"
+                }
+              ]
+            },
+            "onderwijsstelsels": [
+              {
+                "code": "M",
+                "omschrijving": "Modulair"
+              },
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "121"
+              },
+              {
+                "code": "126"
+              },
+              {
+                "code": "122"
+              },
+              {
+                "code": "123"
+              },
+              {
+                "code": "125"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "311",
+                "omschrijving": "Secundair onderwijs"
+              },
+              {
+                "code": "312"
+              },
+              {
+                "code": "315"
+              },
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "3",
+                "omschrijving": "Derde leerjaar"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-1352",
+                "begindatum": "2025-09-01",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "structuuronderdeel_groep_nummer": "G-0008",
+        "titel": "Assistent dierlijke productie",
+        "finaliteit": {
+          "code": "A",
+          "omschrijving": "Arbeidsmarktfinaliteit"
+        },
+        "graad": {
+          "code": "2",
+          "omschrijving": "Tweede graad"
+        },
+        "onderwijsniveau": {
+          "code": "3",
+          "omschrijving": "Secundair Onderwijs"
+        },
+        "soort_leerjaar": {
+          "code": "1",
+          "omschrijving": "Leerjaar"
+        },
+        "structuuronderdelen": [
+          {
+            "structuuronderdeel_nummer": 8,
+            "titel": "Assistent dierlijke productie duaal",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/8",
+            "begindatum": "2021-09-01",
+            "ov4_mogelijk": true,
+            "studierichting_nummer_oud": "1354",
+            "duaal": true,
+            "aanloop": false,
+            "discipline": "Land- en tuinbouw",
+            "stem_classificatie": "NIET-STEM",
+            "niche": false,
+            "onderwijsvorm": {
+              "code": "BSO",
+              "omschrijving": "Beroepssecundair onderwijs"
+            },
+            "studiedomein": {
+              "omschrijving": "LAND- EN TUINBOUW"
+            },
+            "voorbereidende_structuuronderdelen": [
+              {
+                "structuuronderdeel_nummer": 644,
+                "titel": "Aanloop land- en tuinbouw duaal",
+                "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/644"
+              },
+              {
+                "structuuronderdeel_nummer": 565,
+                "titel": "Aanloop assistent dierlijke productie duaal",
+                "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/565"
+              }
+            ],
+            "onderwijsstelsels": [
+              {
+                "code": "M",
+                "omschrijving": "Modulair"
+              },
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "122"
+              },
+              {
+                "code": "123"
+              },
+              {
+                "code": "121"
+              },
+              {
+                "code": "126"
+              },
+              {
+                "code": "125"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "311",
+                "omschrijving": "Secundair onderwijs"
+              },
+              {
+                "code": "312"
+              },
+              {
+                "code": "315"
+              },
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "1",
+                "omschrijving": "Eerste leerjaar"
+              },
+              {
+                "code": "2",
+                "omschrijving": "Tweede leerjaar"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-0917",
+                "begindatum": "2021-09-01",
+                "einddatum": "2024-08-31",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              },
+              {
+                "structuuronderdeel_detail_nummer": "ADV-1612",
+                "begindatum": "2023-09-01",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          },
+          {
+            "structuuronderdeel_nummer": 565,
+            "titel": "Aanloop assistent dierlijke productie duaal",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/565",
+            "begindatum": "2021-09-01",
+            "ov4_mogelijk": false,
+            "studierichting_nummer_oud": "1354",
+            "duaal": true,
+            "aanloop": true,
+            "discipline": "Land- en tuinbouw",
+            "stem_classificatie": "NIET-STEM",
+            "niche": false,
+            "onderwijsvorm": {
+              "code": "BSO",
+              "omschrijving": "Beroepssecundair onderwijs"
+            },
+            "studiedomein": {
+              "omschrijving": "LAND- EN TUINBOUW"
+            },
+            "vervolg_structuuronderdelen": [
+              {
+                "structuuronderdeel_nummer": 8,
+                "titel": "Assistent dierlijke productie duaal",
+                "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/8"
+              }
+            ],
+            "onderwijsstelsels": [
+              {
+                "code": "M",
+                "omschrijving": "Modulair"
+              },
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "122"
+              },
+              {
+                "code": "123"
+              },
+              {
+                "code": "121"
+              },
+              {
+                "code": "125"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "311",
+                "omschrijving": "Secundair onderwijs"
+              },
+              {
+                "code": "312"
+              },
+              {
+                "code": "315"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "1",
+                "omschrijving": "Eerste leerjaar"
+              },
+              {
+                "code": "2",
+                "omschrijving": "Tweede leerjaar"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-1609",
+                "begindatum": "2023-09-01",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              },
+              {
+                "structuuronderdeel_detail_nummer": "ADV-0960",
+                "begindatum": "2021-09-01",
+                "einddatum": "2024-08-31",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "structuuronderdeel_groep_nummer": "G-0009",
+        "titel": "Assistent plantaardige productie",
+        "finaliteit": {
+          "code": "A",
+          "omschrijving": "Arbeidsmarktfinaliteit"
+        },
+        "onderwijsniveau": {
+          "code": "3",
+          "omschrijving": "Secundair Onderwijs"
+        },
+        "soort_leerjaar": {
+          "code": "1",
+          "omschrijving": "Leerjaar"
+        },
+        "opleidingsvorm": {
+          "omschrijving": "Beroepsonderwijs"
+        },
+        "structuuronderdelen": [
+          {
+            "structuuronderdeel_nummer": 9,
+            "titel": "Assistent plantaardige productie",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/9",
+            "begindatum": "2025-09-01",
+            "studierichting_nummer_oud": "130",
+            "duaal": false,
+            "stem_classificatie": "NIET-STEM",
+            "niche": false,
+            "studiedomein": {
+              "omschrijving": "LAND- EN TUINBOUW"
+            },
+            "fase_buso": {
+              "code": "I"
+            },
+            "onderwijsstelsels": [
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "126"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "1",
+                "omschrijving": "Eerste leerjaar"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-1100",
+                "begindatum": "2025-09-01",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          },
+          {
+            "structuuronderdeel_nummer": 10,
+            "titel": "Assistent plantaardige productie",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/10",
+            "begindatum": "2023-09-01",
+            "studierichting_nummer_oud": "130",
+            "duaal": false,
+            "stem_classificatie": "NIET-STEM",
+            "niche": false,
+            "studiedomein": {
+              "omschrijving": "LAND- EN TUINBOUW"
+            },
+            "fase_buso": {
+              "code": "K"
+            },
+            "onderwijsstelsels": [
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "126"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "1",
+                "omschrijving": "Eerste leerjaar"
+              },
+              {
+                "code": "2",
+                "omschrijving": "Tweede leerjaar"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-1062",
+                "begindatum": "2023-09-01",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          },
+          {
+            "structuuronderdeel_nummer": 11,
+            "titel": "Assistent plantaardige productie duaal",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/11",
+            "begindatum": "2019-09-01",
+            "einddatum": "2025-08-31",
+            "studierichting_nummer_oud": "125",
+            "duaal": true,
+            "aanloop": false,
+            "stem_classificatie": "NIET-STEM",
+            "niche": false,
+            "fase_buso": {
+              "code": "I"
+            },
+            "historiek_structuuronderdelen": {
+              "volgende_structuuronderdelen": [
+                {
+                  "structuuronderdeel_nummer": 931,
+                  "titel": "Assistent plantaardige productie duaal",
+                  "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/931"
+                }
+              ]
+            },
+            "onderwijsstelsels": [
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              },
+              {
+                "code": "M",
+                "omschrijving": "Modulair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "126"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "1",
+                "omschrijving": "Eerste leerjaar",
+                "einddatum": "2025-08-31"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-1194",
+                "begindatum": "2019-09-01",
+                "einddatum": "2025-08-31",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          },
+          {
+            "structuuronderdeel_nummer": 12,
+            "titel": "Assistent plantaardige productie duaal",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/12",
+            "begindatum": "2019-09-01",
+            "studierichting_nummer_oud": "125",
+            "duaal": true,
+            "aanloop": false,
+            "stem_classificatie": "NIET-STEM",
+            "niche": false,
+            "studiedomein": {
+              "omschrijving": "LAND- EN TUINBOUW"
+            },
+            "fase_buso": {
+              "code": "K"
+            },
+            "onderwijsstelsels": [
+              {
+                "code": "M",
+                "omschrijving": "Modulair"
+              },
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "126"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "2",
+                "omschrijving": "Tweede leerjaar"
+              },
+              {
+                "code": "1",
+                "omschrijving": "Eerste leerjaar"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-1224",
+                "begindatum": "2019-09-01",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          },
+          {
+            "structuuronderdeel_nummer": 931,
+            "titel": "Assistent plantaardige productie duaal",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/931",
+            "begindatum": "2025-09-01",
+            "studierichting_nummer_oud": "125",
+            "duaal": true,
+            "aanloop": false,
+            "stem_classificatie": "NIET-STEM",
+            "niche": false,
+            "studiedomein": {
+              "omschrijving": "LAND- EN TUINBOUW"
+            },
+            "fase_buso": {
+              "code": "I"
+            },
+            "historiek_structuuronderdelen": {
+              "vorige_structuuronderdelen": [
+                {
+                  "structuuronderdeel_nummer": 11,
+                  "titel": "Assistent plantaardige productie duaal",
+                  "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/11"
+                }
+              ]
+            },
+            "onderwijsstelsels": [
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              },
+              {
+                "code": "M",
+                "omschrijving": "Modulair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "126"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "1",
+                "omschrijving": "Eerste leerjaar"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-1779",
+                "begindatum": "2025-09-01",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "links": {
+      "self": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep?page=1&size=4&sort=titel asc"
+      },
+      "first": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep?page=1&size=4&sort=titel asc"
+      },
+      "next": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep?page=2&size=4&sort=titel asc"
+      },
+      "last": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep?page=3&size=4&sort=titel asc"
+      }
+    },
+    "meta": {
+      "total_elements": 9,
+      "total_pages": 3,
+      "number": 1,
+      "number_of_elements": 4,
+      "size": 4,
+      "first": true,
+      "last": false,
+      "timestamp": "2026-10-09 06:48:27"
+    }
+  },
+  {
+    "structuuronderdeel_groepen": [
+      {
+        "structuuronderdeel_groep_nummer": "G-0307",
+        "titel": "Eerste leerjaar A",
+        "graad": {
+          "code": "1",
+          "omschrijving": "Eerste graad"
+        },
+        "onderwijsniveau": {
+          "code": "3",
+          "omschrijving": "Secundair Onderwijs"
+        },
+        "soort_leerjaar": {
+          "code": "1",
+          "omschrijving": "Leerjaar"
+        },
+        "structuuronderdelen": [
+          {
+            "structuuronderdeel_nummer": 379,
+            "titel": "Eerste leerjaar A",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/379",
+            "begindatum": "2019-09-01",
+            "ov4_mogelijk": true,
+            "studierichting_nummer_oud": "1",
+            "duaal": false,
+            "stem_classificatie": "Niet van toepassing",
+            "niche": false,
+            "onderwijsstelsels": [
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "121"
+              },
+              {
+                "code": "122"
+              },
+              {
+                "code": "126"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "311",
+                "omschrijving": "Secundair onderwijs"
+              },
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "1",
+                "omschrijving": "Eerste leerjaar"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-1578",
+                "begindatum": "2019-09-01",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "structuuronderdeel_groep_nummer": "G-0117",
+        "titel": "Humane wetenschappen",
+        "finaliteit": {
+          "code": "DO"
+        },
+        "graad": {
+          "code": "2",
+          "omschrijving": "Tweede graad"
+        },
+        "onderwijsniveau": {
+          "code": "3",
+          "omschrijving": "Secundair Onderwijs"
+        },
+        "soort_leerjaar": {
+          "code": "1",
+          "omschrijving": "Leerjaar"
+        },
+        "structuuronderdelen": [
+          {
+            "structuuronderdeel_nummer": 129,
+            "titel": "Humane wetenschappen",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/129",
+            "begindatum": "2021-09-01",
+            "ov4_mogelijk": true,
+            "studierichting_nummer_oud": "1300",
+            "duaal": false,
+            "discipline": "Modern",
+            "stem_classificatie": "NIET-STEM",
+            "niche": false,
+            "onderwijsvorm": {
+              "code": "ASO"
+            },
+            "studiedomein": {
+              "omschrijving": "DOMEINOVERSCHRIJDEND"
+            },
+            "onderwijsstelsels": [
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "121"
+              },
+              {
+                "code": "122"
+              },
+              {
+                "code": "126"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "311",
+                "omschrijving": "Secundair onderwijs"
+              },
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "2",
+                "omschrijving": "Tweede leerjaar"
+              },
+              {
+                "code": "1",
+                "omschrijving": "Eerste leerjaar"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-0671",
+                "begindatum": "2021-09-01",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "structuuronderdeel_groep_nummer": "G-0327",
+        "titel": "Humane wetenschappen",
+        "finaliteit": {
+          "code": "DO"
+        },
+        "graad": {
+          "code": "3",
+          "omschrijving": "Derde graad"
+        },
+        "onderwijsniveau": {
+          "code": "3",
+          "omschrijving": "Secundair Onderwijs"
+        },
+        "soort_leerjaar": {
+          "code": "1",
+          "omschrijving": "Leerjaar"
+        },
+        "structuuronderdelen": [
+          {
+            "structuuronderdeel_nummer": 417,
+            "titel": "Humane wetenschappen",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/417",
+            "begindatum": "2023-09-01",
+            "ov4_mogelijk": true,
+            "studierichting_nummer_oud": "1300",
+            "duaal": false,
+            "discipline": "Modern",
+            "stem_classificatie": "NIET-STEM",
+            "niche": false,
+            "onderwijsvorm": {
+              "code": "ASO"
+            },
+            "studiedomein": {
+              "omschrijving": "DOMEINOVERSCHRIJDEND"
+            },
+            "onderwijsstelsels": [
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "121"
+              },
+              {
+                "code": "122"
+              },
+              {
+                "code": "126"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "311",
+                "omschrijving": "Secundair onderwijs"
+              },
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "1",
+                "omschrijving": "Eerste leerjaar"
+              },
+              {
+                "code": "2",
+                "omschrijving": "Tweede leerjaar"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-0756",
+                "begindatum": "2023-09-01",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "structuuronderdeel_groep_nummer": "G-0193",
+        "titel": "Natuurwetenschappen",
+        "finaliteit": {
+          "code": "DO"
+        },
+        "graad": {
+          "code": "2",
+          "omschrijving": "Tweede graad"
+        },
+        "onderwijsniveau": {
+          "code": "3",
+          "omschrijving": "Secundair Onderwijs"
+        },
+        "soort_leerjaar": {
+          "code": "1",
+          "omschrijving": "Leerjaar"
+        },
+        "structuuronderdelen": [
+          {
+            "structuuronderdeel_nummer": 247,
+            "titel": "Natuurwetenschappen",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/247",
+            "begindatum": "2021-09-01",
+            "ov4_mogelijk": true,
+            "studierichting_nummer_oud": "1311",
+            "duaal": false,
+            "discipline": "Modern",
+            "stem_classificatie": "STEM",
+            "niche": false,
+            "onderwijsvorm": {
+              "code": "ASO"
+            },
+            "studiedomein": {
+              "omschrijving": "DOMEINOVERSCHRIJDEND"
+            },
+            "onderwijsstelsels": [
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "121"
+              },
+              {
+                "code": "122"
+              },
+              {
+                "code": "126"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "311",
+                "omschrijving": "Secundair onderwijs"
+              },
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "2",
+                "omschrijving": "Tweede leerjaar"
+              },
+              {
+                "code": "1",
+                "omschrijving": "Eerste leerjaar"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-0674",
+                "begindatum": "2021-09-01",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "links": {
+      "self": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep?page=2&size=4&sort=titel asc"
+      },
+      "first": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep?page=1&size=4&sort=titel asc"
+      },
+      "prev": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep?page=1&size=4&sort=titel asc"
+      },
+      "next": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep?page=3&size=4&sort=titel asc"
+      },
+      "last": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep?page=3&size=4&sort=titel asc"
+      }
+    },
+    "meta": {
+      "total_elements": 9,
+      "total_pages": 3,
+      "number": 2,
+      "number_of_elements": 4,
+      "size": 4,
+      "first": false,
+      "last": false,
+      "timestamp": "2026-10-09 06:48:27"
+    }
+  },
+  {
+    "structuuronderdeel_groepen": [
+      {
+        "structuuronderdeel_groep_nummer": "G-0311",
+        "titel": "Tweede leerjaar A",
+        "graad": {
+          "code": "1",
+          "omschrijving": "Eerste graad"
+        },
+        "onderwijsniveau": {
+          "code": "3",
+          "omschrijving": "Secundair Onderwijs"
+        },
+        "soort_leerjaar": {
+          "code": "1",
+          "omschrijving": "Leerjaar"
+        },
+        "structuuronderdelen": [
+          {
+            "structuuronderdeel_nummer": 908,
+            "titel": "Tweede leerjaar A: Moderne talen en wetenschappen",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/908",
+            "begindatum": "2020-09-01",
+            "ov4_mogelijk": true,
+            "studierichting_nummer_oud": "1146",
+            "duaal": false,
+            "stem_classificatie": "Niet van toepassing",
+            "niche": false,
+            "onderwijsstelsels": [
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "122"
+              },
+              {
+                "code": "126"
+              },
+              {
+                "code": "121"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "311",
+                "omschrijving": "Secundair onderwijs"
+              },
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "2",
+                "omschrijving": "Tweede leerjaar"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-1583",
+                "begindatum": "2020-09-01",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          },
+          {
+            "structuuronderdeel_nummer": 915,
+            "titel": "Tweede leerjaar A: Stem-wetenschappen",
+            "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/915",
+            "begindatum": "2020-09-01",
+            "ov4_mogelijk": true,
+            "studierichting_nummer_oud": "1149",
+            "duaal": false,
+            "stem_classificatie": "Niet van toepassing",
+            "niche": false,
+            "onderwijsstelsels": [
+              {
+                "code": "L",
+                "omschrijving": "Lineair"
+              }
+            ],
+            "instellingstypes": [
+              {
+                "code": "126"
+              },
+              {
+                "code": "121"
+              },
+              {
+                "code": "122"
+              }
+            ],
+            "hoofdstructuren": [
+              {
+                "code": "311",
+                "omschrijving": "Secundair onderwijs"
+              },
+              {
+                "code": "321",
+                "omschrijving": "Buitengewoon secundair onderwijs"
+              }
+            ],
+            "leerjaren": [
+              {
+                "code": "2",
+                "omschrijving": "Tweede leerjaar"
+              }
+            ],
+            "structuuronderdeel_details": [
+              {
+                "structuuronderdeel_detail_nummer": "ADV-1587",
+                "begindatum": "2020-09-01",
+                "status": {
+                  "code": "ERKEND",
+                  "omschrijving": "Erkend"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "links": {
+      "self": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep?page=3&size=4&sort=titel asc"
+      },
+      "first": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep?page=1&size=4&sort=titel asc"
+      },
+      "prev": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep?page=2&size=4&sort=titel asc"
+      },
+      "last": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep?page=3&size=4&sort=titel asc"
+      }
+    },
+    "meta": {
+      "total_elements": 9,
+      "total_pages": 3,
+      "number": 3,
+      "number_of_elements": 1,
+      "size": 4,
+      "first": false,
+      "last": true,
+      "timestamp": "2026-10-09 06:48:27"
+    }
+  }
+]

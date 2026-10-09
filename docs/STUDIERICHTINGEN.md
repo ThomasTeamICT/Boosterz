@@ -11,13 +11,13 @@ De opdracht van de eigenaar, letterlijk: "ja, doe die import maar, einddoel is d
 | Ontwerp (dit document) | **Klaar** (9 oktober 2026): drie ontwerpen, drie juryleden, één synthese. De eigenaar gaf het startsein ("doe die import maar"). Voor de open vragen (§ 19) geldt de werkkeuze die erbij staat, tot de eigenaar anders beslist. | hoofdsessie |
 | P0 Ontwerp in de repo, icoon | **Klaar** | hoofdsessie |
 | P1 Datamodule studierichtingen | **Klaar** (review: één blokkerende fout en ontbrekende tests, hersteld en met een mutatieproef nagekeken) | kernbouwer |
-| P2 Ophaalscript, nagebootste API en fixtures | Wacht, op P1 | kernbouwer |
+| P2 Ophaalscript, nagebootste API en fixtures | **Klaar** (review met opmerkingen; hersteld: tests voor HTTP-fouten en sleutelfilter, vingerafdruk voor de fixtures, D8 strenger, tweede ronde voor 404) | kernbouwer |
 | P3 Datatest | Wacht, op P1 (opleveren na P2) | bouwer (een andere agent dan die van P2) |
-| P4 Workflow "Leerplangegevens bijwerken" | Wacht, op P2 | bouwer, nagelezen door een reviewer |
+| P4 Workflow "Leerplangegevens bijwerken" | **Klaar** (review veiligheid: goed, met tekstopmerkingen, verwerkt) | bouwer, nagelezen door een reviewer |
 | P5 Doelgroep in het datamodel | **Klaar** (review goed met opmerkingen; de opmerkingen zijn verwerkt) | kernbouwer |
 | P6 Lader, kader en keuzehulp | Wacht, op P1, P2 en P5 | bouwer |
 | P7 Cursushulp-logica | Wacht, op P6 | bouwer |
-| I1 Integratie van de data (P1 tot P4) | Wacht | hoofdsessie |
+| I1 Integratie van de data (P1, P2, P4; P3 volgt) | **Klaar** | hoofdsessie |
 | G1 Eerste echte run, in stappen | Wacht, op I1 | hoofdsessie; de eigenaar keurt de data-PR goed |
 | I2 Integratie van de logica (P5 tot P7) en stubs | Wacht | hoofdsessie |
 | P8 Richtingenscherm | Wacht, op I2 | bouwer, worktree A |
@@ -251,6 +251,8 @@ Het rapport staat in .gitignore (de map is al uitgesloten) en gaat mee als artif
   - een 404 voor de 1ste graad, het 7de jaar en BuSO.
   
   Het script zegt uitdrukkelijk dat dit **nagebootst** is en geen officiële koppeling.
+- `api/koppeling.json` draagt `vingerafdrukMinimumdoelen`: de sha256 van de gebruikte velden van alle sets in `minimumdoelen/index.json` op het moment van maken. Verschilt de huidige index (na een maandelijkse update), dan slaan de twee reproductietests over in plaats van te falen. Opnieuw maken: `node tools/leerplannen/maak-nagebootste-koppeling.mjs` en daarna het script met de opties hieronder (P2).
+- Het rapport heeft naast § 3.5 ook `koppeling.eersteGraadPerStroom {A, B}`, `koppeling.tweedeRonde {groepen, verzoeken}` en `koppeling.ordeningskader.nietMeegeteld`.
 - `uit/`: de uitvoer van `haal-studierichtingen.mjs --bron-matrix … --bron-koppeling … --nu 2026-10-09T00:00:00Z --vandaag 2026-10-09`. De datatest (positief geval), de kadertests en de rooktest (via `page.route`) gebruiken die uitvoer.
 
 ## 4. Gedeelde datamodule `src/lib/studierichtingen.ts` (nieuw)
@@ -364,7 +366,7 @@ De sleutel gaat alleen naar de origin van `ONDERWIJSDOELEN_API_BASE`. Een volgen
 
    Het script wacht 250 ms tussen twee verzoeken: samen ±800 verzoeken, ±12 minuten. Wat het antwoord zegt:
    - 200: methode `api`;
-   - 404 op pagina 1: na 5 s één nieuwe poging. Een tweede 404 betekent "geen doelen". Voor een gewone groep van de 1ste graad wordt het dan methode `graad-en-stroom`. Anders wordt het `status: "geen"`, en een bestaand bestand blijft staan met `nietMeerInBron`;
+   - 404 op pagina 1: de groep gaat naar een **tweede ronde** na alle andere groepen (gewone wachttijd, geen extra 5 s; zo blijft de looptijd beperkt bij ±290 groepen zonder doelen). Een tweede 404 betekent "geen doelen". Het rapport telt `koppeling.tweedeRonde: {groepen, verzoeken}`. Voor een gewone groep van de 1ste graad wordt het dan methode `graad-en-stroom`. Anders wordt het `status: "geen"`, en een bestaand bestand blijft staan met `nietMeerInBron`;
    - een 404 op een latere pagina of elke andere status: fout 1.
 5. **Bouwen.** Het script bouwt het matrixbestand, één bestand per gekoppelde groep en de index. Daarbij gelden drie regels:
    - het versiemerk (`setSha`, `setAantal`) komt uit `--minimumdoelen/index.json`;
@@ -389,7 +391,7 @@ De sleutel gaat alleen naar de origin van `ONDERWIJSDOELEN_API_BASE`. Een volgen
 | 3 | D5: binnen één set van één groep komt meer dan één `onderwijssoort` voor |
 | 3 | D6, massaverlies: het aantal groepen of onderdelen in de API daalt met meer dan 10 % tegenover het bestaande bestand; of meer dan max(5, 10 %) van de gekoppelde groepen valt naar "geen"; of, bij een volledige run, is minder dan 50 % van de gewone groepen van de 2de en 3de graad gekoppeld |
 | 3 | D7: een record zonder vast nummer of zonder set |
-| 3 | D8, ordeningskader: bij een volledige run moet elk groepnummer dat in een geldige set van `--minimumdoelen` getagd is (nu 133, allemaal actueel, 2de of 3de graad, DO of DU), gekoppeld zijn. Anders: "de filter lijkt niet meer te werken" |
+| 3 | D8, ordeningskader: bij een volledige run moet elk groepnummer dat in een geldige set van `--minimumdoelen` getagd is (nu 133, allemaal actueel, 2de of 3de graad, DO of DU), gekoppeld zijn, als het nu in de matrix staat als gewone, niet-afgebouwde groep van de 2de of 3de graad. Anders: "de filter lijkt niet meer te werken". Een getagde groep die niet meetelt, komt met de reden in de waarschuwingen (`ordeningskader.nietMeegeteld`). Staat een getagde groep helemaal niet in de matrix en telt de matrix minstens 100 groepen, dan is het ook exit 3. |
 
 ### 5.4 Zachte controles (in het rapport en de PR-tekst, geen stop)
 

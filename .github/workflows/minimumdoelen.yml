@@ -1,11 +1,15 @@
-name: Minimumdoelen bijwerken
+name: Leerplangegevens bijwerken
 
-# Haalt de officiële minimumdoelen van de Vlaamse overheid op via de Onderwijsdoelen-API, schrijft
-# ze naar public/leerplannen/minimumdoelen/ en opent een pull request als er iets veranderd is.
-# Een mens keurt het verschil goed; niets gaat automatisch live. Ontwerp: docs/LEERPLANNEN.md § 5.
+# Haalt de officiële leerplangegevens van de Vlaamse overheid op in één run, met één controle en één pull request:
+#   1. de minimumdoelen (Onderwijsdoelen-API)                    → public/leerplannen/minimumdoelen/
+#   2. de matrix van de studierichtingen (API Structuuronderdelen) → public/leerplannen/structuur/
+#   3. de koppeling richting → doelen (Onderwijsdoelen-API)        → public/leerplannen/structuur/richtingdoelen/
+# Daarna draait de volledige testsuite (npx vitest run) en opent de taak een pull request als er iets veranderd
+# is. Een mens keurt het verschil goed; niets gaat automatisch live. Ontwerp: docs/LEERPLANNEN.md § 5 en
+# docs/STUDIERICHTINGEN.md § 6. De bestandsnaam blijft minimumdoelen.yml, zodat de geschiedenis en de cron blijven.
 #
 # De API-sleutel staat als geheim ONDERWIJSDOELEN_API_KEY (Settings → Secrets and variables →
-# Actions). Hij gaat enkel via de omgeving naar het script en komt nooit in een log of in het rapport.
+# Actions). Hij gaat enkel via de omgeving naar de scripts en komt nooit in een log of in een rapport.
 #
 # Eenmalig instellen: zet in Settings → Actions → General "Allow GitHub Actions to create and approve
 # pull requests" aan. Zonder die instelling lukt de pull request niet; de taak faalt dan zichtbaar
@@ -13,12 +17,32 @@ name: Minimumdoelen bijwerken
 #
 # Een geplande taak draait op de standaardbranch van de repository: dat moet de branch zijn waar de
 # pull request naartoe gaat (claude/bookwidgets-web-app-kvcfim).
+#
+# Bij een geplande run is de invoer leeg: dan loopt alles. Met de hand kan het ook kleiner:
+#   - onderdelen = minimumdoelen      enkel de minimumdoelen (noodinvoer als de koppeling stuk blijft)
+#   - onderdelen = studierichtingen   enkel de matrix en de koppeling (de minimumdoelen in de repository blijven)
+#   - groepen = geen                  proefrun met enkel de matrix, zonder doelen te koppelen
+#   - groepen = G-0117,G-0327         proefrun: enkel deze groepen koppelen (hoogstens 50)
+# Een proefrun opent ook een pull request, met de waarschuwing dat je ze niet moet samenvoegen.
 
 on:
   workflow_dispatch:
     inputs:
       filter:
         description: 'Filter op de sets, als reguliere expressie (leeg = standaard: secundair|\bSO\b|SO_; . = alle sets)'
+        required: false
+        type: string
+      onderdelen:
+        description: 'Wat er opgehaald wordt: alles, enkel de minimumdoelen, of enkel de studierichtingen met de koppeling'
+        required: false
+        type: choice
+        options:
+          - alles
+          - minimumdoelen
+          - studierichtingen
+        default: alles
+      groepen:
+        description: 'Proefrun voor de studierichtingen (leeg = alle groepen; geen = enkel de matrix; anders een lijst zoals G-0117,G-0327, hoogstens 50)'
         required: false
         type: string
   schedule:
@@ -29,13 +53,13 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: minimumdoelen
+  group: leerplangegevens
   cancel-in-progress: false
 
 jobs:
   bijwerken:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,11 +67,12 @@ jobs:
           node-version: 22
           cache: npm
 
-      # De volgorde doet ertoe: de stap met het geheim draait vóór de installatie van de npm-pakketten.
-      # Het script heeft geen afhankelijkheden, en zo kan geen installscript van een pakket (dat met de
-      # rechten van deze taak draait) de bestanden aanpassen die in de stap met het geheim lopen of
-      # de inloggegevens van de checkout lezen. Het geheim staat enkel in de omgeving van deze ene stap.
+      # De volgorde doet ertoe: de twee stappen met het geheim draaien vóór de installatie van de npm-pakketten.
+      # De scripts hebben geen afhankelijkheden, en zo kan geen installscript van een pakket (dat met de
+      # rechten van deze taak draait) de bestanden aanpassen die in de stappen met het geheim lopen of
+      # de inloggegevens van de checkout lezen. Het geheim staat enkel in de omgeving van deze twee stappen.
       - name: Minimumdoelen ophalen
+        if: ${{ inputs.onderdelen != 'studierichtingen' }}
         env:
           ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
           # De filter gaat via de omgeving, nooit rechtstreeks in de opdrachtregel (script-injectie).
@@ -60,17 +85,43 @@ jobs:
           fi
           node tools/leerplannen/haal-minimumdoelen.mjs ${args[@]+"${args[@]}"}
 
+      # Deze stap leest de minimumdoelen die de vorige stap net schreef (of die al in de repository staan)
+      # voor de harde poorten van het script. Faalt één van de twee ophaalstappen, dan komt er geen
+      # pull request en dus nooit een halve update.
+      - name: Studierichtingen en koppeling ophalen
+        if: ${{ inputs.onderdelen != 'minimumdoelen' }}
+        env:
+          ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
+          # Ook de groepen gaan via de omgeving en worden nagekeken vóór ze in de opdrachtregel komen.
+          GROEPEN: ${{ inputs.groepen }}
+        run: |
+          set -euo pipefail
+          patroon='^(geen|G-[0-9]{4,6}(,G-[0-9]{4,6}){0,49})?$'
+          if ! [[ "${GROEPEN:-}" =~ $patroon ]]; then
+            echo "::error::De invoer 'groepen' is ongeldig. Laat ze leeg (alle groepen), vul 'geen' in (enkel de matrix) of geef een lijst zoals G-0117,G-0327 (hoogstens 50 groepsnummers)."
+            exit 1
+          fi
+          args=()
+          if [ "${GROEPEN:-}" = "geen" ]; then
+            args+=(--alleen matrix)
+          elif [ -n "${GROEPEN:-}" ]; then
+            args+=(--groepen "$GROEPEN")
+          fi
+          node tools/leerplannen/haal-studierichtingen.mjs ${args[@]+"${args[@]}"}
+
       # --ignore-scripts: installscripts van pakketten zijn voor de controle niet nodig (vitest draait
       # met de esbuild-binary uit zijn eigen platformpakket) en krijgen zo geen kans om iets uit te voeren.
       - name: Pakketten installeren
         run: npm ci --ignore-scripts
 
-      - name: Geschreven bestanden controleren
+      # De volledige testsuite is de poort: ook de tests met echte gegevens, die anders pas bij de uitrol
+      # (deploy.yml) zouden breken.
+      - name: Geschreven bestanden en de hele app controleren
         run: |
           set -euo pipefail
-          npx vitest run src/lib/minimumdoelen.test.ts
+          npx vitest run
 
-      - name: Rapport bewaren
+      - name: Rapport minimumdoelen bewaren
         if: always()
         continue-on-error: true
         uses: actions/upload-artifact@v4
@@ -80,56 +131,217 @@ jobs:
           if-no-files-found: ignore
           retention-days: 90
 
+      - name: Rapport studierichtingen bewaren
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: studierichtingen-rapport
+          path: tools/leerplannen/rapport/laatste-studierichtingen.json
+          if-no-files-found: ignore
+          retention-days: 90
+
       - name: Samenvatting
         if: always()
         continue-on-error: true
+        env:
+          ONDERDELEN: ${{ inputs.onderdelen }}
+          GROEPEN: ${{ inputs.groepen }}
         run: |
           set -euo pipefail
           node --input-type=module - <<'JS'
           import fs from 'node:fs';
+
+          // ── Gedeelde hulpfuncties: hier en in de stap "Pull request openen" letterlijk gelijk ──
           // Tekst uit de API of uit het rapport gaat altijd als codespan de samenvatting in: zonder
           // backticks, regeleinden en stuurtekens, en afgekapt op 120 tekens.
           const kort = (t) => '`' + String(t).replace(/[`|]/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').slice(0, 120) + '`';
-          const pad = 'tools/leerplannen/rapport/laatste-ophaling.json';
-          const uit = ['## Minimumdoelen ophalen', ''];
-          if (!fs.existsSync(pad)) {
-            uit.push('Er is geen rapport: de ophaling is niet tot het einde gekomen. Zie het logboek van de stap "Minimumdoelen ophalen".');
-          } else {
-            const r = JSON.parse(fs.readFileSync(pad, 'utf8'));
-            const lijst = (a) => (a && a.length ? a.map(kort).join(', ') : 'geen');
-            const gekozen = (r.alleSets || []).filter((s) => s.gekozen).length;
-            const p = r.problemen || {};
-            const aantal = (soort) => (p[soort] ? p[soort].aantal : 0);
-            if (r.fout) uit.push('**Fout:** ' + kort(r.fout), '');
+          // Het rapport van de studierichtingen komt van een ander script en kan onvolledig zijn. Een veld
+          // dat ontbreekt of een onverwachte vorm heeft, geeft "niet in het rapport" en nooit een fout.
+          const ONTBREEKT = 'niet in het rapport';
+          const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+          const getal = (v) => (typeof v === 'number' && Number.isFinite(v) ? String(v) : ONTBREEKT);
+          const aantalIn = (a) => (Array.isArray(a) ? String(a.length) : ONTBREEKT);
+          const tekst = (x) => {
+            if (typeof x === 'string') return x;
+            if (typeof x === 'number' || typeof x === 'boolean') return String(x);
+            if (x && typeof x === 'object') {
+              const namen = [x.groep, x.nummer, x.set, x.id].filter((v) => typeof v === 'string' || typeof v === 'number');
+              if (namen.length > 0) {
+                return namen.join(' / ') + (typeof x.titel === 'string' ? ' ' + x.titel : '') + (typeof x.reden === 'string' ? ': ' + x.reden : '');
+              }
+            }
+            try { return JSON.stringify(x) ?? String(x); } catch { return String(x); }
+          };
+          const leesRapport = (pad) => {
+            if (!fs.existsSync(pad)) {
+              return { melding: 'Er is geen rapport van de studierichtingen: de stap is niet uitgevoerd of niet tot het einde gekomen. Zie het logboek van de stap "Studierichtingen en koppeling ophalen".' };
+            }
+            try {
+              const r = JSON.parse(fs.readFileSync(pad, 'utf8'));
+              if (!r || typeof r !== 'object' || Array.isArray(r)) return { melding: 'Het rapport van de studierichtingen heeft een onverwachte vorm.' };
+              return { r };
+            } catch {
+              return { melding: 'Het rapport van de studierichtingen is niet te lezen (geen geldige JSON).' };
+            }
+          };
+          const MAX_REGELS = 30;
+          const lijstRegels = (titel, a, toelichting, max = MAX_REGELS) => {
+            if (!Array.isArray(a)) return ['### ' + titel, '', 'Dit veld ontbreekt in het rapport of heeft een onverwachte vorm.', ''];
+            if (a.length === 0) return [];
+            return [
+              '### ' + titel + ' (' + a.length + ')',
+              '',
+              ...(toelichting ? [toelichting, ''] : []),
+              ...a.slice(0, max).map((x) => '- ' + kort(tekst(x))),
+              ...(a.length > max ? ['- … en ' + (a.length - max) + ' meer: zie het volledige rapport'] : []),
+              '',
+            ];
+          };
+          // De groepen zijn in de ophaalstap al nagekeken tegen dit patroon. Deze stap draait ook als dat
+          // mislukte (always), dus keuren we ze hier nog eens: geldige invoer staat gewoon in de tekst, al het
+          // andere gaat als codespan.
+          const GROEPEN_GELDIG = /^(geen|G-[0-9]{4,6}(,G-[0-9]{4,6}){0,49})?$/;
+          const proefregel = (groepen, vervolg) => '**Proefrun voor ' + (groepen === 'geen' ? 'enkel de matrix (geen groepen gekoppeld)' : GROEPEN_GELDIG.test(groepen) ? groepen : kort(groepen)) + ': niet samenvoegen.** ' + vervolg;
+          // ── Einde van de gedeelde hulpfuncties ──
+
+          const onderdelen = process.env.ONDERDELEN || 'alles';
+          const groepen = process.env.GROEPEN || '';
+          const metMinimumdoelen = onderdelen !== 'studierichtingen';
+          const metStudierichtingen = onderdelen !== 'minimumdoelen';
+          const proefrun = metStudierichtingen && groepen !== '';
+
+          const deelMinimumdoelen = () => {
+            const pad = 'tools/leerplannen/rapport/laatste-ophaling.json';
+            const uit = ['## Minimumdoelen ophalen', ''];
+            if (!fs.existsSync(pad)) {
+              uit.push('Er is geen rapport: de ophaling is niet tot het einde gekomen. Zie het logboek van de stap "Minimumdoelen ophalen".');
+            } else {
+              const r = JSON.parse(fs.readFileSync(pad, 'utf8'));
+              const lijst = (a) => (a && a.length ? a.map(kort).join(', ') : 'geen');
+              const gekozen = (r.alleSets || []).filter((s) => s.gekozen).length;
+              const p = r.problemen || {};
+              const aantal = (soort) => (p[soort] ? p[soort].aantal : 0);
+              if (r.fout) uit.push('**Fout:** ' + kort(r.fout), '');
+              uit.push(
+                '| | |',
+                '|---|---|',
+                '| Bron | ' + r.bron + ' |',
+                '| Pagina\'s | ' + r.paginas + ' |',
+                '| Records | ' + r.records + (r.totalItems == null ? '' : ' (totalItems volgens de API: ' + r.totalItems + ')') + ' |',
+                '| Volledig identieke records samengevoegd | ' + r.dubbel + ' |',
+                '| Problemen | conflict ' + aantal('conflict') + ', variant ' + aantal('variant') + ', overgeslagen ' + aantal('overgeslagen') + ', meerwaardig ' + aantal('meerwaardig') + ' |',
+                '| Sets in de bron | ' + (r.alleSets || []).length + ' (gekozen: ' + gekozen + ') |',
+                '| Nieuw | ' + lijst(r.nieuw) + ' |',
+                '| Gewijzigd | ' + lijst(r.gewijzigd) + ' |',
+                '| Ongewijzigd | ' + lijst(r.ongewijzigd) + ' |',
+                '| Verdwenen uit de bron | ' + lijst(r.verdwenen) + ' |',
+              );
+              // een paar voorbeelden van elk probleem; de rest staat in het rapport
+              for (const soort of ['conflict', 'variant', 'overgeslagen', 'meerwaardig']) {
+                if (!p[soort] || p[soort].aantal === 0) continue;
+                uit.push('', '**' + soort + '** (' + p[soort].aantal + '):');
+                for (const v of p[soort].voorbeelden.slice(0, 5)) {
+                  uit.push('- ' + kort(v.set + (v.code ? ' / ' + v.code : '') + (v.reden ? ': ' + v.reden : '') + (v.velden && soort === 'meerwaardig' ? ': ' + v.velden.join(', ') : '')));
+                }
+              }
+              if ((r.waarschuwingen || []).length > 0) {
+                uit.push('', '**Waarschuwingen**', '', ...r.waarschuwingen.map((w) => '- ' + kort(w)));
+              }
+              if (gekozen === 0 && (r.alleSets || []).length > 0) {
+                uit.push('', 'Geen enkele set komt overeen met de filter. Pas de filter aan; de setnamen staan in het rapport (artifact `minimumdoelen-rapport`).');
+              }
+            }
+            return uit;
+          };
+
+          const deelStudierichtingen = () => {
+            const uit = ['## Studierichtingen en koppeling met de doelen', ''];
+            const { r, melding } = leesRapport('tools/leerplannen/rapport/laatste-studierichtingen.json');
+            if (!r) {
+              uit.push(melding);
+              return uit;
+            }
+            const m = obj(r.matrix);
+            const k = obj(r.koppeling);
+            const ordening = obj(k.ordeningskader);
+            const kruis = obj(k.kruiscontrole);
+            const perSoort = (o) => {
+              if (!o || typeof o !== 'object' || Array.isArray(o)) return ONTBREEKT;
+              const delen = Object.entries(o).filter(([, v]) => typeof v === 'number').map(([naam, v]) => naam + ' ' + v);
+              return delen.length > 0 ? kort(delen.join(', ')) : ONTBREEKT;
+            };
+            const tekstveld = (v) => (typeof v === 'string' && v !== '' ? kort(v) : ONTBREEKT);
+            if (r.fout) uit.push('**Fout:** ' + kort(tekst(r.fout)), '');
             uit.push(
               '| | |',
               '|---|---|',
-              '| Bron | ' + r.bron + ' |',
-              '| Pagina\'s | ' + r.paginas + ' |',
-              '| Records | ' + r.records + (r.totalItems == null ? '' : ' (totalItems volgens de API: ' + r.totalItems + ')') + ' |',
-              '| Volledig identieke records samengevoegd | ' + r.dubbel + ' |',
-              '| Problemen | conflict ' + aantal('conflict') + ', variant ' + aantal('variant') + ', overgeslagen ' + aantal('overgeslagen') + ', meerwaardig ' + aantal('meerwaardig') + ' |',
-              '| Sets in de bron | ' + (r.alleSets || []).length + ' (gekozen: ' + gekozen + ') |',
-              '| Nieuw | ' + lijst(r.nieuw) + ' |',
-              '| Gewijzigd | ' + lijst(r.gewijzigd) + ' |',
-              '| Ongewijzigd | ' + lijst(r.ongewijzigd) + ' |',
-              '| Verdwenen uit de bron | ' + lijst(r.verdwenen) + ' |',
+              '| Bron | ' + tekstveld(r.bron) + ' |',
+              '| Stand van de run (alles, matrix of koppeling) | ' + tekstveld(r.stand) + ' |',
+              '| Matrix: pagina\'s | ' + getal(m.paginas) + ' |',
+              '| Matrix: groepen | ' + getal(m.groepen) + ' (totaal volgens de API: ' + getal(m.totaalVolgensApi) + ') |',
+              '| Matrix: onderdelen | ' + getal(m.onderdelen) + ' |',
+              '| Matrix: groepen per soort | ' + perSoort(m.perSoort) + ' |',
+              '| Studierichtingen nieuw | ' + aantalIn(m.nieuw) + ' |',
+              '| Studierichtingen gewijzigd | ' + aantalIn(m.gewijzigd) + ' |',
+              '| Studierichtingen afgebouwd sinds de vorige ophaling | ' + aantalIn(m.afgebouwdSindsVorige) + ' |',
+              '| Studierichtingen niet meer in de bron (bestanden blijven staan) | ' + aantalIn(m.nietMeerInBron) + ' |',
+              '| Koppeling: verzoeken | ' + getal(k.verzoeken) + ' |',
+              '| Koppeling: duur in seconden | ' + getal(k.duurSeconden) + ' |',
+              '| Doelen in de API zonder filter | ' + getal(k.totaalZonderFilter) + ' |',
+              '| Groepen gekoppeld | ' + getal(k.gekoppeld) + ' (waarvan 1ste graad volgens de regel graad en stroom: ' + getal(k.graadEnStroom) + ') |',
+              '| Groepen zonder doelen | ' + getal(k.geen) + ' |',
+              '| Groepen nog niet opgehaald | ' + getal(k.nogNietOpgehaald) + ' |',
+              '| Groepen zonder doelen per soort | ' + perSoort(k.geenPerSoort) + ' |',
+              '| Doelen per richting nieuw | ' + aantalIn(k.nieuw) + ' |',
+              '| Doelen per richting gewijzigd | ' + aantalIn(k.gewijzigd) + ' |',
+              '| Richtingen die nu zonder doelen zijn | ' + aantalIn(k.nuZonderDoelen) + ' |',
+              '| 1ste graad die nu wel gekoppeld is | ' + aantalIn(k.eersteGraadNuGekoppeld) + ' |',
+              '| Volledig identieke records samengevoegd | ' + getal(k.samengevoegdeDubbels) + ' |',
+              '| Verschillen in soort onderwijs | ' + aantalIn(k.onderwijssoortVerschillen) + ' |',
+              '| Ordeningskader: groepen / zonder koppeling | ' + getal(ordening.groepen) + ' / ' + aantalIn(ordening.zonderKoppeling) + ' |',
+              '| Kruiscontrole met het ordeningskader | ' + getal(kruis.verschillen) + ' verschillen (' + getal(kruis.verschillenGeldigSo) + ' in geldige sets van het gewoon secundair), ' + getal(kruis.setsBekeken) + ' sets bekeken |',
+              '| Voorbeeld van een 404 | ' + tekstveld(k.voorbeeld404) + ' |',
+              '| Problemen | ' + aantalIn(r.problemen) + ' |',
+              '| Waarschuwingen | ' + aantalIn(r.waarschuwingen) + ' |',
+              '',
+              ...lijstRegels('Studierichtingen nieuw', m.nieuw),
+              ...lijstRegels('Studierichtingen gewijzigd', m.gewijzigd),
+              ...lijstRegels('Studierichtingen afgebouwd sinds de vorige ophaling', m.afgebouwdSindsVorige),
+              ...lijstRegels('Studierichtingen niet meer in de bron', m.nietMeerInBron, 'Deze bestanden blijven staan. Beslis zelf of ze weg moeten.'),
+              ...lijstRegels('Doelen per richting nieuw', k.nieuw),
+              ...lijstRegels('Doelen per richting gewijzigd', k.gewijzigd),
+              ...lijstRegels('Richtingen die nu zonder doelen zijn', k.nuZonderDoelen, 'De laatst bekende koppeling blijft staan. Kijk dit na.'),
+              ...lijstRegels('1ste graad die nu wel gekoppeld is', k.eersteGraadNuGekoppeld),
+              ...lijstRegels('Verschillen in soort onderwijs', k.onderwijssoortVerschillen, null, 10),
+              ...lijstRegels('Groepen van het ordeningskader zonder koppeling', ordening.zonderKoppeling),
+              ...lijstRegels('Kruiscontrole: voorbeelden', kruis.voorbeelden, null, 10),
+              ...lijstRegels('Problemen', r.problemen, null, 10),
+              ...lijstRegels('Waarschuwingen', r.waarschuwingen),
             );
-            // een paar voorbeelden van elk probleem; de rest staat in het rapport
-            for (const soort of ['conflict', 'variant', 'overgeslagen', 'meerwaardig']) {
-              if (!p[soort] || p[soort].aantal === 0) continue;
-              uit.push('', '**' + soort + '** (' + p[soort].aantal + '):');
-              for (const v of p[soort].voorbeelden.slice(0, 5)) {
-                uit.push('- ' + kort(v.set + (v.code ? ' / ' + v.code : '') + (v.reden ? ': ' + v.reden : '') + (v.velden && soort === 'meerwaardig' ? ': ' + v.velden.join(', ') : '')));
-              }
+            uit.push('Het volledige rapport (met de veldinventaris van de API) staat als artifact `studierichtingen-rapport`.');
+            return uit;
+          };
+
+          // Een deel dat niet samen te vatten is, mag de rest van de samenvatting niet meenemen.
+          const veilig = (titel, f) => {
+            try {
+              return f();
+            } catch (e) {
+              console.error('De samenvatting van "' + titel + '" is mislukt: ' + String(e && e.message).slice(0, 200));
+              return ['## ' + titel, '', 'Dit deel van de samenvatting kon niet gemaakt worden. Zie het logboek van deze stap en de rapporten in de artifacts.'];
             }
-            if ((r.waarschuwingen || []).length > 0) {
-              uit.push('', '**Waarschuwingen**', '', ...r.waarschuwingen.map((w) => '- ' + kort(w)));
-            }
-            if (gekozen === 0 && (r.alleSets || []).length > 0) {
-              uit.push('', 'Geen enkele set komt overeen met de filter. Pas de filter aan; de setnamen staan in het rapport (artifact `minimumdoelen-rapport`).');
-            }
+          };
+
+          const uit = ['# Leerplangegevens bijwerken', ''];
+          if (proefrun) {
+            uit.push(proefregel(groepen, 'Sluit de pull request na het nakijken.'), '');
           }
+          uit.push('Onderdelen in deze run: ' + kort(onderdelen) + '.', '');
+          if (metMinimumdoelen) uit.push(...veilig('Minimumdoelen ophalen', deelMinimumdoelen), '');
+          else uit.push('## Minimumdoelen ophalen', '', 'Niet opgehaald in deze run (onderdelen: enkel de studierichtingen). De minimumdoelen in de repository zijn niet aangeraakt.', '');
+          if (metStudierichtingen) uit.push(...veilig('Studierichtingen en koppeling met de doelen', deelStudierichtingen));
+          else uit.push('## Studierichtingen en koppeling met de doelen', '', 'Niet opgehaald in deze run (onderdelen: enkel de minimumdoelen). De studierichtingen en de koppeling in de repository zijn niet aangeraakt.');
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, uit.join('\n') + '\n');
           JS
 
@@ -141,72 +353,217 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           REPO: ${{ github.repository }}
           SERVER_URL: ${{ github.server_url }}
+          ONDERDELEN: ${{ inputs.onderdelen }}
+          GROEPEN: ${{ inputs.groepen }}
         run: |
           set -euo pipefail
 
           if [ -z "$(git status --porcelain -- public/leerplannen)" ]; then
-            printf '## Geen wijzigingen\n\nDe minimumdoelen komen overeen met wat al in de repository staat.\n' >> "$GITHUB_STEP_SUMMARY"
+            printf '## Geen wijzigingen\n\nDe leerplangegevens (minimumdoelen, studierichtingen en doelen per richting) komen overeen met wat al in de repository staat.\n' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
           datum="$(date -u +%Y-%m-%d)"
-          branch="minimumdoelen/bijwerken-${datum}-${RUN_ID}"
-          titel="Minimumdoelen bijgewerkt (${datum})"
+          branch="leerplangegevens/bijwerken-${datum}-${RUN_ID}"
+          titel="Leerplangegevens bijgewerkt (${datum})"
           tekst="${RUNNER_TEMP}/pr-tekst.md"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$branch"
           git add -- public/leerplannen
-          git commit -m "$titel" -m "Automatisch opgehaald door de workflow minimumdoelen (run ${RUN_ID})."
+          git commit -m "$titel" -m "Automatisch opgehaald door de workflow Leerplangegevens bijwerken (run ${RUN_ID})."
           git push origin "$branch"
 
-          # De tekst van de pull request komt uit het rapport.
-          RAPPORT=tools/leerplannen/rapport/laatste-ophaling.json RUN_URL="${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}" \
+          # De tekst van de pull request komt uit de rapporten.
+          RAPPORT_MINIMUMDOELEN=tools/leerplannen/rapport/laatste-ophaling.json \
+            RAPPORT_STUDIERICHTINGEN=tools/leerplannen/rapport/laatste-studierichtingen.json \
+            RUN_URL="${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}" \
             node --input-type=module - > "$tekst" <<'JS'
           import fs from 'node:fs';
-          // Tekst uit de API of uit het rapport gaat altijd als codespan de tekst in: zonder backticks,
-          // regeleinden en stuurtekens, en afgekapt op 120 tekens.
+
+          // ── Gedeelde hulpfuncties: hier en in de stap "Samenvatting" letterlijk gelijk ──
+          // Tekst uit de API of uit het rapport gaat altijd als codespan de samenvatting in: zonder
+          // backticks, regeleinden en stuurtekens, en afgekapt op 120 tekens.
           const kort = (t) => '`' + String(t).replace(/[`|]/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').slice(0, 120) + '`';
-          const r = JSON.parse(fs.readFileSync(process.env.RAPPORT, 'utf8'));
-          const aantal = new Map((r.alleSets || []).map((s) => [s.id, s.aantal]));
-          const metAantal = (id) => (aantal.has(id) ? kort(id) + ' (' + aantal.get(id) + ' doelen)' : kort(id));
-          const lijst = (titel, ids, toelichting) => {
-            if (!ids || ids.length === 0) return [];
-            return ['### ' + titel, '', ...(toelichting ? [toelichting, ''] : []), ...ids.map((id) => '- ' + metAantal(id)), ''];
+          // Het rapport van de studierichtingen komt van een ander script en kan onvolledig zijn. Een veld
+          // dat ontbreekt of een onverwachte vorm heeft, geeft "niet in het rapport" en nooit een fout.
+          const ONTBREEKT = 'niet in het rapport';
+          const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+          const getal = (v) => (typeof v === 'number' && Number.isFinite(v) ? String(v) : ONTBREEKT);
+          const aantalIn = (a) => (Array.isArray(a) ? String(a.length) : ONTBREEKT);
+          const tekst = (x) => {
+            if (typeof x === 'string') return x;
+            if (typeof x === 'number' || typeof x === 'boolean') return String(x);
+            if (x && typeof x === 'object') {
+              const namen = [x.groep, x.nummer, x.set, x.id].filter((v) => typeof v === 'string' || typeof v === 'number');
+              if (namen.length > 0) {
+                return namen.join(' / ') + (typeof x.titel === 'string' ? ' ' + x.titel : '') + (typeof x.reden === 'string' ? ': ' + x.reden : '');
+              }
+            }
+            try { return JSON.stringify(x) ?? String(x); } catch { return String(x); }
           };
-          // Een probleem in een gekozen set stopt de ophaling vóór er een pull request komt. Wat hier nog
-          // telt, zit dus alleen in sets die niet gekozen zijn.
-          const p = r.problemen || {};
-          const buitenGekozen = ['conflict', 'variant', 'overgeslagen', 'meerwaardig'].reduce((som, soort) => som + (p[soort] ? p[soort].aantal : 0), 0);
-          const uit = [
-            '## Minimumdoelen bijgewerkt',
-            '',
-            'De ophaling bij de Onderwijsdoelen-API van de Vlaamse overheid vond verschillen met wat in de repository staat.',
-            '',
-            '| | |',
-            '|---|---|',
-            '| Records ontvangen | ' + r.records + ' |',
-            '| Sets in de bron | ' + (r.alleSets || []).length + ' (gekozen: ' + (r.alleSets || []).filter((s) => s.gekozen).length + ') |',
-            '| Nieuwe sets | ' + (r.nieuw || []).length + ' |',
-            '| Gewijzigde sets | ' + (r.gewijzigd || []).length + ' |',
-            '| Verdwenen sets | ' + (r.verdwenen || []).length + ' |',
-            '| Volledig identieke records samengevoegd | ' + r.dubbel + ' |',
-            '| Problemen in niet-gekozen sets (zie het rapport) | ' + buitenGekozen + ' |',
-            '',
-            ...lijst('Nieuwe sets', r.nieuw),
-            ...lijst('Gewijzigde sets', r.gewijzigd),
-            ...lijst('Verdwenen uit de bron', r.verdwenen, 'Deze bestanden blijven staan. Beslis zelf of ze weg moeten.'),
-          ];
-          if ((r.waarschuwingen || []).length > 0) {
-            uit.push('### Waarschuwingen', '', ...r.waarschuwingen.map((w) => '- ' + kort(w)), '');
+          const leesRapport = (pad) => {
+            if (!fs.existsSync(pad)) {
+              return { melding: 'Er is geen rapport van de studierichtingen: de stap is niet uitgevoerd of niet tot het einde gekomen. Zie het logboek van de stap "Studierichtingen en koppeling ophalen".' };
+            }
+            try {
+              const r = JSON.parse(fs.readFileSync(pad, 'utf8'));
+              if (!r || typeof r !== 'object' || Array.isArray(r)) return { melding: 'Het rapport van de studierichtingen heeft een onverwachte vorm.' };
+              return { r };
+            } catch {
+              return { melding: 'Het rapport van de studierichtingen is niet te lezen (geen geldige JSON).' };
+            }
+          };
+          const MAX_REGELS = 30;
+          const lijstRegels = (titel, a, toelichting, max = MAX_REGELS) => {
+            if (!Array.isArray(a)) return ['### ' + titel, '', 'Dit veld ontbreekt in het rapport of heeft een onverwachte vorm.', ''];
+            if (a.length === 0) return [];
+            return [
+              '### ' + titel + ' (' + a.length + ')',
+              '',
+              ...(toelichting ? [toelichting, ''] : []),
+              ...a.slice(0, max).map((x) => '- ' + kort(tekst(x))),
+              ...(a.length > max ? ['- … en ' + (a.length - max) + ' meer: zie het volledige rapport'] : []),
+              '',
+            ];
+          };
+          // De groepen zijn in de ophaalstap al nagekeken tegen dit patroon. Deze stap draait ook als dat
+          // mislukte (always), dus keuren we ze hier nog eens: geldige invoer staat gewoon in de tekst, al het
+          // andere gaat als codespan.
+          const GROEPEN_GELDIG = /^(geen|G-[0-9]{4,6}(,G-[0-9]{4,6}){0,49})?$/;
+          const proefregel = (groepen, vervolg) => '**Proefrun voor ' + (groepen === 'geen' ? 'enkel de matrix (geen groepen gekoppeld)' : GROEPEN_GELDIG.test(groepen) ? groepen : kort(groepen)) + ': niet samenvoegen.** ' + vervolg;
+          // ── Einde van de gedeelde hulpfuncties ──
+
+          const onderdelen = process.env.ONDERDELEN || 'alles';
+          const groepen = process.env.GROEPEN || '';
+          const metMinimumdoelen = onderdelen !== 'studierichtingen';
+          const metStudierichtingen = onderdelen !== 'minimumdoelen';
+          const proefrun = metStudierichtingen && groepen !== '';
+
+          const deelMinimumdoelen = () => {
+            const r = JSON.parse(fs.readFileSync(process.env.RAPPORT_MINIMUMDOELEN, 'utf8'));
+            const aantal = new Map((r.alleSets || []).map((s) => [s.id, s.aantal]));
+            const metAantal = (id) => (aantal.has(id) ? kort(id) + ' (' + aantal.get(id) + ' doelen)' : kort(id));
+            const lijst = (titel, ids, toelichting) => {
+              if (!ids || ids.length === 0) return [];
+              return ['### ' + titel, '', ...(toelichting ? [toelichting, ''] : []), ...ids.map((id) => '- ' + metAantal(id)), ''];
+            };
+            // Een probleem in een gekozen set stopt de ophaling vóór er een pull request komt. Wat hier nog
+            // telt, zit dus alleen in sets die niet gekozen zijn.
+            const p = r.problemen || {};
+            const buitenGekozen = ['conflict', 'variant', 'overgeslagen', 'meerwaardig'].reduce((som, soort) => som + (p[soort] ? p[soort].aantal : 0), 0);
+            const uit = [
+              '## Minimumdoelen',
+              '',
+              'De ophaling bij de Onderwijsdoelen-API van de Vlaamse overheid vond verschillen met wat in de repository staat.',
+              '',
+              '| | |',
+              '|---|---|',
+              '| Records ontvangen | ' + r.records + ' |',
+              '| Sets in de bron | ' + (r.alleSets || []).length + ' (gekozen: ' + (r.alleSets || []).filter((s) => s.gekozen).length + ') |',
+              '| Nieuwe sets | ' + (r.nieuw || []).length + ' |',
+              '| Gewijzigde sets | ' + (r.gewijzigd || []).length + ' |',
+              '| Verdwenen sets | ' + (r.verdwenen || []).length + ' |',
+              '| Volledig identieke records samengevoegd | ' + r.dubbel + ' |',
+              '| Problemen in niet-gekozen sets (zie het rapport) | ' + buitenGekozen + ' |',
+              '',
+              ...lijst('Nieuwe sets', r.nieuw),
+              ...lijst('Gewijzigde sets', r.gewijzigd),
+              ...lijst('Verdwenen uit de bron', r.verdwenen, 'Deze bestanden blijven staan. Beslis zelf of ze weg moeten.'),
+            ];
+            if ((r.waarschuwingen || []).length > 0) {
+              uit.push('### Waarschuwingen', '', ...r.waarschuwingen.map((w) => '- ' + kort(w)), '');
+            }
+            return uit;
+          };
+
+          const deelStudierichtingen = () => {
+            const uit = ['## Studierichtingen en doelen per richting', ''];
+            const { r, melding } = leesRapport(process.env.RAPPORT_STUDIERICHTINGEN);
+            if (!r) {
+              uit.push(melding, '');
+              return uit;
+            }
+            const m = obj(r.matrix);
+            const k = obj(r.koppeling);
+            const ordening = obj(k.ordeningskader);
+            const kruis = obj(k.kruiscontrole);
+            if (r.fout) uit.push('**Fout:** ' + kort(tekst(r.fout)), '');
+            uit.push(
+              'De ophaling bij de API Structuuronderdelen en de Onderwijsdoelen-API (per groepnummer) vond verschillen met wat in de repository staat.',
+              '',
+              '| | |',
+              '|---|---|',
+              '| Groepen in de matrix | ' + getal(m.groepen) + ' (onderdelen: ' + getal(m.onderdelen) + ') |',
+              '| Studierichtingen nieuw | ' + aantalIn(m.nieuw) + ' |',
+              '| Studierichtingen gewijzigd | ' + aantalIn(m.gewijzigd) + ' |',
+              '| Studierichtingen afgebouwd | ' + aantalIn(m.afgebouwdSindsVorige) + ' |',
+              '| Studierichtingen niet meer in de bron | ' + aantalIn(m.nietMeerInBron) + ' |',
+              '| Groepen gekoppeld | ' + getal(k.gekoppeld) + ' |',
+              '| Doelen per richting nieuw | ' + aantalIn(k.nieuw) + ' |',
+              '| Doelen per richting gewijzigd | ' + aantalIn(k.gewijzigd) + ' |',
+              '| Richtingen die nu zonder doelen zijn | ' + aantalIn(k.nuZonderDoelen) + ' |',
+              '| 1ste graad volgens de regel graad en stroom | ' + getal(k.graadEnStroom) + ' |',
+              '| 1ste graad die nu wel gekoppeld is | ' + aantalIn(k.eersteGraadNuGekoppeld) + ' |',
+              '| Kruiscontrole met het ordeningskader | ' + getal(kruis.verschillen) + ' verschillen (' + getal(kruis.verschillenGeldigSo) + ' in geldige sets van het gewoon secundair) |',
+              '| Problemen | ' + aantalIn(r.problemen) + ' |',
+              '| Waarschuwingen | ' + aantalIn(r.waarschuwingen) + ' |',
+              '',
+              ...lijstRegels('Studierichtingen nieuw', m.nieuw),
+              ...lijstRegels('Studierichtingen gewijzigd', m.gewijzigd),
+              ...lijstRegels('Studierichtingen afgebouwd', m.afgebouwdSindsVorige),
+              ...lijstRegels('Studierichtingen niet meer in de bron', m.nietMeerInBron, 'Deze bestanden blijven staan. Beslis zelf of ze weg moeten.'),
+              ...lijstRegels('Doelen per richting nieuw', k.nieuw),
+              ...lijstRegels('Doelen per richting gewijzigd', k.gewijzigd),
+              ...lijstRegels('Richtingen die nu zonder doelen zijn', k.nuZonderDoelen, 'De laatst bekende koppeling blijft staan. Kijk dit na.'),
+              '### Kruiscontrole met het ordeningskader',
+              '',
+              getal(kruis.verschillen) + ' verschillen (' + getal(kruis.verschillenGeldigSo) + ' in geldige sets van het gewoon secundair).',
+              '',
+              ...lijstRegels('Voorbeelden van verschillen', kruis.voorbeelden, null, 10),
+              '### 1ste graad',
+              '',
+              (Array.isArray(k.eersteGraadNuGekoppeld) && k.eersteGraadNuGekoppeld.length > 0
+                ? 'Volgens deze ophaling koppelt de bron nu ook groepen van de 1ste graad (zie hieronder). Kijk na of de regel graad en stroom nog nodig is.'
+                : 'Volgens deze ophaling koppelt de bron de 1ste graad niet per richting.') +
+                ' Boosterz past de regel graad en stroom toe op ' + getal(k.graadEnStroom) + ' groepen' +
+                (k.eersteGraadPerStroom && typeof k.eersteGraadPerStroom === 'object'
+                  ? ' (A-stroom: ' + getal(k.eersteGraadPerStroom.A) + ', B-stroom: ' + getal(k.eersteGraadPerStroom.B) + ').'
+                  : '.'),
+              '',
+              'Na een update van de minimumdoelen kunnen de fixturetests van het ophaalscript overslaan (versie van de sets veranderd). Maak de fixtures dan opnieuw zoals in docs/STUDIERICHTINGEN.md § 3.6.',
+              '',
+              ...lijstRegels('1ste graad die nu wel gekoppeld is door de bron', k.eersteGraadNuGekoppeld),
+            );
+            if (Array.isArray(r.waarschuwingen) && r.waarschuwingen.length > 0) {
+              uit.push('### Waarschuwingen', '', ...r.waarschuwingen.slice(0, MAX_REGELS).map((w) => '- ' + kort(tekst(w))));
+              if (r.waarschuwingen.length > MAX_REGELS) uit.push('- … en ' + (r.waarschuwingen.length - MAX_REGELS) + ' meer: zie het volledige rapport');
+              uit.push('');
+            }
+            return uit;
+          };
+
+          const uit = ['# Leerplangegevens bijgewerkt', ''];
+          if (proefrun) {
+            uit.push(proefregel(groepen, 'Gebruik deze pull request om de gegevens na te kijken en sluit ze daarna.'), '');
           }
-          uit.push(
-            '**Kijk het verschil na vóór je samenvoegt.** Controleer of de teksten letterlijk kloppen, of er geen sets ontbreken en of de aantallen aannemelijk zijn. Niets gaat automatisch live: na het samenvoegen rolt de deploy-workflow het uit.',
+          if (metMinimumdoelen) uit.push(...deelMinimumdoelen());
+          if (metStudierichtingen) uit.push(...deelStudierichtingen());
+          const artifacts = [metMinimumdoelen ? '`minimumdoelen-rapport`' : null, metStudierichtingen ? '`studierichtingen-rapport`' : null].filter(Boolean);
+          const sluit = [
+            '**Kijk het verschil na vóór je samenvoegt.** Controleer of de teksten letterlijk kloppen, of er geen sets of richtingen ontbreken en of de aantallen aannemelijk zijn. Niets gaat automatisch live: na het samenvoegen rolt de deploy-workflow het uit.',
             '',
-            'Het volledige rapport (met de veldinventaris van de API) staat als artifact `minimumdoelen-rapport` bij [deze run](' + process.env.RUN_URL + ').',
-          );
-          console.log(uit.join('\n'));
+            'De volledige rapporten (met de veldinventaris van de API) staan als ' + (artifacts.length > 1 ? 'artifacts ' : 'artifact ') + artifacts.join(' en ') + ' bij [deze run](' + process.env.RUN_URL + ').',
+          ].join('\n');
+          // GitHub staat hoogstens 65536 tekens toe in de tekst van een pull request. Wordt de tekst te lang, dan
+          // kort ik de lijsten in en blijft het slot staan.
+          const MAX_TEKENS = 60000;
+          let body = uit.join('\n').replace(/\n+$/, '');
+          if (body.length + sluit.length + 2 > MAX_TEKENS) {
+            body = body.slice(0, Math.max(0, body.lastIndexOf('\n', MAX_TEKENS - sluit.length - 200))) + '\n\n_De lijsten zijn hier ingekort omdat de tekst te lang werd. Het volledige rapport staat in de artifacts._';
+          }
+          console.log(body + '\n\n' + sluit);
           JS
 
           if url="$(gh pr create --base "$BASE_BRANCH" --head "$branch" --title "$titel" --body-file "$tekst")"; then
