@@ -1,0 +1,62 @@
+name: Verkenning Onderwijs-API's
+
+# Eenmalige verkenning (oktober 2026): welke API's en open bronnen van Onderwijs en Vorming kunnen
+# de matrix van de studierichtingen secundair onderwijs leveren, en wat zit er verder in? Alleen met
+# de hand te starten. Bewaart geen gegevens in de repository: het verslag staat in het logboek, in
+# de samenvatting en als artifact. Script en uitleg: tools/verkenning/verken-onderwijs-api.mjs.
+#
+# De API-sleutel is hetzelfde geheim als bij de minimumdoelen (ONDERWIJSDOELEN_API_KEY). Hij gaat
+# alleen naar onderwijs.api.vlaanderen.be, staat enkel in de omgeving van de eerste stap, en komt
+# nooit in een log of in het verslag.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verken-onderwijs-api
+  cancel-in-progress: false
+
+jobs:
+  verkennen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Zoals bij de minimumdoelen: de stap met het geheim draait vóór de installatie van de
+      # npm-pakketten en gebruikt alleen ingebouwde Node-modules.
+      - name: Proefoproepen met sleutel
+        continue-on-error: true
+        env:
+          ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
+        run: node tools/verkenning/verken-onderwijs-api.mjs --met-sleutel
+
+      - name: Pakketten installeren
+        if: always()
+        run: npm ci --ignore-scripts
+
+      - name: Publieke bronnen zonder sleutel
+        if: always()
+        continue-on-error: true
+        run: node tools/verkenning/verken-onderwijs-api.mjs --publiek
+
+      - name: Verslag
+        if: always()
+        run: node tools/verkenning/verken-onderwijs-api.mjs --verslag
+
+      - name: Verslag bewaren
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: verkenning-onderwijs-api
+          path: tools/verkenning/rapport/
+          if-no-files-found: ignore
+          retention-days: 30
