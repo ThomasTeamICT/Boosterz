@@ -4,7 +4,7 @@
 // Vraag van de eigenaar: kunnen we de geldende matrix van alle studierichtingen van het secundair
 // onderwijs als data ophalen, en wat zit er verder in de API's van Onderwijs? Zie docs/LEERPLANNEN.md.
 //
-// Zes standen, elk in een aparte stap van de workflow .github/workflows/verken-onderwijs-api.yml:
+// Zeven standen, elk in een aparte stap van de workflow .github/workflows/verken-onderwijs-api.yml:
 //   --met-sleutel  proefoproepen naar onderwijs.api.vlaanderen.be met de sleutel uit de omgeving
 //                  (ONDERWIJSDOELEN_API_KEY). Alleen ingebouwde Node-modules, geen pakketten.
 //   --publiek      publieke bronnen zonder sleutel: het API-portaal, de technische ontwerpen (pdf),
@@ -15,6 +15,7 @@
 //                  /structuuronderdeelgroep, de filters van de doelen-API en de aantallen van het aanbod.
 //   --koppeling    (ronde 4, met sleutel) per studierichting welke doelensets de filter
 //                  studierichting=<naam> geeft, en of dat volledige sets zijn.
+//   --proeven      (ronde 5, met sleutel) filterproeven: groepsnummer, graad, stroom, geldigheid.
 //   --parameters   (ronde 3, zonder sleutel) de parameternamen uit de API-clients van de webapps.
 //
 // Veiligheid:
@@ -616,6 +617,61 @@ async function koppeling() {
   return uit;
 }
 
+// ── Stand 7: filterproeven (ronde 5) ────────────────────────────────────────
+
+// Ronde 4 toonde dat de filter studierichting=<naam> de graden mengt (dezelfde naam in de 2de en
+// 3de graad) en faalt op namen met een komma. onderwijsdoelen.be gebruikt ook
+// structuuronderdeel_groep_nummer, so_graad, stroom, leerjaar, geldig en versie. Per proef: het
+// totaal, en de verdeling over sets (aantal sets, en hoeveel daarvan Buitengewoon zijn).
+const PROEVEN_5 = [
+  'structuuronderdeel_groep_nummer=G-0117', 'structuuronderdeel_groep_nummer=G-0327', 'studierichting=Humane%20wetenschappen',
+  'structuuronderdeel_groep_nummer=G-0223', 'structuuronderdeel_groep_nummer=G-0001', 'structuuronderdeel_groep_nummer=G-0184',
+  'structuuronderdeel_groep_nummer=G-0359', 'structuuronderdeel_groep_nummer=G-0200', 'structuuronderdeel_groep_nummer=G-0307',
+  'structuuronderdeel_groep_nummer=G-0311', 'structuuronderdeel_groep_nummer=G-0281',
+  'so_graad=1ste%20graad', 'so_graad=2de%20graad', 'so_graad=3de%20graad', 'stroom=A-stroom', 'so_graad=1ste%20graad&stroom=A-stroom',
+  'leerjaar=1ste%20leerjaar', 'leerjaar=3de%20leerjaar', 'geldig=true', 'geldig=Geldig', 'geldig=ja', 'versie=2.1', 'onderwijssoort=Buitengewoon',
+  'onderwijssoort=Gewoon', 'so_gr2_finaliteit=Finaliteit%20doorstroom', 'so_gr3_finaliteit=Finaliteit%20doorstroom', 'onderwijsdoel_type=Eindtermen',
+  'structuuronderdeel_groep_nummer=G-0117&geldig=true', 'structuuronderdeel_groep_nummer=G-0117&onderwijsniveau=Secundair%20onderwijs',
+];
+
+async function proeven() {
+  const sleutel = process.env.ONDERWIJSDOELEN_API_KEY;
+  if (!sleutel) throw new Error('ONDERWIJSDOELEN_API_KEY ontbreekt in de omgeving');
+  const uit = [];
+  for (const q of PROEVEN_5) {
+    const extra = `&${q}`;
+    const eerst = await verzoek(`${API}/onderwijsdoelen/onderwijsdoel?paginanr=1&rijen_per_pagina=1${extra}`, { sleutel });
+    let t = null;
+    try {
+      t = Number(JSON.parse(eerst.tekst).gegevens.totalItems);
+    } catch {
+      /* geen totaal */
+    }
+    const regel = { q, status: eerst.status ?? eerst.fout, totaal: t };
+    // Kleine resultaten volledig: verdeling over sets.
+    if (t && t < 3000) {
+      const res = await alleDoelenVan(sleutel, extra);
+      const sets = new Map();
+      for (const d of res.leden) {
+        const s = d.onderwijsdoelenset || {};
+        const o = s.onderwijsstructuur || {};
+        const k = s.onderwijsdoelenset_id;
+        if (!sets.has(k)) sets.set(k, { n: 0, naam: schoon(s.onderwijsdoelenset, 90), soort: schoon(o.onderwijssoort, 30), graad: schoon(o.graad, 20), geldig: schoon(d.geldigheid && d.geldigheid.type, 30) });
+        sets.get(k).n++;
+      }
+      regel.sets = sets.size;
+      regel.buitengewoon = [...sets.values()].filter((x) => /buitengewoon/i.test(x.soort)).length;
+      regel.graden = [...new Set([...sets.values()].map((x) => x.graad))];
+      regel.geldigheid = [...new Set([...sets.values()].map((x) => x.geldig))];
+      regel.voorbeeld = [...sets.entries()].slice(0, 6).map(([k, x]) => `${k}:${x.n}:${x.graad}:${x.soort}:${x.naam}`);
+    }
+    uit.push(regel);
+    console.log(`PROEF|${JSON.stringify(regel)}`);
+    await wacht(250);
+  }
+  return uit;
+}
+
 /** Parameternamen uit de gegenereerde API-clients van de officiële webapps (zonder sleutel). */
 async function parameters() {
   const bronnen = PAGINAS.filter(([naam]) => /Opleidingsinhouden|Onderwijsdoelen\.be: start/.test(naam));
@@ -950,6 +1006,9 @@ async function main() {
   } else if (stand === '--koppeling') {
     const d = await koppeling();
     fs.writeFileSync(path.join(UIT, 'koppeling.json'), JSON.stringify(d, null, 1));
+  } else if (stand === '--proeven') {
+    const d = await proeven();
+    fs.writeFileSync(path.join(UIT, 'proeven.json'), JSON.stringify(d, null, 1));
   } else if (stand === '--parameters') {
     const d = await parameters();
     fs.writeFileSync(path.join(UIT, 'parameters.json'), JSON.stringify(d, null, 1));
@@ -959,7 +1018,7 @@ async function main() {
     console.log(tekst);
     if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, tekst.slice(0, 900000) + '\n');
   } else {
-    console.error('Gebruik: verken-onderwijs-api.mjs --met-sleutel | --publiek | --verslag | --matrix | --koppeling | --parameters');
+    console.error('Gebruik: verken-onderwijs-api.mjs --met-sleutel | --publiek | --verslag | --matrix | --koppeling | --proeven | --parameters');
     process.exit(2);
   }
 }
