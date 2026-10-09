@@ -12,6 +12,7 @@ name: Verkenning Onderwijs-API's
 # Stand "matrix" (standaard, ronde 3): alleen de matrix van de studierichtingen (één regel per
 # studierichting), de filters van de doelen-API en de parameternamen uit de webapps. Zo blijft het
 # logboek onder de 5000 regels die de GitHub-koppeling van de cloudsessie kan teruglezen.
+# Stand "koppeling" (ronde 4): per studierichting welke doelensets de doelen-API teruggeeft.
 # Stand "volledig": de brede verkenning van ronde 1 en 2 met het verslag.
 
 on:
@@ -24,6 +25,7 @@ on:
         type: choice
         options:
           - matrix
+          - koppeling
           - volledig
 
 permissions:
@@ -36,7 +38,7 @@ concurrency:
 jobs:
   verkennen:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,10 +49,16 @@ jobs:
       # Zoals bij de minimumdoelen: de stap met het geheim draait vóór de installatie van de
       # npm-pakketten en gebruikt alleen ingebouwde Node-modules.
       - name: Matrix en filters (met sleutel)
-        if: inputs.stand != 'volledig'
+        if: inputs.stand == 'matrix' || inputs.stand == ''
         env:
           ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
         run: node tools/verkenning/verken-onderwijs-api.mjs --matrix
+
+      - name: Koppeling studierichting en doelen (met sleutel)
+        if: inputs.stand == 'koppeling'
+        env:
+          ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
+        run: node tools/verkenning/verken-onderwijs-api.mjs --koppeling
 
       - name: Parameternamen uit de webapps (zonder sleutel)
         if: always() && inputs.stand != 'volledig'
