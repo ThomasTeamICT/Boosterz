@@ -18,7 +18,7 @@ De opdracht van de eigenaar, letterlijk: "ja, doe die import maar, einddoel is d
 | P6 Lader, kader en keuzehulp | Wacht, op P1, P2 en P5 | bouwer |
 | P7 Cursushulp-logica | Wacht, op P6 | bouwer |
 | I1 Integratie van de data (P1, P2, P4; P3 volgt) | **Klaar** | hoofdsessie |
-| G1 Eerste echte run, in stappen | Wacht, op I1 | hoofdsessie; de eigenaar keurt de data-PR goed |
+| G1 Eerste echte run, in stappen | **Bezig** (9 oktober 2026). Stap 1 (alleen de matrix) en stap 2 (10 groepen) geslaagd, PR's #4 en #5 nagekeken en gesloten; stap 3 (alles) loopt. Zie § 17.1. | hoofdsessie |
 | I2 Integratie van de logica (P5 tot P7) en stubs | Wacht | hoofdsessie |
 | P8 Richtingenscherm | Wacht, op I2 | bouwer, worktree A |
 | P9 Cursus maken, koppelen en instellen | Wacht, op I2 | bouwer, worktree B |
@@ -1093,6 +1093,13 @@ De hoofdsessie start de workflow (workflow_dispatch). Na elke stap leest ze het 
    - de stand van zaken bijwerken.
 
 Een afwijking van de vorm wordt hersteld door een kernbouwer, als een kleine aanpassing van `studierichtingen.ts` of het script, met een test. Daarna start de stap opnieuw.
+
+### 17.1 Wat de eerste echte run bevestigde (9 oktober 2026)
+
+- **Stap 1, matrix** (run 37957531412, PR #4 gesloten): 28 pagina's, 545 groepen, 961 onderdelen; de validators geven geen fouten. Soorten: 260 gewoon, 219 zevende, 55 BuSO, 9 aanloop, 2 ander, precies zoals de verkenning. 674 onderdelen met `ov4`, 475 duaal, 128 met een einddatum, 125 met `vorige` en 124 met `volgende`. Het bestand is 1,37 MB (63 kB gzip), groter dan geschat omdat de omschrijvingen van hoofdstructuren, instellingstypes en stelsels bewaard blijven. Onbekende velden in `extra`: `aantal_semesters_7de_leerjaar` (332 onderdelen), `basisoptiecombinaties` (7) en bij de vier groepen van de 1ste graad een veld `stroom` {code A_STROOM|B_STROOM, omschrijving}: de officiële stroom, die de afleiding uit de titel bevestigt.
+- **Stap 2, tien groepen** (run 37957872355, PR #5 gesloten): G-0001, G-0008, G-0117, G-0193, G-0223 en G-0327 gekoppeld via de API (500 tot 862 doelen, 62 tot 92 sets, telkens de helft BuSO-sets, alle versiemerken gelijk). G-0307 en G-0311 (1ste graad) volgens de regel graad en stroom (104 sets, A-stroom). G-0002 (7de jaar) en G-0009 (BuSO) geven twee keer 404: geen doelen. G-0223 (naam met een komma) werkt via het groepsnummer. Geen problemen en geen waarschuwingen; de kruiscontrole met het ordeningskader geeft 0 verschillen.
+- **Kader van een richting** (actueel, gewoon secundair): G-0193 Natuurwetenschappen 23 sets en 171 doelen (16 hele sets, 7 deelsets, bv. Biologie 4 van 13, Chemie 9 van 25); G-0117 22 sets en 147 doelen; G-0327 24 sets en 164 doelen; G-0001 Afwerking bouw 16 hele sets en 76 doelen (arbeidsmarkt: geen deelsets).
+- **R4.** De API koppelt de sets "3de graad 3de leerjaar" (bv. ODS_3371, 1 doel) ook aan een gewone richting van de 3de graad (G-0327). R4 blijft: in het 5de en 6de jaar staan die sets bij "Niet voor dit jaar", niet weg.
 
 ## 18. Bouwplan
 
