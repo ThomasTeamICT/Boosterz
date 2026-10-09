@@ -73,7 +73,9 @@ function lijstEnTotaal(waarde) {
   const zoek = (v, pad, diepte) => {
     if (diepte > 5 || v === null || typeof v !== 'object') return;
     if (Array.isArray(v)) {
-      if (!lijst && v.length > 0 && v.every((x) => x && typeof x === 'object' && !Array.isArray(x))) {
+      const objecten = v.length > 0 && v.every((x) => x && typeof x === 'object' && !Array.isArray(x));
+      const beter = !lijst || /member|items|resultat|gegevens|data/i.test(pad) && !/member|items|resultat|gegevens|data/i.test(lijstPad) || (!/@context/.test(pad) && /@context/.test(lijstPad));
+      if (objecten && beter && !/@context|mapping/.test(pad)) {
         lijst = v;
         lijstPad = pad || '(wortel)';
       }
@@ -141,7 +143,8 @@ async function verzoek(url, { sleutel = null, accept = 'application/json, text/p
     r.tekst = tekst;
     return r;
   } catch (e) {
-    r.fout = schoon(e && e.message ? e.message : e, 200);
+    const oorzaak = e && e.cause ? ` (${e.cause.code || e.cause.message || e.cause})` : '';
+    r.fout = schoon((e && e.message ? e.message : e) + oorzaak, 200);
     return r;
   }
 }
@@ -169,61 +172,129 @@ function beschrijf(r) {
   uit.velden = Object.fromEntries([...velden(json)].slice(0, 250).map(([k, s]) => [k, [...s].join('|')]));
   uit.voorbeelden = lijst ? lijst.slice(0, 2).map((x) => inkort(x)) : [inkort(json)];
   uit.links = [...apiLinks(json)].slice(0, 30);
+  // Hydra-sjabloon met de toegelaten parameters (de doelen-API geeft dat mee).
+  const sjabloon = json && typeof json === 'object' && json.parameters && typeof json.parameters === 'object' ? json.parameters : null;
+  if (sjabloon) {
+    uit.parameters = {
+      template: schoon(sjabloon.template, 400),
+      mapping: Array.isArray(sjabloon.mapping) ? sjabloon.mapping.map((m) => ({ variable: schoon(m.variable, 80), property: schoon(m.property, 120), required: m.required })) : null,
+    };
+  }
   return uit;
 }
 
 // ── Stand 1: met sleutel ────────────────────────────────────────────────────
 
+// Ronde 2 (na de eerste run van 9 oktober 2026): de adressen uit de scripts van de app
+// Opleidingsinhouden (kwalificaties-en-curriculum/…), de filters van de doelen-API, en nog enkele
+// kandidaten voor het onderwijsaanbod SO. Ronde 1 vond: doelen-API filtert op "studierichting";
+// alle geraden adressen voor aanbod, instellingen en structuuronderdelen gaven 404.
+const KC = '/kwalificaties-en-curriculum';
 const PROEVEN_MET_SLEUTEL = [
-  // De doelen-API die we al gebruiken: volledige veldinventaris van twee doelen, en andere adressen.
-  ['doelen: twee doelen', '/onderwijsdoelen/onderwijsdoel?paginanr=1&rijen_per_pagina=2'],
-  ['doelen: basis', '/onderwijsdoelen'],
-  ['doelen: basis /', '/onderwijsdoelen/'],
-  ['doelen: sets', '/onderwijsdoelen/onderwijsdoelenset'],
-  ['doelen: sets (meervoud)', '/onderwijsdoelen/onderwijsdoelensets'],
-  ['doelen: onderwijsstructuur', '/onderwijsdoelen/onderwijsstructuur'],
-  ['doelen: studierichting', '/onderwijsdoelen/studierichting'],
-  ['doelen: studierichtingen', '/onderwijsdoelen/studierichtingen'],
-  ['doelen: structuuronderdeel', '/onderwijsdoelen/structuuronderdeel'],
-  ['doelen: structuuronderdelen', '/onderwijsdoelen/structuuronderdelen'],
-  ['doelen: openapi.json', '/onderwijsdoelen/openapi.json'],
-  ['doelen: swagger.json', '/onderwijsdoelen/swagger.json'],
+  ['doelen: twee doelen (met parameters)', '/onderwijsdoelen/onderwijsdoel?paginanr=1&rijen_per_pagina=2'],
   ['doelen: filter studierichting', '/onderwijsdoelen/onderwijsdoel?paginanr=1&rijen_per_pagina=2&studierichting=Humane%20wetenschappen'],
-  ['doelen: filter structuuronderdeel', '/onderwijsdoelen/onderwijsdoel?paginanr=1&rijen_per_pagina=2&structuuronderdeel=Humane%20wetenschappen'],
-  ['doelen: filter onderwijsstructuur', '/onderwijsdoelen/onderwijsdoel?paginanr=1&rijen_per_pagina=2&onderwijsstructuur=SO_3DE_GRAAD'],
-  // Onderwijsaanbod secundair onderwijs (catalogusfiche 7889e3d0): theoretisch en ingericht aanbod.
-  ['aanbod SO: basis', '/instellingsgegevens/onderwijsaanbod_so/v2'],
-  ['aanbod SO: basis /', '/instellingsgegevens/onderwijsaanbod_so/v2/'],
-  ['aanbod SO: administratieve_groepen', '/instellingsgegevens/onderwijsaanbod_so/v2/administratieve_groepen'],
-  ['aanbod SO: administratievegroepen', '/instellingsgegevens/onderwijsaanbod_so/v2/administratievegroepen'],
-  ['aanbod SO: administratieve-groepen', '/instellingsgegevens/onderwijsaanbod_so/v2/administratieve-groepen'],
-  ['aanbod SO: administratieve_groep', '/instellingsgegevens/onderwijsaanbod_so/v2/administratieve_groep'],
-  ['aanbod SO: theoretisch', '/instellingsgegevens/onderwijsaanbod_so/v2/theoretisch'],
-  ['aanbod SO: ingericht', '/instellingsgegevens/onderwijsaanbod_so/v2/ingericht'],
-  ['aanbod SO: hoofdstructuren', '/instellingsgegevens/onderwijsaanbod_so/v2/hoofdstructuren'],
-  ['aanbod SO: schooljaren', '/instellingsgegevens/onderwijsaanbod_so/v2/schooljaren'],
-  ['aanbod SO: structuuronderdelen', '/instellingsgegevens/onderwijsaanbod_so/v2/structuuronderdelen'],
-  ['aanbod SO: openapi.json', '/instellingsgegevens/onderwijsaanbod_so/v2/openapi.json'],
-  ['aanbod SO: v1', '/instellingsgegevens/onderwijsaanbod_so/v1'],
-  ['aanbod SO: v3', '/instellingsgegevens/onderwijsaanbod_so/v3'],
-  // Instellingen (scholen en vestigingen).
-  ['instellingen: basis', '/instellingsgegevens/instelling/v2'],
-  ['instellingen: basis /', '/instellingsgegevens/instelling/v2/'],
-  // Structuuronderdelen-API (genoemd door de app Opleidingsinhouden; adres onbekend).
-  ['structuuronderdelen: /structuuronderdelen', '/structuuronderdelen'],
-  ['structuuronderdelen: /structuuronderdelen/v1', '/structuuronderdelen/v1'],
-  ['structuuronderdelen: /structuuronderdeel', '/structuuronderdeel'],
-  ['structuuronderdelen: /structuuronderdeel/v1', '/structuuronderdeel/v1'],
-  ['structuuronderdelen: kwalificaties/…', '/kwalificaties/structuuronderdelen'],
-  ['structuuronderdelen: kwalificatiesencurriculum/…', '/kwalificatiesencurriculum/structuuronderdelen'],
-  ['structuuronderdelen: curriculum/…', '/curriculum/structuuronderdelen'],
-  ['structuuronderdelen: onderwijsdoelen/structuur', '/onderwijsdoelen/structuur'],
-  ['opleidingstrajecten: /opleidingstrajecten', '/opleidingstrajecten'],
-  ['opleidingsinhouden: /opleidingsinhouden', '/opleidingsinhouden'],
-  ['onderwijskwalificaties', '/onderwijskwalificaties'],
-  ['beroepskwalificaties', '/beroepskwalificaties'],
-  ['kwalificaties', '/kwalificaties'],
+  ['structuuronderdelen: basis', `${KC}/structuuronderdelen/v2`],
+  ['structuuronderdelen: structuuronderdeel', `${KC}/structuuronderdelen/v2/structuuronderdeel`],
+  ['structuuronderdelen: structuuronderdeelgroep', `${KC}/structuuronderdelen/v2/structuuronderdeelgroep`],
+  ['structuuronderdelen: structuuronderdeel_detail', `${KC}/structuuronderdelen/v2/structuuronderdeel_detail`],
+  ['beroepskwalificaties: beroepskwalificatie', `${KC}/beroepskwalificaties/v2/beroepskwalificatie`],
+  ['trajecten: opleidingstraject', `${KC}/trajecten/v1/opleidingstraject`],
+  ['app-opleidingsinhouden: basis', '/app-opleidingsinhouden/v1'],
+  ['aanbod SO: met streepje', '/instellingsgegevens/onderwijsaanbod-so/v2'],
+  ['aanbod SO: administratievegroep', '/instellingsgegevens/onderwijsaanbod_so/v2/administratievegroep'],
+  ['aanbod SO: aanbod', '/instellingsgegevens/onderwijsaanbod_so/v2/aanbod'],
+  ['aanbod SO: onderwijsaanbod', '/instellingsgegevens/onderwijsaanbod_so/v2/onderwijsaanbod'],
+  ['aanbod SO: theoretisch_aanbod', '/instellingsgegevens/onderwijsaanbod_so/v2/theoretisch_aanbod'],
+  ['aanbod SO: ingericht_aanbod', '/instellingsgegevens/onderwijsaanbod_so/v2/ingericht_aanbod'],
+  ['instellingen: instelling', '/instellingsgegevens/instelling/v2/instelling'],
+  ['instellingen: instellingen', '/instellingsgegevens/instelling/v2/instellingen'],
 ];
+
+// Lijsten die we volledig doorbladeren en regel per regel in het logboek zetten (publieke gegevens).
+const DOORBLADEREN = [
+  ['structuuronderdeel', `${KC}/structuuronderdelen/v2/structuuronderdeel`],
+  ['structuuronderdeelgroep', `${KC}/structuuronderdelen/v2/structuuronderdeelgroep`],
+  ['opleidingstraject', `${KC}/trajecten/v1/opleidingstraject`],
+  ['beroepskwalificatie', `${KC}/beroepskwalificaties/v2/beroepskwalificatie`],
+];
+
+/** Volgt "next"-links (of verhoogt paginanr) en verzamelt alle elementen van een lijst. */
+async function doorblader(naam, startUrl, sleutel, maxPaginas = 80) {
+  const items = [];
+  let url = startUrl;
+  let paginas = 0;
+  let totaal = null;
+  let eerste = null;
+  const gehad = new Set();
+  while (url && paginas < maxPaginas && !gehad.has(url)) {
+    gehad.add(url);
+    const r = await verzoek(url, { sleutel });
+    paginas++;
+    if (r.status !== 200 || !r.tekst) {
+      if (!eerste) eerste = { status: r.status, fout: r.fout, begin: r.tekst ? schoon(r.tekst, 300) : null };
+      break;
+    }
+    let json;
+    try {
+      json = JSON.parse(r.tekst);
+    } catch {
+      eerste = eerste || { status: r.status, begin: schoon(r.tekst, 300) };
+      break;
+    }
+    if (!eerste) eerste = { status: 200, beschrijving: beschrijf(r) };
+    const { lijst, totaal: t } = lijstEnTotaal(json);
+    if (t && totaal === null) totaal = t.waarde;
+    if (!lijst || lijst.length === 0) break;
+    items.push(...lijst);
+    // volgende pagina: een veld "next" met een URL, anders paginanr ophogen als dat in de URL staat
+    let volgende = null;
+    const zoekNext = (v, d) => {
+      if (volgende || d > 4 || !v || typeof v !== 'object') return;
+      for (const [k, x] of Object.entries(v)) {
+        if (/^(next|volgende)$/i.test(k) && typeof x === 'string' && x.startsWith('http')) volgende = x;
+        else if (/^(next|volgende)$/i.test(k) && x && typeof x.href === 'string') volgende = x.href;
+        else zoekNext(x, d + 1);
+      }
+    };
+    zoekNext(json, 0);
+    if (volgende) {
+      try {
+        const v = new URL(volgende.replace(/ /g, '%20'));
+        url = v.host === API_HOST ? v.toString() : null;
+      } catch {
+        url = null;
+      }
+    } else if (totaal !== null && items.length < totaal) {
+      const u = new URL(url);
+      const sleutelNaam = ['paginanr', 'page', 'pagina'].find((k) => u.searchParams.has(k));
+      if (sleutelNaam) {
+        u.searchParams.set(sleutelNaam, String(Number(u.searchParams.get(sleutelNaam)) + 1));
+        url = u.toString();
+      } else {
+        url = null;
+      }
+    } else {
+      url = null;
+    }
+    await wacht(WACHT_MS);
+  }
+  return { naam, startUrl, paginas, totaal, aantal: items.length, eerste, items };
+}
+
+/** Eén regel per element: alleen eenvoudige velden en kleine objecten, ingekort. */
+function regelVan(item) {
+  const plat = {};
+  for (const [k, v] of Object.entries(item)) {
+    if (v === null || ['string', 'number', 'boolean'].includes(typeof v)) plat[k] = typeof v === 'string' ? schoon(v, 140) : v;
+    else if (Array.isArray(v)) plat[k] = v.length <= 6 && v.every((x) => x === null || typeof x !== 'object') ? v.map((x) => (typeof x === 'string' ? schoon(x, 60) : x)) : `[${v.length}]`;
+    else if (typeof v === 'object') {
+      const klein = {};
+      for (const [k2, v2] of Object.entries(v).slice(0, 8)) if (v2 === null || typeof v2 !== 'object') klein[k2] = typeof v2 === 'string' ? schoon(v2, 80) : v2;
+      plat[k] = klein;
+    }
+  }
+  return JSON.stringify(plat);
+}
 
 async function metSleutel() {
   const sleutel = process.env.ONDERWIJSDOELEN_API_KEY;
@@ -242,6 +313,8 @@ async function metSleutel() {
     const b = { naam, ...beschrijf(r) };
     resultaten.push(b);
     console.log(`${String(b.status ?? '---').padEnd(4)} ${naam} — ${b.url}${b.lijst ? ` (lijst ${b.lijst.pad}: ${b.lijst.lengte})` : ''}${b.totaal ? ` (totaal ${b.totaal.waarde})` : ''}`);
+    if (b.parameters) console.log(`PARAMETERS|${naam}|${JSON.stringify(b.parameters)}`);
+    if (b.status && b.status !== 200 && b.status !== 404 && b.begin) console.log(`ANTWOORD|${naam}|${b.begin}`);
     // Links in een antwoord volgen (hoogstens 5 per antwoord en 30 in totaal), alleen op de API-host.
     if (b.status === 200 && Array.isArray(b.links)) {
       let hier = 0;
@@ -261,17 +334,50 @@ async function metSleutel() {
     }
     await wacht(WACHT_MS);
   }
+  // Volledige lijsten doorbladeren (structuuronderdelen = de studierichtingen) en uitschrijven.
+  const lijsten = [];
+  for (const [naam, pad] of DOORBLADEREN) {
+    const l = await doorblader(naam, API + pad, sleutel);
+    console.log(`LIJST|${naam}|status ${l.eerste ? l.eerste.status : '?'}|${l.aantal} elementen in ${l.paginas} pagina's|totaal ${l.totaal}`);
+    for (const it of l.items.slice(0, 4000)) console.log(`ITEM|${naam}|${regelVan(it)}`);
+    // Details van de eerste drie elementen, als er een detailadres is.
+    l.details = [];
+    if (naam === 'structuuronderdeel' && l.items.length > 0) {
+      for (const it of l.items.slice(0, 3)) {
+        const sleutelVeld = Object.keys(it).find((k) => /(^|_)(id|nr|nummer|versie_nr_lang|code)$/i.test(k) && (typeof it[k] === 'string' || typeof it[k] === 'number'));
+        if (!sleutelVeld) break;
+        for (const detail of [`${KC}/structuuronderdelen/v2/structuuronderdeel_detail/${encodeURIComponent(it[sleutelVeld])}`, `${KC}/structuuronderdelen/v2/structuuronderdeel/${encodeURIComponent(it[sleutelVeld])}`]) {
+          const r = await verzoek(API + detail, { sleutel });
+          const b = { naam: `detail via ${sleutelVeld}`, ...beschrijf(r) };
+          l.details.push(b);
+          console.log(`${String(b.status ?? '---').padEnd(4)} detail ${detail}`);
+          if (b.status === 200) {
+            try {
+              console.log(`DETAIL|${detail}|${JSON.stringify(inkort(JSON.parse(r.tekst))).slice(0, 12000)}`);
+            } catch {
+              /* geen JSON */
+            }
+          }
+          await wacht(WACHT_MS);
+        }
+      }
+    }
+    delete l.items;
+    lijsten.push(l);
+  }
+
   // Filters op de doelen-API: verandert het totaal ten opzichte van zonder filter?
-  const zonder = resultaten.find((x) => x.naam === 'doelen: twee doelen');
+  const zonder = resultaten.find((x) => x.naam.startsWith('doelen: twee doelen'));
   const filters = resultaten
     .filter((x) => x.naam.startsWith('doelen: filter'))
     .map((x) => ({ naam: x.naam, status: x.status, totaal: x.totaal ? x.totaal.waarde : null, zonderFilter: zonder && zonder.totaal ? zonder.totaal.waarde : null }));
-  return { tijd: new Date().toISOString(), resultaten, filters };
+  return { tijd: new Date().toISOString(), resultaten, filters, lijsten };
 }
 
 // ── Stand 2: publiek, zonder sleutel ────────────────────────────────────────
 
 const PAGINAS = [
+  ['API-portaal (zonder slash)', 'https://onderwijs-api-portaal.vlaanderen.be'],
   ['API-portaal', 'https://onderwijs-api-portaal.vlaanderen.be/'],
   ['API-portaal: documentatie instellingsgegevens', 'https://onderwijs-api-portaal.vlaanderen.be/documentatie/instellingsgegevens'],
   ['API-portaal: documentatie kwalificaties en curriculum', 'https://onderwijs-api-portaal.vlaanderen.be/documentatie/kwalificaties-curriculum'],
@@ -360,10 +466,17 @@ async function publiek() {
           const x = sporen(js.tekst);
           x.urls.forEach((u) => sp.urls.push(u));
           x.fragmenten.forEach((f) => sp.fragmenten.push(f));
+          sp.code = sp.code || [];
+          for (const mm of js.tekst.matchAll(/(?:basePath\}?\/|encodeParam\(\{name:|queryParameters|\/structuuronderdeel|\/opleidingstraject|\/beroepskwalificatie|\/onderwijsdoel)/g)) {
+            if (sp.code.length > 200) break;
+            sp.code.push(schoon(js.tekst.slice(Math.max(0, mm.index - 160), mm.index + 260), 420));
+          }
         }
         await wacht(150);
       }
       p.apiUrls = [...new Set(sp.urls)].slice(0, 150);
+      // Bredere stukken code rond de aanroepen (paden en parameternamen van de gegenereerde API-client).
+      p.code = [...new Set(sp.code || [])].slice(0, 120);
       p.fragmenten = [...new Set(sp.fragmenten)].slice(0, 150);
     }
     uit.paginas.push(p);
@@ -485,6 +598,12 @@ function verslag() {
         r.push('Voorbeelden:', '', '```json', JSON.stringify(x.voorbeelden, null, 1).slice(0, 6000), '```', '');
       }
       if (x.links && x.links.length) r.push('Links in het antwoord: ' + x.links.map(kode).join(', '), '');
+      if (x.parameters) r.push('Parameters (hydra): ' + kode(x.parameters.template), '', ...(x.parameters.mapping || []).map((mp) => `- ${kode(mp.variable)} → ${kode(mp.property)}${mp.required ? ' (verplicht: ' + mp.required + ')' : ''}`), '');
+    }
+    if (m.lijsten) {
+      r.push('### Doorgebladerde lijsten', '');
+      for (const l of m.lijsten) r.push(`- **${l.naam}**: ${l.aantal} elementen in ${l.paginas} pagina's (totaal volgens de API: ${l.totaal}); eerste antwoord: ${l.eerste ? l.eerste.status : '?'}${l.eerste && l.eerste.begin ? ' — ' + kode(l.eerste.begin) : ''}`);
+      r.push('', 'De elementen staan regel per regel in het logboek (regels die beginnen met `ITEM|`).', '');
     }
     const anders = m.resultaten.filter((y) => y.status !== 200 && y.status !== 404);
     if (anders.length) {
@@ -504,6 +623,7 @@ function verslag() {
       if (x.links && x.links.length) r.push('Relevante links:', '', ...x.links.slice(0, 40).map((l) => '- ' + kode(l)), '');
       if (x.apiUrls && x.apiUrls.length) r.push(`API-adressen in de pagina en ${x.scripts} scripts:`, '', ...x.apiUrls.slice(0, 60).map((l) => '- ' + kode(l)), '');
       if (x.fragmenten && x.fragmenten.length) r.push('Fragmenten met trefwoorden:', '', ...x.fragmenten.slice(0, 60).map((l) => '- ' + kode(l)), '');
+      if (x.code && x.code.length) r.push('Code rond API-aanroepen:', '', '```', ...x.code.slice(0, 120), '```', '');
     }
     for (const x of p.pdfs) {
       r.push(`### ${schoon(x.naam, 80)} — status ${x.status ?? x.fout}`, '');
