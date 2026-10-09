@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { computeCoverage, coveragePercent, uncoveredGoalLines } from './coverage';
-import type { Course } from './courseTypes';
+import { computeCoverage, coveragePercent, geplandeRijen, sectieHeeftInhoud, uncoveredGoalLines } from './coverage';
+import type { Course, CourseSection } from './courseTypes';
 import type { Curriculum } from './curriculumTypes';
 import type { Widget } from './types';
 
@@ -147,5 +147,90 @@ describe('computeCoverage', () => {
       'NW 1.2 — Wolken verklaren',
       'NW 2.2 — Toestandsveranderingen',
     ]);
+  });
+});
+
+// ── Gepland: doelen op secties die nog leeg zijn (docs/STUDIERICHTINGEN.md § 13.1) ──
+
+describe('sectieHeeftInhoud', () => {
+  const sectie = (blocks: unknown) => ({ id: 's', title: 'S', blocks } as unknown as CourseSection);
+  const doelen = { id: 'd', type: 'callout', kind: 'goal', title: 'Doelen in deze sectie', text: 'NW 1.1 — Water' };
+
+  it('leeg: geen blokken, of alleen doelen-callouts', () => {
+    expect(sectieHeeftInhoud(sectie([]))).toBe(false);
+    expect(sectieHeeftInhoud(sectie([doelen]))).toBe(false);
+    expect(sectieHeeftInhoud(sectie([doelen, { ...doelen, id: 'd2' }]))).toBe(false);
+  });
+
+  it('inhoud: elk ander blok, ook een andere callout, een oefening of een scheidingslijn', () => {
+    expect(sectieHeeftInhoud(sectie([doelen, { id: 't', type: 'text', markdown: 'Uitleg' }]))).toBe(true);
+    expect(sectieHeeftInhoud(sectie([{ id: 'i', type: 'callout', kind: 'info', text: 'Let op' }]))).toBe(true);
+    expect(sectieHeeftInhoud(sectie([{ id: 'w', type: 'widget', widgetId: 'w1' }]))).toBe(true);
+    expect(sectieHeeftInhoud(sectie([{ id: 'l', type: 'divider' }]))).toBe(true);
+  });
+
+  it('kapotte invoer telt als leeg en geeft geen fout', () => {
+    expect(sectieHeeftInhoud(sectie(undefined))).toBe(false);
+    expect(sectieHeeftInhoud(sectie('tekst'))).toBe(false);
+    expect(sectieHeeftInhoud(sectie([null, undefined, doelen]))).toBe(false);
+    expect(sectieHeeftInhoud(sectie([null, { id: 't', type: 'text', markdown: '' }]))).toBe(true);
+  });
+});
+
+describe('geplandeRijen', () => {
+  const tekst = (id: string) => ({ id, type: 'text', markdown: 'Uitleg' });
+  const doelen = (id: string) => ({ id, type: 'callout', kind: 'goal', title: 'Doelen in deze sectie', text: '…' });
+  const oefening = (id: string, widgetId: string) => ({ id, type: 'widget', widgetId });
+  const cursusMet = (sections: unknown[]) => ({ ...course, chapters: [{ id: 'chx', title: 'H', sections }] } as unknown as Course);
+  const codes = (rows: { code: string }[]) => rows.map((r) => r.code);
+
+  it('op de bestaande cursus: NW 1.1 staat alleen op een lege sectie, NW 2.1 komt via een oefening aan bod', () => {
+    const r = computeCoverage(course, curriculum, [widget]);
+    expect(r.covered).toBe(2); // computeCoverage zelf verandert niet: beide tellen daar als gedekt
+    expect(codes(geplandeRijen(r, course, [widget]))).toEqual(['NW 1.1']);
+  });
+
+  it('een sectie met alleen een doelen-callout is gepland; één gewone sectie met inhoud maakt het doel uitgewerkt', () => {
+    const c = cursusMet([
+      { id: 'a', title: 'A', goalCodes: ['NW 1.1', 'NW 1.2'], blocks: [doelen('d1')] },
+      { id: 'b', title: 'B', goalCodes: ['nw  1.2'], blocks: [tekst('t1')] }, // andere schrijfwijze, met inhoud
+    ]);
+    const r = computeCoverage(c, curriculum, []);
+    expect(r.rows.filter((x) => x.status === 'covered').map((x) => x.code)).toEqual(['NW 1.1', 'NW 1.2']);
+    expect(codes(geplandeRijen(r, c))).toEqual(['NW 1.1']);
+  });
+
+  it('inhoud of een oefening in een keuzesectie maakt een doel niet uitgewerkt', () => {
+    const c = cursusMet([
+      { id: 'a', title: 'A', goalCodes: ['NW 1.1', 'NW 2.1'], blocks: [doelen('d1')] },
+      { id: 'k', title: 'Keuze', optional: true, goalCodes: ['NW 1.1'], blocks: [tekst('t1'), oefening('o1', 'w1')] },
+    ]);
+    const r = computeCoverage(c, curriculum, [widget]); // de oefening draagt NW 2.1, maar staat in de keuzesectie
+    expect(r.rows.find((x) => x.code === 'NW 2.1')!.widgets.map((w) => w.optional)).toEqual([true]);
+    expect(codes(geplandeRijen(r, c, [widget]))).toEqual(['NW 1.1', 'NW 2.1']);
+  });
+
+  it('een oefening in een gewone sectie maakt het doel uitgewerkt, ook als die sectie de code zelf niet draagt', () => {
+    const c = cursusMet([
+      { id: 'a', title: 'A', goalCodes: ['NW 2.1'], blocks: [] },
+      { id: 'b', title: 'B', goalCodes: [], blocks: [oefening('o1', 'w1')] },
+    ]);
+    const r = computeCoverage(c, curriculum, [widget]);
+    expect(geplandeRijen(r, c, [widget])).toEqual([]);
+  });
+
+  it('alleen rijen met status covered: verdieping en ontbrekend komen er nooit in', () => {
+    const c = cursusMet([
+      { id: 'a', title: 'A', goalCodes: ['NW 1.1'], blocks: [] },
+      { id: 'k', title: 'Keuze', optional: true, goalCodes: ['NW 1.2'], blocks: [] },
+    ]);
+    const r = computeCoverage(c, curriculum, []);
+    expect(r.rows.map((x) => x.status)).toEqual(['covered', 'optional', 'missing', 'missing']);
+    expect(codes(geplandeRijen(r, c))).toEqual(['NW 1.1']);
+  });
+
+  it('een andere callout (geen doelen-callout) is inhoud', () => {
+    const c = cursusMet([{ id: 'a', title: 'A', goalCodes: ['NW 1.1'], blocks: [{ id: 'i', type: 'callout', kind: 'tip', text: 'Tip' }] }]);
+    expect(geplandeRijen(computeCoverage(c, curriculum, []), c)).toEqual([]);
   });
 });

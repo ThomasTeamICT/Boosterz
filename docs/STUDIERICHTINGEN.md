@@ -24,7 +24,7 @@ De opdracht van de eigenaar, letterlijk: "ja, doe die import maar, einddoel is d
 | P9 Cursus maken, koppelen en instellen | Wacht, op I2 | bouwer, worktree B |
 | P10 Samenstellen en inlezen met een richting | Wacht, op I2 | bouwer, worktree C |
 | I3 Integratie van de schermen: ingangen, hulp, budget | Wacht | hoofdsessie |
-| P11 Dekkingsmodule (L6) | Wacht, op P6 (mag naast fase B lopen) | kernbouwer |
+| P11 Dekkingsmodule (L6) | **Klaar** (review goed met opmerkingen; tests aangevuld, regels voor percent en zelfdeNummerAndereSet vastgelegd in § 13.2) | kernbouwer |
 | P12 Dekking op de schermen | Wacht, op I3 en P11 | bouwer |
 | P13 Rooktest studierichtingen | Wacht, op P12 | bouwer (een andere agent dan die van P8 tot P12) |
 | I4 Review, rechter, herstel, rooktest op echte data, uitrol | Wacht, op P13 en G1 | hoofdsessie, reviewers, rechter |
@@ -800,8 +800,10 @@ export function geplandeRijen(result: CoverageResult, course: Course, widgets?: 
    - anders telt ze in `buitenKader`, en bestaat hetzelfde nummer in een andere kaderset, ook in `zelfdeNummerAndereSet`.
    
    De vergelijking is **strikt op set + vast nummer**, de afspraak van het project (open vraag O6).
+
+   `zelfdeNummerAndereSet` telt **doelen** (P11): verplichte kaderdoelen die nu niet gedekt zijn en die een meetellende cursus behandelt via een leerplandoel met een verwijzing buiten het kader maar met hetzelfde vaste nummer (een andere versie of de BuSO-kopie). Elk doel telt één keer.
 5. Over cursussen heen: gedekt > gepland > verdieping > open.
-6. `totaal` en `percent` gaan alleen over de verplichte doelen (niet `isOptioneel`, en geen uitbreidingsset). Optionele doelen hebben hun eigen teller. `percent` is afgerond, en 0 bij een leeg kader.
+6. `totaal` en `percent` gaan alleen over de verplichte doelen (niet `isOptioneel`, en geen uitbreidingsset). Optionele doelen hebben hun eigen teller. `percent = Math.round(gedekt / totaal × 100)`, 0 bij een leeg kader, en **99 in plaats van 100** zolang er een verplicht doel niet gedekt is (gepland, verdieping of open); optionele doelen spelen voor die grens geen rol (P11).
 7. De dekking volgt de verwijzingen van het leerplan. Een doel van een netleerplan met twee refs dekt dus twee minimumdoelen.
 8. Lineair in het kader plus de refs. Puur: geen opslag en geen DOM.
 
@@ -927,7 +929,7 @@ export function geplandeRijen(result: CoverageResult, course: Course, widgets?: 
   - "Telt niet mee: het leerplan van deze cursus staat niet op dit toestel."
   - "Telt niet mee: het leerplan ‘<titel>’ verwijst niet naar minimumdoelen."
   - "<k> verwijzingen van deze cursus horen niet bij deze richting, of wijzen naar een andere versie van een set."
-- Als `zelfdeNummerAndereSet > 0`: "<n> doelen zouden ook gedekt zijn als verwijzingen naar een andere versie of soort van dezelfde set meetellen."
+- Als `zelfdeNummerAndereSet > 0`: "<n> doelen zouden ook meetellen als verwijzingen naar een andere versie of soort van dezelfde set meetellen."
 
 ### 14.4 Venster "Nieuwe cursus" (`NieuweRichtingCursus.tsx`)
 

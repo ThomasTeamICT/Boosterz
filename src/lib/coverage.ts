@@ -11,7 +11,7 @@
 // Een oefening die aan een ánder leerplan hangt (widget.curriculumId), dekt
 // niets: dezelfde code is daar een ander doel.
 
-import type { Course, CourseChapter, CourseSection } from './courseTypes';
+import type { Course, CourseBlock, CourseChapter, CourseSection } from './courseTypes';
 import { allSections } from './courseTypes';
 import type { Curriculum, CurriculumGoal } from './curriculumTypes';
 import type { Widget } from './types';
@@ -187,6 +187,50 @@ export function computeCoverage(
         ? `Dekkend: alle ${total} doelen komen aan bod.`
         : `Dekkend: ${covered} van ${total} doelen.`,
   };
+}
+
+// ── Gepland: een doel dat alleen op lege secties staat (docs/STUDIERICHTINGEN.md § 13.1) ──
+//
+// `computeCoverage` blijft wat het is: een code op een gewone sectie telt daar als gedekt, ook als de sectie nog leeg
+// is. De dekking op de minimumdoelen (dekkingMinimumdoelen.ts) en de hint in de weergave "Leerplan" maken met de twee
+// functies hieronder het onderscheid tussen "uitgewerkt" en "gepland" (een vers geraamte heeft alleen doelen-callouts).
+
+/**
+ * Heeft de sectie inhoud? Ja zodra er minstens één blok is dat geen doelen-callout (een callout met kind 'goal') is.
+ * Een ingebedde oefening is ook een blok. Kapotte invoer (geen lijst, lege plaatsen) telt als leeg.
+ */
+export function sectieHeeftInhoud(section: CourseSection): boolean {
+  const blocks: unknown = section?.blocks;
+  if (!Array.isArray(blocks)) return false;
+  return (blocks as (CourseBlock | null | undefined)[]).some(
+    (b) => !!b && typeof b === 'object' && !(b.type === 'callout' && b.kind === 'goal'),
+  );
+}
+
+/**
+ * De rijen met status 'covered' die alleen gepland zijn: elke gewone (niet-optionele) sectie die de code draagt is
+ * leeg (`sectieHeeftInhoud`), en geen oefening in een gewone sectie draagt de code. Zo'n doel komt wel in een gewone
+ * sectie voor, maar is nog niet uitgewerkt. Inhoud of een oefening in een keuzesectie maakt een doel niet gedekt (zoals
+ * in `computeCoverage`).
+ *
+ * `result` moet uit `computeCoverage` met dezelfde `course` komen. De oefeningen die meetellen staan al in de rijen
+ * (`row.widgets`, alleen de ingebedde en die van hetzelfde leerplan): `widgets` is daarom niet nodig en wordt niet
+ * gebruikt; de parameter staat er voor de vaste signatuur.
+ */
+export function geplandeRijen(result: CoverageResult, course: Course, _widgets?: readonly Widget[]): CoverageRow[] {
+  // Codes (genormaliseerd zoals in computeCoverage) die op minstens één gewone sectie met inhoud staan.
+  const metInhoud = new Set<string>();
+  for (const { section } of allSections(course)) {
+    if (section.optional === true || !sectieHeeftInhoud(section)) continue;
+    for (const raw of section.goalCodes ?? []) {
+      if (typeof raw !== 'string') continue;
+      const code = normalizeGoalCode(raw);
+      if (code) metInhoud.add(code);
+    }
+  }
+  return result.rows.filter(
+    (row) => row.status === 'covered' && !metInhoud.has(row.code) && !row.widgets.some((w) => !w.optional),
+  );
 }
 
 /** Alleen het percentage (voor kaartjes en lijsten). */
