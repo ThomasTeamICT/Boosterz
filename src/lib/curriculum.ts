@@ -15,6 +15,7 @@ import type {
 import { CURRICULUM_NETS } from './curriculumTypes';
 // Alleen een type: curriculumCheck.ts gebruikt dit bestand, dus geen import tijdens het uitvoeren.
 import type { ControleRapport } from './curriculumCheck';
+import { doelgroepVoorLeerplan } from './doelgroep';
 import { sha256Hex } from './sha256';
 import { notifyChange, reportWriteFailure } from './storage';
 import { uid } from './utils';
@@ -533,6 +534,9 @@ function sanitizeCurriculumMetRapport(raw: unknown): SaneerUitkomst {
   // Hoort niet bij de doelen: telt niet mee in de vingerafdruk en verandert niets aan de nakijkstatus.
   const weggelatenCodes = sanitizeWeggelaten(c.weggelatenCodes);
   if (weggelatenCodes) cur.weggelatenCodes = weggelatenCodes;
+  // Ook de studierichting hoort niet bij de doelen (zelfde regel). Op een leerplan altijd zonder jaar.
+  const doelgroep = doelgroepVoorLeerplan(c.doelgroep);
+  if (doelgroep) cur.doelgroep = doelgroep;
   return { curriculum: bewaakControle(cur), weggevallen, afgekapt };
 }
 
@@ -607,10 +611,14 @@ export function bevestigLeerplan(cur: Curriculum, opts: BevestigOpties): Curricu
  */
 export function maakEigenKopie(cur: Curriculum, titel?: string): Curriculum {
   const nu = Date.now();
-  const { controle: _controle, ...rest } = cur;
+  const { controle: _controle, doelgroep, ...rest } = cur;
   void _controle;
+  // Een eigen kopie volgt de officiële koppeling van de richting niet meer: zonder kader en volgtKader biedt
+  // geen scherm "Werk het leerplan bij" aan, dat de eigen aanpassingen zou overschrijven.
+  const eigenDoelgroep = doelgroep ? (({ kader: _k, volgtKader: _v, ...d }) => (void _k, void _v, d))(doelgroep) : undefined;
   return {
     ...rest,
+    ...(eigenDoelgroep ? { doelgroep: eigenDoelgroep } : {}),
     id: uid(),
     title: titel?.trim() || `${cur.title} (eigen kopie)`,
     kind: 'eigen',
@@ -623,8 +631,8 @@ export function maakEigenKopie(cur: Curriculum, titel?: string): Curriculum {
 
 /**
  * Leerplan als JSON-bestand (met kop, zodat import het herkent). Versie 2: met soort, herkomst,
- * nakijkstatus, sets, verwijzingen en weggelaten codes. Een nagekeken leerplan waarvan de doelen intussen veranderd
- * zijn, gaat als "gewijzigd" de deur uit.
+ * nakijkstatus, sets, verwijzingen, weggelaten codes en studierichting. Een nagekeken leerplan waarvan de
+ * doelen intussen veranderd zijn, gaat als "gewijzigd" de deur uit.
  */
 export function exportCurriculumJson(cur: Curriculum): string {
   return JSON.stringify({ app: 'boosterz', kind: 'leerplan', v: 2, curriculum: bewaakControle(cur) }, null, 2);

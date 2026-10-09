@@ -25,6 +25,7 @@ import {
   MAX_DOELCODE, MAX_DOELEN, MAX_DOELTHEMA, MAX_SETS, bevestigLeerplan, createCurriculum, normalizeGoalCode, sanitizeCurriculum,
 } from './curriculum';
 import { controleerLeerplan, type ControleRapport } from './curriculumCheck';
+import { doelgroepVoorLeerplan, type Doelgroep } from './doelgroep';
 import { htmlNaarTekst, NAAMSVERMELDING, type Minimumdoel, type MinimumdoelenSetBestand, type MinimumdoelenSetKop } from './minimumdoelen';
 import { contextVanSet, datumLeesbaar, zonderAccenten } from './minimumdoelenBron';
 import { NAGEKEKEN_DOOR_BRON, isOptioneel, themaVanDoel, uniekeCodes } from './minimumdoelenLeerplan';
@@ -54,6 +55,11 @@ export interface SamenstelOpties {
   bestaand?: Curriculum;
   /** Ids van sets die een oude versie zijn (`oudeVersieIds`): geeft een waarschuwing. */
   oudeVersies?: ReadonlySet<string>;
+  /**
+   * Studierichting van de lijst (gesaneerd, zonder jaar: zie `doelgroepVoorLeerplan`). Zonder (geldige) doelgroep blijft
+   * die van `bestaand`: zo verdwijnt de richting niet bij "Keuze aanpassen". Telt niet mee in de vingerafdruk.
+   */
+  doelgroep?: Doelgroep;
 }
 
 export interface Samengesteld {
@@ -607,6 +613,7 @@ function refSleutels(goals: readonly CurriculumGoal[]): string[] {
  *   wegviel zijn code terug.
  * - Bij `bestaand`: `weggelatenCodes` bewaart de codes van de doelen die (nu of eerder) wegvielen en niet terugkomen
  *   (`weggelatenNa`), en een waarschuwing noemt de doelen die nu uit de bewaarde lijst wegvallen.
+ * - `doelgroep`: die van `opties`, anders die van `bestaand` (gesaneerd, zonder jaar), ook bij een lijst zonder doelen.
  * - Hetzelfde minimumdoel (vast nummer) via twee gekozen sets staat er twee keer in (een doel is set + vast nummer),
  *   met een waarschuwing per paar sets.
  * - Meer dan `MAX_SETS` sets of `MAX_DOELEN` doelen, of helemaal geen doel: geen doelen, niet bevestigd, met een
@@ -648,6 +655,8 @@ export function leerplanUitSelectie(keuzes: readonly SetKeuze[], opties: Samenst
   const titel = tekstOfLeeg(opties?.titel) || voorstelTitel(koppen);
   const nu = Date.now();
   const herkomst: CurriculumHerkomst = { methode: 'samengesteld', ingelezenOp: nu };
+  // `kop` neemt van `bestaand` alleen id en createdAt over: de studierichting moet er dus uitdrukkelijk bij.
+  const doelgroep = doelgroepVoorLeerplan(opties?.doelgroep) ?? doelgroepVoorLeerplan(bestaand?.doelgroep);
   const kop = {
     title: titel,
     net: 'minimumdoelen' as const,
@@ -657,6 +666,7 @@ export function leerplanUitSelectie(keuzes: readonly SetKeuze[], opties: Samenst
     source: bronTekst(koppen),
     herkomst,
     minimumdoelenSets: koppen.map((k) => k.id),
+    ...(doelgroep ? { doelgroep } : {}),
     ...(bestaand ? { id: bestaand.id, createdAt: bestaand.createdAt } : {}),
     updatedAt: nu,
   };

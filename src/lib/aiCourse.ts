@@ -673,6 +673,12 @@ export function sanitizeAICourse(json: unknown, opts: SanitizeAICourseOptions = 
     settings: base?.settings ?? { accentColor: '#4f46e5', requireName: true, showProgressToStudent: true },
     createdAt: base?.createdAt ?? Date.now(),
     updatedAt: Date.now(),
+    // De studierichting komt altijd van de bestaande cursus, nooit van de AI: na `...resolved`, zodat een
+    // "doelgroep" in het AI-antwoord overschreven wordt. "Herwerk met AI" en "Vul de hiaten" houden ze zo.
+    doelgroep: base?.doelgroep,
+    // Ook het leerplan kiest nooit de AI: alleen de leerkracht (opts) of de bestaande cursus. Anders kon een
+    // leerplan-id uit het AI-antwoord via dat leerplan de studierichting van de cursus bepalen.
+    curriculumId: opts.curriculumId ?? base?.curriculumId,
   };
   const course = sanitizeCourse(full);
   if (course) {

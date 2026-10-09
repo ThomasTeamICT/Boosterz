@@ -142,3 +142,47 @@ describe('sanitizeCourse: id\'s', () => {
     expect(({} as Record<string, unknown>).sections).toBeUndefined();
   });
 });
+
+// ── Doelgroep (studierichting) op de cursus (docs/STUDIERICHTINGEN.md § 10) ──
+
+describe('sanitizeCourse: doelgroep', () => {
+  const DG = { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, jaar: 4, soort: 'so', vak: 'Biologie' };
+  const metDoelgroep = (doelgroep: unknown) => ({ ...(rawCourse([{ id: 'b1', type: 'text', markdown: 'x' }]) as object), doelgroep });
+
+  it('houdt een geldige doelgroep, gesaneerd, als nieuw object', () => {
+    const ruw = metDoelgroep({ ...DG, titel: '  Natuurwetenschappen\n', extra: 'valt weg' });
+    const course = sanitizeCourse(ruw)!;
+    expect(course.doelgroep).toStrictEqual(DG);
+    expect(course.doelgroep).not.toBe((ruw as { doelgroep: unknown }).doelgroep);
+  });
+
+  it('een ongeldige doelgroep valt weg, en dan staat er geen sleutel "doelgroep"', () => {
+    for (const doelgroep of [undefined, null, 'G-0193', { groep: 'fout' }, { titel: 'zonder groep' }, [DG]]) {
+      const course = sanitizeCourse(metDoelgroep(doelgroep))!;
+      expect(course, JSON.stringify(doelgroep)).not.toHaveProperty('doelgroep');
+      expect(Object.keys(course)).not.toContain('doelgroep');
+    }
+  });
+
+  it('een cursus zonder doelgroep blijft precies zoals vroeger (geen nieuwe sleutel, zelfde JSON)', () => {
+    const course = sanitizeCourse(rawCourse([{ id: 'b1', type: 'text', markdown: 'x' }]))!;
+    expect(Object.keys(course)).not.toContain('doelgroep');
+    expect(JSON.stringify(course)).not.toContain('doelgroep');
+    expect(sanitizeCourse(JSON.parse(JSON.stringify(course)))).toStrictEqual(course);
+  });
+
+  it('is idempotent met doelgroep; het jaar valt weg als het niet bij de graad past', () => {
+    const een = sanitizeCourse(metDoelgroep({ ...DG, jaar: 9, kader: 'a'.repeat(64), volgtKader: true }))!;
+    expect(een.doelgroep).toStrictEqual({
+      groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', vak: 'Biologie', kader: 'a'.repeat(64), volgtKader: true,
+    });
+    expect(sanitizeCourse(JSON.parse(JSON.stringify(een)))).toStrictEqual(een);
+  });
+
+  it('het cursusbestand (importCourseJson) neemt de doelgroep mee, gesaneerd', () => {
+    const json = JSON.stringify({ app: 'boosterz', kind: 'cursus', v: 1, course: metDoelgroep({ ...DG, onderdeel: 'x' }), widgets: [] });
+    expect(importCourseJson(json)!.course.doelgroep).toStrictEqual(DG);
+    const zonder = JSON.stringify({ app: 'boosterz', kind: 'cursus', v: 1, course: rawCourse([{ id: 'b1', type: 'text', markdown: 'x' }]), widgets: [] });
+    expect(importCourseJson(zonder)!.course).not.toHaveProperty('doelgroep');
+  });
+});

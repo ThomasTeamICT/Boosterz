@@ -10,6 +10,7 @@ import { allSections, referencedPdfIds, referencedWidgetIds } from './courseType
 import { deletePdf, getPdf, importPdfFromDataUrl, pdfToDataUrl } from './pdfStore';
 import { makeCode, uid } from './utils';
 import { EXAMPLE_CURRICULUM_ID, getCurriculum, normalizeGoalCodes } from './curriculum';
+import { sanitizeDoelgroep } from './doelgroep';
 import { cleanupOrphanMedia, getWidget, getWidgets, notifyChange, reportWriteFailure, saveWidget } from './storage';
 import { collectMediaRefs, countUnresolvedMedia, inlineMedia, isMediaRef, parseWithMedia, stringifyWithMedia } from './mediaStore';
 import { sharedVersion } from './share';
@@ -1327,6 +1328,9 @@ export function sanitizeCourse(raw: unknown): Course | null {
   if (!chapters.length) return null;
 
   const st = (c.settings && typeof c.settings === 'object' ? c.settings : {}) as Record<string, unknown>;
+  // Studierichting: alleen als ze klopt, en zonder lege sleutel. Zo blijft een cursus zonder doelgroep (en dus elke
+  // bestaande link en elk bestaand bestand) precies zoals vroeger.
+  const dg = sanitizeDoelgroep(c.doelgroep);
   return {
     id: veiligId(c.id),
     title: s(c.title).trim() || 'Cursus',
@@ -1336,6 +1340,7 @@ export function sanitizeCourse(raw: unknown): Course | null {
     code: s(c.code) || makeCode(),
     chapters,
     curriculumId: s(c.curriculumId) || undefined,
+    ...(dg ? { doelgroep: dg } : {}),
     settings: {
       accentColor: s(st.accentColor) || '#4f46e5',
       requireName: st.requireName !== false,

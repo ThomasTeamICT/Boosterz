@@ -6,6 +6,8 @@
 // en het klasoverzicht telt dat op per leerling. Vrije-teksttags (goals /
 // goal) blijven bestaan voor wie geen leerplan gebruikt.
 
+import type { Doelgroep } from './doelgroep';
+
 export type CurriculumNet = 'minimumdoelen' | 'go' | 'kov' | 'ovsg' | 'pov' | 'eigen';
 
 export const CURRICULUM_NETS: { id: CurriculumNet; label: string; hint: string }[] = [
@@ -131,6 +133,12 @@ export interface Curriculum {
    * stil naar een ander doel wijzen. Telt niet mee in de vingerafdruk van de doelen (`doelenVingerafdruk`).
    */
   weggelatenCodes?: WeggelatenCode[];
+  /**
+   * Studierichting waarvoor het leerplan is (docs/STUDIERICHTINGEN.md § 10), altijd zonder jaar: een leerplan geldt
+   * voor de hele graad. Gesaneerd met `doelgroepVoorLeerplan`. Hoort niet bij de doelen: telt niet mee in de
+   * vingerafdruk (`doelenVingerafdruk`) en verandert niets aan de nakijkstatus.
+   */
+  doelgroep?: Doelgroep;
   goals: CurriculumGoal[];
   createdAt: number;
   updatedAt: number;

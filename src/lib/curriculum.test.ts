@@ -330,6 +330,77 @@ describe('sanitizeCurriculum: weggelatenCodes', () => {
   });
 });
 
+describe('sanitizeCurriculum: doelgroep (studierichting)', () => {
+  const DG = { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', kader: 'b'.repeat(64), volgtKader: true };
+
+  it('neemt een geldige doelgroep mee, gesaneerd en altijd zonder jaar (een leerplan geldt voor de hele graad)', () => {
+    const cur = sanitizeCurriculum({ ...v2Ruw(), doelgroep: { ...DG, jaar: 4, titel: ' Natuurwetenschappen\n', vreemd: 1 } });
+    expect(cur?.doelgroep).toStrictEqual(DG);
+    expect(cur?.doelgroep).not.toHaveProperty('jaar');
+  });
+
+  it('een ongeldige of ontbrekende doelgroep: geen sleutel "doelgroep"', () => {
+    for (const doelgroep of [undefined, null, 'G-0193', { groep: 'G-19' }, { titel: 'x' }, []]) {
+      const cur = sanitizeCurriculum({ ...v2Ruw(), doelgroep });
+      expect(cur, JSON.stringify(doelgroep)).not.toHaveProperty('doelgroep');
+    }
+    expect(Object.keys(sanitizeCurriculum(v2Ruw())!)).not.toContain('doelgroep');
+  });
+
+  it('is idempotent', () => {
+    const een = sanitizeCurriculum({ ...v2Ruw(), doelgroep: { ...DG, jaar: 3 } });
+    expect(sanitizeCurriculum(een)).toStrictEqual(een);
+    expect(sanitizeCurriculum(JSON.parse(JSON.stringify(een)))).toStrictEqual(een);
+  });
+
+  it('telt niet mee in de vingerafdruk: een nagekeken leerplan blijft nagekeken als er een doelgroep bijkomt, verandert of afgaat', () => {
+    const nagekeken = bevestig(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
+    const vingerafdruk = nagekeken.controle!.doelenSha256;
+    const met: Curriculum = { ...nagekeken, doelgroep: DG as Curriculum['doelgroep'] };
+    expect(bewaakControle(met)).toBe(met);
+    expect(doelenVingerafdruk(met.goals)).toBe(vingerafdruk);
+    // Bevestigen met doelgroep geeft dezelfde vingerafdruk als zonder.
+    expect(bevestig(sanitizeCurriculum({ ...v2Ruw(), doelgroep: DG }) as Curriculum, { door: 'An' }).controle!.doelenSha256).toBe(vingerafdruk);
+
+    // Export versie 2 en import: de doelgroep reist mee en "gecontroleerd" blijft.
+    const json = exportCurriculumJson(met);
+    expect(JSON.parse(json).v).toBe(2);
+    const terug = importCurriculumJson(json);
+    expect(terug?.controle?.status).toBe('gecontroleerd');
+    expect(terug?.controle?.doelenSha256).toBe(vingerafdruk);
+    expect(terug?.doelgroep).toStrictEqual(DG);
+
+    // De doelgroep in het bestand wijzigen of weghalen: nog altijd nagekeken.
+    const ander = JSON.parse(json) as { curriculum: Record<string, unknown> };
+    ander.curriculum.doelgroep = { groep: 'G-0200', titel: 'Andere richting', graad: 3, soort: 'buso' };
+    const terugAnder = importCurriculumJson(JSON.stringify(ander));
+    expect(terugAnder?.controle?.status).toBe('gecontroleerd');
+    expect(terugAnder?.doelgroep?.groep).toBe('G-0200');
+    delete ander.curriculum.doelgroep;
+    const terugZonder = importCurriculumJson(JSON.stringify(ander));
+    expect(terugZonder?.controle?.status).toBe('gecontroleerd');
+    expect(terugZonder).not.toHaveProperty('doelgroep');
+  });
+
+  it('bewaren met een doelgroep laat een nagekeken leerplan nagekeken', () => {
+    const nagekeken = bevestig(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
+    saveCurriculum({ ...nagekeken, doelgroep: DG as Curriculum['doelgroep'] });
+    expect(getCurriculum('lp-1')?.controle?.status).toBe('gecontroleerd');
+    expect(getCurriculum('lp-1')?.doelgroep).toStrictEqual(DG);
+  });
+
+  it('een eigen kopie neemt de doelgroep mee, maar volgt de koppeling van de richting niet meer', () => {
+    const met = sanitizeCurriculum({ ...v2Ruw(), doelgroep: DG }) as Curriculum;
+    const kopie = maakEigenKopie(met).doelgroep;
+    const { kader: _k, volgtKader: _v, ...zonder } = DG;
+    void _k; void _v;
+    expect(kopie).toStrictEqual(zonder);
+    expect(kopie).not.toHaveProperty('kader');
+    expect(kopie).not.toHaveProperty('volgtKader');
+    expect(met.doelgroep).toStrictEqual(DG);
+  });
+});
+
 describe('sanitizeCurriculum: versie 1 werkt zoals vroeger', () => {
   it('leest een exportbestand van versie 1 met dezelfde velden als voorheen', () => {
     const v1 = JSON.stringify({

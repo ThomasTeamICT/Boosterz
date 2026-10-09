@@ -4,6 +4,8 @@
 // van de inhoud; het krachtigste blok is 'widget', dat een bestaande
 // Boosterz-widget inline afspeelbaar maakt (met echte inzendingen).
 
+import type { Doelgroep } from './doelgroep';
+
 export type CourseBlockType =
   | 'heading'     // tussenkop
   | 'text'        // tekst met mini-markdown
@@ -115,6 +117,11 @@ export interface Course {
   settings: CourseSettings;
   /** Leerplan waarop de cursus gebouwd is (voor dekking en goalCode-lookup). */
   curriculumId?: string;
+  /**
+   * Studierichting (en jaar) waarvoor de cursus is (docs/STUDIERICHTINGEN.md § 10). Reist mee met de deellink, het
+   * cursusbestand en het klaspakket; altijd gesaneerd met `sanitizeDoelgroep`. De AI vult het nooit in.
+   */
+  doelgroep?: Doelgroep;
   createdAt: number;
   updatedAt: number;
 }

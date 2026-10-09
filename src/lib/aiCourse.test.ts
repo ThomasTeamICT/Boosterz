@@ -6,6 +6,7 @@ import {
 } from './aiCourse';
 import type { Course, CourseBlock, CourseSection } from './courseTypes';
 import type { CurriculumGoal } from './curriculumTypes';
+import type { Doelgroep } from './doelgroep';
 
 const goals: CurriculumGoal[] = [
   { id: 'g1', code: 'NW 1.1', text: 'Waterkringloop beschrijven', theme: 'Systeem aarde' },
@@ -98,6 +99,52 @@ describe('sanitizeAICourse en de doelcodes', () => {
     const res = sanitizeAICourse(answer, { allowedGoalCodes: ['NW 7.1', 'NW 7.2'] });
     expect(res.course.chapters[0].sections[0].goalCodes).toEqual(['NW7.1']);
     expect(res.warnings.some((w) => w.includes('niet in je leerplan'))).toBe(false);
+  });
+});
+
+describe('sanitizeAICourse en de doelgroep (studierichting)', () => {
+  const DG: Doelgroep = { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, jaar: 4, soort: 'so', vak: 'Biologie' };
+  /** Een AI-antwoord dat zelf een (andere) doelgroep probeert te zetten, ook in de omslag. */
+  const metAIDoelgroep = {
+    doelgroep: { groep: 'G-0001', titel: 'Van de AI (omslag)', soort: 'so' },
+    course: { ...aiAnswer.course, doelgroep: { groep: 'G-0002', titel: 'Van de AI', graad: 3, jaar: 6, soort: 'buso' } },
+  };
+
+  it('een nieuwe cursus krijgt nooit een doelgroep van de AI', () => {
+    const res = sanitizeAICourse(metAIDoelgroep);
+    expect(res.course).not.toHaveProperty('doelgroep');
+    expect(sanitizeAICourse(metAIDoelgroep.course)).not.toHaveProperty('course.doelgroep');
+  });
+
+  it('herwerken houdt de doelgroep van de bestaande cursus, ook als de AI er een andere teruggeeft', () => {
+    const base = { ...sanitizeAICourse(aiAnswer, { curriculumId: 'cur1' }).course, doelgroep: DG };
+    expect(sanitizeAICourse(metAIDoelgroep, { base }).course.doelgroep).toStrictEqual(DG);
+    // "Vul de hiaten" en "Herwerk met AI": de AI noemt geen doelgroep; die van de cursus blijft.
+    expect(sanitizeAICourse(aiAnswer, { base, allowedGoalCodes: ['NW 1.1'] }).course.doelgroep).toStrictEqual(DG);
+  });
+
+  it('een bestaande cursus zonder doelgroep krijgt er ook bij herwerken geen van de AI', () => {
+    const base = sanitizeAICourse(aiAnswer).course;
+    expect(base).not.toHaveProperty('doelgroep');
+    expect(sanitizeAICourse(metAIDoelgroep, { base }).course).not.toHaveProperty('doelgroep');
+  });
+
+  it('de doelgroep van de bestaande cursus gaat door de sanering', () => {
+    const base = { ...sanitizeAICourse(aiAnswer).course, doelgroep: { ...DG, jaar: 7, extra: 'x' } as unknown as Doelgroep };
+    expect(sanitizeAICourse(aiAnswer, { base }).course.doelgroep).toStrictEqual({ groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', vak: 'Biologie' });
+  });
+
+  it('de AI kan ook geen leerplan aan de cursus hangen (en zo geen richting via dat leerplan)', () => {
+    const metLeerplan = { course: { ...aiAnswer.course, curriculumId: 'door-ai-gekozen' } };
+    expect(sanitizeAICourse(metLeerplan).course.curriculumId).toBeUndefined();
+    expect(sanitizeAICourse(metLeerplan, { curriculumId: 'cur1' }).course.curriculumId).toBe('cur1');
+    const base = sanitizeAICourse(aiAnswer, { curriculumId: 'cur2' }).course;
+    expect(sanitizeAICourse(metLeerplan, { base }).course.curriculumId).toBe('cur2');
+  });
+
+  it('bij een onbruikbaar antwoord blijft de bestaande cursus met haar doelgroep', () => {
+    const base = { ...sanitizeAICourse(aiAnswer).course, doelgroep: DG };
+    expect(sanitizeAICourse({ course: { title: 'Kapot', doelgroep: { groep: 'G-0002' } } }, { base }).course.doelgroep).toStrictEqual(DG);
   });
 });
 

@@ -10,11 +10,11 @@ De opdracht van de eigenaar, letterlijk: "ja, doe die import maar, einddoel is d
 |---|---|---|
 | Ontwerp (dit document) | **Klaar** (9 oktober 2026): drie ontwerpen, drie juryleden, één synthese. De eigenaar gaf het startsein ("doe die import maar"). Voor de open vragen (§ 19) geldt de werkkeuze die erbij staat, tot de eigenaar anders beslist. | hoofdsessie |
 | P0 Ontwerp in de repo, icoon | **Klaar** | hoofdsessie |
-| P1 Datamodule studierichtingen | Wacht | kernbouwer |
+| P1 Datamodule studierichtingen | **Gebouwd**, review: één blokkerende fout (een vast nummer mag in meer sets staan) en ontbrekende tests; herstel bezig | kernbouwer |
 | P2 Ophaalscript, nagebootste API en fixtures | Wacht, op P1 | kernbouwer |
 | P3 Datatest | Wacht, op P1 (opleveren na P2) | bouwer (een andere agent dan die van P2) |
 | P4 Workflow "Leerplangegevens bijwerken" | Wacht, op P2 | bouwer, nagelezen door een reviewer |
-| P5 Doelgroep in het datamodel | Wacht | kernbouwer |
+| P5 Doelgroep in het datamodel | **Klaar** (review goed met opmerkingen; de opmerkingen zijn verwerkt) | kernbouwer |
 | P6 Lader, kader en keuzehulp | Wacht, op P1, P2 en P5 | bouwer |
 | P7 Cursushulp-logica | Wacht, op P6 | bouwer |
 | I1 Integratie van de data (P1 tot P4) | Wacht | hoofdsessie |
@@ -304,7 +304,7 @@ export function valideerRichtingDoelenBestand(json: unknown, groep?: string): st
 1. `opleidingsvorm` → `buso`;
 2. `type7` → `zevende`;
 3. alle onderdelen `aanloop` → `aanloop`;
-4. een onderdeel met hoofdstructuur 311 → `gewoon` (ook de 1ste graad en de groepen met alleen duale onderdelen);
+4. een graad én een onderdeel met hoofdstructuur 311 → `gewoon` (ook de 1ste graad en de groepen met alleen duale onderdelen). OKAN en Basisverpleegkunde hebben 311 maar geen graad: die worden `ander` (vastgesteld in P1 op de verkenningsdata);
 5. anders `ander` (OKAN, basisverpleegkunde).
 
 Volgens de verkenning: 256 gewone groepen in de 2de en 3de graad (48 daarvan met alleen duale onderdelen), 4 in de 1ste graad, 219 zevende, 55 BuSO, 9 aanloop en 2 ander. De eerste echte run bevestigt dat.
@@ -453,7 +453,7 @@ Invarianten:
   - M1: de kop, `aantalGroepen` en `aantalOnderdelen` kloppen, en de sha256 klopt.
   - M2: gesorteerd en uniek; groepnummers op `GROEP_NUMMER`; onderdeelnummers gehele getallen > 0.
   - M3: elk `onderdeel.groep` bestaat, en `groep.onderdelen` noemt precies de onderdelen met die groep.
-  - M4: geldige datums, met `begindatum ≤ einddatum`.
+  - M4: geldige datums. Een einddatum vóór de begindatum mag: 8 geannuleerde 7de jaren hebben dat in de echte data (status NIET_ERKEND), vastgesteld in P1.
   - M5: `vorige`, `volgende`, `voorbereidend` en `vervolg` worden geteld. Is dat 0 bij G1, dan wordt het een harde regel.
   - M6: `valideerMatrixBestand` geeft [].
   - M7: elke gewone groep van de 1ste graad heeft een stroom (`stroomVanEersteGraad`).
@@ -588,6 +588,7 @@ export interface Doelgroep {
 export const MAX_DOELGROEP_TITEL = 160;
 export const MAX_DOELGROEP_VAK = 80;
 export function sanitizeDoelgroep(raw: unknown): Doelgroep | undefined;
+export function doelgroepVoorLeerplan(raw: unknown): Doelgroep | undefined; // saneert en laat het jaar weg (P5)
 export function jaarTekst(jaar: number): string;        // "1ste jaar" … "7de jaar"
 export function graadTekst(graad: 1 | 2 | 3): string;   // "2de graad"
 export function doelgroepTekst(d: Doelgroep, opties?: { zonderVak?: boolean }): string;
@@ -595,6 +596,17 @@ export function doelgroepTekst(d: Doelgroep, opties?: { zonderVak?: boolean }): 
 //   in de 1ste graad zonder jaar: "Tweede leerjaar A: Stem-wetenschappen"
 export function zelfdeRichting(a: Doelgroep | undefined, b: Doelgroep | undefined): boolean; // zelfde groep en soort
 ```
+
+**Tekstregels van `doelgroepTekst` (vastgelegd in P5).**
+- In de 1ste graad komt er nooit "· 1ste jaar" of "· 1ste graad" achter de titel, ook niet met een jaar: de titel noemt het leerjaar al ("Nederlands · Eerste leerjaar A").
+- BuSO: "· buitengewoon (OV4)" als er een graad is, anders "· buitengewoon".
+- `doelgroepTekst` en `zelfdeRichting` saneren hun invoer eerst.
+
+**Leerplangrenzen.** `sanitizeCurriculumMetRapport`, `leerplanUitSelectie` en `bouwOntwerp` gebruiken `doelgroepVoorLeerplan`: een leerplan draagt nooit een jaar (het geldt voor de hele graad). Zo valt een cursus zonder eigen doelgroep niet stil weg uit de andere jaren van de graad.
+
+**Eigen kopie.** `maakEigenKopie` neemt de doelgroep mee zonder `kader` en `volgtKader`: een eigen kopie volgt de officiële koppeling niet meer. De knoppen "Werk het leerplan bij" en "Kies de doelen opnieuw" verschijnen alleen bij `kind !== 'eigen'`.
+
+**AI.** `sanitizeAICourse` neemt naast de doelgroep ook `curriculumId` nooit uit het AI-antwoord: alleen uit de opties of de bestaande cursus.
 
 **Saneren.**
 - Is de invoer geen object, of past de groep niet op `/^G-\d{4,6}$/`, dan is het resultaat `undefined`.

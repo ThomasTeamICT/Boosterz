@@ -6,6 +6,8 @@
 // in sessionStorage. Eén keer ophalen (take) maakt ze weer leeg, zodat een
 // oude overdracht nooit onverwacht opduikt.
 
+import { sanitizeDoelgroep, type Doelgroep } from './doelgroep';
+
 export interface Handoff {
   /** Bronmateriaal (platte tekst of markdown). */
   source: string;
@@ -17,6 +19,8 @@ export interface Handoff {
   goalCodes?: string[];
   /** Waar het vandaan komt, voor een korte melding ("uit hoofdstuk-3.docx"). */
   origin?: string;
+  /** Studierichting (en jaar) waarvoor de cursus gemaakt wordt; bij het ophalen gesaneerd. */
+  doelgroep?: Doelgroep;
 }
 
 const KEY = 'wf.handoff.v1';
@@ -36,7 +40,10 @@ export function peekHandoff(): Handoff | null {
     if (!raw) return null;
     const h = JSON.parse(raw) as Handoff & { at?: number };
     if (!h || typeof h.source !== 'string') return null;
-    return h;
+    // De doelgroep komt uit sessionStorage: saneren, en een ongeldige laten wegvallen (geen lege sleutel).
+    const { doelgroep, ...rest } = h;
+    const dg = sanitizeDoelgroep(doelgroep);
+    return dg ? { ...rest, doelgroep: dg } : rest;
   } catch {
     return null;
   }

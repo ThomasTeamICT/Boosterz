@@ -8,6 +8,7 @@ import {
 } from './curriculum';
 import { controleerLeerplan } from './curriculumCheck';
 import type { Curriculum, CurriculumGoal } from './curriculumTypes';
+import type { Doelgroep } from './doelgroep';
 import {
   bevestigSamengesteld, leerplanUitSelectie, selectieVanLeerplan, telSelectie, voorstelTitel, type SetKeuze,
 } from './doelenSamenstellen';
@@ -618,6 +619,63 @@ describe('leerplanUitSelectie: kop van de lijst', () => {
     const r = leerplanUitSelectie([{ bestand: s1, doelen: 'alle' }], { titel: 'T', oudeVersies: new Set(['ODS_9001']) });
     expect(r.waarschuwingen).toEqual(['Testvak (ODS_9001) is een oudere versie. Gebruik liever de versie die nu geldt.']);
     expect(r.bevestigd).toBe(true);
+  });
+});
+
+describe('leerplanUitSelectie: doelgroep (studierichting)', () => {
+  const s1 = drieDoelen('ODS_9001', 'a');
+  const DG: Doelgroep = { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', kader: 'c'.repeat(64), volgtKader: true };
+  const ANDER: Doelgroep = { groep: 'G-0200', titel: 'Wetenschappen-wiskunde', graad: 3, soort: 'so' };
+
+  it('zet de doelgroep (gesaneerd, zonder jaar); nagekeken en dezelfde vingerafdruk als zonder', () => {
+    const zonder = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a3'] }], { titel: 'T' });
+    const r = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a3'] }], { titel: 'T', doelgroep: { ...DG, jaar: 4 } });
+    expect(r.leerplan.doelgroep).toStrictEqual(DG);
+    expect(r.bevestigd).toBe(true);
+    expect(r.waarschuwingen).toEqual([]);
+    expect(controleStatus(r.leerplan)).toBe('gecontroleerd');
+    expect(r.leerplan.controle!.doelenSha256).toBe(zonder.leerplan.controle!.doelenSha256);
+    expect(zonder.leerplan).not.toHaveProperty('doelgroep');
+  });
+
+  it('overleeft exporteren en importeren als nagekeken', () => {
+    const r = leerplanUitSelectie([{ bestand: s1, doelen: 'alle' }], { titel: 'T', doelgroep: DG });
+    const terug = importCurriculumJson(exportCurriculumJson(r.leerplan));
+    expect(controleStatus(terug!)).toBe('gecontroleerd');
+    expect(terug!.doelgroep).toStrictEqual(DG);
+  });
+
+  it('"Keuze aanpassen" (`bestaand` zonder nieuwe doelgroep): de richting blijft', () => {
+    const eerst = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T', doelgroep: DG }).leerplan;
+    const bewaard = importCurriculumJson(exportCurriculumJson(eerst))!;
+    const r = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }], { titel: 'T', bestaand: bewaard });
+    expect(r.leerplan.doelgroep).toStrictEqual(DG);
+    expect(r.bevestigd).toBe(true);
+    // Ook een lege selectie (geen doelen) houdt de richting.
+    expect(leerplanUitSelectie([], { titel: 'T', bestaand: bewaard }).leerplan.doelgroep).toStrictEqual(DG);
+  });
+
+  it('een nieuwe doelgroep vervangt die van `bestaand`; een ongeldige niet', () => {
+    const bewaard = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T', doelgroep: DG }).leerplan;
+    expect(leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T', bestaand: bewaard, doelgroep: ANDER }).leerplan.doelgroep)
+      .toStrictEqual(ANDER);
+    const ongeldig = { groep: 'G-1' } as unknown as Doelgroep;
+    expect(leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T', bestaand: bewaard, doelgroep: ongeldig }).leerplan.doelgroep)
+      .toStrictEqual(DG);
+  });
+
+  it('de ongesaneerde doelgroep van een bewaarde lijst gaat door de sanering', () => {
+    const bewaard = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T' }).leerplan;
+    const geknoeid = { ...bewaard, doelgroep: { ...DG, jaar: 3, kader: 'GEEN-HEX', extra: 1 } as unknown as Doelgroep };
+    const r = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T', bestaand: geknoeid });
+    expect(r.leerplan.doelgroep).toStrictEqual({ groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', volgtKader: true });
+    const zonderGeldige = { ...bewaard, doelgroep: { groep: 'fout' } as unknown as Doelgroep };
+    expect(leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T', bestaand: zonderGeldige }).leerplan).not.toHaveProperty('doelgroep');
+  });
+
+  it('zonder doelgroep (en zonder `bestaand`) blijft alles zoals vroeger: geen sleutel', () => {
+    expect(Object.keys(leerplanUitSelectie([{ bestand: s1, doelen: 'alle' }], { titel: 'T' }).leerplan)).not.toContain('doelgroep');
+    expect(Object.keys(leerplanUitSelectie([], { titel: 'T' }).leerplan)).not.toContain('doelgroep');
   });
 });
 

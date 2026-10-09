@@ -14,6 +14,7 @@
 import type { Curriculum, CurriculumGoal, CurriculumHerkomst, CurriculumNet, MinimumdoelRef } from './curriculumTypes';
 import type { Bevinding, BevindingErnst, ControleRapport } from './curriculumCheck';
 import { createCurriculum, normalizeGoalCode, sanitizeCurriculum, sanitizeGoal } from './curriculum';
+import { doelgroepVoorLeerplan, type Doelgroep } from './doelgroep';
 import { leesNiveau, niveauTekst } from './leerplanNiveau';
 import { NET_KEUZES } from './leerplanNetten';
 import { leesLeerplan, naarCurriculumGoals, type LezerResultaat } from './leerplanLezer';
@@ -479,12 +480,18 @@ export interface OntwerpOpties {
   ingelezenOp: number;
   /** Het id van een nieuw leerplan, zodat het niet bij elke aanpassing een ander wordt. */
   id?: string;
+  /**
+   * Studierichting van het leerplan (gesaneerd, zonder jaar: zie `doelgroepVoorLeerplan`). Zonder (geldige) doelgroep
+   * blijft die van `bestaand`.
+   */
+  doelgroep?: Doelgroep;
 }
 
 /**
  * Het ontwerp-leerplan: nieuw met `createCurriculum` (soort 'leerplan', herkomst uit de bron), of het
  * bestaande leerplan met de aangepaste gegevens en doelen (zelfde id, `controle` blijft staan tot
- * bevestigd of gewijzigd). Nog niet gesaneerd: zie `saneerOntwerp`.
+ * bevestigd of gewijzigd). De studierichting is die van `o.doelgroep`, anders die van `bestaand`; ze telt
+ * niet mee in de vingerafdruk. Nog niet gesaneerd: zie `saneerOntwerp`.
  */
 export function bouwOntwerp(o: OntwerpOpties): Curriculum {
   const k = o.keuze;
@@ -513,8 +520,18 @@ export function bouwOntwerp(o: OntwerpOpties): Curriculum {
     minimumdoelenSets: o.setIds.length > 0 ? [...o.setIds] : undefined,
     goals: o.goals.map((g) => ({ ...g })),
   };
-  if (o.bestaand) return { ...o.bestaand, ...gegevens };
-  return createCurriculum({ ...gegevens, kind: 'leerplan', ...(o.id ? { id: o.id } : {}), createdAt: o.ingelezenOp, updatedAt: o.ingelezenOp });
+  const doelgroep = doelgroepVoorLeerplan(o.doelgroep) ?? doelgroepVoorLeerplan(o.bestaand?.doelgroep);
+  if (o.bestaand) {
+    const uit: Curriculum = { ...o.bestaand, ...gegevens };
+    // Nooit de ongesaneerde doelgroep van `bestaand` doorgeven (bv. uit de opslag, die niet saneert).
+    if (doelgroep) uit.doelgroep = doelgroep;
+    else delete uit.doelgroep;
+    return uit;
+  }
+  return createCurriculum({
+    ...gegevens, kind: 'leerplan', ...(doelgroep ? { doelgroep } : {}), ...(o.id ? { id: o.id } : {}),
+    createdAt: o.ingelezenOp, updatedAt: o.ingelezenOp,
+  });
 }
 
 /**

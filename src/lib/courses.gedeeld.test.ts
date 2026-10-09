@@ -7,12 +7,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import LZString from 'lz-string';
 import {
   adoptSharedContent, adoptSharedCourse, adoptSharedLinkUpdate, conflictKey, decodeCourseFromParam,
-  decodeCourseProgress, deleteCourse, encodeCourseProgress,
+  decodeCourseProgress, deleteCourse, encodeCourseProgress, encodeCourseToUrl,
   ensureDemoCourse, exportCourseJson, findSharedConflicts, getCourse, getCourses, importCourseJson,
   importProgressCode, mergeProgressRecords, restoreCoursePdfs, sanitizeCourse, saveCourse, saveStudentProgress,
   sharedCourseDiffers, sharedLinkQuestion, startProgress, touchSection, getStudentProgress,
   type DecodedCourse, type SharedLinkQuestion,
 } from './courses';
+import { classPackToJson, decodeClassPack, encodeClassPackToUrl, importClassPackJson } from './classPack';
+import { createAssignment, createClass, saveAssignment, saveClass } from './classes';
+import type { Doelgroep } from './doelgroep';
 import { getWidget, getWidgets, saveWidget } from './storage';
 import type { Course, CourseChapter, CourseProgress } from './courseTypes';
 import type { Widget } from './types';
@@ -843,6 +846,89 @@ describe('ensureDemoCourse (CU11)', () => {
     deleteCourse('c1');
     ensureDemoCourse();
     expect(getCourses()).toHaveLength(0);
+  });
+});
+
+// ── Doelgroep (studierichting) reist mee (docs/STUDIERICHTINGEN.md § 10) ────
+
+describe('doelgroep over elke grens van gedeelde inhoud', () => {
+  const DG: Doelgroep = { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, jaar: 4, soort: 'so', vak: 'Biologie' };
+
+  beforeEach(() => {
+    vi.stubGlobal('location', { origin: 'https://boosterz.test', pathname: '/Boosterz/' });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** De payload van een deellink, zoals ze in de URL staat. */
+  function payloadVan(url: string): Record<string, unknown> {
+    return JSON.parse(LZString.decompressFromEncodedURIComponent(url.split('?d=')[1])!) as Record<string, unknown>;
+  }
+
+  it('deellink: encodeCourseToUrl → decodeCourseFromParam houdt de doelgroep; het formaat blijft versie 1', async () => {
+    saveWidget(widget());
+    const { url } = await encodeCourseToUrl(course({ doelgroep: DG }));
+    const payload = payloadVan(url);
+    expect(payload.v).toBe(1);
+    expect(payload.kind).toBe('cursus');
+    expect((payload.c as Course).doelgroep).toEqual(DG);
+    const d = decodeCourseFromParam(url.split('?d=')[1])!;
+    expect(d.course.doelgroep).toStrictEqual(DG);
+    expect(d.widgets.map((w) => w.id)).toEqual(['w1']);
+  });
+
+  it('deellink zonder doelgroep: geen sleutel in de link en niet na het openen', async () => {
+    const { url } = await encodeCourseToUrl(course());
+    expect(JSON.stringify(payloadVan(url))).not.toContain('doelgroep');
+    expect(decodeCourseFromParam(url.split('?d=')[1])!.course).not.toHaveProperty('doelgroep');
+  });
+
+  it('deellink met een geknoeide doelgroep: gesaneerd of weg', () => {
+    const geknoeid = link({ ...course(), doelgroep: { ...DG, jaar: 6, titel: 'x'.repeat(400), kader: 'ABC', vreemd: 1 } as unknown as Doelgroep });
+    expect(geknoeid.course.doelgroep).toStrictEqual({ groep: 'G-0193', titel: 'x'.repeat(160), graad: 2, soort: 'so', vak: 'Biologie' });
+    expect(link({ ...course(), doelgroep: { groep: 'G-1' } as unknown as Doelgroep }).course).not.toHaveProperty('doelgroep');
+  });
+
+  it('cursusbestand: exportCourseJson → importCourseJson houdt de doelgroep (versie 1)', async () => {
+    const json = await exportCourseJson(course({ doelgroep: DG }));
+    expect(JSON.parse(json).v).toBe(1);
+    expect(importCourseJson(json)!.course.doelgroep).toStrictEqual(DG);
+    expect(await exportCourseJson(course())).not.toContain('doelgroep');
+  });
+
+  it('klaspakket: de cursus van een opdracht houdt de doelgroep, via link en via bestand', async () => {
+    saveWidget(widget());
+    saveCourse(course({ doelgroep: DG }));
+    const klas = createClass({ name: 'Klas 4B', students: [{ id: 'st1', name: 'Emma Peeters', number: 1 }] });
+    saveClass(klas);
+    const opdracht = createAssignment({ classId: klas.id, kind: 'course', targetId: 'c1' });
+    saveAssignment(opdracht);
+    const { url, pack } = await encodeClassPackToUrl(klas, [opdracht]);
+    const viaUrl = decodeClassPack(url.split('d=')[1])!;
+    expect(viaUrl.opdrachten[0].course?.doelgroep).toStrictEqual(DG);
+    const viaBestand = importClassPackJson(classPackToJson(pack))!;
+    expect(viaBestand.opdrachten[0].course?.doelgroep).toStrictEqual(DG);
+  });
+
+  it('overnemen (adoptSharedCourse) bewaart de doelgroep', () => {
+    adoptSharedCourse(viaLink(course({ doelgroep: DG })), [widget()], { gedeeld: true });
+    expect(getCourse('c1')!.doelgroep).toStrictEqual(DG);
+  });
+
+  it('comparable: een andere doelgroep is een andere inhoud, dezelfde doelgroep niet', async () => {
+    saveCourse(course({ title: 'Mijn cursus', doelgroep: DG }));
+    later();
+    // Zelfde inhoud en doelgroep, nieuwer: geen vraag.
+    expect(await sharedCourseDiffers(viaLink({ ...getCourse('c1')!, updatedAt: Date.now() }))).toBe(false);
+    // Alleen de doelgroep anders (ander jaar, of weg): wel een vraag, eigen werk wordt niet stil overschreven.
+    expect(await sharedCourseDiffers(viaLink({ ...getCourse('c1')!, doelgroep: { ...DG, jaar: 3 }, updatedAt: Date.now() }))).toBe(true);
+    const { doelgroep: _dg, ...zonder } = getCourse('c1')!;
+    void _dg;
+    expect(await sharedCourseDiffers(viaLink({ ...zonder, updatedAt: Date.now() }))).toBe(true);
+    // Een doelgroep die bij het saneren identiek wordt, telt niet als verschil.
+    const rommelig = { ...DG, titel: ' Natuurwetenschappen \n', extra: 1 } as unknown as Doelgroep;
+    expect(await sharedCourseDiffers(viaLink({ ...getCourse('c1')!, doelgroep: rommelig, updatedAt: Date.now() }))).toBe(false);
   });
 });
 

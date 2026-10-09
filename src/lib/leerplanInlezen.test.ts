@@ -4,6 +4,7 @@ import { CURRICULUM_NETS } from './curriculumTypes';
 import { bevestigLeerplan, exportCurriculumJson, importCurriculumJson } from './curriculum';
 import { controleerLeerplan } from './curriculumCheck';
 import type { Bevinding } from './curriculumCheck';
+import type { Doelgroep } from './doelgroep';
 import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from './minimumdoelen';
 import { effectieveStatus } from './leerplanStatus';
 import { NET_KEUZES, NET_LINKS, netLinkVoor } from './leerplanNetten';
@@ -433,6 +434,55 @@ describe('het ontwerp', () => {
     expect(effectieveStatus(terug as Curriculum)).toBe('gecontroleerd');
     expect(terug?.controle?.door).toBe('Test Nakijker');
     expect(terug?.goals[1].refs?.map((r) => r.code)).toEqual(['09.02', '09.03']);
+  });
+
+  describe('doelgroep (studierichting)', () => {
+    const DG: Doelgroep = { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', vak: 'Aardrijkskunde' };
+    const ANDER: Doelgroep = { groep: 'G-0200', titel: 'Wetenschappen-wiskunde', graad: 3, soort: 'buso' };
+    const basis = { keuze: KEUZE, bron, goals: g, setIds: ['ODS_3287'], ingelezenOp: 1000 };
+
+    it('een nieuw leerplan krijgt de doelgroep, gesaneerd en zonder jaar', () => {
+      const o = bouwOntwerp({ ...basis, doelgroep: { ...DG, jaar: 4, titel: ' Natuurwetenschappen\n' } });
+      expect(o.doelgroep).toStrictEqual(DG);
+      expect(saneerOntwerp(o)?.doelgroep).toStrictEqual(DG);
+    });
+
+    it('zonder doelgroep blijft het ontwerp zoals vroeger: geen sleutel', () => {
+      expect(Object.keys(bouwOntwerp(basis))).not.toContain('doelgroep');
+      expect(bouwOntwerp({ ...basis, doelgroep: { groep: 'rommel' } as unknown as Doelgroep })).not.toHaveProperty('doelgroep');
+    });
+
+    it('een bestaand leerplan houdt zijn doelgroep, tenzij er een nieuwe (geldige) komt', () => {
+      const bestaand: Curriculum = {
+        id: 'oud-id', title: 'Oud', net: 'kov', subject: 'Aardrijkskunde', level: '2de graad', createdAt: 1, updatedAt: 1, goals: [], doelgroep: DG,
+      };
+      const met = { ...basis, bestaand, keuze: keuzeUitLeerplan(bestaand) };
+      expect(bouwOntwerp(met).doelgroep).toStrictEqual(DG);
+      expect(bouwOntwerp({ ...met, doelgroep: ANDER }).doelgroep).toStrictEqual(ANDER);
+      expect(bouwOntwerp({ ...met, doelgroep: { groep: 'G-1' } as unknown as Doelgroep }).doelgroep).toStrictEqual(DG);
+      // De ongesaneerde doelgroep van een bewaard leerplan gaat er niet ongezien door; een ongeldige valt weg.
+      const geknoeid = { ...bestaand, doelgroep: { ...DG, jaar: 3, extra: 'x' } as unknown as Doelgroep };
+      expect(bouwOntwerp({ ...met, bestaand: geknoeid }).doelgroep).toStrictEqual(DG);
+      const kapot = { ...bestaand, doelgroep: { groep: 'kapot' } as unknown as Doelgroep };
+      expect(bouwOntwerp({ ...met, bestaand: kapot })).not.toHaveProperty('doelgroep');
+      // `bestaand` zelf blijft ongemoeid.
+      expect(kapot.doelgroep).toEqual({ groep: 'kapot' });
+    });
+
+    it('nakijken en bevestigen met een doelgroep: nagekeken, ook na exporteren en importeren', () => {
+      const zonder = saneerOntwerp(bouwOntwerp(basis)) as Curriculum;
+      const ontwerp = saneerOntwerp(bouwOntwerp({ ...basis, doelgroep: DG })) as Curriculum;
+      const rapport = controleerLeerplan(ontwerp, { bronTekst: TEKST, sets: [SET_MD] });
+      expect(rapport.doelenSha256).toBe(controleerLeerplan(zonder, { bronTekst: TEKST, sets: [SET_MD] }).doelenSha256);
+      const bevestigd = bevestigLeerplan(ontwerp, { door: 'Test Nakijker', rapport, samenvatting: rapport.samenvatting });
+      const terug = importCurriculumJson(exportCurriculumJson(bevestigd)) as Curriculum;
+      expect(effectieveStatus(terug)).toBe('gecontroleerd');
+      expect(terug.doelgroep).toStrictEqual(DG);
+      // Een andere richting kiezen bij een nagekeken leerplan laat het nagekeken.
+      const herwerkt = saneerOntwerp(bouwOntwerp({ ...basis, bestaand: terug, keuze: keuzeUitLeerplan(terug), doelgroep: ANDER })) as Curriculum;
+      expect(effectieveStatus(herwerkt)).toBe('gecontroleerd');
+      expect(herwerkt.doelgroep).toStrictEqual(ANDER);
+    });
   });
 
   it('een gewijzigde tekst geeft "niet letterlijk gevonden" en blokkeert bevestigen', () => {
