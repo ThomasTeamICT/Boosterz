@@ -681,7 +681,7 @@ export function vergelijkMetKader(leerplan: Curriculum, kader: RichtingKader): {
 
 Wat het scherm aanbiedt:
 - Bij `volgtKader` de knop "Werk het leerplan bij". Die doet `leerplanVoorRichting(…, { bestaand, sets })`, met de sets van het leerplan die nog in het kader staan plus hun opvolgers. De codes blijven (`kenCodesToe`); vervallen codes gaan naar `weggelatenCodes`; cursussen blijven werken.
-- Zonder `volgtKader` (per doel gekozen) de knop "Kies de doelen opnieuw", naar `/leerplannen/samenstellen/<id>?richting=…`. De wizard begint dan met de bewaarde keuze, zonder de vervallen doelen. Er komt niets automatisch bij.
+- Zonder `volgtKader` (per doel gekozen) de knop "Kies de doelen opnieuw", naar `/leerplannen/samenstellen/<id>?richting=…`. De wizard begint dan met de bewaarde keuze, zonder de vervallen doelen. "Vervallen" volgt dezelfde regel als `vergelijkMetKader`: is de kader-vingerafdruk van het leerplan gelijk, dan vervalt er niets en blijft de keuze precies zoals bewaard, ook doelen die de leerkracht zelf toevoegde. Er komt niets automatisch bij. Melding: "<n> doelen staan niet (meer) in de koppeling van de officiële bron en zijn niet aangevinkt."
 
 ### 11.3 Leerplannen van de netten
 
@@ -893,13 +893,13 @@ export function geplandeRijen(result: CoverageResult, course: Course, widgets?: 
 - `details` "Niet voor dit jaar (<n> sets)".
 - "Niet getoond: <x> oudere versies en <y> sets van het buitengewoon secundair onderwijs." (alleen bij een aantal groter dan 0)
 - Knoppen:
-  - primair **"Maak een cursus voor deze richting"**;
-  - **"Bewaar als leerplan"** (alle doelen van de richting, `volgtKader`), of "Open het leerplan" als het al bestaat;
+  - primair **"Maak een cursus voor deze richting"**: staat altijd aan, ook zonder verplichte sets (herkomst `geen`); het venster van § 14.4 toont dan zelf wat er kan (een leerplan op dit toestel, inlezen, zelf samenstellen);
+  - **"Bewaar als leerplan"** (alle doelen van de richting, `volgtKader`), of "Open het leerplan" als het al bestaat; zonder verplichte sets staat de knop op `aria-disabled` met uitleg. Na het bewaren gaat de focus naar "Open het leerplan";
   - link **"Kies zelf doelen"** naar `/leerplannen/samenstellen?richting=G-0193&jaar=4&soort=so`.
 - Toast: "Leerplan bewaard en nagekeken." Lukt het nakijken niet: `callout err` met "Het leerplan kon niet als nagekeken bewaard worden: <eerste waarschuwing>. Kies zelf doelen, dan zie je wat er misloopt."
 
 **h2 "Leerplannen"**
-- h3 "Leerplannen van deze richting op dit toestel": "<titel> · Nagekeken · 229 doelen", met "Open". Leeg: "Nog geen leerplan van deze richting op dit toestel."
+- h3 "Leerplannen van deze richting op dit toestel": "<titel> · Nagekeken · 229 doelen", met "Open". Het leerplan waar "Open het leerplan" naar wijst, staat er altijd bij, ook zonder doelgroep (knop en lijst zeggen hetzelfde). Leeg: "Nog geen leerplan van deze richting op dit toestel."
 - Veranderd: `callout warn` met "De officiële koppeling van deze richting is veranderd sinds je ‘<titel>’ maakte: <n> doelen nieuw, <m> vervallen." en de knop "Werk het leerplan bij" of "Kies de doelen opnieuw" (§ 11.2). Toast: "Leerplan bijgewerkt. De doelcodes in je cursussen blijven dezelfde."
 - h3 "Leerplan van je net": "Boosterz levert de leerplannen van de netten niet mee: ze zijn auteursrechtelijk beschermd. Haal het leerplan van je school bij je net en lees het in. De verwijzingen naar de minimumdoelen worden dan nagekeken, en het leerplan telt mee in de dekking."
   - `NettenLinks`.
@@ -914,7 +914,7 @@ export function geplandeRijen(result: CoverageResult, course: Course, widgets?: 
   - De select "Jaar".
   - De knop "Koppel". Het bewaren gebeurt met `saveCourseGuarded(course, course.updatedAt)`. Bij "gewijzigd": "Deze cursus werd intussen elders aangepast. Probeer opnieuw." Toast: "Cursus gekoppeld aan <richting>."
   - Leeg: "Er zijn geen cursussen zonder richting."
-- Per cursus de knop "Haal weg uit deze richting".
+- Per cursus de knop "Haal weg uit deze richting", maar alleen als het wegnemen echt werkt: de cursus heeft een eigen doelgroep bij deze richting en haar leerplan hoort niet bij dezelfde richting. Hoort ze bij de richting via haar leerplan, dan staat er "Hoort bij deze richting via het leerplan ‘<titel>’." Toast: "‘<cursus>’ hoort niet meer bij deze richting." Na "Haal weg" en "Werk het leerplan bij" gaat de focus naar de kop van de sectie.
 - Een cursus waarvan het leerplan ontbreekt (bv. gedeeld vanaf een ander toestel) krijgt de knop "Koppel aan het leerplan van deze richting". Die zoekt of maakt het leerplan van de richting en geeft `passendeCodes`. Passen niet alle codes, dan volgt eerst de vraag: "<x> van de <y> doelcodes van deze cursus staan niet in dat leerplan. Toch koppelen?"
 
 **h2 "Wat je cursussen samen dekken"** (fase C)
@@ -960,6 +960,11 @@ export function geplandeRijen(result: CoverageResult, course: Course, widgets?: 
   - "Cursus gemaakt: <h> hoofdstukken, <n> doelcodes klaar op de secties." (geraamte);
   - "Cursus gemaakt met <n> doelen van <richting>." (leeg).
 - Niet nagekeken: dezelfde `callout err` als in § 14.3.
+- Een bevestigd leerplan met doelen uit de koppeling die niet meer in de set staan: de toast krijgt erbij "<n> doelen uit de koppeling staan niet meer in de huidige versie van de set. De koppeling wordt elke maand bijgewerkt."
+- "Nog nodig:" alleen met zaken (titel, set, leerplan). Laden en fouten krijgen een eigen zin: "De sets worden nog geladen." en "Een set kon niet geladen worden. Probeer opnieuw."
+- Twee sets met dezelfde korte naam: de voorstelzin noemt de naam één keer; het vakje krijgt een sr-only achtervoegsel " (een deel van de set)" of " (de volledige set)". Het STEM-kader hangt met `aria-describedby` aan zijn vakje.
+- Richting zonder minimumdoelen (herkomst `geen`): het venster gaat toch open. Geen graaduitleg, "Alle minimumdoelen" is niet te kiezen, en er staat "Een leerplan dat al op dit toestel staat" als `leerplannenBijRichting` iets geeft, anders "Voor deze richting geeft de officiële bron geen minimumdoelen. Lees het leerplan van je net in of stel zelf een doelenlijst samen." met links naar inlezen (met de richting) en samenstellen.
+- Richtingkiezer: dezelfde richting bevestigen zonder iets te wijzigen geeft de doelgroep onveranderd terug (onderdeel en vak blijven). Na het laden staat de focus in het zoekveld, en de huidige richting staat aangevinkt in de lijst.
 
 ### 14.5 Cursuseditor, cursuslijst en GoalCoverage
 
@@ -997,8 +1002,10 @@ export function geplandeRijen(result: CoverageResult, course: Course, widgets?: 
 
 **LeerplanInlezenPage**
 - `?richting=…&jaar=…&soort=…` vult de keuze vooraf in.
-- Een callout: "Je leest een leerplan in voor <titel> (<graad>). Boosterz zet de sets van die richting vooraan."
-- `bouwOntwerp` krijgt `doelgroep`.
+- Een callout: "Je leest een leerplan in voor <titel> (<graad>). Boosterz toont de sets van die richting; andere sets zoek je zelf."
+- `bouwOntwerp` krijgt `doelgroep` (via een prop `doelgroep` op `StapNakijken`).
+- Een ongeldig jaar of soort in de link wordt genegeerd en gemeld: "Het jaar in de link is niet bruikbaar en werd genegeerd." / "Het soort onderwijs in de link is niet bekend; Boosterz gebruikt gewoon secundair onderwijs."
+- "Verder zonder studierichting" zet de focus op de kop van de stap.
 
 **LeerplanOpSlot**
 - Het feit "Studierichting" met de waarde `doelgroepTekst` en een link naar de richting. Het staat er alleen als er een doelgroep is.
@@ -1028,6 +1035,8 @@ export function geplandeRijen(result: CoverageResult, course: Course, widgets?: 
 - Netten: "Boosterz levert de leerplannen van de netten niet mee: ze zijn auteursrechtelijk beschermd."
 
 Op het scherm staan nooit een groepnummer, een set-id, "structuuronderdeel" of "Hele set" voor een deelset. Het groepnummer staat alleen in de bronvermelding onderaan het detail, als "nummer in de matrix: G-0193".
+
+In de bestaande wizards (samenstellen en inlezen) geldt dat zolang er een richting in de link staat: `StapDoelen`, `StapSets` en `StapKoppelen` krijgen dan `verbergSetId` (geen set-id in de meta, op de setrijen of in de zoekhints; zoeken op nummer blijft werken). Zonder richting blijven ze zoals ze waren. De keuzeknop "Hele set" in Samenstellen blijft: hij is een bewuste klik en staat alleen aan als echt alle doelen van de set gekozen zijn. Waarschuwingen uit de bibliotheek gaan eerst door een filter dat set-ids weghaalt.
 
 ## 15. Bundel, opslag en toegankelijkheid
 
