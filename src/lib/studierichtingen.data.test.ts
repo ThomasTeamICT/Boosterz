@@ -192,11 +192,11 @@ function controleerVolgorde<T>(lijst: readonly T[], vergelijk: (a: T, b: T) => n
 // ── De controle ─────────────────────────────────────────────────────────────
 
 interface Opties {
-  /** Standaard `KRUISCONTROLE_STRENG`. */
+  /** Standaard false; de echte map gebruikt `KRUISCONTROLE_STRENG`. */
   kruisStreng?: boolean;
-  /** Standaard `ONDERWIJSSOORT_STRENG`. */
+  /** Standaard false; de echte map gebruikt `ONDERWIJSSOORT_STRENG`. */
   soortStreng?: boolean;
-  /** Standaard `HISTORIEK_STRENG`. */
+  /** Standaard false; de echte map gebruikt `HISTORIEK_STRENG`. */
   historiekStreng?: boolean;
 }
 
@@ -602,9 +602,11 @@ function controleerStructuurMap(uit: string, minimumdoelen: string, opties: Opti
   const f = new Meldingen();
   const i = new Meldingen();
   const volledig: Required<Opties> = {
-    kruisStreng: opties.kruisStreng ?? KRUISCONTROLE_STRENG,
-    soortStreng: opties.soortStreng ?? ONDERWIJSSOORT_STRENG,
-    historiekStreng: opties.historiekStreng ?? HISTORIEK_STRENG,
+    // Standaard mild: de zelftests en de fixtures bepalen zelf wat streng is. De echte map gebruikt de
+    // gedeelde schakelaars hieronder (ECHTE_OPTIES).
+    kruisStreng: opties.kruisStreng ?? false,
+    soortStreng: opties.soortStreng ?? false,
+    historiekStreng: opties.historiekStreng ?? false,
   };
   try {
     const matrix = controleerMatrix(join(uit, 'studierichtingen.json'), f, i, volledig);
@@ -665,7 +667,9 @@ const DOELEN_MAP = join(STRUCTUUR_MAP, 'richtingdoelen');
 const heeftMatrix = existsSync(MATRIX_PAD);
 const doelenBestanden = existsSync(DOELEN_MAP) ? readdirSync(DOELEN_MAP).filter((n) => n.endsWith('.json')) : [];
 const ontbreekt = aanwezigheidsfout(heeftMatrix, doelenBestanden);
-const echt = heeftMatrix ? controleerStructuurMap(STRUCTUUR_MAP, MINIMUMDOELEN_MAP) : undefined;
+/** De echte map volgt de gedeelde schakelaars: sinds de eerste echte run (PR #6) staan ze aan. */
+const ECHTE_OPTIES: Opties = { kruisStreng: KRUISCONTROLE_STRENG, soortStreng: ONDERWIJSSOORT_STRENG, historiekStreng: HISTORIEK_STRENG };
+const echt = heeftMatrix ? controleerStructuurMap(STRUCTUUR_MAP, MINIMUMDOELEN_MAP, ECHTE_OPTIES) : undefined;
 
 it.runIf(ontbreekt !== undefined)('de koppelingsbestanden staan niet zonder index en matrix', () => {
   expect.fail(ontbreekt);
@@ -1468,8 +1472,6 @@ describe('zelftest: wat geen fout mag zijn', () => {
       expect(fouten, naam).toEqual([]);
       expect(info.some((t) => t.startsWith(`${c.code}: `) && !/^[A-Z]\d: 0 /.test(t)), `info over ${c.code}`).toBe(true);
     }
-    expect(KRUISCONTROLE_STRENG).toBe(false);
-    expect(ONDERWIJSSOORT_STRENG).toBe(false);
   });
 });
 
@@ -1690,7 +1692,8 @@ describe('hulpfuncties van de datatest', () => {
     expect(lijst[lijst.length - 1]).toBe('F1: … en nog 5 van dezelfde soort');
   });
 
-  it('de gedeelde schakelaars staan op false (tot de eerste echte run)', () => {
-    expect([KRUISCONTROLE_STRENG, ONDERWIJSSOORT_STRENG, HISTORIEK_STRENG]).toEqual([false, false, false]);
+  it('de gedeelde schakelaars staan aan sinds de eerste echte run, en gelden alleen voor de echte map', () => {
+    expect([KRUISCONTROLE_STRENG, ONDERWIJSSOORT_STRENG, HISTORIEK_STRENG]).toEqual([true, true, true]);
+    expect(ECHTE_OPTIES).toEqual({ kruisStreng: true, soortStreng: true, historiekStreng: true });
   });
 });
