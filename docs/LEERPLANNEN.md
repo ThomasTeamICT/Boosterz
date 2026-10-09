@@ -94,10 +94,13 @@ API laat vermoedelijk geen verzoeken van andere sites toe (CORS, te bevestigen).
 - **Ongewijzigd = niet aanraken.** Een set waarvan het opnieuw gebouwde bestand byte voor byte
   gelijk is (met het oude tijdstip), wordt niet herschreven; zo is er geen verschil en geen pull
   request.
-- `.github/workflows/minimumdoelen.yml`: met de hand te starten (Actions → Minimumdoelen bijwerken →
-  Run workflow) en maandelijks (de 3de). Het ophalen gebeurt vóór `npm ci --ignore-scripts`, zodat
-  geen installscript de stap met het geheim kan beïnvloeden. Het rapport komt altijd als artifact
-  `minimumdoelen-rapport` mee. Bij wijzigingen pusht de taak een branch `minimumdoelen/bijwerken-…`
+- `.github/workflows/minimumdoelen.yml` (sinds oktober 2026 "Leerplangegevens bijwerken": ook de
+  studierichtingen en hun doelen, zie `docs/STUDIERICHTINGEN.md` § 6): met de hand te starten (Actions →
+  Leerplangegevens bijwerken → Run workflow, met de keuze alles, minimumdoelen of studierichtingen) en
+  maandelijks (de 3de). Beide ophaalstappen draaien vóór `npm ci --ignore-scripts`, zodat
+  geen installscript de stap met het geheim kan beïnvloeden. De poort is de volledige `npx vitest run`. De
+  rapporten komen altijd als artifacts `minimumdoelen-rapport` en `studierichtingen-rapport` mee. Bij
+  wijzigingen pusht de taak een branch `leerplangegevens/bijwerken-…`
   en opent een pull request naar `claude/bookwidgets-web-app-kvcfim`. Een mens keurt het verschil
   goed; niets gaat automatisch live. Daarvoor moet in de repo-instellingen "Allow GitHub Actions to
   create and approve pull requests" aan staan (Settings → Actions → General); anders faalt de taak
