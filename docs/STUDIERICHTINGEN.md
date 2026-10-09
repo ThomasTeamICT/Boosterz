@@ -25,7 +25,7 @@ De opdracht van de eigenaar, letterlijk: "ja, doe die import maar, einddoel is d
 | P10 Samenstellen en inlezen met een richting | **Klaar** (review: één blokkerende fout, de doelgroep bij inlezen; hersteld, met `beginUitBewaarde` volgens `vergelijkMetKader`, gemeld jaar en soort, geen set-id in de richtingflow van de wizards). Open voor I4: set-id's in bibliotheekteksten (`setInBericht`, dubbele namen in `doelenSamenstellen.ts`, bronfouten, verwijzingen in inlezen stap 4) | bouwer, worktree C |
 | I3 Integratie van de schermen: ingangen, hulp, budget | **Klaar** (menu, minimumdoelenpagina, wegwijzer, twee hulpvragen; kritiek pad 333,4 kB, budget bewust naar 333,9 kB) | hoofdsessie |
 | P11 Dekkingsmodule (L6) | **Klaar** (review goed met opmerkingen; tests aangevuld, regels voor percent en zelfdeNummerAndereSet vastgelegd in § 13.2) | kernbouwer |
-| P12 Dekking op de schermen | Wacht (kan nu starten) | bouwer |
+| P12 Dekking op de schermen | **Klaar** (twee reviewers en een rechter: 4 van 10 bevindingen bevestigd en hersteld: juiste noot bij een kader dat nog niet opgehaald is, herladen na een mislukt chunk, 'Toon: Nog niet gedekt' laat sets weg en zegt hoeveel, lange titels breken af). Teksten met getallen in `dekkingWeergave.ts`. CourseEditorPage 74,8 kB, kritiek pad 333,7 kB (budget 334,2 kB) | bouwer |
 | P13 Rooktest studierichtingen | Wacht, op P12 | bouwer (een andere agent dan die van P8 tot P12) |
 | I4 Review, rechter, herstel, rooktest op echte data, uitrol | Wacht, op P13 en G1 | hoofdsessie, reviewers, rechter |
 | Licentie en naamsvermelding API Structuuronderdelen | Te bevestigen via TechLoket, zoals bij laag 1 | eigenaar |

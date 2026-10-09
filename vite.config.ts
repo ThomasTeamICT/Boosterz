@@ -72,7 +72,9 @@ import { fontRefsInCss } from './src/offline/lettertypes';
  *    gewist wordt die een ander tabblad nog toont) op 332,7 kB (105,5 kB
  *    gzip); de studierichtingen (okt. 2026: de route /cursussen/richtingen,
  *    haar paginatitel en het menu-item "Cursus voor een studierichting") op
- *    333,4 kB (105,9 kB gzip). Het budget ligt ±0,5 kB boven die meting, zodat elke groei meteen opvalt; wie meer nodig heeft,
+ *    333,4 kB (105,9 kB gzip); de dekking per richting en per cursus (lui
+ *    geladen, maar de preloadlijst in de hoofdbundel groeit met elk nieuw
+ *    chunk) op 333,7 kB. Het budget ligt ±0,5 kB boven die meting, zodat elke groei meteen opvalt; wie meer nodig heeft,
  *    verhoogt het bewust, hier. Let op: vóór sep. 2026 mat dit budget vóór
  *    Vite de preloadlijst invulde, dus ±9 kB te licht (zie order: 'post').
  *  - vendor: React, React DOM, scheduler, de lucide-basis en de iconen van het
@@ -86,7 +88,7 @@ import { fontRefsInCss } from './src/offline/lettertypes';
  */
 const CRITICAL_PATH = {
   label: 'hoofdbundel (kritieke leerlingpad)',
-  maxKb: 333.9,
+  maxKb: 334.2,
   /** boven 5 % te veel faalt de build */
   hardFactor: 1.05,
   /** wat naast de hoofdbundel in de statische sluiting mag zitten */

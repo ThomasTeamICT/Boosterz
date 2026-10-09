@@ -41,4 +41,5 @@ export {
   Upload as UploadIcon,
   Check as CheckIcon,
   RotateCcw as RetryIcon,
+  CalendarClock as PlannedIcon,
 } from 'lucide-react';

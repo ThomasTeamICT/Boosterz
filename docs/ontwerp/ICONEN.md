@@ -52,7 +52,11 @@ En verder: `AddIcon`, `SearchIcon`, `MoreIcon`, `CloseIcon`, `GoalIcon`,
 `CourseIcon`, `StudentIcon`, `QrIcon`, `LinkIcon`, `CopyIcon`, `TipIcon`,
 `InfoIcon`, `WarningIcon`, `PrivacyIcon`, `DragIcon`, `MoveUpIcon`,
 `MoveDownIcon`, `PreviewIcon`, `FolderIcon`, `SettingsIcon`,
-`DownloadIcon`, `UploadIcon`, `CheckIcon`, `RetryIcon`.
+`DownloadIcon`, `UploadIcon`, `CheckIcon`, `RetryIcon`, `PlannedIcon`.
+
+De status van een minimumdoel (docs/STUDIERICHTINGEN.md § 13) staat altijd met icoon én tekst:
+gedekt `CheckIcon`, gepland `PlannedIcon` (calendar-clock), alleen in verdieping `WarningIcon`,
+nog niet gedekt `CloseIcon`. Kleur alleen is nooit genoeg.
 
 Staat een actie er niet bij, kies dan een Lucide-icoon dat al elders in de
 app voor hetzelfde gebruikt wordt, of voeg het toe aan `icons.ts` en aan deze

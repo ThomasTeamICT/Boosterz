@@ -11,6 +11,7 @@ import { BackIcon, WarningIcon } from '../icons';
 import { Field } from '../ui';
 import { FoutBericht, LaadBericht } from '../curriculum/LaadStatus';
 import { RichtingCursussen } from './RichtingCursussen';
+import { RichtingDekking, useRichtingDekking, type TelMee } from './RichtingDekking';
 import { RichtingDoelen, useBestaandLeerplan, type RichtingContext } from './RichtingDoelen';
 import { RichtingLeerplannen } from './RichtingLeerplannen';
 import { GegevensStand, LIJST_ROUTE, bronTekst, type RichtingPaginaProps } from './RichtingLijst';
@@ -157,16 +158,27 @@ export function RichtingDetail({ groep, stand, opnieuw, vandaag }: RichtingPagin
 
 /**
  * De secties die het kader van de richting nodig hebben. Het leerplan van de hele richting dat al op dit toestel staat, wordt
- * hier één keer bepaald: "Open het leerplan" (bij de doelen) en de lijst met leerplannen zeggen zo hetzelfde.
+ * hier één keer bepaald: "Open het leerplan" (bij de doelen) en de lijst met leerplannen zeggen zo hetzelfde. Hetzelfde geldt
+ * voor de dekking: ze wordt hier één keer berekend, en de lijst met cursussen en de sectie "Wat je cursussen samen dekken"
+ * tonen allebei die berekening.
  */
-function KaderSecties({ context, courses }: { context: RichtingContext; courses: readonly Course[] }) {
+function KaderSecties({ context, courses, matrix, vandaag, telMee, onTelMee }: {
+  context: RichtingContext;
+  courses: readonly Course[];
+  matrix: MatrixBestand;
+  vandaag: string;
+  telMee: TelMee;
+  onTelMee: (t: TelMee) => void;
+}) {
   const [gevondenId, setGevondenId] = useState<string | null>(null);
   const bestaandLeerplan = useBestaandLeerplan(context, gevondenId);
+  const dekking = useRichtingDekking(context, courses, matrix, vandaag, telMee);
   return (
     <>
       <RichtingDoelen {...context} bestaandLeerplan={bestaandLeerplan} onLeerplanGevonden={setGevondenId} />
       <RichtingLeerplannen {...context} bestaandLeerplan={bestaandLeerplan} />
-      <RichtingCursussen {...context} courses={courses} />
+      <RichtingCursussen {...context} courses={courses} dekking={dekking.status === 'klaar' ? dekking.waarde : undefined} />
+      <RichtingDekking info={context.info} keuze={context.keuze} stand={dekking} telMee={telMee} onTelMee={onTelMee} />
     </>
   );
 }
@@ -199,6 +211,8 @@ function RichtingInhoud({ info, matrix, bron, indexSets, vandaag, lijstZoek }: {
     [keuze.groep, keuze.soort, keuze.onderdeel],
   );
   const kaderStand = useRichtingKader(info, kaderKeuze);
+  // Welke cursussen de dekking telt (de keuze blijft staan als het kader opnieuw laadt, bv. bij een ander soort onderwijs).
+  const [telMee, setTelMee] = useState<TelMee>('alle');
 
   // Leerplannen en cursussen van dit toestel; ze lezen opnieuw als er elders (ook in een ander tabblad) iets bewaard wordt.
   const [curricula, setCurricula] = useState<Curriculum[]>(getCurricula);
@@ -308,14 +322,7 @@ function RichtingInhoud({ info, matrix, bron, indexSets, vandaag, lijstZoek }: {
       )}
 
       {context && (
-        <>
-          <KaderSecties context={context} courses={courses} />
-          {/*
-            P12 (dekking, § 14.3 "Wat je cursussen samen dekken"): die sectie komt hier, na "Cursussen voor deze richting".
-            Beschikbaar: `context` (info, keuze met jaar, kader, indexSets, curricula) en `courses`; `doelgroepVanCursus` en
-            `kaderSleutelsVan` staan in RichtingDoelen.tsx.
-          */}
-        </>
+        <KaderSecties context={context} courses={courses} matrix={matrix} vandaag={vandaag} telMee={telMee} onTelMee={setTelMee} />
       )}
 
       <p className="ri-bron">{bron}</p>

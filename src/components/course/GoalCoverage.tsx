@@ -1,15 +1,25 @@
-import { useMemo, type CSSProperties } from 'react';
+import { lazy, Suspense, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import type { Course, CourseChapter, CourseSection } from '../../lib/courseTypes';
 import type { Curriculum } from '../../lib/curriculumTypes';
 import type { Widget } from '../../lib/types';
-import { computeCoverage, type CoverageRow } from '../../lib/coverage';
+import { computeCoverage, geplandeRijen, type CoverageRow } from '../../lib/coverage';
 import { getCurriculum } from '../../lib/curriculum';
+import { FOUT_LADEN_DEKKING, geplandeRegel, leerplanHeeftVerwijzingen } from '../../lib/dekkingWeergave';
 import { EmptyState } from '../ui';
 import {
-  AIIcon, CheckIcon, CloseIcon, GoalIcon, SettingsIcon, TipIcon, WarningIcon,
+  AIIcon, CheckIcon, CloseIcon, GoalIcon, PlannedIcon, RetryIcon, SettingsIcon, TipIcon, WarningIcon,
 } from '../icons';
 import { Puzzle } from 'lucide-react';
+import '../../styles/dekking.css';
+
+// De weergave "Minimumdoelen" is zwaar (matrix, kader en setbestanden) en staat in een eigen chunk, zodat de cursuseditor klein
+// blijft. We laden hem eerst los in (`laadDekking`): lukt dat niet (offline), dan blijft de weergave "Leerplan" staan met een melding,
+// in plaats van dat de editor met een fout vervangen wordt. Een tweede klik helpt dan niet: de browser onthoudt de mislukte
+// dynamische import en doet geen nieuw verzoek. Daarom nodigt de melding uit om de pagina te herladen (de editor bewaart
+// automatisch en vraagt bevestiging bij niet-bewaarde wijzigingen).
+const laadDekking = () => import('./MinimumdoelenDekking');
+const MinimumdoelenDekking = lazy(() => laadDekking().then((m) => ({ default: m.MinimumdoelenDekking })));
 
 // ── Doelendekking ───────────────────────────────────────────────────────────
 //
@@ -76,6 +86,26 @@ function CurriculumCoverage({
   onFillGaps?: () => void;
 }): JSX.Element {
   const result = useMemo(() => computeCoverage(course, curriculum, widgets), [course, curriculum, widgets]);
+  // Doelen die alleen op nog lege secties staan: gepland, nog niet uitgewerkt (§ 14.5).
+  const aantalGepland = useMemo(() => geplandeRijen(result, course, widgets).length, [result, course, widgets]);
+  const metVerwijzingen = useMemo(() => leerplanHeeftVerwijzingen(curriculum), [curriculum]);
+  const [weergave, setWeergave] = useState<'leerplan' | 'minimumdoelen'>('leerplan');
+  const [laadt, setLaadt] = useState(false);
+  const [laadFout, setLaadFout] = useState(false);
+
+  const kies = (volgende: 'leerplan' | 'minimumdoelen') => {
+    setLaadFout(false);
+    if (volgende === 'leerplan') {
+      setWeergave('leerplan');
+      return;
+    }
+    if (laadt) return;
+    setLaadt(true);
+    laadDekking().then(
+      () => { setLaadt(false); setWeergave('minimumdoelen'); },
+      () => { setLaadt(false); setLaadFout(true); },
+    );
+  };
 
   const sticky: CSSProperties = {
     position: 'sticky',
@@ -95,8 +125,52 @@ function CurriculumCoverage({
     );
   }
 
+  // De schakelaar staat er alleen als het leerplan doelen met verwijzingen naar minimumdoelen heeft: zonder is er niets om te meten.
+  const schakelaar = metVerwijzingen && (
+    <>
+      <div className="dk-schakelaar" role="group" aria-label="Weergave van de dekking">
+        <button
+          type="button" className={`btn btn-sm ${weergave === 'leerplan' ? 'btn-primary' : 'btn-ghost'}`}
+          aria-pressed={weergave === 'leerplan'} onClick={() => kies('leerplan')}
+        >
+          {weergave === 'leerplan' && <CheckIcon size={16} aria-hidden />} Leerplan
+        </button>
+        <button
+          type="button" className={`btn btn-sm ${weergave === 'minimumdoelen' ? 'btn-primary' : 'btn-ghost'}`}
+          aria-pressed={weergave === 'minimumdoelen'} aria-busy={laadt || undefined} onClick={() => kies('minimumdoelen')}
+        >
+          {weergave === 'minimumdoelen' && <CheckIcon size={16} aria-hidden />} Minimumdoelen
+        </button>
+      </div>
+      {laadt && <p className="dk-schakel-bezig" role="status">De dekking op de minimumdoelen wordt geladen…</p>}
+      {laadFout && (
+        <div className="callout err dk-melding" role="alert">
+          <WarningIcon size={16} aria-hidden />
+          <div className="dk-melding-tekst">
+            <p>{FOUT_LADEN_DEKKING}</p>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => window.location.reload()}>
+              <RetryIcon size={16} aria-hidden /> Herlaad de pagina
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  if (metVerwijzingen && weergave === 'minimumdoelen') {
+    return (
+      <div>
+        {schakelaar}
+        <Suspense fallback={<p className="dk-laden" role="status">De dekking op de minimumdoelen wordt geladen…</p>}>
+          <MinimumdoelenDekking course={course} curriculum={curriculum} widgets={widgets} />
+        </Suspense>
+      </div>
+    );
+  }
+
   return (
     <div>
+      {schakelaar}
       <p style={{ marginTop: 0 }} aria-live="polite">
         <strong>{result.summary}</strong>{' '}
         <span className="hint">
@@ -104,6 +178,13 @@ function CurriculumCoverage({
           {curriculum.example ? ' (voorbeeld)' : ''}
         </span>
       </p>
+
+      {aantalGepland > 0 && (
+        <p className="hint" style={{ margin: '-6px 0 12px', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+          <PlannedIcon size={16} aria-hidden style={{ flex: 'none', marginTop: 2 }} />
+          <span>{geplandeRegel(aantalGepland)}</span>
+        </p>
+      )}
 
       {result.uncovered.length > 0 && onFillGaps && (
         <p style={{ margin: '0 0 12px' }}>

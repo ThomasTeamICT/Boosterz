@@ -13,9 +13,11 @@ import { CursusKoppelen, bewaarFout } from './CursusKoppelen';
 import { saveCourseGuarded, type GuardedSaveResult } from '../../lib/courses';
 import type { Course } from '../../lib/courseTypes';
 import { deleteCurriculum, saveCurriculum } from '../../lib/curriculum';
+import { buitenJaarTekst, cursusRegel } from '../../lib/dekkingWeergave';
 import { jaarTekst } from '../../lib/doelgroep';
 import { passendeCodes } from '../../lib/richtingCursus';
 import { cursusBijRichting } from '../../lib/richtingWeergave';
+import type { DekkingGegevens } from './RichtingDekking';
 import {
   doelgroepVanCursus,
   leerplanVanHeleRichting,
@@ -34,7 +36,11 @@ interface Vraag {
   totaal: number;
 }
 
-export function RichtingCursussen({ info, keuze, kader, indexSets, curricula, courses }: RichtingContext & { courses: readonly Course[] }) {
+export function RichtingCursussen({ info, keuze, kader, indexSets, curricula, courses, dekking }: RichtingContext & {
+  courses: readonly Course[];
+  /** De dekking van de richting (dezelfde berekening als de sectie "Wat je cursussen samen dekken"); leeg zolang ze niet klaar is. */
+  dekking?: DekkingGegevens;
+}) {
   const toast = useToast();
   const [koppelOpen, setKoppelOpen] = useState(false);
   const [bezigId, setBezigId] = useState<string | null>(null);
@@ -126,13 +132,18 @@ export function RichtingCursussen({ info, keuze, kader, indexSets, curricula, co
               leerplan ? `Leerplan: ${leerplan.title}` : course.curriculumId ? 'Het leerplan staat niet op dit toestel' : 'Geen leerplan',
             ].filter(Boolean).join(' · ');
             const leerplanOntbreekt = course.curriculumId !== undefined && leerplan === undefined;
+            // "Telt mee voor <n> doelen" of de reden, uit de berekening van de dekking. Een cursus van een ander jaar dan het
+            // jaar dat "Tel mee" kiest, zit er niet in.
+            const uitkomst = dekking?.cursussen.get(course.id);
+            const telt: { hoofd: string; extra?: string } | undefined = uitkomst ? cursusRegel(uitkomst) : dekking?.telJaar !== undefined ? { hoofd: buitenJaarTekst(dekking.telJaar) } : undefined;
             return (
               <li key={course.id} className="ri-item">
                 <div className="ri-item-rij">
                   <div className="ri-item-tekst">
                     <Link className="ri-item-titel" to={`/cursus/bewerk/${encodeURIComponent(course.id)}`}>{course.title}</Link>
                     <span className="ri-item-meta ri-item-blok">{meta}</span>
-                    {/* P12 (dekking): hier komt "Telt mee voor <n> doelen", of de reden waarom de cursus niet meetelt (§ 14.3). */}
+                    {telt && <span className="ri-item-meta ri-item-blok">{telt.hoofd}</span>}
+                    {telt?.extra && <span className="ri-item-meta ri-item-blok">{telt.extra}</span>}
                     {plaats.viaLeerplan && leerplan && (
                       <span className="ri-item-meta ri-item-blok">Hoort bij deze richting via het leerplan ‘{leerplan.title}’.</span>
                     )}

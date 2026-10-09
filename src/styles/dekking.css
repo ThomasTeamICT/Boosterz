@@ -1,0 +1,105 @@
+/* ── Dekking op de minimumdoelen ───────────────────────────────────────────── */
+/*
+ * Wat je cursussen samen dekken (onderaan een studierichting) en de weergave "Minimumdoelen" van de doelendekking in de
+ * cursuseditor (docs/STUDIERICHTINGEN.md § 13 en § 14). Voorvoegsel dk-. Alleen tokens uit global.css; nooit witte tekst op
+ * --brand (gebruik --brand-fill). Een status staat altijd ook in tekst, naast het icoon. Beide plaatsen renderen op eigen
+ * wijze (een pagina en een venster), dus niets hier hangt aan .ri-page. Op 390 px zijn het lijsten en kaarten, zonder
+ * brede tabel en zonder horizontaal scrollen; tikdoelen zijn vanaf 640 px en smaller 44 px.
+ */
+
+.dk { min-width: 0; }
+.dk p, .dk li { overflow-wrap: break-word; }
+.dk a { overflow-wrap: anywhere; }
+
+/* ── Schakelaar "Leerplan" / "Minimumdoelen" ───────────────────────────── */
+
+.dk-schakelaar { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 0 0 14px; }
+.dk-schakelaar .btn { min-height: 40px; }
+.dk-schakel-bezig { margin: -6px 0 12px; color: var(--text-soft); font-size: 0.92rem; font-weight: 600; }
+.dk-laden { margin: 8px 0; color: var(--text-soft); font-weight: 600; }
+
+/* ── Samenvatting en uitleg ────────────────────────────────────────────── */
+
+.dk-samenvatting { margin: 12px 0 6px; font-size: 1.02rem; max-width: 72ch; }
+.dk-uitleg { margin: 0 0 8px; color: var(--text-soft); font-size: 0.92rem; max-width: 72ch; }
+.dk-uitleg-blok { margin: 10px 0 0; }
+.dk-extra { margin: 0 0 4px; }
+.dk-leeg { margin: 0; padding: 10px 14px 14px; color: var(--text-soft); }
+.dk-melding { align-items: flex-start; margin: 10px 0 14px; }
+.dk-melding > svg { flex: none; margin-top: 2px; }
+.dk-melding p { margin: 0; min-width: 0; }
+.dk-link { margin: 16px 0 0; }
+/* Foutmelding met een knop eronder (de tekst en de knop staan naast het icoon). */
+.dk-melding-tekst { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.dk-melding-tekst p { margin: 0; }
+.dk-link a { display: inline-flex; align-items: center; min-height: 32px; font-weight: 700; }
+
+/* ── Keuzes: "Tel mee" en "Toon" ───────────────────────────────────────── */
+
+.dk-fieldset { border: 0; margin: 12px 0 8px; padding: 0; min-width: 0; }
+.dk-fieldset legend { padding: 0; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: var(--text-soft); }
+.dk-radios { display: flex; flex-wrap: wrap; gap: 6px 8px; }
+.dk-keuze {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 12px; cursor: pointer;
+  border: 1.5px solid var(--line-strong); border-radius: var(--radius-s); background: var(--bg-raised); font-weight: 600;
+}
+.dk-keuze input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--brand-fill); cursor: pointer; }
+.dk-keuze:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.dk-keuze:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; }
+
+/* ── Per set een uitklapper met de doelen ──────────────────────────────── */
+
+/* De zin bij "Nog niet gedekt" staat er altijd (voor schermlezers); leeg neemt ze geen ruimte in. */
+.dk-toon-zin { margin: 12px 0 0; font-weight: 600; max-width: 72ch; }
+.dk-toon-zin:empty { margin: 0; }
+.dk-sets { display: grid; gap: 8px; margin: 12px 0 0; }
+.dk-set { min-width: 0; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised); }
+.dk-set > summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 8px 14px;
+  cursor: pointer; font-weight: 700; list-style: none; overflow-wrap: break-word; hyphens: auto;
+}
+.dk-set > summary::-webkit-details-marker { display: none; }
+.dk-set > summary:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: var(--radius-m); }
+/* Een eigen pijltje, getekend met een rand: het icoon zegt of de set openstaat. */
+.dk-set > summary::after {
+  content: ''; flex: none; width: 9px; height: 9px; margin-right: 4px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform 0.15s;
+}
+.dk-set[open] > summary::after { transform: rotate(-135deg); }
+.dk-set[open] > summary { border-bottom: 1px solid var(--line); }
+
+.dk-doelen { list-style: none; margin: 0; padding: 0; }
+.dk-doel { min-width: 0; padding: 10px 14px; border-top: 1px solid var(--line); }
+.dk-doel:first-child { border-top: 0; }
+.dk-doel-kop { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.dk-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 700; font-size: 0.9rem; }
+.dk-tag {
+  padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--text-soft); font-size: 0.78rem; font-weight: 600;
+}
+.dk-doel-tekst { margin: 2px 0 0; font-size: 0.92rem; line-height: 1.45; }
+
+/* De status: icoon en tekst samen, in een kleur die erbij past (de kleur alleen is nooit genoeg). */
+.dk-status { display: flex; align-items: flex-start; gap: 6px; margin: 6px 0 0; font-size: 0.9rem; font-weight: 600; line-height: 1.4; }
+.dk-status > svg { flex: none; margin-top: 2px; }
+.dk-status-gedekt { color: var(--ok-text); }
+.dk-status-gepland { color: var(--brand); }
+.dk-status-verdieping { color: var(--warn-text); }
+.dk-status-open { color: var(--err-text); }
+
+/* ── Cursussen die niet meetellen ──────────────────────────────────────── */
+
+.dk-cursussen { margin: 20px 0 0; }
+.dk-cursussen h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.dk-cursuslijst { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.dk-cursus { min-width: 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised); }
+.dk-cursus-titel { font-family: var(--font-display); font-weight: 700; }
+.dk-cursus-reden { display: block; margin-top: 2px; color: var(--text-soft); font-size: 0.9rem; }
+
+/* ── Smalle schermen ───────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .dk-schakelaar .btn, .dk-melding-tekst .btn, .dk-keuze, .dk-link a { min-height: 44px; }
+  .dk-schakelaar .btn { flex: 1 1 auto; }
+  .dk-radios { gap: 8px; }
+  a.dk-cursus-titel { display: inline-block; box-sizing: border-box; min-height: 44px; padding-block: 10px; }
+}

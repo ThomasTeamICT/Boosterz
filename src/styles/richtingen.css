@@ -117,7 +117,7 @@
 .ri-item { min-width: 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised); }
 .ri-item-rij { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
 .ri-item-tekst { flex: 1 1 280px; min-width: 0; overflow-wrap: break-word; hyphens: auto; }
-.ri-item-titel { font-family: var(--font-display); font-weight: 700; }
+.ri-item-titel { font-family: var(--font-display); font-weight: 700; overflow-wrap: anywhere; }
 .ri-item-meta { color: var(--text-soft); font-size: 0.9rem; }
 .ri-item-blok { display: block; }
 .ri-item-knoppen { display: flex; flex-wrap: wrap; gap: 6px 8px; }
