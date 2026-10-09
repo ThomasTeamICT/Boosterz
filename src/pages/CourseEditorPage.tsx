@@ -9,7 +9,7 @@
 // eerlijk "Niet bewaard" bij een volle opslag, en pdf-bestanden pas opruimen
 // na een geslaagde bewaring.
 
-import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentType } from 'react';
 import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom';
 import { Blocks, ExternalLink } from 'lucide-react';
 import type { Course, CourseBlock, CourseBlockType, CourseChapter, CourseSection } from '../lib/courseTypes';
@@ -22,6 +22,7 @@ import { hasUnresolvedMedia, onMediaChange } from '../lib/mediaStore';
 import { deletePdf } from '../lib/pdfStore';
 import { onStorageNotice } from '../lib/storageHealth';
 import { getCurricula, getCurriculum } from '../lib/curriculum';
+import { doelgroepTekst, sanitizeDoelgroep } from '../lib/doelgroep';
 import { getWidgets } from '../lib/storage';
 import { downloadFile, makeCode, uid } from '../lib/utils';
 import { CheckRow, ConfirmModal, EmptyState, Field, Modal, useToast } from '../components/ui';
@@ -34,12 +35,14 @@ import {
 import { CourseAIModal } from '../components/course/CourseAIModal';
 import { GoalCodeInput } from '../components/curriculum/GoalCodeInput';
 import { GoalCoverage } from '../components/course/GoalCoverage';
+import type { RichtingKiezerModalProps } from '../components/richting/RichtingKiezerModal';
 import type { OptimizePreset } from '../lib/aiCourse';
 import {
   AddIcon, AIIcon, BackIcon, CheckIcon, CourseIcon, DeleteIcon, DownloadIcon, DuplicateIcon, GoalIcon, InfoIcon,
   MoveDownIcon, MoveUpIcon, PreviewIcon, PrintIcon, ResultsIcon, RetryIcon, SettingsIcon, WarningIcon,
 } from '../components/icons';
 import '../styles/cursus.css';
+import '../styles/richtingcursus.css';
 
 /** De echte opslag achter de bewaarmotor. */
 const COURSE_STORE: DraftStore = {
@@ -1005,11 +1008,13 @@ function CourseSettingsModal({
   const set = (patch: Partial<Course>) => onChange({ ...course, ...patch });
   const setSettings = (patch: Partial<Course['settings']>) =>
     onChange({ ...course, settings: { ...course.settings, ...patch } });
+  // Terwijl het venster om een richting te kiezen open staat, sluit Escape alleen dat venster, niet ook dit.
+  const [kiezerOpen, setKiezerOpen] = useState(false);
 
   return (
     <Modal
       title="Cursusinstellingen"
-      onClose={onClose}
+      onClose={() => { if (!kiezerOpen) onClose(); }}
       footer={<button className="btn btn-primary" onClick={onClose}>Klaar</button>}
     >
       <Field label="Ondertitel (optioneel)">
@@ -1052,6 +1057,7 @@ function CourseSettingsModal({
         />
       </Field>
       <CurriculumSetting course={course} onChange={set} />
+      <RichtingSetting course={course} onChange={set} onKiezerOpen={setKiezerOpen} />
       <CheckRow
         checked={course.settings.requireName}
         onChange={(v) => setSettings({ requireName: v })}
@@ -1063,6 +1069,74 @@ function CourseSettingsModal({
         label="Voortgangsbalk zichtbaar voor de leerling"
       />
     </Modal>
+  );
+}
+
+// ── Studierichting van de cursus ────────────────────────────────────────────
+
+/**
+ * De studierichting (en het jaar) van de cursus: zo telt ze mee in de dekking per studierichting. Het venster om een
+ * richting te kiezen wordt pas geladen als je erom vraagt, zodat de cursuseditor klein blijft; lukt het laden niet
+ * (offline), dan blijft de editor gewoon werken.
+ */
+function RichtingSetting({
+  course, onChange, onKiezerOpen,
+}: {
+  course: Course;
+  onChange: (patch: Partial<Course>) => void;
+  onKiezerOpen: (open: boolean) => void;
+}) {
+  const toast = useToast();
+  const [Kiezer, setKiezer] = useState<ComponentType<RichtingKiezerModalProps> | null>(null);
+  const [open, setOpen] = useState(false);
+  const [laadt, setLaadt] = useState(false);
+  const kiesRef = useRef<HTMLButtonElement>(null);
+  const dg = sanitizeDoelgroep(course.doelgroep);
+
+  const zet = (waarde: boolean) => {
+    setOpen(waarde);
+    onKiezerOpen(waarde);
+  };
+  const openKiezer = () => {
+    if (laadt) return;
+    if (Kiezer) { zet(true); return; }
+    setLaadt(true);
+    import('../components/richting/RichtingKiezerModal').then(
+      (m) => { setKiezer(() => m.RichtingKiezerModal); setLaadt(false); zet(true); },
+      () => { setLaadt(false); toast('De lijst met studierichtingen kon niet geladen worden. Controleer je verbinding en probeer opnieuw.', 'err'); },
+    );
+  };
+
+  return (
+    <>
+      <Field label="Studierichting" hint="Zo telt de cursus mee in de dekking per studierichting.">
+        <div className="rc-instelling" role="group" aria-label="Studierichting van deze cursus">
+          <p className="rc-waarde">{dg ? doelgroepTekst(dg) : 'Nog geen studierichting gekozen.'}</p>
+          <div className="rc-instelling-knoppen">
+            <button ref={kiesRef} type="button" className="btn btn-sm btn-ghost" onClick={openKiezer} aria-busy={laadt || undefined}>
+              {dg ? 'Wijzig' : 'Kies een richting'}{dg && <span className="sr-only"> de studierichting</span>}
+            </button>
+            {dg && (
+              <button
+                type="button" className="btn btn-sm btn-quiet"
+                // De knop verdwijnt: de focus gaat naar "Kies een richting", anders is ze kwijt.
+                onClick={() => { onChange({ doelgroep: undefined }); setTimeout(() => kiesRef.current?.focus(), 0); }}
+              >
+                Geen richting
+              </button>
+            )}
+          </div>
+        </div>
+      </Field>
+      {open && Kiezer && (
+        <Kiezer
+          titel="Studierichting van deze cursus"
+          huidig={dg}
+          onKies={(d) => { onChange({ doelgroep: d }); zet(false); }}
+          onClose={() => zet(false)}
+        />
+      )}
+    </>
   );
 }
 

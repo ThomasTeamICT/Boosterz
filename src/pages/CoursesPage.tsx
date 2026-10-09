@@ -12,6 +12,7 @@ import {
 } from '../lib/courses';
 import { getCurricula } from '../lib/curriculum';
 import { computeCoverage } from '../lib/coverage';
+import { doelgroepTekst, sanitizeDoelgroep, type Doelgroep } from '../lib/doelgroep';
 import { takeHandoff } from '../lib/handoff';
 import { EXAMPLE_COURSE_ID } from '../lib/library';
 import { onStorageChange, getPrefs, getWidgets } from '../lib/storage';
@@ -20,12 +21,13 @@ import { ConfirmModal, EmptyState, Field, Modal, useToast } from '../components/
 import { MenuButton, type MenuItem } from '../components/Menu';
 import {
   AddIcon, CourseIcon, DeleteIcon, DuplicateIcon, EditIcon, ExportIcon, GoalIcon, ImportIcon, MoreIcon, PrintIcon,
-  ResultsIcon, RetryIcon, ShareIcon, StudentIcon,
+  ResultsIcon, RetryIcon, RichtingIcon, ShareIcon, StudentIcon,
 } from '../components/icons';
 import { CourseShareModal } from '../components/course/CourseShareModal';
 import { CourseAIModal } from '../components/course/CourseAIModal';
 import { useNewParam } from '../lib/useNewParam';
 import '../styles/materiaal.css';
+import '../styles/richtingcursus.css';
 
 /** Alles wat de AI-cursusbouwer vooringevuld kan krijgen. */
 interface AIStart {
@@ -35,6 +37,17 @@ interface AIStart {
   curriculumId?: string;
   goalCodes?: string[];
   originNote?: string;
+  /** Studierichting (en jaar) uit de overdracht van "Voor een studierichting": komt op de cursus die de AI maakt. */
+  doelgroep?: Doelgroep;
+}
+
+/** De doelgroep zoals ze op een cursus hoort: zonder `kader` en `volgtKader` (die horen bij een leerplan). */
+function doelgroepVoorCursus(dg: Doelgroep | undefined): Doelgroep | undefined {
+  const schoon = sanitizeDoelgroep(dg);
+  if (!schoon) return undefined;
+  delete schoon.kader;
+  delete schoon.volgtKader;
+  return schoon;
 }
 
 function n(count: number, one: string, many: string): string {
@@ -93,6 +106,7 @@ export function CoursesPage() {
       title: h?.title,
       curriculumId: h?.curriculumId,
       goalCodes: h?.goalCodes,
+      doelgroep: doelgroepVoorCursus(h?.doelgroep),
       originNote: h?.origin ? `Bron uit ${h.origin}` : h?.source ? 'Bron uit de importpagina' : undefined,
     });
     if (h?.origin) toast(`Bron uit ${h.origin} overgenomen`, 'ok');
@@ -299,6 +313,9 @@ export function CoursesPage() {
           >
             <GoalIcon size={18} /> Blanco vanuit leerplan
           </button>
+          <Link to="/cursussen/richtingen" className="btn btn-ghost" title="Kies een richting en een jaar: de cursus hangt meteen aan de juiste doelen">
+            <RichtingIcon size={18} /> Voor een studierichting
+          </Link>
           <button type="button" className="btn btn-quiet" onClick={() => fileRef.current?.click()} title="Een cursusbestand (.json) terugzetten">
             <FileBraces size={18} /> JSON openen
           </button>
@@ -314,7 +331,7 @@ export function CoursesPage() {
       {courses.length === 0 ? (
         <EmptyState icon={<CourseIcon size={40} />} title="Nog geen cursussen">
           <p>
-            Er zijn drie manieren om te starten. Kies er een: je kan achteraf altijd alles zelf
+            Er zijn vier manieren om te starten. Kies er een: je kan achteraf altijd alles zelf
             aanpassen, en de AI blijft een voorzet die jij nakijkt.
           </p>
           <div className="mat-starts">
@@ -333,6 +350,11 @@ export function CoursesPage() {
               <p className="hint">Begin met een leeg hoofdstuk en bouw sectie per sectie, met of zonder AI-hulp onderweg.</p>
               <button type="button" className="btn btn-sm btn-primary" onClick={() => setNewOpen(true)}>Lege cursus</button>
             </div>
+            <div className="card card-pad">
+              <strong><RichtingIcon size={18} /> Voor een studierichting</strong>
+              <p className="hint">Kies je richting en je jaar. De cursus krijgt meteen de officiële minimumdoelen, ook zonder AI.</p>
+              <Link to="/cursussen/richtingen" className="btn btn-sm btn-ghost">Richting kiezen</Link>
+            </div>
           </div>
           <p className="hint" style={{ marginTop: 14 }}>
             Eerst eens zien hoe een ingelezen cursus eruitziet? Laad de <strong>voorbeeldcursus natuurwetenschappen</strong>:
@@ -346,6 +368,10 @@ export function CoursesPage() {
             const sections = course.chapters.reduce((a, c) => a + c.sections.length, 0);
             const readers = readersByCourse.get(course.id) ?? 0;
             const cov = coverageByCourse.get(course.id);
+            const dg = sanitizeDoelgroep(course.doelgroep);
+            const richting = dg ? doelgroepTekst(dg) : '';
+            // Een cursus uit de richtingenhulp heet vaak al zo: dan hoort de regel niet nog eens onder de titel.
+            const toonRichting = richting !== '' && richting !== course.title.trim();
             return (
               <li key={course.id}>
                 <article className="card mat-card" id={`cursus-${course.id}`}>
@@ -353,7 +379,13 @@ export function CoursesPage() {
                     <span className="mat-card-icon" aria-hidden="true"><CourseIcon size={20} /></span>
                     <div className="mat-card-titles">
                       <h2 className="mat-card-title">{course.title}</h2>
-                      {course.subtitle && <p className="mat-card-sub">{course.subtitle}</p>}
+                      {course.subtitle && course.subtitle !== richting && <p className="mat-card-sub">{course.subtitle}</p>}
+                      {toonRichting && (
+                        <p className="rc-doelgroep">
+                          <RichtingIcon size={14} />
+                          <span><span className="sr-only">Studierichting: </span>{richting}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
                   <ul className="mat-facts">
@@ -418,12 +450,15 @@ export function CoursesPage() {
           focus={aiStart.focus}
           initialSource={aiStart.source}
           initialTitle={aiStart.title}
+          initialSubject={aiStart.doelgroep?.vak}
+          initialAudience={aiStart.doelgroep ? doelgroepTekst(aiStart.doelgroep, { zonderVak: true }) : undefined}
           initialCurriculumId={aiStart.curriculumId}
           initialGoalCodes={aiStart.goalCodes}
           originNote={aiStart.originNote}
           onClose={() => setAiStart(null)}
           onResult={(course) => {
-            saveCourse(course);
+            // De AI zet nooit een studierichting: die komt uit de overdracht van "Voor een studierichting".
+            saveCourse(aiStart.doelgroep ? { ...course, doelgroep: aiStart.doelgroep } : course);
             navigate(`/cursus/bewerk/${course.id}`);
           }}
         />

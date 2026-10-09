@@ -16,6 +16,7 @@ const TITELS: [string, string][] = [
   ['/klassen', 'Klassen'],
   ['/inleverpunt', 'Inleverpunt'],
   ['/resultaten', 'Resultaten'],
+  ['/cursussen/richtingen', 'Studierichtingen'],
   ['/cursussen', 'Cursussen'],
   ['/cursus/bewerk', 'Cursus bewerken'],
   ['/cursus/volg', 'Cursus volgen'],

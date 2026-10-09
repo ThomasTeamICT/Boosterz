@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { ExternalLink, Lock } from 'lucide-react';
 import type { Curriculum } from '../../lib/curriculumTypes';
 import { netLabel } from '../../lib/curriculum';
+import { doelgroepTekst, sanitizeDoelgroep } from '../../lib/doelgroep';
 import { veiligeLink } from '../../lib/minimumdoelenBron';
 import { formatDateShort } from '../../lib/utils';
 import { BackIcon, DuplicateIcon, EditIcon, ExportIcon, TipIcon } from '../icons';
@@ -14,6 +15,7 @@ import { ControleLabel, OfficieelLabel } from './ControleLabel';
 import { DoelenPerRubriek, type DoelRij } from './DoelenPerRubriek';
 import { VerwijzingLabels } from './VerwijzingLabels';
 import '../../styles/leerplan.css';
+import '../../styles/leerplan-richting.css';
 
 /** De hostnaam van een link, om te zien waar ze heen gaat ("www.onderwijsdoelen.be"); leeg als ze niet te lezen is. */
 function hostnaam(link: string): string {
@@ -71,9 +73,19 @@ export function LeerplanOpSlot({
   const keuzeAanpassen = isSamengesteld(curriculum) && curriculum.kind !== 'eigen';
   const rijen = useMemo(() => maakRijen(curriculum), [curriculum]);
   const geldigVanaf = h?.geldigVanaf ? Date.parse(h.geldigVanaf) : NaN;
-  const feiten: { naam: string; waarde: string }[] = [{ naam: 'Net', waarde: netLabel(curriculum.net) }];
+  const feiten: { naam: string; waarde: string; link?: string; klasse?: string }[] = [{ naam: 'Net', waarde: netLabel(curriculum.net) }];
   if (curriculum.subject) feiten.push({ naam: 'Vak', waarde: curriculum.subject });
   if (curriculum.level) feiten.push({ naam: 'Niveau', waarde: curriculum.level });
+  // De studierichting waarvoor het leerplan gemaakt is (alleen als er een geldige doelgroep is). Het vak staat al hierboven.
+  const doelgroep = sanitizeDoelgroep(curriculum.doelgroep);
+  if (doelgroep) {
+    feiten.push({
+      naam: 'Studierichting',
+      klasse: 'lp-info-richting',
+      waarde: doelgroepTekst(doelgroep, { zonderVak: true }),
+      link: `/cursussen/richtingen/${encodeURIComponent(doelgroep.groep)}${doelgroep.soort === 'buso' ? '?soort=buso' : ''}`,
+    });
+  }
   if (h?.leerplancode) feiten.push({ naam: 'Leerplancode', waarde: h.leerplancode });
   if (h?.bronNaam) feiten.push({ naam: 'Bron', waarde: h.bronNaam });
   if (h?.versie) feiten.push({ naam: 'Versie', waarde: h.versie });
@@ -123,9 +135,9 @@ export function LeerplanOpSlot({
 
       <dl className="card card-pad lp-info">
         {feiten.map((f) => (
-          <div key={f.naam}>
+          <div key={f.naam} className={f.klasse}>
             <dt>{f.naam}</dt>
-            <dd>{f.waarde}</dd>
+            <dd>{f.link ? <Link to={f.link} className="lp-info-link">{f.waarde}</Link> : f.waarde}</dd>
           </div>
         ))}
         {curriculum.controle?.samenvatting && (

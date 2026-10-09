@@ -168,6 +168,10 @@ export function MinimumdoelenPage() {
           </p>
           <p className="md-toelichting">De minimumdoelen zijn verdeeld in sets: per vak of sleutelcompetentie, per graad en per stroom.</p>
           <p className="md-toelichting">
+            Geef je les in een bepaalde studierichting? Bekijk welke doelen erbij horen bij{' '}
+            <Link to="/cursussen/richtingen">Doelen per studierichting</Link>.
+          </p>
+          <p className="md-toelichting">
             Voorlopig staan hier alleen de minimumdoelen van het secundair onderwijs (ook buitengewoon secundair) en van het
             volwassenenonderwijs, niet die van het basisonderwijs.
           </p>

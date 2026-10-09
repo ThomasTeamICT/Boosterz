@@ -69,6 +69,10 @@ export function LeerplanWegwijzer({
             </button>
           </li>
         </ul>
+        <p className="lw-richting">
+          Geef je les in een bepaalde studierichting? Bekijk welke minimumdoelen erbij horen en maak er meteen een cursus mee
+          bij <Link to="/cursussen/richtingen">Doelen per studierichting</Link>.
+        </p>
 
         <h2 className="lw-kop">Waar vind ik het leerplan van mijn net?</h2>
         <NettenLinks />

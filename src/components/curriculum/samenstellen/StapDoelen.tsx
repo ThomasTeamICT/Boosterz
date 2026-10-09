@@ -29,7 +29,7 @@ export function totaalTekst(doelen: number, sets: number): string {
 }
 
 export function StapDoelen({
-  keuze, onKeuze, indexSets, oud, stand, kiesbaar, laden, zoek, onZoek, onOpnieuw, onWeg,
+  keuze, onKeuze, indexSets, oud, stand, kiesbaar, laden, zoek, onZoek, onOpnieuw, onWeg, verbergSetId = false,
 }: {
   keuze: SamenstelKeuze;
   /** Past de keuze aan; werkt op de nieuwste staat, ook bij twee klikken kort na elkaar. */
@@ -45,6 +45,8 @@ export function StapDoelen({
   onZoek: (zoek: string) => void;
   onOpnieuw: (id: string) => void;
   onWeg: (id: string) => void;
+  /** Met een studierichting in de link staat er nergens een set-id op het scherm. */
+  verbergSetId?: boolean;
 }) {
   const termen = useMemo(() => zoekTermen(zoek), [zoek]);
   const zoekt = termen.length > 0;
@@ -90,7 +92,7 @@ export function StapDoelen({
           <SetBlok
             key={id} setId={id} keuze={keuze} onKeuze={onKeuze} indexSet={indexSets.get(id)} oud={oud.has(id)} stand={stand(id)}
             kiesbaar={kiesbaar.get(id)} getoond={gevonden.get(id)} zoekt={zoekt} zoekTekst={zoek.trim()}
-            onOpnieuw={() => onOpnieuw(id)} onWeg={() => onWeg(id)}
+            onOpnieuw={() => onOpnieuw(id)} onWeg={() => onWeg(id)} verbergSetId={verbergSetId}
           />
         ))}
       </div>
@@ -101,7 +103,7 @@ export function StapDoelen({
 // ── Eén set ─────────────────────────────────────────────────────────────────
 
 function SetBlok({
-  setId, keuze, onKeuze, indexSet, oud, stand, kiesbaar, getoond, zoekt, zoekTekst, onOpnieuw, onWeg,
+  setId, keuze, onKeuze, indexSet, oud, stand, kiesbaar, getoond, zoekt, zoekTekst, onOpnieuw, onWeg, verbergSetId,
 }: {
   setId: string;
   keuze: SamenstelKeuze;
@@ -116,11 +118,13 @@ function SetBlok({
   zoekTekst: string;
   onOpnieuw: () => void;
   onWeg: () => void;
+  verbergSetId: boolean;
 }) {
   const kop = stand.status === 'klaar' ? stand.bestand.set : indexSet;
-  const naam = kop ? setNaam(kop) : setId;
+  const naam = kop ? setNaam(kop) : verbergSetId ? 'Onbekende set' : setId;
   const kenmerk = kop ? setKenmerken(kop) : '';
   const geldigheid = kop ? geldigheidTekst(kop) : undefined;
+  const meta = [kenmerk, geldigheid, verbergSetId ? '' : setId].filter(Boolean).join(' · ');
   const verouderd = oud || (kop !== undefined && geldigheidVan(kop) === 'N');
   const kopId = `sam-set-${setId}`;
 
@@ -133,7 +137,7 @@ function SetBlok({
         </h3>
         {verouderd && <span className="badge badge-warn">{kop && geldigheidVan(kop) === 'N' ? 'Niet meer geldig' : 'Oude versie'}</span>}
       </div>
-      <p className="sam-blok-meta">{[kenmerk, geldigheid, setId].filter(Boolean).join(' · ')}</p>
+      {meta !== '' && <p className="sam-blok-meta">{meta}</p>}
 
       {stand.status === 'laden' && <LaadBericht tekst="De doelen worden geladen…" />}
       {stand.status === 'fout' && (

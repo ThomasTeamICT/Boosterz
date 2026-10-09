@@ -19,13 +19,13 @@ De opdracht van de eigenaar, letterlijk: "ja, doe die import maar, einddoel is d
 | P7 Cursushulp-logica | **Klaar** (review: herstel nodig; hersteld: STEM-sets herkend op het woord STEM, een ontbrekend setbestand maakt het leerplan niet bevestigd, uitbreidingssets blijven bij bijwerken, randgevallen van vergelijkMetKader en hergebruik) | bouwer |
 | I1 Integratie van de data (P1, P2, P4; P3 volgt) | **Klaar** | hoofdsessie |
 | G1 Eerste echte run, in stappen | **Klaar** (9 oktober 2026). Stap 1 en 2 als proef (PR #4 en #5, gesloten), stap 3 volledig (run 37958333744, ±23 minuten): PR #6 nagekeken en samengevoegd. De data staan in `public/leerplannen/structuur/`. De strenge controles F5, F6 en M5 staan aan. Zie § 17.1. | hoofdsessie |
-| I2 Integratie van de logica (P5 tot P7) en stubs | Wacht | hoofdsessie |
-| P8 Richtingenscherm | Wacht, op I2 | bouwer, worktree A |
-| P9 Cursus maken, koppelen en instellen | Wacht, op I2 | bouwer, worktree B |
-| P10 Samenstellen en inlezen met een richting | Wacht, op I2 | bouwer, worktree C |
-| I3 Integratie van de schermen: ingangen, hulp, budget | Wacht | hoofdsessie |
+| I2 Integratie van de logica (P5 tot P7) en stubs | **Klaar** | hoofdsessie |
+| P8 Richtingenscherm | **Klaar** (review: herstel nodig; hersteld: "Haal weg" alleen waar het werkt, "Maak een cursus" altijd aan, knop en lijst van leerplannen gelijk, unieke variantlabels in `richtingWeergave.ts`, focus na acties, 44 px; door een andere agent nagekeken) | bouwer, worktree A |
+| P9 Cursus maken, koppelen en instellen | **Klaar** (review goed met opmerkingen; hersteld in twee rondes: kiezer behoudt de doelgroep, focus, melding bij ontbrekende doelen, geen set-id in waarschuwingen, dubbele setnamen, stand zonder minimumdoelen, 44 px; hulpen in `richtingVenster.ts`) | bouwer, worktree B |
+| P10 Samenstellen en inlezen met een richting | **Klaar** (review: één blokkerende fout, de doelgroep bij inlezen; hersteld, met `beginUitBewaarde` volgens `vergelijkMetKader`, gemeld jaar en soort, geen set-id in de richtingflow van de wizards). Open voor I4: set-id's in bibliotheekteksten (`setInBericht`, dubbele namen in `doelenSamenstellen.ts`, bronfouten, verwijzingen in inlezen stap 4) | bouwer, worktree C |
+| I3 Integratie van de schermen: ingangen, hulp, budget | **Klaar** (menu, minimumdoelenpagina, wegwijzer, twee hulpvragen; kritiek pad 333,4 kB, budget bewust naar 333,9 kB) | hoofdsessie |
 | P11 Dekkingsmodule (L6) | **Klaar** (review goed met opmerkingen; tests aangevuld, regels voor percent en zelfdeNummerAndereSet vastgelegd in § 13.2) | kernbouwer |
-| P12 Dekking op de schermen | Wacht, op I3 en P11 | bouwer |
+| P12 Dekking op de schermen | Wacht (kan nu starten) | bouwer |
 | P13 Rooktest studierichtingen | Wacht, op P12 | bouwer (een andere agent dan die van P8 tot P12) |
 | I4 Review, rechter, herstel, rooktest op echte data, uitrol | Wacht, op P13 en G1 | hoofdsessie, reviewers, rechter |
 | Licentie en naamsvermelding API Structuuronderdelen | Te bevestigen via TechLoket, zoals bij laag 1 | eigenaar |

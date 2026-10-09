@@ -30,7 +30,7 @@ function aantalSets(n: number): string {
 }
 
 export function StapSets({
-  sets, keuze, filter, zichtbaar, onFilter, onMeer, onWissel, onWeg,
+  sets, keuze, filter, zichtbaar, onFilter, onMeer, onWissel, onWeg, verbergSetId = false,
 }: {
   sets: readonly MinimumdoelenIndexSet[];
   keuze: SamenstelKeuze;
@@ -40,6 +40,8 @@ export function StapSets({
   onMeer: () => void;
   onWissel: (id: string) => void;
   onWeg: (id: string) => void;
+  /** Met een studierichting in de link staat er nergens een set-id op het scherm (zoeken op nummer blijft werken). */
+  verbergSetId?: boolean;
 }) {
   const gekozenKopRef = useRef<HTMLHeadingElement>(null);
   const heeftGeldigheid = useMemo(() => indexHeeftGeldigheid(sets), [sets]);
@@ -100,7 +102,7 @@ export function StapSets({
           <ul className="sam-chips">
             {keuze.sets.map((id) => {
               const s = perId.get(id);
-              const naam = s ? `${setNaam(s)}${oud.has(id) ? ' (oude versie)' : ''}` : id;
+              const naam = s ? `${setNaam(s)}${oud.has(id) ? ' (oude versie)' : ''}` : verbergSetId ? 'Onbekende set' : id;
               const kenmerk = s ? setKenmerken(s) : '';
               return (
                 <li key={id} className="sam-chip">
@@ -121,7 +123,12 @@ export function StapSets({
 
       <h3 className="sam-kop">Zoek en kies sets</h3>
       <div className="sam-filters">
-        <Field label="Zoek een set" hint="Op naam of nummer, bv. ‘basisgeletterdheid’ of ODS_3343. Een vak als aardrijkskunde vindt ook ‘Ruimtelijk bewustzijn’.">
+        <Field
+          label="Zoek een set"
+          hint={verbergSetId
+            ? 'Op naam, bv. ‘basisgeletterdheid’. Een vak als aardrijkskunde vindt ook ‘Ruimtelijk bewustzijn’.'
+            : 'Op naam of nummer, bv. ‘basisgeletterdheid’ of ODS_3343. Een vak als aardrijkskunde vindt ook ‘Ruimtelijk bewustzijn’.'}
+        >
           <input
             id="sam-zoek" type="search" className="input" value={filter.zoek} placeholder="bv. basisgeletterdheid"
             autoComplete="off" spellCheck={false} onChange={(e) => onFilter({ zoek: e.target.value })}
@@ -186,7 +193,7 @@ export function StapSets({
                       <span className="sam-set-meta">
                         {geldig && <span className={`sam-set-geldig${isOud || geldigheidVan(s) === 'N' ? ' oud' : ''}`}>{geldig}</span>}
                         {geldig && ' · '}
-                        {`${s.aantal} ${s.aantal === 1 ? 'doel' : 'doelen'} · ${s.id}`}
+                        {`${s.aantal} ${s.aantal === 1 ? 'doel' : 'doelen'}${verbergSetId ? '' : ` · ${s.id}`}`}
                       </span>
                     </span>
                   </label>

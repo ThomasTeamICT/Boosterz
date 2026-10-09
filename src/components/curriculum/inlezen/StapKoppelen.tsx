@@ -24,8 +24,28 @@ function kenmerken(set: MinimumdoelenIndexSet): string {
   return [soort === 'so' ? '' : SOORT_LABEL[soort], set.graad, set.stroom, contextVanSet(set.naam)].filter(Boolean).join(' · ');
 }
 
+/**
+ * De tekst bij een set in de zoekresultaten: wat er zichtbaar staat (`meta`) en de naam met wat de set onderscheidt van andere
+ * sets met dezelfde naam, voor een schermlezer (`sr`, achter "Toevoegen" en "Aanvinken"). Dat onderscheid is het nummer van de
+ * set. Zonder nummer (`verbergSetId`, met een studierichting) zijn het de kenmerken en de geldigheid: de oude en de nieuwe
+ * versie van een set hebben dezelfde naam, graad en stroom en verschillen enkel in de geldigheid.
+ */
+export function zoekresultaatTeksten(set: MinimumdoelenIndexSet, verbergSetId: boolean): { meta: string; sr: string } {
+  const meta = [kenmerken(set), geldigheidTekst(set), verbergSetId ? '' : set.id].filter(Boolean).join(' · ');
+  const onderscheid = verbergSetId ? meta : set.id;
+  return { meta, sr: `${set.korteNaam || set.naam}${onderscheid ? ` (${onderscheid})` : ''}` };
+}
+
+/**
+ * Waarvoor de sets in de lijst gelden, voor de zin boven de lijst: de studierichting als haar kader de lijst bepaalt (dan
+ * negeert de lijst de graad, stroom en soort uit stap 1), anders het soort onderwijs en het niveau uit stap 1.
+ */
+export function lijstVoorTekst(voorRichting: string | undefined, onderwijs: OnderwijsKeuze, niveau: string): string {
+  return voorRichting ?? [SOORT_LABEL[onderwijs].toLowerCase(), niveau].filter(Boolean).join(', ');
+}
+
 export function StapKoppelen({
-  stand, onWissel, onToevoegen, onOpnieuw, aantalCodes, aantalDoelenMetVerwijzing, graad, stroom, onderwijs, herkoppelt,
+  stand, onWissel, onToevoegen, onOpnieuw, aantalCodes, aantalDoelenMetVerwijzing, graad, stroom, onderwijs, herkoppelt, verbergSetId = false, voorRichting,
 }: {
   stand: SetStand;
   onWissel: (id: string) => void;
@@ -39,6 +59,13 @@ export function StapKoppelen({
   onderwijs: OnderwijsKeuze;
   /** De leerkracht paste in stap 4 al doelen aan: andere sets betekenen dat de verwijzingen opnieuw gekoppeld worden. */
   herkoppelt: boolean;
+  /** Met een studierichting in de link staat er nergens een set-id op het scherm (zoeken op nummer blijft werken). */
+  verbergSetId?: boolean;
+  /**
+   * De studierichting ("Natuurwetenschappen (2de graad)") als haar kader de lijst bepaalt. Dan volgen de sets niet de graad,
+   * stroom en soort uit stap 1, en zeggen de zinnen boven de lijst ook niet dat ze dat doen. Zonder: zoals altijd.
+   */
+  voorRichting?: string;
 }) {
   const [alles, setAlles] = useState(false);
   const [zoek, setZoek] = useState('');
@@ -64,7 +91,7 @@ export function StapKoppelen({
   const oud = useMemo(() => oudeVersieIds(stand.indexSets), [stand.indexSets]);
 
   const niveau = niveauTekst(graad, stroom);
-  const voor = [SOORT_LABEL[onderwijs].toLowerCase(), niveau].filter(Boolean).join(', ');
+  const voor = lijstVoorTekst(voorRichting, onderwijs, niveau);
   // Een leerplan is voor één stroom: staan er aangevinkte sets van de A- én de B-stroom, dan zeggen we het.
   const gemengd = useMemo(
     () => gemengdeStromen(stand.gekozen.map((id) => stand.indexSets.find((s) => s.id === id) ?? {})),
@@ -149,7 +176,7 @@ export function StapKoppelen({
                         {meta && <span className="il-set-meta">{meta}</span>}
                         <span className="il-set-meta">
                           {k.mislukt ? <strong>Kon niet geladen worden</strong> : getallen}
-                          {' · '}{k.set.id}
+                          {!verbergSetId && <>{' · '}{k.set.id}</>}
                         </span>
                       </span>
                     </label>
@@ -169,7 +196,10 @@ export function StapKoppelen({
           </fieldset>
 
           <div className="il-zoeken">
-            <Field label="Een andere set zoeken of toevoegen" hint="Zoek op naam, korte naam of nummer (bv. ruimtelijk of ODS_3287).">
+            <Field
+              label="Een andere set zoeken of toevoegen"
+              hint={verbergSetId ? 'Zoek op naam of korte naam (bv. ruimtelijk).' : 'Zoek op naam, korte naam of nummer (bv. ruimtelijk of ODS_3287).'}
+            >
               <input
                 id="il-setzoek" type="search" className="input" value={zoek} autoComplete="off" spellCheck={false}
                 onChange={(e) => setZoek(e.target.value)}
@@ -187,7 +217,7 @@ export function StapKoppelen({
                 </p>
                 <ul className="il-zoekresultaten">
                   {zoekResultaten.getoond.map((s) => {
-                    const meta = [kenmerken(s), geldigheidTekst(s), s.id].filter(Boolean).join(' · ');
+                    const { meta, sr } = zoekresultaatTeksten(s, verbergSetId);
                     return (
                       <li key={s.id}>
                         <span className="il-set-tekst">
@@ -198,11 +228,11 @@ export function StapKoppelen({
                           <span className="hint il-aangevinkt"><CheckIcon size={14} className="icon-inline" /> Aangevinkt in de lijst</span>
                         ) : inLijst.has(s.id) ? (
                           <button type="button" className="btn btn-sm btn-ghost" onClick={() => onWissel(s.id)}>
-                            <CheckIcon size={16} /> Aanvinken<span className="sr-only">: {s.korteNaam || s.naam} ({s.id})</span>
+                            <CheckIcon size={16} /> Aanvinken<span className="sr-only">: {sr}</span>
                           </button>
                         ) : (
                           <button type="button" className="btn btn-sm btn-ghost" onClick={() => onToevoegen(s)}>
-                            <AddIcon size={16} /> Toevoegen<span className="sr-only">: {s.korteNaam || s.naam} ({s.id})</span>
+                            <AddIcon size={16} /> Toevoegen<span className="sr-only">: {sr}</span>
                           </button>
                         )}
                       </li>

@@ -2,6 +2,9 @@
 //
 // /leerplannen/inlezen                      een nieuw leerplan inlezen
 // /leerplannen/inlezen/:curriculumId        een bestaand leerplan nakijken en bevestigen
+// /leerplannen/inlezen?richting=G-0193&jaar=4&soort=so   een leerplan inlezen voor een studierichting: graad, stroom (1ste graad)
+//                                           en soort onderwijs staan vooraf ingevuld, in stap 3 staan de sets van die richting
+//                                           (en alleen die: andere sets zoekt de leerkracht zelf) en het leerplan bewaart de richting
 //
 // Stap 1 welk leerplan, stap 2 de bron (pdf of geplakte tekst, de lezer zoekt de doelen), stap 3
 // minimumdoelen koppelen, stap 4 nakijken. Alle regels staan in lib/leerplanInlezen.ts; de stappen zelf in
@@ -12,7 +15,7 @@
 // leerkracht in stap 2 de AI laat helpen (dan gaat de tekst naar de AI-aanbieder die ze zelf koos).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Check, ChevronDown } from 'lucide-react';
 import type { Curriculum, CurriculumGoal } from '../lib/curriculumTypes';
 import { getCurriculum, isVeiligDoelId, veiligDoelId } from '../lib/curriculum';
@@ -23,6 +26,11 @@ import {
 } from '../lib/leerplanInlezen';
 import { AI_VOORINVULLING_SLEUTEL } from '../lib/leerplanAiOverdracht';
 import { isSamengesteld, uitOfficieleBron } from '../lib/leerplanStatus';
+import type { RichtingInfo, RichtingKader } from '../lib/richtingKader';
+import {
+  doelgroepBijRichting, genegeerdZinnen, invulVoorInlezen, kaderStand, leesRichtingParams, richtingTekst,
+  VERDER_ZONDER_RICHTING, type GenegeerdParam, type RichtingLink, type RichtingParams,
+} from '../lib/richtingLink';
 import type { VerwijzingProbleem } from '../lib/minimumdoelVerwijzing';
 import { uid } from '../lib/utils';
 import { leesPdfBestand, type PdfStand } from '../components/curriculum/inlezen/leesPdf';
@@ -31,7 +39,9 @@ import { StapKoppelen } from '../components/curriculum/inlezen/StapKoppelen';
 import { StapLeerplan } from '../components/curriculum/inlezen/StapLeerplan';
 import { StapNakijken } from '../components/curriculum/inlezen/StapNakijken';
 import { useSetKandidaten, type SetInvoer } from '../components/curriculum/inlezen/useSetKandidaten';
+import { FoutBericht, LaadBericht } from '../components/curriculum/LaadStatus';
 import { BackIcon, InfoIcon, WarningIcon } from '../components/icons';
+import { useFocusNaVerderZonderRichting, useRichtingUitLink } from '../components/richting/useRichtingUitLink';
 import { ConfirmModal } from '../components/ui';
 import '../styles/materiaal.css';
 import '../styles/leerplan.css';
@@ -59,11 +69,14 @@ const GEEN_SETS: readonly string[] = [];
 
 export function LeerplanInlezenPage() {
   const { curriculumId } = useParams();
-  // Een ander leerplan is een nieuwe wizard: alle staat begint opnieuw.
-  return <Wizard key={curriculumId ?? 'nieuw'} curriculumId={curriculumId} />;
+  const [params] = useSearchParams();
+  // Een bestaand leerplan heeft zijn eigen studierichting: een richting in de link telt alleen voor een nieuw leerplan.
+  const richting = leesRichtingParams(curriculumId ? new URLSearchParams() : params);
+  // Een ander leerplan of een andere richting, jaar of soort is een nieuwe wizard: alle staat begint opnieuw.
+  return <Wizard key={`${curriculumId ?? 'nieuw'}|${richting.sleutel}`} curriculumId={curriculumId} richting={richting} />;
 }
 
-function Wizard({ curriculumId }: { curriculumId?: string }) {
+function Wizard({ curriculumId, richting }: { curriculumId?: string; richting: RichtingParams }) {
   const bestaand = useMemo(() => {
     const cur = curriculumId ? getCurriculum(curriculumId) : undefined;
     // Een doel-id als "constructor" (uit een bestand van iemand anders, bewaard vóór het saneren dat weigerde) krijgt een nieuw id.
@@ -108,19 +121,127 @@ function Wizard({ curriculumId }: { curriculumId?: string }) {
       </div>
     );
   }
-  return <Inlezen bestaand={bestaand} />;
+  if (richting.link) return <MetRichting link={richting.link} genegeerd={richting.genegeerd} />;
+  return <Inlezen bestaand={bestaand} onbekendeRichting={richting.aanwezig} />;
+}
+
+// ── Met een studierichting: eerst de gegevens, dan pas de wizard ────────────
+
+/**
+ * Laadt de matrix, de koppeling, de index en het kader van de richting uit de link en monteert de wizard pas als alles
+ * er is, zodat stap 1 meteen goed ingevuld is. Kent de matrix de richting niet, dan begint de wizard met een melding.
+ */
+function MetRichting({ link, genegeerd }: { link: RichtingLink; genegeerd: readonly GenegeerdParam[] }) {
+  const r = useRichtingUitLink(link);
+  if (r.status === 'laden' || r.status === 'fout') {
+    return (
+      <div className="page mat-page il-page">
+        <Link to="/leerplannen" className="btn btn-sm btn-quiet il-terug"><BackIcon size={16} /> Leerplannen</Link>
+        <div className="page-head">
+          <div className="il-intro">
+            <h1>Leerplan inlezen</h1>
+          </div>
+        </div>
+        {r.status === 'laden'
+          ? <LaadBericht tekst="De studierichting en haar doelen worden geladen…" />
+          : (
+            <>
+              <FoutBericht fout={r.fout} onOpnieuw={r.opnieuw} />
+              <p><Link className="btn btn-sm btn-ghost" to="/leerplannen/inlezen" state={VERDER_ZONDER_RICHTING}>Verder zonder studierichting</Link></p>
+            </>
+          )}
+      </div>
+    );
+  }
+  if (r.status === 'onbekend') return <Inlezen onbekendeRichting />;
+  return <Inlezen richting={{ info: r.info, kader: r.kader }} genegeerd={genegeerd} />;
+}
+
+/** Een studierichting met haar kader. */
+interface RichtingMetKader {
+  info: RichtingInfo;
+  kader: RichtingKader;
+}
+
+/** De melding over de richting in de link, boven de stappen. */
+function RichtingMelding({
+  richting, onbekend, genegeerd,
+}: {
+  richting?: RichtingMetKader;
+  onbekend: boolean;
+  /** Wat de link nog vroeg en niet bruikbaar was (jaar, soort). */
+  genegeerd: readonly GenegeerdParam[];
+}) {
+  // De zin over een jaar of soort dat niet bruikbaar was, staat los van de melding over het kader: ze geldt altijd als de richting bekend is.
+  const zinnen = richting ? genegeerdZinnen(genegeerd) : [];
+  return (
+    <>
+      <KaderMelding richting={richting} onbekend={onbekend} />
+      {zinnen.length > 0 && (
+        <div className="callout warn" role="note">
+          <WarningIcon size={20} className="il-callout-icoon" />
+          <div className="il-callout-tekst">
+            {zinnen.map((zin) => <p key={zin}>{zin}</p>)}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function KaderMelding({ richting, onbekend }: { richting?: RichtingMetKader; onbekend: boolean }) {
+  if (!richting) {
+    if (!onbekend) return null;
+    return (
+      <div className="callout warn" role="note">
+        <WarningIcon size={20} className="il-callout-icoon" />
+        <div className="il-callout-tekst">
+          <p>Deze link noemt een studierichting die Boosterz niet (meer) kent. Je begint met een lege keuze.</p>
+        </div>
+      </div>
+    );
+  }
+  const tekst = richtingTekst(richting.info);
+  const stand = kaderStand(richting.kader);
+  return (
+    <div className={stand === 'ok' ? 'callout' : 'callout warn'} role="note">
+      {stand === 'ok' ? <InfoIcon size={20} className="il-callout-icoon" /> : <WarningIcon size={20} className="il-callout-icoon" />}
+      <div className="il-callout-tekst">
+        <p>
+          Je leest een leerplan in voor <strong>{tekst}</strong>.{' '}
+          {stand === 'ok' && 'Boosterz toont de sets van die richting; andere sets zoek je zelf.'}
+          {stand === 'nog-niet-opgehaald' && 'De doelen van die studierichting zijn nog niet opgehaald, dus Boosterz kan de sets van die richting niet tonen.'}
+          {stand === 'geen' && 'De officiële bron koppelt geen minimumdoelen aan die studierichting, dus Boosterz kan de sets van die richting niet tonen.'}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 // ── De wizard ───────────────────────────────────────────────────────────────
 
-function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
+function Inlezen({
+  bestaand, richting, onbekendeRichting = false, genegeerd = [],
+}: {
+  bestaand?: Curriculum;
+  /** De studierichting uit de link (alleen bij een nieuw leerplan), met haar kader. */
+  richting?: RichtingMetKader;
+  /** Er staat een richting in de link die Boosterz niet kent. */
+  onbekendeRichting?: boolean;
+  /** Wat de link nog vroeg en niet bruikbaar was (jaar, soort); alleen met een richting. */
+  genegeerd?: readonly GenegeerdParam[];
+}) {
   const navigate = useNavigate();
 
   const [stap, setStap] = useState<Stap>(bestaand ? 2 : 1);
   const [hoeOpen, setHoeOpen] = useState<boolean | null>(null);
 
   // Stap 1
-  const [keuze, setKeuze] = useState<LeerplanKeuze>(() => (bestaand ? keuzeUitLeerplan(bestaand) : legeKeuze()));
+  const [keuze, setKeuze] = useState<LeerplanKeuze>(() => {
+    if (bestaand) return keuzeUitLeerplan(bestaand);
+    // Graad, stroom (1ste graad) en soort onderwijs volgen uit de richting; de rest vult de leerkracht zelf in.
+    return richting ? { ...legeKeuze(), ...invulVoorInlezen(richting.info, richting.kader) } : legeKeuze();
+  });
   const [titelEigen, setTitelEigen] = useState(bestaand !== undefined);
 
   // Stap 2
@@ -149,6 +270,8 @@ function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
     vorigeStap.current = stap;
     kopRef.current?.focus();
   }, [stap]);
+  // Na "Verder zonder studierichting" verdween de knop met de richting uit de link: de focus gaat naar de kop van de stap, niet naar de body.
+  useFocusNaVerderZonderRichting(kopRef);
 
   // ── De bron die nu geldt ──
   const bron = useMemo<BronGegevens | null>(() => {
@@ -162,11 +285,24 @@ function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
   const startDoelen = useMemo(() => gevonden?.goals ?? bestaand?.goals ?? [], [gevonden, bestaand]);
   const codes = useMemo(() => codesUitDoelen(startDoelen), [startDoelen]);
   const aantalDoelenMetVerwijzing = useMemo(() => aantalMetVerwijzing(startDoelen), [startDoelen]);
+  // De sets van het kader van de richting, als dat iets zegt: die komen vooraan (en de lijst blijft daartoe beperkt).
+  const richtingSets = useMemo(
+    () => (richting && kaderStand(richting.kader) === 'ok' ? richting.kader.sets.map((k) => k.set.id) : undefined),
+    [richting],
+  );
   const invoer = useMemo<SetInvoer>(
-    () => ({ graad: keuze.graad, stroom: keuze.stroom, onderwijs: keuze.onderwijs, vak: keuze.vak, codes, eigen: bestaand?.minimumdoelenSets ?? GEEN_SETS }),
-    [keuze.graad, keuze.stroom, keuze.onderwijs, keuze.vak, codes, bestaand],
+    () => ({
+      graad: keuze.graad, stroom: keuze.stroom, onderwijs: keuze.onderwijs, vak: keuze.vak, codes, eigen: bestaand?.minimumdoelenSets ?? GEEN_SETS,
+      ...(richtingSets ? { richtingSets } : {}),
+    }),
+    [keuze.graad, keuze.stroom, keuze.onderwijs, keuze.vak, codes, bestaand, richtingSets],
   );
   const sets = useSetKandidaten(invoer, stap >= 3);
+  // De studierichting van het leerplan, met de sets die echt gekozen zijn en het vak uit stap 1. Stabiel, want StapNakijken bouwt er het ontwerp mee.
+  const doelgroep = useMemo(
+    () => (richting ? doelgroepBijRichting(richting.info, richting.kader, sets.stand.gekozen, keuze.vak) : undefined),
+    [richting, sets.stand.gekozen, keuze.vak],
+  );
 
   // ── Wijzigingen ──
   const wijzigKeuze = (patch: Partial<LeerplanKeuze>) =>
@@ -276,6 +412,8 @@ function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
         </div>
       </div>
 
+      {stap < 4 && <RichtingMelding richting={richting} onbekend={onbekendeRichting} genegeerd={genegeerd} />}
+
       <details
         className="callout mat-details il-hoe" open={hoeOpen ?? false}
         onToggle={(e) => setHoeOpen(e.currentTarget.open)}
@@ -319,6 +457,7 @@ function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
           stand={sets.stand} onWissel={sets.wissel} onToevoegen={(s) => void sets.voegToe(s)} onOpnieuw={sets.opnieuw}
           aantalCodes={codes.length} aantalDoelenMetVerwijzing={aantalDoelenMetVerwijzing}
           graad={keuze.graad} stroom={keuze.stroom} onderwijs={keuze.onderwijs} herkoppelt={bewerkt && !bestaand}
+          verbergSetId={richting !== undefined} voorRichting={richting && richtingSets ? richtingTekst(richting.info) : undefined}
         />
       )}
       {stap === 4 && (
@@ -326,6 +465,7 @@ function Inlezen({ bestaand }: { bestaand?: Curriculum }) {
           bestaand={bestaand} keuze={keuze} bron={bron} doelen={doelen} onDoelen={wijzigDoelen} problemen={problemen} onProblemen={setProblemen}
           fragmenten={gevonden?.fragmenten ?? {}} setIds={sets.stand.gekozen} setBestanden={sets.bestanden}
           ingelezenOp={gevonden?.op ?? startTijd} nieuwId={nieuwId} naam={naam} onNaam={setNaam} onNaarStap1={() => naarStap(1)}
+          doelgroep={doelgroep}
         />
       )}
 

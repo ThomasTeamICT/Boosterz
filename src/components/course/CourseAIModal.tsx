@@ -70,7 +70,7 @@ interface PreviewState {
 
 export function CourseAIModal({
   mode, course, sectionId, onClose, onResult,
-  initialSource, initialCurriculumId, initialGoalCodes, initialTitle,
+  initialSource, initialCurriculumId, initialGoalCodes, initialTitle, initialSubject, initialAudience,
   focus = 'source', initialPreset, originNote,
 }: {
   mode: Mode;
@@ -86,6 +86,10 @@ export function CourseAIModal({
   initialGoalCodes?: string[];
   /** Voorgestelde cursustitel. */
   initialTitle?: string;
+  /** Vooraf ingevuld "Vak / onderwerp" (bv. het vak uit een cursus voor een studierichting). */
+  initialSubject?: string;
+  /** Vooraf ingevulde "Doelgroep" (bv. "Natuurwetenschappen · 4de jaar"). */
+  initialAudience?: string;
   /** Welk vertrekpunt bovenaan staat in modus 'new'. */
   focus?: 'source' | 'curriculum';
   /** Voorgeselecteerde optimalisatie (bv. 'hiaten' vanuit de doelendekking). */
@@ -95,8 +99,8 @@ export function CourseAIModal({
 }) {
   const toast = useToast();
   // invoer (mode 'new')
-  const [subject, setSubject] = useState('');
-  const [audience, setAudience] = useState('');
+  const [subject, setSubject] = useState(initialSubject ?? '');
+  const [audience, setAudience] = useState(initialAudience ?? '');
   const [goals, setGoals] = useState('');
   const [chapterCount, setChapterCount] = useState(0);
   const [extraWishes, setExtraWishes] = useState('');

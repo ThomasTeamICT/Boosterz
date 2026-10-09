@@ -159,6 +159,14 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
     a: 'Maak eerst een leerplan bij Leerplannen: plak de doelen of lees de pdf in; de AI zet ze om in een doelenlijst met codes (officiële nummering blijft staan). Kies dan bij Cursussen "Blanco vanuit leerplan", vink de doelen aan en laat de AI-cursusbouwer een cursus maken waarin elk doel in een sectie zit. De dekkingsmatrix in de editor toont wat gedekt is; de knop "Vul de hiaten" schrijft secties voor wat nog ontbreekt.',
   },
   {
+    q: 'Hoe maak ik een cursus voor een studierichting en een jaar?',
+    a: 'Ga naar Cursussen en kies ‘Voor een studierichting’. Kies de graad, de richting en het jaar: je ziet welke officiële minimumdoelen erbij horen. Met ‘Maak een cursus voor deze richting’ kies je de sets van je vak. Boosterz maakt dan een nagekeken leerplan en een cursus met de doelcodes al op de secties. Een AI-sleutel heb je daarvoor niet nodig.',
+  },
+  {
+    q: 'Zie ik wat al mijn cursussen voor een richting samen dekken?',
+    a: 'Ja. Onderaan de pagina van een studierichting zie je per minimumdoel welke cursus het dekt, wat al gepland staat en wat nog ontbreekt. Een cursus telt mee als je er een richting aan koppelt en als zijn leerplan naar de minimumdoelen verwijst.',
+  },
+  {
     q: 'Ik heb al cursusmateriaal in Word of pdf. Hoe krijg ik dat erin?',
     a: 'Ga naar Importeren (ook via de knop op de widgetpagina): sleep je .docx, pdf, markdown of tekst erin. Je ziet de tekst en kiest wat je ermee doet: een cursus laten bouwen met AI (optioneel gekoppeld aan een leerplan), oefeningen laten maken in de AI-studio, of zonder AI omzetten naar een cursus waarbij koppen hoofdstukken en secties worden. Daarna pas je alles aan in de editor en kan je het met de optimaliseer-knop vereenvoudigen, differentiëren of controlevragen laten toevoegen.',
   },

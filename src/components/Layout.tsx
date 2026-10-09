@@ -8,6 +8,7 @@ import {
 import { cycleTheme, type ThemeMode } from '../lib/theme';
 import { BRAND, BrandMark } from './Brand';
 import { MenuButton, type MenuItem } from './Menu';
+import { RichtingIcon } from './icons';
 import { getPrefs, getSubmissions, onStorageChange } from '../lib/storage';
 import {
   clearBackupHint, formatPct, onStorageNotice, pendingBackupHint, readStorageHealth,
@@ -178,6 +179,7 @@ const NEW_ITEMS: MenuItem[] = [
   { label: 'Widget', hint: 'Oefening, spel of hulpmiddel · 38 soorten', Icon: Shapes, to: '/nieuw' },
   { label: 'Met AI, uit je leerstof', hint: 'Plak tekst of kies een pdf', Icon: Sparkles, to: '/ai-studio' },
   { label: 'Cursus', hint: 'Hoofdstukken met uitleg en oefeningen', Icon: BookOpen, to: '/cursussen?nieuw=1' },
+  { label: 'Cursus voor een studierichting', hint: 'Met de officiële doelen van een richting en een jaar', Icon: RichtingIcon, to: '/cursussen/richtingen' },
   { label: 'Klas', hint: 'Klaslijst en één link voor je leerlingen', Icon: Users, to: '/klassen?nieuw=1' },
   { label: 'Leerplan', hint: 'Doelen waar je materiaal aan hangt', Icon: ListTree, to: '/leerplannen?nieuw=1' },
   { label: 'Pdf of Word omzetten', hint: 'Wordt een cursus die je kan bijwerken', Icon: FileUp, to: '/importeren', separator: true },

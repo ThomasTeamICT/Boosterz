@@ -12,8 +12,19 @@ function aantalDoelen(n: number): string {
   return `${n} ${n === 1 ? 'doel' : 'doelen'}`;
 }
 
+/**
+ * Wat er na "zie de melding hierboven" staat bij een lijst die niet als nagekeken bevestigd kon worden. Normaal kan de leerkracht
+ * ze toch bewaren (met het label ‘niet nagekeken’). Met een studierichting bewaart de pagina enkel een lijst die nagekeken is:
+ * dan is er één zin, zonder het advies erachter (dat zegt hetzelfde).
+ */
+export function nietBevestigdTekst(alleenNagekeken: boolean): string {
+  return alleenNagekeken
+    ? 'Los dit op om de lijst te kunnen bewaren.'
+    : 'Je kan ze wel bewaren; ze krijgt dan het label ‘niet nagekeken’. Pas je keuze aan om dat op te lossen.';
+}
+
 export function StapBewaren({
-  resultaat, titel, voorstel, onTitel, onVoorstel, vak, onVak,
+  resultaat, titel, voorstel, onTitel, onVoorstel, vak, onVak, alleenNagekeken = false,
 }: {
   resultaat: Samengesteld;
   titel: string;
@@ -24,6 +35,8 @@ export function StapBewaren({
   onVoorstel: () => void;
   vak: string;
   onVak: (vak: string) => void;
+  /** Met een studierichting bewaart de pagina alleen een lijst die nagekeken is: dan kan een lijst die dat niet is, niet bewaard worden. */
+  alleenNagekeken?: boolean;
 }) {
   const { leerplan, bevestigd, waarschuwingen } = resultaat;
   const rijen = useMemo<DoelRij[]>(() => leerplan.goals.map((g) => ({
@@ -75,7 +88,7 @@ export function StapBewaren({
             <div className="il-callout-tekst">
               <p>
                 {aantalDoelen(leerplan.goals.length)} uit {sets} {sets === 1 ? 'set' : 'sets'}. Deze lijst kon niet als nagekeken bevestigd worden: zie de melding
-                hierboven. Je kan ze wel bewaren; ze krijgt dan het label ‘niet nagekeken’. Pas je keuze aan om dat op te lossen.
+                hierboven. {nietBevestigdTekst(alleenNagekeken)}
               </p>
             </div>
           </div>

@@ -20,6 +20,11 @@ export interface SetInvoer {
   codes: readonly string[];
   /** Sets die het leerplan al heeft (bestaand leerplan): die staan vooraf aangevinkt. */
   eigen: readonly string[];
+  /**
+   * De sets van het doelenkader van een studierichting (inlezen met `?richting=`): `kandidaatSets` toont alleen die sets
+   * (andere zoekt de leerkracht zelf). Zonder: de sets bij graad, stroom en soort onderwijs, zoals altijd.
+   */
+  richtingSets?: readonly string[];
 }
 
 export interface SetStand {

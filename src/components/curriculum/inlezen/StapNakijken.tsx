@@ -10,6 +10,7 @@ import { BadgeCheck, CircleX, Save } from 'lucide-react';
 import type { Curriculum, CurriculumGoal, MinimumdoelRef } from '../../../lib/curriculumTypes';
 import { bevestigLeerplan, saveCurriculum } from '../../../lib/curriculum';
 import { controleerLeerplan, type ControleRapport } from '../../../lib/curriculumCheck';
+import type { Doelgroep } from '../../../lib/doelgroep';
 import {
   aantalFouten, alleBevindingen, bewaarbareDoelen, bewaarNakijkerNaam, bouwOntwerp, bronHash, groepeerBevindingen,
   isLeerplancodeBevinding, kopieerRecord, opId, pasDoelAan, redenenGeenBevestiging, ruimProblemenOp, saneerOntwerp, verwijderDoel,
@@ -37,7 +38,7 @@ type Wijzig<T> = (fn: (vorige: T) => T) => void;
 
 export function StapNakijken({
   bestaand, keuze, bron, doelen, onDoelen, problemen, onProblemen, fragmenten, setIds, setBestanden, ingelezenOp, nieuwId, naam, onNaam,
-  onNaarStap1,
+  onNaarStap1, doelgroep,
 }: {
   /** Het leerplan dat nagekeken wordt; leeg bij een nieuw leerplan. */
   bestaand?: Curriculum;
@@ -60,6 +61,11 @@ export function StapNakijken({
   onNaam: (naam: string) => void;
   /** Terug naar stap 1, bv. om de leerplancode in te vullen. */
   onNaarStap1: () => void;
+  /**
+   * De studierichting van het leerplan (inlezen met `?richting=`), zoals `doelgroepBijRichting` ze maakt. De pagina houdt
+   * dit object stabiel (`useMemo`), anders loopt het nakijken bij elke weergave opnieuw. Zonder: de doelgroep van `bestaand`.
+   */
+  doelgroep?: Doelgroep;
 }) {
   const toast = useToast();
   const navigate = useNavigate();
@@ -73,10 +79,10 @@ export function StapNakijken({
   // Het ontwerp zoals het nu is, en dezelfde gesaneerd zoals een export en import het teruggeven.
   const ruw = useMemo(
     () => bouwOntwerp({
-      bestaand, keuze, goals: doelen, setIds, ingelezenOp, id: nieuwId,
+      bestaand, keuze, goals: doelen, setIds, ingelezenOp, id: nieuwId, doelgroep,
       bron: bron ? { methode: bron.methode, bronNaam: bron.bronNaam, bronSha256: bronSha } : { methode: 'tekst' },
     }),
-    [bestaand, keuze, doelen, setIds, ingelezenOp, nieuwId, bron, bronSha],
+    [bestaand, keuze, doelen, setIds, ingelezenOp, nieuwId, bron, bronSha, doelgroep],
   );
   const ontwerp = useMemo(() => saneerOntwerp(ruw), [ruw]);
   const doelProblemen = useMemo(() => vindDoelProblemen(doelen), [doelen]);

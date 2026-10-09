@@ -1,0 +1,150 @@
+/* ── Cursus voor een studierichting: nieuw venster en richting kiezen ───────── */
+/*
+ * Het venster "Nieuwe cursus voor deze richting" (NieuweRichtingCursus), het venster "Studierichting van deze cursus"
+ * (RichtingKiezerModal) en de kleine regel met de studierichting op een cursuskaart (docs/STUDIERICHTINGEN.md § 14.4 en
+ * § 14.5). Voorvoegsel rc-. Alleen tokens uit global.css; nooit witte tekst op --brand (gebruik --brand-fill). Een status
+ * staat altijd ook in tekst. Werkt op 390 px zonder horizontaal scrollen: alles breekt lange woorden af en tikdoelen
+ * zijn op smalle schermen 44 px hoog.
+ */
+
+.rc { min-width: 0; }
+.rc-intro { margin: 0 0 14px; color: var(--text-soft); max-width: 72ch; }
+.rc-voorstel { margin: -6px 0 12px; min-height: 1.4em; color: var(--text-soft); font-size: 0.92rem; overflow-wrap: break-word; }
+.rc-uitleg { margin: 2px 0 8px; color: var(--text-soft); font-size: 0.88rem; max-width: 72ch; overflow-wrap: break-word; }
+.rc-melding { align-items: flex-start; margin: 0 0 14px; }
+.rc-melding > svg { flex: none; margin-top: 2px; }
+.rc-melding p { margin: 0; min-width: 0; overflow-wrap: break-word; }
+.rc-melding p + p { margin-top: 8px; }
+.rc-melding > div { min-width: 0; }
+.rc-melding-links { display: flex; flex-wrap: wrap; gap: 0 18px; margin-top: 6px !important; }
+.rc-melding-links a { display: inline-flex; align-items: center; min-height: 32px; font-weight: 700; }
+.rc-melding:focus { outline: none; }
+.rc-melding:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.rc a { overflow-wrap: anywhere; }
+
+/* Groepen met keuzerondjes */
+.rc-groep { border: 0; margin: 0 0 18px; padding: 0; min-width: 0; }
+.rc-groep > legend { padding: 0; margin-bottom: 6px; font-family: var(--font-display); font-weight: 700; font-size: 1.02rem; }
+.rc-groep > legend.sr-only { margin: 0; }
+
+.rc-keuze {
+  margin: 0 0 8px; border: 1.5px solid var(--line-strong); border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.rc-keuze:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.rc-keuze:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; }
+.rc-keuze-rij {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 12px 14px; cursor: pointer;
+}
+.rc-keuze-rij input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--brand-fill); cursor: pointer; }
+.rc-keuze-titel { font-family: var(--font-display); font-weight: 700; min-width: 0; overflow-wrap: break-word; }
+.rc-keuze-zin { margin: -6px 14px 12px 46px; color: var(--text-soft); font-size: 0.88rem; max-width: 72ch; overflow-wrap: break-word; }
+/* Een keuze die nog niet kan (aria-disabled): zichtbaar anders, met de uitleg eronder. */
+.rc-keuze-rij:has(input[aria-disabled='true']) { cursor: not-allowed; color: var(--text-soft); }
+.rc-keuze-rij input[aria-disabled='true'] { cursor: not-allowed; }
+
+/* De sets binnen een keuze */
+.rc-sets { padding: 0 14px 12px 46px; min-width: 0; }
+.rc-sets .field { margin-bottom: 6px; }
+.rc-kop { margin: 10px 0 2px; font-size: 0.98rem; line-height: 1.35; }
+.rc-setlijst { list-style: none; margin: 6px 0 12px; padding: 0; display: grid; gap: 6px; }
+.rc-setlijst > li { min-width: 0; }
+.rc-set {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 10px 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.rc-set:hover { border-color: var(--line-strong); }
+.rc-set:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.rc-set:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; }
+.rc-set input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--brand-fill); cursor: pointer; }
+.rc-set-tekst { min-width: 0; overflow-wrap: break-word; hyphens: auto; line-height: 1.4; }
+.rc-set-naam { font-family: var(--font-display); font-weight: 700; }
+.rc-set-meta { color: var(--text-soft); font-size: 0.88rem; }
+.rc-stem { margin: 6px 0 0; align-items: flex-start; }
+.rc-stem > svg { flex: none; margin-top: 2px; }
+.rc-stem p { margin: 0 0 6px; }
+.rc-stem p:last-child { margin-bottom: 0; }
+
+/* Link naar de samenstelwizard en de teller */
+.rc-link { margin: 4px 0 6px; }
+.rc-link a, .rc-stem a { display: inline-flex; align-items: center; min-height: 32px; }
+.rc-teller { margin: 6px 0 8px; font-weight: 700; color: var(--text-soft); font-size: 0.92rem; min-height: 1.4em; overflow-wrap: break-word; }
+.rc .kz-status, .rc .kz-fout { margin: 6px 0; padding-top: 6px; padding-bottom: 6px; }
+
+/* Voet van het venster: wat er nog nodig is, boven de knoppen */
+.rc-voet { flex: 1 1 auto; min-width: 0; display: grid; gap: 8px; justify-items: end; }
+.rc-nodig { margin: 0; color: var(--text-soft); font-size: 0.92rem; text-align: right; overflow-wrap: break-word; }
+.rc-voet-knoppen { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.rc-knop { min-height: 44px; }
+/*
+ * Een knop die nog niet kan blijft klikbaar en leesbaar (aria-disabled): een gestippelde rand en een zachte achtergrond,
+ * met tekst van minstens 4,5 : 1. Geen opacity: die maakt de tekst bleek.
+ */
+.rc-knop[aria-disabled='true'],
+.rc-knop[aria-disabled='true']:hover {
+  background: var(--bg-sunken); color: var(--text-soft); border: 2px dashed var(--text-soft); padding: 8px 15px; cursor: not-allowed;
+}
+.rc-knop[aria-disabled='true']:active { transform: none; }
+
+/* Richting kiezen */
+.rc-radiorij { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.rc-radio {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px 2px; cursor: pointer; font-weight: 600;
+}
+.rc-radio input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--brand-fill); cursor: pointer; }
+.rc-radio:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: var(--radius-s); }
+.rc-vink {
+  display: flex; align-items: flex-start; gap: 10px; min-height: 40px; padding: 6px 0; cursor: pointer; font-weight: 600;
+}
+.rc-vink input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--brand-fill); cursor: pointer; }
+.rc-vink > span { min-width: 0; overflow-wrap: break-word; }
+.rc-vink:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: var(--radius-s); }
+
+.rc-richtingen-groep { margin-bottom: 8px; }
+.rc-richtingen {
+  list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: min(42vh, 24rem); overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.rc-richtingen > li { min-width: 0; }
+.rc-richting {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 10px 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.rc-richting:hover { border-color: var(--line-strong); }
+.rc-richting:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.rc-richting:focus-within { outline: 3px solid var(--brand); outline-offset: -2px; }
+.rc-richting input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--brand-fill); cursor: pointer; }
+.rc-richting-tekst { display: grid; gap: 2px; min-width: 0; }
+.rc-richting-naam { font-family: var(--font-display); font-weight: 700; line-height: 1.3; overflow-wrap: break-word; hyphens: auto; }
+.rc-richting-meta { font-size: 0.84rem; line-height: 1.4; color: var(--text-soft); overflow-wrap: break-word; }
+.rc-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.rc-meer { display: flex; justify-content: center; margin: 8px 0; }
+.rc-gekozen { margin: 8px 0 14px; font-weight: 700; overflow-wrap: break-word; }
+
+/* Studierichting in de cursusinstellingen */
+.rc-instelling { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.rc-waarde { margin: 0; min-width: 0; overflow-wrap: break-word; }
+.rc-instelling-knoppen { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Studierichting op een cursuskaart */
+.rc-doelgroep {
+  display: flex; align-items: flex-start; gap: 6px; margin: 4px 0 0; color: var(--text-soft); font-size: 0.85rem; min-width: 0;
+}
+.rc-doelgroep > svg { flex: none; margin-top: 2px; }
+.rc-doelgroep > span { min-width: 0; overflow-wrap: break-word; hyphens: auto; }
+
+@media (max-width: 640px) {
+  .rc-keuze-zin { margin-left: 14px; }
+  .rc-sets { padding-left: 14px; }
+  .rc-voet-knoppen { width: 100%; }
+  .rc-voet-knoppen .btn { flex: 1 1 auto; }
+  .rc-nodig { text-align: left; justify-self: stretch; }
+  .rc-radio { min-height: 44px; }
+  .rc-vink { min-height: 44px; }
+  .rc-link a, .rc-stem a, .rc-melding-links a { min-height: 44px; }
+  /* De link naar de AI-instellingen staat in een zin: ze krijgt ook een tikdoel van 44 px. */
+  .rc-keuze-zin a { display: inline-flex; align-items: center; min-height: 44px; }
+  .rc .select { min-height: 44px; }
+  .rc-instelling-knoppen .btn { min-height: 44px; }
+  .rc-richtingen { max-height: min(46vh, 22rem); }
+  .rc-meer .btn { min-height: 44px; }
+}

@@ -1,0 +1,14 @@
+/* ── Een leerplan op slot: de studierichting waarvoor het gemaakt is ──────── */
+/*
+ * Het feit "Studierichting" bij de gegevens van een nagekeken leerplan (LeerplanOpSlot) is een link naar de pagina van
+ * de richting. Alleen tokens uit global.css. Op een smal scherm een tikdoel van minstens 44 pixels.
+ */
+
+/* De hele rij: een lange naam ("Natuurwetenschappen · 2de graad") past op één regel en breekt alleen bij spaties. */
+.lp-info > div.lp-info-richting { grid-column: 1 / -1; }
+
+.lp-info .lp-info-link { overflow-wrap: anywhere; }
+
+@media (max-width: 640px) {
+  .lp-info .lp-info-link { display: inline-flex; align-items: center; min-height: 44px; }
+}

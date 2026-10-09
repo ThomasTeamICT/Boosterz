@@ -63,6 +63,7 @@ const AIStudioPage = lazyRetry(() => import('./pages/AIStudioPage').then((m) => 
 const AISettingsPage = lazyRetry(() => import('./pages/AISettingsPage').then((m) => ({ default: m.AISettingsPage })), 'AISettingsPage');
 const ImportPage = lazyRetry(() => import('./pages/ImportPage').then((m) => ({ default: m.ImportPage })), 'ImportPage');
 const CoursesPage = lazyRetry(() => import('./pages/CoursesPage').then((m) => ({ default: m.CoursesPage })), 'CoursesPage');
+const RichtingenPage = lazyRetry(() => import('./pages/RichtingenPage').then((m) => ({ default: m.RichtingenPage })), 'RichtingenPage');
 const CurriculaPage = lazyRetry(() => import('./pages/CurriculaPage').then((m) => ({ default: m.CurriculaPage })), 'CurriculaPage');
 const MinimumdoelenPage = lazyRetry(() => import('./pages/MinimumdoelenPage').then((m) => ({ default: m.MinimumdoelenPage })), 'MinimumdoelenPage');
 const LeerplanInlezenPage = lazyRetry(() => import('./pages/LeerplanInlezenPage').then((m) => ({ default: m.LeerplanInlezenPage })), 'LeerplanInlezenPage');
@@ -113,6 +114,7 @@ const router = createHashRouter([
       { path: '/resultaten', element: lz(<ResultsOverviewPage />) },
       { path: '/resultaten/:id', element: lz(<ResultsPage />) },
       { path: '/cursussen', element: lz(<CoursesPage />) },
+      { path: '/cursussen/richtingen/:groep?', element: lz(<RichtingenPage />) },
       { path: '/leerplannen', element: lz(<CurriculaPage />) },
       { path: '/leerplannen/minimumdoelen', element: lz(<MinimumdoelenPage />) },
       { path: '/leerplannen/minimumdoelen/:setId', element: lz(<MinimumdoelenPage />) },

@@ -8,7 +8,10 @@
 // - optimaliseren laat lange tekst volledig (geen afgeknipte kaders meer);
 // - mislukt elk hoofdstuk, dan kan je niet "toepassen", met een zichtbare reden;
 // - herwerken van een te grote cursus wordt geweigerd zonder AI-aanvraag;
-// - "sectie vullen" voegt altijd achteraan toe en laat media van de AI weg.
+// - "sectie vullen" voegt altijd achteraan toe en laat media van de AI weg;
+// - vanuit een studierichting (overdracht van "Voor een studierichting"): de AI-cursusbouwer opent met vak en
+//   doelgroep vooraf ingevuld, en de cursus die eruit komt draagt de doelgroep van de overdracht, nooit een
+//   studierichting die de AI zelf in het antwoord zet.
 import pw from 'playwright-core';
 const { chromium } = pw;
 const BASE = process.env.SMOKE_BASE || 'http://localhost:4173';
@@ -37,17 +40,25 @@ const sse = (text) =>
 const checks = [];
 const check = (naam, ok) => { checks.push([naam, ok]); console.log(`${ok ? '✓' : '✗'} ${naam}`); };
 
-/** Verse browser met één cursus en een nagebootste Gemini. `answer(prompt)` geeft {status, body} of een JSON-object. */
-async function setup(course, answer) {
+/**
+ * Verse browser met één cursus en een nagebootste Gemini. `answer(prompt)` geeft {status, body} of een JSON-object.
+ * `extra` (optioneel): `hash` (waar de pagina opent), `curricula` (bewaarde leerplannen), `handoff` (de overdracht in
+ * sessionStorage, zoals "Voor een studierichting" ze klaarzet); zonder cursus (`course` null) begint de lijst leeg.
+ */
+async function setup(course, answer, extra = {}) {
   const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
-  await ctx.addInitScript((c) => {
+  await ctx.addInitScript((seed) => {
     if (sessionStorage.getItem('seeded')) return;
     sessionStorage.setItem('seeded', '1');
     localStorage.setItem('wf.ai.v1', JSON.stringify({ provider: 'gemini', apiKey: 'test-sleutel', model: 'gemini-3.7-flash' }));
-    localStorage.setItem('wf.courses.v1', JSON.stringify([c]));
+    localStorage.setItem('wf.courses.v1', JSON.stringify(seed.course ? [seed.course] : []));
     localStorage.setItem('wf.prefs.v1', JSON.stringify({ theme: 'auto', teacherName: 'T', seeded: true }));
-  }, course);
+    if (seed.curricula) localStorage.setItem('wf.curricula.v1', JSON.stringify(seed.curricula));
+    if (seed.handoff) sessionStorage.setItem('wf.handoff.v1', JSON.stringify({ ...seed.handoff, at: Date.now() }));
+    // Zonder deze vlag zet de lijst een voorbeeldcursus naast de cursus uit de test.
+    if (!seed.course) localStorage.setItem('wf.democursus.v1', '1');
+  }, { course, curricula: extra.curricula, handoff: extra.handoff });
   const state = { requests: 0, answer };
   await ctx.route('https://generativelanguage.googleapis.com/**', async (route) => {
     const req = route.request();
@@ -63,7 +74,7 @@ async function setup(course, answer) {
   const page = await ctx.newPage();
   const errs = [];
   page.on('pageerror', (e) => errs.push(e.message));
-  await page.goto(BASE + '/#/cursus/bewerk/c1', { waitUntil: 'networkidle' });
+  await page.goto(BASE + (extra.hash ?? '/#/cursus/bewerk/c1'), { waitUntil: 'networkidle' });
   return { browser, page, state, errs };
 }
 
@@ -182,6 +193,94 @@ async function waitForStored(page, pred, ms = 6000) {
   const types = after.chapters[0].sections[0].blocks.map((b) => b.type);
   check(`sectie vullen: bestaande blokken blijven, nieuwe achteraan (${types.join(',')})`, JSON.stringify(types) === JSON.stringify(['text', 'image', 'video', 'callout', 'text']));
   check('geen paginafouten (sectie vullen)', errs.length === 0);
+  await browser.close();
+}
+
+// ── 4. Vanuit een studierichting: overdracht met doelgroep ───────────────────
+{
+  const doelgroep = { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, jaar: 4, soort: 'so', vak: 'Biologie' };
+  const leerplan = {
+    id: 'lp1', title: 'Biologie · Natuurwetenschappen · 2de graad', net: 'minimumdoelen', subject: 'Biologie', level: '2de graad',
+    createdAt: 1, updatedAt: 1,
+    goals: [
+      { id: 'g1', code: 'B1.1', text: 'De leerlingen kunnen de bouw van een cel beschrijven.', theme: 'Biologie' },
+      { id: 'g2', code: 'B1.2', text: 'De leerlingen kunnen de functie van celorganellen uitleggen.', theme: 'Biologie' },
+    ],
+    // Zo komt het leerplan uit "Voor een studierichting": met de vingerafdruk van het kader en zonder jaar.
+    doelgroep: { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', vak: 'Biologie', kader: 'a'.repeat(64), volgtKader: true },
+  };
+  // De AI zet zelf een studierichting en een ander leerplan in zijn antwoord: dat mag nooit doorwerken.
+  const aiCursus = {
+    course: {
+      title: 'De bouw van de cel', subtitle: '', coverEmoji: '🔬',
+      curriculumId: 'verzonnen', doelgroep: { groep: 'G-9999', titel: 'Verzonnen richting', soort: 'so' },
+      chapters: [{ title: 'De cel', emoji: '🔬', sections: [
+        { title: 'Bouw van de cel', goals: ['Ik kan de cel beschrijven.'], goalCodes: ['B1.1'], optional: false, blocks: [{ type: 'text', markdown: 'Een cel heeft een kern.' }] },
+        { title: 'Celorganellen', goals: ['Ik kan celorganellen uitleggen.'], goalCodes: ['B1.2'], optional: false, blocks: [{ type: 'text', markdown: 'Mitochondriën leveren energie.' }] },
+      ] }],
+    },
+  };
+  let gezienPrompt = '';
+  const { browser, page, state, errs } = await setup(null, (prompt) => { gezienPrompt = prompt; return aiCursus; }, {
+    hash: '/#/cursussen?ai=nieuw',
+    curricula: [leerplan],
+    handoff: { source: '', title: 'Biologie · Natuurwetenschappen · 4de jaar', curriculumId: 'lp1', goalCodes: ['B1.1', 'B1.2'], doelgroep },
+  });
+  const modal = page.getByRole('dialog', { name: 'AI-cursusbouwer' });
+  await modal.waitFor({ timeout: 10000 });
+  check('studierichting: de AI-cursusbouwer opent met de overdracht', await modal.isVisible());
+  check('studierichting: "Vak / onderwerp" vooraf ingevuld met het vak', (await modal.getByLabel('Vak / onderwerp').inputValue()) === 'Biologie');
+  check('studierichting: "Doelgroep" vooraf ingevuld met de studierichting en het jaar, zonder het vak', (await modal.getByLabel('Doelgroep').inputValue()) === 'Natuurwetenschappen · 4de jaar');
+  check('studierichting: voorgestelde titel en leerplan overgenomen', (await modal.getByLabel('Voorgestelde titel').inputValue()) === 'Biologie · Natuurwetenschappen · 4de jaar'
+    && await modal.getByText('2 van 2 doelen').first().isVisible());
+  await modal.getByRole('button', { name: /Genereren/ }).click();
+  await modal.getByRole('button', { name: /Cursus aanmaken/ }).waitFor({ timeout: 15000 });
+  check('studierichting: vak en doelgroep gaan mee in de opdracht aan de AI', /Vak\/onderwerp: Biologie/.test(gezienPrompt) && /Doelgroep: Natuurwetenschappen · 4de jaar/.test(gezienPrompt));
+  await modal.getByRole('button', { name: /Cursus aanmaken/ }).click();
+  await page.waitForURL(/#\/cursus\/bewerk\//, { timeout: 15000 });
+  const bewaard = await waitForStored(page, (c) => c !== undefined && c.title === 'De bouw van de cel');
+  check('studierichting: de cursus draagt de doelgroep van de overdracht (G-0193, 4de jaar, vak Biologie)',
+    bewaard.doelgroep?.groep === 'G-0193' && bewaard.doelgroep?.jaar === 4 && bewaard.doelgroep?.vak === 'Biologie' && bewaard.doelgroep?.graad === 2);
+  check('studierichting: zonder kader en volgtKader (die horen bij het leerplan)', bewaard.doelgroep?.kader === undefined && bewaard.doelgroep?.volgtKader === undefined);
+  check('studierichting: wat de AI als studierichting of leerplan verzon, telt niet', bewaard.doelgroep?.groep !== 'G-9999' && bewaard.curriculumId === 'lp1');
+  check('studierichting: de doelcodes staan op de secties', JSON.stringify(bewaard.chapters[0].sections.map((s) => s.goalCodes)) === JSON.stringify([['B1.1'], ['B1.2']]));
+  // In de editor staat de studierichting bij de cursusinstellingen.
+  await page.getByRole('button', { name: /Instellingen/ }).first().click();
+  const instellingen = page.getByRole('dialog', { name: 'Cursusinstellingen' });
+  check('studierichting: de cursusinstellingen tonen de studierichting', (await instellingen.locator('.rc-waarde').innerText()) === 'Biologie · Natuurwetenschappen · 4de jaar');
+  check('studierichting: de overdracht is gewist uit sessionStorage', (await page.evaluate(() => sessionStorage.getItem('wf.handoff.v1'))) === null);
+
+  // "Wijzig" opent de richtingkiezer met een nagebootste lijst van richtingen (de echte staat nog niet in de app).
+  const onderdeel = (nummer, groep) => ({
+    nummer, groep, titel: `Onderdeel ${nummer}`, onderwijsvorm: 'ASO', begindatum: '2021-09-01',
+    leerjaren: [{ code: '1' }, { code: '2' }], hoofdstructuren: ['311', '321'],
+  });
+  const richting = (nummer, titel, onderdelen) => ({ nummer, titel, graad: '2', finaliteit: 'DO', onderdelen });
+  const matrix = {
+    app: 'boosterz', kind: 'studierichtingen', v: 1, bron: 'x', api: 'x', naamsvermelding: 'x', licentie: 'x',
+    opgehaald: '2026-10-09T00:00:00Z', aantalGroepen: 3, aantalOnderdelen: 3, sha256: 'ab'.repeat(32),
+    groepen: [richting('G-0193', 'Natuurwetenschappen', [1]), richting('G-0194', 'Economie', [2]), richting('G-0900', 'Zeer late richting', [3])],
+    onderdelen: [onderdeel(1, 'G-0193'), onderdeel(2, 'G-0194'), onderdeel(3, 'G-0900')],
+  };
+  await page.route('**/leerplannen/structuur/studierichtingen.json', (route) =>
+    route.fulfill({ status: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify(matrix) }));
+  const voor = (await storedCourse(page)).doelgroep;
+  await instellingen.getByRole('button', { name: 'Wijzig de studierichting' }).click();
+  const kiezer = page.getByRole('dialog', { name: 'Studierichting van deze cursus' });
+  await kiezer.getByLabel('Zoek een richting').waitFor({ timeout: 10000 });
+  await page.waitForTimeout(400);
+  check('richtingkiezer: de focus gaat naar het zoekveld zodra de lijst er staat',
+    await page.evaluate(() => document.activeElement?.getAttribute('type') === 'search' && document.activeElement.closest('[role="dialog"]')?.getAttribute('aria-label') === 'Studierichting van deze cursus'));
+  check('richtingkiezer: de huidige richting staat bovenaan de lijst, aangevinkt',
+    (await kiezer.locator('.rc-richting-naam').first().innerText()) === 'Natuurwetenschappen' && await kiezer.locator('input[name="rc-richting"]').first().isChecked());
+  await kiezer.getByRole('button', { name: 'Kies deze richting' }).click();
+  await kiezer.waitFor({ state: 'detached', timeout: 5000 });
+  await page.waitForTimeout(1500);
+  const na = (await storedCourse(page)).doelgroep;
+  check('richtingkiezer: bevestigen zonder wijziging laat de doelgroep ongemoeid', JSON.stringify(na) === JSON.stringify(voor), { voor, na });
+  check('richtingkiezer: de cursusinstellingen tonen nog dezelfde studierichting', (await instellingen.locator('.rc-waarde').innerText()) === 'Biologie · Natuurwetenschappen · 4de jaar');
+  check('geen paginafouten (studierichting)', errs.length === 0);
+  console.log('  aanvragen:', state.requests);
   await browser.close();
 }
 

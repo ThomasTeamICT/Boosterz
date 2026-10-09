@@ -10,6 +10,8 @@ describe('paginaTitel', () => {
       ['/bewerk/abc123', 'Widget bewerken'],
       ['/print/abc123', 'Afdrukken'],
       ['/cursussen', 'Cursussen'],
+      ['/cursussen/richtingen', 'Studierichtingen'],
+      ['/cursussen/richtingen/G-0193', 'Studierichtingen'],
       ['/cursus/lees/ABC123', 'Cursus'],
       ['/cursus/open', 'Cursus'],
       ['/cursus/bewerk/c1', 'Cursus bewerken'],
@@ -37,6 +39,15 @@ describe('paginaTitel', () => {
     expect(paginaTitel('/klassen')).toBe('Klassen · Boosterz');
     expect(paginaTitel('/klas/open')).toBe('Mijn klas · Boosterz');
     expect(paginaTitel('/openbaar')).toBe('Meedoen · Boosterz');
+  });
+
+  it('toont het richtingenscherm als "Studierichtingen" en laat de gewone cursussen "Cursussen" heten', () => {
+    expect(paginaTitel('/cursussen/richtingen')).toBe('Studierichtingen · Boosterz');
+    expect(paginaTitel('/cursussen/richtingen/')).toBe('Studierichtingen · Boosterz');
+    expect(paginaTitel('/cursussen/richtingen/G-0307')).toBe('Studierichtingen · Boosterz');
+    expect(paginaTitel('/cursussen')).toBe('Cursussen · Boosterz');
+    expect(paginaTitel('/cursussen/andere')).toBe('Cursussen · Boosterz');
+    expect(paginaTitel('/cursussenlijst')).toBe('Meedoen · Boosterz');
   });
 
   it('negeert een slotslash en toont onbekende paden als de meedoenpagina', () => {
