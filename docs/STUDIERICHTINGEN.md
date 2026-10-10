@@ -30,6 +30,7 @@ De opdracht van de eigenaar, letterlijk: "ja, doe die import maar, einddoel is d
 | I4 Review, rechter, herstel, rooktest op echte data, uitrol | **Klaar** (10 oktober 2026). Vier reviewers (datastroom, juistheid, toegankelijkheid en taal, bundel en opslag), elk met een rechter: 21 bevindingen, 9 bevestigd, geen blokkerende. De vijf kleine punten (workflowteksten, links naar de wizard met `sets=`, zichtbaar onderscheid tussen gelijke setnamen, herlaadmelding) en de vier logicapunten (rij hieronder) zijn hersteld en onafhankelijk nagekeken. Sectie 20e (echte data) zit in P13 | hoofdsessie, reviewers, rechter |
 | I4 Herstel van vier punten uit de eindreview (logica) | **Klaar** (10 oktober 2026): drie rondes, telkens door een andere agent nagekeken, en samengevoegd. (1) Een onderdeel met `nietMeerInBron` telt niet meer als geldig (`geldigeOnderdelen`, § 9.2). (2) Een volledige set die groeit of krimpt, valt nu op: tweede afdruk `kaderVolledig`, één regel `veranderdSindsLeerplan` (§ 11.2); leerplannen van daarvoor werken zoals vroeger. (3) Na "Keuze aanpassen" met een andere keuze valt `volgtKader` weg (§ 10.2). (4) Botsende doelcodes krijgen de korte naam van de set in plaats van het set-id (§ 14.9). Tweede ronde: een cursus draagt nooit `kaderVolledig` (`doelgroepVoorCursus`), en de bekende beperking bij een andere lijst sets staat in § 11.2 | kernbouwer en een onafhankelijke controleur; integratie: hoofdsessie |
 | Fase 2 (§ 22): vingerafdruk per set, gaten dichten, mijn richtingen, klas en richting | **Ontwerp klaar** (10 oktober 2026): twee ontwerpen en een synthese; de eigen tabel "Stand van zaken fase 2" staat in § 22, de pakketten in bijlage D. Bouwen loopt. | hoofdsessie, bouwers |
+| Fase 3 (§ 23): beroepskwalificaties per richting (import, leerplan met competenties, sectie op de richtingpagina, dekking) | **Ontwerp klaar** (10 oktober 2026): twee ontwerpen en een synthese; eigen tabel "Stand van zaken fase 3" in § 23, pakketten in bijlage E. Start na fase 2. | hoofdsessie |
 | Verkenning beroepskwalificaties (O11) | **Ronde 6 klaar** (run 38044584119): een richting verwijst in het detail van haar structuuronderdeel naar haar beroepskwalificaties; de competenties staan in het detail per BK-versie. Bevindingen in `docs/ONDERWIJS-API.md` § 4. Ronde 7 klaar (run 38047507450): het curriculumdossier is een Word-document; de competenties van een beroepskwalificatie zijn gestructureerd. Volgende: ontwerp voor de import (fase 3). | hoofdsessie |
 | Licentie en naamsvermelding API Structuuronderdelen | Te bevestigen via TechLoket, zoals bij laag 1 | eigenaar |
 
@@ -1872,6 +1873,901 @@ Sectie 20e (echte data) krijgt alleen regex-checks voor stap 2 en 3 op G-0193.
 - Eén klik "Toewijzen" zonder het venster "Opdracht toevoegen".
 - Beroepskwalificaties (O11).
 
+## 23. Fase 3: beroepskwalificaties
+
+*Ontwerp van 10 oktober 2026: de synthese van twee ontwerpen ("data eerst" en "leerkracht eerst"), gemaakt door een jurylid. De basis is het ontwerp "data eerst" voor de import, de poorten en het datamodel, en het ontwerp "leerkracht eerst" voor de bestandsindeling, de schermen en het geraamte. Elke bewering over bestaande code is nagekeken in de code (stand na commit 7635d62, fase 2 A1 klaar). Over de API geldt alleen wat in `docs/ONDERWIJS-API.md` § 1, § 2 en § 4 staat (ronde 6, run 38044584119, en ronde 7, run 38047507450). Waar een ontwerp de code verkeerd las of iets miste, staat de juiste lezing in § 23.14. Wat de API nog niet toonde, staat in § 23.3: het ontwerp is daar tolerant, en de eerste echte run bevestigt de vorm (regel 11).*
+
+### Stand van zaken fase 3
+
+Fase 3 start pas na fase 2 (na I-C, zie § 22). Tot dan wacht alles.
+
+| Wat | Stand | Op wie |
+|---|---|---|
+| Q0 Ontwerp in de repo (§ 23, bijlage E, rij in de stand bovenaan, één regel in CLAUDE.md), icoon, uittreksel van de runs van ronde 6 en 7 | Wacht: start na fase 2 | hoofdsessie |
+| K1 Datamodule `beroepskwalificaties.ts` en API-hulp `onderwijsApi.mjs` | Wacht: start na fase 2, na Q0 | kernbouwer |
+| K2 Ophaalscript, fixtures en scripttest | Wacht: na K1 | kernbouwer |
+| K3 Datatest | Wacht: na K1, levert op na K2 | bouwer (een andere agent dan die van K2) |
+| K4 Workflow "Leerplangegevens bijwerken" | Wacht: na K1 (naast K2) | bouwer, nagelezen door een reviewer (veiligheid) |
+| K5 Datamodel van het leerplan (`bkRefs`, `bkVersies`, methode, vingerafdruk) | Wacht: start na fase 2, na Q0 (naast K1) | kernbouwer |
+| I1 Integratie van de data en het datamodel | Wacht: na K1 tot K5 | hoofdsessie |
+| G1 Eerste echte run in stappen | Wacht: na I1 | hoofdsessie |
+| K6 Lader, BK-kader van een richting, BK-leerplan en nakijkpoort | Wacht: na I1 | kernbouwer |
+| K7 Geraamte, dekking en teksten | Wacht: na K6 | bouwer |
+| I2 Integratie van de logica, hook en stubs | Wacht: na K7 | hoofdsessie |
+| S1 Sectie "Beroepskwalificaties" en kopregel | Wacht: na I2 (worktree A) | bouwer |
+| S2 Venster "Nieuwe cursus" met competenties | Wacht: na I2 (worktree B) | bouwer |
+| S3 Dekking, leerplanpagina en leerplannenlijst | Wacht: na I2 (worktree C) | bouwer |
+| I3 Integratie van de schermen, hulp, budget en docs | Wacht: na S1 tot S3 | hoofdsessie |
+| R1 Rooktest 20g (fixtures) en 20h (echte data) | Wacht: na I3 en G1 | bouwer (een andere agent dan S1 tot S3) |
+| I4 Review, rechter, herstel en uitrol | Wacht: na R1 en na de data-PR van G1 stap 3 | hoofdsessie, reviewers, rechter |
+| Licentie en naamsvermelding van de BK-gegevens, vragen aan TechLoket (§ 23.10) | Wacht | eigenaar |
+| Open vragen W1 tot W15 (§ 23.12) | Wacht: de werkkeuze geldt tot de eigenaar beslist | eigenaar |
+
+### 23.1 In het kort
+
+**Het scenario.** Een praktijkleerkracht van het 5de jaar Onthaal en recreatie (G-0393, 3de graad, A) opent de richting bij Cursussen, "Voor een studierichting". Onder de titel staat al: "Beroepskwalificaties: Onthaalmedewerker en Recreatief medewerker." Bij de kaart "Onthaalmedewerker" klikt ze op "Maak een cursus met deze competenties". Het venster staat ingevuld: de titel, de 12 competenties aangevinkt, "Met een geraamte". Ze klikt op "Maak de cursus". Ze krijgt een nagekeken leerplan en een cursus met een sectie per competentie. Op elke sectie staan de doelcode, de competentie en de kennis en vaardigheden. Ze ziet nergens een set-id, groepnummer, ADV-nummer of competentiecode, en heeft geen AI-sleutel nodig.
+
+| Onderdeel | Wat de leerkracht merkt | De kern |
+|---|---|---|
+| **Import** | Bij een richting staan de beroepskwalificaties met hun competenties, kennis en vaardigheden. Ze worden elke maand bijgewerkt. | Een nieuw script in dezelfde workflow en dezelfde pull request. Het haalt het detail van elk geldig structuuronderdeel op (833) en daarna het detail van elke gekoppelde BK-versie (geschat 250 tot 450). Het schrijft één map `public/leerplannen/kwalificaties/`: een koppeling, een index en één bestand per BK-versie met een versiemerk. Harde poorten stoppen elke onbetrouwbare update. Er wordt niets gewist. De twee bestaande scripts blijven byte voor byte gelijk. |
+| **Datamodel** | Een competentie is een gewoon doel in een leerplan, met een doelcode zoals "BK-0390-2.03". Het leerplan is "Nagekeken" door de officiële bron. | Een eigen soort leerplan (methode `beroepskwalificatie`, net `beroepskwalificaties`). Elk doel verwijst via een **apart veld `bkRefs`** naar één competentie. `refs` blijft alleen voor minimumdoelen. Bestaande leerplannen, hun vingerafdruk, hun nakijkstatus en de dekking op minimumdoelen veranderen niet: een gouden test bewaakt dat. `Doelgroep` verandert niet. |
+| **Richtingpagina** | Een kopregel onder de titel en een sectie "Beroepskwalificaties" met een kaart per beroepskwalificatie, de knoppen "Maak een cursus met deze competenties" en "Bewaar als leerplan", en eerlijke meldingen als de bron veranderde. | Lui geladen, en alleen bij een richting die beroepskwalificaties kan hebben (finaliteit A of DU, 7de jaar, aanloopjaar, BuSO, niet afgebouwd). Bij doorstroomfinaliteit en in de 1ste graad gaat er geen verzoek uit en verandert er niets. |
+| **Venster "Nieuwe cursus"** | Een vierde keuze: "De competenties van een beroepskwalificatie", met per competentie een vakje. | Een eigen bouwfunctie en een eigen nakijkpoort. Het geraamte heeft een hoofdstuk per beroepskwalificatie en een sectie per competentie. |
+| **Dekking** | In "Wat je cursussen samen dekken" een tweede blok "Competenties van de beroepskwalificaties", met een percentage per beroepskwalificatie. | Dezelfde functie `dekkingMinimumdoelen`, met één nieuwe optionele parameter die zegt welke verwijzingen tellen. Zonder die parameter is het resultaat byte voor byte hetzelfde als nu. |
+
+**Nooit stil.** Een nieuwe BK-versie of een tekstcorrectie verandert een bewaard leerplan nooit vanzelf. De app meldt het, en de leerkracht beslist met een klik. De doelcode bevat de versie, zodat een code nooit naar een competentie van een andere versie kan wijzen.
+
+### 23.2 Beslissingen
+
+| # | Beslissing | Waarom |
+|---|---|---|
+| F3-B1 | **Een nieuw script**, `tools/leerplannen/haal-beroepskwalificaties.mjs`, als derde ophaalstap in dezelfde run en dezelfde pull request. `haal-minimumdoelen.mjs` en `haal-studierichtingen.mjs` blijven byte voor byte gelijk. De API-hulp komt in een nieuw `tools/leerplannen/onderwijsApi.mjs` met een eigen test; alleen het nieuwe script gebruikt het. | Eén momentopname en één poort (B3). Het script van de studierichtingen telt al 1501 regels en heeft strenge reproductietests. Een apart script isoleert het risico. |
+| F3-B2 | Het script vraagt het **detail van alle geldige onderdelen** op (nu 833), niet alleen van A en DU (510 met BuSO en aanloop). BK-versies haalt het alleen op voor erkenningen die vandaag gelden of later beginnen. | We nemen niet aan welke finaliteit beroepskwalificaties heeft (regel 11). Het kost ±323 oproepen extra (±3 tot 4 minuten). Het rapport toont of DO en de 1ste graad er echt geen hebben. |
+| F3-B3 | **Eén eigen map** `public/leerplannen/kwalificaties/`: `koppeling.json`, `index.json` en `bk/BK-0390-2.json`. Versiemerk (`sha256`) per BK-bestand, in de index. De koppeling draagt geen versiemerk per BK. | Eén map is eenvoudig voor de datatest, de rooktest (één `page.route`) en de structuurfixtures, die niet veranderen. De koppeling noemt alleen versienummers; een versiemerk erin zou bij elke tekstcorrectie ook de koppeling doen veranderen, zonder nut. |
+| F3-B4 | **Niets wissen.** Een BK-bestand en een record in de koppeling blijven altijd staan. Wat niet meer gekoppeld is, krijgt `nietMeerGekoppeld`; wat twee keer 404 geeft, krijgt `nietMeerInBron`. | Bestaande leerplannen blijven nakijkbaar en tonen hun competenties. De massaverliespoort vangt een kapot eindpunt. |
+| F3-B5 | Het script **volgt nooit** een `api_url`, een `curriculumdossier`-adres of een doorverwijzing. Elk adres wordt gebouwd uit een gevalideerd nummer. De sleutel gaat alleen naar de origin van `ONDERWIJSDOELEN_API_BASE`. | Zo komt de sleutel nergens anders, en kan een antwoord geen ander pad laten aanroepen. |
+| F3-B6 | De **lijst van alle beroepskwalificaties** (604) is een zachte bron: ze dient alleen voor "er bestaat een nieuwere erkende versie" en voor kruiscontroles. Een onvolledige lijst is een waarschuwing, geen stop. | De lijst is niet nodig voor de koppeling of de competenties. Een harde poort op een bijzaak maakt de hele maandelijkse update breekbaar. |
+| F3-B7 | Verwijzing via een **apart veld `bkRefs`** (`{bk, id}`), niet via `refs` en niet als "set". `bkRefs` blijft bij het saneren alleen staan op een leerplan met methode `beroepskwalificatie`. | `refs` en sets betekenen overal "minimumdoel" (§ 23.6.1). Met de beperking kan een leerplan van een net of van de AI geen BK-verwijzing dragen die niemand nakijkt. |
+| F3-B8 | Een BK-leerplan is een **eigen soort** en is **nooit gemengd** met minimumdoelen. | Elk pad dat een samengestelde lijst opnieuw opbouwt ("Keuze aanpassen", "Werk het leerplan bij", gaten dichten), slaat een BK-leerplan zo vanzelf over (`methode !== 'samengesteld'`). Een gemengd leerplan kan later (W1). |
+| F3-B9 | De **doelcode** is de BK-versie, een punt en het volgnummer met minstens twee cijfers: "BK-0390-2.03". Het volgnummer is `nr` als elke competentie van het bestand een uniek geheel `nr` heeft, anders de plaats in het bestand. Een competentiecode komt nooit in een doelcode. | Uniek in een leerplan met meer beroepskwalificaties, gebouwd uit officiële nummers, en met de versie erin kan een code nooit stil naar een competentie van een andere versie wijzen. De terugval op de plaats houdt de competentiecode van het scherm. |
+| F3-B10 | **Kennis en vaardigheden niet in het leerplan**, wel in het geraamte van een nieuwe cursus (een tweede doelen-callout, ingekort en begrensd). Op de richtingpagina staan ze altijd volledig. | Een doel blijft kort (±300 B), zodat het leerplan nakijkbaar blijft. In het geraamte ziet de leerkracht wat ze in de sectie moet uitwerken. Een doelen-callout houdt de sectie op "gepland". |
+| F3-B11 | **Nieuwe BK-versie: een nieuw leerplan, op een klik**; het oude blijft. **Tekstcorrectie binnen dezelfde versie:** "Werk het leerplan bij", alleen als de lijst competenties gelijk bleef; de codes blijven dan. | Niets stil veranderen. Of `competentie_code` stabiel is over versies, is onbekend. |
+| F3-B12 | De **dekking** rekent met `dekkingMinimumdoelen` (ongewijzigde regels) via een nieuwe optionele parameter `verwijzingen`. Er is een percentage per beroepskwalificatie, geen samengeteld percentage. | Eén kern voor gedekt, gepland, verdieping en open, zonder tweede kopie van de regels en zonder namaakverwijzingen in het geheugen. Een richting met drie beroepskwalificaties is geen één lijst. |
+| F3-B13 | De **erkenning die geldt** wordt in de app bepaald, met `vandaag`. Het script haalt ook de BK's van toekomstige erkenningen op. | De wissel op 1 september gebeurt vanzelf, zonder dat het script die dag moet draaien. |
+| F3-B14 | **Deelkwalificaties (DBK) en studiebekrachtigingen alleen bij naam.** Geen competenties van een DBK, geen afgeleide koppeling DBK → BK. | Er is geen gedocumenteerd adres voor een DBK. We raden niets. |
+| F3-B15 | Geen nieuwe route. De sectie, de keuze in het venster en het dekkingsblok zitten in één lui chunk `bk`; de lader in een klein lui chunk. Op de richtingpagina gaat er alleen een verzoek uit als de richting beroepskwalificaties kan hebben. | Het kritieke pad en de bestaande rooktests 20d, 20e en 20f blijven letterlijk gelijk. Chromium meldt een 404 als consolefout: de app vraagt dus nooit een bestand op waar het niet hoort. |
+
+### 23.3 Wat we weten, en wat de eerste run moet bevestigen
+
+**Bekend** (ONDERWIJS-API.md § 1, § 2 en § 4):
+- Host `onderwijs.api.vlaanderen.be`, kop `x-api-key`, geheim `ONDERWIJSDOELEN_API_KEY`. Alleen GitHub Actions bereikt de API.
+- `GET …/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/{nummer}` werkt. Per erkenning (`structuuronderdeel_details[]`, met `structuuronderdeel_detail_nummer` = het ADV-nummer) staan er `beroepskwalificaties[]` (`beroepskwalificatie_nr`, `versie_nr_kort`, `versie_nr_lang`, `titel`, `api_url`), `studiebekrachtigingen[]` (`onderwijskwalificatie`, `uitgebreide_naam`, een `beroepskwalificatie` of een `deelkwalificatie` zoals `BK-0130-5-DBK-01`) en een adres `curriculumdossier`. De lijst van de groepen bevat die velden niet.
+- `GET …/beroepskwalificaties/v2/beroepskwalificatie`: 604 beroepskwalificaties, `gegevens[]` met `beroepskwalificatie_nr`, `laatst_erkende_versie` (`versie_nr_lang`, `titel`, datums) en `versies[]`; het totaal in `meta.total_elements`. Filters op de lijst worden genegeerd.
+- `GET …/beroepskwalificatie/BK-0454-1` werkt alleen met het versienummer; zonder versie komt 404. Het antwoord bevat `beroepskwalificatie` met titel, status, `vks_niveau`, definitie, domeinen en `competenties[]` (`competentie_type`, `nr`, `competentie_code` zoals `bkc0039200`, `waarde` tot ±105 tekens, `kennis[]` met `kennis_type` en `waarde` tot ±400 tekens, `vaardigheden[]` met `vaardigheid_type` en `waarde`, `referenties[]` met `referentie_nr`), plus omgevings- en handelingscontext, autonomie en verantwoordelijkheid.
+- Vaste waarden: onderdeel 504 (Onthaal en recreatie, 3de graad A, ADV-0842) → BK-0390-2 (12 competenties) en BK-0464-1 (13), zonder gedeelde competentiecodes, met 5 studiebekrachtigingen waarvan 1 met `onderwijskwalificatie: true`. Onderdeel 1 → 3 BK's en 3 deelkwalificaties. In de proef was `competentie_type` altijd "Vakspecifieke competentie".
+- Het curriculumdossier is een Word-document in base64. Het wordt niet opgehaald, niet bewaard en niet gelinkt.
+
+**Onbekend: tolerant bouwen, de eerste run bevestigt het.** Deze lijst komt zo in het rapport (`teBevestigen`).
+
+| # | Vraag | Tolerant ontwerp | Wie bevestigt |
+|---|---|---|---|
+| T1 | Geeft `versie_nr_lang` letterlijk "BK-0390-2"? | `bkVersieVan`: `versie_nr_lang` als het op `BK_VERSIE` past, anders `beroepskwalificatie_nr` + "-" + `versie_nr_kort`, anders een probleem (exit 3) | G1 stap 1 |
+| T2 | Heeft het detail per erkenning status en datums? | Zo niet, dan uit de matrix (zelfde ADV-nummer), met een telling in het rapport | G1 stap 1 |
+| T3 | Is de BK of DBK in een studiebekrachtiging tekst of een object? | Beide: een tekst, of een object met een veld dat op `BK_VERSIE` of `DBK_NUMMER` past; de rest naar `extra`, geteld als "vorm onbekend" | G1 stap 1 |
+| T4 | Staat er HTML in `waarde`? Staat `nr` er altijd, en is het uniek? Welke waarden hebben `kennis_type` en `vaardigheid_type`? | Teksten letterlijk bewaard; de app zet ze om met `htmlNaarTekst`. Zonder bruikbaar `nr` valt de doelcode terug op de plaats. Alles geteld, mild tot na G1 | G1 stap 1 en 2 |
+| T5 | Paginering en paginagrootte van de BK-lijst | Bladeren met `volgendeLink` (zoals de matrix): alleen dezelfde origin en hetzelfde pad, hoogstens 100 pagina's, een adres dat al gezien is, is een fout | G1 stap 1 |
+| T6 | Is de volgorde van kennis en vaardigheden stabiel over twee runs? | Zijn de elementen gelijk zonder op de volgorde te letten, dan blijft de oude volgorde (en het oude bestand) | G1 stap 2 |
+| T7 | Blijft `competentie_code` gelijk over versies van dezelfde beroepskwalificatie? Verandert een erkende versie nog? | De versie zit in de doelcode; een nieuwe versie geeft een nieuw leerplan; het rapport meet `versieOverlap` | rapporten, TechLoket |
+| T8 | Welke soorten en finaliteiten hebben beroepskwalificaties (DO? 2de graad A? 7de jaren? BuSO OV3?) | Alles ophalen en tellen per soort, graad en finaliteit | G1 stap 2 |
+| T9 | Wat betekent een 404 op het detail van een onderdeel of een BK-versie? | Een tweede ronde; daarna `niet-gevonden` of `nietMeerInBron`, met de massaverliespoort | G1 stap 3 |
+| T10 | Velden van context, autonomie, verantwoordelijkheid en domeinen | Ongetypeerd in `extra` (sleutels recursief gesorteerd), telt mee in de sha, niet op het scherm in fase 3 | G1 stap 1 |
+
+### 23.4 Aantallen en duur
+
+Geteld op `public/leerplannen/structuur/studierichtingen.json` (opgehaald op 9 oktober 2026). Geldig = niet `nietMeerInBron` en geen einddatum vóór 10 oktober 2026. Beide ontwerpen telden juist.
+
+| Soort (`soortVanGroep`) | Graad | Finaliteit | Groepen | Geldige onderdelen | Waarvan duaal |
+|---|---|---|---|---|---|
+| gewoon | 2 | A | 72 | 115 (43 aanloop) | 91 |
+| gewoon | 2 | DU | 29 | 33 | 0 |
+| gewoon | 3 | A | 51 | 128 (36 aanloop) | 77 |
+| gewoon | 3 | DU | 47 | 71 | 18 |
+| **gewoon A en DU samen** | | | **199** | **347** | |
+| aanloopjaar | 2 | A | 9 | 9 | 9 |
+| BuSO | – | A | 52 | 154 | 64 |
+| **met finaliteit A of DU samen** | | | **260** | **510** | |
+| 7de jaar | 3 | – | 133 (van 219; 86 afgebouwd) | 237 | 96 |
+| gewoon | 2 en 3 | DO | 57 | 59 | 0 |
+| 1ste graad, OKAN en basisverpleegkunde, BuSO zonder finaliteit | | | 9 | 27 | 0 |
+| **alle geldige onderdelen** | | | | **833** | |
+
+Elk geldig onderdeel heeft vandaag precies één erkenning die geldt (status ERKEND, begonnen, niet afgelopen). Er is geen enkele toekomstige erkenning. 191 onderdelen hebben meer dan één erkenning; erkenningen overlapten vroeger wel een schooljaar (onderdeel 1: ADV-1193 tot 31 augustus 2024, ADV-1608 vanaf 1 september 2023). In de matrix komen de statussen ERKEND, GEANNULEERD en NIET_ERKEND voor.
+
+**Schatting van de BK-versies.** Duale en aanloopvarianten delen hun beroepskwalificaties waarschijnlijk met de gewone variant. Met 1 tot 3 per richting (504 → 2, 1 → 3), de 7de jaren (meestal 1) en BuSO OV3 (grotendeels dezelfde als BSO) verwachten we **±250 tot 450 unieke BK-versies**; de bovengrens is de 604 van de lijst plus oudere versies.
+
+| Oproepen | Aantal |
+|---|---|
+| Detail per geldig onderdeel | 833 |
+| BK-lijst | ±13 tot 31 pagina's (paginagrootte onbekend) |
+| Detail per BK-versie | ±250 tot 450 |
+| Tweede ronde (404) | weinig |
+| **Samen** | **±1.120 tot 1.320** |
+
+Met ±400 ms per oproep plus 250 ms pauze is dat **±12 tot 15 minuten**; bij ±1 s per oproep ±25 tot 28 minuten. De hele taak gaat van ±23 naar ±35 tot 50 minuten. `timeout-minutes` gaat daarom van 60 naar **90**, en wordt na G1 bijgesteld op de meting.
+
+**Omvang.** Een BK-bestand weegt ±6 tot 30 kB; samen ±3 tot 10 MB in de repo (±2 MB gzip). De koppeling weegt ±250 tot 350 kB (±35 kB gzip), de index ±60 tot 100 kB. `sw.js` groeit met ±15 tot 20 kB aan namen en staat niet op het kritieke pad. De app laadt per richting de koppeling, de index en 1 tot 3 BK-bestanden: ±25 kB gzip, alleen op de richtingpagina.
+
+### 23.5 Import
+
+#### 23.5.1 Datastroom
+
+```
+(1) haal-minimumdoelen.mjs          ongewijzigd → public/leerplannen/minimumdoelen/
+(2) haal-studierichtingen.mjs       ongewijzigd → public/leerplannen/structuur/
+(3) haal-beroepskwalificaties.mjs   NIEUW, leest (2)/studierichtingen.json (alleen lezen)
+      GET …/beroepskwalificaties/v2/beroepskwalificatie            lijst (zacht)
+      GET …/structuuronderdelen/v2/structuuronderdeel/{nr}         833 keer
+      GET …/beroepskwalificaties/v2/beroepskwalificatie/{BK-x-v}   per unieke versie
+      → public/leerplannen/kwalificaties/koppeling.json
+      → public/leerplannen/kwalificaties/index.json
+      → public/leerplannen/kwalificaties/bk/BK-0390-2.json …
+(4) npx vitest run   alle tests, ook beroepskwalificaties.data.test.ts
+(5) groen → één pull request → een mens keurt goed → deploy.yml
+
+App (alleen bestanden uit public/, nooit de API):
+  laadBkKoppeling · laadBkIndex · laadBk(versie)
+  → bkKader(richting, keuze, vandaag) → kaart en venster → leerplanUitBk (nagekeken) → cursusVoorBk
+  → dekkingBk = dekkingMinimumdoelen(…, { verwijzingen: bkVerwijzingen })
+```
+
+De service worker neemt de nieuwe bestanden vanzelf op (`knownFiles`); ze laden met netwerk eerst en de cache als terugval, zoals de minimumdoelen.
+
+#### 23.5.2 Bestanden
+
+Voor elk bestand gelden de regels van § 3.1: kop met 2 spaties inspringing, één compact record per regel, regeleinde op het einde, alles gesorteerd, lege velden, `null` en lege tekst vallen weg, `sha256` = sha256 van `canoniek(…)` uit `minimumdoelen.ts`. Elke kop vermeldt `bron`, `api`, `naamsvermelding`, `licentie: "nog te bevestigen"` en `opgehaald`. Wordt een bestand opnieuw gebouwd met het oude `opgehaald` en is het dan byte voor byte gelijk, dan wordt het niet aangeraakt; per record in de koppeling geldt hetzelfde voor zijn `opgehaald`.
+
+**`kwalificaties/koppeling.json`**: per onderdeel de erkenningen met hun beroepskwalificaties.
+
+```json
+{
+  "app": "boosterz",
+  "kind": "richtingkwalificaties",
+  "v": 1,
+  "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
+  "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/",
+  "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (API Structuuronderdelen)",
+  "licentie": "nog te bevestigen",
+  "opgehaald": "2026-11-03T06:10:00Z",
+  "matrixSha256": "<sha256 van studierichtingen.json bij het koppelen>",
+  "aantalOnderdelen": 961,
+  "sha256": "<sha256(canoniek(onderdelen))>",
+  "onderdelen": [
+{"onderdeel":1,"groep":"G-0001","status":"opgehaald","opgehaald":"…","erkenningen":[{"adv":"ADV-1193","versie":"S-1-V1","status":"ERKEND","begindatum":"2017-09-01","einddatum":"2024-08-31","bks":[{"bk":"BK-…","titel":"…"}]},{"adv":"ADV-1608","versie":"S-1-V2","status":"ERKEND","begindatum":"2023-09-01","bks":[…],"bekrachtigingen":[{"naam":"…","dbk":"BK-0130-5-DBK-01"}]}]},
+{"onderdeel":2,"groep":"G-0002","status":"nog-niet-opgehaald"},
+{"onderdeel":504,"groep":"G-0393","status":"opgehaald","opgehaald":"…","erkenningen":[{"adv":"ADV-0842","versie":"S-504-V1","status":"ERKEND","begindatum":"2023-09-01","bks":[{"bk":"BK-0390-2","titel":"Onthaalmedewerker"},{"bk":"BK-0464-1","titel":"Recreatief medewerker"}],"bekrachtigingen":[{"naam":"…","onderwijskwalificatie":true},{"naam":"…","bk":"BK-0390-2"}]}]}
+  ]
+}
+```
+
+- **Eén record per onderdeel van de matrix** (nu 961), gesorteerd op nummer. `status`:
+  - `opgehaald`: het detail gaf 200;
+  - `niet-gevonden`: twee keer 404. Een vroeger record houdt zijn erkenningen, met `nietMeerInBron` (JJJJ-MM-DD, blijft gelijk bij volgende runs);
+  - `nog-niet-opgehaald`: niet gevraagd in deze run (proefrun, nieuw, afgebouwd of niet meer in de bron) en nooit eerder opgehaald. Een vroeger record blijft zoals het was.
+- `erkenningen`: **alle** erkenningen uit het detail, ook afgelopen, gesorteerd op begindatum en dan ADV. Status en datums uit het detail; ontbreken ze daar, dan uit de matrix (zelfde ADV).
+- `bks`: uniek en gesorteerd met `vergelijkBkVersie`. `titel` is een momentopname; de app gebruikt ze alleen als er geen BK-bestand is. Heeft een erkenning geen veld `beroepskwalificaties`, dan staat er `"geenLijst": true` (niet hetzelfde als een lege lijst; geteld voor de vormpoort).
+- `bekrachtigingen`: `naam` (`uitgebreide_naam`), `onderwijskwalificatie` (alleen `true`), `bk` (op `BK_VERSIE`) of `dbk` (op `DBK_NUMMER`), de rest in `extra`. Gesorteerd op naam (nl), dan bk, dan dbk.
+- `api_url` en `curriculumdossier` vallen altijd weg. Elk veld in `extra` is hoogstens 20 kB; een langer veld valt weg met een waarschuwing, zodat er nooit een base64-blob in de repo komt.
+
+**`kwalificaties/index.json`**: één regel per BK-versie die ooit gekoppeld was.
+
+```json
+{
+  "app": "boosterz", "kind": "beroepskwalificaties-index", "v": 1,
+  "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
+  "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/",
+  "naamsvermelding": "<BK_NAAMSVERMELDING>", "licentie": "nog te bevestigen", "opgehaald": "…",
+  "lijstTotaal": 604, "sha256": "<sha256(canoniek(bks))>",
+  "bks": [
+{"bk":"BK-0390-2","nummer":"BK-0390","versie":2,"titel":"Onthaalmedewerker","vks":3,"status":"ERKEND","aantal":12,"sha256":"…64 hex…","opgehaald":"…","bestand":"bk/BK-0390-2.json","laatstErkend":"BK-0390-2"},
+{"bk":"BK-0130-4","nummer":"BK-0130","versie":4,"titel":"…","aantal":9,"sha256":"…","opgehaald":"…","bestand":"bk/BK-0130-4.json","nietMeerGekoppeld":"2026-12-03"},
+{"bk":"BK-0611-1","nummer":"BK-0611","versie":1,"opgehaald":"…","nietGevonden":true}
+  ]
+}
+```
+
+- Gesorteerd met `vergelijkBkVersie` (nummer, dan versie, numeriek: BK-0390-2 < BK-0390-10 < BK-0391-1).
+- `laatstErkend` komt uit de lijst (`laatst_erkende_versie.versie_nr_lang`). Is de lijst onvolledig of niet opgehaald, dan blijft de oude waarde, en ook `lijstTotaal`.
+- `nietMeerGekoppeld` (JJJJ-MM-DD): geen enkele erkenning in de koppeling, afgelopen of niet, noemt de versie nog. Het veld valt weg als de versie terugkomt.
+- `nietMeerInBron`: het detail gaf twee keer 404, maar er is een laatst bekend bestand.
+- `nietGevonden: true` (twee keer 404) of `onbruikbaar: true` (een probleem in de competenties): er was nooit een bestand. Zo'n regel heeft geen `bestand`.
+
+**`kwalificaties/bk/BK-0390-2.json`**: één bestand per BK-versie.
+
+```json
+{
+  "app": "boosterz", "kind": "beroepskwalificatie", "v": 1,
+  "bk": "BK-0390-2", "nummer": "BK-0390", "versie": 2,
+  "titel": "Onthaalmedewerker", "status": "ERKEND", "vks": 3, "definitie": "…",
+  "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
+  "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0390-2",
+  "naamsvermelding": "<BK_NAAMSVERMELDING>", "licentie": "nog te bevestigen", "opgehaald": "…",
+  "aantal": 12,
+  "sha256": "<sha256(canoniek({bk, titel, status, vks, definitie, competenties, extra}))>",
+  "competenties": [
+{"id":"bkc0039200","nr":1,"type":"Vakspecifieke competentie","tekst":"…","kennis":[{"type":"…","tekst":"…"}],"vaardigheden":[{"type":"…","tekst":"…"}],"referenties":["…"]}
+  ],
+  "extra": {"domeinen": […], "…": "…"}
+}
+```
+
+- `id` = `competentie_code` (op `COMPETENTIE_CODE`), de sleutel. `nr` alleen als geheel getal (ook uit tekst "3"); anders weg, met een waarschuwing.
+- `competenties` gesorteerd op `nr` (numeriek) en dan `id`; zonder `nr` in de volgorde van de bron, achteraan. Binnen een competentie blijven `kennis` en `vaardigheden` in de volgorde van de bron (T6).
+- `tekst` is `waarde` letterlijk, getrimd. De app zet om met `tekstVanCompetentie` (§ 23.6.4).
+- `vks` alleen als geheel getal van 1 tot 8; anders in `extra`.
+- Context, autonomie, verantwoordelijkheid en domeinen staan ongetypeerd in `extra` (T10).
+
+#### 23.5.3 Gedeelde module `src/lib/beroepskwalificaties.ts` (K1)
+
+Puur: geen imports en alleen erasable TypeScript, zoals `studierichtingen.ts`. Het script, de datatest en de app laden ze alle drie.
+
+```ts
+export const BK_API = 'https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2';
+export const BK_BRON = 'https://onderwijs-api-portaal.vlaanderen.be/';
+/** Werkkeuze tot TechLoket antwoordt (§ 23.10): geen naam van een agentschap. Eén constante; aanpassen = een nieuwe run. */
+export const BK_NAAMSVERMELDING = 'Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)';
+export const BK_NUMMER = /^BK-\d{3,6}$/;
+export const BK_VERSIE = /^BK-\d{3,6}-\d{1,4}$/;
+export const DBK_NUMMER = /^BK-\d{3,6}-\d{1,4}-DBK-\d{1,4}$/;
+export const COMPETENTIE_CODE = /^[A-Za-z0-9_.-]{1,64}$/;   // altijd als Map-sleutel, nooit als objecteigenschap
+export const MAX_EXTRA_VELD = 20_000;
+export const MAX_BK_PER_LEERPLAN = 20;
+
+export type OnderdeelStatus = 'opgehaald' | 'niet-gevonden' | 'nog-niet-opgehaald';
+export interface KoppelingBk { bk: string; titel?: string }
+export interface Bekrachtiging { naam: string; onderwijskwalificatie?: true; bk?: string; dbk?: string; extra?: Record<string, unknown> }
+export interface Erkenning { adv: string; versie?: string; status?: string; begindatum?: string; einddatum?: string;
+  bks: KoppelingBk[]; geenLijst?: true; bekrachtigingen: Bekrachtiging[]; extra?: Record<string, unknown> }
+export interface OnderdeelKwalificaties { onderdeel: number; groep: string; status: OnderdeelStatus; opgehaald?: string;
+  nietMeerInBron?: string; erkenningen?: Erkenning[] }
+export interface KoppelingBestand { /* kop § 23.5.2 */ onderdelen: OnderdeelKwalificaties[] }
+export interface BkIndexRegel { bk: string; nummer: string; versie: number; titel?: string; vks?: number; status?: string;
+  aantal?: number; sha256?: string; opgehaald: string; bestand?: string; laatstErkend?: string;
+  nietMeerGekoppeld?: string; nietMeerInBron?: string; nietGevonden?: true; onbruikbaar?: true }
+export interface BkIndex { /* kop */ lijstTotaal?: number; sha256: string; bks: BkIndexRegel[] }
+export interface BkTekst { type?: string; tekst: string }
+export interface Competentie { id: string; nr?: number; type?: string; tekst: string; kennis: BkTekst[]; vaardigheden: BkTekst[];
+  referenties?: string[]; extra?: Record<string, unknown> }
+export interface BkBestand { /* kop § 23.5.2 */ competenties: Competentie[]; extra?: Record<string, unknown> }
+
+// voor het script: tolerant (regel 11), met problemen (→ poorten) en waarschuwingen (→ rapport)
+export function lijstVanBkPagina(pagina: unknown): { lijst: unknown[]; pad: string } | { fout: string };
+//   de enige lijst van objecten met beroepskwalificatie_nr, op welke sleutel ook; geen of meer dan één → fout
+export function normaliseerBkLijstItem(raw: unknown): { nummer?: string; laatstErkend?: string; problemen: string[] };
+export function bkVersieVan(v: unknown): string | undefined;                    // T1
+export function normaliseerOnderdeelDetail(raw: unknown, gevraagd: number):
+  { nummer?: number; erkenningen: Erkenning[]; velden: string[]; problemen: string[]; waarschuwingen: string[] };
+//   nummer = wat het antwoord ZELF zegt (structuuronderdeel_nummer); een veld mag tekst of {code, omschrijving} zijn; een lijst
+//   met één element telt als dat element; api_url en curriculumdossier vallen weg; __proto__ via defineProperty
+export function normaliseerBkDetail(raw: unknown, gevraagd: string):
+  { bk?: string; inhoud?: Pick<BkBestand, 'titel' | 'status' | 'vks' | 'definitie' | 'competenties' | 'extra'>; problemen: string[]; waarschuwingen: string[] };
+
+// gedeeld
+export function splitsBk(bk: string): { nummer: string; versie: number } | undefined;
+export function vergelijkBkVersie(a: string, b: string): number;
+export function geldtOp(e: Pick<Erkenning, 'status' | 'begindatum' | 'einddatum'>, vandaag: string): boolean;
+//   status ERKEND (hoofdletterongevoelig, tekst of {code}), begindatum leeg of ≤ vandaag, einddatum leeg of ≥ vandaag
+export function erkenningenOp(e: readonly Erkenning[], vandaag: string): { nu: Erkenning[]; toekomst: Erkenning[] };
+export function doelcodesVanBestand(b: Pick<BkBestand, 'bk' | 'competenties'>): Map<string, string>;
+//   id → "BK-0390-2.03": `${bk}.${n}` met n minstens 2 cijfers; n = nr als ELKE competentie een uniek geheel nr ≥ 1 heeft,
+//   anders de plaats (1-based) in het bestand; nooit langer dan 60 tekens
+export function valideerKoppelingBestand(json: unknown): string[];
+export function valideerBkIndex(json: unknown): string[];
+export function valideerBkBestand(json: unknown, bk?: string): string[];
+```
+
+**Problemen** (naar de poorten): een detail zonder eigen nummer of met een ander nummer dan gevraagd; een BK-detail zonder `beroepskwalificatie` of met een andere versie; een BK-verwijzing die niet op `BK_VERSIE` past en geen DBK is, of waarvan de versie niet met haar `beroepskwalificatie_nr` begint; een competentie zonder geldig `id` of zonder tekst; een dubbel `id` in één versie. **Waarschuwingen** (naar het rapport): een ontbrekend of dubbel `nr`, HTML in een tekst, een onbekende vorm van een studiebekrachtiging, een te lang veld in `extra`, een titel in de koppeling die verschilt van die in het detail.
+
+#### 23.5.4 Script `tools/leerplannen/haal-beroepskwalificaties.mjs` (K2)
+
+Node 22.18 of nieuwer, zonder afhankelijkheden. `tools/leerplannen/onderwijsApi.mjs` (K1) is `haalJson` uit `haal-studierichtingen.mjs` (r. 270 tot 337) als kopie, met `redirect: 'manual'` (elke 3xx is fout 1, zonder tweede verzoek), 401 en 403 als fout 1, `mag404`, 4 nieuwe pogingen bij 429, 5xx of een netwerkfout (na 2, 4, 8 en 16 s), een time-out van 60 s, de origincontrole, `schoon`, `veilig` en `kort`. Het script importeert `minimumdoelen.ts` (`canoniek`), `studierichtingen.ts` (`valideerMatrixBestand`, `volgendeLink`, `totaalVanPagina`, `soortVanGroep`) en `beroepskwalificaties.ts`.
+
+```
+ONDERWIJSDOELEN_API_KEY=… node tools/leerplannen/haal-beroepskwalificaties.mjs [opties]
+--onderdelen 504,1              proefrun: alleen deze onderdelen (hoogstens 50, elk een geheel getal dat in de matrix staat,
+                                anders 1); de andere records blijven, of krijgen "nog-niet-opgehaald"
+--zonder-lijst                  de BK-lijst niet ophalen (laatstErkend en lijstTotaal blijven)
+--bron-lijst <bestand>          offline: één pagina of een array pagina's van de BK-lijst
+--bron-onderdelen <bestand>     offline: {"504": <detail> | {"status": 404}, …}
+--bron-bks <bestand>            offline: {"BK-0390-2": <detail> | {"status": 404}, …}
+--structuur <map>               standaard public/leerplannen/structuur (alleen lezen: studierichtingen.json)
+--uit <map>                     standaard public/leerplannen/kwalificaties
+--rapport <bestand>             standaard tools/leerplannen/rapport/laatste-beroepskwalificaties.json
+--vandaag JJJJ-MM-DD · --nu <ISO> (alleen met --bron-*)
+Omgeving:
+  ONDERWIJSDOELEN_API_KEY          verplicht zonder --bron-*
+  ONDERWIJSDOELEN_API_BASE         bepaalt de enige origin waar de sleutel heen mag
+  STRUCTUURONDERDELEN_API_BASE     standaard STRUCTUUR_API; zelfde origin, anders 1
+  BEROEPSKWALIFICATIES_API_BASE    nieuw; standaard BK_API; zelfde origin, anders 1
+  ONDERWIJSDOELEN_WACHT_FACTOR     0 in tests
+Uitgangscodes: 0 in orde (ook "niets veranderd") · 1 fout of onvolledig · 2 niets te vragen of niets ontvangen ·
+3 gegevens niet betrouwbaar. Bij 1, 2 en 3 schrijft het script alleen het rapport.
+```
+
+**Adressen.** Een onderdeelnummer wordt een geheel getal van 1 tot 999999; een BK-versie moet op `BK_VERSIE` passen; daarna `encodeURIComponent`. Alleen `${STRUCTUURONDERDELEN_API_BASE}/structuuronderdeel/${nr}`, `${BEROEPSKWALIFICATIES_API_BASE}/beroepskwalificatie/${versie}` en `${BEROEPSKWALIFICATIES_API_BASE}/beroepskwalificatie` met zijn volgende pagina's. 250 ms pauze tussen twee verzoeken.
+
+**Stappen**
+
+1. **Matrix lezen.** `studierichtingen.json` moet bestaan en `valideerMatrixBestand` moet [] geven, anders fout 1. Te vragen: elk onderdeel zonder `nietMeerInBron` en zonder einddatum vóór vandaag (nu 833), of de proeflijst.
+2. **BK-lijst** (behalve met `--zonder-lijst`). Per `beroepskwalificatie_nr` de laatst erkende versie. Is het aantal niet `meta.total_elements`, of ontbreekt dat, dan is de lijst onvolledig: een waarschuwing, en de lijst dient dan niet (F3-B6).
+3. **Detail per onderdeel**, oplopend. 200 → `normaliseerOnderdeelDetail` en een zachte kruiscontrole van de ADV-nummers met de matrix. 404 → een tweede ronde na alle andere; een tweede 404 → `niet-gevonden`. Elke andere status → fout 1.
+4. **BK-versies verzamelen**: de `bks` van alle erkenningen die vandaag gelden of later beginnen, van de records die in deze run opgehaald zijn; uniek, gesorteerd. Van afgelopen erkenningen bewaren we alleen de verwijzing.
+5. **Detail per BK-versie.** 200 → `normaliseerBkDetail`. Een versie met een probleem in haar competenties is **onbruikbaar**: haar laatst bekende bestand blijft ongewijzigd, of ze krijgt `onbruikbaar: true`. 404 → tweede ronde; twee keer 404 → `nietMeerInBron` (bestand blijft) of `nietGevonden`.
+6. **Samenvoegen** met het bestaande (niets wissen): records die niet gevraagd werden, blijven; `nietMeerGekoppeld` wordt over alle records berekend.
+7. **Bouwen**: eerst de BK-bestanden, dan de index, dan de koppeling. Zijn kennis en vaardigheden gelijk zonder op de volgorde te letten, dan blijft de oude volgorde (T6). De uitvoer hangt niet af van de volgorde van de invoer. Elk gebouwd bestand gaat door zijn validator.
+8. **Poorten** (§ 23.5.5), dan de sleutelcontrole op elk bestand en het rapport, dan schrijven (eerst `bk/`, de index en de koppeling als laatste), tot slot het rapport.
+
+#### 23.5.5 Harde poorten (niets schrijven behalve het rapport)
+
+| Code | Exit | Wanneer |
+|---|---|---|
+| P1 | 1 | Een HTTP-fout na de herhalingen, een doorverwijzing, geen JSON, een adres op een andere origin, een lus in de paginering, de sleutel in een tekst, ongeldige opties, geen bruikbare matrix, een andere status dan 200 of 404 op een detail |
+| P2 | 2 | Geen enkel onderdeel te vragen, of geen enkel detail ontvangen |
+| P3 | 3 | **Het detail negeert het nummer**: een onderdeel noemt een ander `structuuronderdeel_nummer` dan gevraagd, of geen; een BK-detail noemt een andere versie, of heeft geen `beroepskwalificatie`. Het tegenstuk van D2 (de filters op de lijst worden al genegeerd). |
+| P4 | 3 | Een BK-verwijzing die niet op `BK_VERSIE` past en geen DBK is, of waarvan de versie niet met haar `beroepskwalificatie_nr` begint |
+| P5 | 3 | **De koppeling lijkt niet meer te werken** (bij een volledige run): minder dan 50 % van de geldige gewone onderdelen van de 3de graad met finaliteit A die geen aanloop zijn en status `opgehaald` hebben, heeft een beroepskwalificatie in een erkenning van nu. G1 stelt de grens bij op de meting min een marge. |
+| P6 | 3 | Massaverlies tegenover het bestaande bestand: (a) het aantal onderdelen met minstens één BK in een erkenning van nu daalt met meer dan 10 %; (b) het aantal unieke gekoppelde BK-versies daalt met meer dan 10 %; (c) meer dan max(5, 5 %) van de gevraagde onderdelen geeft twee keer 404; (d) meer dan max(3, 5 %) van de gevraagde BK-versies geeft twee keer 404 |
+| P7 | 3 | Meer dan max(3, 2 %) van de gevraagde BK-versies is onbruikbaar |
+
+#### 23.5.6 Zachte controles (rapport en PR-tekst)
+
+- Met en zonder BK per soort, graad en finaliteit; een onderdeel met doorstroomfinaliteit of van de 1ste graad dat toch een beroepskwalificatie heeft (info: dan wordt `kanBkHebben` verruimd, § 23.7).
+- Onderdelen met 0 of meer dan 1 erkenning van nu; erkenningen in de toekomst met een andere lijst; ADV-nummers die verschillen van de matrix; erkenningen zonder lijst.
+- Versies met een nieuwere erkende versie (`laatstErkend ≠ bk`); gekoppelde versies die niet (erkend) in de lijst staan.
+- **Inhoud van een bestaande versie veranderd** (andere sha256): vetgedrukt in de PR, want leerplannen met die versie melden het (§ 23.6.6).
+- Competenties zonder of met dubbel `nr` (terugval op de plaats), HTML in teksten, de soorten kennis en vaardigheden, de langste tekst.
+- `versieOverlap`: twee versies van hetzelfde nummer in één run: het aandeel gedeelde competentiecodes en of hun teksten gelijk zijn (voor T7).
+- Studiebekrachtigingen: totaal, met `onderwijskwalificatie`, DBK's, vorm onbekend, met een voorbeeld.
+- De veldinventaris van de drie antwoorden en een ingekort voorbeeld van een 404 (zonder sleutel).
+
+#### 23.5.7 Wat er gebeurt als iets verandert
+
+| Gebeurtenis | Script en bestanden | App |
+|---|---|---|
+| Een erkenning verwijst voortaan naar een nieuwe versie (BK-0390-2 → BK-0390-3) | Nieuw `bk/BK-0390-3.json`. `BK-0390-2.json` blijft; zolang een erkenning in de koppeling haar noemt, blijft ze gekoppeld, anders `nietMeerGekoppeld`. PR: "Andere versie gekoppeld". | De kaart toont versie 3. Een leerplan op versie 2 krijgt "Maak een leerplan met de versie van nu". Cursussen blijven aan het oude leerplan hangen. |
+| Een nieuwe erkenning begint op 1 september | De run van augustus haalt de BK's van de toekomstige erkenning al op | Vóór die datum een regel "Vanaf 1 september 2027 hoort bij deze richting: …" (alleen als de lijst verschilt); op die datum wisselt de kaart vanzelf (`geldtOp`) |
+| Er is een nieuwere versie erkend, maar de richting verwijst nog naar de oude | `laatstErkend` in de index | Info bij de kaart: "Er bestaat een nieuwere erkende versie …; Boosterz volgt de richting." |
+| Dezelfde versie krijgt een andere inhoud | Bestand opnieuw geschreven (andere sha256); PR vetgedrukt | Een leerplan meldt "tekst aangepast" (met "Werk het leerplan bij") of "lijst aangepast" (met "Maak een nieuw leerplan") |
+| Het detail van een BK-versie geeft twee keer 404 | Tweede ronde, poort P6(d); bestand blijft met `nietMeerInBron`, of `nietGevonden` | Kaart met waarschuwing en de laatst bekende competenties, of een kaart zonder competenties en knoppen op `aria-disabled` |
+| Een BK hoort niet meer bij de richting | Koppeling zonder die BK; het bestand blijft | De kaart verdwijnt; een leerplan ervoor krijgt "… hoort volgens de officiële bron niet meer bij deze richting. Je leerplan blijft werken." |
+| Het detail van een onderdeel geeft twee keer 404 | Record blijft met `nietMeerInBron`, status `niet-gevonden` | De laatst bekende koppeling, met een waarschuwing |
+| Een onderdeel wordt afgebouwd of verdwijnt uit de matrix | Niet meer gevraagd; het record blijft | De richting volgt `geldigeOnderdelen` (§ 9.2); een afgebouwde richting toont geen sectie |
+
+#### 23.5.8 Sleutel en veiligheid (zoals nu)
+
+- De sleutel staat alleen als geheim `ONDERWIJSDOELEN_API_KEY` in de `env` van de BK-stap, die vóór `npm ci --ignore-scripts` draait.
+- De workflow zet geen enkele `*_API_BASE`: de origin is altijd `https://onderwijs.api.vlaanderen.be`.
+- `redirect: 'manual'`; een volgende link of een adres op een andere origin is fout 1. `api_url` en `curriculumdossier` worden nooit gevolgd.
+- `veilig()` op elke logregel; de sleutelcontrole op elk bestand en het rapport vóór het schrijven. Vindt ze de sleutel, dan wordt niets geschreven.
+
+#### 23.5.9 Workflow `.github/workflows/minimumdoelen.yml` (K4)
+
+- `onderdelen` krijgt twee keuzes erbij: `beroepskwalificaties` (alleen de BK-stap, met de matrix uit de repo) en `zonder-beroepskwalificaties` (minimumdoelen en studierichtingen, zoals `alles` vóór fase 3: de noodinvoer als de BK-stap stuk blijft; § 23.14 punt 6).
+- Nieuwe invoer `bk_onderdelen`: "Proefrun voor de beroepskwalificaties: structuuronderdeelnummers zoals 504,1 (leeg = alle geldige onderdelen; hoogstens 50)". Via `env`, nagekeken tegen `^([0-9]{1,6}(,[0-9]{1,6}){0,49})?$`; anders exit 1.
+- Van de twee bestaande ophaalstappen verandert **alleen de `if:`**, positief geschreven:
+  - Minimumdoelen: `inputs.onderdelen == '' || inputs.onderdelen == 'alles' || inputs.onderdelen == 'minimumdoelen' || inputs.onderdelen == 'zonder-beroepskwalificaties'`;
+  - Studierichtingen: idem met `studierichtingen`;
+  - nieuw **"Beroepskwalificaties per richting ophalen"**: `'' | alles | beroepskwalificaties`, na de studierichtingen en vóór `npm ci`, met het geheim alleen in zijn `env`.
+- `timeout-minutes: 90`. Een nieuw artifact `beroepskwalificaties-rapport` (`always`). De samenvatting krijgt een derde tabel (alle tekst via `kort()`); `metMinimumdoelen`, `metStudierichtingen` en `proefrun` volgen de nieuwe keuzes, en er komt `metBeroepskwalificaties`.
+- De PR-stap verandert niet: `git add -- public/leerplannen` neemt de nieuwe map mee. Faalt één ophaalstap, dan komt er geen PR.
+
+**PR-tekst** (bovenop de bestaande delen, letterlijk, met de getallen):
+
+```
+### Beroepskwalificaties per richting
+- Onderdelen opgevraagd: 833; met een beroepskwalificatie in de erkenning van nu: 412 (3de graad A: 118 van 128 …).
+- Nieuw gekoppeld: … · Niet meer gekoppeld: … (de bestanden blijven staan) · Andere versie gekoppeld: onderdeel 504 BK-0390-2 → BK-0390-3.
+- Niet gevonden (twee keer 404; de laatst bekende koppeling blijft staan, kijk dit na): geen.
+
+### Beroepskwalificaties zelf
+- Versies: 312 (nieuw 4: BK-0390-3, …).
+- **Inhoud van een bestaande versie veranderd: BK-0464-1.** Kijk na: leerplannen met die versie melden het aan de leerkracht.
+- Niet meer in de bron (het bestand blijft staan): geen · Onbruikbaar (competentie zonder code of tekst): geen.
+- Nieuwere erkende versie bestaat, maar de richting verwijst nog naar de oude: BK-0101-2 (laatst erkend BK-0101-3).
+- Studiebekrachtigingen: 1.630 (onderwijskwalificatie 410; deelkwalificaties 220, alleen bij naam).
+
+**Proefrun** voor de onderdelen 504, 1: niet samenvoegen.        (alleen met bk_onderdelen)
+```
+
+#### 23.5.10 Rapport `tools/leerplannen/rapport/laatste-beroepskwalificaties.json`
+
+```json
+{"tijdstip":"…","bron":"api","proef":null,"verzoeken":0,"duurSeconden":0,"teBevestigen":["T1","…"],
+ "lijst":{"paginas":0,"pad":"…","totaal":604,"ontvangen":604,"volledig":true,"nietInLijst":[],"nieuwereVersie":[]},
+ "onderdelen":{"gevraagd":833,"opgehaald":0,"nietGevonden":0,"tweedeRonde":{"onderdelen":0,"verzoeken":0},
+   "perSoortGraadFinaliteit":{"gewoon|3|A":{"metBk":0,"zonderBk":0}},"erkenningenNu":{"0":0,"1":0,"meer":0},"toekomst":0,
+   "geenLijst":0,"advVerschilMetMatrix":[],"nieuw":[],"nietMeerGekoppeld":[],"andereVersie":[],"veldInventaris":{}},
+ "bks":{"gevraagd":0,"nieuw":[],"inhoudVeranderd":[],"nietMeerInBron":[],"nietGevonden":[],"onbruikbaar":[],"versieOverlap":[],
+   "competenties":{"totaal":0,"zonderNr":0,"dubbelNr":0,"metHtml":0,"kennisTypes":{},"vaardigheidTypes":{},"langsteTekst":0},
+   "veldInventaris":{}},
+ "bekrachtigingen":{"totaal":0,"onderwijskwalificatie":0,"dbk":0,"vormOnbekend":0,"voorbeeld":null},
+ "omvang":{"bestanden":0,"bytes":0},"voorbeeld404":"<ingekort, zonder sleutel>","problemen":[],"waarschuwingen":[],"fout":null}
+```
+
+De map staat al in .gitignore.
+
+#### 23.5.11 Datatest `src/lib/beroepskwalificaties.data.test.ts` (K3)
+
+Een **andere agent** schrijft dit bestand dan de schrijver van het script; hij werkt alleen uit de invarianten hieronder. Het draait in deploy.yml en in de workflow.
+
+De kern is één functie in het testbestand: `controleerKwalificatieMap(uit, structuur): { fouten: string[]; info: string[] }`. Ze draait op (1) de echte map (`runIf`; een harde fout als er `bk/*.json` staan zonder index), (2) `tests/fixtures/kwalificaties/uit` (altijd) en (3) een **zelftest** met minstens 10 kapotte kopieën, elk met de verwachte melding: sha256, sortering, een bestand buiten de index, een BK van nu zonder indexregel, een dubbele competentiecode, `bk` ≠ bestandsnaam, een onderdeel dat niet in de matrix staat, een fout `aantal`, een ongeldige status, een doelcode die niet uniek is.
+
+| Code | Invariant | Mild of streng |
+|---|---|---|
+| KP1 | Kop, `aantalOnderdelen` en sha256 van de koppeling kloppen; `valideerKoppelingBestand` geeft [] | streng |
+| KP2 | Gesorteerd en uniek; elk onderdeel staat in de matrix (de matrix wist niets) | streng |
+| KP3 | Dezelfde groep als in de matrix, en precies één record per onderdeel van de matrix | streng bij een gelijke `matrixSha256`, anders info (een run met alleen de studierichtingen) |
+| KP4 | Status geldig; `opgehaald` heeft `erkenningen`; datums geldig; elke `bk` op `BK_VERSIE`, elke `dbk` op `DBK_NUMMER`; lijsten gesorteerd | streng |
+| KP5 | Elke BK van een erkenning die nu geldt of later begint, staat in de index (met bestand, of `nietGevonden`/`onbruikbaar`) | streng |
+| KP6 | Elk geldig gewoon onderdeel van de 3de graad A, geen aanloop, met status `opgehaald`, heeft een BK nu (`BK_A3_STRENG`) | mild tot G1, daarna streng als de telling 0 is |
+| KP7 | ADV-nummers van het record tegenover de matrix (`ERKENNING_KRUIS_STRENG`) | mild tot G1, idem |
+| BX1 | Kop en sha256 van de index; `valideerBkIndex` geeft [] | streng |
+| BX2 | Gesorteerd met `vergelijkBkVersie`, uniek; `nummer` en `versie` horen bij `bk` | streng |
+| BX3 | Met `bestand`: het bestand bestaat, en `sha256`, `aantal`, `titel` en `opgehaald` zijn gelijk; zonder `bestand`: `nietGevonden` of `onbruikbaar` | streng |
+| BX4 | Geen bestanden in `bk/` buiten de index | streng |
+| BB1 | `valideerBkBestand` geeft []; `bk` = bestandsnaam; sha256 klopt; `aantal` = aantal competenties | streng |
+| BB2 | Competentiecodes uniek en op `COMPETENTIE_CODE`; elke tekst, kennis en vaardigheid niet leeg na `tekstVanCompetentie` | streng |
+| BB3 | `doelcodesVanBestand`: uniek, ≤ 60 tekens, begint met `${bk}.`, en `normalizeGoalCode` verandert ze niet | streng |
+| BB4 | `nr` geheel getal en uniek in elke versie (`NR_STRENG`) | mild tot G1, daarna streng als de telling 0 is |
+| BB5 | Geen HTML-tags in teksten (`TEKST_STRENG`) | mild tot G1, idem |
+| BC1 | (komt erbij in G1) Onderdeel 504 heeft in ADV-0842 precies BK-0390-2 en BK-0464-1, met 12 en 13 competenties en geen gedeelde codes; alleen zolang ADV-0842 geldt en de index die versies met bestand noemt | streng met voorwaarde |
+
+#### 23.5.12 Fixtures en scripttest (K2)
+
+- `tests/fixtures/kwalificaties/api/`: `lijst.json` (twee pagina's met `links.next.href` en `meta.total_elements`), `onderdelen.json`, `bks.json`. **De structuurfixtures veranderen niet**: de nagebootste koppeling hangt aan onderdelen die er al staan. Het bestand zegt uitdrukkelijk `"nagebootst": "geen officiële koppeling"`.
+  - onderdeel 8 (G-0008, 2de graad A, duaal): een afgelopen en een geldende erkenning; de geldende noemt BK-0390-2 en BK-0464-1; vijf studiebekrachtigingen, één met `onderwijskwalificatie: true` en één DBK;
+  - onderdeel 565 (G-0008, aanloop): alleen BK-0464-1 ("alleen in: aanloop");
+  - onderdelen 9 tot 12 en 931 (G-0009, BuSO A): een erkenning zonder lijst, een toekomstige erkenning met BK-9999-2, een 404 voor onderdeel 931;
+  - onderdeel 247 (G-0193, DO): een lege lijst.
+- `bks.json`: BK-0390-2 en BK-0464-1 in de vorm van ronde 7, uit het uittreksel dat de hoofdsessie in Q0 maakt (teksten mogen ingekort zijn); BK-9999-1 met HTML in een tekst, een competentie zonder `nr` en kennis in een andere volgorde dan in `uit/`; twee keer 404 voor BK-9999-3.
+- `uit/`: de uitvoer met `--bron-* --nu 2026-10-10T00:00:00Z --vandaag 2026-10-10 --structuur tests/fixtures/structuur/uit`. De datatest, de app-tests en de rooktest gebruiken die uitvoer.
+- `src/lib/beroepskwalificaties.script.test.ts`, met `--bron-*` en met een nagebootste http-API (`node:http`, de drie `*_API_BASE`, wachtfactor 0):
+  - exit 0 met de bestanden van § 23.5.2; opnieuw draaien op `api/` geeft byte voor byte `uit/`;
+  - een tweede run raakt niets aan (bytes en mtime), ook niet met kennis in een andere volgorde;
+  - de uitvoer hangt niet af van de invoervolgorde;
+  - een andere origin in een volgende link → 1; een doorverwijzing → 1 zonder tweede verzoek; 401 → 1;
+  - een `api_url` in een antwoord wordt nooit gevraagd (de server telt de verzoeken);
+  - P3 tot P7 geven elk 3; een onvolledige lijst geeft 0 met een waarschuwing en houdt `laatstErkend`;
+  - één keer 404 en daarna 200 → opgehaald; twee keer 404 → `niet-gevonden` (record blijft met `nietMeerInBron`) en een BK-bestand blijft met `nietMeerInBron`;
+  - `nietMeerGekoppeld` houdt zijn datum en valt weg als de versie terugkomt;
+  - een onbruikbare versie houdt haar oude bestand;
+  - `--onderdelen` en `--zonder-lijst` raken de andere records niet aan;
+  - een `extra`-veld van 30 kB valt weg met een waarschuwing;
+  - de nepsleutel `test-sleutel-1234` staat nergens (stdout, stderr, rapport, bestanden).
+- `src/lib/onderwijsApi.test.ts` test de hulp apart (K1).
+
+#### 23.5.13 Eerste echte run in stappen (G1, regel 11)
+
+1. `onderdelen=beroepskwalificaties`, `bk_onderdelen=504,1,505,8` plus één geldig 7de jaar en één BuSO OV3-onderdeel (de hoofdsessie kiest de nummers uit de matrix). Bevestigen: T1 tot T5 en T10, de vaste waarden van ronde 6 en 7, de omvang per bestand. PR nakijken en sluiten.
+2. ±25 onderdelen verspreid over alle soorten (2de graad A gewoon, duaal, aanloop; 2de graad DU; 3de graad A gewoon en duaal; 3de graad DU; 2 DO; 3 zevende; 3 BuSO OV3; een aanloopgroep; de 1ste graad), **twee keer na elkaar**: de tweede run geeft 0 verschillen (T6). Bevestigen: T4, T8. PR's sluiten.
+3. `onderdelen=beroepskwalificaties` volledig. Bevestigen: looptijd, aantal verzoeken, P5 tot P7, verdeling per soort, omvang, de datatest op de echte data. De data-PR nakijken met een steekproef van 5 richtingen (G-0393, G-0001, een richting met dubbele finaliteit, een 7de jaar, een BuSO OV3-opleiding) tegen het logboek van ronde 6 en twee competenties met hun kennis en vaardigheden. Samenvoegen op teken van de eigenaar (W11).
+4. Daarna: `NR_STRENG`, `TEKST_STRENG`, `BK_A3_STRENG` en `ERKENNING_KRUIS_STRENG` op true waar de telling 0 is; BC1 erbij; de grens van P5 bijstellen; `timeout-minutes` bijstellen; `kanBkHebben` verruimen als het rapport DO of 1ste graad met BK toont; T7 en de werkkeuze W2 nakijken; de stand van zaken bijwerken.
+
+Een afwijking van de vorm herstelt een kernbouwer als kleine aanpassing in `beroepskwalificaties.ts` of het script, met een test. Daarna start de stap opnieuw.
+
+### 23.6 Datamodel in de app
+
+#### 23.6.1 Hoe een leerplandoel naar een competentie verwijst
+
+| Optie | Wat er breekt | Besluit |
+|---|---|---|
+| (a) Een beroepskwalificatie als "set" in `refs` | `sanitizeRefs` (curriculum.ts r. 239) gooit alles weg dat niet op `SET_ID` (`/^ODS_\d{1,9}$/`, r. 202) past. `SET_ID` verruimen raakt `minimumdoelenSets`, `weggelatenCodes`, `setAfdrukken` (fase 2), `oudeVersieIds` en elke lezer van `refs`; `dekkingMinimumdoelen` telt zulke refs als `buitenKader` en verandert. | afgewezen |
+| (b) `refs` met een veld `soort` | Elke lezer van `refs` moet filteren: `dekkingMinimumdoelen`, `leerplannenBijRichting`, `codesVoorDoelen` (fase 2), `selectieVanLeerplan`, `curriculumCheck`, het inlezen, de verwijzingseditor. Eén vergeten filter telt een competentie als minimumdoel. Een oudere app gooit de ref toch weg. | afgewezen |
+| (c) **Een apart veld `bkRefs`**, een eigen methode en een eigen lijst `bkVersies` | Geen enkele bestaande lezer ziet het. Alleen nieuwe code leest het. | **gekozen** |
+
+#### 23.6.2 Types (`src/lib/curriculumTypes.ts`, K5)
+
+```ts
+export type CurriculumNet = 'minimumdoelen' | 'beroepskwalificaties' | 'go' | 'kov' | 'ovsg' | 'pov' | 'eigen';
+// CURRICULUM_NETS krijgt na 'minimumdoelen': { id: 'beroepskwalificaties', label: 'Beroepskwalificaties (Vlaamse overheid)',
+//   hint: 'Vlaamse kwalificatiestructuur' }. NET_KEUZES (leerplanNetten.ts) sluit het uit, zoals 'minimumdoelen'.
+export type CurriculumMethode = … | 'beroepskwalificatie';   // competenties letterlijk uit één of meer BK-versies (bkLeerplan.ts)
+
+/** Verwijzing van een leerplandoel naar één competentie van een beroepskwalificatie. Formaat nooit veranderen: telt mee in de vingerafdruk. */
+export interface BkRef {
+  /** BK-versie, bv. "BK-0390-2". */
+  bk: string;
+  /** competentie_code, bv. "bkc0039200": met `bk` de sleutel. */
+  id: string;
+}
+/** Een BK-versie van een leerplan bij het maken: de eerste 16 hex-tekens van haar sha256 in de index, en of alle competenties gekozen werden. */
+export interface BkVersieMerk { bk: string; sha: string; alle?: true }
+
+export interface CurriculumGoal { /* … ongewijzigd … */ bkRefs?: BkRef[] }
+export interface Curriculum {
+  /* … ongewijzigd … */
+  /** BK-versies van een BK-leerplan. Telt niet mee in de vingerafdruk (zoals minimumdoelenSets). */
+  bkVersies?: BkVersieMerk[];
+}
+```
+
+`Doelgroep` (`doelgroep.ts`) verandert niet. Een BK-leerplan krijgt `doelgroepVoorLeerplan(doelgroepVan(info, keuze, { vak }))`: zonder `kader`, `kaderVolledig`, `setAfdrukken` en `volgtKader`.
+
+#### 23.6.3 Sanering en vingerafdruk (`src/lib/curriculum.ts`, K5)
+
+| Plaats | Wijziging | Wat bestaande gegevens merken |
+|---|---|---|
+| `saneerDoel` (r. 300) | `sanitizeBkRefs`: een array; `bk` op `BK_VERSIE_ID` (inline regex, gelijk aan `BK_VERSIE`; een test vergelijkt de bron), `id` op `/^[A-Za-z0-9_.-]{1,64}$/` (getrimd; een getal wordt tekst); ontdubbeld op `bk + id`, hoogstens 10; leeg = weg. Idempotent. | niets: ze hebben het veld niet |
+| `sanitizeCurriculumMetRapport` (r. 499) | Na de herkomst: `bkVersies` saneren (`bk` op `BK_VERSIE_ID`, `sha` op `/^[0-9a-f]{16}$/`, `alle` alleen `true`, ontdubbeld op `bk`, hoogstens 20). Is de methode niet `beroepskwalificatie`, dan vallen `bkRefs` op elk doel en `bkVersies` weg. | niets |
+| `METHODES` (r. 226) | `'beroepskwalificatie'` erbij | niets |
+| `doelenVingerafdruk` (r. 549) | Na `refsBron`, alleen als er verwijzingen zijn: `if (g.bkRefs && g.bkRefs.length > 0) o.bkRefs = g.bkRefs.map((r) => ({ bk: r.bk, id: r.id }));` | **niets**: zonder `bkRefs` is de JSON byte voor byte gelijk |
+| `maakEigenKopie` (r. 612) | `bkRefs: g.bkRefs?.map((r) => ({ ...r }))` naast `refs`; `bkVersies` blijft. `zonderKaderVelden` staat er al (fase 2 A1). | niets |
+| `leerplanStatus.ts` | `isBkLeerplan(cur) = cur.herkomst?.methode === 'beroepskwalificatie'`; `uitOfficieleBron` = `isOfficieel || isSamengesteld || isBkLeerplan` | niets: alleen voor de nieuwe methode |
+| `leerplanNetten.ts` | `NET_KEUZES` laat ook `beroepskwalificaties` weg | de inleeswizard blijft gelijk |
+
+**Gouden test (eerste stap van K5, vóór elke wijziging):** de vingerafdruk van (1) het voorbeeldleerplan uit `seed.ts`, (2) een samengestelde lijst uit de structuurfixtures, (3) een netleerplan met twee `refs` per doel en (4) een leerplan van vóór versie 2 gaat als vaste sha in `curriculum.test.ts`. Die waarden mogen na K5 niet veranderen. Daarnaast: een leerplan-JSON van vóór fase 3 komt diep gelijk door `sanitizeCurriculum`, zonder nieuwe sleutels, met dezelfde `effectieveStatus`; export en import v2 van een BK-leerplan houden "gecontroleerd"; een `bkRefs` op een leerplan van een net valt weg en dat leerplan wordt "gewijzigd" als het nagekeken was met die verwijzingen. Mutatieproef door de reviewer: zonder de regel in `doelenVingerafdruk` faalt de importtest.
+
+Wat het effect van `uitOfficieleBron` is, nagekeken in de code: geen `DEEL_HINT` bij exporteren (CurriculaPage r. 337); geen MD-verwijzingen in LeerplanOpSlot (r. 39); niet in "Leerplan van je net" (RichtingLeerplannen r. 77) maar wel in "Leerplannen van deze richting op dit toestel" (r. 70: via de doelgroep), met status en aantal doelen; de inleespagina weigert het als bestaand leerplan (LeerplanInlezenPage r. 102; de zin daar wordt aangepast in S3). In de editor van CurriculaPage rekent `uitBron` (r. 455) nog zelf met `officieel || samengesteld`: S3 vervangt dat door `uitOfficieleBron`, anders verschijnt "Nakijken en bevestigen" bij een BK-leerplan.
+
+#### 23.6.4 Het BK-leerplan (`src/lib/bkLeerplan.ts`, K6)
+
+```ts
+export function tekstVanCompetentie(c: Competentie): string;   // normaliseerDoeltekst(htmlNaarTekst(c.tekst)): bouwer én poort
+export interface BkKeuze { bestand: BkBestand; competenties: readonly string[] }   // ALTIJD een lijst ids, nooit 'alle'
+export function leerplanUitBk(keuzes: readonly BkKeuze[], o: {
+  doelgroep: Doelgroep; merken: ReadonlyMap<string, string>;   // bk → 16 hex uit de index
+  titel?: string; vak?: string; bestaand?: Curriculum;
+}): { leerplan: Curriculum; rapport: ControleRapport; bevestigd: boolean; waarschuwingen: string[] };
+export function controleerBkLeerplan(cur: Curriculum, bestanden: readonly BkBestand[]): ControleRapport;
+export function selectieVanBkLeerplan(cur: Curriculum): Map<string, string[]>;      // bk → ids; leeg voor een ander leerplan
+export function vindBkLeerplan(curricula: readonly Curriculum[], selectie: ReadonlyMap<string, readonly string[]>,
+  doelgroep: Doelgroep, merken: ReadonlyMap<string, string>): Curriculum | undefined;
+//   isBkLeerplan, kind ≠ 'eigen', effectieveStatus 'gecontroleerd', geen doelgroep van een andere groep, dezelfde selectie
+//   (volgorde telt niet) én per BK hetzelfde versiemerk als nu
+export function titelVoorBkLeerplan(info: RichtingInfo, titels: readonly string[], deel?: { gekozen: number; totaal: number }): string;
+//   "Onthaalmedewerker · Onthaal en recreatie · 3de graad" · "Onthaalmedewerker en Recreatief medewerker · …" ·
+//   "Onthaalmedewerker (8 van 12 competenties) · …"; hoogstens 120 tekens
+```
+
+**Een doel per competentie:** `code` uit `doelcodesVanBestand` ("BK-0390-2.03"); `text` = `tekstVanCompetentie(c)`; `theme` = "<BK-titel> › <type>", of de BK-titel zonder type (twee gekozen BK's met dezelfde titel krijgen " (BK-0390)" erachter); `bkRefs: [{ bk, id }]`; geen `refs`, geen `note`. Volgorde: de BK's in de gekozen volgorde, de competenties in de volgorde van het bestand.
+
+**Het leerplan:** `net: 'beroepskwalificaties'`, `kind: 'leerplan'`, `subject` = het vak (anders de BK-titel), `level` = `graadTekst(info.graad)` (leeg zonder graad), `source` = "Vlaamse kwalificatiestructuur: Onthaalmedewerker (BK-0390-2)" (meer BK's met " · " ertussen, hoogstens 500 tekens), `herkomst: { methode: 'beroepskwalificatie', bronUrl: BK_BRON, ingelezenOp }`, `bkVersies: [{ bk, sha, alle? }]`, de doelgroep, nagekeken door `NAGEKEKEN_DOOR_BRON` met de samenvatting "Letterlijk overgenomen uit de beroepskwalificatie Onthaalmedewerker (12 competenties)."
+
+**De nakijkpoort `controleerBkLeerplan`** (`curriculumCheck.ts` blijft ongewijzigd; `bevestigLeerplan` doet de rest, met `dekking: []` in het rapport). Fout als:
+1. de methode niet `beroepskwalificatie` is, of een doel `refs` heeft, of het leerplan `minimumdoelenSets` heeft;
+2. een doel niet precies één `bkRef` heeft, naar een BK uit `bkVersies` waarvan het bestand meegegeven is;
+3. de competentie niet in dat bestand staat, of de tekst niet gelijk is aan `tekstVanCompetentie`;
+4. een competentie twee keer voorkomt, of er twee versies van hetzelfde BK-nummer in staan;
+5. een code niet uniek is (na `normalizeGoalCode`), langer is dan 60 tekens, of niet begint met de eigen BK-versie en een punt;
+6. het leerplan meer dan 20 BK's of 5000 doelen heeft, of geen enkel doel.
+
+Valt bij het saneren een doel of een `bkRef` weg, dan is het niet bevestigd en wordt er niets bewaard (zoals `leerplanUitSelectie`). Berichten in gewone taal, zonder competentiecode. De poort eist bewust niet dat een code gelijk is aan wat `doelcodesVanBestand` nu zou geven: "Werk het leerplan bij" houdt de oude codes.
+
+**Bij `bestaand`** ("Werk het leerplan bij", zelfde versie): `bestaand` moet een BK-leerplan zijn met precies dezelfde lijst competenties per BK, anders gooit de functie een `Error` (het scherm biedt dan "Maak een nieuw leerplan" aan). Het id, `createdAt` en de code per `bk + id` blijven; teksten en versiemerken zijn nieuw; het leerplan wordt opnieuw nagekeken.
+
+#### 23.6.5 Wat de bestaande paden met een BK-leerplan doen (nagekeken in de code)
+
+| Pad | Gedrag | Waarom |
+|---|---|---|
+| `leerplanUitSelectie` met een BK-leerplan als `bestaand` | gooit een `Error` | doelenSamenstellen.ts r. 705: alleen `samengesteld` |
+| SamenstellenPage `/:id` | "niet-samengesteld" | r. 89, `isSamengesteld` |
+| `vindLeerplanMetSelectie`, `useBestaandLeerplan`, `vergelijkMetKader`, `veranderdSindsLeerplan` | geven niets, worden niet opgeroepen, of slaan het over | filteren op `samengesteld` (RichtingLeerplannen r. 73) |
+| `dekkingMinimumdoelen` zonder optie | de cursus krijgt `geen-verwijzingen`; de getallen veranderen niet | rekent alleen met `refs` |
+| Gaten dichten (fase 2) | 0 passende doelen; telt in `zonderPassend` | `codesVoorDoelen` rekent met `refs` |
+| `leerplannenBijRichting` (venster, lijst) | het BK-leerplan staat erbij via de doelgroep | een cursus aan een bestaand BK-leerplan hangen mag |
+| Mijn richtingen, klas met richting (fase 2) | een BK-cursus telt als cursus van de richting, telt niet mee in de MD-getallen | ze heeft een gewone `doelgroep` |
+| GoalCoverage in de editor | de weergave "Leerplan" is al de dekking per competentie; geen schakelaar "Minimumdoelen" | de schakelaar verschijnt alleen met `refs` |
+
+#### 23.6.6 Bijwerken na een maandelijkse update (`vergelijkMetBk`, K6)
+
+```ts
+export type BkMelding =
+  | { soort: 'andere-versie'; bk: string; nu: string }             // de richting verwijst nu naar een andere versie van hetzelfde nummer
+  | { soort: 'niet-meer-bij-richting'; bk: string }                // geen versie van dit nummer meer in het kader (herkomst 'api')
+  | { soort: 'tekst-aangepast'; bk: string; aantal: number }       // zelfde lijst: "Werk het leerplan bij"
+  | { soort: 'lijst-aangepast'; bk: string };                      // een competentie weg, of een nieuwe bij `alle`
+export function vergelijkMetBk(leerplan: Curriculum, kader: RichtingBk, bestanden: ReadonlyMap<string, BkBestand>,
+  merken: ReadonlyMap<string, string>): BkMelding[];               // [] voor kind 'eigen' of een ander leerplan
+```
+
+Regels: gelijk versiemerk → niets. Ander versiemerk → per competentie vergelijken met het huidige bestand (sleutel `bk + id`): ontbreekt een id, of staat er bij `alle` een nieuw id, dan `lijst-aangepast`; verschillen alleen teksten, dan `tekst-aangepast`; anders niets (kennis of context veranderde: niets te doen). Ontbreekt een bestand (404, onbruikbaar, laden mislukt), dan komt er geen melding: liever geen dan een valse. Een nieuwe versie wordt nooit in een bestaand leerplan geschoven.
+
+#### 23.6.7 Wat nooit stil verandert
+
+| # | Belofte | Bewaakt door |
+|---|---|---|
+| N1 | Een bestaand leerplan houdt zijn velden, zijn vingerafdruk en zijn nakijkstatus | gouden test (K5), examples.test.ts |
+| N2 | Een BK-leerplan verandert alleen na een klik ("Werk het leerplan bij", "Maak een leerplan met de versie van nu") | geen enkel schrijfpad zonder knop; review I4 |
+| N3 | Een doelcode wijst nooit naar een competentie van een andere versie | de versie zit in de code; poortregel 5 |
+| N4 | Een BK-bestand of een record van de koppeling wordt nooit gewist | script en datatest (BX3, BX4) |
+| N5 | De dekking op minimumdoelen is dezelfde met of zonder BK-cursussen, en zonder de nieuwe optie byte voor byte dezelfde | bestaande tests ongewijzigd groen, plus één nieuw geval in `dekkingMinimumdoelen.test.ts` |
+| N6 | Een bestaande cursus wordt in fase 3 nooit aangepast; het geraamte bestaat alleen bij het maken | geen schrijfpad naar een bestaande cursus |
+| N7 | De nakijkstatus is eerlijk: een BK-leerplan dat een oudere app zonder `bkRefs` bewaarde, is "gewijzigd" | `bewaakControle`, ongewijzigd |
+
+#### 23.6.8 Samenleven met fase 2
+
+| Bestand van fase 2 | Wat fase 3 eraan doet |
+|---|---|
+| `doelgroep.ts`, `richtingKader.ts`, `doelenSamenstellen.ts`, `courses.ts`, `classes.ts`, `MinimumdoelenDekking.tsx` | niets; alleen importeren |
+| `curriculum.ts` | K5: de plaatsen van § 23.6.3, na fase 2 |
+| `RichtingDekking.tsx`, `useRichtingDekking.ts` | S3: "Tel mee" bovenaan de sectie, een h3 "Minimumdoelen" alleen als er een BK-blok is, de plaats voor het BK-blok, en de redentekst bij een BK-cursus (`CursusUitkomst.bk`). Berekening en getallen blijven gelijk. |
+| `richtingCursus.ts` | K7: één optionele parameter `hoofdstukken` in `cursusVoorRichting` |
+| `NieuweRichtingCursus.tsx` (props vast in fase 2) | S2: twee optionele props, pas na fase 2 |
+| `richtingOverzicht.ts` (`bijdragenVoorKader`, fase 2 A3) | het BK-blok gebruikt dezelfde functie, zodat "Tel mee" voor beide blokken hetzelfde betekent |
+
+#### 23.6.9 Logica (K6 en K7)
+
+```ts
+// src/lib/beroepskwalificatiesBron.ts (K6, zoals studierichtingenBron.ts)
+export const KWALIFICATIES_MAP = `${import.meta.env.BASE_URL}leerplannen/kwalificaties/`;
+export const FOUT_BK = 'De beroepskwalificaties konden niet geladen worden. Controleer je verbinding en probeer opnieuw.';
+export function laadBkKoppeling(): Promise<KoppelingBestand | null>;  // gedeelde belofte; 404 of 200 met text/html → null; fout → belofte gewist
+export function laadBkIndex(): Promise<BkIndex | null>;
+export function laadBk(versie: string): Promise<BkBestand | null>;     // ongeldig → Error zonder verzoek; 404 → null; cache van 20;
+                                                                        // `bk` in het bestand = de gevraagde versie
+export function wisBkCache(): void;
+// Elk bestand gaat door zijn validator. Niets in localStorage.
+
+// src/lib/richtingBk.ts (K6)
+export type BkHerkomst = 'api' | 'geen' | 'nog-niet-opgehaald';
+export interface RichtingBkRegel { bk: string; nummer: string; versie: number; titel: string; vks?: number; aantal?: number;
+  onderdelen: number[]; alleOnderdelen: boolean; totDatum?: string; nieuwereVersie?: string; nietMeerInBron?: string; zonderBestand?: true }
+export interface RichtingBk { herkomst: BkHerkomst; opgehaald?: string; bks: RichtingBkRegel[];
+  bekrachtigingen: { naam: string; soort: 'onderwijskwalificatie' | 'beroepskwalificatie' | 'deelkwalificatie' | 'ander' }[];
+  toekomst?: { vanaf: string; titels: string[] } }
+export function bkKader(koppeling: KoppelingBestand | null, index: BkIndex | null, info: RichtingInfo,
+  keuze: RichtingKeuze, vandaag: string): RichtingBk;
+//   onderdelen: keuze.onderdeel, anders geldigeOnderdelen(info, vandaag); per onderdeel erkenningenOp(…).nu; unie op versie.
+//   'api': minstens één onderdeel opgehaald (ook 'niet-gevonden' met een laatst bekend record); 'geen': alles opgehaald, geen BK;
+//   'nog-niet-opgehaald': geen koppeling of geen enkel onderdeel opgehaald. Jaar en soort (OV4) veranderen niets.
+//   totDatum: elke erkenning met deze BK heeft een einddatum (de vroegste). bks op titel (nl), dan vergelijkBkVersie.
+//   toekomst: alleen als de BK's van de toekomstige erkenningen een andere lijst geven.
+
+// src/lib/bkCursus.ts (K7)
+export function bkGeraamte(leerplan: Curriculum, bestanden: ReadonlyMap<string, BkBestand>, codes?: readonly string[]): CourseChapter[];
+//   een hoofdstuk per BK-versie (eerste deel van het thema, hoogstens 120) en een sectie per competentie
+//   (titel shortGoalText(tekst, 110), goalCodes [code], nooit optioneel); blok 1: callout 'goal' "Doel in deze sectie" met
+//   "<code> — <tekst>"; blok 2 (alleen als er kennis of vaardigheden zijn): callout 'goal' "Kennis en vaardigheden uit de
+//   beroepskwalificatie" met regels "Kennis: …" en "Vaardigheid: …" (elk shortGoalText(…, 300), hoogstens 12 regels, daarna
+//   "… en nog <n>: zie ‘Beroepskwalificaties’ bij de studierichting."). Beide blokken zijn doelen-callouts: de sectie telt als
+//   gepland. Invariant van § 12.2: elke gekozen code in precies één sectie; sanitizeCourse laat alles staan.
+//   Ontbreekt een bestand, dan geen blok 2 voor die BK.
+export function cursusVoorBk(o: { titel: string; auteur: string; doelgroep: Doelgroep; leerplan: Curriculum;
+  bestanden: ReadonlyMap<string, BkBestand>; codes?: readonly string[]; start: Startvorm }): Course;
+//   = cursusVoorRichting({ …o, hoofdstukken: o.start === 'geraamte' ? bkGeraamte(…) : undefined })
+
+// src/lib/dekkingBk.ts (K7)
+export function bkKaderDoelen(kader: RichtingBk, bestanden: ReadonlyMap<string, BkBestand>): KaderDoel[];
+//   set = bk, setNaam = titel, id = competentiecode, code = doelcode, tekst = tekstVanCompetentie, rubriek = type,
+//   optioneel false, verplichteSet true
+export function bkVerwijzingen(goal: CurriculumGoal): { set: string; id: string }[];   // bkRefs → {set: bk, id}
+export function dekkingBk(kader: readonly KaderDoel[], bijdragen: readonly CursusBijdrage[], widgets: readonly Widget[]): MdDekking;
+//   = dekkingMinimumdoelen(kader, bijdragen, widgets, { verwijzingen: bkVerwijzingen }). perSet = per BK;
+//   zelfdeNummerAndereSet = dezelfde competentiecode via een andere versie. `samenvatting` wordt niet gebruikt (bkWeergave.ts).
+
+// src/lib/dekkingMinimumdoelen.ts (K7, alleen dit)
+//   nieuwe vierde parameter opties?: { verwijzingen?: (goal: CurriculumGoal) => readonly { set: string; id: string }[] },
+//   standaard de huidige `verwijzingenVan(goal.refs)`, gebruikt in `heeftVerwijzingen` en in de lus; `percentVan` wordt geëxporteerd.
+
+// src/lib/richtingCursus.ts (K7, alleen dit): cursusVoorRichting krijgt `hoofdstukken?: CourseChapter[]`, gebruikt bij 'geraamte'.
+
+// src/lib/bkWeergave.ts (K7): elke tekst met een getal, enkelvoud en meervoud, zonder ADV-nummer of competentiecode.
+```
+
+### 23.7 Schermen en letterlijke teksten
+
+**Waar het komt.** `kanBkHebben(info)` (in `src/components/richting/useRichtingBk.ts`, licht) is waar bij finaliteit A of DU, of soort `zevende`, `aanloop` of `buso`, en niet afgebouwd. Alleen dan laadt de hook `useRichtingBk` met een dynamische import de lader en `richtingBk.ts`, en geeft hij `{ status: 'niet-van-toepassing' }` of een `Laadstand<RichtingBk>`. De hook staat in `RichtingInhoud` (RichtingDetail.tsx); het resultaat gaat via `RichtingContext.bk?` (alleen het type in RichtingDoelen.tsx) naar de sectie, het venster en de dekking. De schermdelen zitten in het luie chunk `bk` (`src/components/richting/bk/`: `BkSectie.tsx` met `BkKopRegel`, `BkKaart.tsx`, `BkKeuze.tsx`, `BkDekking.tsx`). Css in `src/styles/beroepskwalificaties.css` (voorvoegsel `bk-`), alleen tokens. Icoon `BeroepIcon` = Lucide `BriefcaseBusiness`, niet in `EAGER_ICON_NAMES`.
+
+**Het BK-nummer op het scherm: ja, als bijkomende info.** "officieel nummer BK-0390-2" staat in de meta van een kaart, in de bron van een BK-leerplan, en in de doelcode. Een set-id of een groepnummer is een interne sleutel van een database; het BK-nummer is de officiële, openbare aanduiding in de Vlaamse kwalificatiestructuur, waarmee een leerkracht of coördinator de beroepskwalificatie terugvindt. Het staat altijd ná de titel, nooit als enige naam en nooit in een kop of knop. **Nooit** op het scherm: de competentiecode, het ADV-nummer, het onderdeelnummer, het groepnummer (behalve de bestaande bronregel, § 14.9) en een set-id.
+
+#### 23.7.1 Kopregel (`BkKopRegel`, onder de `.sub` van de richting, S1)
+
+| Toestand | Tekst |
+|---|---|
+| Een tot drie BK's | "Beroepskwalificaties: Onthaalmedewerker en Recreatief medewerker." met de knop (btn-quiet, 44 px) "Naar de beroepskwalificaties": scrollt en zet de focus op `#ri-bk-kop` (`tabIndex={-1}`). Geen ankerlink: dat botst met de hash-router. |
+| Meer dan drie | "Beroepskwalificaties: Onthaalmedewerker, Recreatief medewerker, Baliemedewerker en 2 andere." |
+| Laden, fout, geen, niet van toepassing | geen regel |
+
+#### 23.7.2 Sectie "Beroepskwalificaties" (na "De officiële minimumdoelen", vóór "Leerplannen", S1)
+
+De sectie staat er als het kader BK's heeft, of als de richting finaliteit A of DU heeft (dan met de tekst voor "nog niet opgehaald" of "geen"). Bij een 7de jaar of BuSO zonder BK staat ze er niet.
+
+| Waar | Tekst |
+|---|---|
+| h2 (`id="ri-bk-kop"`) | "Beroepskwalificaties" |
+| Laden | `LaadBericht` "De beroepskwalificaties worden geladen…" |
+| Fout | `FoutBericht` met `FOUT_BK` en "Opnieuw proberen" |
+| Nog niet opgehaald | "De beroepskwalificaties van deze richting zijn nog niet opgehaald. Boosterz haalt ze elke maand op bij de Vlaamse overheid." |
+| Geen | "De officiële bron koppelt geen beroepskwalificatie aan deze richting. De beroepsgerichte doelen staan dan in het leerplan van je net." |
+| Intro | "Bij deze richting horen 2 beroepskwalificaties." / "Bij deze richting hoort 1 beroepskwalificatie." en "Een beroepskwalificatie beschrijft wat iemand moet kunnen om een beroep uit te oefenen: de competenties, met de kennis en vaardigheden die erbij horen. De beroepsgerichte vorming van de richting is erop gebouwd; de minimumdoelen hierboven gaan vooral over de basisvorming." |
+| `details` (één keer) | summary "Wat betekent het niveau?" → "Het niveau in de Vlaamse kwalificatiestructuur gaat van 1 tot 8. Hoe hoger, hoe zelfstandiger en complexer het werk." |
+| Kaart (`li` > `article`, h3) | de titel, bv. "Onthaalmedewerker" |
+| Meta | "Niveau 3 · 12 competenties · officieel nummer BK-0390-2" (zonder niveau valt dat deel weg); erachter " · alleen in: duaal" (met `variantLabels`) of " · loopt af op 31 augustus 2027" als dat geldt |
+| `details` | summary "Wat houdt dit beroep in?" met de definitie (alleen als ze er is) |
+| `details` | summary "Toon de 12 competenties" → `ol`, per competentie de tekst, met een geneste `details` "Kennis en vaardigheden (8 + 5)" en daarin h4 "Kennis" en h4 "Vaardigheden", elk een `ul`. Een soort ("(<type>) " vooraan) alleen als er in die lijst meer dan één soort is; een h4 per soort competentie alleen als er meer dan één is. Leeg: "De bron geeft bij deze competentie geen kennis of vaardigheden." |
+| Knoppen | primair "Maak een cursus met deze competenties" (sr-only " (Onthaalmedewerker)") · "Bewaar als leerplan" (alle competenties), of "Open het leerplan" als `vindBkLeerplan` er een vindt. Na het bewaren gaat de focus naar "Open het leerplan". |
+| Nieuwere versie | `callout` (role note): "Er bestaat een nieuwere erkende versie van deze beroepskwalificatie. De richting verwijst nog naar deze versie; Boosterz volgt de richting." |
+| Niet meer in de bron | `callout warn`: "De Vlaamse overheid geeft deze versie sinds 3 december 2026 niet meer. Je ziet de laatst bekende competenties." |
+| Zonder bestand | "De competenties van deze beroepskwalificatie staan nog niet in Boosterz. Boosterz vraagt ze bij de volgende maandelijkse update opnieuw." De knoppen staan op `aria-disabled`, met "Nog nodig: de competenties van de beroepskwalificatie." |
+| Toast | "Leerplan bewaard en nagekeken." |
+| Niet nagekeken | `callout err`: "Het leerplan kon niet als nagekeken bewaard worden: <eerste waarschuwing>. Er is niets bewaard." |
+| Melding `andere-versie` (op de kaart van de BK) | `callout warn`: "Je leerplan ‘<titel>’ volgt een vorige versie van ‘Onthaalmedewerker’. De richting verwijst nu naar een nieuwe versie. Boosterz past je leerplan niet zelf aan." · knop "Maak een leerplan met de versie van nu" · hint "Je cursussen blijven aan het oude leerplan hangen. De doelcodes van de nieuwe versie zijn andere: koppel een cursus pas om nadat je haar doelcodes nakeek." |
+| Melding `tekst-aangepast` | `callout warn`: "De officiële tekst van 2 competenties van ‘Onthaalmedewerker’ werd aangepast sinds je ‘<titel>’ maakte." (enkelvoud "1 competentie") · knop "Werk het leerplan bij" · toast "Leerplan bijgewerkt. De doelcodes in je cursussen blijven dezelfde." |
+| Melding `lijst-aangepast` | `callout warn`: "De officiële lijst competenties van ‘Onthaalmedewerker’ werd aangepast sinds je ‘<titel>’ maakte." · knop "Maak een nieuw leerplan met de lijst van nu" |
+| Melding `niet-meer-bij-richting` (onder de kaarten) | `callout` (role note): "Je leerplan ‘<titel>’ volgt ‘<BK-titel>’, maar die beroepskwalificatie hoort volgens de officiële bron niet meer bij deze richting. Je leerplan blijft werken." |
+| Toekomst | "Vanaf 1 september 2027 hoort bij deze richting: Onthaalmedewerker en Baliemedewerker." |
+| `details` | summary "Wat leerlingen in deze richting kunnen behalen (5)" → per rij de naam, met " (onderwijskwalificatie)", " (beroepskwalificatie)" of " (deelkwalificatie)". Met een DBK de hint: "Een deelkwalificatie is een deel van een beroepskwalificatie. Welke competenties erbij horen, staat niet in de gegevens die Boosterz ophaalt." |
+| Bronregel | "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties) en API Structuuronderdelen, opgehaald op 3 november 2026. Boosterz toont de competenties letterlijk en verzint geen koppelingen." |
+
+Na "Werk het leerplan bij" of "Maak een leerplan met de versie van nu" gaat de focus naar de kop van de sectie. Een BK-leerplan staat ook in de bestaande lijst "Leerplannen van deze richting op dit toestel" (vanzelf, via `uitOfficieleBron`); daar verandert niets.
+
+**Bestaande zinnen.** In RichtingDoelen.tsx r. 370 en NieuweRichtingCursus.tsx r. 570 staat "De beroepsgerichte doelen staan in het leerplan van je net." Heeft het kader BK's, dan wordt dat: "De beroepsgerichte vorming staat in de beroepskwalificaties van deze richting, verderop op deze pagina." (venster: "…: kies daarvoor ‘De competenties van een beroepskwalificatie’."). Zonder BK's blijft de oude zin.
+
+#### 23.7.3 Venster "Nieuwe cursus" (S2, `NieuweRichtingCursus.tsx`)
+
+Nieuwe optionele props `bk?: Laadstand<RichtingBk>` en `startBk?: string`. De bestaande props en het gedrag voor een richting zonder BK's blijven gelijk. `Doelen` krijgt `'bk'`; ook bij een leeg MD-kader kan `'bk'` (vandaag wordt dat `'bestaand'`). `BkKeuze` laadt lui. De sectie opent het venster zelf, met `startBk`.
+
+| Waar | Tekst en gedrag |
+|---|---|
+| fieldset "Welke doelen behandelt deze cursus?", vierde keuze (alleen met minstens één BK met bestand) | radio "De competenties van een beroepskwalificatie" · hint "Boosterz maakt een nagekeken leerplan met precies de competenties die je kiest. Minimumdoelen en competenties komen in aparte leerplannen: een cursus volgt één leerplan." |
+| Standaard | `startBk` gegeven: deze keuze, alleen die BK aangevinkt, het vak gelijk aan haar titel. Een richting zonder minimumdoelen (herkomst `geen`) met BK's: deze keuze, en is er maar één BK, dan staat die aangevinkt. Anders blijft "Kies de sets voor deze cursus" de standaard. |
+| Hint bij een andere keuze (A of DU) | "Geef je een beroepsgericht vak? Kies dan de competenties van een beroepskwalificatie." |
+| Per BK (`BkKeuze`) | fieldset, legend "Onthaalmedewerker · 12 competenties" · vakje "Alle 12 competenties" (gedeeltelijk aangevinkt bij een deel) · `details` "Kies zelf de competenties (12 van 12)" met per competentie een vakje "<tekst>" (rij van 44 px) |
+| Teller (`aria-live="polite"`) | "Je koos 12 competenties uit 1 beroepskwalificatie." · "Je koos 25 competenties uit 2 beroepskwalificaties." · "Je koos 1 competentie uit 1 beroepskwalificatie." · "Je koos nog geen competenties." |
+| Titelvoorstel | `voorstelCursusTitel({ ...dg, vak: <BK-titel> })` = "Onthaalmedewerker · Onthaal en recreatie · 5de jaar"; bij meer BK's vak "Beroepsgerichte vorming" |
+| "Met een geraamte" (hint bij deze keuze) | "Een hoofdstuk per beroepskwalificatie en een sectie per competentie, met de doelcode en de kennis en vaardigheden erop. Zolang een sectie leeg is, telt ze als ‘gepland’, nog niet als gedekt." |
+| Voet | "Nog nodig: een titel, minstens één competentie." · laden: "De beroepskwalificaties worden geladen…" · fout: "Een beroepskwalificatie kon niet geladen worden. Probeer opnieuw." |
+| Toast | "Cursus gemaakt: 1 hoofdstuk, 12 competenties klaar op de secties." (geraamte) · "Cursus gemaakt met 12 competenties van Onthaalmedewerker." (leeg) · bij hergebruik erachter " Er stond al een leerplan met precies deze competenties: de cursus hangt daaraan." |
+| "Een leerplan dat al op dit toestel staat" met een BK-leerplan | het geraamte komt van `cursusVoorBk` (de BK-bestanden worden geladen), niet van `geraamteHoofdstukken`, dat alle competenties in één sectie "Vakspecifieke competentie" zou zetten |
+
+Bij "Maak de cursus": de BK-bestanden laden; de selectie, altijd als lijst ids; `vindBkLeerplan`, anders `leerplanUitBk` (niet bevestigd: niets bewaren, de `callout err`); `saveCurriculum`; `cursusVoorBk` en `saveCourse` (lukt de cursus niet, dan wordt een nieuw leerplan weer gewist). Met AI: `setHandoff` met de `goalCodes` en de doelgroep, zoals nu.
+
+#### 23.7.4 Dekking: tweede blok (S3)
+
+In "Wat je cursussen samen dekken" staat "Tel mee" bovenaan zodra een van beide blokken getoond wordt; het geldt voor beide. Heeft de richting BK's, dan komt er een h3 "Minimumdoelen" vóór het bestaande blok (of vóór `geenDekkingTekst`) en daarna het luie `BkDekking`. Zonder BK's is de sectie letterlijk zoals nu. `BkDekking` rekent zelf zijn bijdragen met `bijdragenVoorKader` (fase 2), ook als het MD-blok `geen` is.
+
+| Waar | Tekst |
+|---|---|
+| h3 | "Competenties van de beroepskwalificaties" |
+| Samenvatting (`aria-live="polite"`) | "Je cursussen dekken 9 van de 25 competenties." en "4 competenties staan al gepland op een sectie die nog leeg is, 1 komt alleen in verdieping aan bod, 11 nog niet." (enkelvoud "1 competentie staat al gepland …") |
+| Zonder BK-cursus | "Nog geen cursus met competenties van deze beroepskwalificaties: de dekking is 0 van de 25 competenties." |
+| Per BK (`details`) | summary "Onthaalmedewerker: 5 van 12 gedekt (42 %)" (`percentVan`: 99 en niet 100 zolang er een niet gedekt is). Per competentie "<code> — <korte tekst>" met icoon én tekst: "Gedekt in ‘<cursus>’" · "Gepland in ‘<cursus>’ (de sectie is nog leeg)" · "Alleen in verdieping (‘<cursus>’)" · "Nog niet gedekt" |
+| Toon | radio "Alle competenties" / "Nog niet gedekt" |
+| Cursussen die niet meetellen | "4 cursussen van deze richting volgen geen beroepskwalificatie en tellen hier niet mee." (enkelvoud "1 cursus … volgt … telt …") · "Telt niet mee: het leerplan van deze cursus staat niet op dit toestel." |
+| Andere versie | als `zelfdeNummerAndereSet > 0`: "3 competenties zouden meetellen als je cursus de versie van nu volgde. Maak een leerplan met de versie van nu bij ‘Beroepskwalificaties’." |
+| Blok "Minimumdoelen", bij een BK-cursus | "Telt hier niet mee: deze cursus volgt een beroepskwalificatie (zie ‘Competenties van de beroepskwalificaties’)." in plaats van "… verwijst niet naar minimumdoelen." Alleen de tekst; reden en getallen blijven. |
+| "Cursussen voor deze richting", bij een BK-cursus | "Volgt een beroepskwalificatie: zie ‘Competenties van de beroepskwalificaties’ hieronder." |
+
+#### 23.7.5 Leerplanpagina, lijst en inleespagina (S3)
+
+- `OfficieelLabel` (ControleLabel.tsx) krijgt `soort: 'set' | 'samengesteld' | 'bk'`: "Officiële beroepskwalificatie", of "Kopie van een officiële beroepskwalificatie". `LeerplanOpSlot` en de lijst in CurriculaPage tonen het; de bronregel (`source`) staat er al.
+- CurriculaPage, editor: `uitBron` via `uitOfficieleBron` (geen "Nakijken en bevestigen", geen `DEEL_HINT`); de keuzelijst "Net / uitgever" toont `beroepskwalificaties` alleen als het de huidige waarde is. Geen "Keuze aanpassen".
+- LeerplanInlezenPage (r. 111) bij een BK-leerplan: "<titel> komt rechtstreeks uit een officiële beroepskwalificatie. Er valt niets in te lezen: de competenties staan letterlijk zoals in de officiële bron."
+
+#### 23.7.6 Hulp (I3)
+
+- "Hoe maak ik een cursus voor een beroepskwalificatie?" — "Open je studierichting bij Cursussen, ‘Voor een studierichting’. Bij een richting met beroepskwalificaties zie je per beroepskwalificatie de competenties, met de kennis en vaardigheden. Kies ‘Maak een cursus met deze competenties’: Boosterz maakt een nagekeken leerplan en een cursus met een sectie per competentie. Een AI-sleutel heb je daarvoor niet nodig."
+- "Waar komen de beroepskwalificaties vandaan?" — "Uit de Vlaamse kwalificatiestructuur van de Vlaamse overheid. Boosterz haalt ze elke maand op en verzint geen koppelingen: welke beroepskwalificaties bij een richting horen, staat zo in de officiële bron."
+
+#### 23.7.7 Toegankelijkheid en 390 px (voor S1 tot S3)
+
+- Geen eigen `main`; één h1 per scherm. h2 voor de sectie, h3 per kaart en voor de blokken in de dekking, h4 voor kennis en vaardigheden; in het venster een h2.
+- Vakjes en keuzerondjes in een fieldset met een legend. Tellers en samenvattingen in `aria-live="polite"`. Een status nooit alleen met kleur. Knoppen die nog niet kunnen: `aria-disabled` met "Nog nodig: …", nooit `disabled`.
+- Summaries, knoppen en vakjesrijen minstens 44 px op ≤ 640 px. Op 390 px één kolom, `overflow-wrap: anywhere` voor titels, competenties en kennisteksten; niets scrolt horizontaal.
+- Termen: leerplan, bewaren, nakijken, toewijzen; "competentie" en "beroepskwalificatie" volgen de bron. Nooit witte tekst op `--brand`.
+
+### 23.8 Rooktest (R1)
+
+**Sectie 20g** (fixtures, na 20f en vóór "21. Importeren"): `rtOpen('20g', { fixtures: true })` plus `page.route('**/leerplannen/kwalificaties/**')` op `tests/fixtures/kwalificaties/uit` (404 voor wat er niet is); verse opslag; tot slot "Terug zoals het was".
+
+1. Detail G-0008 (`?jaar=3`): /Beroepskwalificaties: .+\./ onder de titel; "Naar de beroepskwalificaties" zet de focus op h2 "Beroepskwalificaties".
+2. Kaart h3 met /Niveau \d · \d+ competenties · officieel nummer BK-\d+-\d+/; "Toon de N competenties" toont N `li`; een geneste "Kennis en vaardigheden"; "Wat leerlingen in deze richting kunnen behalen". Geen /ODS_|ADV-|bkc\d|G-0\d/ buiten `.ri-bron`.
+3. "Maak een cursus met deze competenties": venster met de keuze aan; /Je koos (\d+) competenties uit 1 beroepskwalificatie\./ geeft n; één competentie uitvinken via "Kies zelf de competenties" geeft n-1 (de valkuil); "Maak de cursus" → `/cursus/bewerk/`.
+4. localStorage: een leerplan met methode `beroepskwalificatie`, net `beroepskwalificaties`, status `gecontroleerd`, precies n-1 doelen met elk precies één `bkRefs` naar die BK, codes op /^BK-\d{3,6}-\d{1,4}\.\d{2,3}$/, zonder `refs` en zonder `minimumdoelenSets`; een cursus met `doelgroep.groep` G-0008, één hoofdstuk, n-1 secties met elk één `goalCode` en alleen doelen-callouts.
+5. Terug op het detail: h3 "Competenties van de beroepskwalificaties" met /Je cursussen dekken 0 van de \d+ competenties\./ en /staan al gepland/; in het blok "Minimumdoelen" de BK-tekst bij die cursus.
+6. "Bewaar als leerplan" bij de andere BK → toast "Leerplan bewaard en nagekeken.", daarna "Open het leerplan" met de focus erop; de leerplanpagina toont "Officiële beroepskwalificatie" en "Nagekeken".
+7. G-0193: geen h2 "Beroepskwalificaties" en **geen enkel verzoek** naar `leerplannen/kwalificaties/` (`page.on('request')`).
+8. Op 390 px: het detail met de kaarten en het venster; niets horizontaal, de nieuwe knoppen en vakjes minstens 44 px, 1 main en 1 h1.
+9. Geen console- of paginafouten. Twee keer na elkaar groen.
+
+**Sectie 20h** (echte data, na G1, `runIf` als `public/leerplannen/kwalificaties/koppeling.json` bestaat): G-0393 met alleen regex: de kopregel, minstens één kaart, "Toon de \d+ competenties".
+
+### 23.9 Bundel
+
+| Chunk | Verwacht | Budget | Hoe |
+|---|---|---|---|
+| Kritiek pad | ongewijzigd (stand na fase 2) | 334,2 kB of wat fase 2 meet | Geen gewijzigde module op het leerlingpad; `curriculum.ts` en `leerplanStatus.ts` laden lui; `EAGER_ICON_NAMES` blijft gelijk |
+| RichtingenPage | ±66 → ±67,5 kB | 80 | alleen de hook, `kanBkHebben`, de kopregel-wrapper, de luie imports en het type in de context |
+| BK-gegevens (lui) | ±8 tot 12 kB | 80 | lader, `richtingBk.ts`, validators |
+| `bk` (lui) | ±25 tot 35 kB | 80 | sectie, kaart, keuze, dekking, `bkLeerplan`, `bkCursus`, `dekkingBk`, `bkWeergave` |
+| curriculum | +±1 kB | – | `sanitizeBkRefs`, vingerafdruk, methode |
+| CourseEditorPage | ongewijzigd | 80 | niets |
+
+Elk S-pakket meet en meldt; de hoofdsessie meet na I2 en I3. Alleen de hoofdsessie raakt `vite.config.ts` aan.
+
+### 23.10 Licentie en naamsvermelding
+
+**In de app:**
+- In de kop van elk bestand: `bron`, `api`, `naamsvermelding` en `licentie: "nog te bevestigen"`. De koppeling noemt de API Structuuronderdelen (zoals de matrix), de index en de BK-bestanden `BK_NAAMSVERMELDING`.
+- Op het scherm de bronregel onder de sectie (§ 23.7.2), met de ophaaldatum.
+- In elk BK-leerplan: `source` "Vlaamse kwalificatiestructuur: <titel> (BK-…)" en `herkomst.bronUrl` naar het portaal (zonder sleutel). Dat reist mee bij export en delen.
+- BK-leerplannen gelden als "uit de officiële bron" (geen `DEEL_HINT`), zoals de minimumdoelen (W10).
+- Het curriculumdossier (Word) wordt niet opgehaald, niet getoond en niet gelinkt.
+
+**Werkkeuze voor de naamsvermelding:** "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)", zonder naam van een agentschap. ONDERWIJS-API.md noemt er geen; de opdracht noemt AKOV, LEERPLANNEN.md noemt de nieuwsbrief van de API Kwalificaties en Curriculum van AHOVOKS. Tot TechLoket antwoordt, noemen we geen naam die verkeerd kan zijn. Het is één constante en een nieuwe run.
+
+**De eigenaar vraagt via het formulier van TechLoket Onderwijs** (sinds 24 maart 2026 de enige weg; mee met O9 en LEERPLANNEN.md § 12):
+1. Onder welke licentie mogen de gegevens van de API Beroepskwalificaties en de API Structuuronderdelen bewaard worden in een publieke repository, letterlijk getoond in een publieke webapp, en opgenomen in leerplannen en cursussen die leerkrachten delen? Met welke naamsvermelding (welk agentschap)?
+2. Blijft `competentie_code` gelijk over de versies van een beroepskwalificatie? Verandert een erkende versie nog na de erkenning? (T7, W2)
+3. Waar staan de competenties van een deelkwalificatie (`BK-…-DBK-…`) in de API? (W4)
+4. Een erkenning verwijst naar een oudere versie terwijl er een nieuwere erkend is: welke versie geldt voor de school?
+5. Is er een publiek adres zonder sleutel voor een beroepskwalificatie, zodat de app ernaar kan verwijzen?
+
+Tot dan blijft de werkwijze van laag 1: "nog te bevestigen", de bron vermelden, niets verzinnen. Een licentie voor de repo zelf (LEERPLANNEN.md § 12, punt 3) blijft een open punt vóór een brede uitrol.
+
+### 23.11 Risico's
+
+| # | Risico | Opvang |
+|---|---|---|
+| R1 | De vorm is niet bevestigd (§ 23.3) | Tolerante normalisatie, exit 3 alleen op wat een sleutel is, de veldinventaris, G1 in stappen, STRENG-vlaggen pas na G1 |
+| R2 | Een detail negeert het nummer (zoals de lijst de filters negeert) | P3: het antwoord moet zijn eigen nummer of versie noemen |
+| R3 | Een 404 is niet te onderscheiden van een kapot eindpunt | Tweede ronde, P5 en P6, laatst bekende records en bestanden blijven |
+| R4 | `competentie_code` blijkt niet uniek, of `nr` onbruikbaar | Een dubbele code maakt de versie onbruikbaar (P7); zonder bruikbaar `nr` de plaats in de doelcode, geteld |
+| R5 | `competentie_code` is niet stabiel over versies | Versie in de doelcode; een nieuwe versie geeft een nieuw leerplan; `versieOverlap` meet het |
+| R6 | Een oudere app (tabblad niet herladen) ziet een BK-leerplan als "Gewijzigd na nakijken" en bewaart het zo | Kleine kans en zichtbaar; "Werk het leerplan bij" of "Bewaar als leerplan" maakt het opnieuw nagekeken |
+| R7 | Een BK-probleem houdt ook de minimumdoelen en de matrix tegen | Noodinvoer `zonder-beroepskwalificaties`; KP3 en KP7 melden een andere matrix alleen |
+| R8 | Looptijd ±12 tot 28 minuten extra | `timeout-minutes: 90`, meting in het rapport, bijstellen na G1 |
+| R9 | De repo groeit met ±3 tot 10 MB; `sw.js` met ±15 tot 20 kB | Alleen gewijzigde bestanden in een PR; boven 15 MB beslist de eigenaar (bv. `referenties` en `extra` alleen in het rapport) |
+| R10 | Base64 of grote velden in `extra` | Grens van 20 kB per veld; het dossier nooit; test |
+| R11 | Een 404 op een databestand verschijnt als consolefout | Alleen verzoeken bij `kanBkHebben`; rooktest 20g stap 7; uitrol pas na de data-PR van G1 stap 3 |
+| R12 | Een leerplan van een net of de AI met verzonnen BK-verwijzingen | `bkRefs` alleen bij methode `beroepskwalificatie`; de dekking telt strikt op officiële codes |
+| R13 | Een samengeteld percentage over alle BK's misleidt | Percentage per BK; samen alleen aantallen |
+| R14 | Het geraamte met kennis en vaardigheden maakt een cursus groter in localStorage | 300 tekens per regel, hoogstens 12 regels per sectie: ±10 tot 45 kB per cursus van 12 competenties |
+| R15 | De licentie is niet bevestigd; een derde overheidsdataset publiek in de repo | Zelfde status als minimumdoelen en matrix; naamsvermelding overal; TechLoket vóór een brede uitrol |
+| R16 | RichtingenPage nadert 80 kB | Alles lui behalve de hook en de kopregel; meting na I2 en I3 |
+
+### 23.12 Open vragen voor de eigenaar (met werkkeuze)
+
+- **W1.** Een gemengd leerplan, met minimumdoelen en competenties? **Werkkeuze: niet in fase 3**; twee cursussen. Het datamodel laat het later toe.
+- **W2.** Een nieuwe BK-versie: een nieuw leerplan, of het leerplan bijwerken met de codes op `competentie_code`? **Werkkeuze: een nieuw leerplan**, tot TechLoket of de rapporten tonen dat de codes stabiel zijn.
+- **W3.** Het detail van alle 833 geldige onderdelen, of alleen van de 510 met finaliteit A of DU? **Werkkeuze: alle.**
+- **W4.** Deelkwalificaties als doelen? **Werkkeuze: nee, alleen bij naam.**
+- **W5.** De studiebekrachtigingen tonen? **Werkkeuze: ja, ingeklapt** ("Wat leerlingen in deze richting kunnen behalen").
+- **W6.** Kennis en vaardigheden: in het leerplan, of alleen op vraag en in het geraamte? **Werkkeuze: niet in het leerplan; wel in het geraamte (ingekort) en volledig op de richtingpagina.**
+- **W7.** Het BK-nummer op het scherm? **Werkkeuze: ja**, na de titel, in de doelcode en in de bron van een leerplan; de competentiecode nooit.
+- **W8.** Een percentage per beroepskwalificatie, geen samengeteld? **Werkkeuze: ja.**
+- **W9.** De dekking strikt op versie + competentiecode, met een teller voor een andere versie? **Werkkeuze: ja** (zoals O6).
+- **W10.** BK-leerplannen als "uit de officiële bron" (vrij te delen, met bronvermelding) tot TechLoket antwoordt? **Werkkeuze: ja, zoals de minimumdoelen.**
+- **W11.** De data-PR van de eerste volledige BK-run: wie voegt samen? **Werkkeuze: de hoofdsessie na de checklist van § 23.5.13, op teken van de eigenaar.**
+- **W12.** Mag de taak "Leerplangegevens bijwerken" tot 90 minuten duren? **Werkkeuze: ja**, bijgesteld na G1.
+- **W13.** Mag het dataspoor (K1 tot K4 en G1) al naast fase 2 lopen? Het raakt geen bestand van fase 2. **Werkkeuze: nee, na fase 2 zoals afgesproken; op teken van de eigenaar mag het eerder.**
+- **W14.** De BK-dekking ook in de cursuseditor, in "Mijn richtingen" en in de klas, en "Plan de competenties die nog nergens aan bod komen"? **Werkkeuze: later (fase 3b).**
+- **W15.** De sectie ook bij 7de jaren en BuSO OV3? **Werkkeuze: ja, als de data er zijn.**
+
+### 23.13 Bewust niet in fase 3
+
+- Het curriculumdossier ophalen, ontleden, tonen of linken.
+- De competenties van een deelkwalificatie raden, of een eigen koppeling richting → beroepskwalificatie maken. Zoeken van een beroepskwalificatie naar haar richtingen (de API heeft dat niet).
+- Gemengde leerplannen (W1); doelcodes automatisch omzetten naar een nieuwe versie (W2); gaten dichten voor competenties en de BK-dekking buiten de richtingpagina (W14).
+- "Keuze aanpassen" voor een BK-leerplan in de samenstelwizard: wie anders kiest, maakt een nieuw leerplan vanaf de richting.
+- AI die BK-verwijzingen zet. Context, autonomie en verantwoordelijkheid op het scherm.
+- Onderwijskwalificaties en opleidingsprofielen (404), opleidingstrajecten, het aanbod per school.
+- De bestaande scripts laten overstappen op `onderwijsApi.mjs`: een aparte opruimtaak.
+
+### 23.14 Nagekeken: wat de ontwerpen verkeerd lazen of misten
+
+1. **Terugval van de doelcode** ("leerkracht eerst"): `${bk}.${competentie_code}` zou de competentiecode op het scherm zetten, tegen de eigen regel in, en `normalizeGoalCode` (curriculum.ts r. 77) maakt er hoofdletters van. Hier: de plaats in het bestand.
+2. **Nakijkpoort** ("leerkracht eerst"): de eis "de code is `bkDoelcode`" botst met "Werk het leerplan bij", dat de oude codes houdt. Hier: uniek, ≤ 60, en het voorvoegsel van de eigen versie.
+3. **Versiemerk in de koppeling** ("leerkracht eerst"): overbodig, omdat de koppeling alleen versienummers noemt; het zou de koppeling bij elke tekstcorrectie doen veranderen.
+4. **Harde poort op de BK-lijst** ("data eerst", Q2 en Q4): de lijst is niet nodig voor de koppeling of de competenties. Hier zacht.
+5. **Aparte dekkingsmodule** ("data eerst") of **namaakverwijzingen in het geheugen** ("leerkracht eerst"): hier één optionele parameter in `dekkingMinimumdoelen`; `dekkingMinimumdoelen` valideert de set niet (alleen `set|id`), dus de regels werken ongewijzigd voor competenties.
+6. **Noodinvoer** (beide gemist): met de BK-stap in `alles` bestaat er geen run meer die minimumdoelen en studierichtingen samen haalt. `studierichtingen` alleen faalt op D3 zodra de minimumdoelen in de repo achterlopen ("Start de workflow met ‘alles’"). Daarom de keuze `zonder-beroepskwalificaties`. Ook de booleans in de samenvattingsstap (`metMinimumdoelen = onderdelen !== 'studierichtingen'`) moeten de nieuwe keuzes volgen.
+7. **Editor en inleespagina** (beide gemist): CurriculaPage rekent `uitBron` (r. 455) zelf met `officieel || samengesteld` en zou "Nakijken en bevestigen" tonen; de inleespagina (r. 111) zegt "komt rechtstreeks uit de officiële minimumdoelen". Beide worden aangepast in S3.
+8. **Consolefouten** (impliciet bij "leerkracht eerst", gemist bij "data eerst"): Chromium meldt elke 404 op een fetch als consolefout, en de rooktest faalt daarop. Geen verzoek buiten `kanBkHebben`, en uitrol na de echte data.
+9. **Structuurfixtures** ("leerkracht eerst"): G-0393 toevoegen verandert de fixtures van fase 1 en hun reproductietests. Hier hangt de nagebootste koppeling aan G-0008, G-0009 en G-0193.
+10. **`maakEigenKopie`**: beide schreven "na A1 van fase 2"; `zonderKaderVelden` staat er al (commit 7635d62).
+11. **BK-leerplannen in "Leerplannen van deze richting"** ("data eerst" wilde ze uitsluiten): ze komen er vanzelf in via `uitOfficieleBron` en de doelgroep (RichtingLeerplannen r. 70), met status en aantal. Dat klopt; er is geen tweede lijst nodig.
+12. Juist nagekeken in beide ontwerpen: de tellingen (347, 510, 833; één erkenning nu per geldig onderdeel; geen toekomstige), `sanitizeRefs` met `SET_ID` (r. 202, 239), `doelenVingerafdruk` (r. 549), `METHODES` (r. 226), `haalJson` (r. 270 tot 337), de zinnen in RichtingDoelen.tsx r. 370 en NieuweRichtingCursus.tsx r. 570, de bronregel met het groepnummer.
+
 ## Bijlage A. Pakketten
 
 Uit de synthese, met bestanden, afhankelijkheden en acceptatiecriteria.
@@ -2209,3 +3105,40 @@ Voor elk pakket: het levert pas op als `npm run lint` (0 fouten, geen extra waar
 | **I-C** Review en uitrol | hoofdsessie, vier reviewers, rechter | C1 | herstel in de bestanden van A1 tot C1; stand van zaken | vier invalshoeken: (1) juistheid van F2.1 en F2.2 (afdrukken, oude regel, valkuil, codes, secties), (2) opslag en grenzen (sanering, klaspakket, terugdraaien, nooit stil overschrijven), (3) toegankelijkheid, taal en 390 px, (4) bundel en kost; daarna de rechter; alleen bevestigde punten worden hersteld; volledige poort met `tests/ai/mock-studio.mjs`; commit en push; deploy groen |
 
 **Wat niemand aanraakt** (behalve waar het hierboven staat): `computeCoverage`; `tools/leerplannen/haal-*.mjs` en `public/leerplannen/**`; `vite.config.ts` (alleen de hoofdsessie); de bestaande checks in `tests/smoke.mjs`; `CurriculumPicker.tsx`; `NieuweRichtingCursus.tsx` en `RichtingKiezerModal.tsx` (hun props blijven vast); `classPack.ts`; de formaten van `kaderVingerafdruk` en `volledigeSetsVingerafdruk`.
+
+## Bijlage E. Pakketten fase 3
+
+```
+(na fase 2 I-C)
+Q0 ─┬─ K1 kernbouwer ─┬─ K2 kernbouwer ─┐
+    │                 ├─ K3 bouwer (andere agent, levert op na K2) ─┤
+    │                 └─ K4 bouwer + reviewer ─┤
+    └─ K5 kernbouwer (naast K1) ───────────────┴─ I1 ─┬─ G1 echte run in stappen (naast K6 tot S3) ───────────┐
+                                                      └─ K6 kernbouwer ─ K7 bouwer ─ I2 ─┬─ S1 (worktree A) ─┐ │
+                                                                                         ├─ S2 (worktree B) ─┼─ I3 ─ R1 ─ I4
+                                                                                         └─ S3 (worktree C) ─┘
+```
+
+Voor elk pakket: het levert pas op als `npm run lint` (0 fouten, geen extra waarschuwingen), `npm run typecheck` en `npx vitest run` groen zijn; voor S1 tot S3 ook `npm run build` (budget gemeld) en de bestaande rooktest op `vite preview`. Agents committen niet. K1 en K5, K2, K3 en K4, en S1, S2 en S3 raken nooit hetzelfde bestand.
+
+| Pakket | Wie | Na | Bestanden (alleen deze) | Acceptatie |
+|---|---|---|---|---|
+| **Q0** Ontwerp en voorbereiding | hoofdsessie | fase 2 I-C | `docs/STUDIERICHTINGEN.md` (§ 23, bijlage E, rij in de stand bovenaan), `docs/ONDERWIJS-API.md` (stand), CLAUDE.md (één regel, buiten het werkwijzeblok), `src/components/icons.ts` (`BeroepIcon`), `docs/ontwerp/ICONEN.md`, uittreksel `tests/fixtures/kwalificaties/api/ruw/` uit de artifacts van run 38044584119 en 38047507450 | ontwerp in de repo; het uittreksel bevat geen sleutel en noemt zijn bron |
+| **K1** Datamodule en API-hulp | kernbouwer | Q0 | nieuw `src/lib/beroepskwalificaties.ts` (+test), `tools/leerplannen/onderwijsApi.mjs`, `src/lib/onderwijsApi.test.ts` | § 23.5.3; puur en laadbaar in Node; per normalisatie- en validatiefunctie ≥ 3 positieve en ≥ 6 negatieve gevallen (tekst of object, lijst met één element, `__proto__`, ander nummer, DBK, ontbrekend `nr`, HTML, T1 beide vormen); `doelcodesVanBestand` met nr en met terugval; `geldtOp` en `erkenningenOp` met overlap, toekomst en de drie statussen van de matrix |
+| **K2** Script, fixtures, scripttest | kernbouwer | K1 | nieuw `tools/leerplannen/haal-beroepskwalificaties.mjs`, `tests/fixtures/kwalificaties/**`, `src/lib/beroepskwalificaties.script.test.ts` | § 23.5.4 tot 23.5.8, 23.5.10 en 23.5.12; elk geval van de scripttest; de bestaande scripts en `tests/fixtures/structuur/**` byte voor byte gelijk |
+| **K3** Datatest | bouwer, een andere agent dan K2 | K1 (oplevering na K2) | nieuw `src/lib/beroepskwalificaties.data.test.ts` | § 23.5.11; de zelftest vindt ≥ 10 gebroken invarianten, elk met de verwachte melding; mild en streng zoals beschreven; info zichtbaar; de datatest van de studierichtingen blijft ongewijzigd groen |
+| **K4** Workflow | bouwer, nagelezen door een reviewer (veiligheid) | K1 (naast K2) | `.github/workflows/minimumdoelen.yml` | § 23.5.9; van de bestaande ophaalstappen verandert alleen de `if:`; geen `*_API_BASE`; het geheim alleen in de `env` van de ophaalstappen; de nieuwe stap vóór `npm ci`; invoer via `env` en met een regex nagekeken; samenvatting en PR-tekst letterlijk |
+| **K5** Datamodel van het leerplan | kernbouwer | Q0 (naast K1) | `src/lib/curriculumTypes.ts`, `src/lib/curriculum.ts` (alleen de plaatsen van § 23.6.3), `src/lib/leerplanStatus.ts`, `src/lib/leerplanNetten.ts` (alleen `NET_KEUZES`), `curriculum.test.ts`, `leerplanStatus.test.ts` | de gouden vingerafdrukken eerst, vóór de wijziging; N1 en N7; `bkRefs` en `bkVersies` alleen bij methode `beroepskwalificatie`; export en import v2 houden "Nagekeken"; typecheck vangt elke `Record` of `switch` op de unions; examples.test.ts groen; mutatieproef door de reviewer |
+| **I1** Integratie data en datamodel | hoofdsessie | K1 tot K5 | – | volledige poort; commit en push |
+| **G1** Eerste echte run | hoofdsessie | I1 | STRENG-vlaggen en BC1 in de datatest, de grens van P5, `timeout-minutes`, `kanBkHebben` (alleen verruimen), de stand van zaken | § 23.5.13; proefruns gesloten; de data-PR nagekeken en samengevoegd op teken van de eigenaar |
+| **K6** Lader, kader, BK-leerplan | kernbouwer | I1 | nieuw `src/lib/beroepskwalificatiesBron.ts`, `src/lib/richtingBk.ts`, `src/lib/bkLeerplan.ts` en hun tests | § 23.6.4 tot 23.6.6 en § 23.6.9; op `tests/fixtures/kwalificaties/uit`: G-0008 geeft 2 BK's, onderdeel 565 alleen in de aanloopvariant, G-0009 `geen` of `api` zoals de fixture zegt; een deelselectie van 4 van 12 geeft precies 4 doelen (de valkuil); dezelfde selectie geeft dezelfde vingerafdruk; elke poortfout; hergebruik alleen bij gelijke selectie en versiemerk; alle gevallen van `vergelijkMetBk`; de paden van § 23.6.5 |
+| **K7** Geraamte, dekking, teksten | bouwer | K6 | nieuw `src/lib/bkCursus.ts`, `src/lib/dekkingBk.ts`, `src/lib/bkWeergave.ts` en hun tests; `src/lib/dekkingMinimumdoelen.ts` (alleen de optionele parameter en `export percentVan`) + één nieuw geval in de test; `src/lib/richtingCursus.ts` (alleen `hoofdstukken` in `cursusVoorRichting`) + `richtingCursus.test.ts` | met de hand nagerekende dekking (gedekt, gepland, verdieping, een andere versie); de bestaande tests van `dekkingMinimumdoelen` ongewijzigd groen (N5); het geraamte houdt de invariant van § 12.2 en de grenzen van blok 2; elke tekst in enkelvoud en meervoud, zonder competentiecode |
+| **I2** Integratie en stubs | hoofdsessie | K7 | `src/components/richting/useRichtingBk.ts` (+ `kanBkHebben`); `RichtingContext.bk?` (RichtingDoelen.tsx, alleen het type); RichtingDetail.tsx (de hook, `BkKopRegel` en de sectie lui gemonteerd in `KaderSecties`); stubs `bk/BkSectie.tsx`, `bk/BkKeuze.tsx`, `bk/BkDekking.tsx` met vaste props; de optionele props `bk` en `startBk` op NieuweRichtingCursus (alleen doorgeven) | volledige poort; rooktests 20d tot 20f ongewijzigd groen; geen verzoek naar `kwalificaties/` bij G-0193; budget gemeten; commit |
+| **S1** Sectie en kopregel | bouwer, worktree A | I2 | `bk/BkSectie.tsx`, nieuw `bk/BkKaart.tsx`, `src/styles/beroepskwalificaties.css` | § 23.7.1 en § 23.7.2 letterlijk; bewaren alleen via `leerplanUitBk` en `saveCurriculum`, elke `false` gemeld; focus zoals beschreven; 44 px en 390 px |
+| **S2** Venster | bouwer, worktree B | I2 | `NieuweRichtingCursus.tsx`, `bk/BkKeuze.tsx`, `src/lib/richtingVenster.ts` (teksten), `RichtingDoelen.tsx` (alleen de zin van r. 370), `src/styles/richtingcursus.css`, `tests/ai/mock-cursus.mjs` (een geval "competenties", als dat bestand er is) | § 23.7.3 letterlijk; bestaande keuzes en standaard ongewijzigd voor een richting zonder BK's; een nieuw leerplan wordt teruggedraaid als de cursus niet bewaard kan worden |
+| **S3** Dekking en leerplanpagina | bouwer, worktree C | I2 | `bk/BkDekking.tsx`, `RichtingDekking.tsx`, `useRichtingDekking.ts`, `RichtingCursussen.tsx`, `src/components/curriculum/ControleLabel.tsx`, `LeerplanOpSlot.tsx`, `CurriculaPage.tsx` (alleen `uitBron`, het label en de keuzelijst "Net"), `LeerplanInlezenPage.tsx` (alleen de zin van r. 111), `src/styles/dekking.css` | § 23.7.4 en § 23.7.5 letterlijk; de getallen van de dekking op minimumdoelen veranderen niet; zonder BK's is de sectie letterlijk zoals nu |
+| **I3** Integratie schermen | hoofdsessie | S1 tot S3 | samenvoegen; `HelpPage.tsx` (§ 23.7.6); `vite.config.ts` alleen als het budget het vraagt; docs | volledige poort; rooktest twee keer groen; kritiek pad gemeten en gemeld |
+| **R1** Rooktest | bouwer, een andere agent dan S1 tot S3 | I3 en G1 | `tests/smoke.mjs` (alleen de nieuwe secties 20g en 20h vóór "21. Importeren") | § 23.8; twee keer na elkaar groen; bestaande checks ongewijzigd |
+| **I4** Review en uitrol | hoofdsessie, vier reviewers, rechter | R1, en de data-PR van G1 stap 3 samengevoegd | herstel in de bestanden van K1 tot R1; de stand van zaken | vier invalshoeken: (1) datastroom, script, workflow en sleutel; (2) datamodel: N1 tot N7, nakijkpoort, codes, dekking; (3) toegankelijkheid, taal en 390 px; (4) bundel, opslag en omvang. Daarna de rechter; alleen bevestigde punten worden hersteld. Volledige poort met `tests/ai/mock-studio.mjs`; commit en push; deploy groen |
+
+**Wat niemand aanraakt** (behalve waar het hierboven staat): `tools/leerplannen/haal-minimumdoelen.mjs` en `haal-studierichtingen.mjs`; `public/leerplannen/**` (alleen de workflow-PR); `tests/fixtures/structuur/**`; `computeCoverage`, `curriculumCheck.ts`, `doelgroep.ts`, `richtingKader.ts`, `doelenSamenstellen.ts`, `courses.ts`, `classes.ts`, `classPack.ts`; `refs`, `sanitizeRefs`, `SET_ID`; de formaten van `kaderVingerafdruk`, `volledigeSetsVingerafdruk` en `setAfdruk`; de bestaande checks in `tests/smoke.mjs`; `vite.config.ts` (alleen de hoofdsessie).
