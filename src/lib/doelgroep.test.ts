@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MAX_SETS } from './curriculum';
 import {
-  MAX_DOELGROEP_TITEL, MAX_DOELGROEP_VAK, doelgroepTekst, doelgroepVoorCursus, doelgroepVoorLeerplan, graadTekst, jaarTekst,
-  sanitizeDoelgroep, zelfdeRichting, type Doelgroep,
+  MAX_DOELGROEP_TITEL, MAX_DOELGROEP_VAK, MAX_SET_AFDRUKKEN, doelgroepTekst, doelgroepVoorCursus, doelgroepVoorKlas, doelgroepVoorLeerplan,
+  graadTekst, jaarTekst, sanitizeDoelgroep, zelfdeRichting, zonderKaderVelden, type Doelgroep,
 } from './doelgroep';
 import { peekHandoff, setHandoff, takeHandoff } from './handoff';
 
@@ -10,12 +11,16 @@ import { peekHandoff, setHandoff, takeHandoff } from './handoff';
 
 const HEX = '0123456789abcdef'.repeat(4);
 const HEX2 = 'fedcba9876543210'.repeat(4);
+/** Afdrukken per set (16 kleine hex-tekens), zoals `setAfdruk` ze maakt. */
+const AFDRUK = '0123456789abcdef';
+const AFDRUK2 = 'fedcba9876543210';
 
-/** Een volledige, geldige doelgroep (zoals een leerplan van een richting ze krijgt, plus jaar en vak). */
+/** Een volledige, geldige doelgroep (zoals een leerplan van een richting ze sinds fase 2 krijgt, plus jaar en vak). */
 function volledig(): Doelgroep {
   return {
     groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, jaar: 4, soort: 'so',
     onderdeel: 12345, vak: 'Biologie', kader: HEX, kaderVolledig: HEX2, volgtKader: true,
+    setAfdrukken: { ODS_3132: AFDRUK, ODS_3142: AFDRUK2 },
   };
 }
 
@@ -172,6 +177,140 @@ describe('sanitizeDoelgroep: ongeldige invoer', () => {
   });
 });
 
+describe('sanitizeDoelgroep: setAfdrukken (fase 2, § 22.3.3)', () => {
+  const met = (setAfdrukken: unknown, extra: Record<string, unknown> = { kader: HEX }) => sanitizeDoelgroep({ groep: 'G-0193', ...extra, setAfdrukken });
+
+  it('geldig: blijft, als nieuw object met de sleutels gesorteerd op code-eenheid', () => {
+    const ruw = { ODS_3142: AFDRUK2, ODS_10: AFDRUK, ODS_3132: AFDRUK };
+    const d = met(ruw)!;
+    expect(d.setAfdrukken).toStrictEqual({ ODS_10: AFDRUK, ODS_3132: AFDRUK, ODS_3142: AFDRUK2 });
+    expect(Object.keys(d.setAfdrukken!)).toEqual(['ODS_10', 'ODS_3132', 'ODS_3142']);
+    expect(d.setAfdrukken).not.toBe(ruw);
+    expect(Object.getPrototypeOf(d.setAfdrukken)).toBe(Object.prototype);
+    // De invoer blijft ongemoeid.
+    expect(Object.keys(ruw)).toEqual(['ODS_3142', 'ODS_10', 'ODS_3132']);
+  });
+
+  it('een sleutel die geen set-id is, valt weg', () => {
+    const sleutels = ['ods_1', 'ODS_', 'ODS_1234567890', 'ODS_1 ', ' ODS_1', 'ODS_1a', 'ODS-1', 'G-0193', '', 'set', '1'];
+    const ruw = Object.fromEntries([...sleutels.map((k) => [k, AFDRUK]), ['ODS_1', AFDRUK], ['ODS_123456789', AFDRUK2]]);
+    expect(met(ruw)?.setAfdrukken).toStrictEqual({ ODS_1: AFDRUK, ODS_123456789: AFDRUK2 });
+  });
+
+  it('een waarde die geen 16 kleine hex-tekens is, valt weg (ook hoofdletters)', () => {
+    const waarden: unknown[] = [
+      AFDRUK.toUpperCase(), 'ABCDEF0123456789', AFDRUK.slice(1), `${AFDRUK}0`, `${AFDRUK.slice(1)}g`, ` ${AFDRUK}`, HEX, '', 12, null,
+      true, [AFDRUK], { a: AFDRUK },
+    ];
+    for (const w of waarden) {
+      expect(met({ ODS_1: w, ODS_2: AFDRUK })?.setAfdrukken, JSON.stringify(w)).toStrictEqual({ ODS_2: AFDRUK });
+    }
+  });
+
+  it(`hoogstens ${MAX_SET_AFDRUKKEN} sets (zoveel als één leerplan kan bevatten): de eerste na het sorteren`, () => {
+    expect(MAX_SET_AFDRUKKEN).toBe(MAX_SETS);
+    const zestig = Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`ODS_${i + 1}`, AFDRUK]));
+    const d = met(zestig)!;
+    const verwacht = Object.keys(zestig).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).slice(0, MAX_SET_AFDRUKKEN);
+    expect(Object.keys(d.setAfdrukken!)).toEqual(verwacht);
+    expect(sanitizeDoelgroep(d)).toStrictEqual(d);
+    // Precies 50 blijven allemaal, en ongeldige tellen niet mee voor de grens.
+    const vijftig = Object.fromEntries(Array.from({ length: 50 }, (_, i) => [`ODS_${i + 1}`, AFDRUK]));
+    const metRommel = { ...vijftig, ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`ODS_${i + 1}x`, AFDRUK])) };
+    expect(Object.keys(met(metRommel)!.setAfdrukken!)).toHaveLength(50);
+    expect(met(metRommel)!.setAfdrukken).toStrictEqual(met(vijftig)!.setAfdrukken);
+  });
+
+  it('__proto__ en constructor als sleutel vallen weg, zonder het prototype aan te raken', () => {
+    const ruw = JSON.parse(`{"groep":"G-0193","kader":"${HEX}","setAfdrukken":{"__proto__":"${AFDRUK}","constructor":"${AFDRUK}","ODS_5":"${AFDRUK2}"}}`);
+    expect(Object.keys(ruw.setAfdrukken)).toContain('__proto__');
+    const d = sanitizeDoelgroep(ruw)!;
+    expect(d.setAfdrukken).toStrictEqual({ ODS_5: AFDRUK2 });
+    expect(Object.prototype.hasOwnProperty.call(d.setAfdrukken, '__proto__')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(d.setAfdrukken, 'constructor')).toBe(false);
+    expect(Object.getPrototypeOf(d.setAfdrukken)).toBe(Object.prototype);
+    expect(({} as Record<string, unknown>).ODS_5).toBeUndefined();
+  });
+
+  it('leest alleen eigen eigenschappen, nooit iets uit het prototype', () => {
+    const geerfd = Object.assign(Object.create({ ODS_7: AFDRUK }) as object, { ODS_8: AFDRUK2 });
+    expect(met(geerfd)?.setAfdrukken).toStrictEqual({ ODS_8: AFDRUK2 });
+  });
+
+  it('leest elke waarde één keer: wat nagekeken is, is wat bewaard wordt', () => {
+    let lezingen = 0;
+    const wispelturig = {
+      get ODS_1() {
+        lezingen++;
+        return lezingen === 1 ? AFDRUK : 'GEEN-AFDRUK';
+      },
+    };
+    expect(met(wispelturig)?.setAfdrukken).toStrictEqual({ ODS_1: AFDRUK });
+    expect(lezingen).toBe(1);
+  });
+
+  it('geen gewoon object (ook een array): het veld valt weg', () => {
+    for (const w of [null, undefined, 'ODS_1', 7, true, [AFDRUK], [], () => AFDRUK]) {
+      expect(met(w), String(w)).not.toHaveProperty('setAfdrukken');
+    }
+  });
+
+  it('zonder geldig kader valt het veld weg (een oudere app-versie of een eigen kopie valt zo terug op de oude regel)', () => {
+    expect(met({ ODS_1: AFDRUK }, {})).not.toHaveProperty('setAfdrukken');
+    expect(met({ ODS_1: AFDRUK }, { kader: 'ABC' })).not.toHaveProperty('setAfdrukken');
+    expect(met({ ODS_1: AFDRUK }, { kader: HEX.toUpperCase(), kaderVolledig: HEX2 })).not.toHaveProperty('setAfdrukken');
+    const zonderKader: Partial<Doelgroep> = { ...volledig() };
+    delete zonderKader.kader;
+    expect(sanitizeDoelgroep(zonderKader)).not.toHaveProperty('setAfdrukken');
+    // Met kader maar zonder kaderVolledig blijft het wel: alleen `kader` is de voorwaarde.
+    expect(met({ ODS_1: AFDRUK })?.setAfdrukken).toStrictEqual({ ODS_1: AFDRUK });
+  });
+
+  it('een echt leeg object blijft (nieuw formaat zonder sets in het kader)', () => {
+    expect(met({})?.setAfdrukken).toStrictEqual({});
+    expect(doelgroepVoorLeerplan({ groep: 'G-0193', kader: HEX, setAfdrukken: {} })?.setAfdrukken).toStrictEqual({});
+    expect(sanitizeDoelgroep(met({}))?.setAfdrukken).toStrictEqual({});
+  });
+
+  it('had het object sleutels maar is alles erin ongeldig, dan valt het veld weg (de oude regel geldt dan); kader en kaderVolledig blijven', () => {
+    const allesOngeldig: unknown[] = [
+      { ODS_1: 'fout', nietEenSet: AFDRUK },
+      { ODS_110: 'ABCDEF0123456789' },
+      { ODS_110: AFDRUK.toUpperCase(), ODS_120: `${AFDRUK}00` },
+      // Een formaat dat deze versie niet kent (bv. een langere afdruk van een nieuwere app-versie).
+      { ODS_110: HEX, ODS_120: HEX2 },
+      { ODS_1: null, ODS_2: 7, ODS_3: [AFDRUK] },
+      JSON.parse(`{"__proto__":"${AFDRUK}","constructor":"${AFDRUK}"}`),
+    ];
+    for (const g of allesOngeldig) {
+      const d = met(g, { kader: HEX, kaderVolledig: HEX2 });
+      expect(d, JSON.stringify(g)).not.toHaveProperty('setAfdrukken');
+      expect(d).toMatchObject({ kader: HEX, kaderVolledig: HEX2 });
+      expect(doelgroepVoorLeerplan({ groep: 'G-0193', kader: HEX, setAfdrukken: g })).not.toHaveProperty('setAfdrukken');
+      // Idempotent: weg blijft weg, ook na JSON.
+      expect(sanitizeDoelgroep(d)).toStrictEqual(d);
+      expect(sanitizeDoelgroep(viaJson(d))).toStrictEqual(d);
+    }
+    // Eén geldige ingang is genoeg: dan blijft die (de rest valt weg zoals altijd).
+    expect(met({ ODS_1: 'fout', ODS_2: AFDRUK })?.setAfdrukken).toStrictEqual({ ODS_2: AFDRUK });
+    // Alleen eigen sleutels tellen: een geërfde geldige ingang maakt een leeg object niet ongeldig, en telt niet mee.
+    expect(met(Object.create({ ODS_7: AFDRUK }) as object)?.setAfdrukken).toStrictEqual({});
+  });
+
+  it('idempotent, ook na JSON; doelgroepVoorLeerplan houdt het veld', () => {
+    const gevallen: unknown[] = [
+      { ODS_2: AFDRUK, ODS_1: AFDRUK2 }, {}, { ODS_1: 'X', ODS_2: AFDRUK }, Object.fromEntries(Array.from({ length: 70 }, (_, i) => [`ODS_${i}`, AFDRUK2])),
+      { ODS_1: 'X', rommel: AFDRUK },
+    ];
+    for (const g of gevallen) {
+      const een = met(g)!;
+      expect(sanitizeDoelgroep(een)).toStrictEqual(een);
+      expect(sanitizeDoelgroep(viaJson(een))).toStrictEqual(een);
+      expect(doelgroepVoorLeerplan(een)?.setAfdrukken).toStrictEqual(een.setAfdrukken);
+    }
+  });
+});
+
 describe('sanitizeDoelgroep: idempotent', () => {
   const gevallen: unknown[] = [
     volledig(),
@@ -182,6 +321,8 @@ describe('sanitizeDoelgroep: idempotent', () => {
     { groep: 'G-0193', kader: 'ABC', kaderVolledig: HEX2 },
     { groep: 'G-0193', kader: HEX, kaderVolledig: 'ABC' },
     { groep: 'G-0193', kader: HEX, kaderVolledig: HEX2 },
+    { groep: 'G-0193', setAfdrukken: { ODS_1: AFDRUK } },
+    { groep: 'G-0193', kader: HEX, setAfdrukken: { ODS_9: AFDRUK, ODS_10: 'x', __proto__: AFDRUK } },
     JSON.parse('{"groep":"G-0193","__proto__":{"x":1},"titel":"\\u0000Natuur\\r\\nwetenschappen\\u0000"}'),
   ];
 
@@ -205,12 +346,12 @@ describe('sanitizeDoelgroep: idempotent', () => {
     expect(doelgroepVoorLeerplan(undefined)).toBeUndefined();
   });
 
-  it('doelgroepVoorCursus haalt kader, kaderVolledig en volgtKader samen weg; het jaar blijft; ook idempotent', () => {
+  it('doelgroepVoorCursus haalt kader, kaderVolledig, setAfdrukken en volgtKader samen weg; het jaar blijft; ook idempotent', () => {
     const d = doelgroepVoorCursus(volledig())!;
-    const { kader: _k, kaderVolledig: _kv, volgtKader: _v, ...zonderKader } = volledig();
-    void _k; void _kv; void _v;
+    const { kader: _k, kaderVolledig: _kv, setAfdrukken: _s, volgtKader: _v, ...zonderKader } = volledig();
+    void _k; void _kv; void _s; void _v;
     expect(d).toStrictEqual(zonderKader);
-    for (const veld of ['kader', 'kaderVolledig', 'volgtKader']) expect(d, veld).not.toHaveProperty(veld);
+    for (const veld of ['kader', 'kaderVolledig', 'setAfdrukken', 'volgtKader']) expect(d, veld).not.toHaveProperty(veld);
     expect(d.jaar).toBe(4);
     expect(doelgroepVoorCursus(d)).toStrictEqual(d);
     // Na een volgende sanering (export, import, deellink) blijft ze gelijk: nooit `kaderVolledig` zonder `kader`.
@@ -218,12 +359,55 @@ describe('sanitizeDoelgroep: idempotent', () => {
     // Gaat zelf door de sanering: een geknoeide invoer wordt gesaneerd, een ongeldige valt weg.
     expect(doelgroepVoorCursus({ groep: 'G-0193', kader: HEX, kaderVolledig: HEX2, volgtKader: true, x: 1 }))
       .toStrictEqual({ groep: 'G-0193', titel: 'G-0193', soort: 'so' });
+    expect(doelgroepVoorCursus({ groep: 'G-0193', kader: HEX, setAfdrukken: { ODS_1: AFDRUK } }))
+      .toStrictEqual({ groep: 'G-0193', titel: 'G-0193', soort: 'so' });
+    expect(doelgroepVoorCursus(doelgroepVoorLeerplan(volledig()))).not.toHaveProperty('setAfdrukken');
     expect(doelgroepVoorCursus({ groep: 'fout', kader: HEX })).toBeUndefined();
     expect(doelgroepVoorCursus(undefined)).toBeUndefined();
     // De invoer blijft ongemoeid.
     const invoer = volledig();
     doelgroepVoorCursus(invoer);
     expect(invoer).toStrictEqual(volledig());
+  });
+});
+
+describe('zonderKaderVelden en doelgroepVoorKlas', () => {
+  it('zonderKaderVelden: een nieuw object zonder kader, kaderVolledig, setAfdrukken en volgtKader; de rest blijft', () => {
+    const invoer = volledig();
+    const d = zonderKaderVelden(invoer);
+    expect(d).toStrictEqual({ groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, jaar: 4, soort: 'so', onderdeel: 12345, vak: 'Biologie' });
+    for (const veld of ['kader', 'kaderVolledig', 'setAfdrukken', 'volgtKader']) expect(Object.keys(d), veld).not.toContain(veld);
+    expect(d).not.toBe(invoer);
+    expect(invoer).toStrictEqual(volledig());
+    // Zonder kadervelden: hetzelfde, als nieuw object.
+    const kaal: Doelgroep = { groep: 'G-0009', titel: 'T', soort: 'buso' };
+    expect(zonderKaderVelden(kaal)).toStrictEqual(kaal);
+    expect(zonderKaderVelden(kaal)).not.toBe(kaal);
+  });
+
+  it('doelgroepVoorKlas: alleen groep, titel, graad, jaar, soort en onderdeel (geen vak, geen kadervelden)', () => {
+    const d = doelgroepVoorKlas({ ...volledig(), extra: 'valt weg', klas: '4B' })!;
+    expect(d).toStrictEqual({ groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, jaar: 4, soort: 'so', onderdeel: 12345 });
+    expect(Object.keys(d).sort()).toEqual(['graad', 'groep', 'jaar', 'onderdeel', 'soort', 'titel']);
+    // Wat ontbreekt, staat er niet als lege sleutel.
+    expect(doelgroepVoorKlas({ groep: 'G-0009', soort: 'buso', vak: 'Wiskunde' })).toStrictEqual({ groep: 'G-0009', titel: 'G-0009', soort: 'buso' });
+  });
+
+  it('doelgroepVoorKlas: saneert eerst, is idempotent en laat de invoer ongemoeid', () => {
+    expect(doelgroepVoorKlas({ groep: 'G-0193', titel: ' Natuur\nwetenschappen ', graad: '2', jaar: 9, onderdeel: 1.5 }))
+      .toStrictEqual({ groep: 'G-0193', titel: 'Natuur wetenschappen', graad: 2, soort: 'so' });
+    for (const ongeldig of [undefined, null, 'G-0193', [volledig()], { groep: 'fout' }, { titel: 'zonder groep' }]) {
+      expect(doelgroepVoorKlas(ongeldig), JSON.stringify(ongeldig)).toBeUndefined();
+    }
+    const een = doelgroepVoorKlas(volledig())!;
+    expect(doelgroepVoorKlas(een)).toStrictEqual(een);
+    expect(doelgroepVoorKlas(viaJson(een))).toStrictEqual(een);
+    expect(sanitizeDoelgroep(een)).toStrictEqual(een);
+    const invoer = volledig();
+    doelgroepVoorKlas(invoer);
+    expect(invoer).toStrictEqual(volledig());
+    const proto = JSON.parse('{"groep":"G-0193","__proto__":{"vak":"x"},"constructor":"y"}');
+    expect(doelgroepVoorKlas(proto)).toStrictEqual({ groep: 'G-0193', titel: 'G-0193', soort: 'so' });
   });
 });
 

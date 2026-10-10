@@ -650,18 +650,28 @@ function zelfdeSelectie(a: ReadonlyMap<string, readonly string[]>, b: ReadonlyMa
 
 /**
  * De doelgroep van een bewaarde lijst die opnieuw samengesteld wordt zonder nieuwe doelgroep ("Keuze aanpassen" op de
- * pagina Leerplannen): alles blijft (ook beide vingerafdrukken van het kader, `kader` en `kaderVolledig`), behalve
- * `volgtKader` als de keuze veranderde.
- * `volgtKader` betekent dat "Werk het leerplan bij" de lijst opnieuw uit de koppeling mag opbouwen; na een eigen keuze
- * zou dat die keuze overschrijven. Zonder `volgtKader` biedt het scherm "Kies de doelen opnieuw", dat de keuze houdt.
- * Een ongewijzigde keuze (dezelfde vaste nummers per set als `selectieVanLeerplan(bestaand)`) houdt `volgtKader`.
+ * pagina Leerplannen): alles blijft (ook beide vingerafdrukken van het kader, `kader` en `kaderVolledig`), met twee
+ * uitzonderingen:
+ * - `setAfdrukken` (§ 22.3.3) wordt gesnoeid tot de sets van de nieuwe selectie: een set die wegvalt, verliest haar
+ *   afdruk, en een set die later zonder richting terugkomt, is een eigen keuze (zonder afdruk, nooit vergeleken). Er komt
+ *   nooit een afdruk bij: wie hier geen richting kent, kent het kader niet. Een lijst zonder `setAfdrukken` (van vóór
+ *   fase 2) krijgt er hier dus ook geen en houdt de oude regel.
+ * - `volgtKader` valt weg als de keuze veranderde. `volgtKader` betekent dat "Werk het leerplan bij" de lijst opnieuw uit
+ *   de koppeling mag opbouwen; na een eigen keuze zou dat die keuze overschrijven. Zonder `volgtKader` biedt het scherm
+ *   "Kies de doelen opnieuw", dat de keuze houdt. Een ongewijzigde keuze (dezelfde vaste nummers per set als
+ *   `selectieVanLeerplan(bestaand)`) houdt `volgtKader`.
  */
 function doelgroepVanBestaand(bestaand: Curriculum | undefined, nieuweSelectie: ReadonlyMap<string, readonly string[]>): Doelgroep | undefined {
   const dg = doelgroepVoorLeerplan(bestaand?.doelgroep);
-  if (!bestaand || !dg || dg.volgtKader !== true || zelfdeSelectie(selectieVanLeerplan(bestaand), nieuweSelectie)) return dg;
-  const zonder: Doelgroep = { ...dg };
-  delete zonder.volgtKader;
-  return zonder;
+  if (!bestaand || !dg) return dg;
+  const uit: Doelgroep = { ...dg };
+  if (dg.setAfdrukken !== undefined) {
+    const gesnoeid: Record<string, string> = {};
+    for (const [set, afdruk] of Object.entries(dg.setAfdrukken)) if (nieuweSelectie.has(set)) gesnoeid[set] = afdruk;
+    uit.setAfdrukken = gesnoeid;
+  }
+  if (dg.volgtKader === true && !zelfdeSelectie(selectieVanLeerplan(bestaand), nieuweSelectie)) delete uit.volgtKader;
+  return uit;
 }
 
 function refSleutels(goals: readonly CurriculumGoal[]): string[] {

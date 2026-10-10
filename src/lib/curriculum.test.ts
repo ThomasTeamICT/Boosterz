@@ -419,6 +419,64 @@ describe('sanitizeCurriculum: doelgroep (studierichting)', () => {
     expect(zonderKader.doelgroep).not.toHaveProperty('kader');
     expect(zonderKader.doelgroep).not.toHaveProperty('kaderVolledig');
   });
+
+  describe('setAfdrukken (fase 2, § 22.3.3)', () => {
+    const AFDRUKKEN = { ODS_12: '0123456789abcdef', ODS_3287: 'fedcba9876543210' };
+    const MET_ALLE = { ...DG, kaderVolledig: 'c'.repeat(64), setAfdrukken: AFDRUKKEN };
+
+    it('reist mee bij bewaren, export (versie 2) en import; "nagekeken" en de vingerafdruk blijven', () => {
+      const nagekeken = bevestig(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An' });
+      const vingerafdruk = nagekeken.controle!.doelenSha256;
+      const met: Curriculum = { ...nagekeken, doelgroep: MET_ALLE as Curriculum['doelgroep'] };
+      // Het veld telt niet mee in de vingerafdruk van de doelen.
+      expect(bewaakControle(met)).toBe(met);
+      expect(doelenVingerafdruk(met.goals)).toBe(vingerafdruk);
+      expect(bevestig(sanitizeCurriculum({ ...v2Ruw(), doelgroep: MET_ALLE }) as Curriculum, { door: 'An' }).controle!.doelenSha256).toBe(vingerafdruk);
+      // Export en import.
+      const terug = importCurriculumJson(exportCurriculumJson(met));
+      expect(terug?.controle?.status).toBe('gecontroleerd');
+      expect(terug?.controle?.doelenSha256).toBe(vingerafdruk);
+      expect(terug?.doelgroep).toStrictEqual(MET_ALLE);
+      expect(sanitizeCurriculum(JSON.parse(JSON.stringify(terug)))).toStrictEqual(terug);
+      // Bewaren.
+      saveCurriculum(met);
+      expect(getCurriculum('lp-1')?.controle?.status).toBe('gecontroleerd');
+      expect(getCurriculum('lp-1')?.doelgroep).toStrictEqual(MET_ALLE);
+    });
+
+    it('een eigen kopie verliest alle kadervelden, ook setAfdrukken (ook na export en import)', () => {
+      const met = sanitizeCurriculum({ ...v2Ruw(), doelgroep: MET_ALLE }) as Curriculum;
+      expect(met.doelgroep).toStrictEqual(MET_ALLE);
+      const kopie = maakEigenKopie(met);
+      expect(kopie.doelgroep).toStrictEqual({ groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so' });
+      for (const veld of ['kader', 'kaderVolledig', 'setAfdrukken', 'volgtKader']) expect(Object.keys(kopie.doelgroep!), veld).not.toContain(veld);
+      expect(importCurriculumJson(exportCurriculumJson(kopie))?.doelgroep).toStrictEqual(kopie.doelgroep);
+      // Het origineel blijft ongemoeid.
+      expect(met.doelgroep).toStrictEqual(MET_ALLE);
+    });
+
+    it('een geknoeide afdruk valt weg bij het importeren; zonder geldig kader valt het hele veld weg', () => {
+      const geknoeid = { ...MET_ALLE, setAfdrukken: { ...AFDRUKKEN, ODS_99: 'GEEN-HEX', rommel: '0123456789abcdef' } };
+      expect(sanitizeCurriculum({ ...v2Ruw(), doelgroep: geknoeid })?.doelgroep).toStrictEqual(MET_ALLE);
+      const zonderKader = sanitizeCurriculum({ ...v2Ruw(), doelgroep: { ...MET_ALLE, kader: 'GEEN-HEX' } });
+      expect(zonderKader?.doelgroep).not.toHaveProperty('setAfdrukken');
+      expect(zonderKader?.doelgroep).not.toHaveProperty('kaderVolledig');
+    });
+
+    it('een leerplanbestand van vóór fase 2 (zonder setAfdrukken) komt ongewijzigd door de sanering', () => {
+      const OUD = { ...DG, kaderVolledig: 'c'.repeat(64) };
+      const oud = bevestig(sanitizeCurriculum({ ...v2Ruw(), doelgroep: OUD }) as Curriculum, { door: 'An' });
+      const json = exportCurriculumJson(oud);
+      expect(json).not.toContain('setAfdrukken');
+      const terug = importCurriculumJson(json)!;
+      expect(terug.doelgroep).toStrictEqual(OUD);
+      expect(terug.controle?.status).toBe('gecontroleerd');
+      // Byte voor byte hetzelfde bestand na importeren en opnieuw exporteren.
+      expect(exportCurriculumJson(terug)).toBe(json);
+      saveCurriculum(terug);
+      expect(getCurriculum('lp-1')?.doelgroep).toStrictEqual(OUD);
+    });
+  });
 });
 
 describe('sanitizeCurriculum: versie 1 werkt zoals vroeger', () => {

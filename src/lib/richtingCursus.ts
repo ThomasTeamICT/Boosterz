@@ -106,8 +106,9 @@ function sleutel(set: string, id: string): string {
  *   niet bevestigd (en zonder nakijkstatus), zodat het scherm niets bewaart. Een deelset waarvan de nummers niet meer in
  *   een wel geladen bestand staan, staat in `ontbrekend` en niet hier: de rest van het leerplan blijft.
  * - `doelgroep` komt op het leerplan zonder jaar (een leerplan geldt voor de hele graad), met `volgtKader` en de
- *   vingerafdrukken van het kader (`kaderAfdrukken`: `kader` en `kaderVolledig`) over de sets die echt in het leerplan
- *   zitten. Zo vergelijkt `vergelijkMetKader` later met precies dezelfde sets.
+ *   vingerafdrukken van het kader (`kaderAfdrukken`: `kader`, `kaderVolledig` en sinds fase 2 `setAfdrukken`, één
+ *   afdruk per set) over de sets die echt in het leerplan zitten. Zo vergelijkt `vergelijkMetKader` later met precies
+ *   dezelfde sets. Een bijgewerkt leerplan van vóór fase 2 krijgt zo bewust het nieuwe formaat (§ 22.3.6).
  * - `bestaand` werkt een eerder gemaakt samengesteld leerplan bij (zelfde id, codes blijven); is dat geen samengesteld
  *   leerplan, dan gooit `leerplanUitSelectie` een `Error`.
  * - Is `bevestigd` onwaar (een gevraagde set niet geladen, meer dan 50 sets, geen doelen, een doel valt weg bij het
@@ -305,16 +306,21 @@ function refsPerSet(leerplan: Curriculum): Map<string, Set<string>> {
  * Wat er sinds het maken van het leerplan veranderde in het kader van de richting (§ 11.2). Vergelijk met het kader van
  * hetzelfde jaar en soort onderwijs als bij het maken.
  *
- * Wat vergeleken wordt, volgt `veranderdSindsLeerplan` (richtingKader.ts), dezelfde regel als `beginUitBewaarde`:
- * - niets: de bewaarde vingerafdrukken (`doelgroep.kader` en `doelgroep.kaderVolledig`) zijn gelijk aan die van het
- *   kader over `leerplan.minimumdoelenSets`. Ook een leerplan van vóór `kaderVolledig` (bewaard tot oktober 2026) met
- *   een gelijke `doelgroep.kader`, een eigen kopie (`kind` 'eigen': die volgt de officiële koppeling niet meer), een
- *   kader dat nog niet opgehaald is (`herkomst` 'nog-niet-opgehaald') en een kader zonder sets omdat de bron er geen
- *   geeft (`herkomst` 'geen') geven niets;
- * - alleen de volledige sets van het leerplan: `doelgroep.kader` is gelijk en `doelgroep.kaderVolledig` niet, dus de
- *   deelsets zijn zeker niet veranderd (ook doelen die de leerkracht er zelf bij koos en sets buiten het kader tellen
- *   dan niet);
- * - anders (`doelgroep.kader` is anders of ontbreekt) wordt alles vergeleken.
+ * Wat vergeleken wordt, volgt `veranderdSindsLeerplan` (richtingKader.ts), dezelfde regel als `beginUitBewaarde`.
+ * Een eigen kopie (`kind` 'eigen': die volgt de officiële koppeling niet meer), een kader dat nog niet opgehaald is
+ * (`herkomst` 'nog-niet-opgehaald') en een kader zonder sets omdat de bron er geen geeft (`herkomst` 'geen') geven
+ * altijd niets. Verder:
+ * - Nieuw formaat (sinds fase 2, `doelgroep.setAfdrukken`): alleen de sets van het leerplan met een bewaarde afdruk
+ *   waarvan de afdruk niet meer past of die niet meer in het kader staan. Een set zonder afdruk (een eigen keuze, zoals
+ *   een set die "Keuze aanpassen" zonder richting toevoegde) wordt nooit vergeleken.
+ * - Oud formaat (zonder `setAfdrukken`, bewaard vóór fase 2), de regel van toen:
+ *   - niets: de bewaarde vingerafdrukken (`doelgroep.kader` en `doelgroep.kaderVolledig`) zijn gelijk aan die van het
+ *     kader over `leerplan.minimumdoelenSets`, of een leerplan van vóór `kaderVolledig` (bewaard tot oktober 2026) heeft
+ *     een gelijke `doelgroep.kader`;
+ *   - alleen de volledige sets van het leerplan: `doelgroep.kader` is gelijk en `doelgroep.kaderVolledig` niet, dus de
+ *     deelsets zijn zeker niet veranderd (ook doelen die de leerkracht er zelf bij koos en sets buiten het kader tellen
+ *     dan niet);
+ *   - anders (`doelgroep.kader` is anders of ontbreekt) wordt alles vergeleken.
  *
  * - `vervallen`: verwijzingen van het leerplan die niet meer in het kader staan: de hele set staat er niet meer in
  *   (bv. een set die een oude versie werd), of het nummer staat niet meer in de koppeling. Bij een volledige set
@@ -522,10 +528,10 @@ export function geraamteHoofdstukken(leerplan: Curriculum, codes?: readonly stri
 
 /**
  * Een nieuwe cursus voor een richting, zonder AI: vertrekt van `createCourse(titel, auteur)` en zet de koppeling aan
- * het leerplan (`curriculumId`), de ondertitel (`doelgroepTekst`) en de doelgroep, zonder `kader`, `kaderVolledig` en
- * `volgtKader` (`doelgroepVoorCursus`: die horen bij een leerplan, niet bij een cursus). Met `geraamte` komen de
- * hoofdstukken van `geraamteHoofdstukken` (beperkt tot `codes`); met `leeg`, of als het leerplan geen bruikbare doelen
- * heeft, blijft het ene lege hoofdstuk van `createCourse`. Bewaren doet de aanroeper.
+ * het leerplan (`curriculumId`), de ondertitel (`doelgroepTekst`) en de doelgroep, zonder `kader`, `kaderVolledig`,
+ * `setAfdrukken` en `volgtKader` (`doelgroepVoorCursus`: die horen bij een leerplan, niet bij een cursus). Met
+ * `geraamte` komen de hoofdstukken van `geraamteHoofdstukken` (beperkt tot `codes`); met `leeg`, of als het leerplan
+ * geen bruikbare doelen heeft, blijft het ene lege hoofdstuk van `createCourse`. Bewaren doet de aanroeper.
  */
 export function cursusVoorRichting(o: {
   titel: string;

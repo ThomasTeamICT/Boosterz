@@ -644,24 +644,73 @@ export function volledigeSetsVingerafdruk(kader: RichtingKader, sets?: readonly 
 }
 
 /**
- * De vingerafdrukken die een leerplan van een richting bij het maken krijgt, over de sets die echt in het leerplan
- * zitten: `doelgroep.kader` en `doelgroep.kaderVolledig`.
+ * De afdruk van één set van het kader (§ 22.3.2): de eerste 16 hex-tekens van de sha256 van
+ * "set|*|nummers" (volledig) of "set|-|nummers" (deel), met de vaste nummers van de koppeling getrimd, zonder lege,
+ * uniek, gesorteerd op code-eenheid en gescheiden door komma's. Hangt niet af van de volgorde of van dubbels.
+ *
+ * Een komma of backslash ín een nummer krijgt een backslash ervoor, zodat ["a,b"] en ["a", "b"] nooit dezelfde afdruk
+ * geven. De echte nummers zijn cijfers: voor hen is dat niets, de tekst is letterlijk die van § 22.3.2.
+ *
+ * Ze ziet een deelset die verandert, een set die volledig wordt of niet meer, en een volledige set die groeit, krimpt
+ * of andere nummers krijgt. Het versiemerk zit er niet in (zoals bij `kaderVingerafdruk`). Bewaard in
+ * `doelgroep.setAfdrukken`; verander het formaat nooit.
  */
-export function kaderAfdrukken(kader: RichtingKader, sets: readonly string[]): { kader: string; kaderVolledig: string } {
-  return { kader: kaderVingerafdruk(kader, sets), kaderVolledig: volledigeSetsVingerafdruk(kader, sets) };
+export function setAfdruk(k: KaderSet): string {
+  const ids = [...new Set(k.ids.map((id) => id.trim()).filter((id) => id !== ''))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const tekst = ids.map((id) => id.replace(/[\\,]/g, '\\$&')).join(',');
+  return sha256Hex(`${k.set.id}|${k.volledig ? '*' : '-'}|${tekst}`).slice(0, 16);
 }
 
-/** Zie `veranderdSindsLeerplan`: niets te vergelijken, alles vergelijken, of alleen deze sets (de volledige). */
+/**
+ * De afdruk van elke set van `sets` die in het kader staat (`setAfdruk`); sets buiten het kader slaat ze over. De
+ * sleutels zijn gesorteerd op code-eenheid. Staat een set twee keer in het kader, dan telt de laatste, zoals in
+ * `veranderdSindsLeerplan`.
+ */
+export function afdrukkenPerSet(kader: RichtingKader, sets: readonly string[]): Record<string, string> {
+  const perSet = new Map(kader.sets.map((k) => [k.set.id, k] as const));
+  const gevraagd = [...new Set(sets)].filter((set) => perSet.has(set)).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const uit: Record<string, string> = {};
+  for (const set of gevraagd) uit[set] = setAfdruk(perSet.get(set)!);
+  return uit;
+}
+
+/**
+ * De vingerafdrukken die een leerplan van een richting bij het maken krijgt, over de sets die echt in het leerplan
+ * zitten: `doelgroep.kader`, `doelgroep.kaderVolledig` en (sinds fase 2) `doelgroep.setAfdrukken`. `kader` en
+ * `kaderVolledig` blijven geschreven: een oudere app-versie saneert `setAfdrukken` weg en valt dan op die twee terug.
+ */
+export function kaderAfdrukken(
+  kader: RichtingKader,
+  sets: readonly string[],
+): { kader: string; kaderVolledig: string; setAfdrukken: Record<string, string> } {
+  return {
+    kader: kaderVingerafdruk(kader, sets),
+    kaderVolledig: volledigeSetsVingerafdruk(kader, sets),
+    setAfdrukken: afdrukkenPerSet(kader, sets),
+  };
+}
+
+/** Zie `veranderdSindsLeerplan`: niets te vergelijken, alles vergelijken, of alleen deze sets. */
 export type KaderVerandering = 'niets' | 'alles' | ReadonlySet<string>;
 
 /**
- * Wat er sinds het maken van een leerplan in het kader veranderd kan zijn (§ 11.2): de ene regel waarop
+ * Wat er sinds het maken van een leerplan in het kader veranderd kan zijn (§ 11.2 en § 22.3.4): de ene regel waarop
  * `vergelijkMetKader` (richtingCursus.ts) en `beginUitBewaarde` (richtingLink.ts) rekenen.
  *
- * - `'niets'`: er is niets te vergelijken. Een eigen kopie (`kind` 'eigen') volgt de koppeling niet; een kader dat nog niet
- *   opgehaald is of dat zonder sets 'geen' is, zegt niets; of de bewaarde afdrukken zijn gelijk aan die van het huidige
- *   kader over de sets van het leerplan: `doelgroep.kader` aan `kaderVingerafdruk` en `doelgroep.kaderVolledig` aan
- *   `volledigeSetsVingerafdruk`.
+ * Eerst, voor elk formaat: een eigen kopie (`kind` 'eigen') volgt de koppeling niet, en een kader dat nog niet
+ * opgehaald is of dat zonder sets 'geen' is, zegt niets: `'niets'`.
+ *
+ * **Nieuw formaat** (de doelgroep heeft `setAfdrukken`, ook leeg; sinds fase 2): alleen de sets van het leerplan
+ * (`minimumdoelenSets`) met een bewaarde afdruk worden bekeken. Een set zonder afdruk is een eigen keuze en wordt nooit
+ * vergeleken; een afdruk van een set die niet meer in het leerplan staat, telt niet. Een bekeken set staat in het
+ * resultaat als ze niet meer in het kader staat of als haar afdruk (`setAfdruk`) anders is. Geen enkele: `'niets'`.
+ * `'alles'` komt in dit formaat nooit voor.
+ *
+ * **Oud formaat** (zonder `setAfdrukken`: bewaard vóór fase 2, of door een oudere app-versie): de regel van vóór fase 2,
+ * ongewijzigd (`oudeRegel`):
+ *
+ * - `'niets'`: de bewaarde afdrukken zijn gelijk aan die van het huidige kader over de sets van het leerplan:
+ *   `doelgroep.kader` aan `kaderVingerafdruk` en `doelgroep.kaderVolledig` aan `volledigeSetsVingerafdruk`.
  * - Ook `'niets'`: een leerplan van vóór `kaderVolledig` (bewaard tot oktober 2026) waarvan `doelgroep.kader` gelijk is,
  *   precies zoals vóór oktober 2026: of een volledige set sindsdien groeide of kromp, is niet te zien (en wat in een
  *   volledige set ontbreekt, kan een eigen keuze zijn die "Werk het leerplan bij" zou overschrijven). Zo'n leerplan
@@ -681,8 +730,28 @@ export function veranderdSindsLeerplan(
   // Een kader zonder gegevens zegt niets: anders zou elke verwijzing van het leerplan "vervallen" lijken.
   if (kader.herkomst === 'nog-niet-opgehaald' || (kader.herkomst === 'geen' && kader.sets.length === 0)) return 'niets';
   const dg = doelgroepVoorLeerplan(leerplan.doelgroep);
-  if (dg?.kader === undefined) return 'alles';
   const sets = Array.isArray(leerplan.minimumdoelenSets) ? leerplan.minimumdoelenSets : [];
+  if (dg?.setAfdrukken !== undefined) {
+    // Nieuw formaat: per set, en alleen de sets met een bewaarde afdruk.
+    const afdrukken = dg.setAfdrukken;
+    const perSet = new Map(kader.sets.map((k) => [k.set.id, k] as const));
+    const veranderd = new Set<string>();
+    for (const set of new Set(sets)) {
+      if (!Object.prototype.hasOwnProperty.call(afdrukken, set)) continue; // eigen keuze: nooit vergelijken
+      const k = perSet.get(set);
+      if (k === undefined || setAfdruk(k) !== afdrukken[set]) veranderd.add(set);
+    }
+    return veranderd.size > 0 ? veranderd : 'niets';
+  }
+  return oudeRegel(dg, kader, sets);
+}
+
+/**
+ * De regel van vóór fase 2 voor een leerplan zonder `setAfdrukken`, byte voor byte zoals toen (zie
+ * `veranderdSindsLeerplan`). Verander ze niet: leerplannen van vóór fase 2 en die van een oudere app-versie rekenen erop.
+ */
+function oudeRegel(dg: Doelgroep | undefined, kader: RichtingKader, sets: readonly string[]): KaderVerandering {
+  if (dg?.kader === undefined) return 'alles';
   if (dg.kader !== kaderVingerafdruk(kader, sets)) return 'alles';
   // Zonder `kaderVolledig` (een leerplan van vóór oktober 2026) is een gelijke `kader` genoeg, zoals toen.
   if (dg.kaderVolledig === undefined || dg.kaderVolledig === volledigeSetsVingerafdruk(kader, sets)) return 'niets';

@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import type { Curriculum, CurriculumGoal } from './curriculumTypes';
 import { leerplanUitSelectie, selectieVanLeerplan } from './doelenSamenstellen';
-import { sanitizeDoelgroep } from './doelgroep';
+import { sanitizeDoelgroep, zonderKaderVelden } from './doelgroep';
 import { bouwOntwerp, legeKeuze, saneerOntwerp } from './leerplanInlezen';
 import { GRAAD_OPTIES, STROOM_OPTIES } from './leerplanNiveau';
 import type { Minimumdoel, MinimumdoelenIndexSet, MinimumdoelenSetBestand } from './minimumdoelen';
 import { vergelijkMetKader } from './richtingCursus';
 import {
+  afdrukkenPerSet,
   bouwKader,
   kaderAfdrukken,
   kaderVingerafdruk,
   naarSetKeuzes,
   richtingInfo,
   selectieVanKader,
+  volledigeSetsVingerafdruk,
   type RichtingInfo,
   type RichtingKader,
   type RichtingKeuze,
@@ -348,13 +350,30 @@ const ZONDER_KADER: Pick<Curriculum, 'kind' | 'doelgroep' | 'minimumdoelenSets'>
 const BUITEN = indexSet('ODS_140', 'Geschiedenis', { aantal: 3 });
 const BESTANDEN_MET_BUITEN = new Map([...BESTANDEN, [BUITEN.id, setBestand(BUITEN, 3, 'g')] as const]);
 
-/** Een bewaarde lijst zoals "Bewaar de lijst" ze met een richting maakt: de doelgroep draagt de vingerafdruk van het kader (`kader`) over de sets van de lijst. */
+/**
+ * Een bewaarde lijst zoals "Bewaar de lijst" ze met een richting maakt: de doelgroep draagt de vingerafdrukken van het
+ * kader (`kaderAfdrukken`: sinds fase 2 ook `setAfdrukken`) over de sets van de lijst.
+ */
 function bewaardeLijst(keuze: SamenstelKeuze, kader: RichtingKader | null): Curriculum {
   const keuzes = bouwSetKeuzes(keuze, BESTANDEN_MET_BUITEN);
   const ids = keuzes.map((k) => k.bestand.set.id);
   const r = leerplanUitSelectie(keuzes, { titel: 'Test', ...(kader ? { doelgroep: doelgroepBijRichting(info('G-0100'), kader, ids) } : {}) });
   expect(r.bevestigd).toBe(true);
   return r.leerplan;
+}
+
+/**
+ * De afdrukken zoals een leerplan van een richting ze vóór fase 2 kreeg: `kader` en `kaderVolledig`, zonder
+ * `setAfdrukken` (§ 22.3.8). Tests die de oude regel bedoelen, bouwen hun doelgroep hiermee en niet met
+ * `kaderAfdrukken`, dat sinds fase 2 ook `setAfdrukken` geeft.
+ */
+function oudFormaat(kader: RichtingKader, sets: readonly string[]): { kader: string; kaderVolledig: string } {
+  return { kader: kaderVingerafdruk(kader, sets), kaderVolledig: volledigeSetsVingerafdruk(kader, sets) };
+}
+
+/** Dezelfde bewaarde lijst zoals de app ze vóór fase 2 bewaarde: dezelfde doelgroep, met `oudFormaat`. */
+function inOudFormaat(lijst: Curriculum, kader: RichtingKader): Curriculum {
+  return { ...lijst, doelgroep: { ...zonderKaderVelden(lijst.doelgroep!), ...oudFormaat(kader, lijst.minimumdoelenSets ?? []) } };
 }
 
 describe('beginUitBewaarde', () => {
@@ -410,6 +429,11 @@ describe('beginUitBewaarde volgt vergelijkMetKader (§ 11.2)', () => {
     expect((keuze.selectie.get('ODS_140') as ReadonlySet<string>).size).toBe(3);
     // Dezelfde uitkomst als de vergelijking op het scherm "Werk het leerplan bij".
     expect(vergelijkMetKader(lijst, k).vervallen).toBe(0);
+    // De eigen set buiten het kader heeft geen afdruk; in het oude formaat is de uitkomst dezelfde.
+    expect(Object.keys(lijst.doelgroep?.setAfdrukken ?? {})).toEqual(['ODS_110']);
+    const oud = inOudFormaat(lijst, k);
+    expect(beginUitBewaarde(selectie, k, oud)).toEqual({ keuze, vervallen: 0 });
+    expect(vergelijkMetKader(oud, k).vervallen).toBe(0);
   });
 
   it('(a) zonder de vingerafdruk van het kader (een lijst zonder doelgroep) is dezelfde lijst wél vervallen: 9 uit de deelset en 3 buiten het kader', () => {
@@ -442,10 +466,15 @@ describe('beginUitBewaarde volgt vergelijkMetKader (§ 11.2)', () => {
     const nogNiet = bouwKader(null, undefined, INDEX, { groep: 'G-0100', soort: 'so' }, info('G-0100'));
     const eigen: Curriculum = { ...lijstZonderKader, kind: 'eigen' };
 
+    const lijstMetKaderOud = inOudFormaat(lijstMetKader, k);
+    expect(lijstMetKaderOud.doelgroep).not.toHaveProperty('setAfdrukken');
     const gevallen: { naam: string; lijst: Curriculum; kader: RichtingKader; verwacht: number }[] = [
       { naam: 'niets veranderd', lijst: lijstMetKader, kader: k, verwacht: 0 },
       { naam: 'de koppeling verloor een nummer', lijst: lijstMetKader, kader: minderNummers, verwacht: 1 },
       { naam: 'een set staat niet meer in het kader', lijst: lijstMetKader, kader: setWeg, verwacht: 4 },
+      { naam: 'niets veranderd (oud formaat)', lijst: lijstMetKaderOud, kader: k, verwacht: 0 },
+      { naam: 'de koppeling verloor een nummer (oud formaat)', lijst: lijstMetKaderOud, kader: minderNummers, verwacht: 1 },
+      { naam: 'een set staat niet meer in het kader (oud formaat)', lijst: lijstMetKaderOud, kader: setWeg, verwacht: 4 },
       { naam: 'zonder vingerafdruk: deelset en set buiten het kader', lijst: lijstZonderKader, kader: k, verwacht: 12 },
       { naam: 'een volledige set met dezelfde versie kent w4 niet', lijst: metExtraNummer, kader: k, verwacht: 1 },
       { naam: 'een volledige set met een andere versie houdt al haar nummers', lijst: metExtraNummer, kader: andereVersie, verwacht: 0 },
@@ -463,24 +492,32 @@ describe('beginUitBewaarde volgt vergelijkMetKader (§ 11.2)', () => {
     const k = kader();
     // Per doel gekozen met de richting (doelgroepBijRichting): een volledige set (ODS_100), een deelset waarvan de
     // leerkracht de hele set koos (ODS_110: 13, de koppeling noemt er 4) en een eigen set buiten het kader (ODS_140).
-    const nieuw = bewaardeLijst(beginUitSets(['ODS_100', 'ODS_110', 'ODS_140']), k);
     const SETS = ['ODS_100', 'ODS_110', 'ODS_140'];
-    const oud: Curriculum = { ...nieuw, doelgroep: { ...nieuw.doelgroep!, kaderVolledig: undefined } };
+    /** Zoals de app de lijst sinds fase 2 bewaart: met `setAfdrukken` (geen afdruk voor de eigen set ODS_140). */
+    const perSet = bewaardeLijst(beginUitSets(SETS), k);
+    // De oude regel (vóór fase 2), expliciet in het oude formaat (`oudFormaat`): `tweeAfdrukken` heeft `kader` en
+    // `kaderVolledig`, `alleenKader` is zoals de app het vóór oktober 2026 bewaarde.
+    const tweeAfdrukken = inOudFormaat(perSet, k);
+    const alleenKader: Curriculum = { ...tweeAfdrukken, doelgroep: { ...tweeAfdrukken.doelgroep!, kaderVolledig: undefined } };
+    const oudeFormaten = [alleenKader, tweeAfdrukken];
     /** ODS_100 na een maandelijkse update (koppeling en set samen bijgewerkt): `ids` is de hele set. */
     const heleNa = (ids: string[], extra: Partial<RichtingDoelenSet> = {}) => {
       const s = indexSet('ODS_100', 'Wiskunde', { aantal: ids.length });
       return kaderUit([s, DEEL, STEM, UITBREIDING], [koppelSet(s, ids, extra), koppelSet(DEEL, DEEL_IDS), koppelSet(STEM, ['s1', 's2', 's3', 's4', 's5', 's6']), koppelSet(UITBREIDING, ['n1', 'n2'])]);
     };
 
-    it('vooraf: een nieuw leerplan draagt beide afdrukken, een oud alleen kader (dezelfde)', () => {
-      expect(nieuw.doelgroep).toMatchObject(kaderAfdrukken(k, SETS));
-      expect(oud.doelgroep?.kader).toBe(nieuw.doelgroep?.kader);
-      expect(oud.doelgroep?.kaderVolledig).toBeUndefined();
-      expect(nieuw.goals).toHaveLength(19);
+    it('vooraf: een leerplan van oktober 2026 draagt beide afdrukken, een ouder alleen kader (dezelfde); het nieuwe formaat ook per set', () => {
+      expect(tweeAfdrukken.doelgroep).toMatchObject(oudFormaat(k, SETS));
+      for (const lijst of oudeFormaten) expect(lijst.doelgroep).not.toHaveProperty('setAfdrukken');
+      expect(alleenKader.doelgroep?.kader).toBe(tweeAfdrukken.doelgroep?.kader);
+      expect(alleenKader.doelgroep?.kaderVolledig).toBeUndefined();
+      expect(perSet.doelgroep).toMatchObject(kaderAfdrukken(k, SETS));
+      expect(Object.keys(perSet.doelgroep?.setAfdrukken ?? {})).toEqual(['ODS_100', 'ODS_110']);
+      expect(perSet.goals).toHaveLength(19);
     });
 
     it('(b) niets veranderd: er vervalt niets, ook niet uit de uitgebreide deelset of de eigen set, en de keuze blijft precies', () => {
-      for (const lijst of [oud, nieuw]) {
+      for (const lijst of [...oudeFormaten, perSet]) {
         const selectie = selectieVanLeerplan(lijst);
         const { keuze, vervallen } = beginUitBewaarde(selectie, k, lijst);
         expect(vervallen).toBe(0);
@@ -495,28 +532,31 @@ describe('beginUitBewaarde volgt vergelijkMetKader (§ 11.2)', () => {
       const kleiner = heleNa(['w1', 'w2']);
       expect(kleiner.sets[0]).toMatchObject({ volledig: true, versieGelijk: true });
       // `kader` ziet het verschil niet (dus deelsets en eigen sets zijn zeker niet veranderd): alleen ODS_100 wordt nagekeken.
-      expect(kaderVingerafdruk(kleiner, SETS)).toBe(nieuw.doelgroep?.kader);
-      const r = beginUitBewaarde(selectieVanLeerplan(nieuw), kleiner, nieuw);
-      expect(r.vervallen).toBe(1);
-      expect(r.vervallen).toBe(vergelijkMetKader(nieuw, kleiner).vervallen);
-      expect([...(r.keuze.selectie.get('ODS_100') as ReadonlySet<string>)]).toEqual(['w1', 'w2']);
-      expect((r.keuze.selectie.get('ODS_110') as ReadonlySet<string>).size).toBe(13);
-      expect((r.keuze.selectie.get('ODS_140') as ReadonlySet<string>).size).toBe(3);
+      expect(kaderVingerafdruk(kleiner, SETS)).toBe(tweeAfdrukken.doelgroep?.kader);
+      // In het nieuwe formaat veranderde alleen de afdruk van ODS_100: dezelfde uitkomst.
+      for (const lijst of [tweeAfdrukken, perSet]) {
+        const r = beginUitBewaarde(selectieVanLeerplan(lijst), kleiner, lijst);
+        expect(r.vervallen).toBe(1);
+        expect(r.vervallen).toBe(vergelijkMetKader(lijst, kleiner).vervallen);
+        expect([...(r.keuze.selectie.get('ODS_100') as ReadonlySet<string>)]).toEqual(['w1', 'w2']);
+        expect((r.keuze.selectie.get('ODS_110') as ReadonlySet<string>).size).toBe(13);
+        expect((r.keuze.selectie.get('ODS_140') as ReadonlySet<string>).size).toBe(3);
+      }
     });
 
     it('een oud leerplan (zonder kaderVolledig, kader gelijk) waarvan de volledige set kromp: er vervalt niets en de keuze blijft precies, zoals vroeger', () => {
       const kleiner = heleNa(['w1', 'w2']);
-      const selectie = selectieVanLeerplan(oud);
-      const r = beginUitBewaarde(selectie, kleiner, oud);
+      const selectie = selectieVanLeerplan(alleenKader);
+      const r = beginUitBewaarde(selectie, kleiner, alleenKader);
       expect(r.vervallen).toBe(0);
-      expect(r.vervallen).toBe(vergelijkMetKader(oud, kleiner).vervallen);
+      expect(r.vervallen).toBe(vergelijkMetKader(alleenKader, kleiner).vervallen);
       expect(r.keuze).toEqual(beginUitKeuze(selectie));
       expect([...(r.keuze.selectie.get('ODS_100') as ReadonlySet<string>)]).toEqual(['w1', 'w2', 'w3']);
     });
 
     it('de volledige set groeide (zelfde versie): er vervalt niets en de keuze blijft (nieuwe doelen kies je zelf)', () => {
       const groter = heleNa(['w1', 'w2', 'w3', 'w4', 'w5']);
-      for (const lijst of [oud, nieuw]) {
+      for (const lijst of [...oudeFormaten, perSet]) {
         const r = beginUitBewaarde(selectieVanLeerplan(lijst), groter, lijst);
         expect(r.vervallen).toBe(0);
         expect(vergelijkMetKader(lijst, groter)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
@@ -525,10 +565,10 @@ describe('beginUitBewaarde volgt vergelijkMetKader (§ 11.2)', () => {
       }
     });
 
-    it('(c) de volledige set groeide met een andere versie: 0 vervallen, in beide formaten', () => {
+    it('(c) de volledige set groeide met een andere versie: 0 vervallen, in elk formaat', () => {
       const andereVersie = heleNa(['w1', 'w2', 'w3', 'w4', 'w5'], { setSha: 'f'.repeat(16) });
       expect(andereVersie.sets[0]).toMatchObject({ volledig: true, versieGelijk: false });
-      for (const lijst of [oud, nieuw]) {
+      for (const lijst of [...oudeFormaten, perSet]) {
         const r = beginUitBewaarde(selectieVanLeerplan(lijst), andereVersie, lijst);
         expect(r.vervallen).toBe(0);
         expect(vergelijkMetKader(lijst, andereVersie)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
@@ -538,12 +578,25 @@ describe('beginUitBewaarde volgt vergelijkMetKader (§ 11.2)', () => {
 
     it('een veranderde deelset: kader verschilt en alles wordt vergeleken, zoals vroeger', () => {
       const minder = kaderUit(INDEX, [koppelSet(HELE, ['w1', 'w2', 'w3']), koppelSet(DEEL, ['b2', 'b5', 'b7'])]);
-      expect(kaderVingerafdruk(minder, SETS)).not.toBe(nieuw.doelgroep?.kader);
-      for (const lijst of [oud, nieuw]) {
+      expect(kaderVingerafdruk(minder, SETS)).not.toBe(tweeAfdrukken.doelgroep?.kader);
+      for (const lijst of oudeFormaten) {
         const r = beginUitBewaarde(selectieVanLeerplan(lijst), minder, lijst);
         expect(r.vervallen).toBe(10 + 3);
         expect(r.vervallen).toBe(vergelijkMetKader(lijst, minder).vervallen);
       }
+    });
+
+    it('een veranderde deelset in het nieuwe formaat: alleen die set wordt nagekeken, de eigen set blijft (§ 22.3.4)', () => {
+      const minder = kaderUit(INDEX, [koppelSet(HELE, ['w1', 'w2', 'w3']), koppelSet(DEEL, ['b2', 'b5', 'b7'])]);
+      const r = beginUitBewaarde(selectieVanLeerplan(perSet), minder, perSet);
+      // ODS_110 veranderde echt: de 9 eigen doelen daar en b11 vervallen, zoals bij elke echte verandering. ODS_140 had
+      // geen afdruk (een eigen keuze) en blijft; ODS_100 veranderde niet.
+      expect(r.vervallen).toBe(10);
+      expect(r.vervallen).toBe(vergelijkMetKader(perSet, minder).vervallen);
+      expect(vergelijkMetKader(perSet, minder).setsNietMeerInKader).toEqual([]);
+      expect([...(r.keuze.selectie.get('ODS_110') as ReadonlySet<string>)]).toEqual(['b2', 'b5', 'b7']);
+      expect((r.keuze.selectie.get('ODS_140') as ReadonlySet<string>).size).toBe(3);
+      expect((r.keuze.selectie.get('ODS_100') as ReadonlySet<string>).size).toBe(3);
     });
   });
 
@@ -579,8 +632,13 @@ describe('doelgroepBijRichting', () => {
     // Ook de afdruk van de volledige sets, over dezelfde sets.
     expect(d).toMatchObject(kaderAfdrukken(k, ['ODS_100', 'ODS_110']));
     expect(d.kaderVolledig).toMatch(/^[0-9a-f]{64}$/);
+    // En sinds fase 2 een afdruk per set, voor de gegeven sets die in het kader staan.
+    expect(d.setAfdrukken).toStrictEqual(afdrukkenPerSet(k, ['ODS_100', 'ODS_110']));
+    expect(Object.keys(d.setAfdrukken!)).toEqual(['ODS_100', 'ODS_110']);
     expect(d.volgtKader).toBeUndefined();
     expect(sanitizeDoelgroep(d)).toEqual(d);
+    // Een eigen set buiten het kader krijgt geen afdruk.
+    expect(Object.keys(doelgroepBijRichting(info('G-0100'), k, ['ODS_140', 'ODS_110']).setAfdrukken!)).toEqual(['ODS_110']);
   });
 
   it('zonder vak staat er geen vak in', () => {
@@ -598,6 +656,9 @@ describe('doelgroepBijRichting', () => {
     expect(r.leerplan.doelgroep?.groep).toBe('G-0100');
     expect(r.leerplan.doelgroep?.jaar).toBeUndefined();
     expect(r.leerplan.doelgroep?.kader).toBe(kaderVingerafdruk(k, r.leerplan.minimumdoelenSets));
+    // Een afdruk per set voor precies de sets van het leerplan.
+    expect(Object.keys(r.leerplan.doelgroep?.setAfdrukken ?? {})).toEqual([...(r.leerplan.minimumdoelenSets ?? [])].sort());
+    expect(r.leerplan.doelgroep?.setAfdrukken).toStrictEqual(afdrukkenPerSet(k, r.leerplan.minimumdoelenSets ?? []));
     expect(vergelijkMetKader(r.leerplan, k)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
   });
 });
@@ -620,6 +681,7 @@ describe('inlezen: het ontwerp bewaart de richting (StapNakijken geeft de doelgr
     expect(ontwerp.doelgroep?.jaar).toBeUndefined();
     expect(ontwerp.doelgroep?.kader).toBe(kaderVingerafdruk(k, ['ODS_100', 'ODS_110']));
     expect(ontwerp.doelgroep?.volgtKader).toBeUndefined();
+    expect(ontwerp.doelgroep?.setAfdrukken).toStrictEqual(afdrukkenPerSet(k, ['ODS_100', 'ODS_110']));
     const gesaneerd = saneerOntwerp(ontwerp);
     expect(gesaneerd?.doelgroep).toEqual(ontwerp.doelgroep);
     // De vingerafdruk hoort bij de sets van het leerplan: "Werk het leerplan bij" ziet niets veranderd.

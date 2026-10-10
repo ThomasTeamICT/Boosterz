@@ -1286,7 +1286,7 @@ De volledige lijst met bestanden, afhankelijkheden en acceptatiecriteria staat i
 | Wat | Stand | Op wie |
 |---|---|---|
 | Ontwerp fase 2 in de repo (deze § 22, bijlage D, verwijzing in de stand van zaken bovenaan) | **Klaar** (10 oktober 2026) | hoofdsessie |
-| A1 Vingerafdruk per set (F2.1) en `doelgroepVoorKlas` | Wacht | kernbouwer |
+| A1 Vingerafdruk per set (F2.1) en `doelgroepVoorKlas` | **Klaar** (10 oktober 2026): onafhankelijk nagekeken met 20.000 willekeurige gevallen voor de oude regel en 30.000 voor de nieuwe, geen verschil; twee kleine punten hersteld (een `setAfdrukken` met alleen ongeldige ingangen valt terug op de oude regel; komma in een nummer eenduidig), één weerlegd met een test | kernbouwer |
 | A2 Logica gaten dichten (F2.2) | Wacht, na A1 | bouwer |
 | A3 Logica mijn richtingen en klas met richting (F2.3, F2.4) | Wacht, na A1 (naast A2) | bouwer |
 | I-A Integratie van de logica, hook verhuizen, stubs | Wacht, na A2 en A3 | hoofdsessie |

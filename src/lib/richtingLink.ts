@@ -165,6 +165,10 @@ export function beginUitLink(
  * De bewaarde keuze van een lijst (`selectieVanLeerplan`) voor "Kies de doelen opnieuw" (§ 11.2). Wat er vervalt, volgt
  * dezelfde regel (`veranderdSindsLeerplan`, richtingKader.ts) en dezelfde telling als `vergelijkMetKader`
  * (richtingCursus.ts), zodat scherm en melding niet uiteenlopen.
+ * - Nieuw formaat (sinds fase 2, `doelgroep.setAfdrukken`, § 22.3.4): alleen de sets met een bewaarde afdruk die niet
+ *   meer past (of die niet meer in het kader staan) worden nagekeken zoals hieronder bij "Anders"; elke andere set blijft
+ *   precies zoals bewaard. Een set zonder afdruk (een eigen keuze, ook een set buiten het kader) wordt nooit nagekeken.
+ * Oud formaat (zonder `setAfdrukken`, bewaard vóór fase 2), de regel van toen:
  * - Zijn de bewaarde vingerafdrukken (`doelgroep.kader` en `doelgroep.kaderVolledig`) gelijk aan die van het kader over
  *   de sets van het leerplan, dan is er sinds het maken niets veranderd in de koppeling: er vervalt NIETS en de keuze
  *   blijft precies zoals ze bewaard werd, ook doelen die de leerkracht zelf toevoegde en sets buiten het kader (die waren
@@ -234,7 +238,8 @@ export function richtingTekst(info: RichtingInfo): string {
 
 /**
  * De doelgroep die een leerplan bij deze richting krijgt: de richting en het soort onderwijs van het kader, eventueel
- * het vak, en de vingerafdrukken van het kader (`kaderAfdrukken`) over de sets die echt in het leerplan zitten
+ * het vak, en de vingerafdrukken van het kader (`kaderAfdrukken`: `kader`, `kaderVolledig` en sinds fase 2
+ * `setAfdrukken`, alleen voor de sets van `setIds` die in het kader staan) over de sets die echt in het leerplan zitten
  * (`setIds`). Zo vergelijkt
  * `vergelijkMetKader` later met precies dezelfde sets. Zonder `volgtKader`: wie per doel kiest, volgt de koppeling niet
  * automatisch ("Werk het leerplan bij" bestaat dan niet; "Kies de doelen opnieuw" wel). Het jaar haalt

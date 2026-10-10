@@ -17,7 +17,7 @@ import type { Minimumdoel, MinimumdoelenIndex, MinimumdoelenIndexSet, Minimumdoe
 import { soortVanSet } from './minimumdoelenBron';
 import { NAGEKEKEN_DOOR_BRON, leerplanUitSet } from './minimumdoelenLeerplan';
 import { vergelijkMetKader } from './richtingCursus';
-import { kaderAfdrukken, kaderVingerafdruk, type RichtingKader } from './richtingKader';
+import { afdrukkenPerSet, kaderAfdrukken, kaderVingerafdruk, volledigeSetsVingerafdruk, type RichtingKader } from './richtingKader';
 import { beginUitBewaarde } from './richtingLink';
 
 // ── Nagemaakte sets ─────────────────────────────────────────────────────────
@@ -765,47 +765,127 @@ describe('leerplanUitSelectie: doelgroep (studierichting)', () => {
     expect(vergelijkMetKader(zelfde.leerplan, nu).nieuw).toBe(1);
   });
 
-  it('bekende beperking (§ 11.2): een andere lijst sets bij "Keuze aanpassen" zonder richting laat een eigen keuze vervallen', () => {
-    // De vingerafdruk gaat over alle sets van het leerplan samen. "Keuze aanpassen" zonder richting kent het kader niet en
-    // kan ze dus niet herrekenen: haalt de leerkracht een set weg, dan verschilt de afdruk en wordt alles vergeleken, ook
-    // al veranderde de koppeling niet. Dit legt het huidige gedrag vast; een afdruk per set zou het oplossen.
+  describe('"Keuze aanpassen" zonder richting met een andere lijst sets (§ 11.2, § 22.3)', () => {
+    // De koppeling: deelset A (a1) en deelset B (b1). Ze verandert in dit hele blok niet. De leerkracht neemt a2 erbij
+    // (haar eigen keuze, nooit gekoppeld) en haalt later set B weg, telkens via "Keuze aanpassen" zonder richting.
     const s2 = drieDoelen('ODS_9002', 'b', { korteNaam: 'Ander' });
     const indexSet = (b: MinimumdoelenSetBestand): MinimumdoelenIndexSet => ({
       id: b.set.id, naam: b.set.naam, korteNaam: b.set.korteNaam, geldigheid: 'Geldig', graad: '1ste graad', aantal: 3,
       sha256: 'a'.repeat(64), opgehaald: '2026-10-05T12:20:49Z', bestand: `${b.set.id}.json`,
     });
-    // De koppeling: deelset A (a1) en deelset B (b1). Ze verandert in deze hele test niet.
-    const kader: RichtingKader = {
+    const kaderMet = (bIds: string[]): RichtingKader => ({
       keuze: { groep: 'G-0193', soort: 'so' }, herkomst: 'api',
       sets: [
         { set: indexSet(s1), ids: ['a1'], volledig: false, verplicht: true, versieGelijk: true },
-        { set: indexSet(s2), ids: ['b1'], volledig: false, verplicht: true, versieGelijk: true },
+        { set: indexSet(s2), ids: bIds, volledig: bIds.length === 3, verplicht: true, versieGelijk: true },
       ],
-      aantalDoelen: 2, aantalVerplicht: 2, nietVoorDitJaar: [], verborgenOud: 0, verborgenAndereSoort: 0, onbekend: [], teGroot: false,
+      aantalDoelen: 1 + bIds.length, aantalVerplicht: 1 + bIds.length, nietVoorDitJaar: [], verborgenOud: 0, verborgenAndereSoort: 0, onbekend: [], teGroot: false,
+    });
+    const kader = kaderMet(['b1']);
+    const SETS = ['ODS_9001', 'ODS_9002'];
+    const basis: Doelgroep = { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', volgtKader: true };
+    /**
+     * De afdrukken zoals een leerplan van een richting ze vóór fase 2 kreeg: `kader` en `kaderVolledig`, zonder
+     * `setAfdrukken` (§ 22.3.8). Wie de oude regel bedoelt, bouwt de doelgroep hiermee, niet met `kaderAfdrukken`.
+     */
+    const oudFormaat = (k: RichtingKader, sets: readonly string[]) => ({ kader: kaderVingerafdruk(k, sets), kaderVolledig: volledigeSetsVingerafdruk(k, sets) });
+    /** De drie stappen: het officiële leerplan, a2 erbij (zelfde sets), daarna set B weg. */
+    const stappen = (dg: Doelgroep) => {
+      const officieel = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }, { bestand: s2, doelen: ['b1'] }], { titel: 'T', doelgroep: dg }).leerplan;
+      const metA2 = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }, { bestand: s2, doelen: ['b1'] }], { titel: 'T', bestaand: officieel }).leerplan;
+      const zonderB = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }], { titel: 'T', bestaand: metA2 }).leerplan;
+      return { officieel, metA2, zonderB };
     };
-    const dg: Doelgroep = {
-      groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', ...kaderAfdrukken(kader, ['ODS_9001', 'ODS_9002']), volgtKader: true,
-    };
-    const officieel = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }, { bestand: s2, doelen: ['b1'] }], { titel: 'T', doelgroep: dg }).leerplan;
-    expect(vergelijkMetKader(officieel, kader)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
 
-    // Eerst neemt de leerkracht a2 erbij, met dezelfde sets: de afdruk klopt nog, er is niets te melden.
-    const metA2 = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }, { bestand: s2, doelen: ['b1'] }], { titel: 'T', bestaand: officieel }).leerplan;
-    expect(metA2.doelgroep?.kader).toBe(dg.kader);
-    expect(vergelijkMetKader(metA2, kader)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
-    expect(beginUitBewaarde(selectieVanLeerplan(metA2), kader, metA2).vervallen).toBe(0);
+    it('(1) nieuw formaat (setAfdrukken): na het weghalen van set B vervalt a2 niet meer', () => {
+      const dg: Doelgroep = { ...basis, ...kaderAfdrukken(kader, SETS) };
+      const { officieel, metA2, zonderB } = stappen(dg);
+      expect(officieel.doelgroep?.setAfdrukken).toStrictEqual(afdrukkenPerSet(kader, SETS));
+      expect(vergelijkMetKader(officieel, kader)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
 
-    // Daarna haalt ze set B weg. De bewaarde afdruk (over A en B) blijft staan en verschilt van die over A alleen: alles
-    // wordt vergeleken, en a2 (haar eigen keuze, nooit gekoppeld) telt als vervallen.
-    const zonderB = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }], { titel: 'T', bestaand: metA2 }).leerplan;
-    expect(zonderB.minimumdoelenSets).toEqual(['ODS_9001']);
-    expect(zonderB.doelgroep?.kader).toBe(dg.kader);
-    expect(zonderB.doelgroep?.kader).not.toBe(kaderVingerafdruk(kader, ['ODS_9001']));
-    expect(vergelijkMetKader(zonderB, kader)).toEqual({ nieuw: 0, vervallen: 1, setsNietMeerInKader: [] });
-    // "Kies de doelen opnieuw" haalt a2 dan uit de keuze.
-    const opnieuw = beginUitBewaarde(selectieVanLeerplan(zonderB), kader, zonderB);
-    expect(opnieuw.vervallen).toBe(1);
-    expect(opnieuw.keuze.sets).toEqual(['ODS_9001']);
+      // a2 erbij, met dezelfde sets: niets te melden; beide afdrukken blijven.
+      expect(metA2.doelgroep?.setAfdrukken).toStrictEqual(afdrukkenPerSet(kader, SETS));
+      expect(vergelijkMetKader(metA2, kader)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
+      expect(beginUitBewaarde(selectieVanLeerplan(metA2), kader, metA2).vervallen).toBe(0);
+
+      // Set B weg: alleen de afdruk van A blijft, en die past nog. Er vervalt niets.
+      expect(zonderB.minimumdoelenSets).toEqual(['ODS_9001']);
+      expect(zonderB.doelgroep?.setAfdrukken).toStrictEqual({ ODS_9001: afdrukkenPerSet(kader, SETS).ODS_9001 });
+      // `kader` en `kaderVolledig` blijven zoals ze waren (een oudere app-versie valt erop terug).
+      expect(zonderB.doelgroep?.kader).toBe(dg.kader);
+      expect(zonderB.doelgroep?.kaderVolledig).toBe(dg.kaderVolledig);
+      expect(vergelijkMetKader(zonderB, kader)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
+      // "Kies de doelen opnieuw" houdt a2.
+      const opnieuw = beginUitBewaarde(selectieVanLeerplan(zonderB), kader, zonderB);
+      expect(opnieuw.vervallen).toBe(0);
+      expect(opnieuw.keuze.sets).toEqual(['ODS_9001']);
+      expect([...(opnieuw.keuze.selectie.get('ODS_9001') ?? [])]).toEqual(['a1', 'a2']);
+    });
+
+    it('(2) oud formaat (zonder setAfdrukken, de bekende beperking van § 11.2): a2 telt als vervallen, zoals vóór fase 2', () => {
+      // De afdruk gaat over alle sets samen; "Keuze aanpassen" zonder richting kan ze niet herrekenen. Dit legt het gedrag
+      // vast voor leerplannen die vóór fase 2 bewaard werden: zij volgen de oude regel tot ze met hun richting opnieuw
+      // bewaard worden (F2-B3).
+      const dg: Doelgroep = { ...basis, ...oudFormaat(kader, SETS) };
+      const { officieel, metA2, zonderB } = stappen(dg);
+      expect(officieel.doelgroep).not.toHaveProperty('setAfdrukken');
+      expect(vergelijkMetKader(officieel, kader)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
+
+      // Eerst neemt de leerkracht a2 erbij, met dezelfde sets: de afdruk klopt nog, er is niets te melden.
+      expect(metA2.doelgroep?.kader).toBe(dg.kader);
+      expect(vergelijkMetKader(metA2, kader)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
+      expect(beginUitBewaarde(selectieVanLeerplan(metA2), kader, metA2).vervallen).toBe(0);
+
+      // Daarna haalt ze set B weg. De bewaarde afdruk (over A en B) blijft staan en verschilt van die over A alleen: alles
+      // wordt vergeleken, en a2 (haar eigen keuze, nooit gekoppeld) telt als vervallen.
+      expect(zonderB.minimumdoelenSets).toEqual(['ODS_9001']);
+      expect(zonderB.doelgroep?.kader).toBe(dg.kader);
+      expect(zonderB.doelgroep?.kader).not.toBe(kaderVingerafdruk(kader, ['ODS_9001']));
+      // Een leerplan van vóór fase 2 krijgt hier geen afdrukken per set: wie geen richting kent, kent het kader niet.
+      expect(zonderB.doelgroep).not.toHaveProperty('setAfdrukken');
+      expect(vergelijkMetKader(zonderB, kader)).toEqual({ nieuw: 0, vervallen: 1, setsNietMeerInKader: [] });
+      // "Kies de doelen opnieuw" haalt a2 dan uit de keuze.
+      const opnieuw = beginUitBewaarde(selectieVanLeerplan(zonderB), kader, zonderB);
+      expect(opnieuw.vervallen).toBe(1);
+      expect(opnieuw.keuze.sets).toEqual(['ODS_9001']);
+    });
+
+    it('een set die zonder richting terugkomt, heeft geen afdruk en wordt nooit vergeleken', () => {
+      const { zonderB } = stappen({ ...basis, ...kaderAfdrukken(kader, SETS) });
+      // Set B komt terug via "Keuze aanpassen": een eigen keuze, dus zonder afdruk.
+      const terug = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }, { bestand: s2, doelen: ['b1', 'b3'] }], { titel: 'T', bestaand: zonderB }).leerplan;
+      expect(terug.minimumdoelenSets).toEqual(['ODS_9001', 'ODS_9002']);
+      expect(terug.doelgroep?.setAfdrukken).toStrictEqual({ ODS_9001: afdrukkenPerSet(kader, SETS).ODS_9001 });
+      expect(vergelijkMetKader(terug, kader)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
+      // Ook als de koppeling van B daarna echt verandert: B is een eigen keuze, b1 en b3 vervallen niet.
+      const anderB = kaderMet(['b2']);
+      expect(vergelijkMetKader(terug, anderB)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
+      expect(beginUitBewaarde(selectieVanLeerplan(terug), anderB, terug).vervallen).toBe(0);
+      // Verandert de koppeling van A echt, dan wordt A wel vergeleken (a2 is daar geen koppeling): zoals bij een echte verandering.
+      const anderA: RichtingKader = { ...kader, sets: [{ ...kader.sets[0], ids: ['a1', 'a3'] }, kader.sets[1]] };
+      expect(vergelijkMetKader(terug, anderA)).toEqual({ nieuw: 0, vervallen: 1, setsNietMeerInKader: [] });
+    });
+
+    it('doelgroepVanBestaand snoeit setAfdrukken tot de nieuwe sets en houdt de regel voor volgtKader', () => {
+      const dg: Doelgroep = { ...basis, ...kaderAfdrukken(kader, SETS) };
+      const { officieel } = stappen(dg);
+      const afdrukken = afdrukkenPerSet(kader, SETS);
+      // Dezelfde keuze: alles blijft, ook volgtKader.
+      const zelfde = leerplanUitSelectie([{ bestand: s2, doelen: ['b1'] }, { bestand: s1, doelen: ['a1'] }], { titel: 'Andere titel', bestaand: officieel });
+      expect(zelfde.leerplan.doelgroep).toStrictEqual(dg);
+      // Een set minder: die afdruk weg, en volgtKader weg (de keuze veranderde).
+      const alleenB = leerplanUitSelectie([{ bestand: s2, doelen: ['b1'] }], { titel: 'T', bestaand: officieel }).leerplan;
+      expect(alleenB.doelgroep?.setAfdrukken).toStrictEqual({ ODS_9002: afdrukken.ODS_9002 });
+      expect(alleenB.doelgroep?.volgtKader).toBeUndefined();
+      // Een lege keuze (wordt nooit bewaard): het lege object, nog steeds het nieuwe formaat.
+      expect(leerplanUitSelectie([], { titel: 'T', bestaand: officieel }).leerplan.doelgroep?.setAfdrukken).toStrictEqual({});
+      // Een nieuwe doelgroep (met de richting bewaard) vervangt alles, ook de afdrukken.
+      const nieuweDg: Doelgroep = { ...basis, volgtKader: undefined, ...kaderAfdrukken(kader, ['ODS_9001']) };
+      const metRichting = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }], { titel: 'T', bestaand: officieel, doelgroep: nieuweDg }).leerplan;
+      expect(metRichting.doelgroep?.setAfdrukken).toStrictEqual({ ODS_9001: afdrukken.ODS_9001 });
+      // Het bestaande leerplan zelf blijft ongemoeid.
+      expect(officieel.doelgroep?.setAfdrukken).toStrictEqual(afdrukken);
+    });
   });
 
   it('een nieuwe doelgroep vervangt die van `bestaand`; een ongeldige niet', () => {

@@ -172,11 +172,37 @@ describe('sanitizeCourse: doelgroep', () => {
   });
 
   it('is idempotent met doelgroep; het jaar valt weg als het niet bij de graad past', () => {
-    const een = sanitizeCourse(metDoelgroep({ ...DG, jaar: 9, kader: 'a'.repeat(64), volgtKader: true }))!;
-    expect(een.doelgroep).toStrictEqual({
-      groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', vak: 'Biologie', kader: 'a'.repeat(64), volgtKader: true,
-    });
+    const een = sanitizeCourse(metDoelgroep({ ...DG, jaar: 9 }))!;
+    expect(een.doelgroep).toStrictEqual({ groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', vak: 'Biologie' });
     expect(sanitizeCourse(JSON.parse(JSON.stringify(een)))).toStrictEqual(een);
+  });
+
+  it('een cursus draagt nooit de kadervelden van een leerplan (§ 22.3.3): kader, kaderVolledig, setAfdrukken en volgtKader vallen weg', () => {
+    const kadervelden = {
+      kader: 'a'.repeat(64), kaderVolledig: 'b'.repeat(64), setAfdrukken: { ODS_3132: '0123456789abcdef' }, volgtKader: true,
+    };
+    const een = sanitizeCourse(metDoelgroep({ ...DG, ...kadervelden }))!;
+    expect(een.doelgroep).toStrictEqual(DG);
+    for (const veld of Object.keys(kadervelden)) expect(Object.keys(een.doelgroep!), veld).not.toContain(veld);
+    expect(sanitizeCourse(JSON.parse(JSON.stringify(een)))).toStrictEqual(een);
+    // Elk veld apart, ook alleen setAfdrukken of alleen kader.
+    for (const [veld, waarde] of Object.entries(kadervelden)) {
+      expect(sanitizeCourse(metDoelgroep({ ...DG, [veld]: waarde }))!.doelgroep, veld).toStrictEqual(DG);
+    }
+  });
+
+  it('het cursusbestand (importCourseJson) laat de kadervelden vallen; zonder kadervelden verandert er niets', () => {
+    const geknutseld = JSON.stringify({
+      app: 'boosterz', kind: 'cursus', v: 1, widgets: [],
+      course: metDoelgroep({ ...DG, kader: 'a'.repeat(64), setAfdrukken: { ODS_3132: '0123456789abcdef' } }),
+    });
+    expect(importCourseJson(geknutseld)!.course.doelgroep).toStrictEqual(DG);
+    // Zonder kadervelden: precies dezelfde cursus als vroeger (dezelfde JSON na een tweede keer saneren).
+    const gewoon = sanitizeCourse(metDoelgroep(DG))!;
+    expect(gewoon.doelgroep).toStrictEqual(DG);
+    expect(JSON.stringify(sanitizeCourse(JSON.parse(JSON.stringify(gewoon))))).toBe(JSON.stringify(gewoon));
+    const metOnderdeel = sanitizeCourse(metDoelgroep({ ...DG, onderdeel: 12345 }))!;
+    expect(metOnderdeel.doelgroep).toStrictEqual({ ...DG, onderdeel: 12345 });
   });
 
   it('het cursusbestand (importCourseJson) neemt de doelgroep mee, gesaneerd', () => {

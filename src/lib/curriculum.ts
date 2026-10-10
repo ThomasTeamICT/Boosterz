@@ -15,7 +15,7 @@ import type {
 import { CURRICULUM_NETS } from './curriculumTypes';
 // Alleen een type: curriculumCheck.ts gebruikt dit bestand, dus geen import tijdens het uitvoeren.
 import type { ControleRapport } from './curriculumCheck';
-import { doelgroepVoorLeerplan } from './doelgroep';
+import { doelgroepVoorLeerplan, zonderKaderVelden } from './doelgroep';
 import { sha256Hex } from './sha256';
 import { notifyChange, reportWriteFailure } from './storage';
 import { uid } from './utils';
@@ -613,11 +613,10 @@ export function maakEigenKopie(cur: Curriculum, titel?: string): Curriculum {
   const nu = Date.now();
   const { controle: _controle, doelgroep, ...rest } = cur;
   void _controle;
-  // Een eigen kopie volgt de officiële koppeling van de richting niet meer: zonder kader (beide vingerafdrukken) en
-  // volgtKader biedt geen scherm "Werk het leerplan bij" aan, dat de eigen aanpassingen zou overschrijven.
-  const eigenDoelgroep = doelgroep
-    ? (({ kader: _k, kaderVolledig: _kv, volgtKader: _v, ...d }) => (void _k, void _kv, void _v, d))(doelgroep)
-    : undefined;
+  // Een eigen kopie volgt de officiële koppeling van de richting niet meer: zonder kadervelden (`kader`,
+  // `kaderVolledig`, `setAfdrukken`) en `volgtKader` biedt geen scherm "Werk het leerplan bij" aan, dat de eigen
+  // aanpassingen zou overschrijven.
+  const eigenDoelgroep = doelgroep ? zonderKaderVelden(doelgroep) : undefined;
   return {
     ...rest,
     ...(eigenDoelgroep ? { doelgroep: eigenDoelgroep } : {}),

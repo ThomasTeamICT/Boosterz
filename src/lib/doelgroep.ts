@@ -36,13 +36,25 @@ export interface Doelgroep {
   kaderVolledig?: string;
   /** Leerplan gemaakt per set: "Werk het leerplan bij" mag nieuwe doelen van de koppeling toevoegen. */
   volgtKader?: true;
+  /**
+   * Nieuw (fase 2, § 22.3). Per set van het leerplan die bij het bewaren in het kader van de richting stond: haar afdruk
+   * (`setAfdruk`, 16 kleine hex-tekens). Aanwezig (ook leeg) = nieuw formaat: dan beslist alleen dit veld wat er met het
+   * kader vergeleken wordt, en een set zonder afdruk wordt nooit vergeleken (zie `veranderdSindsLeerplan`). Alleen samen
+   * met een geldig `kader`, alleen op een leerplan, hoogstens 50 sets. Verander het formaat nooit.
+   */
+  setAfdrukken?: Record<string, string>;
 }
 
 export const MAX_DOELGROEP_TITEL = 160;
 export const MAX_DOELGROEP_VAK = 80;
+/** Hoogstens zoveel sets in `setAfdrukken`: zoveel sets kan één leerplan bevatten (`MAX_SETS` in curriculum.ts). */
+export const MAX_SET_AFDRUKKEN = 50;
 
 const GROEP = /^G-\d{4,6}$/;
 const KADER = /^[0-9a-f]{64}$/;
+/** Een set-id zoals `SET_ID` in curriculum.ts. `__proto__` en `constructor` passen hier nooit op. */
+const SET_ID = /^ODS_\d{1,9}$/;
+const SET_AFDRUK = /^[0-9a-f]{16}$/;
 const MAX_ONDERDEEL = 999999;
 /** Jaren per graad: 1ste graad 1–2, 2de graad 3–4, 3de graad 5–7 (het 7de jaar hoort bij de 3de graad). */
 const JAREN: Readonly<Record<1 | 2 | 3, readonly [number, number]>> = { 1: [1, 2], 2: [3, 4], 3: [5, 7] };
@@ -81,6 +93,31 @@ function leesJaar(v: unknown, graad: 1 | 2 | 3 | undefined): number | undefined 
 }
 
 /**
+ * De afdrukken per set uit onbetrouwbare invoer, of `undefined` als het geen gewoon object is (een array ook niet).
+ * Alleen eigen eigenschappen; een sleutel moet een set-id zijn, een waarde 16 kleine hex-tekens; de rest valt weg.
+ * Sleutels gesorteerd op code-eenheid, hoogstens `MAX_SET_AFDRUKKEN` (de eerste na het sorteren). Altijd een nieuw
+ * object. Een echt leeg object blijft (een leerplan zonder sets in het kader). Had het object wel sleutels maar blijft
+ * er niets over (geknoeid, of een formaat dat deze versie niet kent), dan ook `undefined`: dan geldt de oude regel met
+ * `kader` en `kaderVolledig`, en niet stil "nooit iets vergelijken". Idempotent.
+ */
+function leesSetAfdrukken(v: unknown): Record<string, string> | undefined {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const sleutels = Object.keys(v);
+  // Elke waarde één keer lezen: wat nagekeken is, is ook wat bewaard wordt.
+  const geldig: [string, string][] = [];
+  for (const set of sleutels) {
+    if (!SET_ID.test(set)) continue;
+    const afdruk = eigen(v, set);
+    if (typeof afdruk === 'string' && SET_AFDRUK.test(afdruk)) geldig.push([set, afdruk]);
+  }
+  if (sleutels.length > 0 && geldig.length === 0) return undefined;
+  geldig.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const uit: Record<string, string> = {};
+  for (const [set, afdruk] of geldig.slice(0, MAX_SET_AFDRUKKEN)) uit[set] = afdruk;
+  return uit;
+}
+
+/**
  * Een doelgroep uit onbetrouwbare invoer (bestand, link, pakket, overdracht, opslag), of `undefined` als het geen
  * object is of het groepnummer niet klopt. Altijd een nieuw object met alleen de gekende sleutels. Idempotent.
  *
@@ -90,6 +127,8 @@ function leesJaar(v: unknown, graad: 1 | 2 | 3 | undefined): number | undefined 
  * - `onderdeel`: een geheel getal van 1 tot 999999. `vak`: één regel, hoogstens 80 tekens; leeg valt weg.
  * - `kader`: alleen 64 kleine hex-tekens. `kaderVolledig`: ook, en alleen samen met een geldig `kader`.
  *   `volgtKader`: alleen `true`.
+ * - `setAfdrukken`: alleen samen met een geldig `kader` en als gewoon object, en niet als alles erin ongeldig was;
+ *   zie `leesSetAfdrukken`.
  */
 export function sanitizeDoelgroep(raw: unknown): Doelgroep | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
@@ -117,6 +156,10 @@ export function sanitizeDoelgroep(raw: unknown): Doelgroep | undefined {
     // (een eigen kopie, een cursus), verliest ze zo bij het volgende saneren ook.
     const kaderVolledig = eigen(raw, 'kaderVolledig');
     if (typeof kaderVolledig === 'string' && KADER.test(kaderVolledig)) uit.kaderVolledig = kaderVolledig;
+    // Ook de afdrukken per set alleen samen met `kader`: een oudere app-versie die ze wegsaneert, valt zo terug op de
+    // oude regel met `kader` en `kaderVolledig`, en wie `kader` weghaalt, verliest ze bij het volgende saneren ook.
+    const setAfdrukken = leesSetAfdrukken(eigen(raw, 'setAfdrukken'));
+    if (setAfdrukken !== undefined) uit.setAfdrukken = setAfdrukken;
   }
   if (eigen(raw, 'volgtKader') === true) uit.volgtKader = true;
   return uit;
@@ -135,17 +178,39 @@ export function doelgroepVoorLeerplan(raw: unknown): Doelgroep | undefined {
 }
 
 /**
- * De doelgroep van een cursus: zoals `sanitizeDoelgroep` (met jaar), maar zonder `kader`, `kaderVolledig` en
- * `volgtKader`: die horen bij een leerplan, niet bij een cursus. Ze vallen altijd samen weg, ook als de invoer (een
- * overdracht, een leerplan) ze alle drie draagt. Idempotent.
+ * Een nieuw object zonder de velden die bij de koppeling van een leerplan horen: `kader`, `kaderVolledig`,
+ * `setAfdrukken` en `volgtKader`. De rest blijft zoals ze is (dit saneert niet). Voor een eigen kopie, een cursus en
+ * een klas: die volgen de officiële koppeling niet.
+ */
+export function zonderKaderVelden(d: Doelgroep): Doelgroep {
+  const { kader: _k, kaderVolledig: _kv, setAfdrukken: _s, volgtKader: _v, ...rest } = d;
+  void _k; void _kv; void _s; void _v;
+  return rest;
+}
+
+/**
+ * De doelgroep van een cursus: zoals `sanitizeDoelgroep` (met jaar), maar zonder `kader`, `kaderVolledig`,
+ * `setAfdrukken` en `volgtKader` (`zonderKaderVelden`): die horen bij een leerplan, niet bij een cursus. Ze vallen
+ * altijd samen weg, ook als de invoer (een overdracht, een leerplan, een geknutseld bestand) ze draagt. Idempotent.
  */
 export function doelgroepVoorCursus(raw: unknown): Doelgroep | undefined {
   const d = sanitizeDoelgroep(raw);
+  return d ? zonderKaderVelden(d) : undefined;
+}
+
+/**
+ * De doelgroep van een klas (§ 22.6.1): gesaneerd, en dan alleen een witte lijst: `groep`, `titel`, `graad`, `jaar`,
+ * `soort` en `onderdeel`. Geen vak (dat hoort bij de cursus) en geen kadervelden (een klas is geen leerplan). Een veld
+ * dat later bij de doelgroep komt, belandt zo nooit per vergissing op een klas. Idempotent.
+ */
+export function doelgroepVoorKlas(raw: unknown): Doelgroep | undefined {
+  const d = sanitizeDoelgroep(raw);
   if (!d) return undefined;
-  delete d.kader;
-  delete d.kaderVolledig;
-  delete d.volgtKader;
-  return d;
+  const uit: Doelgroep = { groep: d.groep, titel: d.titel, soort: d.soort };
+  if (d.graad !== undefined) uit.graad = d.graad;
+  if (d.jaar !== undefined) uit.jaar = d.jaar;
+  if (d.onderdeel !== undefined) uit.onderdeel = d.onderdeel;
+  return uit;
 }
 
 /** Rangtelwoord in cijfers: 1ste, 2de, …, 8ste, …, 20ste. */

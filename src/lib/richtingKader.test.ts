@@ -3,12 +3,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { MAX_DOELEN, MAX_SETS } from './curriculum';
-import { sanitizeDoelgroep } from './doelgroep';
+import { sanitizeDoelgroep, type Doelgroep } from './doelgroep';
 import { leerplanUitSelectie } from './doelenSamenstellen';
 import type { Minimumdoel, MinimumdoelenIndex, MinimumdoelenIndexSet, MinimumdoelenSetBestand } from './minimumdoelen';
 import { sha256Hex } from './sha256';
 import {
   FINALITEIT_LABEL,
+  afdrukkenPerSet,
   bouwKader,
   doelgroepVan,
   filterRichtingen,
@@ -21,9 +22,11 @@ import {
   naarSetKeuzes,
   richtingInfo,
   selectieVanKader,
+  setAfdruk,
   setPastBijJaar,
   veranderdSindsLeerplan,
   volledigeSetsVingerafdruk,
+  type KaderSet,
   type RichtingFilter,
   type RichtingInfo,
   type RichtingKader,
@@ -110,6 +113,15 @@ function kaderUit(sets: MinimumdoelenIndexSet[], koppel: RichtingDoelenSet[], op
 }
 
 const ids = (sets: readonly { set: { id: string } }[]) => sets.map((s) => s.set.id);
+
+/**
+ * De afdrukken zoals een leerplan van een richting ze vóór fase 2 kreeg: `kader` en `kaderVolledig`, zonder
+ * `setAfdrukken` (§ 22.3.8). Tests die de oude regel bedoelen, bouwen hun doelgroep hiermee en niet met
+ * `kaderAfdrukken`, dat sinds fase 2 ook `setAfdrukken` geeft.
+ */
+function oudFormaat(kader: RichtingKader, sets: readonly string[]): { kader: string; kaderVolledig: string } {
+  return { kader: kaderVingerafdruk(kader, sets), kaderVolledig: volledigeSetsVingerafdruk(kader, sets) };
+}
 
 // ── isUitbreidingsSet ───────────────────────────────────────────────────────
 
@@ -960,6 +972,13 @@ describe('kaderVingerafdruk', () => {
     expect(kaderVingerafdruk(kaderUit([], []))).toBe(sha256Hex(''));
   });
 
+  it('vaste verwachte waarden: het formaat is niet veranderd sinds de bewaarde leerplannen (ook niet in fase 2)', () => {
+    // Letterlijke waarden, nagerekend met een andere sha256 (node:crypto). Verandert er hier iets, dan herkent de app de
+    // afdruk van geen enkel bewaard leerplan meer.
+    expect(kaderVingerafdruk(kader)).toBe('c418a617f22c6991fb30e8db0b570e03761d015d6ee23c8d1f3c7b496f41b46d');
+    expect(kaderVingerafdruk(kaderUit([], []))).toBe('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+  });
+
   it('een volledige set die groeit, krimpt of andere nummers krijgt, verandert de afdruk niet (dat ziet volledigeSetsVingerafdruk)', () => {
     const groter = indexSet('ODS_100', 'Wiskunde', { aantal: 5 });
     const k5 = kaderUit([groter, b, c], [koppelSet(groter), koppelSet(b, ['x1', 'x2', 'x3']), koppelSet(c, ['y1'])]);
@@ -999,6 +1018,12 @@ describe('volledigeSetsVingerafdruk en kaderAfdrukken', () => {
     expect(volledigeSetsVingerafdruk(kader, [])).toBe(sha256Hex(''));
   });
 
+  it('vaste verwachte waarden: het formaat is niet veranderd (ook niet in fase 2)', () => {
+    // Letterlijke waarden, nagerekend met een andere sha256 (node:crypto).
+    expect(volledigeSetsVingerafdruk(kader)).toBe('11e1943435d3d11559080724b391aed28cc13a75a8a2a6d2673e0e0d0be6e5db');
+    expect(volledigeSetsVingerafdruk(kader, ['ODS_110'])).toBe('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+  });
+
   it('verandert als een volledige set groeit, krimpt of andere nummers krijgt; niet door een deelset of de volgorde', () => {
     const groter = indexSet('ODS_100', 'Wiskunde', { aantal: 5 });
     const k5 = kaderUit([groter, b, c], [koppelSet(groter), koppelSet(b, ['x1', 'x2', 'x3']), koppelSet(c)]);
@@ -1011,16 +1036,21 @@ describe('volledigeSetsVingerafdruk en kaderAfdrukken', () => {
     expect(volledigeSetsVingerafdruk(omgekeerd)).toBe(volledigeSetsVingerafdruk(kader));
   });
 
-  it('kaderAfdrukken geeft allebei, over dezelfde sets, en een doelgroep houdt ze na het saneren', () => {
+  it('kaderAfdrukken geeft alle drie, over dezelfde sets, en een doelgroep houdt ze na het saneren', () => {
     const sets = ['ODS_100', 'ODS_110'];
     const afdrukken = kaderAfdrukken(kader, sets);
-    expect(afdrukken).toEqual({ kader: kaderVingerafdruk(kader, sets), kaderVolledig: volledigeSetsVingerafdruk(kader, sets) });
+    // `kader` en `kaderVolledig` blijven geschreven, in hetzelfde formaat (F2-B4); `setAfdrukken` komt erbij.
+    expect(afdrukken).toStrictEqual({
+      kader: kaderVingerafdruk(kader, sets), kaderVolledig: volledigeSetsVingerafdruk(kader, sets), setAfdrukken: afdrukkenPerSet(kader, sets),
+    });
+    expect(Object.keys(afdrukken.setAfdrukken)).toEqual(['ODS_100', 'ODS_110']);
     const dg = sanitizeDoelgroep({ groep: 'G-0100', titel: 'T', soort: 'so', ...afdrukken });
     expect(dg).toMatchObject(afdrukken);
+    expect(dg?.setAfdrukken).toStrictEqual(afdrukken.setAfdrukken);
   });
 });
 
-describe('veranderdSindsLeerplan (de regel van vergelijkMetKader en beginUitBewaarde)', () => {
+describe('veranderdSindsLeerplan: oud formaat, zonder setAfdrukken (de regel van vóór fase 2, ongewijzigd)', () => {
   const a = indexSet('ODS_100', 'Wiskunde', { aantal: 3 });
   const b = indexSet('ODS_110', 'Biologie', { aantal: 13 });
   const kader = kaderUit([a, b], [koppelSet(a), koppelSet(b, ['x1', 'x2', 'x3'])]);
@@ -1034,10 +1064,10 @@ describe('veranderdSindsLeerplan (de regel van vergelijkMetKader en beginUitBewa
     minimumdoelenSets: extra.sets ?? SETS,
     doelgroep: { ...DG, ...afdrukken },
   });
-  /** Zoals de app een leerplan sinds oktober 2026 bewaart: beide afdrukken. */
-  const nieuw = (k: RichtingKader, sets = SETS, volgtKader?: true) => lijst({ ...kaderAfdrukken(k, sets), volgtKader }, { sets });
+  /** Zoals de app een leerplan van oktober 2026 tot fase 2 bewaarde: beide afdrukken, zonder `setAfdrukken` (`oudFormaat`). */
+  const tweeAfdrukken = (k: RichtingKader, sets = SETS, volgtKader?: true) => lijst({ ...oudFormaat(k, sets), volgtKader }, { sets });
   /** Zoals de app een leerplan tot oktober 2026 bewaarde: alleen `kader`. */
-  const oud = (k: RichtingKader, sets = SETS, volgtKader?: true) => lijst({ kader: kaderVingerafdruk(k, sets), volgtKader }, { sets });
+  const alleenKader = (k: RichtingKader, sets = SETS, volgtKader?: true) => lijst({ kader: kaderVingerafdruk(k, sets), volgtKader }, { sets });
   /** Wiskunde (volledig) na een maandelijkse update met `aantal` doelen, koppeling en set samen bijgewerkt. */
   const wiskundeMet = (aantal: number, extra: { setSha?: string } = {}) => {
     const s = indexSet('ODS_100', 'Wiskunde', { aantal });
@@ -1046,39 +1076,39 @@ describe('veranderdSindsLeerplan (de regel van vergelijkMetKader en beginUitBewa
   const sets = (r: ReturnType<typeof veranderdSindsLeerplan>) => (typeof r === 'string' ? r : [...r]);
 
   it('beide afdrukken gelijk: niets, met en zonder volgtKader', () => {
-    expect(veranderdSindsLeerplan(nieuw(kader), kader)).toBe('niets');
-    expect(veranderdSindsLeerplan(nieuw(kader, SETS, true), kader)).toBe('niets');
+    expect(veranderdSindsLeerplan(tweeAfdrukken(kader), kader)).toBe('niets');
+    expect(veranderdSindsLeerplan(tweeAfdrukken(kader, SETS, true), kader)).toBe('niets');
   });
 
   it('alleen de inhoud van een volledige set veranderde: alleen de volledige sets van het leerplan', () => {
     for (const k of [wiskundeMet(5), wiskundeMet(2)]) {
       expect(kaderVingerafdruk(k, SETS)).toBe(kaderVingerafdruk(kader, SETS));
-      expect(sets(veranderdSindsLeerplan(nieuw(kader), k))).toEqual(['ODS_100']);
-      expect(sets(veranderdSindsLeerplan(nieuw(kader, SETS, true), k))).toEqual(['ODS_100']);
+      expect(sets(veranderdSindsLeerplan(tweeAfdrukken(kader), k))).toEqual(['ODS_100']);
+      expect(sets(veranderdSindsLeerplan(tweeAfdrukken(kader, SETS, true), k))).toEqual(['ODS_100']);
     }
   });
 
   it('een volledige set met een andere versie: alleen de volledige sets (de telling geeft daar 0 nieuw en 0 vervallen)', () => {
     const andereVersie = wiskundeMet(5, { setSha: 'f'.repeat(16) });
     expect(andereVersie.sets[0]).toMatchObject({ volledig: true, versieGelijk: false });
-    expect(sets(veranderdSindsLeerplan(nieuw(kader), andereVersie))).toEqual(['ODS_100']);
+    expect(sets(veranderdSindsLeerplan(tweeAfdrukken(kader), andereVersie))).toEqual(['ODS_100']);
     // Een leerplan van vóór kaderVolledig: niets, zoals vroeger.
-    expect(veranderdSindsLeerplan(oud(kader), andereVersie)).toBe('niets');
+    expect(veranderdSindsLeerplan(alleenKader(kader), andereVersie)).toBe('niets');
   });
 
   it('een deelset veranderde, of een set werd volledig of niet meer: alles, in beide formaten', () => {
     const anderDeel = kaderUit([a, b], [koppelSet(a), koppelSet(b, ['x1', 'x2'])]);
-    expect(veranderdSindsLeerplan(nieuw(kader), anderDeel)).toBe('alles');
-    expect(veranderdSindsLeerplan(oud(kader), anderDeel)).toBe('alles');
-    expect(veranderdSindsLeerplan(oud(kader, SETS, true), anderDeel)).toBe('alles');
+    expect(veranderdSindsLeerplan(tweeAfdrukken(kader), anderDeel)).toBe('alles');
+    expect(veranderdSindsLeerplan(alleenKader(kader), anderDeel)).toBe('alles');
+    expect(veranderdSindsLeerplan(alleenKader(kader, SETS, true), anderDeel)).toBe('alles');
     const deelA = kaderUit([a, b], [koppelSet(a, ['1001', '1002']), koppelSet(b, ['x1', 'x2', 'x3'])]);
-    expect(veranderdSindsLeerplan(nieuw(kader), deelA)).toBe('alles');
-    expect(veranderdSindsLeerplan(oud(kader), deelA)).toBe('alles');
+    expect(veranderdSindsLeerplan(tweeAfdrukken(kader), deelA)).toBe('alles');
+    expect(veranderdSindsLeerplan(alleenKader(kader), deelA)).toBe('alles');
     const kleineB = indexSet('ODS_110', 'Biologie', { aantal: 3 });
     const heleB = kaderUit([a, kleineB], [koppelSet(a), koppelSet(kleineB, ['x1', 'x2', 'x3'])]);
     expect(heleB.sets[1].volledig).toBe(true);
-    expect(veranderdSindsLeerplan(nieuw(kader), heleB)).toBe('alles');
-    expect(veranderdSindsLeerplan(oud(kader), heleB)).toBe('alles');
+    expect(veranderdSindsLeerplan(tweeAfdrukken(kader), heleB)).toBe('alles');
+    expect(veranderdSindsLeerplan(alleenKader(kader), heleB)).toBe('alles');
   });
 
   it('geen of een ongeldige afdruk: alles', () => {
@@ -1090,12 +1120,12 @@ describe('veranderdSindsLeerplan (de regel van vergelijkMetKader en beginUitBewa
   });
 
   it('een leerplan van vóór kaderVolledig met een gelijke kader: niets, zoals vóór oktober 2026', () => {
-    expect(veranderdSindsLeerplan(oud(kader), kader)).toBe('niets');
+    expect(veranderdSindsLeerplan(alleenKader(kader), kader)).toBe('niets');
     // Oud leerplan, kader gelijk, volledige set gegroeid of gekrompen: niets, met en zonder volgtKader. Wat in een
     // volledige set ontbreekt, kan een eigen keuze zijn ("Keuze aanpassen" hield toen volgtKader).
     for (const k of [wiskundeMet(5), wiskundeMet(2)]) {
-      expect(veranderdSindsLeerplan(oud(kader), k)).toBe('niets');
-      expect(veranderdSindsLeerplan(oud(kader, SETS, true), k)).toBe('niets');
+      expect(veranderdSindsLeerplan(alleenKader(kader), k)).toBe('niets');
+      expect(veranderdSindsLeerplan(alleenKader(kader, SETS, true), k)).toBe('niets');
     }
     // Ook een ongeldige kaderVolledig telt als ontbrekend: dan geldt dezelfde regel.
     expect(veranderdSindsLeerplan(lijst({ kader: kaderVingerafdruk(kader, SETS), kaderVolledig: 'GEEN-HEX' }), wiskundeMet(5))).toBe('niets');
@@ -1112,8 +1142,241 @@ describe('veranderdSindsLeerplan (de regel van vergelijkMetKader en beginUitBewa
 
   it('de afdrukken gaan over de sets van het leerplan', () => {
     // Wiskunde groeide, maar zit niet in dit leerplan: niets veranderd.
-    expect(veranderdSindsLeerplan(nieuw(kader, ['ODS_110']), wiskundeMet(5))).toBe('niets');
-    expect(veranderdSindsLeerplan(oud(kader, ['ODS_110']), wiskundeMet(5))).toBe('niets');
+    expect(veranderdSindsLeerplan(tweeAfdrukken(kader, ['ODS_110']), wiskundeMet(5))).toBe('niets');
+    expect(veranderdSindsLeerplan(alleenKader(kader, ['ODS_110']), wiskundeMet(5))).toBe('niets');
+  });
+});
+
+describe('setAfdruk en afdrukkenPerSet (fase 2)', () => {
+  const a = indexSet('ODS_100', 'Wiskunde', { aantal: 3 });
+  const b = indexSet('ODS_110', 'Biologie', { aantal: 13 });
+  const c = indexSet('ODS_120', 'Chemie', { aantal: 25 });
+  const kader = kaderUit([a, b, c], [koppelSet(a), koppelSet(b, ['x1', 'x2', 'x3']), koppelSet(c, ['y1'])]);
+  const [heleA, deelB] = kader.sets;
+
+  it('16 kleine hex-tekens; vaste verwachte waarden (het formaat verandert nooit)', () => {
+    expect(heleA).toMatchObject({ volledig: true, ids: ['1001', '1002', '1003'] });
+    expect(deelB).toMatchObject({ volledig: false, ids: ['x1', 'x2', 'x3'] });
+    // Letterlijke waarden, nagerekend met een andere sha256 (node:crypto) over "set|*|nummers" en "set|-|nummers".
+    expect(setAfdruk(heleA)).toBe('a4748cc1240e67a9');
+    expect(setAfdruk(deelB)).toBe('5f47f33352bb08e2');
+    expect(setAfdruk(heleA)).toBe(sha256Hex('ODS_100|*|1001,1002,1003').slice(0, 16));
+    for (const k of kader.sets) expect(setAfdruk(k)).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it('hangt niet af van de volgorde, dubbels, witruimte of lege nummers', () => {
+    const rommelig: KaderSet = { ...deelB, ids: ['x3', ' x1', 'x2', 'x1', '', '  ', 'x3 '] };
+    expect(setAfdruk(rommelig)).toBe(setAfdruk(deelB));
+    // Gesorteerd op code-eenheid: "x10" komt vóór "x2", in welke volgorde ze ook binnenkomen.
+    expect(setAfdruk({ ...deelB, ids: ['x2', 'x10'] })).toBe(setAfdruk({ ...deelB, ids: ['x10', 'x2'] }));
+    expect(setAfdruk({ ...deelB, ids: ['x2', 'x10'] })).toBe(sha256Hex('ODS_110|-|x10,x2').slice(0, 16));
+  });
+
+  it('eenduidig, ook als een nummer een komma of backslash bevat; gewone nummers houden de letterlijke tekst', () => {
+    const met = (ids: string[]) => setAfdruk({ ...deelB, ids });
+    expect(met(['a,b'])).not.toBe(met(['a', 'b']));
+    expect(met(['a,', 'b'])).not.toBe(met(['a', ',b']));
+    expect(met(['a\\', 'b'])).not.toBe(met(['a\\,b']));
+    expect(met(['a\\,b'])).not.toBe(met(['a,b']));
+    expect(met(['a\\\\', 'b'])).not.toBe(met(['a\\', '\\b']));
+    // Wat de backslash ervoor krijgt, staat zo in de tekst.
+    expect(met(['a,b'])).toBe(sha256Hex('ODS_110|-|a\\,b').slice(0, 16));
+    expect(met(['a\\', 'b'])).toBe(sha256Hex('ODS_110|-|a\\\\,b').slice(0, 16));
+    // Nummers zonder komma of backslash (zoals alle echte, die uit cijfers bestaan): de tekst van § 22.3.2, letterlijk.
+    expect(met(['73740', '73741', '9'])).toBe(sha256Hex('ODS_110|-|73740,73741,9').slice(0, 16));
+    expect(met(['x-1', 'x.2', 'x 3'])).toBe(sha256Hex('ODS_110|-|x 3,x-1,x.2').slice(0, 16));
+  });
+
+  it('een deelset en een volledige set met dezelfde nummers verschillen; het versiemerk en "verplicht" tellen niet', () => {
+    expect(setAfdruk({ ...deelB, volledig: true })).not.toBe(setAfdruk(deelB));
+    expect(setAfdruk({ ...heleA, volledig: false })).not.toBe(setAfdruk(heleA));
+    expect(setAfdruk({ ...heleA, versieGelijk: false })).toBe(setAfdruk(heleA));
+    expect(setAfdruk({ ...deelB, verplicht: false })).toBe(setAfdruk(deelB));
+  });
+
+  it('verandert als een deelset verandert, en als een volledige set groeit, krimpt of andere nummers krijgt', () => {
+    expect(setAfdruk({ ...deelB, ids: ['x1', 'x2'] })).not.toBe(setAfdruk(deelB));
+    expect(setAfdruk({ ...deelB, ids: ['x1', 'x2', 'x4'] })).not.toBe(setAfdruk(deelB));
+    const a5 = indexSet('ODS_100', 'Wiskunde', { aantal: 5 });
+    const a2 = indexSet('ODS_100', 'Wiskunde', { aantal: 2 });
+    const groter = kaderUit([a5], [koppelSet(a5)]).sets[0];
+    const kleiner = kaderUit([a2], [koppelSet(a2)]).sets[0];
+    expect([groter.volledig, kleiner.volledig]).toEqual([true, true]);
+    expect(setAfdruk(groter)).not.toBe(setAfdruk(heleA));
+    expect(setAfdruk(kleiner)).not.toBe(setAfdruk(heleA));
+    expect(setAfdruk({ ...heleA, ids: ['p', 'q', 'r'] })).not.toBe(setAfdruk(heleA));
+    // Een andere set met dezelfde nummers: een andere afdruk.
+    expect(setAfdruk({ ...deelB, set: c })).not.toBe(setAfdruk(deelB));
+  });
+
+  it('afdrukkenPerSet: alleen de gevraagde sets die in het kader staan, sleutels gesorteerd; dubbels en sets buiten het kader tellen niet', () => {
+    expect(afdrukkenPerSet(kader, ['ODS_120', 'ODS_999', 'ODS_100', 'ODS_120'])).toStrictEqual({
+      ODS_100: setAfdruk(heleA), ODS_120: setAfdruk(kader.sets[2]),
+    });
+    expect(Object.keys(afdrukkenPerSet(kader, ['ODS_120', 'ODS_110', 'ODS_100']))).toEqual(['ODS_100', 'ODS_110', 'ODS_120']);
+    expect(afdrukkenPerSet(kader, [])).toStrictEqual({});
+    expect(afdrukkenPerSet(kader, ['ODS_999'])).toStrictEqual({});
+    expect(afdrukkenPerSet(kaderUit([], []), ['ODS_100'])).toStrictEqual({});
+    // Sorteren op code-eenheid, niet natuurlijk: "ODS_1000" komt vóór "ODS_200".
+    const d = indexSet('ODS_200', 'Duits', { aantal: 1 });
+    const e = indexSet('ODS_1000', 'Engels', { aantal: 1 });
+    expect(Object.keys(afdrukkenPerSet(kaderUit([d, e], [koppelSet(d), koppelSet(e)]), ['ODS_200', 'ODS_1000']))).toEqual(['ODS_1000', 'ODS_200']);
+  });
+
+  it('de afdrukken overleven het saneren van de doelgroep ongewijzigd', () => {
+    const alle = ['ODS_100', 'ODS_110', 'ODS_120'];
+    const dg = sanitizeDoelgroep({ groep: 'G-0100', soort: 'so', ...kaderAfdrukken(kader, alle) });
+    expect(dg?.setAfdrukken).toStrictEqual(afdrukkenPerSet(kader, alle));
+    expect(sanitizeDoelgroep(JSON.parse(JSON.stringify(dg)))).toStrictEqual(dg);
+  });
+});
+
+describe('veranderdSindsLeerplan: nieuw formaat, met setAfdrukken (fase 2, § 22.3.4)', () => {
+  const v = indexSet('ODS_100', 'Wiskunde', { aantal: 3 });
+  const a = indexSet('ODS_110', 'Biologie', { aantal: 13 });
+  const s = indexSet('ODS_120', 'Chemie', { aantal: 25 });
+  const eigen = indexSet('ODS_140', 'Geschiedenis', { aantal: 4 });
+  /** Het kader bij het bewaren: V volledig, A en S deelsets. ODS_140 (een eigen set) staat er niet in. */
+  const kader = kaderUit([v, a, s, eigen], [koppelSet(v), koppelSet(a, ['x1', 'x2', 'x3']), koppelSet(s, ['y1'])]);
+  const SETS = ['ODS_100', 'ODS_110', 'ODS_120', 'ODS_140'];
+  const DG = { groep: 'G-0100', titel: 'Testrichting', graad: 2 as const, soort: 'so' as const };
+  /** Een bewaard leerplan met deze (ongesaneerde) doelgroep, zoals het uit de opslag komt. */
+  const lijst = (doelgroep: Record<string, unknown>, sets: string[] = SETS, kind: 'leerplan' | 'eigen' = 'leerplan') => ({
+    kind, minimumdoelenSets: sets, doelgroep: doelgroep as unknown as Doelgroep,
+  });
+  /** Zoals de app een leerplan sinds fase 2 bewaart: `kaderAfdrukken` over de sets van het leerplan. */
+  const perSet = (k: RichtingKader, sets: string[] = SETS, volgtKader?: true) => lijst({ ...DG, ...kaderAfdrukken(k, sets), volgtKader }, sets);
+  /** Hetzelfde leerplan in het oude formaat (`oudFormaat`), om de twee regels naast elkaar te zetten. */
+  const oud = (k: RichtingKader, sets: string[] = SETS) => lijst({ ...DG, ...oudFormaat(k, sets) }, sets);
+  const uitkomst = (r: ReturnType<typeof veranderdSindsLeerplan>) => (typeof r === 'string' ? r : [...r]);
+  /** Het kader met andere nummers voor de deelset A. */
+  const metA = (ids: string[]) => kaderUit([v, a, s, eigen], [koppelSet(v), koppelSet(a, ids), koppelSet(s, ['y1'])]);
+  /** Het kader waarin de volledige set V nu `aantal` doelen telt (koppeling en set samen bijgewerkt). */
+  const metV = (aantal: number) => {
+    const v2 = indexSet('ODS_100', 'Wiskunde', { aantal });
+    return kaderUit([v2, a, s, eigen], [koppelSet(v2), koppelSet(a, ['x1', 'x2', 'x3']), koppelSet(s, ['y1'])]);
+  };
+
+  it('vooraf: het leerplan heeft een afdruk voor V, A en S, niet voor de eigen set', () => {
+    const dg = sanitizeDoelgroep(perSet(kader).doelgroep);
+    expect(Object.keys(dg?.setAfdrukken ?? {})).toEqual(['ODS_100', 'ODS_110', 'ODS_120']);
+  });
+
+  it('niets veranderd: niets, met en zonder volgtKader', () => {
+    expect(veranderdSindsLeerplan(perSet(kader), kader)).toBe('niets');
+    expect(veranderdSindsLeerplan(perSet(kader, SETS, true), kader)).toBe('niets');
+  });
+
+  it('één deelset veranderd: alleen die set (de oude regel vergeleek alles)', () => {
+    for (const k of [metA(['x1', 'x2']), metA(['x1', 'x2', 'x3', 'x4']), metA(['x1', 'x2', 'x5'])]) {
+      expect(uitkomst(veranderdSindsLeerplan(perSet(kader), k))).toEqual(['ODS_110']);
+      expect(veranderdSindsLeerplan(oud(kader), k)).toBe('alles');
+    }
+  });
+
+  it('een volledige set die groeide of kromp: alleen die set; een deelset die volledig werd ook', () => {
+    for (const k of [metV(5), metV(2)]) expect(uitkomst(veranderdSindsLeerplan(perSet(kader), k))).toEqual(['ODS_100']);
+    const kleineA = indexSet('ODS_110', 'Biologie', { aantal: 3 });
+    const heleA = kaderUit([v, kleineA, s], [koppelSet(v), koppelSet(kleineA, ['x1', 'x2', 'x3']), koppelSet(s, ['y1'])]);
+    expect(heleA.sets[1].volledig).toBe(true);
+    expect(uitkomst(veranderdSindsLeerplan(perSet(kader), heleA))).toEqual(['ODS_110']);
+  });
+
+  it('een set die uit het kader viel (bv. een oude versie): die set', () => {
+    const zonderS = kaderUit([v, a, s, eigen], [koppelSet(v), koppelSet(a, ['x1', 'x2', 'x3'])]);
+    expect(uitkomst(veranderdSindsLeerplan(perSet(kader), zonderS))).toEqual(['ODS_120']);
+    // Meer sets tegelijk: in de volgorde van het leerplan.
+    const alleenA = kaderUit([v, a, s, eigen], [koppelSet(a, ['x1', 'x2'])]);
+    expect(uitkomst(veranderdSindsLeerplan(perSet(kader), alleenA))).toEqual(['ODS_100', 'ODS_110', 'ODS_120']);
+  });
+
+  it('een set zonder afdruk wordt nooit vergeleken, ook niet als ze later in het kader komt', () => {
+    const metEigen = kaderUit([v, a, s, eigen], [koppelSet(v), koppelSet(a, ['x1', 'x2', 'x3']), koppelSet(s, ['y1']), koppelSet(eigen, ['g1'])]);
+    expect(metEigen.sets.map((k) => k.set.id)).toContain('ODS_140');
+    expect(veranderdSindsLeerplan(perSet(kader), metEigen)).toBe('niets');
+    // Ook niet als alles rond haar verandert.
+    const alleenEigen = kaderUit([v, a, s, eigen], [koppelSet(eigen, ['g2'])]);
+    expect(uitkomst(veranderdSindsLeerplan(perSet(kader), alleenEigen))).toEqual(['ODS_100', 'ODS_110', 'ODS_120']);
+  });
+
+  it('een afdruk van een set die niet meer in het leerplan staat, telt niet', () => {
+    // Bewaard met afdrukken voor V, A en S; daarna staat S niet meer in de lijst sets van het leerplan.
+    const zonderSInLeerplan = lijst({ ...DG, ...kaderAfdrukken(kader, SETS) }, ['ODS_100', 'ODS_110']);
+    const anderS = kaderUit([v, a, s, eigen], [koppelSet(v), koppelSet(a, ['x1', 'x2', 'x3']), koppelSet(s, ['y2'])]);
+    expect(veranderdSindsLeerplan(zonderSInLeerplan, anderS)).toBe('niets');
+    expect(veranderdSindsLeerplan(zonderSInLeerplan, kaderUit([v, a, s, eigen], [koppelSet(v), koppelSet(a, ['x1', 'x2', 'x3'])]))).toBe('niets');
+  });
+
+  it('een leeg object: nieuw formaat zonder sets in het kader, dus altijd niets', () => {
+    const leeg = lijst({ ...DG, ...oudFormaat(kader, SETS), setAfdrukken: {} });
+    expect(sanitizeDoelgroep(leeg.doelgroep)?.setAfdrukken).toStrictEqual({});
+    for (const k of [kader, metA(['x9']), metV(5), kaderUit([v, a, s, eigen], [])]) expect(veranderdSindsLeerplan(leeg, k)).toBe('niets');
+    // De oude regel zou hier wel rekenen: het lege object beslist dus echt.
+    expect(veranderdSindsLeerplan(oud(kader), metA(['x9']))).toBe('alles');
+  });
+
+  it('"alles" komt in het nieuwe formaat nooit voor', () => {
+    const kaders = [kader, metA(['x1']), metA([]), metV(5), metV(1), kaderUit([], []), kaderUit([v, a, s, eigen], [koppelSet(eigen)])];
+    for (const k of kaders) {
+      for (const sets of [SETS, ['ODS_110'], [], ['ODS_140']]) {
+        expect(veranderdSindsLeerplan(perSet(kader, sets), k)).not.toBe('alles');
+        expect(veranderdSindsLeerplan(perSet(kader, sets, true), k)).not.toBe('alles');
+      }
+    }
+  });
+
+  it('dubbels in de lijst sets van het leerplan tellen één keer', () => {
+    const dubbel = lijst({ ...DG, ...kaderAfdrukken(kader, SETS) }, ['ODS_110', 'ODS_110', 'ODS_100']);
+    expect(uitkomst(veranderdSindsLeerplan(dubbel, metA(['x1'])))).toEqual(['ODS_110']);
+  });
+
+  it('een eigen kopie, of een kader zonder gegevens: niets, ook in het nieuwe formaat', () => {
+    expect(veranderdSindsLeerplan(lijst({ ...DG, ...kaderAfdrukken(kader, SETS) }, SETS, 'eigen'), metA(['x1']))).toBe('niets');
+    expect(veranderdSindsLeerplan(perSet(kader), { ...metA(['x1']), herkomst: 'nog-niet-opgehaald' })).toBe('niets');
+    expect(veranderdSindsLeerplan(perSet(kader), { ...kader, herkomst: 'geen', sets: [] })).toBe('niets');
+    // 'geen' met een laatst bekend bestand (sets) zegt wel iets.
+    expect(uitkomst(veranderdSindsLeerplan(perSet(kader), { ...metA(['x1']), herkomst: 'geen' }))).toEqual(['ODS_110']);
+  });
+
+  it('wat de sanering weghaalt, telt niet: zonder geldig kader de oude regel; een ongeldige afdruk is geen afdruk', () => {
+    const afdrukken = afdrukkenPerSet(kader, SETS);
+    // Zonder (geldig) kader blijven de afdrukken per set niet staan: dan geldt de oude regel, en zonder kader is dat alles.
+    expect(veranderdSindsLeerplan(lijst({ ...DG, setAfdrukken: afdrukken }), kader)).toBe('alles');
+    expect(veranderdSindsLeerplan(lijst({ ...DG, kader: 'GEEN-HEX', setAfdrukken: afdrukken }), kader)).toBe('alles');
+    // Geen gewoon object (een array, een tekst, null, een getal): weg, dus de oude regel.
+    for (const ongeldig of [[afdrukken], 'ODS_110', null, 7]) {
+      expect(veranderdSindsLeerplan(lijst({ ...DG, ...oudFormaat(kader, SETS), setAfdrukken: ongeldig }), metA(['x1'])), JSON.stringify(ongeldig)).toBe('alles');
+    }
+    // Een afdruk die geen 16 kleine hex-tekens is, valt weg: die set wordt dan nooit vergeleken (een eigen keuze).
+    const geknoeid = lijst({ ...DG, ...oudFormaat(kader, SETS), setAfdrukken: { ...afdrukken, ODS_110: afdrukken.ODS_110.toUpperCase() } });
+    expect(veranderdSindsLeerplan(geknoeid, metA(['x1']))).toBe('niets');
+    expect(uitkomst(veranderdSindsLeerplan(geknoeid, metV(5)))).toEqual(['ODS_100']);
+  });
+
+  it('alle afdrukken ongeldig (geknoeid of een onbekend formaat): de oude regel, niet stil "niets"', () => {
+    // Geldige `kader` en `kaderVolledig`, maar geen enkele leesbare afdruk: na het saneren is het veld weg.
+    const allesOngeldig: unknown[] = [
+      { ODS_110: 'ABCDEF0123456789' },
+      { ODS_100: 'a'.repeat(64), ODS_110: 'b'.repeat(64), ODS_120: 'c'.repeat(64) },
+      { rommel: afdrukkenPerSet(kader, SETS).ODS_110 },
+    ];
+    for (const ongeldig of allesOngeldig) {
+      const lp = lijst({ ...DG, ...oudFormaat(kader, SETS), setAfdrukken: ongeldig });
+      expect(sanitizeDoelgroep(lp.doelgroep), JSON.stringify(ongeldig)).not.toHaveProperty('setAfdrukken');
+      // De koppeling van A verandert volledig: de oude regel vergelijkt alles, zoals zonder het veld.
+      for (const k of [metA(['z1', 'z2']), metV(5), kader]) {
+        expect(veranderdSindsLeerplan(lp, k)).toEqual(veranderdSindsLeerplan(oud(kader), k));
+      }
+      expect(veranderdSindsLeerplan(lp, metA(['z1', 'z2']))).toBe('alles');
+      expect(veranderdSindsLeerplan(lp, kader)).toBe('niets');
+    }
+    // Een echt leeg object blijft wel nieuw formaat (zie hoger): daar beslist het lege object.
+    expect(veranderdSindsLeerplan(lijst({ ...DG, ...oudFormaat(kader, SETS), setAfdrukken: {} }), metA(['z1', 'z2']))).toBe('niets');
+  });
+
+  it('de afdrukken gaan over de sets van het leerplan, ook als het kader er meer heeft', () => {
+    expect(veranderdSindsLeerplan(perSet(kader, ['ODS_110']), metV(5))).toBe('niets');
+    expect(uitkomst(veranderdSindsLeerplan(perSet(kader, ['ODS_110']), metA(['x1'])))).toEqual(['ODS_110']);
   });
 });
 
