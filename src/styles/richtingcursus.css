@@ -59,6 +59,8 @@
 .rc-set-tekst { min-width: 0; overflow-wrap: break-word; hyphens: auto; line-height: 1.4; }
 .rc-set-naam { font-family: var(--font-display); font-weight: 700; }
 .rc-set-meta { color: var(--text-soft); font-size: 0.88rem; }
+/* Onderscheid tussen sets met dezelfde naam, zichtbaar voor iedereen. */
+.rc-set-context { font-family: var(--font); font-weight: 400; color: var(--text-soft); }
 .rc-stem { margin: 6px 0 0; align-items: flex-start; }
 .rc-stem > svg { flex: none; margin-top: 2px; }
 .rc-stem p { margin: 0 0 6px; }

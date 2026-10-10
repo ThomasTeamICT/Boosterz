@@ -289,7 +289,7 @@ jobs:
               '| Koppeling: verzoeken | ' + getal(k.verzoeken) + ' |',
               '| Koppeling: duur in seconden | ' + getal(k.duurSeconden) + ' |',
               '| Doelen in de API zonder filter | ' + getal(k.totaalZonderFilter) + ' |',
-              '| Groepen gekoppeld | ' + getal(k.gekoppeld) + ' (waarvan 1ste graad volgens de regel graad en stroom: ' + getal(k.graadEnStroom) + ') |',
+              '| Groepen gekoppeld via de API | ' + getal(k.gekoppeld) + ' (daarnaast 1ste graad volgens de regel graad en stroom: ' + getal(k.graadEnStroom) + ') |',
               '| Groepen zonder doelen | ' + getal(k.geen) + ' |',
               '| Groepen nog niet opgehaald | ' + getal(k.nogNietOpgehaald) + ' |',
               '| Groepen zonder doelen per soort | ' + perSoort(k.geenPerSoort) + ' |',
@@ -456,7 +456,9 @@ jobs:
             const uit = [
               '## Minimumdoelen',
               '',
-              'De ophaling bij de Onderwijsdoelen-API van de Vlaamse overheid vond verschillen met wat in de repository staat.',
+              (r.nieuw || []).length + (r.gewijzigd || []).length + (r.verdwenen || []).length > 0
+                ? 'De ophaling bij de Onderwijsdoelen-API van de Vlaamse overheid vond verschillen met wat in de repository staat.'
+                : 'De minimumdoelen zijn ongewijzigd.',
               '',
               '| | |',
               '|---|---|',
@@ -491,7 +493,9 @@ jobs:
             const kruis = obj(k.kruiscontrole);
             if (r.fout) uit.push('**Fout:** ' + kort(tekst(r.fout)), '');
             uit.push(
-              'De ophaling bij de API Structuuronderdelen en de Onderwijsdoelen-API (per groepnummer) vond verschillen met wat in de repository staat.',
+              (Number(obj(r.geschreven).bestanden) || 0) > 0
+                ? 'De ophaling bij de API Structuuronderdelen en de Onderwijsdoelen-API (per groepnummer) vond verschillen met wat in de repository staat.'
+                : 'De studierichtingen en de doelen per richting zijn ongewijzigd.',
               '',
               '| | |',
               '|---|---|',
@@ -500,13 +504,13 @@ jobs:
               '| Studierichtingen gewijzigd | ' + aantalIn(m.gewijzigd) + ' |',
               '| Studierichtingen afgebouwd | ' + aantalIn(m.afgebouwdSindsVorige) + ' |',
               '| Studierichtingen niet meer in de bron | ' + aantalIn(m.nietMeerInBron) + ' |',
-              '| Groepen gekoppeld | ' + getal(k.gekoppeld) + ' |',
+              '| Groepen gekoppeld via de API | ' + getal(k.gekoppeld) + ' |',
               '| Doelen per richting nieuw | ' + aantalIn(k.nieuw) + ' |',
               '| Doelen per richting gewijzigd | ' + aantalIn(k.gewijzigd) + ' |',
               '| Richtingen die nu zonder doelen zijn | ' + aantalIn(k.nuZonderDoelen) + ' |',
               '| 1ste graad volgens de regel graad en stroom | ' + getal(k.graadEnStroom) + ' |',
               '| 1ste graad die nu wel gekoppeld is | ' + aantalIn(k.eersteGraadNuGekoppeld) + ' |',
-              '| Kruiscontrole met het ordeningskader | ' + getal(kruis.verschillen) + ' verschillen (' + getal(kruis.verschillenGeldigSo) + ' in geldige sets van het gewoon secundair) |',
+              '| Kruiscontrole met het ordeningskader | ' + getal(kruis.verschillen) + ' verschillen (' + getal(kruis.verschillenGeldigSo) + ' in geldige sets van het gewoon secundair), ' + getal(kruis.setsBekeken) + ' sets bekeken |',
               '| Problemen | ' + aantalIn(r.problemen) + ' |',
               '| Waarschuwingen | ' + aantalIn(r.waarschuwingen) + ' |',
               '',
@@ -519,7 +523,7 @@ jobs:
               ...lijstRegels('Richtingen die nu zonder doelen zijn', k.nuZonderDoelen, 'De laatst bekende koppeling blijft staan. Kijk dit na.'),
               '### Kruiscontrole met het ordeningskader',
               '',
-              getal(kruis.verschillen) + ' verschillen (' + getal(kruis.verschillenGeldigSo) + ' in geldige sets van het gewoon secundair).',
+              getal(kruis.verschillen) + ' verschillen (' + getal(kruis.verschillenGeldigSo) + ' in geldige sets van het gewoon secundair), ' + getal(kruis.setsBekeken) + ' sets bekeken.',
               '',
               ...lijstRegels('Voorbeelden van verschillen', kruis.voorbeelden, null, 10),
               '### 1ste graad',

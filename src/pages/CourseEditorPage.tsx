@@ -1103,7 +1103,7 @@ function RichtingSetting({
     setLaadt(true);
     import('../components/richting/RichtingKiezerModal').then(
       (m) => { setKiezer(() => m.RichtingKiezerModal); setLaadt(false); zet(true); },
-      () => { setLaadt(false); toast('De lijst met studierichtingen kon niet geladen worden. Controleer je verbinding en probeer opnieuw.', 'err'); },
+      () => { setLaadt(false); toast('De lijst met studierichtingen kon niet geladen worden. Controleer je verbinding en herlaad de pagina.', 'err'); },
     );
   };
 

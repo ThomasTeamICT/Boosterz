@@ -110,19 +110,23 @@ function useVertraagd<T>(waarde: T, ms: number): T {
   return vertraagd;
 }
 
-/** De link naar de samenstelwizard met de richting, het jaar en wat al gekozen is (§ 12.3). */
+/**
+ * De link naar de samenstelwizard met de richting, het jaar en wat al gekozen is (§ 12.3). `sets` is null voor "alle
+ * minimumdoelen van de richting"; een lijst (ook een lege) staat altijd in de link, want zonder `sets` vinkt de wizard alle
+ * verplichte sets aan, en dat is niet de standaard (B10).
+ */
 function samenstellenLink(
   info: RichtingInfo,
   kader: RichtingKader,
   keuze: RichtingKeuze,
-  sets: readonly string[],
+  sets: readonly string[] | null,
   zelf: readonly string[],
 ): string {
   const p = new URLSearchParams();
   p.set('richting', info.groep.nummer);
   if (keuze.jaar !== undefined) p.set('jaar', String(keuze.jaar));
   p.set('soort', kader.keuze.soort);
-  if (sets.length > 0) p.set('sets', sets.join(','));
+  if (sets !== null) p.set('sets', sets.join(','));
   if (zelf.length > 0) p.set('zelf', zelf.join(','));
   return `/leerplannen/samenstellen?${p.toString().replace(/%2C/g, ',')}`;
 }
@@ -248,9 +252,9 @@ export function NieuweRichtingCursus({ info, kader, keuze, onClose }: NieuweRich
 
   // ── Links naar de samenstelwizard ──
   const zelfSets = voorstel.stemSets.filter((id) => !gekozen.includes(id));
-  const linkPerDoel = doelen === 'sets'
-    ? samenstellenLink(info, kader, keuze, gekozen, zelfSets)
-    : samenstellenLink(info, kader, keuze, [], []);
+  // Wat de link als gekozen meegeeft: de sets van het venster, alles bij "alle minimumdoelen", niets bij een leerplan.
+  const setsVoorLink = doelen === 'sets' ? gekozen : doelen === 'alle' ? null : [];
+  const linkPerDoel = samenstellenLink(info, kader, keuze, setsVoorLink, doelen === 'sets' ? zelfSets : []);
   const linkStemZelf = (stemId: string) => samenstellenLink(info, kader, keuze, gekozen.filter((id) => id !== stemId), [stemId]);
 
   // ── Maken ──
@@ -420,7 +424,7 @@ export function NieuweRichtingCursus({ info, kader, keuze, onClose }: NieuweRich
           <span className="rc-set-tekst">
             <span className="rc-set-naam">
               {naam}
-              {label?.achtervoegsel && <span className="sr-only">{label.achtervoegsel}</span>}
+              {label?.achtervoegsel && <span className="rc-set-context">{label.achtervoegsel}</span>}
             </span>
             <span className="rc-set-meta"> · {enkelOfMeer(n, 'doel', 'doelen')}{k.verplicht ? '' : ' (uitbreidingsdoelen: mag, moet niet)'}</span>
           </span>
@@ -678,7 +682,7 @@ export function NieuweRichtingCursus({ info, kader, keuze, onClose }: NieuweRich
                 ? (
                   <p>
                     Het leerplan kon niet als nagekeken bewaard worden: {probleem.tekst}.{' '}
-                    <Link to={samenstellenLink(info, kader, keuze, doelen === 'sets' ? gekozen : [], [])}>Kies zelf doelen</Link>, dan zie je wat er misloopt.
+                    <Link to={samenstellenLink(info, kader, keuze, setsVoorLink, [])}>Kies zelf doelen</Link>, dan zie je wat er misloopt.
                   </p>
                 )
                 : <p>{probleem.tekst}</p>}
