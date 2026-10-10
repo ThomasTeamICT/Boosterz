@@ -1290,7 +1290,7 @@ De volledige lijst met bestanden, afhankelijkheden en acceptatiecriteria staat i
 | A1 Vingerafdruk per set (F2.1) en `doelgroepVoorKlas` | **Klaar** (10 oktober 2026): onafhankelijk nagekeken met 20.000 willekeurige gevallen voor de oude regel en 30.000 voor de nieuwe, geen verschil; twee kleine punten hersteld (een `setAfdrukken` met alleen ongeldige ingangen valt terug op de oude regel; komma in een nummer eenduidig), één weerlegd met een test | kernbouwer |
 | A2 Logica gaten dichten (F2.2) | **Klaar** (10 oktober 2026): `gatenDichten.ts` en `gatenCursus.ts`, 78 tests met de valkuilregressie; onafhankelijk nagekeken, drie kleine punten hersteld (titel houdt graad en OV4, een al bewaarde cursus verliest nooit haar leerplan, zes overlevende mutaties nu gedood) | bouwer |
 | A3 Logica mijn richtingen en klas met richting (F2.3, F2.4) | **Klaar** (10 oktober 2026): `doelgroepGebruik.ts`, `richtingOverzicht.ts`, `dekkingCache.ts`, `ClassGroup.doelgroep` met `zetKlasRichting`; onafhankelijk nagekeken, één belangrijk punt hersteld (jaren van klassen niet bij de cursussen in de meta) en twee kleine | bouwer |
-| I-A Integratie van de logica, hook verhuizen, stubs | Wacht, na A2 en A3 | hoofdsessie |
+| I-A Integratie van de logica, hook verhuizen, stubs | **Klaar** (10 oktober 2026): `useRichtingDekking.ts` (met `bijdragenVoorKader`, cache bij "Alle jaren"), stubs `DekkingKort.tsx` en `RichtingKlassen.tsx`; rooktest twee keer groen | hoofdsessie |
 | B1 Schermen gaten dichten | Wacht, na I-A (worktree A) | bouwer |
 | B2 Scherm mijn richtingen | Wacht, na I-A (worktree B) | bouwer |
 | B3 Schermen klas en richting | Wacht, na I-A (worktree C) | bouwer |

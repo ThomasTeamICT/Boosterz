@@ -11,7 +11,9 @@ import { BackIcon, WarningIcon } from '../icons';
 import { Field } from '../ui';
 import { FoutBericht, LaadBericht } from '../curriculum/LaadStatus';
 import { RichtingCursussen } from './RichtingCursussen';
-import { RichtingDekking, useRichtingDekking, type TelMee } from './RichtingDekking';
+import { RichtingDekking } from './RichtingDekking';
+import { RichtingKlassen } from './RichtingKlassen';
+import { useRichtingDekking, type TelMee } from './useRichtingDekking';
 import { RichtingDoelen, useBestaandLeerplan, type RichtingContext } from './RichtingDoelen';
 import { RichtingLeerplannen } from './RichtingLeerplannen';
 import { GegevensStand, LIJST_ROUTE, bronTekst, type RichtingPaginaProps } from './RichtingLijst';
@@ -175,6 +177,7 @@ function KaderSecties({ context, courses, matrix, vandaag, telMee, onTelMee }: {
       <RichtingDoelen {...context} bestaandLeerplan={bestaandLeerplan} onLeerplanGevonden={setGevondenId} />
       <RichtingLeerplannen {...context} bestaandLeerplan={bestaandLeerplan} />
       <RichtingCursussen {...context} courses={courses} dekking={dekking.status === 'klaar' ? dekking.waarde : undefined} />
+      <RichtingKlassen info={context.info} soort={context.kader.keuze.soort} courses={courses} curricula={context.curricula} />
       <RichtingDekking info={context.info} keuze={context.keuze} stand={dekking} telMee={telMee} onTelMee={onTelMee} />
     </>
   );

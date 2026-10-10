@@ -17,7 +17,7 @@ import { buitenJaarTekst, cursusRegel } from '../../lib/dekkingWeergave';
 import { jaarTekst } from '../../lib/doelgroep';
 import { passendeCodes } from '../../lib/richtingCursus';
 import { cursusBijRichting } from '../../lib/richtingWeergave';
-import type { DekkingGegevens } from './RichtingDekking';
+import type { DekkingGegevens } from './useRichtingDekking';
 import {
   doelgroepVanCursus,
   leerplanVanHeleRichting,
