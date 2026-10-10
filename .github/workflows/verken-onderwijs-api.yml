@@ -16,6 +16,9 @@ name: Verkenning Onderwijs-API's
 # Stand "proeven" (ronde 5): filters van de doelen-API (groepsnummer, graad, stroom, geldigheid).
 # Stand "kwalificaties" (ronde 6): hoe een studierichting aan beroepskwalificaties (BK-...) vastzit.
 # Hoogstens 60 oproepen; de logboekregels beginnen met KWAL| en KWAL-SAMENVATTING|.
+# Stand "dossier" (ronde 7): wat een curriculumdossier is (json, pdf, html of niets), of het naar onderwijsdoelen
+# of beroepskwalificaties verwijst, en hoe een beroepskwalificatie volledig eruitziet. Hoogstens 30 oproepen; de
+# logboekregels beginnen met DOSSIER| en DOSSIER-SAMENVATTING|; een pdf wordt niet bewaard of gelogd.
 # Stand "volledig": de brede verkenning van ronde 1 en 2 met het verslag.
 
 on:
@@ -31,6 +34,7 @@ on:
           - koppeling
           - proeven
           - kwalificaties
+          - dossier
           - volledig
 
 permissions:
@@ -77,8 +81,14 @@ jobs:
           ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
         run: node tools/verkenning/verken-onderwijs-api.mjs --kwalificaties
 
+      - name: Curriculumdossier en beroepskwalificaties volledig (met sleutel)
+        if: inputs.stand == 'dossier'
+        env:
+          ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
+        run: node tools/verkenning/verken-onderwijs-api.mjs --dossier
+
       - name: Parameternamen uit de webapps (zonder sleutel)
-        if: always() && inputs.stand != 'volledig' && inputs.stand != 'proeven' && inputs.stand != 'kwalificaties'
+        if: always() && inputs.stand != 'volledig' && inputs.stand != 'proeven' && inputs.stand != 'kwalificaties' && inputs.stand != 'dossier'
         continue-on-error: true
         run: node tools/verkenning/verken-onderwijs-api.mjs --parameters
 

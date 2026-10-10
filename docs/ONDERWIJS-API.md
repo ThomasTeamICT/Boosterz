@@ -120,7 +120,7 @@ starten. Stand `matrix` (standaard) zet één regel per studierichting in het lo
 plus de filters en de aantallen van het aanbod; stand `volledig` doet de brede verkenning met verslag;
 stand `kwalificaties` (ronde 6, hoogstens 60 oproepen) zoekt hoe een studierichting aan beroepskwalificaties
 (`BK-…`) en onderwijskwalificaties vastzit en zet de bevindingen in het logboek (`KWAL|{…}`, afgesloten met
-`KWAL-SAMENVATTING|{…}`, ook in `tools/verkenning/rapport/kwalificaties.json`). Een logboekregel is hoogstens
+`KWAL-SAMENVATTING|{…}`, ook in `tools/verkenning/rapport/kwalificaties.json`). Stand `dossier` (ronde 7, hoogstens 30 oproepen) kijkt bij drie erkenningen (finaliteit A, DU en DO) wat het curriculumdossier is (json, pdf, html of 404, een pdf wordt niet bewaard of gelogd, ook niet als ze met een regeleinde of een verkeerd type binnenkomt) en of het naar onderwijsdoelen of beroepskwalificaties verwijst (hoogstens één eigen API-pad uit de dossiers wordt gevolgd, alleen onder `kwalificaties-en-curriculum`, `onderwijsdoelen`, `instellingsgegevens` of `app-opleidingsinhouden` en zonder `.` of `..`), en haalt twee beroepskwalificaties volledig op met de vorm van hun competenties en van de studiebekrachtigingen (logboek `DOSSIER|{…}`, afgesloten met `DOSSIER-SAMENVATTING|{…}`, ook in `tools/verkenning/rapport/dossier.json`; de veldnamen staan daar op aparte regels in plaats van ingekort). Een logboekregel is hoogstens
 8 KB: past hij niet, dan krimpt het script eerst `proef`, dan `velden`, `itemVelden` en `relevant`, en zet
 `"ingekort": true`; het rapportbestand houdt de volledige regels. Bij elke lijst staat in `idVeld` welk veld van
 het eerste element als id gekozen is (eigen velden gaan vóór geneste). Een filter krijgt `werkt` of `genegeerd`
