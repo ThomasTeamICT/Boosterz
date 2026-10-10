@@ -1,0 +1,22 @@
+{
+  "app": "boosterz",
+  "kind": "beroepskwalificaties-index",
+  "v": 1,
+  "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
+  "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/",
+  "naamsvermelding": "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
+  "licentie": "nog te bevestigen",
+  "opgehaald": "2026-10-10T21:42:00Z",
+  "lijstTotaal": 604,
+  "sha256": "030b519f1e647c585b574c0bbb5ca6589a8a80d898383ecb5f654b8e455c1d9d",
+  "bks": [
+{"bk":"BK-0130-5","nummer":"BK-0130","versie":5,"titel":"Stukadoor","vks":3,"status":"ERKEND","aantal":25,"sha256":"0df489750238e0ae444df87a1495592f393284a956ecf7d2fcacdfb35e5c3246","opgehaald":"2026-10-10T21:42:00Z","bestand":"bk/BK-0130-5.json","laatstErkend":"BK-0130-5"},
+{"bk":"BK-0168-3","nummer":"BK-0168","versie":3,"titel":"Dekvloerlegger","vks":3,"status":"ERKEND","aantal":17,"sha256":"956c396d685889f9cc9713401de267e3e5bbce8d0f914e0e2836621bbdd899d3","opgehaald":"2026-10-10T21:42:00Z","bestand":"bk/BK-0168-3.json","laatstErkend":"BK-0168-3"},
+{"bk":"BK-0169-3","nummer":"BK-0169","versie":3,"titel":"Vloerder-tegelzetter","vks":3,"status":"ERKEND","aantal":17,"sha256":"e0ef3c008ddd16d27a82bb5125b00df8df55a7cab105a01f6e6f147ec2ffccdd","opgehaald":"2026-10-10T21:42:00Z","bestand":"bk/BK-0169-3.json","laatstErkend":"BK-0169-3"},
+{"bk":"BK-0273-3","nummer":"BK-0273","versie":3,"titel":"Assistent dierlijke productie","vks":2,"status":"ERKEND","aantal":18,"sha256":"dba3f9b19df47405d681025288cb4a97e9972348ebada0caf7678cf8571af6ea","opgehaald":"2026-10-10T21:42:00Z","bestand":"bk/BK-0273-3.json","laatstErkend":"BK-0273-3"},
+{"bk":"BK-0278-3","nummer":"BK-0278","versie":3,"titel":"Assistent plantaardige productie","vks":2,"status":"ERKEND","aantal":18,"sha256":"de1dbe73c688d2ad1a6c261a27c811881af8c103c91cd466859853c7e2c9460a","opgehaald":"2026-10-10T21:42:00Z","bestand":"bk/BK-0278-3.json","laatstErkend":"BK-0278-3"},
+{"bk":"BK-0309-2","nummer":"BK-0309","versie":2,"titel":"Animator","vks":4,"status":"ERKEND","aantal":17,"sha256":"9938ce7ac1971804e4ab8c7092206546c00459e5425a6a0a509f67f97b21e8ff","opgehaald":"2026-10-10T21:42:00Z","bestand":"bk/BK-0309-2.json","laatstErkend":"BK-0309-2"},
+{"bk":"BK-0390-2","nummer":"BK-0390","versie":2,"titel":"Onthaalmedewerker","vks":3,"status":"ERKEND","aantal":12,"sha256":"7eb05a738086d7a8f65748c1071b3d0914ecc6ca5d5fe4b23e3c58caae3d6274","opgehaald":"2026-10-10T21:42:00Z","bestand":"bk/BK-0390-2.json","laatstErkend":"BK-0390-2"},
+{"bk":"BK-0464-1","nummer":"BK-0464","versie":1,"titel":"Recreatief medewerker","vks":4,"status":"ERKEND","aantal":13,"sha256":"f05f36465255233c28a305732e78b522f812506d9bf814435625608eda80cde1","opgehaald":"2026-10-10T21:42:00Z","bestand":"bk/BK-0464-1.json","laatstErkend":"BK-0464-1"}
+  ]
+}
