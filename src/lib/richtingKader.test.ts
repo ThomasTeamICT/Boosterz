@@ -6,19 +6,24 @@ import { MAX_DOELEN, MAX_SETS } from './curriculum';
 import { sanitizeDoelgroep } from './doelgroep';
 import { leerplanUitSelectie } from './doelenSamenstellen';
 import type { Minimumdoel, MinimumdoelenIndex, MinimumdoelenIndexSet, MinimumdoelenSetBestand } from './minimumdoelen';
+import { sha256Hex } from './sha256';
 import {
   FINALITEIT_LABEL,
   bouwKader,
   doelgroepVan,
   filterRichtingen,
+  geldigeOnderdelen,
   isUitbreidingsSet,
   kaderGroepSleutel,
+  kaderAfdrukken,
   kaderVingerafdruk,
   kenmerkenVan,
   naarSetKeuzes,
   richtingInfo,
   selectieVanKader,
   setPastBijJaar,
+  veranderdSindsLeerplan,
+  volledigeSetsVingerafdruk,
   type RichtingFilter,
   type RichtingInfo,
   type RichtingKader,
@@ -257,6 +262,78 @@ describe('richtingInfo', () => {
   it('een groep die niet meer in de bron staat, draagt dat mee', () => {
     const info = gewoneInfo({}, { nietMeerInBron: '2026-11-03' });
     expect(info.nietMeerInBron).toBe('2026-11-03');
+  });
+
+  // Het ophaalscript wist niets: een onderdeel dat uit de bron verdween, blijft staan met `nietMeerInBron` en ZONDER
+  // einddatum. Het telt dan niet meer als geldig (zoals `soortenVan` in het script).
+  describe('een onderdeel dat niet meer in de bron staat', () => {
+    const NIET_MEER = '2026-11-03';
+
+    it('telt niet als geldig: geen kanBuso, één variant, vormen van wat overblijft; de lijst van onderdelen houdt het wel', () => {
+      const m = matrixVan(
+        [groep('G-0100', 'Deels weg', [1, 2])],
+        [onderdeel(1, 'G-0100', { ov4: true, onderwijsvorm: 'TSO', nietMeerInBron: NIET_MEER }), onderdeel(2, 'G-0100', { onderwijsvorm: 'ASO' })],
+      );
+      const info = richtingInfo(m, 'G-0100', VANDAAG)!;
+      expect(info.kanBuso).toBe(false);
+      expect(geldigeOnderdelen(info, VANDAAG).map((o) => o.nummer)).toEqual([2]);
+      expect(info.vormen).toEqual(['aso']);
+      expect(info.afgebouwd).toBe(false);
+      expect(info.jaren).toEqual([3, 4]);
+      expect(info.onderdelen.map((o) => o.nummer)).toEqual([1, 2]);
+      // Zonder `nietMeerInBron` telt hetzelfde onderdeel wel.
+      const terug = matrixVan(
+        [groep('G-0100', 'Deels weg', [1, 2])],
+        [onderdeel(1, 'G-0100', { ov4: true, onderwijsvorm: 'TSO' }), onderdeel(2, 'G-0100', { onderwijsvorm: 'ASO' })],
+      );
+      const infoTerug = richtingInfo(terug, 'G-0100', VANDAAG)!;
+      expect(infoTerug.kanBuso).toBe(true);
+      expect(geldigeOnderdelen(infoTerug, VANDAAG).map((o) => o.nummer)).toEqual([1, 2]);
+    });
+
+    it('afgebouwd en soort rekenen op wat nog in de bron staat', () => {
+      // Het enige onderdeel dat nog in de bron staat, is afgebouwd: de richting is afgebouwd, ook al heeft het verdwenen onderdeel geen einddatum.
+      const afgebouwd = matrixVan(
+        [groep('G-0100', 'Afgebouwd', [1, 2])],
+        [onderdeel(1, 'G-0100', { nietMeerInBron: NIET_MEER }), onderdeel(2, 'G-0100', { einddatum: '2025-08-31' })],
+      );
+      const info = richtingInfo(afgebouwd, 'G-0100', VANDAAG)!;
+      expect(info.afgebouwd).toBe(true);
+      expect(info.afgebouwdSinds).toBe('2025-08-31');
+      expect(geldigeOnderdelen(info, VANDAAG).map((o) => o.nummer)).toEqual([2]);
+      // Blijft alleen een aanloopjaar over, dan is de richting een aanloop (en staat ze niet in de gewone lijst).
+      const aanloop = matrixVan(
+        [groep('G-0100', 'Alleen aanloop', [1, 2])],
+        [onderdeel(1, 'G-0100', { nietMeerInBron: NIET_MEER }), onderdeel(2, 'G-0100', { aanloop: true })],
+      );
+      expect(richtingInfo(aanloop, 'G-0100', VANDAAG)!.soort).toBe('aanloop');
+      expect(filterRichtingen(aanloop, { zoek: '', ookMeer: false, afgebouwd: false }, VANDAAG)).toEqual([]);
+    });
+
+    it('verdween de hele richting, dan beschrijven alle onderdelen haar nog', () => {
+      const m = matrixVan(
+        [groep('G-0100', 'Helemaal weg', [1, 2], { nietMeerInBron: NIET_MEER })],
+        [
+          onderdeel(1, 'G-0100', { ov4: true, onderwijsvorm: 'TSO', nietMeerInBron: NIET_MEER }),
+          onderdeel(2, 'G-0100', { onderwijsvorm: 'ASO', nietMeerInBron: NIET_MEER }),
+        ],
+      );
+      const info = richtingInfo(m, 'G-0100', VANDAAG)!;
+      expect(info.nietMeerInBron).toBe(NIET_MEER);
+      expect(info.kanBuso).toBe(true);
+      expect(info.vormen).toEqual(['aso', 'tso']);
+      expect(geldigeOnderdelen(info, VANDAAG).map((o) => o.nummer)).toEqual([1, 2]);
+    });
+
+    it('geldigeOnderdelen: een afgebouwd onderdeel valt weg, bij een afgebouwde richting blijven alle onderdelen die nog in de bron staan', () => {
+      const deels = matrixVan([groep('G-0100', 'Deels', [1, 2])], [onderdeel(1, 'G-0100', { einddatum: '2024-08-31' }), onderdeel(2, 'G-0100')]);
+      expect(geldigeOnderdelen(richtingInfo(deels, 'G-0100', VANDAAG)!, VANDAAG).map((o) => o.nummer)).toEqual([2]);
+      const alles = matrixVan(
+        [groep('G-0100', 'Afgebouwd', [1, 2, 3])],
+        [onderdeel(1, 'G-0100', { einddatum: '2024-08-31' }), onderdeel(2, 'G-0100', { einddatum: '2025-08-31' }), onderdeel(3, 'G-0100', { nietMeerInBron: NIET_MEER, einddatum: '2025-08-31' })],
+      );
+      expect(geldigeOnderdelen(richtingInfo(alles, 'G-0100', VANDAAG)!, VANDAAG).map((o) => o.nummer)).toEqual([1, 2]);
+    });
   });
 });
 
@@ -875,10 +952,22 @@ describe('kaderVingerafdruk', () => {
     expect(kaderVingerafdruk(deelA)).not.toBe(kaderVingerafdruk(kader));
   });
 
-  it('een volledige set telt als "set|*": nieuwe nummers in een volledige set veranderen de afdruk niet', () => {
-    const k2 = kaderUit([a, b, c], [koppelSet(a, ['p', 'q', 'r']), koppelSet(b, ['x1', 'x2', 'x3']), koppelSet(c, ['y1'])]);
-    expect(k2.sets[0].volledig).toBe(true);
-    expect(kaderVingerafdruk(k2)).toBe(kaderVingerafdruk(kader));
+  it('het formaat blijft dat van de bewaarde leerplannen: de gesorteerde regels "set|nummer", een volledige set als "set|*"', () => {
+    // a is volledig (3 van 3), b en c zijn deelsets. Elk leerplan van een richting draagt deze afdruk: ze mag nooit veranderen.
+    expect(kaderVingerafdruk(kader)).toBe(sha256Hex(['ODS_100|*', 'ODS_110|x1', 'ODS_110|x2', 'ODS_110|x3', 'ODS_120|y1'].join('\n')));
+    expect(kaderVingerafdruk(kader, ['ODS_110'])).toBe(sha256Hex(['ODS_110|x1', 'ODS_110|x2', 'ODS_110|x3'].join('\n')));
+    expect(kaderVingerafdruk(kader, ['ODS_120', 'ODS_100'])).toBe(sha256Hex(['ODS_100|*', 'ODS_120|y1'].join('\n')));
+    expect(kaderVingerafdruk(kaderUit([], []))).toBe(sha256Hex(''));
+  });
+
+  it('een volledige set die groeit, krimpt of andere nummers krijgt, verandert de afdruk niet (dat ziet volledigeSetsVingerafdruk)', () => {
+    const groter = indexSet('ODS_100', 'Wiskunde', { aantal: 5 });
+    const k5 = kaderUit([groter, b, c], [koppelSet(groter), koppelSet(b, ['x1', 'x2', 'x3']), koppelSet(c, ['y1'])]);
+    expect([k5.sets[0].volledig, k5.sets[0].versieGelijk]).toEqual([true, true]);
+    expect(kaderVingerafdruk(k5)).toBe(kaderVingerafdruk(kader));
+    const anderNummer = kaderUit([a, b, c], [koppelSet(a, ['p', 'q', 'r']), koppelSet(b, ['x1', 'x2', 'x3']), koppelSet(c, ['y1'])]);
+    expect(anderNummer.sets[0].volledig).toBe(true);
+    expect(kaderVingerafdruk(anderNummer)).toBe(kaderVingerafdruk(kader));
   });
 
   it('beperkt tot de genoemde sets (in elke volgorde); onbekende sets doen niet mee', () => {
@@ -891,6 +980,140 @@ describe('kaderVingerafdruk', () => {
     const anderC = kaderUit([a, b, c], [koppelSet(a), koppelSet(b, ['x1', 'x2', 'x3']), koppelSet(c, ['z9'])]);
     expect(kaderVingerafdruk(anderC, ['ODS_100', 'ODS_110'])).toBe(alleen);
     expect(kaderVingerafdruk(kader, [])).toBe(kaderVingerafdruk(kaderUit([], [])));
+  });
+});
+
+describe('volledigeSetsVingerafdruk en kaderAfdrukken', () => {
+  const a = indexSet('ODS_100', 'Wiskunde', { aantal: 3 });
+  const b = indexSet('ODS_110', 'Biologie', { aantal: 13 });
+  const c = indexSet('ODS_120', 'Chemie', { aantal: 2 });
+  const kader = kaderUit([a, b, c], [koppelSet(a), koppelSet(b, ['x1', 'x2', 'x3']), koppelSet(c)]);
+
+  it('het formaat: de gesorteerde regels "set|nummer" van de volledige sets; deelsets tellen niet', () => {
+    // a en c zijn volledig, b is een deelset.
+    expect(kader.sets.map((k) => k.volledig)).toEqual([true, false, true]);
+    expect(volledigeSetsVingerafdruk(kader)).toBe(sha256Hex(['ODS_100|1001', 'ODS_100|1002', 'ODS_100|1003', 'ODS_120|1201', 'ODS_120|1202'].join('\n')));
+    expect(volledigeSetsVingerafdruk(kader, ['ODS_120', 'ODS_110'])).toBe(sha256Hex(['ODS_120|1201', 'ODS_120|1202'].join('\n')));
+    // Zonder volledige set: de afdruk van niets.
+    expect(volledigeSetsVingerafdruk(kader, ['ODS_110'])).toBe(sha256Hex(''));
+    expect(volledigeSetsVingerafdruk(kader, [])).toBe(sha256Hex(''));
+  });
+
+  it('verandert als een volledige set groeit, krimpt of andere nummers krijgt; niet door een deelset of de volgorde', () => {
+    const groter = indexSet('ODS_100', 'Wiskunde', { aantal: 5 });
+    const k5 = kaderUit([groter, b, c], [koppelSet(groter), koppelSet(b, ['x1', 'x2', 'x3']), koppelSet(c)]);
+    expect(volledigeSetsVingerafdruk(k5)).not.toBe(volledigeSetsVingerafdruk(kader));
+    const anderNummer = kaderUit([a, b, c], [koppelSet(a, ['p', 'q', 'r']), koppelSet(b, ['x1', 'x2', 'x3']), koppelSet(c)]);
+    expect(volledigeSetsVingerafdruk(anderNummer)).not.toBe(volledigeSetsVingerafdruk(kader));
+    const anderDeel = kaderUit([a, b, c], [koppelSet(a), koppelSet(b, ['x1', 'x4']), koppelSet(c)]);
+    expect(volledigeSetsVingerafdruk(anderDeel)).toBe(volledigeSetsVingerafdruk(kader));
+    const omgekeerd: RichtingKader = { ...kader, sets: [...kader.sets].reverse().map((k) => ({ ...k, ids: [...k.ids].reverse() })) };
+    expect(volledigeSetsVingerafdruk(omgekeerd)).toBe(volledigeSetsVingerafdruk(kader));
+  });
+
+  it('kaderAfdrukken geeft allebei, over dezelfde sets, en een doelgroep houdt ze na het saneren', () => {
+    const sets = ['ODS_100', 'ODS_110'];
+    const afdrukken = kaderAfdrukken(kader, sets);
+    expect(afdrukken).toEqual({ kader: kaderVingerafdruk(kader, sets), kaderVolledig: volledigeSetsVingerafdruk(kader, sets) });
+    const dg = sanitizeDoelgroep({ groep: 'G-0100', titel: 'T', soort: 'so', ...afdrukken });
+    expect(dg).toMatchObject(afdrukken);
+  });
+});
+
+describe('veranderdSindsLeerplan (de regel van vergelijkMetKader en beginUitBewaarde)', () => {
+  const a = indexSet('ODS_100', 'Wiskunde', { aantal: 3 });
+  const b = indexSet('ODS_110', 'Biologie', { aantal: 13 });
+  const kader = kaderUit([a, b], [koppelSet(a), koppelSet(b, ['x1', 'x2', 'x3'])]);
+  const SETS = ['ODS_100', 'ODS_110'];
+  const DG = { groep: 'G-0100', titel: 'Testrichting', graad: 2 as const, soort: 'so' as const };
+  const lijst = (
+    afdrukken: { kader?: string; kaderVolledig?: string; volgtKader?: true },
+    extra: { kind?: 'eigen' | 'leerplan'; sets?: string[] } = {},
+  ) => ({
+    kind: extra.kind ?? ('leerplan' as const),
+    minimumdoelenSets: extra.sets ?? SETS,
+    doelgroep: { ...DG, ...afdrukken },
+  });
+  /** Zoals de app een leerplan sinds oktober 2026 bewaart: beide afdrukken. */
+  const nieuw = (k: RichtingKader, sets = SETS, volgtKader?: true) => lijst({ ...kaderAfdrukken(k, sets), volgtKader }, { sets });
+  /** Zoals de app een leerplan tot oktober 2026 bewaarde: alleen `kader`. */
+  const oud = (k: RichtingKader, sets = SETS, volgtKader?: true) => lijst({ kader: kaderVingerafdruk(k, sets), volgtKader }, { sets });
+  /** Wiskunde (volledig) na een maandelijkse update met `aantal` doelen, koppeling en set samen bijgewerkt. */
+  const wiskundeMet = (aantal: number, extra: { setSha?: string } = {}) => {
+    const s = indexSet('ODS_100', 'Wiskunde', { aantal });
+    return kaderUit([s, b], [koppelSet(s, undefined, extra), koppelSet(b, ['x1', 'x2', 'x3'])]);
+  };
+  const sets = (r: ReturnType<typeof veranderdSindsLeerplan>) => (typeof r === 'string' ? r : [...r]);
+
+  it('beide afdrukken gelijk: niets, met en zonder volgtKader', () => {
+    expect(veranderdSindsLeerplan(nieuw(kader), kader)).toBe('niets');
+    expect(veranderdSindsLeerplan(nieuw(kader, SETS, true), kader)).toBe('niets');
+  });
+
+  it('alleen de inhoud van een volledige set veranderde: alleen de volledige sets van het leerplan', () => {
+    for (const k of [wiskundeMet(5), wiskundeMet(2)]) {
+      expect(kaderVingerafdruk(k, SETS)).toBe(kaderVingerafdruk(kader, SETS));
+      expect(sets(veranderdSindsLeerplan(nieuw(kader), k))).toEqual(['ODS_100']);
+      expect(sets(veranderdSindsLeerplan(nieuw(kader, SETS, true), k))).toEqual(['ODS_100']);
+    }
+  });
+
+  it('een volledige set met een andere versie: alleen de volledige sets (de telling geeft daar 0 nieuw en 0 vervallen)', () => {
+    const andereVersie = wiskundeMet(5, { setSha: 'f'.repeat(16) });
+    expect(andereVersie.sets[0]).toMatchObject({ volledig: true, versieGelijk: false });
+    expect(sets(veranderdSindsLeerplan(nieuw(kader), andereVersie))).toEqual(['ODS_100']);
+    // Een leerplan van vóór kaderVolledig: niets, zoals vroeger.
+    expect(veranderdSindsLeerplan(oud(kader), andereVersie)).toBe('niets');
+  });
+
+  it('een deelset veranderde, of een set werd volledig of niet meer: alles, in beide formaten', () => {
+    const anderDeel = kaderUit([a, b], [koppelSet(a), koppelSet(b, ['x1', 'x2'])]);
+    expect(veranderdSindsLeerplan(nieuw(kader), anderDeel)).toBe('alles');
+    expect(veranderdSindsLeerplan(oud(kader), anderDeel)).toBe('alles');
+    expect(veranderdSindsLeerplan(oud(kader, SETS, true), anderDeel)).toBe('alles');
+    const deelA = kaderUit([a, b], [koppelSet(a, ['1001', '1002']), koppelSet(b, ['x1', 'x2', 'x3'])]);
+    expect(veranderdSindsLeerplan(nieuw(kader), deelA)).toBe('alles');
+    expect(veranderdSindsLeerplan(oud(kader), deelA)).toBe('alles');
+    const kleineB = indexSet('ODS_110', 'Biologie', { aantal: 3 });
+    const heleB = kaderUit([a, kleineB], [koppelSet(a), koppelSet(kleineB, ['x1', 'x2', 'x3'])]);
+    expect(heleB.sets[1].volledig).toBe(true);
+    expect(veranderdSindsLeerplan(nieuw(kader), heleB)).toBe('alles');
+    expect(veranderdSindsLeerplan(oud(kader), heleB)).toBe('alles');
+  });
+
+  it('geen of een ongeldige afdruk: alles', () => {
+    expect(veranderdSindsLeerplan(lijst({}), kader)).toBe('alles');
+    expect(veranderdSindsLeerplan({ kind: 'leerplan', minimumdoelenSets: SETS }, kader)).toBe('alles');
+    // Een ongeldige afdruk (geen 64 hex-tekens) telt als geen; `kaderVolledig` alleen zegt niets.
+    expect(veranderdSindsLeerplan(lijst({ kader: 'GEEN-HEX', kaderVolledig: volledigeSetsVingerafdruk(kader, SETS) }), kader)).toBe('alles');
+    expect(veranderdSindsLeerplan(lijst({ kaderVolledig: volledigeSetsVingerafdruk(kader, SETS) }), kader)).toBe('alles');
+  });
+
+  it('een leerplan van vóór kaderVolledig met een gelijke kader: niets, zoals vóór oktober 2026', () => {
+    expect(veranderdSindsLeerplan(oud(kader), kader)).toBe('niets');
+    // Oud leerplan, kader gelijk, volledige set gegroeid of gekrompen: niets, met en zonder volgtKader. Wat in een
+    // volledige set ontbreekt, kan een eigen keuze zijn ("Keuze aanpassen" hield toen volgtKader).
+    for (const k of [wiskundeMet(5), wiskundeMet(2)]) {
+      expect(veranderdSindsLeerplan(oud(kader), k)).toBe('niets');
+      expect(veranderdSindsLeerplan(oud(kader, SETS, true), k)).toBe('niets');
+    }
+    // Ook een ongeldige kaderVolledig telt als ontbrekend: dan geldt dezelfde regel.
+    expect(veranderdSindsLeerplan(lijst({ kader: kaderVingerafdruk(kader, SETS), kaderVolledig: 'GEEN-HEX' }), wiskundeMet(5))).toBe('niets');
+  });
+
+  it('een eigen kopie, of een kader zonder gegevens: niets', () => {
+    expect(veranderdSindsLeerplan(lijst({}, { kind: 'eigen' }), kader)).toBe('niets');
+    expect(veranderdSindsLeerplan(lijst(kaderAfdrukken(kader, SETS), { kind: 'eigen' }), wiskundeMet(5))).toBe('niets');
+    expect(veranderdSindsLeerplan(lijst({}), { ...kader, herkomst: 'nog-niet-opgehaald' })).toBe('niets');
+    expect(veranderdSindsLeerplan(lijst({}), { ...kader, herkomst: 'geen', sets: [] })).toBe('niets');
+    // 'geen' met een laatst bekend bestand (sets) zegt wel iets.
+    expect(veranderdSindsLeerplan(lijst({}), { ...kader, herkomst: 'geen' })).toBe('alles');
+  });
+
+  it('de afdrukken gaan over de sets van het leerplan', () => {
+    // Wiskunde groeide, maar zit niet in dit leerplan: niets veranderd.
+    expect(veranderdSindsLeerplan(nieuw(kader, ['ODS_110']), wiskundeMet(5))).toBe('niets');
+    expect(veranderdSindsLeerplan(oud(kader, ['ODS_110']), wiskundeMet(5))).toBe('niets');
   });
 });
 
@@ -1117,6 +1340,24 @@ describe.runIf(HEEFT_FIXTURES)('kader op tests/fixtures/structuur/uit en de echt
     expect(info.jaren).toEqual([3, 4]);
     expect(info.duaal).toBe(true);
     expect(kader.sets.length).toBeGreaterThan(0);
+  });
+
+  it('G-0008 waarvan het duale onderdeel uit de bron verdween: niet meer buso, nog één variant (het aanloopjaar)', () => {
+    const voor = richtingInfo(matrix, 'G-0008', VANDAAG)!;
+    expect(voor.kanBuso).toBe(true);
+    expect(geldigeOnderdelen(voor, VANDAAG).length).toBe(2);
+    const duaal = voor.onderdelen.find((o) => o.ov4 === true && o.aanloop !== true);
+    expect(duaal).toBeDefined();
+    // Zoals het ophaalscript het bewaart: met `nietMeerInBron` en zonder einddatum.
+    const na: MatrixBestand = {
+      ...matrix,
+      onderdelen: matrix.onderdelen.map((o) => (o.nummer === duaal!.nummer ? { ...o, nietMeerInBron: '2026-11-03' } : o)),
+    };
+    const info = richtingInfo(na, 'G-0008', VANDAAG)!;
+    expect(info.kanBuso).toBe(false);
+    expect(geldigeOnderdelen(info, VANDAAG).map((o) => o.nummer)).toEqual(voor.onderdelen.filter((o) => o !== duaal).map((o) => o.nummer));
+    expect(geldigeOnderdelen(info, VANDAAG)).toHaveLength(1);
+    expect(info.onderdelen).toHaveLength(2);
   });
 
   it('de lijst van richtingen: standaard de gewone richtingen; ookMeer en afgebouwd tonen de rest', () => {

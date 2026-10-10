@@ -12,7 +12,7 @@ import {
 } from '../lib/courses';
 import { getCurricula } from '../lib/curriculum';
 import { computeCoverage } from '../lib/coverage';
-import { doelgroepTekst, sanitizeDoelgroep, type Doelgroep } from '../lib/doelgroep';
+import { doelgroepTekst, doelgroepVoorCursus, sanitizeDoelgroep, type Doelgroep } from '../lib/doelgroep';
 import { takeHandoff } from '../lib/handoff';
 import { EXAMPLE_COURSE_ID } from '../lib/library';
 import { onStorageChange, getPrefs, getWidgets } from '../lib/storage';
@@ -39,15 +39,6 @@ interface AIStart {
   originNote?: string;
   /** Studierichting (en jaar) uit de overdracht van "Voor een studierichting": komt op de cursus die de AI maakt. */
   doelgroep?: Doelgroep;
-}
-
-/** De doelgroep zoals ze op een cursus hoort: zonder `kader` en `volgtKader` (die horen bij een leerplan). */
-function doelgroepVoorCursus(dg: Doelgroep | undefined): Doelgroep | undefined {
-  const schoon = sanitizeDoelgroep(dg);
-  if (!schoon) return undefined;
-  delete schoon.kader;
-  delete schoon.volgtKader;
-  return schoon;
 }
 
 function n(count: number, one: string, many: string): string {
@@ -106,6 +97,7 @@ export function CoursesPage() {
       title: h?.title,
       curriculumId: h?.curriculumId,
       goalCodes: h?.goalCodes,
+      // Zonder `kader`, `kaderVolledig` en `volgtKader`: die horen bij een leerplan, niet bij een cursus.
       doelgroep: doelgroepVoorCursus(h?.doelgroep),
       originNote: h?.origin ? `Bron uit ${h.origin}` : h?.source ? 'Bron uit de importpagina' : undefined,
     });

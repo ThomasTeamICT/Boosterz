@@ -1,20 +1,21 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  MAX_DOELGROEP_TITEL, MAX_DOELGROEP_VAK, doelgroepTekst, doelgroepVoorLeerplan, graadTekst, jaarTekst, sanitizeDoelgroep,
-  zelfdeRichting, type Doelgroep,
+  MAX_DOELGROEP_TITEL, MAX_DOELGROEP_VAK, doelgroepTekst, doelgroepVoorCursus, doelgroepVoorLeerplan, graadTekst, jaarTekst,
+  sanitizeDoelgroep, zelfdeRichting, type Doelgroep,
 } from './doelgroep';
 import { peekHandoff, setHandoff, takeHandoff } from './handoff';
 
 // Alle groepnummers en titels hieronder zijn voorbeelden; de echte komen uit de matrix van de studierichtingen.
 
 const HEX = '0123456789abcdef'.repeat(4);
+const HEX2 = 'fedcba9876543210'.repeat(4);
 
 /** Een volledige, geldige doelgroep (zoals een leerplan van een richting ze krijgt, plus jaar en vak). */
 function volledig(): Doelgroep {
   return {
     groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, jaar: 4, soort: 'so',
-    onderdeel: 12345, vak: 'Biologie', kader: HEX, volgtKader: true,
+    onderdeel: 12345, vak: 'Biologie', kader: HEX, kaderVolledig: HEX2, volgtKader: true,
   };
 }
 
@@ -149,6 +150,20 @@ describe('sanitizeDoelgroep: ongeldige invoer', () => {
     }
   });
 
+  it('kaderVolledig: alleen 64 kleine hex-tekens, en alleen samen met een geldig kader', () => {
+    expect(sanitizeDoelgroep({ groep: 'G-0193', kader: HEX, kaderVolledig: HEX2 })?.kaderVolledig).toBe(HEX2);
+    for (const kaderVolledig of [HEX2.toUpperCase(), HEX2.slice(1), `${HEX2}0`, ` ${HEX2}`, '', 12, null]) {
+      expect(sanitizeDoelgroep({ groep: 'G-0193', kader: HEX, kaderVolledig }), String(kaderVolledig)).not.toHaveProperty('kaderVolledig');
+    }
+    // Zonder (geldig) kader valt ze weg: zo verdwijnt ze ook waar `kader` weggehaald wordt (een eigen kopie, een cursus).
+    expect(sanitizeDoelgroep({ groep: 'G-0193', kaderVolledig: HEX2 })).not.toHaveProperty('kaderVolledig');
+    expect(sanitizeDoelgroep({ groep: 'G-0193', kader: 'ABC', kaderVolledig: HEX2 })).not.toHaveProperty('kaderVolledig');
+    const zonderKader: Partial<Doelgroep> = { ...volledig() };
+    delete zonderKader.kader;
+    expect(sanitizeDoelgroep(zonderKader)).not.toHaveProperty('kaderVolledig');
+    expect(doelgroepVoorLeerplan(volledig())?.kaderVolledig).toBe(HEX2);
+  });
+
   it('volgtKader: alleen true', () => {
     expect(sanitizeDoelgroep({ groep: 'G-0193', volgtKader: true })?.volgtKader).toBe(true);
     for (const volgtKader of [false, 'true', 1, null, {}]) {
@@ -163,6 +178,10 @@ describe('sanitizeDoelgroep: idempotent', () => {
     { groep: 'G-0193' },
     { groep: 'G-0193', titel: `  ${'a'.repeat(158)} 🌱🌱 x \n y`, vak: ` ${'v'.repeat(79)} 🌱 `, graad: '2', jaar: 4 },
     { groep: 'G-0009', titel: '', soort: 'buso', jaar: 3, onderdeel: 4.2, kader: 'ABC', volgtKader: 'ja' },
+    { groep: 'G-0193', kaderVolledig: HEX2 },
+    { groep: 'G-0193', kader: 'ABC', kaderVolledig: HEX2 },
+    { groep: 'G-0193', kader: HEX, kaderVolledig: 'ABC' },
+    { groep: 'G-0193', kader: HEX, kaderVolledig: HEX2 },
     JSON.parse('{"groep":"G-0193","__proto__":{"x":1},"titel":"\\u0000Natuur\\r\\nwetenschappen\\u0000"}'),
   ];
 
@@ -184,6 +203,27 @@ describe('sanitizeDoelgroep: idempotent', () => {
     expect(doelgroepVoorLeerplan(d)).toStrictEqual(d);
     expect(doelgroepVoorLeerplan({ groep: 'fout' })).toBeUndefined();
     expect(doelgroepVoorLeerplan(undefined)).toBeUndefined();
+  });
+
+  it('doelgroepVoorCursus haalt kader, kaderVolledig en volgtKader samen weg; het jaar blijft; ook idempotent', () => {
+    const d = doelgroepVoorCursus(volledig())!;
+    const { kader: _k, kaderVolledig: _kv, volgtKader: _v, ...zonderKader } = volledig();
+    void _k; void _kv; void _v;
+    expect(d).toStrictEqual(zonderKader);
+    for (const veld of ['kader', 'kaderVolledig', 'volgtKader']) expect(d, veld).not.toHaveProperty(veld);
+    expect(d.jaar).toBe(4);
+    expect(doelgroepVoorCursus(d)).toStrictEqual(d);
+    // Na een volgende sanering (export, import, deellink) blijft ze gelijk: nooit `kaderVolledig` zonder `kader`.
+    expect(sanitizeDoelgroep(d)).toStrictEqual(d);
+    // Gaat zelf door de sanering: een geknoeide invoer wordt gesaneerd, een ongeldige valt weg.
+    expect(doelgroepVoorCursus({ groep: 'G-0193', kader: HEX, kaderVolledig: HEX2, volgtKader: true, x: 1 }))
+      .toStrictEqual({ groep: 'G-0193', titel: 'G-0193', soort: 'so' });
+    expect(doelgroepVoorCursus({ groep: 'fout', kader: HEX })).toBeUndefined();
+    expect(doelgroepVoorCursus(undefined)).toBeUndefined();
+    // De invoer blijft ongemoeid.
+    const invoer = volledig();
+    doelgroepVoorCursus(invoer);
+    expect(invoer).toStrictEqual(volledig());
   });
 });
 

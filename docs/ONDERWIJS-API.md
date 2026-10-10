@@ -9,8 +9,8 @@ verder? Aanvulling op `docs/LEERPLANNEN.md` (de minimumdoelen komen al uit de On
 | Wat | Stand |
 |---|---|
 | Verkenning met de sleutel (drie runs van `verken-onderwijs-api.yml`, 9 oktober 2026) | **Klaar.** |
-| Matrix van de studierichtingen als data | **Gevonden:** de API Structuuronderdelen (§ 2). Overzicht van de eerste ophaling in een pagina voor de eigenaar; nog niet in de repo. |
-| Herhaalbare import van de matrix in Boosterz (script, workflow, datatest, zoals de minimumdoelen) | **Bezig** sinds 9 oktober 2026, met akkoord van de eigenaar. Ontwerp, bouwplan en stand van zaken: `docs/STUDIERICHTINGEN.md`. |
+| Matrix van de studierichtingen als data | **In de repo** sinds de eerste echte run (PR #6, 9 oktober 2026), via de API Structuuronderdelen (§ 2). |
+| Herhaalbare import van de matrix in Boosterz (script, workflow, datatest, zoals de minimumdoelen) | **Klaar en live** (10 oktober 2026): de matrix (545 groepen) en de doelen per richting staan in `public/leerplannen/structuur/` en worden maandelijks bijgewerkt via de workflow "Leerplangegevens bijwerken" (met een pull request). Ontwerp en stand van zaken: `docs/STUDIERICHTINGEN.md`. |
 | Koppeling studierichting → doelen | **Uitgezocht** (runs 4 en 5): de filter op naam mengt graden en breekt op een komma; de filter `structuuronderdeel_groep_nummer` werkt per graad. Zie § 3. Bouw: `docs/STUDIERICHTINGEN.md`. |
 | Aanbod per school (welke school welke richting inricht) | Later: de API's zijn bereikbaar (§ 4), het juiste adres voor het ingerichte aanbod is nog niet gevonden. |
 

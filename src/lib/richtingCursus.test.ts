@@ -14,10 +14,12 @@ import { isStemSet } from './minimumdoelenBron';
 import {
   bouwKader,
   doelgroepVan,
+  kaderAfdrukken,
   kaderVingerafdruk,
   naarSetKeuzes,
   richtingInfo,
   selectieVanKader,
+  volledigeSetsVingerafdruk,
   type KaderSet,
   type RichtingInfo,
   type RichtingKader,
@@ -243,6 +245,7 @@ describe('leerplanVoorRichting', () => {
     expect(dg.volgtKader).toBe(true);
     expect(dg.kader).toBe(kaderVingerafdruk(kader, ['ODS_9101', 'ODS_9102']));
     expect(dg.kader).not.toBe('f'.repeat(64));
+    expect(dg.kaderVolledig).toBe(volledigeSetsVingerafdruk(kader, ['ODS_9101', 'ODS_9102']));
     // Het leerplan telt de nakijkstatus nog steeds: de doelgroep zit niet in de vingerafdruk van de doelen.
     expect(effectieveStatus(r.leerplan)).toBe('gecontroleerd');
   });
@@ -1000,13 +1003,17 @@ describe('cursusVoorRichting', () => {
   it('met een geraamte: leerplan, ondertitel, doelgroep zonder kader en volgtKader, en de secties met hun codes', () => {
     expect(lp.doelgroep?.kader).toMatch(/^[0-9a-f]{64}$/);
     expect(lp.doelgroep?.volgtKader).toBe(true);
-    const c = cursusVoorRichting({ titel: ' Biologie voor de testrichting ', auteur: 'Juf An', doelgroep: { ...DOELGROEP, kader: 'a'.repeat(64), volgtKader: true }, leerplan: lp, start: 'geraamte' });
+    const c = cursusVoorRichting({
+      titel: ' Biologie voor de testrichting ', auteur: 'Juf An',
+      doelgroep: { ...DOELGROEP, kader: 'a'.repeat(64), kaderVolledig: 'b'.repeat(64), volgtKader: true }, leerplan: lp, start: 'geraamte',
+    });
     expect(c.title).toBe('Biologie voor de testrichting');
     expect(c.author).toBe('Juf An');
     expect(c.curriculumId).toBe(lp.id);
     expect(c.subtitle).toBe('Biologie · Testrichting · 4de jaar');
     expect(c.doelgroep).toEqual({ groep: 'G-0100', titel: 'Testrichting', graad: 2, jaar: 4, soort: 'so', vak: 'Biologie' });
     expect(c.doelgroep).not.toHaveProperty('kader');
+    expect(c.doelgroep).not.toHaveProperty('kaderVolledig');
     expect(c.doelgroep).not.toHaveProperty('volgtKader');
     expect(c.chapters.map((ch) => ch.title)).toEqual(['Biologie', 'Chemie']);
     expect(sectieCodes(c.chapters)).toEqual(codesVan(lp));
@@ -1209,11 +1216,135 @@ describe('vergelijkMetKader', () => {
     expect(vergelijkMetKader(zonderDoelgroep, nu)).toEqual({ nieuw: 0, vervallen: 1, setsNietMeerInKader: [] });
   });
 
-  it('een hele set volgt zijn huidige inhoud: veranderen alleen de nummers van een volledige set, dan is er niets te melden', () => {
-    // De vingerafdruk telt een volledige set als "set|*", dus wat intern van nummer verandert, valt niet op.
+  it('veranderen alleen de nummers van een volledige set (zelfde versie), dan telt dat: kaderVolledig ziet het', () => {
+    // `kader` telt een volledige set alleen als "set|*" en blijft gelijk; de afdruk van de volledige sets verandert wel.
     const chemieNu = kaderSet(CHEMIE, 'alle');
     const kleiner = maakKader([kaderSet(BIO, BIO_KOPPELING), { ...chemieNu, ids: ['c1', 'c2', 'c3'], volledig: true, versieGelijk: true }]);
-    expect(vergelijkMetKader(leerplan, kleiner)).toEqual(GEEN);
+    expect(kaderVingerafdruk(kleiner, setsVan(leerplan))).toBe(leerplan.doelgroep?.kader);
+    expect(volledigeSetsVingerafdruk(kleiner, setsVan(leerplan))).not.toBe(leerplan.doelgroep?.kaderVolledig);
+    expect(vergelijkMetKader(leerplan, kleiner)).toEqual({ nieuw: 0, vervallen: 2, setsNietMeerInKader: [] });
+  });
+
+  describe('een volledige set die groeit of krimpt bij een maandelijkse update (koppeling en set samen bijgewerkt)', () => {
+    /** Chemie na de update: `ids` is de hele set (volledig), met het versiemerk van de index als `versieGelijk`. */
+    const chemieNa = (ids: string[], versieGelijk = true): KaderSet => {
+      const k = kaderSet(CHEMIE, 'alle', { versieGelijk });
+      return { ...k, set: { ...k.set, aantal: ids.length }, ids, volledig: true };
+    };
+    const ZEVEN = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7'];
+    /** Hetzelfde leerplan, zoals de app het vóór `kaderVolledig` bewaarde: alleen met `kader`. */
+    const oudFormaat: Curriculum = { ...leerplan, doelgroep: { ...leerplan.doelgroep!, kaderVolledig: undefined } };
+    const beide = [leerplan, oudFormaat];
+
+    it('vooraf: een nieuw leerplan draagt beide afdrukken, een oud alleen kader (dezelfde)', () => {
+      expect(leerplan.doelgroep).toMatchObject(kaderAfdrukken(kader, setsVan(leerplan)));
+      expect(oudFormaat.doelgroep?.kader).toBe(leerplan.doelgroep?.kader);
+      expect(oudFormaat.doelgroep?.kaderVolledig).toBeUndefined();
+      // Ongewijzigd kader: in beide formaten niets te melden.
+      for (const lp of beide) expect(vergelijkMetKader(lp, kader)).toEqual(GEEN);
+    });
+
+    it('(a) 2 doelen erbij bij een gelijke versie: nieuw = 2; een oud leerplan (kader gelijk) meldt niets, zoals vroeger', () => {
+      const groter = maakKader([kaderSet(BIO, BIO_KOPPELING), chemieNa(ZEVEN)]);
+      expect(kaderVingerafdruk(groter, setsVan(leerplan))).toBe(leerplan.doelgroep?.kader);
+      expect(vergelijkMetKader(leerplan, groter)).toEqual({ nieuw: 2, vervallen: 0, setsNietMeerInKader: [] });
+      expect(vergelijkMetKader(oudFormaat, groter)).toEqual(GEEN);
+    });
+
+    it('een volledige set die krimpt (gelijke versie): de nummers die wegvielen zijn vervallen; een oud leerplan meldt niets', () => {
+      const kleiner = maakKader([kaderSet(BIO, BIO_KOPPELING), chemieNa(['c1', 'c2', 'c3'])]);
+      expect(vergelijkMetKader(leerplan, kleiner)).toEqual({ nieuw: 0, vervallen: 2, setsNietMeerInKader: [] });
+      expect(vergelijkMetKader(oudFormaat, kleiner)).toEqual(GEEN);
+      // Wat erbij komt en wat wegvalt samen.
+      const anders = maakKader([kaderSet(BIO, BIO_KOPPELING), chemieNa(['c1', 'c2', 'c3', 'c4', 'c6', 'c7'])]);
+      expect(vergelijkMetKader(leerplan, anders)).toEqual({ nieuw: 2, vervallen: 1, setsNietMeerInKader: [] });
+      expect(vergelijkMetKader(oudFormaat, anders)).toEqual(GEEN);
+    });
+
+    it('evenveel nummers erbij als eraf (gelijke versie): de nieuwe tellen ook, al heeft het leerplan evenveel nummers', () => {
+      // 5 nummers voor en na: c4 en c5 vallen weg, c6 en c7 komen erbij.
+      const geruild = maakKader([kaderSet(BIO, BIO_KOPPELING), chemieNa(['c1', 'c2', 'c3', 'c6', 'c7'])]);
+      expect(vergelijkMetKader(leerplan, geruild)).toEqual({ nieuw: 2, vervallen: 2, setsNietMeerInKader: [] });
+      expect(vergelijkMetKader(oudFormaat, geruild)).toEqual(GEEN);
+    });
+
+    it('(c) een andere versie van een volledige set: de nummers zijn niet te vergelijken, dus 0 nieuw en 0 vervallen, in beide formaten', () => {
+      const andereVersie = maakKader([kaderSet(BIO, BIO_KOPPELING), chemieNa(ZEVEN, false)]);
+      const kleinerAndereVersie = maakKader([kaderSet(BIO, BIO_KOPPELING), chemieNa(['c1', 'c2'], false)]);
+      for (const lp of beide) {
+        expect(vergelijkMetKader(lp, andereVersie)).toEqual(GEEN);
+        expect(vergelijkMetKader(lp, kleinerAndereVersie)).toEqual(GEEN);
+      }
+    });
+
+    it('zonder volgtKader komt er ook bij een gegroeide volledige set niets automatisch bij', () => {
+      const groter = maakKader([kaderSet(BIO, BIO_KOPPELING), chemieNa(ZEVEN)]);
+      for (const lp of beide) {
+        const perDoel: Curriculum = { ...lp, doelgroep: { ...lp.doelgroep!, volgtKader: undefined } };
+        expect(vergelijkMetKader(perDoel, groter)).toEqual(GEEN);
+      }
+    });
+
+    it('een veranderde deelset: kader verschilt, dus alles wordt vergeleken, zoals vroeger, in beide formaten', () => {
+      const nu = maakKader([kaderSet(BIO, [...BIO_KOPPELING, 'b12']), chemieNa(ZEVEN)]);
+      expect(kaderVingerafdruk(nu, setsVan(leerplan))).not.toBe(leerplan.doelgroep?.kader);
+      for (const lp of beide) expect(vergelijkMetKader(lp, nu)).toEqual({ nieuw: 3, vervallen: 0, setsNietMeerInKader: [] });
+    });
+
+    it('(b) een deelset waarin de leerkracht meer koos dan de koppeling en een eigen set buiten het kader: niet vervallen als alleen een volledige set veranderde', () => {
+      // Per doel gekozen met de richting (zonder volgtKader, zoals doelgroepBijRichting): de hele set Biologie (13 doelen,
+      // de koppeling noemt er 4), Chemie (volledig) en de STEM-set, die niet in dit kader staat.
+      const k = maakKader([kaderSet(BIO, BIO_KOPPELING), kaderSet(CHEMIE, 'alle')]);
+      const SETS = ['ODS_9101', 'ODS_9102', 'ODS_9103'];
+      const ruim = leerplanUitSelectie([{ bestand: BIO, doelen: 'alle' }, { bestand: CHEMIE, doelen: 'alle' }, { bestand: STEM, doelen: 'alle' }], {
+        titel: 'T', doelgroep: { ...DOELGROEP, ...kaderAfdrukken(k, SETS) },
+      });
+      expect(ruim.bevestigd).toBe(true);
+      expect(ruim.leerplan.goals).toHaveLength(26);
+      const ruimOud: Curriculum = { ...ruim.leerplan, doelgroep: { ...ruim.leerplan.doelgroep!, kaderVolledig: undefined } };
+      // Chemie verliest c5 (een routine-update) of groeit.
+      const kleiner = maakKader([kaderSet(BIO, BIO_KOPPELING), chemieNa(['c1', 'c2', 'c3', 'c4'])]);
+      const groter = maakKader([kaderSet(BIO, BIO_KOPPELING), chemieNa(ZEVEN)]);
+      for (const lp of [ruim.leerplan, ruimOud]) expect(vergelijkMetKader(lp, k)).toEqual(GEEN);
+      // Alleen Chemie wordt vergeleken. Zonder kaderVolledig telden hier ook de 9 doelen van Biologie die de koppeling
+      // niet noemt en de 8 van de eigen set als vervallen.
+      expect(vergelijkMetKader(ruim.leerplan, kleiner)).toEqual({ nieuw: 0, vervallen: 1, setsNietMeerInKader: [] });
+      // Chemie groeit: zonder volgtKader komt er niets bij.
+      expect(vergelijkMetKader(ruim.leerplan, groter)).toEqual(GEEN);
+      // Een oud leerplan (kader gelijk): niets te melden, zoals vroeger.
+      expect(vergelijkMetKader(ruimOud, kleiner)).toEqual(GEEN);
+      expect(vergelijkMetKader(ruimOud, groter)).toEqual(GEEN);
+      // Zonder vingerafdruk wordt alles vergeleken: dan lijken de 9 doelen die de koppeling niet noemt en de eigen set vervallen.
+      const zonderAfdruk: Curriculum = { ...ruim.leerplan, doelgroep: { ...ruim.leerplan.doelgroep!, kader: undefined, kaderVolledig: undefined } };
+      expect(vergelijkMetKader(zonderAfdruk, k)).toEqual({ nieuw: 0, vervallen: 9 + 8, setsNietMeerInKader: ['ODS_9103'] });
+    });
+
+    it('een oud leerplan met volgtKader en een eigen keuze in een volledige set: "Werk het leerplan bij" verschijnt niet als alleen een volledige set veranderde', () => {
+      // Zo bewaarde "Keuze aanpassen" het tot oktober 2026: c4 en c5 van Chemie uitgevinkt, maar volgtKader en kader bleven.
+      const aangepast: Curriculum = { ...oudFormaat, goals: oudFormaat.goals.filter((g) => !['c4', 'c5'].includes(g.refs![0].id)) };
+      expect(aangepast.doelgroep?.volgtKader).toBe(true);
+      // Het kader is niet veranderd, of alleen Chemie groeide of kromp: niets te melden, dus ook geen knop die de keuze
+      // overschrijft (zoals vóór oktober 2026). Telde de app hier, dan leken c4 en c5 nieuw.
+      expect(vergelijkMetKader(aangepast, kader)).toEqual(GEEN);
+      expect(vergelijkMetKader(aangepast, maakKader([kaderSet(BIO, BIO_KOPPELING), chemieNa(ZEVEN)]))).toEqual(GEEN);
+      expect(vergelijkMetKader(aangepast, maakKader([kaderSet(BIO, BIO_KOPPELING), chemieNa(['c1', 'c2', 'c4'])]))).toEqual(GEEN);
+      // Veranderde een deelset, dan wordt alles vergeleken, zoals vroeger (ook toen telden c4 en c5 dan als nieuw).
+      expect(vergelijkMetKader(aangepast, maakKader([kaderSet(BIO, [...BIO_KOPPELING, 'b12']), chemieNa(ZEVEN)])).nieuw).toBe(1 + 4);
+    });
+
+    it('"Werk het leerplan bij" op een oud leerplan geeft beide afdrukken; daarna ziet de app een volledige set die groeit', () => {
+      // Een deelset veranderde: het oude leerplan krijgt de knop en wordt bijgewerkt (zelfde id, met `bestaand`).
+      const nu = maakKader([kaderSet(BIO, [...BIO_KOPPELING, 'b12']), kaderSet(CHEMIE, 'alle')]);
+      expect(vergelijkMetKader(oudFormaat, nu).nieuw).toBe(1);
+      const r = leerplanVoorRichting(nu, BESTANDEN, oudFormaat.doelgroep!, { bestaand: oudFormaat, titel: oudFormaat.title });
+      expect(r.bevestigd).toBe(true);
+      expect(r.leerplan.id).toBe(oudFormaat.id);
+      expect(r.leerplan.doelgroep).toMatchObject({ ...kaderAfdrukken(nu, setsVan(r.leerplan)), volgtKader: true });
+      expect(vergelijkMetKader(r.leerplan, nu)).toEqual(GEEN);
+      // Groeit Chemie daarna (gelijke versie), dan telt dat nu wel.
+      const groter = maakKader([kaderSet(BIO, [...BIO_KOPPELING, 'b12']), chemieNa(ZEVEN)]);
+      expect(vergelijkMetKader(r.leerplan, groter)).toEqual({ nieuw: 2, vervallen: 0, setsNietMeerInKader: [] });
+    });
   });
 
   it('een volledige set met een andere versie: de nummers van de koppeling zijn dan niet meer te vergelijken, dus niet vervallen', () => {
@@ -1281,11 +1412,12 @@ describe('vergelijkMetKader', () => {
     expect(vergelijkMetKader(leerplan, kaderMetC6(true))).toEqual({ nieuw: 2, vervallen: 0, setsNietMeerInKader: [] });
   });
 
-  it('een volledige kaderset waarvan het leerplan evenveel nummers heeft als het kader, geeft geen nieuw: alleen "minder" telt', () => {
-    // Het leerplan heeft 5 nummers van Chemie en het kader noemt er 5 (c5 is vervangen door c9): niet minder, dus niet nieuw.
+  it('een volledige kaderset waarvan het leerplan evenveel nummers heeft als het kader: een nummer dat het leerplan niet heeft, is toch nieuw', () => {
+    // Het leerplan heeft 5 nummers van Chemie en het kader noemt er 5 (c5 is vervangen door c9): c5 vervalt, c9 is nieuw
+    // (naast b12 van Biologie). Vroeger telde alleen "minder nummers" en bleef c9 onvermeld.
     const chemie = kaderSet(CHEMIE, 'alle');
     const kader5 = maakKader([kaderSet(BIO, ['b2', 'b5', 'b7', 'b11', 'b12']), { ...chemie, ids: ['c1', 'c2', 'c3', 'c4', 'c9'], volledig: true }]);
-    expect(vergelijkMetKader(leerplan, kader5)).toEqual({ nieuw: 1, vervallen: 1, setsNietMeerInKader: [] });
+    expect(vergelijkMetKader(leerplan, kader5)).toEqual({ nieuw: 2, vervallen: 1, setsNietMeerInKader: [] });
   });
 
   it('een leerplan met doelen die niet meer in het bestand staan, geeft meteen na het maken niets te melden', () => {

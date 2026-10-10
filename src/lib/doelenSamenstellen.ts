@@ -57,7 +57,8 @@ export interface SamenstelOpties {
   oudeVersies?: ReadonlySet<string>;
   /**
    * Studierichting van de lijst (gesaneerd, zonder jaar: zie `doelgroepVoorLeerplan`). Zonder (geldige) doelgroep blijft
-   * die van `bestaand`: zo verdwijnt de richting niet bij "Keuze aanpassen". Telt niet mee in de vingerafdruk.
+   * die van `bestaand`: zo verdwijnt de richting niet bij "Keuze aanpassen". Alleen `volgtKader` blijft dan niet als de
+   * keuze veranderde (zie `doelgroepVanBestaand`). Telt niet mee in de vingerafdruk.
    */
   doelgroep?: Doelgroep;
 }
@@ -275,15 +276,54 @@ function stroomKort(stroom: string | undefined): string {
   return m ? m[1].toUpperCase() : s;
 }
 
+/** Hoe lang een onderscheid in een code hoogstens is (zie `metOnderscheid`). */
+const MAX_ONDERSCHEID = 30;
+/**
+ * Hoe lang de korte naam als onderscheid eerst mag zijn: zo blijft een code zoals "0000 (DUURZAAMHEID)" of
+ * "0000 (JURIDISCHE)" ongeveer zo kort als de codekolom (`MAX_CODEBREEDTE` in DoelenPerRubriek.tsx). Pas als dat de sets
+ * niet onderscheidt, mag de naam tot `MAX_ONDERSCHEID` tekens lang zijn.
+ */
+const KORT_ONDERSCHEID = 16;
+
+/** Kleine woorden die niet aan het eind van een ingekorte naam horen: "Economische en" wordt "Economische". */
+const LOS_EINDWOORD = /\s+(?:en|of|in|op|de|het|een|van|voor|met|tot|te|aan|bij|uit)$/iu;
+
+/**
+ * De korte naam van een set als onderscheid in een code. Leestekens die in een code of in een opsomming van codes
+ * verwarren (komma, puntkomma, dubbelpunt, haakjes, schuine streep, …) worden een spatie, een lang streepje wordt "-".
+ * Is de naam langer dan `max` tekens, dan wordt ze op een woordgrens ingekort; alleen een eerste woord dat al langer is,
+ * blijft heel (tot `MAX_ONDERSCHEID` tekens). Aan het eind geen streepje, punt of klein woord ("en", "of", …).
+ * Bv. "Juridische competenties" met 16 wordt "Juridische", "Moderne Vreemde Talen Frans - Engels" met 30 wordt
+ * "Moderne Vreemde Talen Frans". Leeg als er niets overblijft.
+ */
+export function naamAlsOnderscheid(naam: string, max: number): string {
+  let uit = tekstOfLeeg(naam).replace(/[,;:()[\]{}/\\|"]+/gu, ' ').replace(/[–—]/gu, '-').replace(/\s+/gu, ' ').trim();
+  if (uit.length > max) {
+    const grens = uit.lastIndexOf(' ', max);
+    uit = grens > 0 ? uit.slice(0, grens) : kap(uit.split(' ')[0], MAX_ONDERSCHEID);
+  }
+  for (let vorige = ''; vorige !== uit; ) {
+    vorige = uit;
+    uit = uit.replace(/[\s\-·.&+]+$/u, '').replace(LOS_EINDWOORD, '');
+  }
+  return uit;
+}
+
 /**
  * Wat sets met dezelfde code van elkaar onderscheidt, in deze volgorde: de stroom ("A", "B"), de graad, graad en
- * stroom samen, en anders het set-id. Het eerste dat voor elke set van de groep ingevuld en verschillend is.
+ * stroom samen, de korte naam van de set ingekort tot `KORT_ONDERSCHEID` tekens (bv. "0000 (DUURZAAMHEID)" en
+ * "0000 (JURIDISCHE)"), dezelfde naam tot `MAX_ONDERSCHEID` tekens (bv. "MODERNE VREEMDE TALEN FRANS" en "… DUITS"),
+ * en pas als laatste terugval het set-id. Het eerste dat voor elke set van de groep ingevuld en verschillend is (na
+ * `normalizeGoalCode`). Het set-id komt zo alleen nog in een code als sets dezelfde korte naam hebben (bv. dezelfde
+ * competentie in drie finaliteiten van dezelfde graad). Zie `naamAlsOnderscheid`.
  */
 function onderscheidVoor(groep: readonly MinimumdoelenSetKop[]): string[] {
   const kandidaten: ((k: MinimumdoelenSetKop) => string)[] = [
     (k) => stroomKort(k.stroom),
     (k) => tekstOfLeeg(k.graad),
     (k) => [tekstOfLeeg(k.graad), stroomKort(k.stroom)].filter(Boolean).join(' '),
+    (k) => naamAlsOnderscheid(korteNaam(k), KORT_ONDERSCHEID),
+    (k) => naamAlsOnderscheid(korteNaam(k), MAX_ONDERSCHEID),
   ];
   for (const kandidaat of kandidaten) {
     const waarden = groep.map((k) => normalizeGoalCode(kandidaat(k)));
@@ -294,7 +334,7 @@ function onderscheidVoor(groep: readonly MinimumdoelenSetKop[]): string[] {
 
 /** "BG02.01" + "A" → "BG02.01 (A)", ingekort zodat het onderscheid er altijd bij past (hoogstens `MAX_DOELCODE`). */
 function metOnderscheid(code: string, onderscheid: string): string {
-  const staart = ` (${kap(onderscheid, 30)})`;
+  const staart = ` (${kap(onderscheid, MAX_ONDERSCHEID)})`;
   return normalizeGoalCode(`${kap(code, MAX_DOELCODE - staart.length)}${staart}`);
 }
 
@@ -426,7 +466,7 @@ interface CodeInvoer {
  *   `normalizeGoalCode`) in meer dan één gekozen set voor, dan krijgt ze een onderscheid erbij (`onderscheidVoor`), bv.
  *   "BG02.01 (A)" en "BG02.01 (B)"; zonder `bestaand` in elk van die sets, zodat de code niet afhangt van de volgorde
  *   van de sets. Hoorde de code in `bestaand` bij een ander minimumdoel, dan krijgt ze ook een onderscheid (de stroom,
- *   de graad, graad en stroom, of het set-id van de eigen set).
+ *   de graad, graad en stroom, de korte naam, of het set-id van de eigen set).
  * - Elke code is hoogstens `MAX_DOELCODE` tekens; wat dan nog dubbel of gereserveerd is, krijgt "-2", "-3", … (nooit
  *   de code van een ander doel, en nooit een gereserveerde code).
  */
@@ -595,6 +635,35 @@ function waarschuwingenDubbelOverSets(gekozenSets: readonly { bestand: Minimumdo
   return uit;
 }
 
+/** Dezelfde selectie: dezelfde sets, met per set dezelfde vaste nummers (de volgorde en dubbels tellen niet). */
+function zelfdeSelectie(a: ReadonlyMap<string, readonly string[]>, b: ReadonlyMap<string, readonly string[]>): boolean {
+  if (a.size !== b.size) return false;
+  for (const [set, ids] of a) {
+    const andere = b.get(set);
+    if (andere === undefined) return false;
+    const eigen = new Set(ids);
+    const hun = new Set(andere);
+    if (eigen.size !== hun.size || [...eigen].some((id) => !hun.has(id))) return false;
+  }
+  return true;
+}
+
+/**
+ * De doelgroep van een bewaarde lijst die opnieuw samengesteld wordt zonder nieuwe doelgroep ("Keuze aanpassen" op de
+ * pagina Leerplannen): alles blijft (ook beide vingerafdrukken van het kader, `kader` en `kaderVolledig`), behalve
+ * `volgtKader` als de keuze veranderde.
+ * `volgtKader` betekent dat "Werk het leerplan bij" de lijst opnieuw uit de koppeling mag opbouwen; na een eigen keuze
+ * zou dat die keuze overschrijven. Zonder `volgtKader` biedt het scherm "Kies de doelen opnieuw", dat de keuze houdt.
+ * Een ongewijzigde keuze (dezelfde vaste nummers per set als `selectieVanLeerplan(bestaand)`) houdt `volgtKader`.
+ */
+function doelgroepVanBestaand(bestaand: Curriculum | undefined, nieuweSelectie: ReadonlyMap<string, readonly string[]>): Doelgroep | undefined {
+  const dg = doelgroepVoorLeerplan(bestaand?.doelgroep);
+  if (!bestaand || !dg || dg.volgtKader !== true || zelfdeSelectie(selectieVanLeerplan(bestaand), nieuweSelectie)) return dg;
+  const zonder: Doelgroep = { ...dg };
+  delete zonder.volgtKader;
+  return zonder;
+}
+
 function refSleutels(goals: readonly CurriculumGoal[]): string[] {
   return goals.map((g) => (g.refs ?? []).map((r) => refSleutel(r.set, r.id)).join('\u0001'));
 }
@@ -614,6 +683,7 @@ function refSleutels(goals: readonly CurriculumGoal[]): string[] {
  * - Bij `bestaand`: `weggelatenCodes` bewaart de codes van de doelen die (nu of eerder) wegvielen en niet terugkomen
  *   (`weggelatenNa`), en een waarschuwing noemt de doelen die nu uit de bewaarde lijst wegvallen.
  * - `doelgroep`: die van `opties`, anders die van `bestaand` (gesaneerd, zonder jaar), ook bij een lijst zonder doelen.
+ *   Veranderde de keuze tegenover `bestaand`, dan valt `volgtKader` van die doelgroep weg (`doelgroepVanBestaand`).
  * - Hetzelfde minimumdoel (vast nummer) via twee gekozen sets staat er twee keer in (een doel is set + vast nummer),
  *   met een waarschuwing per paar sets.
  * - Meer dan `MAX_SETS` sets of `MAX_DOELEN` doelen, of helemaal geen doel: geen doelen, niet bevestigd, met een
@@ -656,7 +726,8 @@ export function leerplanUitSelectie(keuzes: readonly SetKeuze[], opties: Samenst
   const nu = Date.now();
   const herkomst: CurriculumHerkomst = { methode: 'samengesteld', ingelezenOp: nu };
   // `kop` neemt van `bestaand` alleen id en createdAt over: de studierichting moet er dus uitdrukkelijk bij.
-  const doelgroep = doelgroepVoorLeerplan(opties?.doelgroep) ?? doelgroepVoorLeerplan(bestaand?.doelgroep);
+  const nieuweSelectie = new Map(gekozenSets.map((g) => [g.bestand.set.id, g.doelen.map((d) => d.id)] as const));
+  const doelgroep = doelgroepVoorLeerplan(opties?.doelgroep) ?? doelgroepVanBestaand(bestaand, nieuweSelectie);
   const kop = {
     title: titel,
     net: 'minimumdoelen' as const,

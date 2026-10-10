@@ -24,8 +24,16 @@ export interface Doelgroep {
   onderdeel?: number;
   /** Vrije tekst, hoogstens 80 tekens: alleen weergave en voorstel, geen koppeling. */
   vak?: string;
-  /** Vingerafdruk van het doelenkader bij het maken (64 hex-tekens); alleen zinvol op een leerplan. */
+  /**
+   * Vingerafdruk van het doelenkader bij het maken (64 hex-tekens); alleen zinvol op een leerplan. Telt de nummers van
+   * de deelsets en welke sets volledig zijn, niet de inhoud van een volledige set (zie `kaderVingerafdruk`).
+   */
   kader?: string;
+  /**
+   * Vingerafdruk van de inhoud van de volledige sets bij het maken (64 hex-tekens, zie `volledigeSetsVingerafdruk`).
+   * Alleen samen met `kader`; leerplannen van vóór oktober 2026 hebben ze niet.
+   */
+  kaderVolledig?: string;
   /** Leerplan gemaakt per set: "Werk het leerplan bij" mag nieuwe doelen van de koppeling toevoegen. */
   volgtKader?: true;
 }
@@ -80,7 +88,8 @@ function leesJaar(v: unknown, graad: 1 | 2 | 3 | undefined): number | undefined 
  * - `graad`: 1 tot 3, ook als tekst. `jaar`: een geheel getal dat bij de graad past; zonder graad valt het weg.
  * - `soort`: alleen `buso` bij precies 'buso', anders `so`.
  * - `onderdeel`: een geheel getal van 1 tot 999999. `vak`: één regel, hoogstens 80 tekens; leeg valt weg.
- * - `kader`: alleen 64 kleine hex-tekens. `volgtKader`: alleen `true`.
+ * - `kader`: alleen 64 kleine hex-tekens. `kaderVolledig`: ook, en alleen samen met een geldig `kader`.
+ *   `volgtKader`: alleen `true`.
  */
 export function sanitizeDoelgroep(raw: unknown): Doelgroep | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
@@ -102,7 +111,13 @@ export function sanitizeDoelgroep(raw: unknown): Doelgroep | undefined {
   const vak = eenRegel(eigen(raw, 'vak'), MAX_DOELGROEP_VAK);
   if (vak) uit.vak = vak;
   const kader = eigen(raw, 'kader');
-  if (typeof kader === 'string' && KADER.test(kader)) uit.kader = kader;
+  if (typeof kader === 'string' && KADER.test(kader)) {
+    uit.kader = kader;
+    // Zonder `kader` zegt de afdruk van de volledige sets niets (zie `veranderdSindsLeerplan`): wie `kader` weghaalt
+    // (een eigen kopie, een cursus), verliest ze zo bij het volgende saneren ook.
+    const kaderVolledig = eigen(raw, 'kaderVolledig');
+    if (typeof kaderVolledig === 'string' && KADER.test(kaderVolledig)) uit.kaderVolledig = kaderVolledig;
+  }
   if (eigen(raw, 'volgtKader') === true) uit.volgtKader = true;
   return uit;
 }
@@ -116,6 +131,20 @@ export function doelgroepVoorLeerplan(raw: unknown): Doelgroep | undefined {
   const d = sanitizeDoelgroep(raw);
   if (!d) return undefined;
   delete d.jaar;
+  return d;
+}
+
+/**
+ * De doelgroep van een cursus: zoals `sanitizeDoelgroep` (met jaar), maar zonder `kader`, `kaderVolledig` en
+ * `volgtKader`: die horen bij een leerplan, niet bij een cursus. Ze vallen altijd samen weg, ook als de invoer (een
+ * overdracht, een leerplan) ze alle drie draagt. Idempotent.
+ */
+export function doelgroepVoorCursus(raw: unknown): Doelgroep | undefined {
+  const d = sanitizeDoelgroep(raw);
+  if (!d) return undefined;
+  delete d.kader;
+  delete d.kaderVolledig;
+  delete d.volgtKader;
   return d;
 }
 

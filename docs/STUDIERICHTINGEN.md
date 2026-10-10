@@ -26,8 +26,9 @@ De opdracht van de eigenaar, letterlijk: "ja, doe die import maar, einddoel is d
 | I3 Integratie van de schermen: ingangen, hulp, budget | **Klaar** (menu, minimumdoelenpagina, wegwijzer, twee hulpvragen; kritiek pad 333,4 kB, budget bewust naar 333,9 kB) | hoofdsessie |
 | P11 Dekkingsmodule (L6) | **Klaar** (review goed met opmerkingen; tests aangevuld, regels voor percent en zelfdeNummerAndereSet vastgelegd in § 13.2) | kernbouwer |
 | P12 Dekking op de schermen | **Klaar** (twee reviewers en een rechter: 4 van 10 bevindingen bevestigd en hersteld: juiste noot bij een kader dat nog niet opgehaald is, herladen na een mislukt chunk, 'Toon: Nog niet gedekt' laat sets weg en zegt hoeveel, lange titels breken af). Teksten met getallen in `dekkingWeergave.ts`. CourseEditorPage 74,8 kB, kritiek pad 333,7 kB (budget 334,2 kB) | bouwer |
-| P13 Rooktest studierichtingen | Wacht, op P12 | bouwer (een andere agent dan die van P8 tot P12) |
-| I4 Review, rechter, herstel, rooktest op echte data, uitrol | Wacht, op P13 en G1 | hoofdsessie, reviewers, rechter |
+| P13 Rooktest studierichtingen | **Klaar** (10 oktober 2026): sectie 20d op de fixtures (49 checks) en 20e op de echte data voor G-0193 en G-0327 (40 checks, alleen regex), twee keer na elkaar groen; de valkuil (§ 9.5) wordt in localStorage nagegaan. Geen fouten in de app gevonden | bouwer (een andere agent dan die van P8 tot P12) |
+| I4 Review, rechter, herstel, rooktest op echte data, uitrol | **Klaar** (10 oktober 2026). Vier reviewers (datastroom, juistheid, toegankelijkheid en taal, bundel en opslag), elk met een rechter: 21 bevindingen, 9 bevestigd, geen blokkerende. De vijf kleine punten (workflowteksten, links naar de wizard met `sets=`, zichtbaar onderscheid tussen gelijke setnamen, herlaadmelding) en de vier logicapunten (rij hieronder) zijn hersteld en onafhankelijk nagekeken. Sectie 20e (echte data) zit in P13 | hoofdsessie, reviewers, rechter |
+| I4 Herstel van vier punten uit de eindreview (logica) | **Klaar** (10 oktober 2026): drie rondes, telkens door een andere agent nagekeken, en samengevoegd. (1) Een onderdeel met `nietMeerInBron` telt niet meer als geldig (`geldigeOnderdelen`, § 9.2). (2) Een volledige set die groeit of krimpt, valt nu op: tweede afdruk `kaderVolledig`, één regel `veranderdSindsLeerplan` (§ 11.2); leerplannen van daarvoor werken zoals vroeger. (3) Na "Keuze aanpassen" met een andere keuze valt `volgtKader` weg (§ 10.2). (4) Botsende doelcodes krijgen de korte naam van de set in plaats van het set-id (§ 14.9). Tweede ronde: een cursus draagt nooit `kaderVolledig` (`doelgroepVoorCursus`), en de bekende beperking bij een andere lijst sets staat in § 11.2 | kernbouwer en een onafhankelijke controleur; integratie: hoofdsessie |
 | Licentie en naamsvermelding API Structuuronderdelen | Te bevestigen via TechLoket, zoals bij laag 1 | eigenaar |
 
 ## 0. In het kort
@@ -504,7 +505,8 @@ Gemeten op de gegevens van run 4 (actueel, gewoon secundair, eigen graad): hoogs
 - **Status `geen`.** De herkomst is `geen`. Is er een laatst bekend bestand, dan toont het scherm dat met een waarschuwing.
 - **Status `nog-niet-opgehaald`** of geen index: de herkomst is `nog-niet-opgehaald`.
 - **Afgebouwd.** Een onderdeel met een einddatum vóór vandaag. Een groep is afgebouwd als al zijn onderdelen dat zijn. In de huidige matrix zijn dat alleen 7de jaren (86 groepen). De opvolgers komen uit `volgende`, via hun groep.
-- **Jaren van een groep.** De unie van de geldige `leerjaren.code` van de geldige onderdelen die geen aanloop zijn, via `jaarVan`. G-0307 → 1, G-0311 → 2, 2de graad → 3 en 4, 3de graad → 5 en 6, 7de jaar → 7. BuSO zonder graad heeft geen jaar.
+- **Niet meer in de bron** (herstel oktober 2026). Een onderdeel met `nietMeerInBron` blijft in de matrix staan (B5), zonder einddatum, maar telt niet als geldig: niet voor de soort, de jaren, vormen en domeinen, `kanBuso`, "afgebouwd" en de variantkeuze (`geldigeOnderdelen`). De opvolgers komen wel uit alle onderdelen. Staat geen enkel onderdeel van de groep nog in de bron, dan tellen alle onderdelen: die beschrijven de richting zoals ze was. Zo doet het ophaalscript het ook (`soortenVan`).
+- **Jaren van een groep.** De unie van de geldige `leerjaren.code` van de geldige onderdelen (nog in de bron) die geen aanloop zijn, via `jaarVan`. G-0307 → 1, G-0311 → 2, 2de graad → 3 en 4, 3de graad → 5 en 6, 7de jaar → 7. BuSO zonder graad heeft geen jaar.
 - **Dezelfde naam in een andere graad** (27 namen): het detail toont "Deze richting bestaat ook in de 3de graad: …" met een link.
 
 ### 9.3 Signaturen
@@ -519,7 +521,11 @@ export interface RichtingInfo {
   afgebouwd: boolean; afgebouwdSinds?: string; opvolgers: StudierichtingGroep[]; zelfdeNaam: StudierichtingGroep[];
   nietMeerInBron?: string;
 }
+//   onderdelen: alle, ook de afgebouwde en die niet meer in de bron staan; de rest rekent alleen met die nog in de bron staan
 export function richtingInfo(matrix: MatrixBestand, groep: string, vandaag: string): RichtingInfo | undefined;
+export function geldigeOnderdelen(info: RichtingInfo, vandaag: string): Structuuronderdeel[];
+//   waaruit een variant te kiezen valt: nog in de bron en geldig; bij een afgebouwde richting alle die nog in de bron staan;
+//   staat geen onderdeel meer in de bron, dan alle (herstel oktober 2026; vroeger in RichtingDetail.tsx)
 export interface RichtingFilter { graad?: 1 | 2 | 3; finaliteit?: string; zoek: string; ookMeer: boolean; afgebouwd: boolean }
 export function filterRichtingen(matrix: MatrixBestand, filter: RichtingFilter, vandaag: string): RichtingInfo[];
 //   standaard: soort gewoon en ander, niet afgebouwd; ookMeer: ook zevende, aanloop, buso; zoeken zonder accenten
@@ -540,7 +546,18 @@ export function naarSetKeuzes(selectie: ReadonlyMap<string, 'alle' | readonly st
   bestanden: ReadonlyMap<string, MinimumdoelenSetBestand>): { keuzes: SetKeuze[]; ontbrekend: { set: string; ids: string[] }[] };
 //   een deelset geeft ALTIJD een lijst ids, nooit 'alle' (§ 9.5); ids die niet meer in het bestand staan → ontbrekend
 export function kaderVingerafdruk(kader: RichtingKader, sets?: readonly string[]): string;
-//   sha256Hex van de gesorteerde regels "set|id" (een volledige set als "set|*"), beperkt tot `sets`
+//   sha256Hex van de gesorteerde regels "set|id" (een volledige set als "set|*"), beperkt tot `sets`. Ziet een deelset die
+//   verandert en een set die volledig wordt of niet meer, NIET een volledige set die groeit of krimpt. Formaat nooit
+//   veranderen: elk bewaard leerplan van een richting draagt deze afdruk als `doelgroep.kader`.
+export function volledigeSetsVingerafdruk(kader: RichtingKader, sets?: readonly string[]): string;
+//   sha256Hex van de gesorteerde regels "set|id" van alleen de volledige sets, beperkt tot `sets`; bewaard als
+//   `doelgroep.kaderVolledig` (herstel oktober 2026). Formaat ook nooit veranderen.
+export function kaderAfdrukken(kader: RichtingKader, sets: readonly string[]): { kader: string; kaderVolledig: string };
+//   beide afdrukken over de sets die echt in het leerplan zitten: wat een leerplan van een richting bij het maken krijgt
+export type KaderVerandering = 'niets' | 'alles' | ReadonlySet<string>;
+export function veranderdSindsLeerplan(leerplan: Pick<Curriculum, 'kind' | 'doelgroep' | 'minimumdoelenSets'>,
+  kader: RichtingKader): KaderVerandering;
+//   de ene regel van § 11.2 voor vergelijkMetKader én beginUitBewaarde: niets, alles, of alleen deze (volledige) sets
 export function kaderGroepSleutel(info: RichtingInfo, soort: SoortKeuze): string;  // 1ste graad: "1|A|so"; anders "G-0193|so"
 export function kenmerkenVan(info: RichtingInfo): string;  // "2de graad · Doorstroomfinaliteit · aso · Domeinoverschrijdend · 3de en 4de jaar"
 export const FINALITEIT_LABEL: Record<string, string>;     // DO Doorstroomfinaliteit, DU Dubbele finaliteit, A Arbeidsmarktfinaliteit
@@ -589,12 +606,15 @@ export interface Doelgroep {
   onderdeel?: number;     // structuuronderdeelnummer (basisoptie, variant): alleen weergave
   vak?: string;           // vrije tekst ≤ 80, alleen weergave en voorstel, geen koppeling
   kader?: string;         // 64 hex: kaderVingerafdruk bij het maken (alleen zinvol op een leerplan)
+  kaderVolledig?: string; // 64 hex: volledigeSetsVingerafdruk bij het maken; alleen samen met kader (nieuw, oktober 2026;
+                          // leerplannen van daarvoor hebben het niet, zie § 11.2)
   volgtKader?: true;      // leerplan gemaakt per set: "Werk het leerplan bij" mag nieuwe doelen van de koppeling toevoegen
 }
 export const MAX_DOELGROEP_TITEL = 160;
 export const MAX_DOELGROEP_VAK = 80;
 export function sanitizeDoelgroep(raw: unknown): Doelgroep | undefined;
 export function doelgroepVoorLeerplan(raw: unknown): Doelgroep | undefined; // saneert en laat het jaar weg (P5)
+export function doelgroepVoorCursus(raw: unknown): Doelgroep | undefined;   // saneert en laat kader, kaderVolledig en volgtKader weg
 export function jaarTekst(jaar: number): string;        // "1ste jaar" … "7de jaar"
 export function graadTekst(graad: 1 | 2 | 3): string;   // "2de graad"
 export function doelgroepTekst(d: Doelgroep, opties?: { zonderVak?: boolean }): string;
@@ -610,7 +630,9 @@ export function zelfdeRichting(a: Doelgroep | undefined, b: Doelgroep | undefine
 
 **Leerplangrenzen.** `sanitizeCurriculumMetRapport`, `leerplanUitSelectie` en `bouwOntwerp` gebruiken `doelgroepVoorLeerplan`: een leerplan draagt nooit een jaar (het geldt voor de hele graad). Zo valt een cursus zonder eigen doelgroep niet stil weg uit de andere jaren van de graad.
 
-**Eigen kopie.** `maakEigenKopie` neemt de doelgroep mee zonder `kader` en `volgtKader`: een eigen kopie volgt de officiële koppeling niet meer. De knoppen "Werk het leerplan bij" en "Kies de doelen opnieuw" verschijnen alleen bij `kind !== 'eigen'`.
+**Eigen kopie.** `maakEigenKopie` neemt de doelgroep mee zonder `kader`, `kaderVolledig` en `volgtKader`: een eigen kopie volgt de officiële koppeling niet meer. De knoppen "Werk het leerplan bij" en "Kies de doelen opnieuw" verschijnen alleen bij `kind !== 'eigen'`.
+
+**Cursus.** Een cursus draagt nooit `kader`, `kaderVolledig` of `volgtKader`: die horen bij een leerplan. `doelgroepVoorCursus` haalt ze altijd alle drie samen weg; `cursusVoorRichting` en de overdracht naar de AI-cursusbouwer (CoursesPage.tsx) gebruiken die functie.
 
 **AI.** `sanitizeAICourse` neemt naast de doelgroep ook `curriculumId` nooit uit het AI-antwoord: alleen uit de opties of de bestaande cursus.
 
@@ -621,7 +643,7 @@ export function zelfdeRichting(a: Doelgroep | undefined, b: Doelgroep | undefine
 - `soort` is alleen `buso` bij precies `'buso'`.
 - `onderdeel` is een geheel getal van 1 tot 999999.
 - `vak` wordt getrimd, ≤ 80 tekens; leeg valt weg.
-- `kader` geldt alleen als 64 hex-tekens. `volgtKader` geldt alleen als `true`.
+- `kader` geldt alleen als 64 hex-tekens. `kaderVolledig` ook, en alleen samen met een geldig `kader`: wie `kader` weghaalt, verliest `kaderVolledig` zo ook bij de volgende sanering. `volgtKader` geldt alleen als `true`.
 - Er komt altijd een nieuw object met alleen deze sleutels, dus geen `__proto__`. De functie is idempotent.
 
 Het bestand staat niet op het kritieke pad: `courses.ts`, `curriculum.ts` en `handoff.ts` worden alleen lui geladen.
@@ -633,10 +655,10 @@ Het bestand staat niet op het kritieke pad: `courses.ts`, `curriculum.ts` en `ha
 | `Course` (courseTypes.ts) | `doelgroep?: Doelgroep`. In `sanitizeCourse` (courses.ts r. 1330): `...(dg ? { doelgroep: dg } : {})` met `dg = sanitizeDoelgroep(c.doelgroep)`. Daarmee zijn de deellink (v blijft 1), het cursusbestand (v 1), het klaspakket (classPack.ts r. 119), `adoptSharedCourse` en `comparable` gedekt. |
 | `sanitizeAICourse` (aiCourse.ts r. 666-675) | In `full`, **na** `...resolved`: `doelgroep: base?.doelgroep`. De AI kan nooit een doelgroep zetten, en "Herwerk met AI" of "Vul de hiaten" houdt ze. |
 | `Curriculum` (curriculumTypes.ts) | `doelgroep?: Doelgroep`. In `sanitizeCurriculumMetRapport` (curriculum.ts r. 534), naast `weggelatenCodes`. Het veld telt **niet** mee in `doelenVingerafdruk`: een nagekeken leerplan blijft nagekeken. Export v2 neemt het vanzelf mee. |
-| `SamenstelOpties` (doelenSamenstellen.ts r. 42) | `doelgroep?: Doelgroep`. `leerplanUitSelectie` zet in `kop` (r. 650-661, dat bij `bestaand` alleen id en createdAt overneemt): `doelgroep = opties.doelgroep ?? bestaand?.doelgroep`, alleen als die bestaat. Anders verdwijnt de richting bij "Keuze aanpassen". |
+| `SamenstelOpties` (doelenSamenstellen.ts r. 42) | `doelgroep?: Doelgroep`. `leerplanUitSelectie` zet in `kop` (dat bij `bestaand` alleen id en createdAt overneemt): `doelgroep = opties.doelgroep ?? doelgroepVanBestaand(bestaand, selectie)`, alleen als die bestaat. Anders verdwijnt de richting bij "Keuze aanpassen". Zonder nieuwe doelgroep blijft alles van `bestaand` (ook `kader` en `kaderVolledig`), behalve `volgtKader` als de keuze veranderde: andere sets of per set andere vaste nummers (`zelfdeSelectie`; volgorde en dubbels tellen niet). Anders zou "Werk het leerplan bij" de eigen keuze overschrijven; zonder `volgtKader` biedt het scherm "Kies de doelen opnieuw". Een ongewijzigde keuze houdt `volgtKader` (herstel oktober 2026). |
 | `OntwerpOpties` (leerplanInlezen.ts) | `doelgroep?: Doelgroep`. `bouwOntwerp` (r. 489) zet het, of houdt dat van `bestaand`. |
 | `Handoff` (handoff.ts) | `doelgroep?: Doelgroep`. `peekHandoff` saneert het met `sanitizeDoelgroep`. |
-| `AIStart` (CoursesPage.tsx r. 31) | `doelgroep?: Doelgroep`. `onResult` bewaart `aiStart.doelgroep ? { ...course, doelgroep } : course`. |
+| `AIStart` (CoursesPage.tsx r. 31) | `doelgroep?: Doelgroep`, uit de overdracht via `doelgroepVoorCursus` (zonder `kader`, `kaderVolledig` en `volgtKader`, ook als een andere bron ze meegeeft). `onResult` bewaart `aiStart.doelgroep ? { ...course, doelgroep } : course`. |
 | Lezen | `getCourses` en `getCurricula` saneren niet. Elke lezer gaat daarom via `sanitizeDoelgroep`, en het richtingscherm via `doelgroepVanCursus(course, curricula)`: die van de cursus, anders die van haar leerplan. |
 
 `maakEigenKopie` en het bewerken in de editor spreiden het object, dus het veld blijft vanzelf. Bestaande bestanden, links en het voorbeeldmateriaal blijven geldig (examples.test.ts).
@@ -655,7 +677,8 @@ export function leerplanVoorRichting(kader: RichtingKader, bestanden: ReadonlyMa
 //   in ontbrekendeSets, en bevestigd = false (niets bewaren). Bij bestaand blijven de uitbreidingssets van het
 //   leerplan gevraagd (P7).
 //   = leerplanUitSelectie(naarSetKeuzes(selectieVanKader(kader, opties), bestanden).keuzes,
-//       { titel, vak, bestaand, oudeVersies, doelgroep: { ...doelgroep, jaar: undefined, kader: kaderVingerafdruk(kader, sets), volgtKader: true } })
+//       { titel, vak, bestaand, oudeVersies, doelgroep: { ...doelgroep, jaar: undefined, ...kaderAfdrukken(kader, sets), volgtKader: true } })
+//   met `sets` de sets die echt in het leerplan zitten; kaderAfdrukken geeft `kader` en `kaderVolledig` (§ 11.2)
 export function titelVoorRichtingLeerplan(info: RichtingInfo, kader: RichtingKader, sets?: readonly string[], vak?: string): string;
 export function selectieVanKeuzes(keuzes: readonly SetKeuze[]): Map<string, string[]>;
 export function vindLeerplanMetSelectie(curricula: readonly Curriculum[], selectie: ReadonlyMap<string, readonly string[]>, doelgroep?: Doelgroep): Curriculum | undefined;
@@ -674,14 +697,33 @@ export function vergelijkMetKader(leerplan: Curriculum, kader: RichtingKader): {
 
 ### 11.2 Bijwerken na een maandelijkse update
 
-`vergelijkMetKader` rekent alleen als `leerplan.doelgroep.kader` niet meer gelijk is aan `kaderVingerafdruk(kader, leerplan.minimumdoelenSets)`.
-- `vervallen`: verwijzingen die niet meer in het kader staan, bv. een set die een oude versie werd.
-- `nieuw`: alleen bij `volgtKader`, en alleen voor deelsets: nummers uit het kader die niet in het leerplan staan.
+**Twee vingerafdrukken.** Een leerplan van een richting krijgt bij het maken twee afdrukken van het kader, allebei over de sets die echt in het leerplan zitten (`kaderAfdrukken(kader, leerplan.minimumdoelenSets)`):
+- `doelgroep.kader` (`kaderVingerafdruk`): de nummers van de deelsets, en welke sets volledig zijn (als "set|*"). Dit formaat bestaat sinds het begin en verandert nooit.
+- `doelgroep.kaderVolledig` (`volledigeSetsVingerafdruk`, nieuw in oktober 2026): de nummers van de volledige sets. Zonder deze afdruk zag de app niet dat een volledige set groeide of kromp (een update waarin koppeling en set samen bijgewerkt zijn): de regel "set|*" blijft dan gelijk.
+
+In gewone woorden: de app onthoudt bij het maken van een leerplan hoe de officiële koppeling er toen uitzag. De eerste afdruk ziet of er bij een deel van een set doelen bijkwamen of wegvielen, en of een set volledig werd of niet meer. De tweede ziet of een set die je helemaal koos, groter of kleiner werd. Is er niets veranderd, dan meldt de app niets en blijft je keuze zoals ze is, ook wat je zelf koos. Veranderde alleen een volledige set, dan kijkt de app alleen die sets na: wat je bij een deel van een set koos, blijft staan.
+
+**Eén regel: `veranderdSindsLeerplan(leerplan, kader)`** (richtingKader.ts). `vergelijkMetKader` (de melding en "Werk het leerplan bij") en `beginUitBewaarde` ("Kies de doelen opnieuw") rekenen allebei met deze regel, zodat scherm en melding niet uiteenlopen.
+
+| Geval | Uitkomst |
+|---|---|
+| Een eigen kopie (`kind` 'eigen'), een kader dat nog niet opgehaald is, of een kader 'geen' zonder sets | `'niets'` |
+| `kader` en `kaderVolledig` gelijk aan die van het huidige kader over de sets van het leerplan | `'niets'` |
+| `kader` gelijk, `kaderVolledig` ontbreekt (een leerplan van vóór oktober 2026) | `'niets'`, zoals vroeger. Of een volledige set sindsdien groeide, is niet te zien, en wat in een volledige set ontbreekt, kan een eigen keuze zijn. Zo'n leerplan krijgt `kaderVolledig` bij "Werk het leerplan bij" of als het opnieuw met een richting bewaard wordt. |
+| `kader` gelijk, `kaderVolledig` anders | De volledige sets van het leerplan: alleen die worden vergeleken. De deelsets en welke sets volledig zijn, veranderden zeker niet: daar vervalt niets en komt niets bij (ook niet wat de leerkracht zelf koos, en niets uit sets buiten het kader). Een volledige set met een andere versie geeft 0 nieuw en 0 vervallen. |
+| `kader` anders of ontbreekt | `'alles'`: de volledige berekening |
+
+`vergelijkMetKader` geeft dan, voor de sets die vergeleken worden:
+- `vervallen`: verwijzingen die niet meer in het kader staan: de hele set staat er niet meer in (bv. een set die een oude versie werd), of het nummer staat niet meer in de koppeling. Een volledige set met een andere versie dan bij de koppeling (`versieGelijk` onwaar) telt niet: de app neemt daarvan de huidige inhoud.
+- `nieuw`: alleen bij `volgtKader`, en alleen voor sets van het leerplan: nummers uit de koppeling die nog niet in het leerplan staan. Bij een volledige set alleen als de versie gelijk is (anders kennen we de nummers niet): een volledige set die groeide (ook als er tegelijk evenveel nummers wegvielen), of een deelset die volledig werd. Een volledige set kan dus ook "nieuw" geven, niet alleen een deelset.
 - `setsNietMeerInKader`: met hun opvolger uit `opvolgersVan` als die in het kader staat.
 
 Wat het scherm aanbiedt:
-- Bij `volgtKader` de knop "Werk het leerplan bij". Die doet `leerplanVoorRichting(…, { bestaand, sets })`, met de sets van het leerplan die nog in het kader staan plus hun opvolgers. De codes blijven (`kenCodesToe`); vervallen codes gaan naar `weggelatenCodes`; cursussen blijven werken.
-- Zonder `volgtKader` (per doel gekozen) de knop "Kies de doelen opnieuw", naar `/leerplannen/samenstellen/<id>?richting=…`. De wizard begint dan met de bewaarde keuze, zonder de vervallen doelen. "Vervallen" volgt dezelfde regel als `vergelijkMetKader`: is de kader-vingerafdruk van het leerplan gelijk, dan vervalt er niets en blijft de keuze precies zoals bewaard, ook doelen die de leerkracht zelf toevoegde. Er komt niets automatisch bij. Melding: "<n> doelen staan niet (meer) in de koppeling van de officiële bron en zijn niet aangevinkt."
+- Bij `volgtKader` de knop "Werk het leerplan bij". Die doet `leerplanVoorRichting(…, { bestaand, sets })`, met de sets van het leerplan die nog in het kader staan plus hun opvolgers. De codes blijven (`kenCodesToe`); vervallen codes gaan naar `weggelatenCodes`; cursussen blijven werken. Het bijgewerkte leerplan krijgt beide afdrukken opnieuw.
+- Zonder `volgtKader` (per doel gekozen) de knop "Kies de doelen opnieuw", naar `/leerplannen/samenstellen/<id>?richting=…`. De wizard begint dan met de bewaarde keuze, zonder de vervallen doelen. "Vervallen" volgt dezelfde regel als `vergelijkMetKader`: geeft `veranderdSindsLeerplan` `'niets'`, dan vervalt er niets en blijft de keuze precies zoals bewaard, ook doelen die de leerkracht zelf toevoegde. Veranderde alleen een volledige set, dan worden alleen de volledige sets nagekeken. Er komt niets automatisch bij. Melding: "<n> doelen staan niet (meer) in de koppeling van de officiële bron en zijn niet aangevinkt."
+- "Keuze aanpassen" op de pagina Leerplannen (zonder richting) houdt `kader` en `kaderVolledig`. `volgtKader` valt weg als de keuze veranderde (§ 10.2), zodat "Werk het leerplan bij" de eigen keuze nooit overschrijft.
+
+**Bekende beperking** (bestond al vóór het herstel van oktober 2026). De afdrukken gaan over alle sets van het leerplan samen. "Keuze aanpassen" zonder richting kent het kader niet en kan ze dus niet herrekenen. Komt er daar een set bij die in het kader staat, of valt zo'n set weg (een set buiten het kader telt niet mee in de afdruk), dan verschilt de afdruk over de nieuwe lijst sets van de bewaarde, ook als de koppeling niet veranderde. Dan wordt alles vergeleken, en een doel dat de leerkracht zelf bij een deelset koos, telt als vervallen; "Kies de doelen opnieuw" vinkt het dan niet meer aan. Voorbeeld: deelsets A (koppeling a1) en B (koppeling b1); de leerkracht neemt a2 erbij (niets te melden) en haalt later B weg: dan telt a2 als vervallen. Een echte oplossing bewaart een afdruk per set; dat verandert het formaat van de doelgroep en is voor later. Het huidige gedrag staat vast in de test "bekende beperking (§ 11.2)" in `doelenSamenstellen.test.ts`.
 
 ### 11.3 Leerplannen van de netten
 
@@ -721,7 +763,7 @@ export function passendeCodes(course: Course, leerplan: Curriculum): { passend: 
 - Invariant: elke gekozen code staat in precies één niet-optionele sectie.
 - Bij meer dan 400 doelen komt er één sectie per hoofdstuk. Titels zijn hoogstens 120 tekens.
 - Leerplannen van een net groeperen op hun eigen `theme`.
-- `cursusVoorRichting` vertrekt van `createCourse(titel, auteur)` en zet dan `chapters`, `curriculumId = leerplan.id`, `subtitle = doelgroepTekst(d)` en `doelgroep` (zonder `kader` en `volgtKader`).
+- `cursusVoorRichting` vertrekt van `createCourse(titel, auteur)` en zet dan `chapters`, `curriculumId = leerplan.id`, `subtitle = doelgroepTekst(d)` en `doelgroep` (via `doelgroepVoorCursus`: zonder `kader`, `kaderVolledig` en `volgtKader`).
 - Bij `leeg` blijft het ene lege hoofdstuk van `createCourse`.
 - Een sectie met alleen een doelen-callout telt in de nieuwe dekking als **gepland**, niet als gedekt (§ 13).
 
@@ -1036,6 +1078,8 @@ export function geplandeRijen(result: CoverageResult, course: Course, widgets?: 
 - Netten: "Boosterz levert de leerplannen van de netten niet mee: ze zijn auteursrechtelijk beschermd."
 
 Op het scherm staan nooit een groepnummer, een set-id, "structuuronderdeel" of "Hele set" voor een deelset. Het groepnummer staat alleen in de bronvermelding onderaan het detail, als "nummer in de matrix: G-0193".
+
+Doelcodes: botst een code tussen gekozen sets en onderscheiden stroom en graad ze niet, dan krijgt ze de korte naam van haar set erbij, ingekort op een woordgrens tot 16 tekens, of tot 30 als dat niet onderscheidt (bv. "0000 (DUURZAAMHEID)" en "0000 (JURIDISCHE)"; `onderscheidVoor` en `naamAlsOnderscheid` in doelenSamenstellen.ts, herstel oktober 2026). Het set-id blijft alleen de laatste terugval, als de korte namen de sets niet onderscheiden: dezelfde korte naam (bv. dezelfde competentie in twee finaliteiten van dezelfde graad), namen die pas na 30 tekens verschillen, of een set zonder naam.
 
 In de bestaande wizards (samenstellen en inlezen) geldt dat zolang er een richting in de link staat: `StapDoelen`, `StapSets` en `StapKoppelen` krijgen dan `verbergSetId` (geen set-id in de meta, op de setrijen of in de zoekhints; zoeken op nummer blijft werken). Zonder richting blijven ze zoals ze waren. De keuzeknop "Hele set" in Samenstellen blijft: hij is een bewuste klik en staat alleen aan als echt alle doelen van de set gekozen zijn. Waarschuwingen uit de bibliotheek gaan eerst door een filter dat set-ids weghaalt.
 

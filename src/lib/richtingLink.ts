@@ -9,11 +9,12 @@
 // beperkte lijst kiesbare doelen doorgegeven.
 
 import type { Curriculum } from './curriculumTypes';
-import { doelgroepVoorLeerplan, graadTekst, type Doelgroep } from './doelgroep';
+import { graadTekst, type Doelgroep } from './doelgroep';
 import {
   doelgroepVan,
-  kaderVingerafdruk,
+  kaderAfdrukken,
   selectieVanKader,
+  veranderdSindsLeerplan,
   type RichtingInfo,
   type RichtingKader,
   type SoortKeuze,
@@ -162,11 +163,17 @@ export function beginUitLink(
 
 /**
  * De bewaarde keuze van een lijst (`selectieVanLeerplan`) voor "Kies de doelen opnieuw" (§ 11.2). Wat er vervalt, volgt
- * dezelfde regel en dezelfde telling als `vergelijkMetKader` (richtingCursus.ts), zodat scherm en melding niet uiteenlopen.
- * - Is `leerplan.doelgroep.kader` gelijk aan de vingerafdruk van het kader over de sets van het leerplan, dan is er sinds
- *   het maken niets veranderd in de koppeling: er vervalt NIETS en de keuze blijft precies zoals ze bewaard werd, ook
- *   doelen die de leerkracht zelf toevoegde en sets buiten het kader (die waren nooit gekoppeld).
- *   Hetzelfde geldt voor een eigen kopie (`kind` 'eigen', die volgt de koppeling niet) en voor een kader zonder gegevens.
+ * dezelfde regel (`veranderdSindsLeerplan`, richtingKader.ts) en dezelfde telling als `vergelijkMetKader`
+ * (richtingCursus.ts), zodat scherm en melding niet uiteenlopen.
+ * - Zijn de bewaarde vingerafdrukken (`doelgroep.kader` en `doelgroep.kaderVolledig`) gelijk aan die van het kader over
+ *   de sets van het leerplan, dan is er sinds het maken niets veranderd in de koppeling: er vervalt NIETS en de keuze
+ *   blijft precies zoals ze bewaard werd, ook doelen die de leerkracht zelf toevoegde en sets buiten het kader (die waren
+ *   nooit gekoppeld). Hetzelfde geldt voor een leerplan van vóór oktober 2026 (zonder `kaderVolledig`) met een gelijke
+ *   `doelgroep.kader`, voor een eigen kopie (`kind` 'eigen', die volgt de koppeling niet) en voor een kader zonder
+ *   gegevens.
+ * - Is alleen `doelgroep.kader` gelijk en `doelgroep.kaderVolledig` niet, dan zijn de deelsets en de sets buiten het
+ *   kader zeker niet veranderd: die blijven precies zoals bewaard. Alleen de volledige sets worden nagekeken, zoals
+ *   hieronder.
  * - Anders: een set die niet meer in het kader staat (bv. een oude versie): al haar doelen zijn vervallen. Een nummer dat
  *   niet meer in de koppeling staat: vervallen. Een volledige set met een andere versie dan bij de koppeling: de nummers van
  *   de koppeling zijn niet meer exact bekend, dus alles blijft staan.
@@ -178,16 +185,18 @@ export function beginUitBewaarde(
   kader: RichtingKader,
   leerplan: Pick<Curriculum, 'kind' | 'doelgroep' | 'minimumdoelenSets'>,
 ): { keuze: SamenstelKeuze; vervallen: number } {
-  const kaderZegtNiets = kader.herkomst === 'nog-niet-opgehaald' || (kader.herkomst === 'geen' && kader.sets.length === 0);
-  const dg = doelgroepVoorLeerplan(leerplan.doelgroep);
-  const setsVanLeerplan = Array.isArray(leerplan.minimumdoelenSets) ? leerplan.minimumdoelenSets : [];
-  const ongewijzigd = dg?.kader !== undefined && dg.kader === kaderVingerafdruk(kader, setsVanLeerplan);
-  if (leerplan.kind === 'eigen' || kaderZegtNiets || ongewijzigd) return { keuze: beginUitKeuze(selectie), vervallen: 0 };
+  const bekijk = veranderdSindsLeerplan(leerplan, kader);
+  if (bekijk === 'niets') return { keuze: beginUitKeuze(selectie), vervallen: 0 };
 
   const perSet = new Map(kader.sets.map((k) => [k.set.id, k] as const));
   const over = new Map<string, readonly string[]>();
   let vervallen = 0;
   for (const [set, ids] of selectie) {
+    // Veranderde alleen een volledige set, dan worden alleen de volledige sets nagekeken: de rest blijft zoals bewaard.
+    if (bekijk !== 'alles' && !bekijk.has(set)) {
+      over.set(set, ids);
+      continue;
+    }
     const k = perSet.get(set);
     if (k === undefined) {
       vervallen += ids.length;
@@ -225,14 +234,15 @@ export function richtingTekst(info: RichtingInfo): string {
 
 /**
  * De doelgroep die een leerplan bij deze richting krijgt: de richting en het soort onderwijs van het kader, eventueel
- * het vak, en de vingerafdruk van het kader over de sets die echt in het leerplan zitten (`setIds`). Zo vergelijkt
+ * het vak, en de vingerafdrukken van het kader (`kaderAfdrukken`) over de sets die echt in het leerplan zitten
+ * (`setIds`). Zo vergelijkt
  * `vergelijkMetKader` later met precies dezelfde sets. Zonder `volgtKader`: wie per doel kiest, volgt de koppeling niet
  * automatisch ("Werk het leerplan bij" bestaat dan niet; "Kies de doelen opnieuw" wel). Het jaar haalt
  * `leerplanUitSelectie` er zelf af: een leerplan geldt voor de hele graad.
  */
 export function doelgroepBijRichting(info: RichtingInfo, kader: RichtingKader, setIds: readonly string[], vak?: string): Doelgroep {
   const vakTekst = (vak ?? '').trim();
-  return { ...doelgroepVan(info, kader.keuze, vakTekst !== '' ? { vak: vakTekst } : undefined), kader: kaderVingerafdruk(kader, setIds) };
+  return { ...doelgroepVan(info, kader.keuze, vakTekst !== '' ? { vak: vakTekst } : undefined), ...kaderAfdrukken(kader, setIds) };
 }
 
 /** Waar de leerkracht na het bewaren heen gaat: de pagina van de richting, met het jaar (als dat bij de graad past) en het soort onderwijs. */

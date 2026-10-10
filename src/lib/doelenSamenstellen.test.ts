@@ -10,12 +10,15 @@ import { controleerLeerplan } from './curriculumCheck';
 import type { Curriculum, CurriculumGoal } from './curriculumTypes';
 import type { Doelgroep } from './doelgroep';
 import {
-  bevestigSamengesteld, leerplanUitSelectie, selectieVanLeerplan, telSelectie, voorstelTitel, type SetKeuze,
+  bevestigSamengesteld, leerplanUitSelectie, naamAlsOnderscheid, selectieVanLeerplan, telSelectie, voorstelTitel, type SetKeuze,
 } from './doelenSamenstellen';
 import { effectieveStatus, isOfficieel, isSamengesteld, uitOfficieleBron } from './leerplanStatus';
 import type { Minimumdoel, MinimumdoelenIndex, MinimumdoelenIndexSet, MinimumdoelenSetBestand, MinimumdoelenSetKop } from './minimumdoelen';
 import { soortVanSet } from './minimumdoelenBron';
 import { NAGEKEKEN_DOOR_BRON, leerplanUitSet } from './minimumdoelenLeerplan';
+import { vergelijkMetKader } from './richtingCursus';
+import { kaderAfdrukken, kaderVingerafdruk, type RichtingKader } from './richtingKader';
+import { beginUitBewaarde } from './richtingLink';
 
 // ── Nagemaakte sets ─────────────────────────────────────────────────────────
 
@@ -72,6 +75,25 @@ function basisgeletterdheid(stroom: 'A-stroom' | 'B-stroom'): MinimumdoelenIndex
 /** Doelen met vast nummer en tekst: zoveel neemt "alle" over. */
 function kiesbaar(b: MinimumdoelenSetBestand): number {
   return b.doelen.filter((d) => typeof d.id === 'string' && d.id.trim() !== '' && d.tekst.replace(/<[^>]*>|&nbsp;|\s/g, '') !== '').length;
+}
+
+/** De korte naam van een set zoals ze in een code komt: ingekort tot `max` tekens (16 of 30), in hoofdletters. */
+function naamSleutel(naam: string, max = 30): string {
+  return normalizeGoalCode(naamAlsOnderscheid(naam, max));
+}
+
+/**
+ * De codes met een set-id als onderscheid waarvan de set GEEN naamgenoot heeft in de keuze: dat mag niet voorkomen (dan
+ * had de korte naam het onderscheid gemaakt). Leeg als alles klopt.
+ */
+function idCodesZonderNaamgenoot(cur: Curriculum, keuzes: readonly SetKeuze[]): string[] {
+  const naamVan = new Map(keuzes.map((k) => [k.bestand.set.id, naamSleutel(k.bestand.set.korteNaam || k.bestand.set.naam)]));
+  return cur.goals.filter((g) => {
+    const m = / \((ODS_\d+)\)$/.exec(g.code);
+    if (!m) return false;
+    const eigen = naamVan.get(m[1]);
+    return [...naamVan].filter(([id, naam]) => id !== m[1] && naam === eigen).length === 0;
+  }).map((g) => g.code);
 }
 
 // ── Met echte gegevens ──────────────────────────────────────────────────────
@@ -452,14 +474,46 @@ describe.runIf(ECHT)('met veel echte sets', () => {
     expect(new Set(genormaliseerd).size).toBe(genormaliseerd.length);
     expect(Math.max(...codes(r.leerplan).map((c) => c.length))).toBeLessThanOrEqual(MAX_DOELCODE);
     expect(Math.max(...r.leerplan.goals.map((g) => g.theme?.length ?? 0))).toBeLessThanOrEqual(MAX_DOELTHEMA);
-    // Botsende codes uit sets van dezelfde graad zonder stroom: het set-id onderscheidt ze.
-    expect(codes(r.leerplan).some((c) => / \(ODS_\d+\)$/.test(c))).toBe(true);
+    // Botsende codes uit sets van dezelfde graad zonder stroom: de korte naam onderscheidt ze. Het set-id komt alleen nog
+    // in een code als een andere gekozen set dezelfde korte naam heeft (dezelfde competentie in een andere finaliteit).
+    expect(idCodesZonderNaamgenoot(r.leerplan, keuzes)).toEqual([]);
     // De bron somt niet alle 50 sets op.
     expect(r.leerplan.source).toMatch(/\) en \d+ andere sets\. Bron: Vlaamse overheid/);
     expect(r.leerplan.source!.length).toBeLessThan(1300);
     const terug = importCurriculumJson(exportCurriculumJson(r.leerplan)) as Curriculum;
     expect(controleStatus(terug)).toBe('gecontroleerd');
     expect(terug.goals).toHaveLength(r.leerplan.goals.length);
+  });
+
+  it('de sets van één finaliteit (zoals het kader van een richting): botsende codes krijgen de korte naam, geen set-id', () => {
+    const sets = geldig('2de graad').filter((s) => /Finaliteit doorstroom/.test(s.naam));
+    expect(sets.length).toBeGreaterThan(1);
+    const keuzes: SetKeuze[] = sets.map((s) => ({ bestand: laad(s.id), doelen: 'alle' }));
+    const r = leerplanUitSelectie(keuzes, { titel: '' });
+    expect(r.bevestigd).toBe(true);
+    const cs = codes(r.leerplan);
+    expect(new Set(cs.map(normalizeGoalCode)).size).toBe(cs.length);
+    expect(idCodesZonderNaamgenoot(r.leerplan, keuzes)).toEqual([]);
+    // Zolang de korte namen van deze sets verschillen (zo is het nu), staat er in geen enkele code een set-id. Hebben twee
+    // sets na een maandelijkse update dezelfde korte naam, dan mag het set-id daar blijven: dat bewaakt de regel hierboven.
+    const korteNamen = sets.map((s) => naamSleutel(s.korteNaam ?? s.naam));
+    if (new Set(korteNamen).size === korteNamen.length) {
+      expect(cs.filter((c) => /ODS_\d/.test(c))).toEqual([]);
+      // De doelen met code "0000" (bv. Duurzaamheid, Juridische competenties, Zelfbewustzijn) heten naar hun set: de
+      // korte naam ingekort tot 16 tekens, of tot 30 als dat niet onderscheidt. Zonder leestekens die in een opsomming
+      // van codes verwarren.
+      const nullen = r.leerplan.goals.filter((x) => x.refs?.[0].code === '0000');
+      expect(nullen.length).toBeGreaterThan(1);
+      for (const g of nullen) {
+        const set = sets.find((x) => x.id === g.refs![0].set)!;
+        const naam = set.korteNaam ?? set.naam;
+        expect(['0000', `0000 (${naamSleutel(naam, 16)})`, `0000 (${naamSleutel(naam)})`]).toContain(g.code);
+        expect(g.code).not.toMatch(/[,;:]/);
+      }
+      // De meeste zijn kort genoeg voor de codekolom (20 tekens); een lang eerste woord mag erover.
+      const lang = nullen.filter((g) => g.code.length > 22);
+      expect(lang.length).toBeLessThanOrEqual(Math.floor(nullen.length / 2));
+    }
   });
 
   it('meer dan 50 sets: geen lijst, met een waarschuwing', () => {
@@ -624,7 +678,7 @@ describe('leerplanUitSelectie: kop van de lijst', () => {
 
 describe('leerplanUitSelectie: doelgroep (studierichting)', () => {
   const s1 = drieDoelen('ODS_9001', 'a');
-  const DG: Doelgroep = { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', kader: 'c'.repeat(64), volgtKader: true };
+  const DG: Doelgroep = { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', kader: 'c'.repeat(64), kaderVolledig: 'd'.repeat(64), volgtKader: true };
   const ANDER: Doelgroep = { groep: 'G-0200', titel: 'Wetenschappen-wiskunde', graad: 3, soort: 'so' };
 
   it('zet de doelgroep (gesaneerd, zonder jaar); nagekeken en dezelfde vingerafdruk als zonder', () => {
@@ -645,14 +699,113 @@ describe('leerplanUitSelectie: doelgroep (studierichting)', () => {
     expect(terug!.doelgroep).toStrictEqual(DG);
   });
 
-  it('"Keuze aanpassen" (`bestaand` zonder nieuwe doelgroep): de richting blijft', () => {
+  it('"Keuze aanpassen" (`bestaand` zonder nieuwe doelgroep): de richting blijft, maar een andere keuze volgt het kader niet meer', () => {
     const eerst = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T', doelgroep: DG }).leerplan;
     const bewaard = importCurriculumJson(exportCurriculumJson(eerst))!;
+    const { volgtKader: _volgt, ...zonderVolgt } = DG;
+    expect(_volgt).toBe(true);
     const r = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }], { titel: 'T', bestaand: bewaard });
-    expect(r.leerplan.doelgroep).toStrictEqual(DG);
+    // Alles blijft (ook de vingerafdruk van het kader), behalve volgtKader: de keuze is nu die van de leerkracht.
+    expect(r.leerplan.doelgroep).toStrictEqual(zonderVolgt);
     expect(r.bevestigd).toBe(true);
     // Ook een lege selectie (geen doelen) houdt de richting.
-    expect(leerplanUitSelectie([], { titel: 'T', bestaand: bewaard }).leerplan.doelgroep).toStrictEqual(DG);
+    expect(leerplanUitSelectie([], { titel: 'T', bestaand: bewaard }).leerplan.doelgroep).toStrictEqual(zonderVolgt);
+  });
+
+  it('"Keuze aanpassen" met dezelfde keuze houdt volgtKader (ook als dezelfde doelen anders gekozen worden)', () => {
+    const eerst = leerplanUitSelectie([{ bestand: s1, doelen: 'alle' }], { titel: 'T', doelgroep: DG }).leerplan;
+    const bewaard = importCurriculumJson(exportCurriculumJson(eerst))!;
+    // 'alle' of dezelfde nummers in een andere volgorde: dezelfde selectie.
+    expect(leerplanUitSelectie([{ bestand: s1, doelen: 'alle' }], { titel: 'Nieuwe naam', bestaand: bewaard }).leerplan.doelgroep).toStrictEqual(DG);
+    expect(leerplanUitSelectie([{ bestand: s1, doelen: ['a3', 'a1', 'a2'] }], { titel: 'T', bestaand: bewaard }).leerplan.doelgroep).toStrictEqual(DG);
+    // Een nummer minder, of een set erbij: een andere keuze.
+    expect(leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }], { titel: 'T', bestaand: bewaard }).leerplan.doelgroep?.volgtKader).toBeUndefined();
+    const s2 = drieDoelen('ODS_9002', 'b', { korteNaam: 'Ander' });
+    const metSet = leerplanUitSelectie([{ bestand: s1, doelen: 'alle' }, { bestand: s2, doelen: ['b1'] }], { titel: 'T', bestaand: bewaard });
+    expect(metSet.leerplan.doelgroep?.volgtKader).toBeUndefined();
+    expect(metSet.leerplan.doelgroep?.groep).toBe('G-0193');
+    // Een lijst zonder volgtKader krijgt het er nooit bij.
+    const perDoel = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T', doelgroep: ANDER }).leerplan;
+    expect(leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T', bestaand: perDoel }).leerplan.doelgroep).toStrictEqual(ANDER);
+  });
+
+  it('na een aangepaste keuze voegt "Werk het leerplan bij" niets toe: vergelijkMetKader geeft nieuw = 0', () => {
+    // Het officiële leerplan van een richting, per set gemaakt (volgtKader): de koppeling noemt a1 van de set (een deelset).
+    const indexSet: MinimumdoelenIndexSet = {
+      id: 'ODS_9001', naam: s1.set.naam, korteNaam: s1.set.korteNaam, geldigheid: 'Geldig', graad: '1ste graad', aantal: 3,
+      sha256: 'a'.repeat(64), opgehaald: '2026-10-05T12:20:49Z', bestand: 'ODS_9001.json',
+    };
+    const kaderMet = (ids: string[]): RichtingKader => ({
+      keuze: { groep: 'G-0193', soort: 'so' }, herkomst: 'api',
+      sets: [{ set: indexSet, ids, volledig: ids.length === 3, verplicht: true, versieGelijk: true }],
+      aantalDoelen: ids.length, aantalVerplicht: ids.length, nietVoorDitJaar: [], verborgenOud: 0, verborgenAndereSoort: 0, onbekend: [], teGroot: false,
+    });
+    const toen = kaderMet(['a1']);
+    const dg: Doelgroep = { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', kader: kaderVingerafdruk(toen, ['ODS_9001']), volgtKader: true };
+    const officieel = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T', doelgroep: dg }).leerplan;
+    expect(vergelijkMetKader(officieel, toen)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
+
+    // "Keuze aanpassen" op de pagina Leerplannen (zonder richting): de leerkracht neemt a2 erbij.
+    const aangepast = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }], { titel: 'T', bestaand: officieel });
+    expect(aangepast.bevestigd).toBe(true);
+    expect(aangepast.leerplan.doelgroep?.volgtKader).toBeUndefined();
+    expect(aangepast.leerplan.doelgroep?.kader).toBe(dg.kader);
+    // Meteen daarna: niets te melden.
+    expect(vergelijkMetKader(aangepast.leerplan, toen)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
+
+    // Een maandelijkse update: de koppeling noemt nu a1 en a3. Een leerplan dat het kader volgt, zou a3 als nieuw tellen
+    // ("Werk het leerplan bij" bouwt het dan opnieuw uit de koppeling, zonder a2). Na de eigen keuze komt er niets bij.
+    const nu = kaderMet(['a1', 'a3']);
+    expect(vergelijkMetKader(officieel, nu).nieuw).toBe(1);
+    expect(vergelijkMetKader(aangepast.leerplan, nu).nieuw).toBe(0);
+
+    // Een ongewijzigde keuze bewaren houdt volgtKader: dan mag "Werk het leerplan bij" verder bijwerken.
+    const zelfde = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'Andere titel', bestaand: officieel });
+    expect(zelfde.leerplan.doelgroep).toStrictEqual(dg);
+    expect(vergelijkMetKader(zelfde.leerplan, nu).nieuw).toBe(1);
+  });
+
+  it('bekende beperking (§ 11.2): een andere lijst sets bij "Keuze aanpassen" zonder richting laat een eigen keuze vervallen', () => {
+    // De vingerafdruk gaat over alle sets van het leerplan samen. "Keuze aanpassen" zonder richting kent het kader niet en
+    // kan ze dus niet herrekenen: haalt de leerkracht een set weg, dan verschilt de afdruk en wordt alles vergeleken, ook
+    // al veranderde de koppeling niet. Dit legt het huidige gedrag vast; een afdruk per set zou het oplossen.
+    const s2 = drieDoelen('ODS_9002', 'b', { korteNaam: 'Ander' });
+    const indexSet = (b: MinimumdoelenSetBestand): MinimumdoelenIndexSet => ({
+      id: b.set.id, naam: b.set.naam, korteNaam: b.set.korteNaam, geldigheid: 'Geldig', graad: '1ste graad', aantal: 3,
+      sha256: 'a'.repeat(64), opgehaald: '2026-10-05T12:20:49Z', bestand: `${b.set.id}.json`,
+    });
+    // De koppeling: deelset A (a1) en deelset B (b1). Ze verandert in deze hele test niet.
+    const kader: RichtingKader = {
+      keuze: { groep: 'G-0193', soort: 'so' }, herkomst: 'api',
+      sets: [
+        { set: indexSet(s1), ids: ['a1'], volledig: false, verplicht: true, versieGelijk: true },
+        { set: indexSet(s2), ids: ['b1'], volledig: false, verplicht: true, versieGelijk: true },
+      ],
+      aantalDoelen: 2, aantalVerplicht: 2, nietVoorDitJaar: [], verborgenOud: 0, verborgenAndereSoort: 0, onbekend: [], teGroot: false,
+    };
+    const dg: Doelgroep = {
+      groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', ...kaderAfdrukken(kader, ['ODS_9001', 'ODS_9002']), volgtKader: true,
+    };
+    const officieel = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }, { bestand: s2, doelen: ['b1'] }], { titel: 'T', doelgroep: dg }).leerplan;
+    expect(vergelijkMetKader(officieel, kader)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
+
+    // Eerst neemt de leerkracht a2 erbij, met dezelfde sets: de afdruk klopt nog, er is niets te melden.
+    const metA2 = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }, { bestand: s2, doelen: ['b1'] }], { titel: 'T', bestaand: officieel }).leerplan;
+    expect(metA2.doelgroep?.kader).toBe(dg.kader);
+    expect(vergelijkMetKader(metA2, kader)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
+    expect(beginUitBewaarde(selectieVanLeerplan(metA2), kader, metA2).vervallen).toBe(0);
+
+    // Daarna haalt ze set B weg. De bewaarde afdruk (over A en B) blijft staan en verschilt van die over A alleen: alles
+    // wordt vergeleken, en a2 (haar eigen keuze, nooit gekoppeld) telt als vervallen.
+    const zonderB = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }], { titel: 'T', bestaand: metA2 }).leerplan;
+    expect(zonderB.minimumdoelenSets).toEqual(['ODS_9001']);
+    expect(zonderB.doelgroep?.kader).toBe(dg.kader);
+    expect(zonderB.doelgroep?.kader).not.toBe(kaderVingerafdruk(kader, ['ODS_9001']));
+    expect(vergelijkMetKader(zonderB, kader)).toEqual({ nieuw: 0, vervallen: 1, setsNietMeerInKader: [] });
+    // "Kies de doelen opnieuw" haalt a2 dan uit de keuze.
+    const opnieuw = beginUitBewaarde(selectieVanLeerplan(zonderB), kader, zonderB);
+    expect(opnieuw.vervallen).toBe(1);
+    expect(opnieuw.keuze.sets).toEqual(['ODS_9001']);
   });
 
   it('een nieuwe doelgroep vervangt die van `bestaand`; een ongeldige niet', () => {
@@ -724,19 +877,124 @@ describe('leerplanUitSelectie: codes', () => {
     expect(codes(leerplanUitSelectie([{ bestand: s, doelen: ['2'] }], { titel: 'T' }).leerplan)).toEqual(['2.1']);
   });
 
-  it('een botsing krijgt de stroom, de graad, graad en stroom, of het set-id erbij', () => {
+  it('een botsing krijgt de stroom, de graad, graad en stroom, de korte naam, of als laatste het set-id erbij', () => {
     const a = drieDoelen('ODS_9001', 'a');
     const b = drieDoelen('ODS_9002', 'b', { stroom: 'B-stroom' });
     const tweedeA = drieDoelen('ODS_9003', 'c', { graad: '2de graad' });
     const ookA = drieDoelen('ODS_9004', 'd');
     const zonder = drieDoelen('ODS_9005', 'e', { stroom: undefined, graad: undefined });
-    const kies = (...sets: MinimumdoelenSetBestand[]) => codes(leerplanUitSelectie(sets.map((bestand) => ({ bestand, doelen: ['a1', 'b1', 'c1', 'd1', 'e1'] })), { titel: 'T' }).leerplan);
+    const zonderAnder = drieDoelen('ODS_9006', 'f', { stroom: undefined, graad: undefined, korteNaam: 'Ander vak' });
+    const kies = (...sets: MinimumdoelenSetBestand[]) => codes(leerplanUitSelectie(sets.map((bestand) => ({ bestand, doelen: ['a1', 'b1', 'c1', 'd1', 'e1', 'f1'] })), { titel: 'T' }).leerplan);
 
     expect(kies(a, b)).toEqual(['1.01 (A)', '1.01 (B)']);
     expect(kies(a, tweedeA)).toEqual(['1.01 (1STE GRAAD)', '1.01 (2DE GRAAD)']);
     expect(kies(a, b, tweedeA)).toEqual(['1.01 (1STE GRAAD A)', '1.01 (1STE GRAAD B)', '1.01 (2DE GRAAD A)']);
+    // Stroom en graad onderscheiden niet, de korte naam wel.
+    expect(kies(a, zonderAnder)).toEqual(['1.01 (TESTVAK)', '1.01 (ANDER VAK)']);
+    expect(kies(zonder, zonderAnder)).toEqual(['1.01 (TESTVAK)', '1.01 (ANDER VAK)']);
+    // Dezelfde korte naam: alleen dan het set-id.
     expect(kies(a, ookA)).toEqual(['1.01 (ODS_9001)', '1.01 (ODS_9004)']);
     expect(kies(a, zonder)).toEqual(['1.01 (ODS_9001)', '1.01 (ODS_9005)']);
+  });
+
+  describe('dezelfde code in drie sets van dezelfde graad zonder stroom (zoals "0000" in Duurzaamheid, Juridische competenties en Zelfbewustzijn)', () => {
+    const NAAM = 'Secundair onderwijs 2de graad aso, kso, tso Finaliteit doorstroom -  Competenties - Eindtermen';
+    const set = (id: string, p: string, korteNaam: string, extra: Partial<MinimumdoelenSetKop> = {}) => maakSet(id, [
+      doel(`${p}0`, '0000', `Inleidend doel van ${korteNaam || id}.`),
+      doel(`${p}1`, `${p.toUpperCase()}1.01`, `Eerste doel van ${korteNaam || id}.`),
+    ], { naam: NAAM, korteNaam, graad: '2de graad', stroom: undefined, ...extra });
+    const duurzaam = set('ODS_9025', 'd', 'Duurzaamheid');
+    const juridisch = set('ODS_9027', 'j', 'Juridische competenties');
+    const zelf = set('ODS_9029', 'z', 'Zelfbewustzijn');
+    const alle = (...sets: MinimumdoelenSetBestand[]): SetKeuze[] => sets.map((bestand) => ({ bestand, doelen: 'alle' as const }));
+    const perRef = (cur: Curriculum) => Object.fromEntries(cur.goals.map((g) => [`${g.refs![0].set}|${g.refs![0].id}`, g.code]));
+    const nullen = (cur: Curriculum) => codes(cur).filter((c) => c.startsWith('0000'));
+
+    it('de korte naam onderscheidt ze, zonder set-id; de andere codes blijven gewoon', () => {
+      const r = leerplanUitSelectie(alle(duurzaam, juridisch, zelf), { titel: 'T' });
+      expect(r.bevestigd).toBe(true);
+      // De korte naam ingekort tot 16 tekens op een woordgrens: "Juridische competenties" wordt "JURIDISCHE".
+      expect(codes(r.leerplan)).toEqual(['0000 (DUURZAAMHEID)', 'D1.01', '0000 (JURIDISCHE)', 'J1.01', '0000 (ZELFBEWUSTZIJN)', 'Z1.01']);
+      expect(Math.max(...codes(r.leerplan).map((c) => c.length))).toBeLessThanOrEqual(21);
+      expect(codes(r.leerplan).some((c) => /ODS_/.test(c))).toBe(false);
+      // De code hangt niet af van de volgorde van de sets.
+      expect(perRef(leerplanUitSelectie(alle(zelf, duurzaam, juridisch), { titel: 'T' }).leerplan)).toEqual(perRef(r.leerplan));
+    });
+
+    it('twee sets met dezelfde korte naam: dan blijft het set-id de laatste terugval, voor de hele groep', () => {
+      const tweedeDuurzaam = set('ODS_9041', 'e', 'Duurzaamheid');
+      expect(nullen(leerplanUitSelectie(alle(duurzaam, juridisch, tweedeDuurzaam), { titel: 'T' }).leerplan))
+        .toEqual(['0000 (ODS_9025)', '0000 (ODS_9027)', '0000 (ODS_9041)']);
+      // Korte namen die pas na 30 tekens verschillen, onderscheiden niet.
+      const nl = set('ODS_9050', 'n', 'Competenties in het Nederlands');
+      const nlUit = set('ODS_9051', 'u', 'Competenties in het Nederlands (uitbreiding)');
+      expect(nullen(leerplanUitSelectie(alle(nl, nlUit), { titel: 'T' }).leerplan)).toEqual(['0000 (ODS_9050)', '0000 (ODS_9051)']);
+      // Een set zonder korte naam en zonder naam: de korte naam is dan niet voor elke set ingevuld, dus het set-id voor allebei.
+      const naamloos = set('ODS_9060', 'x', '', { naam: '' });
+      expect(nullen(leerplanUitSelectie(alle(duurzaam, naamloos), { titel: 'T' }).leerplan)).toEqual(['0000 (ODS_9025)', '0000 (ODS_9060)']);
+    });
+
+    it('een lange korte naam wordt op een woordgrens ingekort: eerst tot 16 tekens, tot 30 als dat niet onderscheidt', () => {
+      const mvt = set('ODS_9070', 'm', 'Moderne Vreemde Talen Frans - Engels');
+      const r = leerplanUitSelectie(alle(mvt, duurzaam), { titel: 'T' });
+      expect(nullen(r.leerplan)).toEqual(['0000 (MODERNE VREEMDE)', '0000 (DUURZAAMHEID)']);
+      expect(r.bevestigd).toBe(true);
+      // Twee namen die pas na 16 tekens verschillen: dan tot 30 tekens, zonder streepje aan het eind.
+      const duits = set('ODS_9071', 'g', 'Moderne Vreemde Talen Duits');
+      expect(nullen(leerplanUitSelectie(alle(mvt, duits), { titel: 'T' }).leerplan))
+        .toEqual(['0000 (MODERNE VREEMDE TALEN FRANS)', '0000 (MODERNE VREEMDE TALEN DUITS)']);
+      // Geen klein woord aan het eind: "Economische en financiële competenties" wordt "ECONOMISCHE".
+      const eco = set('ODS_9072', 'e', 'Economische en financiële competenties');
+      expect(nullen(leerplanUitSelectie(alle(eco, duurzaam), { titel: 'T' }).leerplan)).toEqual(['0000 (ECONOMISCHE)', '0000 (DUURZAAMHEID)']);
+    });
+
+    it('leestekens uit de naam komen niet in de code: geen komma, puntkomma, dubbelpunt of haakjes', () => {
+      const lezen = set('ODS_9080', 'l', 'Lezen, schrijven: taal (basis)');
+      const reken = set('ODS_9081', 'r', 'Rekenen; meten/meetkunde');
+      const r = leerplanUitSelectie(alle(lezen, reken), { titel: 'T' });
+      expect(r.bevestigd).toBe(true);
+      expect(nullen(r.leerplan)).toEqual(['0000 (LEZEN SCHRIJVEN)', '0000 (REKENEN METEN)']);
+      // Een opsomming van codes met ", " blijft eenduidig.
+      expect(codes(r.leerplan).join(', ').split(', ')).toEqual(codes(r.leerplan));
+    });
+
+    it('naamAlsOnderscheid: woordgrens, leestekens, lange eerste woorden en lege namen', () => {
+      expect(naamAlsOnderscheid('Juridische competenties', 16)).toBe('Juridische');
+      expect(naamAlsOnderscheid('Juridische competenties', 30)).toBe('Juridische competenties');
+      expect(naamAlsOnderscheid('Context 1 Lichamelijke gezondheid en veiligheid', 16)).toBe('Context 1');
+      expect(naamAlsOnderscheid('Wiskunde – natuurwetenschappen – technologie – STEM', 30)).toBe('Wiskunde - natuurwetenschappen');
+      expect(naamAlsOnderscheid('Competenties in het Nederlands (uitbreiding)', 16)).toBe('Competenties');
+      // Een eerste woord langer dan het maximum blijft heel, tot 30 tekens.
+      expect(naamAlsOnderscheid('Natuurwetenschappen of fysica', 16)).toBe('Natuurwetenschappen');
+      expect(naamAlsOnderscheid('Sociaal-relationele competenties', 16)).toBe('Sociaal-relationele');
+      expect(naamAlsOnderscheid(`${'x'.repeat(40)} y`, 16)).toBe('x'.repeat(30));
+      expect(naamAlsOnderscheid(' ,;: ', 16)).toBe('');
+      expect(naamAlsOnderscheid('', 30)).toBe('');
+    });
+
+    it('een bestaande lijst met codes als "0000 (ODS_9025)" verandert niet: dezelfde codes, nagekeken en dezelfde vingerafdruk', () => {
+      // Zo maakte de app de lijst vóór deze aanpassing: met het set-id als onderscheid, nagekeken door de bron.
+      const keuzes = alle(duurzaam, juridisch, zelf);
+      const nu = leerplanUitSelectie(keuzes, { titel: 'T' }).leerplan;
+      const metId: Curriculum = { ...nu, goals: nu.goals.map((g) => (g.refs![0].code === '0000' ? { ...g, code: `0000 (${g.refs![0].set})` } : g)) };
+      const oud = bevestigSamengesteld(metId, [duurzaam, juridisch, zelf]);
+      expect(oud.bevestigd).toBe(true);
+      const bewaard = importCurriculumJson(exportCurriculumJson(oud.leerplan))!;
+      expect(effectieveStatus(bewaard)).toBe('gecontroleerd');
+      expect(nullen(bewaard)).toEqual(['0000 (ODS_9025)', '0000 (ODS_9027)', '0000 (ODS_9029)']);
+      // Opnieuw samenstellen met dezelfde keuze: dezelfde codes, nagekeken, dezelfde vingerafdruk van de doelen.
+      const opnieuw = leerplanUitSelectie(keuzes, { titel: 'T', bestaand: bewaard });
+      expect(opnieuw.bevestigd).toBe(true);
+      expect(codes(opnieuw.leerplan)).toEqual(codes(bewaard));
+      expect(doelenVingerafdruk(opnieuw.leerplan.goals)).toBe(doelenVingerafdruk(bewaard.goals));
+      expect(opnieuw.leerplan.controle!.doelenSha256).toBe(bewaard.controle!.doelenSha256);
+      expect(opnieuw.waarschuwingen).toEqual([]);
+      // Een set erbij: de oude codes blijven, alleen het nieuwe doel krijgt de korte naam.
+      const erbij = set('ODS_9030', 'o', 'Ondernemingszin');
+      const meer = leerplanUitSelectie([...keuzes, ...alle(erbij)], { titel: 'T', bestaand: bewaard });
+      expect(meer.bevestigd).toBe(true);
+      expect(nullen(meer.leerplan)).toEqual(['0000 (ODS_9025)', '0000 (ODS_9027)', '0000 (ODS_9029)', '0000 (ONDERNEMINGSZIN)']);
+    });
   });
 
   it('alleen de codes die botsen krijgen een onderscheid', () => {
@@ -800,11 +1058,18 @@ describe('leerplanUitSelectie: codes bij opnieuw samenstellen (nagemaakte sets)'
   const zonder = drieDoelen('ODS_9001', 'a', { stroom: undefined, graad: undefined });
   const ander = drieDoelen('ODS_9002', 'b', { stroom: undefined, graad: undefined, korteNaam: 'Ander' });
 
-  it('een oude code van een weggelaten doel: het set-id als onderscheid als er geen stroom of graad is', () => {
+  it('een oude code van een weggelaten doel: de korte naam als onderscheid als er geen stroom of graad is', () => {
     const eerst = leerplanUitSelectie([{ bestand: zonder, doelen: ['a1'] }], { titel: 'T' }).leerplan;
     const r = leerplanUitSelectie([{ bestand: ander, doelen: ['b1', 'b2'] }], { titel: 'T', bestaand: eerst });
-    expect(codes(r.leerplan)).toEqual(['1.01 (ODS_9002)', '1.02']);
+    expect(codes(r.leerplan)).toEqual(['1.01 (ANDER)', '1.02']);
     expect(r.bevestigd).toBe(true);
+  });
+
+  it('een set zonder korte naam en zonder naam: dan het set-id', () => {
+    const naamloos = drieDoelen('ODS_9003', 'c', { stroom: undefined, graad: undefined, korteNaam: '', naam: '' });
+    const eerst = leerplanUitSelectie([{ bestand: zonder, doelen: ['a1'] }], { titel: 'T' }).leerplan;
+    const r = leerplanUitSelectie([{ bestand: naamloos, doelen: ['c1'] }], { titel: 'T', bestaand: eerst });
+    expect(codes(r.leerplan)).toEqual(['1.01 (ODS_9003)']);
   });
 
   it('is ook het onderscheid al een oude code van een ander doel, dan komt er "-2" achter', () => {

@@ -198,7 +198,11 @@ async function waitForStored(page, pred, ms = 6000) {
 
 // ── 4. Vanuit een studierichting: overdracht met doelgroep ───────────────────
 {
-  const doelgroep = { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, jaar: 4, soort: 'so', vak: 'Biologie' };
+  // De eigen overdracht van de app draagt geen kader; een andere (of geknoeide) bron wel. Dat mag nooit op de cursus komen.
+  const doelgroep = {
+    groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, jaar: 4, soort: 'so', vak: 'Biologie',
+    kader: 'c'.repeat(64), kaderVolledig: 'd'.repeat(64), volgtKader: true,
+  };
   const leerplan = {
     id: 'lp1', title: 'Biologie · Natuurwetenschappen · 2de graad', net: 'minimumdoelen', subject: 'Biologie', level: '2de graad',
     createdAt: 1, updatedAt: 1,
@@ -207,7 +211,10 @@ async function waitForStored(page, pred, ms = 6000) {
       { id: 'g2', code: 'B1.2', text: 'De leerlingen kunnen de functie van celorganellen uitleggen.', theme: 'Biologie' },
     ],
     // Zo komt het leerplan uit "Voor een studierichting": met de vingerafdruk van het kader en zonder jaar.
-    doelgroep: { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', vak: 'Biologie', kader: 'a'.repeat(64), volgtKader: true },
+    doelgroep: {
+      groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', vak: 'Biologie',
+      kader: 'a'.repeat(64), kaderVolledig: 'b'.repeat(64), volgtKader: true,
+    },
   };
   // De AI zet zelf een studierichting en een ander leerplan in zijn antwoord: dat mag nooit doorwerken.
   const aiCursus = {
@@ -241,7 +248,8 @@ async function waitForStored(page, pred, ms = 6000) {
   const bewaard = await waitForStored(page, (c) => c !== undefined && c.title === 'De bouw van de cel');
   check('studierichting: de cursus draagt de doelgroep van de overdracht (G-0193, 4de jaar, vak Biologie)',
     bewaard.doelgroep?.groep === 'G-0193' && bewaard.doelgroep?.jaar === 4 && bewaard.doelgroep?.vak === 'Biologie' && bewaard.doelgroep?.graad === 2);
-  check('studierichting: zonder kader en volgtKader (die horen bij het leerplan)', bewaard.doelgroep?.kader === undefined && bewaard.doelgroep?.volgtKader === undefined);
+  check('studierichting: zonder kader, kaderVolledig en volgtKader (die horen bij het leerplan), ook als de overdracht ze droeg',
+    bewaard.doelgroep !== undefined && !('kader' in bewaard.doelgroep) && !('kaderVolledig' in bewaard.doelgroep) && !('volgtKader' in bewaard.doelgroep));
   check('studierichting: wat de AI als studierichting of leerplan verzon, telt niet', bewaard.doelgroep?.groep !== 'G-9999' && bewaard.curriculumId === 'lp1');
   check('studierichting: de doelcodes staan op de secties', JSON.stringify(bewaard.chapters[0].sections.map((s) => s.goalCodes)) === JSON.stringify([['B1.1'], ['B1.2']]));
   // In de editor staat de studierichting bij de cursusinstellingen.

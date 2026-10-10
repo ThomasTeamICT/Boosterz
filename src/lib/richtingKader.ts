@@ -8,7 +8,8 @@
 // De regels R1 tot R7 staan in § 9.1 en bij `bouwKader`.
 
 import { MAX_DOELEN, MAX_SETS } from './curriculum';
-import { sanitizeDoelgroep, graadTekst, jaarTekst, type Doelgroep } from './doelgroep';
+import type { Curriculum } from './curriculumTypes';
+import { doelgroepVoorLeerplan, sanitizeDoelgroep, graadTekst, jaarTekst, type Doelgroep } from './doelgroep';
 import type { SetKeuze } from './doelenSamenstellen';
 import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from './minimumdoelen';
 import { oudeVersieIds, soortVanSet, zoekTermen, zonderAccenten, type SoortOnderwijs } from './minimumdoelenBron';
@@ -44,7 +45,10 @@ export interface RichtingKeuze {
 /** Een richting met wat we eruit afleiden. */
 export interface RichtingInfo {
   groep: StudierichtingGroep;
-  /** Alle onderdelen van de groep, oplopend op nummer (ook de afgebouwde). */
+  /**
+   * Alle onderdelen van de groep, oplopend op nummer (ook de afgebouwde en die niet meer in de bron staan). Een variant kies
+   * je uit `geldigeOnderdelen`.
+   */
   onderdelen: Structuuronderdeel[];
   soort: GroepSoort;
   graad?: 1 | 2 | 3;
@@ -57,7 +61,10 @@ export interface RichtingInfo {
   /** Studiedomeinen leesbaar geschreven ("Domeinoverschrijdend", "STEM"), gesorteerd. */
   domeinen: string[];
   duaal: boolean;
-  /** Een geldig onderdeel heeft `ov4`: de richting kan ook in het buitengewoon onderwijs (opleidingsvorm 4). */
+  /**
+   * Een geldig onderdeel heeft `ov4`: de richting kan ook in het buitengewoon onderwijs (opleidingsvorm 4). Een onderdeel
+   * dat niet meer in de bron staat (`nietMeerInBron`), is niet geldig.
+   */
   kanBuso: boolean;
   afgebouwd: boolean;
   /** JJJJ-MM-DD: de laatste einddatum, als de richting afgebouwd is. */
@@ -188,6 +195,24 @@ function isGroepAfgebouwd(onderdelen: readonly Structuuronderdeel[], vandaag: st
   return onderdelen.length > 0 && onderdelen.every((o) => isAfgebouwd(o, vandaag));
 }
 
+/**
+ * De onderdelen die nog in de bron staan. Een onderdeel dat uit de bron verdween, blijft in de matrix staan (met
+ * `nietMeerInBron`, zonder einddatum) maar telt niet meer als geldig. Staat geen enkel onderdeel nog in de bron (de hele
+ * richting verdween), dan beschrijven de onderdelen die ze had haar: dan alle onderdelen.
+ */
+function actueleOnderdelen(onderdelen: readonly Structuuronderdeel[]): readonly Structuuronderdeel[] {
+  const actueel = onderdelen.filter((o) => o.nietMeerInBron === undefined);
+  return actueel.length > 0 ? actueel : onderdelen;
+}
+
+/**
+ * De onderdelen waaruit een variant te kiezen valt: die nog in de bron staan en geldig zijn, of bij een afgebouwde
+ * richting alle die nog in de bron staan. Verdween de hele richting uit de bron, dan tellen alle onderdelen.
+ */
+export function geldigeOnderdelen(info: RichtingInfo, vandaag: string): Structuuronderdeel[] {
+  return actueleOnderdelen(info.onderdelen).filter((o) => info.afgebouwd || !isAfgebouwd(o, vandaag));
+}
+
 /** "DOMEINOVERSCHRIJDEND" wordt "Domeinoverschrijdend"; een afkorting zoals "STEM" blijft staan. Gemengde schrijfwijze blijft ook. */
 function leesbaarDomein(tekst: string): string {
   const t = tekst.trim().replace(/\s+/g, ' ');
@@ -199,11 +224,13 @@ function leesbaarDomein(tekst: string): string {
 
 function bouwInfo(opzoek: MatrixOpzoek, g: StudierichtingGroep, vandaag: string): RichtingInfo {
   const onderdelen = opzoek.onderdelenVanGroep.get(g.nummer) ?? [];
-  const geldig = onderdelen.filter((o) => !isAfgebouwd(o, vandaag));
-  const afgebouwd = isGroepAfgebouwd(onderdelen, vandaag);
+  // Wat uit de bron verdween, telt niet mee (zoals `soortenVan` in het ophaalscript), tenzij alles verdween.
+  const actueel = actueleOnderdelen(onderdelen);
+  const geldig = actueel.filter((o) => !isAfgebouwd(o, vandaag));
+  const afgebouwd = isGroepAfgebouwd(actueel, vandaag);
   // Een afgebouwde richting heeft geen geldige onderdelen meer: dan beschrijven de onderdelen die ze had haar.
-  const basis = geldig.length > 0 ? geldig : onderdelen;
-  const soort = soortVanGroep(g, onderdelen);
+  const basis = geldig.length > 0 ? geldig : actueel;
+  const soort = soortVanGroep(g, actueel);
   const graad = g.graad === '1' ? 1 : g.graad === '2' ? 2 : g.graad === '3' ? 3 : undefined;
   const stroom = graad === 1 ? stroomVanEersteGraad(g.titel) : undefined;
 
@@ -218,7 +245,7 @@ function bouwInfo(opzoek: MatrixOpzoek, g: StudierichtingGroep, vandaag: string)
   }
 
   const afgebouwdSinds = afgebouwd
-    ? onderdelen.map((o) => o.einddatum ?? '').sort().pop() || undefined
+    ? actueel.map((o) => o.einddatum ?? '').sort().pop() || undefined
     : undefined;
 
   const opvolgerNummers = new Set<string>();
@@ -238,7 +265,7 @@ function bouwInfo(opzoek: MatrixOpzoek, g: StudierichtingGroep, vandaag: string)
     : (opzoek.perTitel.get(titelSleutel(g.titel)) ?? [])
       .filter((andere) => {
         if (andere.nummer === g.nummer || andere.graad === undefined || andere.graad === g.graad) return false;
-        const hunOnderdelen = opzoek.onderdelenVanGroep.get(andere.nummer) ?? [];
+        const hunOnderdelen = actueleOnderdelen(opzoek.onderdelenVanGroep.get(andere.nummer) ?? []);
         const hunSoort = soortVanGroep(andere, hunOnderdelen);
         return hunSoort !== 'buso' && hunSoort !== 'aanloop' && !isGroepAfgebouwd(hunOnderdelen, vandaag);
       })
@@ -345,8 +372,8 @@ function effectiefSoort(info: RichtingInfo, gevraagd: SoortKeuze): SoortKeuze {
 
 /**
  * De doelgroep voor een cursus of leerplan bij deze keuze (gesaneerd). De titel is die van het gekozen onderdeel, of
- * anders van de groep. Een onderdeel dat niet bij de richting hoort, valt weg. Het kader en `volgtKader` zet de
- * oproeper zelf.
+ * anders van de groep. Een onderdeel dat niet bij de richting hoort, valt weg. De vingerafdrukken van het kader
+ * (`kaderAfdrukken`) en `volgtKader` zet de oproeper zelf.
  */
 export function doelgroepVan(info: RichtingInfo, keuze: RichtingKeuze, extra?: { vak?: string }): Doelgroep {
   const onderdeel = keuze.onderdeel !== undefined ? info.onderdelen.find((o) => o.nummer === keuze.onderdeel) : undefined;
@@ -574,11 +601,20 @@ export function naarSetKeuzes(
   return { keuzes, ontbrekend };
 }
 
+function regelsSorteren(regels: string[]): string[] {
+  return regels.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+}
+
 /**
  * Vingerafdruk van het kader: sha256 (64 hex-tekens) van de gesorteerde regels "set|nummer", een volledige set als
  * "set|*". Beperkt tot `sets` (de ids van sets); zonder `sets` telt het hele kader, ook de uitbreidingssets. Hangt niet
  * af van de volgorde. Wie een leerplan met een kader vergelijkt, geeft de sets van het leerplan mee
  * (`leerplan.minimumdoelenSets`).
+ *
+ * Ze ziet dus wel een deelset die verandert en een set die volledig wordt of niet meer, maar niet een volledige set die
+ * groeit of krimpt: daarvoor dient `volledigeSetsVingerafdruk`. Verander het formaat nooit: elk bewaard leerplan van een
+ * richting draagt deze afdruk (`doelgroep.kader`), en dan herkent de app ze niet meer. Hoe een leerplan met het kader
+ * vergeleken wordt, staat bij `veranderdSindsLeerplan`.
  */
 export function kaderVingerafdruk(kader: RichtingKader, sets?: readonly string[]): string {
   const alleen = sets ? new Set(sets) : undefined;
@@ -588,6 +624,69 @@ export function kaderVingerafdruk(kader: RichtingKader, sets?: readonly string[]
     if (k.volledig) regels.push(`${k.set.id}|*`);
     else for (const id of k.ids) regels.push(`${k.set.id}|${id}`);
   }
-  regels.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-  return sha256Hex(regels.join('\n'));
+  return sha256Hex(regelsSorteren(regels).join('\n'));
+}
+
+/**
+ * Vingerafdruk van de inhoud van de volledige sets: sha256 (64 hex-tekens) van de gesorteerde regels "set|nummer" van
+ * elke volledige set, beperkt tot `sets` zoals bij `kaderVingerafdruk`. Deelsets tellen niet (die staan al in
+ * `kaderVingerafdruk`). Zo is bij een leerplan te zien of alleen een volledige set groeide of kromp (een maandelijkse
+ * update waarin koppeling en set samen bijgewerkt zijn). Bewaard als `doelgroep.kaderVolledig`; verander het formaat nooit.
+ */
+export function volledigeSetsVingerafdruk(kader: RichtingKader, sets?: readonly string[]): string {
+  const alleen = sets ? new Set(sets) : undefined;
+  const regels: string[] = [];
+  for (const k of kader.sets) {
+    if (!k.volledig || (alleen && !alleen.has(k.set.id))) continue;
+    for (const id of k.ids) regels.push(`${k.set.id}|${id}`);
+  }
+  return sha256Hex(regelsSorteren(regels).join('\n'));
+}
+
+/**
+ * De vingerafdrukken die een leerplan van een richting bij het maken krijgt, over de sets die echt in het leerplan
+ * zitten: `doelgroep.kader` en `doelgroep.kaderVolledig`.
+ */
+export function kaderAfdrukken(kader: RichtingKader, sets: readonly string[]): { kader: string; kaderVolledig: string } {
+  return { kader: kaderVingerafdruk(kader, sets), kaderVolledig: volledigeSetsVingerafdruk(kader, sets) };
+}
+
+/** Zie `veranderdSindsLeerplan`: niets te vergelijken, alles vergelijken, of alleen deze sets (de volledige). */
+export type KaderVerandering = 'niets' | 'alles' | ReadonlySet<string>;
+
+/**
+ * Wat er sinds het maken van een leerplan in het kader veranderd kan zijn (§ 11.2): de ene regel waarop
+ * `vergelijkMetKader` (richtingCursus.ts) en `beginUitBewaarde` (richtingLink.ts) rekenen.
+ *
+ * - `'niets'`: er is niets te vergelijken. Een eigen kopie (`kind` 'eigen') volgt de koppeling niet; een kader dat nog niet
+ *   opgehaald is of dat zonder sets 'geen' is, zegt niets; of de bewaarde afdrukken zijn gelijk aan die van het huidige
+ *   kader over de sets van het leerplan: `doelgroep.kader` aan `kaderVingerafdruk` en `doelgroep.kaderVolledig` aan
+ *   `volledigeSetsVingerafdruk`.
+ * - Ook `'niets'`: een leerplan van vóór `kaderVolledig` (bewaard tot oktober 2026) waarvan `doelgroep.kader` gelijk is,
+ *   precies zoals vóór oktober 2026: of een volledige set sindsdien groeide of kromp, is niet te zien (en wat in een
+ *   volledige set ontbreekt, kan een eigen keuze zijn die "Werk het leerplan bij" zou overschrijven). Zo'n leerplan
+ *   krijgt `kaderVolledig` pas bij "Werk het leerplan bij" of als het opnieuw bewaard wordt met een richting.
+ * - Een verzameling sets: `doelgroep.kader` is gelijk, `doelgroep.kaderVolledig` niet. De deelsets en welke sets volledig
+ *   zijn, zijn dan zeker niet veranderd: daarvan vervalt niets en komt niets bij (ook niet wat de leerkracht zelf
+ *   toevoegde, en niets uit sets buiten het kader). Alleen de inhoud van een volledige set veranderde. De verzameling
+ *   bevat de volledige sets van het leerplan: alleen daarvoor wordt nieuw en vervallen echt berekend. Van een volledige
+ *   set met een andere versie zijn de nummers niet te vergelijken: die geeft 0 nieuw en 0 vervallen.
+ * - `'alles'`: `doelgroep.kader` is anders, of ontbreekt: de volledige berekening.
+ */
+export function veranderdSindsLeerplan(
+  leerplan: Pick<Curriculum, 'kind' | 'doelgroep' | 'minimumdoelenSets'>,
+  kader: RichtingKader,
+): KaderVerandering {
+  if (!leerplan || leerplan.kind === 'eigen') return 'niets';
+  // Een kader zonder gegevens zegt niets: anders zou elke verwijzing van het leerplan "vervallen" lijken.
+  if (kader.herkomst === 'nog-niet-opgehaald' || (kader.herkomst === 'geen' && kader.sets.length === 0)) return 'niets';
+  const dg = doelgroepVoorLeerplan(leerplan.doelgroep);
+  if (dg?.kader === undefined) return 'alles';
+  const sets = Array.isArray(leerplan.minimumdoelenSets) ? leerplan.minimumdoelenSets : [];
+  if (dg.kader !== kaderVingerafdruk(kader, sets)) return 'alles';
+  // Zonder `kaderVolledig` (een leerplan van vóór oktober 2026) is een gelijke `kader` genoeg, zoals toen.
+  if (dg.kaderVolledig === undefined || dg.kaderVolledig === volledigeSetsVingerafdruk(kader, sets)) return 'niets';
+  const vanLeerplan = new Set(sets);
+  const volledige = new Set(kader.sets.filter((k) => k.volledig && vanLeerplan.has(k.set.id)).map((k) => k.set.id));
+  return volledige.size > 0 ? volledige : 'niets';
 }

@@ -3,7 +3,7 @@
 *Status: ontwerp (fase 2), nog niet gebouwd. Fase 1 (een echt API-antwoord en per net één echt
 leerplan) moet de punten met "te bevestigen" afvinken vóór het bouwen begint.*
 
-## Stand van zaken (bijgewerkt 5 oktober 2026)
+## Stand van zaken (bijgewerkt 10 oktober 2026)
 
 | Wat | Stand |
 |---|---|
@@ -11,7 +11,7 @@ leerplan) moet de punten met "te bevestigen" afvinken vóór het bouwen begint.*
 | Sleutel als GitHub-geheim `ONDERWIJSDOELEN_API_KEY` | **Gedaan** op 5 oktober 2026 (repository secret voor Actions). |
 | Pakket L1 (ophaalscript, workflow, datatest) | Gebouwd en gereviewd (twee reviewers, rechter). **Eerste echte run (5 oktober 2026)**: volledig opgehaald (24019 doelen, 49 pagina's, `totalItems` klopt), maar terecht gestopt (exit 3): sets met dezelfde lange naam vielen samen. Opgelost: de setsleutel is nu `ODS_<onderwijsdoelenset_id>`, elk doel krijgt zijn `@id`, en alle API-velden gaan mee in `extra`. Run 2 en 3 toonden de rest: binnen een set is een code niet altijd uniek (§ 5, "Wat de echte gegevens leren"); een doel wordt nu herkend aan zijn `@id`. **Run 4 geslaagd**: pull request #2 met 950 sets (15 324 doelen, 15 MB), nagekeken door de hoofdsessie (datatest en build groen) en op 5 oktober 2026 samengevoegd op vraag van de eigenaar. **Laag 1 is klaar.** Elke maand haalt de taak de doelen opnieuw op en opent een pull request als er iets verandert. Volgende stap: laag 2 (doelen tonen in de app, koppeling met leerplannen en cursussen). |
 | Laag 2, ronde 1 (§ 14): inleesweg, verwijzingen, hulp | **Bezig** sinds 5 oktober 2026. Klaar en live: basis, kern (lezer, verwijzingen, nakijkpoort), de pagina "Officiële minimumdoelen", wegwijzer en nakijkstatus. **Ronde 1 klaar** (5 oktober 2026): officiële minimumdoelen in de app, inleeswizard met nakijkpoort, verwijzingen naar set + vast nummer, wegwijzer en hulp. Twee reviews met rechter, alle bevestigde punten hersteld; 2004 unittests en de rooktest groen. Pull request #3 (geldigheid per set) samengevoegd: oude versies zijn standaard verborgen, en een oude set wijst zijn opvolger aan. Ook een set met geldigheid "Onbekend" naast een geldige set met dezelfde naam (128 keer versie 2.0 naast 2.1) geldt nu als oudere versie. Een STEM-set legt uit dat de bron niet per vak indeelt en dat het leerplan van het net zegt wat bij een vak hoort; je kan zoeken in de doelen van een set. Een eigen doelenlijst samenstellen uit hele sets of losse doelen (§ 15): gebouwd, gereviewd (twee reviewers, rechter) en hersteld, live (6 oktober 2026). Daarna loopt een grondige debugronde over de hele app. Volgende: echte leerplan-pdf's om de lezer te bevestigen (KOV I-Aar-a, een GO!-leerplan), daarna de dekking op twee lagen (L6). |
-| Studierichtingen en dekking op twee lagen (L6) | **Bezig** sinds 9 oktober 2026: import van de matrix en van de doelen per richting, cursushulp per richting en jaar, en de dekking op minimumdoelen via de verwijzingen (L6), per cursus en over alle cursussen van een richting. Ontwerp en stand van zaken: `docs/STUDIERICHTINGEN.md`. |
+| Studierichtingen en dekking op twee lagen (L6) | **Klaar en live** (10 oktober 2026): import van de matrix en van de doelen per richting (maandelijks via de workflow "Leerplangegevens bijwerken"), cursushulp per richting en jaar zonder AI, en de dekking op minimumdoelen via de verwijzingen (L6), per cursus en over alle cursussen van een richting. Eindreview met rechters en rooktest op echte data gedaan. Ontwerp en stand van zaken: `docs/STUDIERICHTINGEN.md`. |
 | Vraag aan het GO! (via een contactpersoon bij PBD) | Concept klaar bij de eigenaar (5 oktober 2026): een afgebakend experiment met enkele leerplannen. Nog te versturen. |
 | Vragen aan het departement (§ 12) | Nog te stellen. Sinds 24 maart 2026 **alleen via het formulier van TechLoket Onderwijs**, niet meer per mail (Nieuwsbrief API K&C van AHOVOKS). |
 | Vragen aan KOV, GO!, OVSG, POV (§ 12) | Teksten klaar in het aanvraagdossier (Claude Docs, "Aanvraagdossier leerplangegevens"); nog niet verstuurd. |
@@ -454,7 +454,10 @@ doelen uit meerdere sets samen (basisgeletterdheid: Nederlands, STEM en digitale
   "Je koos 12 van de 44 doelen van …". Lukt het nakijken, dan is de lijst meteen nagekeken door de
   officiële bron, en blijft ze dat na exporteren en importeren.
 - Codes: zoals bij "Gebruik als leerplan"; botst een code tussen gekozen sets (bv. BG02.01 in de
-  A- en de B-stroom), dan krijgen de botsende codes een onderscheid (stroom, graad, of set-id). Bij
+  A- en de B-stroom), dan krijgen de botsende codes een onderscheid: de stroom, de graad, graad en
+  stroom samen, de korte naam van de set (ingekort op een woordgrens tot 16 tekens, of tot 30 als
+  dat niet onderscheidt, bv. "0000 (DUURZAAMHEID)"), en pas als laatste terugval het set-id (als
+  de korte namen ze niet onderscheiden; herstel oktober 2026, zie STUDIERICHTINGEN.md § 14.9). Bij
   het aanpassen van een bewaarde lijst behoudt een doel zijn code, en een code van een weggelaten
   doel gaat nooit naar een ander doel, ook niet over meerdere aanpassingen heen: de lijst onthoudt
   die codes in `weggelatenCodes` (buiten de vingerafdruk). Een doel dat terugkomt, krijgt zijn oude

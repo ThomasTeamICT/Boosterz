@@ -399,6 +399,26 @@ describe('sanitizeCurriculum: doelgroep (studierichting)', () => {
     expect(kopie).not.toHaveProperty('volgtKader');
     expect(met.doelgroep).toStrictEqual(DG);
   });
+
+  it('kaderVolledig reist mee met kader (bewaren, export en import) en valt samen met kader weg in een eigen kopie', () => {
+    const MET_BEIDE = { ...DG, kaderVolledig: 'c'.repeat(64) };
+    const met = sanitizeCurriculum({ ...v2Ruw(), doelgroep: MET_BEIDE }) as Curriculum;
+    expect(met.doelgroep).toStrictEqual(MET_BEIDE);
+    // Export en import (het leerplanbestand) houden beide afdrukken, en saneren blijft idempotent.
+    expect(importCurriculumJson(exportCurriculumJson(met))?.doelgroep).toStrictEqual(MET_BEIDE);
+    expect(sanitizeCurriculum(JSON.parse(JSON.stringify(met)))).toStrictEqual(met);
+    saveCurriculum(met);
+    expect(getCurriculum(met.id)?.doelgroep).toStrictEqual(MET_BEIDE);
+    // Een eigen kopie: geen enkele afdruk meer, ook niet na bewaren, export en import.
+    const kopie = maakEigenKopie(met);
+    expect(kopie.doelgroep).toStrictEqual({ groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, soort: 'so' });
+    expect(kopie.doelgroep).not.toHaveProperty('kaderVolledig');
+    expect(importCurriculumJson(exportCurriculumJson(kopie))?.doelgroep).not.toHaveProperty('kaderVolledig');
+    // Zonder (geldig) kader zegt kaderVolledig niets: het saneren laat het vallen.
+    const zonderKader = sanitizeCurriculum({ ...v2Ruw(), doelgroep: { ...MET_BEIDE, kader: undefined } }) as Curriculum;
+    expect(zonderKader.doelgroep).not.toHaveProperty('kader');
+    expect(zonderKader.doelgroep).not.toHaveProperty('kaderVolledig');
+  });
 });
 
 describe('sanitizeCurriculum: versie 1 werkt zoals vroeger', () => {

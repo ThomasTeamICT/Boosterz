@@ -20,16 +20,17 @@ import type { Course, CourseChapter, CourseSection } from './courseTypes';
 import { allSections } from './courseTypes';
 import { normalizeGoalCode, normalizeGoalCodes, shortGoalText } from './curriculum';
 import type { Curriculum, CurriculumGoal } from './curriculumTypes';
-import { doelgroepTekst, doelgroepVoorLeerplan, graadTekst, sanitizeDoelgroep, type Doelgroep } from './doelgroep';
+import { doelgroepTekst, doelgroepVoorCursus, doelgroepVoorLeerplan, graadTekst, sanitizeDoelgroep, type Doelgroep } from './doelgroep';
 import { leerplanUitSelectie, selectieVanLeerplan, telSelectie, type Samengesteld, type SetKeuze } from './doelenSamenstellen';
 import { effectieveStatus } from './leerplanStatus';
 import type { MinimumdoelenSetBestand } from './minimumdoelen';
 import { isStemSet, zonderAccenten } from './minimumdoelenBron';
 import {
   doelgroepVan,
-  kaderVingerafdruk,
+  kaderAfdrukken,
   naarSetKeuzes,
   selectieVanKader,
+  veranderdSindsLeerplan,
   type RichtingInfo,
   type RichtingKader,
 } from './richtingKader';
@@ -105,8 +106,8 @@ function sleutel(set: string, id: string): string {
  *   niet bevestigd (en zonder nakijkstatus), zodat het scherm niets bewaart. Een deelset waarvan de nummers niet meer in
  *   een wel geladen bestand staan, staat in `ontbrekend` en niet hier: de rest van het leerplan blijft.
  * - `doelgroep` komt op het leerplan zonder jaar (een leerplan geldt voor de hele graad), met `volgtKader` en de
- *   vingerafdruk van het kader (`kaderVingerafdruk`) over de sets die echt in het leerplan zitten. Zo vergelijkt
- *   `vergelijkMetKader` later met precies dezelfde sets.
+ *   vingerafdrukken van het kader (`kaderAfdrukken`: `kader` en `kaderVolledig`) over de sets die echt in het leerplan
+ *   zitten. Zo vergelijkt `vergelijkMetKader` later met precies dezelfde sets.
  * - `bestaand` werkt een eerder gemaakt samengesteld leerplan bij (zelfde id, codes blijven); is dat geen samengesteld
  *   leerplan, dan gooit `leerplanUitSelectie` een `Error`.
  * - Is `bevestigd` onwaar (een gevraagde set niet geladen, meer dan 50 sets, geen doelen, een doel valt weg bij het
@@ -140,7 +141,7 @@ export function leerplanVoorRichting(
     vak: opties.vak,
     bestaand: opties.bestaand,
     oudeVersies: opties.oudeVersies,
-    doelgroep: { ...doelgroep, jaar: undefined, kader: kaderVingerafdruk(kader, insluiten), volgtKader: true },
+    doelgroep: { ...doelgroep, jaar: undefined, ...kaderAfdrukken(kader, insluiten), volgtKader: true },
   });
   const weg = ontbrekend.reduce((som, o) => som + o.ids.length, 0);
   if (weg > 0) {
@@ -301,43 +302,50 @@ function refsPerSet(leerplan: Curriculum): Map<string, Set<string>> {
 }
 
 /**
- * Wat er sinds het maken van het leerplan veranderde in het kader van de richting (§ 11.2).
+ * Wat er sinds het maken van het leerplan veranderde in het kader van de richting (§ 11.2). Vergelijk met het kader van
+ * hetzelfde jaar en soort onderwijs als bij het maken.
  *
- * Er wordt alleen gerekend als `leerplan.doelgroep.kader` niet meer gelijk is aan
- * `kaderVingerafdruk(kader, leerplan.minimumdoelenSets)`; is ze gelijk, dan is er niets veranderd. Vergelijk met het
- * kader van hetzelfde jaar en soort onderwijs als bij het maken.
+ * Wat vergeleken wordt, volgt `veranderdSindsLeerplan` (richtingKader.ts), dezelfde regel als `beginUitBewaarde`:
+ * - niets: de bewaarde vingerafdrukken (`doelgroep.kader` en `doelgroep.kaderVolledig`) zijn gelijk aan die van het
+ *   kader over `leerplan.minimumdoelenSets`. Ook een leerplan van vóór `kaderVolledig` (bewaard tot oktober 2026) met
+ *   een gelijke `doelgroep.kader`, een eigen kopie (`kind` 'eigen': die volgt de officiële koppeling niet meer), een
+ *   kader dat nog niet opgehaald is (`herkomst` 'nog-niet-opgehaald') en een kader zonder sets omdat de bron er geen
+ *   geeft (`herkomst` 'geen') geven niets;
+ * - alleen de volledige sets van het leerplan: `doelgroep.kader` is gelijk en `doelgroep.kaderVolledig` niet, dus de
+ *   deelsets zijn zeker niet veranderd (ook doelen die de leerkracht er zelf bij koos en sets buiten het kader tellen
+ *   dan niet);
+ * - anders (`doelgroep.kader` is anders of ontbreekt) wordt alles vergeleken.
+ *
  * - `vervallen`: verwijzingen van het leerplan die niet meer in het kader staan: de hele set staat er niet meer in
  *   (bv. een set die een oude versie werd), of het nummer staat niet meer in de koppeling. Bij een volledige set
  *   waarvan de versie sindsdien veranderde (`versieGelijk` onwaar) telt dat niet: de app neemt daarvan de huidige inhoud.
  * - `nieuw`: alleen bij `volgtKader`, en alleen voor sets die in het leerplan zitten: nummers uit de koppeling die nog
- *   niet in het leerplan staan. Hele sets volgen vanzelf hun huidige inhoud, behalve een set die in het leerplan een
- *   deelset was en in het nieuwe kader volledig werd: heeft het leerplan er minder nummers van dan het kader (en is de
- *   versie gelijk, anders kennen we de nummers niet), dan tellen de nummers die erbij komen ook.
+ *   niet in het leerplan staan. Bij een volledige set alleen als de versie gelijk is (anders kennen we de nummers niet):
+ *   een volledige set die groeide (ook als er tegelijk evenveel nummers wegvielen), of een deelset die volledig werd.
  * - `setsNietMeerInKader`: de sets van het leerplan die niet meer in het kader staan, in de volgorde van het leerplan.
  *   Hun opvolger zoekt het scherm met `opvolgersVan` (een oude set staat niet in het kader).
  *
- * "Werk het leerplan bij" en "Kies de doelen opnieuw" gelden niet voor een eigen kopie (`kind` 'eigen'): die volgt
- * de officiële koppeling niet meer en geeft altijd niets. Zonder `volgtKader` (per doel gekozen) is `nieuw` altijd 0:
- * er komt niets automatisch bij. Ook een kader dat nog niet opgehaald is (`herkomst` 'nog-niet-opgehaald'), of dat
- * geen sets heeft omdat de bron er geen geeft (`herkomst` 'geen'), is niet te beoordelen: dan is er niets te melden.
+ * Zonder `volgtKader` (per doel gekozen) is `nieuw` altijd 0: er komt niets automatisch bij ("Kies de doelen opnieuw"
+ * in plaats van "Werk het leerplan bij").
  */
 export function vergelijkMetKader(
   leerplan: Curriculum,
   kader: RichtingKader,
 ): { nieuw: number; vervallen: number; setsNietMeerInKader: string[] } {
   const geen = { nieuw: 0, vervallen: 0, setsNietMeerInKader: [] as string[] };
-  if (!leerplan || leerplan.kind === 'eigen') return geen;
-  // Een kader zonder gegevens zegt niets: zonder dit zou elke verwijzing van het leerplan "vervallen" lijken.
-  if (kader.herkomst === 'nog-niet-opgehaald' || (kader.herkomst === 'geen' && kader.sets.length === 0)) return geen;
+  const bekijk = veranderdSindsLeerplan(leerplan, kader);
+  if (bekijk === 'niets') return geen;
+  /** Wordt deze set vergeleken? Als alleen een volledige set veranderde, alleen de volledige sets. */
+  const telt = (set: string) => bekijk === 'alles' || bekijk.has(set);
   const dg = doelgroepVoorLeerplan(leerplan.doelgroep);
   const setsVanLeerplan = Array.isArray(leerplan.minimumdoelenSets) ? leerplan.minimumdoelenSets : [];
-  if (dg?.kader !== undefined && dg.kader === kaderVingerafdruk(kader, setsVanLeerplan)) return geen;
 
   const refs = refsPerSet(leerplan);
   const kaderSets = new Map(kader.sets.map((k) => [k.set.id, k]));
 
   let vervallen = 0;
   for (const [set, ids] of refs) {
+    if (!telt(set)) continue;
     const k = kaderSets.get(set);
     if (k === undefined) {
       vervallen += ids.size;
@@ -352,17 +360,17 @@ export function vergelijkMetKader(
   let nieuw = 0;
   if (dg?.volgtKader === true) {
     for (const k of kader.sets) {
+      if (!telt(k.set.id)) continue;
       const hebben = refs.get(k.set.id);
       if (hebben === undefined && !setsVanLeerplan.includes(k.set.id)) continue;
-      // Een volledige set volgt zijn huidige inhoud vanzelf. Alleen als het leerplan er nog maar een deel van had
-      // (een deelset die volledig werd) en de versie gelijk is, kennen we wat erbij komt.
-      if (k.volledig && (!k.versieGelijk || (hebben?.size ?? 0) >= k.ids.length)) continue;
+      // Van een volledige set kennen we de nummers alleen bij een gelijke versie.
+      if (k.volledig && !k.versieGelijk) continue;
       for (const id of k.ids) if (!hebben?.has(id)) nieuw++;
     }
   }
 
   const alleSets = [...setsVanLeerplan, ...[...refs.keys()].filter((s) => !setsVanLeerplan.includes(s))];
-  const setsNietMeerInKader = [...new Set(alleSets)].filter((s) => !kaderSets.has(s));
+  const setsNietMeerInKader = [...new Set(alleSets)].filter((s) => telt(s) && !kaderSets.has(s));
   return { nieuw, vervallen, setsNietMeerInKader };
 }
 
@@ -514,10 +522,10 @@ export function geraamteHoofdstukken(leerplan: Curriculum, codes?: readonly stri
 
 /**
  * Een nieuwe cursus voor een richting, zonder AI: vertrekt van `createCourse(titel, auteur)` en zet de koppeling aan
- * het leerplan (`curriculumId`), de ondertitel (`doelgroepTekst`) en de doelgroep, zonder `kader` en `volgtKader`
- * (die horen bij een leerplan, niet bij een cursus). Met `geraamte` komen de hoofdstukken van `geraamteHoofdstukken`
- * (beperkt tot `codes`); met `leeg`, of als het leerplan geen bruikbare doelen heeft, blijft het ene lege hoofdstuk van
- * `createCourse`. Bewaren doet de aanroeper.
+ * het leerplan (`curriculumId`), de ondertitel (`doelgroepTekst`) en de doelgroep, zonder `kader`, `kaderVolledig` en
+ * `volgtKader` (`doelgroepVoorCursus`: die horen bij een leerplan, niet bij een cursus). Met `geraamte` komen de
+ * hoofdstukken van `geraamteHoofdstukken` (beperkt tot `codes`); met `leeg`, of als het leerplan geen bruikbare doelen
+ * heeft, blijft het ene lege hoofdstuk van `createCourse`. Bewaren doet de aanroeper.
  */
 export function cursusVoorRichting(o: {
   titel: string;
@@ -533,13 +541,10 @@ export function cursusVoorRichting(o: {
     if (hoofdstukken.length > 0) cursus.chapters = hoofdstukken;
   }
   cursus.curriculumId = o.leerplan.id;
-  const dg = sanitizeDoelgroep(o.doelgroep);
+  const dg = doelgroepVoorCursus(o.doelgroep);
   if (dg) {
     cursus.subtitle = doelgroepTekst(dg);
-    const zonderKader: Doelgroep = { ...dg };
-    delete zonderKader.kader;
-    delete zonderKader.volgtKader;
-    cursus.doelgroep = zonderKader;
+    cursus.doelgroep = dg;
   }
   return cursus;
 }

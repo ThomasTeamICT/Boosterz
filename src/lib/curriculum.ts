@@ -613,9 +613,11 @@ export function maakEigenKopie(cur: Curriculum, titel?: string): Curriculum {
   const nu = Date.now();
   const { controle: _controle, doelgroep, ...rest } = cur;
   void _controle;
-  // Een eigen kopie volgt de officiële koppeling van de richting niet meer: zonder kader en volgtKader biedt
-  // geen scherm "Werk het leerplan bij" aan, dat de eigen aanpassingen zou overschrijven.
-  const eigenDoelgroep = doelgroep ? (({ kader: _k, volgtKader: _v, ...d }) => (void _k, void _v, d))(doelgroep) : undefined;
+  // Een eigen kopie volgt de officiële koppeling van de richting niet meer: zonder kader (beide vingerafdrukken) en
+  // volgtKader biedt geen scherm "Werk het leerplan bij" aan, dat de eigen aanpassingen zou overschrijven.
+  const eigenDoelgroep = doelgroep
+    ? (({ kader: _k, kaderVolledig: _kv, volgtKader: _v, ...d }) => (void _k, void _kv, void _v, d))(doelgroep)
+    : undefined;
   return {
     ...rest,
     ...(eigenDoelgroep ? { doelgroep: eigenDoelgroep } : {}),

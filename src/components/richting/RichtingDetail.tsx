@@ -22,17 +22,14 @@ import { getCurricula } from '../../lib/curriculum';
 import type { Curriculum } from '../../lib/curriculumTypes';
 import { graadTekst, jaarTekst } from '../../lib/doelgroep';
 import { datumLeesbaar } from '../../lib/minimumdoelenBron';
-import { kenmerkenVan, richtingInfo, type RichtingInfo, type RichtingKeuze, type SoortKeuze } from '../../lib/richtingKader';
+import { geldigeOnderdelen, kenmerkenVan, richtingInfo, type RichtingInfo, type RichtingKeuze, type SoortKeuze } from '../../lib/richtingKader';
 import { richtingLinkTeksten, variantLabels } from '../../lib/richtingWeergave';
-import { GROEP_NUMMER, isAfgebouwd, type MatrixBestand, type StudierichtingGroep, type Structuuronderdeel } from '../../lib/studierichtingen';
+import { GROEP_NUMMER, type MatrixBestand, type StudierichtingGroep } from '../../lib/studierichtingen';
 import { onStorageChange } from '../../lib/storage';
 
 // ── De keuze uit de adresbalk ───────────────────────────────────────────────
-
-/** De onderdelen waaruit een variant te kiezen valt: de geldige, of bij een afgebouwde richting alle. */
-export function geldigeOnderdelen(info: RichtingInfo, vandaag: string): Structuuronderdeel[] {
-  return info.onderdelen.filter((o) => info.afgebouwd || !isAfgebouwd(o, vandaag));
-}
+// De onderdelen waaruit een variant te kiezen valt, komen uit `geldigeOnderdelen` (richtingKader.ts): geldig en nog in de
+// bron, of bij een afgebouwde richting alle die nog in de bron staan.
 
 /**
  * De keuze van de leerkracht uit de adresbalk, gecontroleerd tegen de richting:

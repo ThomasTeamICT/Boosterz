@@ -8,6 +8,7 @@ import type { Minimumdoel, MinimumdoelenIndexSet, MinimumdoelenSetBestand } from
 import { vergelijkMetKader } from './richtingCursus';
 import {
   bouwKader,
+  kaderAfdrukken,
   kaderVingerafdruk,
   naarSetKeuzes,
   richtingInfo,
@@ -31,7 +32,7 @@ import {
   vandaag,
   VERDER_ZONDER_RICHTING,
 } from './richtingLink';
-import { beginUitSets, bouwSetKeuzes, isDoelGekozen, kiesbareDoelen, type SamenstelKeuze } from './samenstelKeuze';
+import { beginUitKeuze, beginUitSets, bouwSetKeuzes, isDoelGekozen, kiesbareDoelen, type SamenstelKeuze } from './samenstelKeuze';
 import type {
   MatrixBestand,
   RichtingDoelenBestand,
@@ -458,6 +459,94 @@ describe('beginUitBewaarde volgt vergelijkMetKader (§ 11.2)', () => {
     }
   });
 
+  describe('een volledige set die groeit of krimpt, met en zonder kaderVolledig (van vóór oktober 2026)', () => {
+    const k = kader();
+    // Per doel gekozen met de richting (doelgroepBijRichting): een volledige set (ODS_100), een deelset waarvan de
+    // leerkracht de hele set koos (ODS_110: 13, de koppeling noemt er 4) en een eigen set buiten het kader (ODS_140).
+    const nieuw = bewaardeLijst(beginUitSets(['ODS_100', 'ODS_110', 'ODS_140']), k);
+    const SETS = ['ODS_100', 'ODS_110', 'ODS_140'];
+    const oud: Curriculum = { ...nieuw, doelgroep: { ...nieuw.doelgroep!, kaderVolledig: undefined } };
+    /** ODS_100 na een maandelijkse update (koppeling en set samen bijgewerkt): `ids` is de hele set. */
+    const heleNa = (ids: string[], extra: Partial<RichtingDoelenSet> = {}) => {
+      const s = indexSet('ODS_100', 'Wiskunde', { aantal: ids.length });
+      return kaderUit([s, DEEL, STEM, UITBREIDING], [koppelSet(s, ids, extra), koppelSet(DEEL, DEEL_IDS), koppelSet(STEM, ['s1', 's2', 's3', 's4', 's5', 's6']), koppelSet(UITBREIDING, ['n1', 'n2'])]);
+    };
+
+    it('vooraf: een nieuw leerplan draagt beide afdrukken, een oud alleen kader (dezelfde)', () => {
+      expect(nieuw.doelgroep).toMatchObject(kaderAfdrukken(k, SETS));
+      expect(oud.doelgroep?.kader).toBe(nieuw.doelgroep?.kader);
+      expect(oud.doelgroep?.kaderVolledig).toBeUndefined();
+      expect(nieuw.goals).toHaveLength(19);
+    });
+
+    it('(b) niets veranderd: er vervalt niets, ook niet uit de uitgebreide deelset of de eigen set, en de keuze blijft precies', () => {
+      for (const lijst of [oud, nieuw]) {
+        const selectie = selectieVanLeerplan(lijst);
+        const { keuze, vervallen } = beginUitBewaarde(selectie, k, lijst);
+        expect(vervallen).toBe(0);
+        expect(vervallen).toBe(vergelijkMetKader(lijst, k).vervallen);
+        expect(setIds(keuze)).toEqual(SETS);
+        expect((keuze.selectie.get('ODS_110') as ReadonlySet<string>).size).toBe(13);
+        expect((keuze.selectie.get('ODS_140') as ReadonlySet<string>).size).toBe(3);
+      }
+    });
+
+    it('de volledige set kromp (zelfde versie): alleen wat uit die set wegviel, vervalt; deelset en eigen set blijven', () => {
+      const kleiner = heleNa(['w1', 'w2']);
+      expect(kleiner.sets[0]).toMatchObject({ volledig: true, versieGelijk: true });
+      // `kader` ziet het verschil niet (dus deelsets en eigen sets zijn zeker niet veranderd): alleen ODS_100 wordt nagekeken.
+      expect(kaderVingerafdruk(kleiner, SETS)).toBe(nieuw.doelgroep?.kader);
+      const r = beginUitBewaarde(selectieVanLeerplan(nieuw), kleiner, nieuw);
+      expect(r.vervallen).toBe(1);
+      expect(r.vervallen).toBe(vergelijkMetKader(nieuw, kleiner).vervallen);
+      expect([...(r.keuze.selectie.get('ODS_100') as ReadonlySet<string>)]).toEqual(['w1', 'w2']);
+      expect((r.keuze.selectie.get('ODS_110') as ReadonlySet<string>).size).toBe(13);
+      expect((r.keuze.selectie.get('ODS_140') as ReadonlySet<string>).size).toBe(3);
+    });
+
+    it('een oud leerplan (zonder kaderVolledig, kader gelijk) waarvan de volledige set kromp: er vervalt niets en de keuze blijft precies, zoals vroeger', () => {
+      const kleiner = heleNa(['w1', 'w2']);
+      const selectie = selectieVanLeerplan(oud);
+      const r = beginUitBewaarde(selectie, kleiner, oud);
+      expect(r.vervallen).toBe(0);
+      expect(r.vervallen).toBe(vergelijkMetKader(oud, kleiner).vervallen);
+      expect(r.keuze).toEqual(beginUitKeuze(selectie));
+      expect([...(r.keuze.selectie.get('ODS_100') as ReadonlySet<string>)]).toEqual(['w1', 'w2', 'w3']);
+    });
+
+    it('de volledige set groeide (zelfde versie): er vervalt niets en de keuze blijft (nieuwe doelen kies je zelf)', () => {
+      const groter = heleNa(['w1', 'w2', 'w3', 'w4', 'w5']);
+      for (const lijst of [oud, nieuw]) {
+        const r = beginUitBewaarde(selectieVanLeerplan(lijst), groter, lijst);
+        expect(r.vervallen).toBe(0);
+        expect(vergelijkMetKader(lijst, groter)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
+        expect([...(r.keuze.selectie.get('ODS_100') as ReadonlySet<string>)]).toEqual(['w1', 'w2', 'w3']);
+        expect((r.keuze.selectie.get('ODS_110') as ReadonlySet<string>).size).toBe(13);
+      }
+    });
+
+    it('(c) de volledige set groeide met een andere versie: 0 vervallen, in beide formaten', () => {
+      const andereVersie = heleNa(['w1', 'w2', 'w3', 'w4', 'w5'], { setSha: 'f'.repeat(16) });
+      expect(andereVersie.sets[0]).toMatchObject({ volledig: true, versieGelijk: false });
+      for (const lijst of [oud, nieuw]) {
+        const r = beginUitBewaarde(selectieVanLeerplan(lijst), andereVersie, lijst);
+        expect(r.vervallen).toBe(0);
+        expect(vergelijkMetKader(lijst, andereVersie)).toEqual({ nieuw: 0, vervallen: 0, setsNietMeerInKader: [] });
+        expect([...(r.keuze.selectie.get('ODS_100') as ReadonlySet<string>)]).toEqual(['w1', 'w2', 'w3']);
+      }
+    });
+
+    it('een veranderde deelset: kader verschilt en alles wordt vergeleken, zoals vroeger', () => {
+      const minder = kaderUit(INDEX, [koppelSet(HELE, ['w1', 'w2', 'w3']), koppelSet(DEEL, ['b2', 'b5', 'b7'])]);
+      expect(kaderVingerafdruk(minder, SETS)).not.toBe(nieuw.doelgroep?.kader);
+      for (const lijst of [oud, nieuw]) {
+        const r = beginUitBewaarde(selectieVanLeerplan(lijst), minder, lijst);
+        expect(r.vervallen).toBe(10 + 3);
+        expect(r.vervallen).toBe(vergelijkMetKader(lijst, minder).vervallen);
+      }
+    });
+  });
+
   it('er vervalt niets: de keuze is precies de bewaarde selectie, ook in de volgorde van de sets', () => {
     const k = kader();
     const lijst = bewaardeLijst(beginUitSets(['ODS_140', 'ODS_100']), k);
@@ -487,6 +576,9 @@ describe('doelgroepBijRichting', () => {
     expect(d).toMatchObject({ groep: 'G-0100', titel: 'Natuurwetenschappen', graad: 2, soort: 'so', vak: 'Biologie' });
     expect(d.kader).toBe(kaderVingerafdruk(k, ['ODS_100', 'ODS_110']));
     expect(d.kader).toMatch(/^[0-9a-f]{64}$/);
+    // Ook de afdruk van de volledige sets, over dezelfde sets.
+    expect(d).toMatchObject(kaderAfdrukken(k, ['ODS_100', 'ODS_110']));
+    expect(d.kaderVolledig).toMatch(/^[0-9a-f]{64}$/);
     expect(d.volgtKader).toBeUndefined();
     expect(sanitizeDoelgroep(d)).toEqual(d);
   });
