@@ -6,6 +6,8 @@
 // vaste identiteit (studentId) in plaats van een vrij ingetikte naam — en kan
 // het klasoverzicht per leerling optellen, ook per leerplandoel.
 
+import type { Doelgroep } from './doelgroep';
+
 export interface ClassStudent {
   id: string;
   name: string;
@@ -19,6 +21,12 @@ export interface ClassGroup {
   /** Klascode van 6 tekens, zoals bij widgets en cursussen. */
   code: string;
   schoolYear?: string;
+  /**
+   * De studierichting en het jaar van de klas (docs/STUDIERICHTINGEN.md § 22.6). Alleen via `doelgroepVoorKlas`: een witte
+   * lijst met groepnummer, titel, graad, jaar, soort en onderdeel; geen vak en geen kadervelden. Geen persoonsgegevens,
+   * reist mee in het klaspakket.
+   */
+  doelgroep?: Doelgroep;
   students: ClassStudent[];
   createdAt: number;
   updatedAt: number;

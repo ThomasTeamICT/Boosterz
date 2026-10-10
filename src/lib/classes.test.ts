@@ -1,10 +1,12 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  applyStudentList, assignmentsForClass, bestAttempt, dueBadge, duplicateNames, emptyClassContext,
-  goalScoresForStudent, matchesStudent, normalizeName, parseStudentList, sortedStudents, statusForAssignment,
-  statusSummary, studentsToText, submissionsFor, upsertAssignment, type ClassDataContext,
+  applyStudentList, assignmentsForClass, bestAttempt, createClass, dueBadge, duplicateNames, emptyClassContext,
+  getClass, getClasses, goalScoresForStudent, matchesStudent, normalizeName, parseStudentList, sanitizeClass,
+  saveClass, sortedStudents, statusForAssignment, statusSummary, studentsToText, submissionsFor, upsertAssignment,
+  zetKlasRichting, type ClassDataContext,
 } from './classes';
 import { goalPct, goalScoreKey } from './goals';
+import type { Doelgroep } from './doelgroep';
 import type { Assignment, ClassStudent } from './classTypes';
 import type { Course, CourseProgress } from './courseTypes';
 import type { Submission, Widget } from './types';
@@ -534,5 +536,189 @@ describe('dueBadge', () => {
 
   it('valt terug op een datum wanneer het nog ver is', () => {
     expect(dueBadge(new Date('2026-04-20T23:59:00').getTime(), nu)?.label).toMatch(/20/);
+  });
+});
+
+// ── Studierichting van een klas (docs/STUDIERICHTINGEN.md § 22.6) ───────────
+
+const HEX64 = 'ab'.repeat(32);
+const NW: Doelgroep = { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, jaar: 4, soort: 'so', onderdeel: 247 };
+const SLEUTELS_NW = ['graad', 'groep', 'jaar', 'onderdeel', 'soort', 'titel'];
+
+function klasMet(doelgroep: unknown): Record<string, unknown> {
+  return { id: 'k1', name: '4NWA', code: 'ABC123', students: [emma], createdAt: 1, updatedAt: 2, doelgroep };
+}
+
+describe('sanitizeClass: doelgroep van een klas', () => {
+  it('houdt een geldige doelgroep', () => {
+    expect(sanitizeClass(klasMet(NW))?.doelgroep).toEqual(NW);
+  });
+
+  it('laat vak, kadervelden, volgtKader, setAfdrukken en onbekende sleutels weg (witte lijst)', () => {
+    const vuil = {
+      ...NW, vak: 'Biologie', kader: HEX64, kaderVolledig: HEX64, volgtKader: true,
+      setAfdrukken: { ODS_1: '0123456789abcdef' }, extra: 'x', leerlingen: ['Emma'],
+    };
+    const dg = sanitizeClass(klasMet(vuil))?.doelgroep;
+    expect(dg).toEqual(NW);
+    expect(Object.keys(dg!).sort()).toEqual(SLEUTELS_NW);
+  });
+
+  it('saneert de doelgroep zelf: een titel op één regel, een jaar dat niet bij de graad past valt weg', () => {
+    const dg = sanitizeClass(klasMet({ ...NW, titel: '  Natuur\nwetenschappen  ', jaar: 6 }))?.doelgroep;
+    expect(dg?.titel).toBe('Natuur wetenschappen');
+    expect(dg?.jaar).toBeUndefined();
+  });
+
+  it('laat een ongeldige doelgroep helemaal weg: geen sleutel, geen lege waarde', () => {
+    for (const kapot of [undefined, null, 'tekst', 42, [], {}, { groep: 'kapot', titel: 'x' }, { groep: 'G-12', titel: 'x' }, { titel: 'x' }]) {
+      const klas = sanitizeClass(klasMet(kapot));
+      expect(klas, JSON.stringify(kapot)).not.toBeNull();
+      expect('doelgroep' in klas!, JSON.stringify(kapot)).toBe(false);
+    }
+  });
+
+  it('een klas zonder doelgroep blijft ongewijzigd (geen nieuw veld)', () => {
+    const klas = sanitizeClass({ id: 'k1', name: '4NWA', code: 'ABC123', students: [], createdAt: 1, updatedAt: 2 })!;
+    expect(Object.keys(klas).sort()).toEqual(['code', 'createdAt', 'id', 'name', 'schoolYear', 'students', 'updatedAt']);
+  });
+
+  it('is idempotent', () => {
+    const een = sanitizeClass(klasMet({ ...NW, vak: 'Biologie', kader: HEX64 }))!;
+    expect(sanitizeClass(een)).toEqual(een);
+    expect(sanitizeClass(sanitizeClass(een))).toEqual(een);
+  });
+
+  it('een geknutselde doelgroep met __proto__ of constructor doet niets', () => {
+    const json = '{"id":"k1","name":"K","code":"ABC123","students":[],"doelgroep":{"groep":"G-0193","titel":"NW","__proto__":{"vak":"Hack","kader":"' + HEX64 + '"},"constructor":{"prototype":{"x":1}}}}';
+    const klas = sanitizeClass(JSON.parse(json))!;
+    expect(klas.doelgroep).toEqual({ groep: 'G-0193', titel: 'NW', soort: 'so' });
+    expect(({} as { vak?: string }).vak).toBeUndefined();
+    expect(Object.getPrototypeOf(klas.doelgroep)).toBe(Object.prototype);
+  });
+
+  it('geen persoonsgegevens: er komt geen leerlingnaam in de doelgroep', () => {
+    const klas = sanitizeClass(klasMet({ ...NW, titel: NW.titel, leerlingen: [{ name: 'Emma Peeters' }] }))!;
+    expect(JSON.stringify(klas.doelgroep)).not.toContain('Emma');
+  });
+});
+
+describe('opslag van klassen met een doelgroep', () => {
+  it('saveClass en getClasses houden het veld, en getClass ook', () => {
+    const klas = { ...createClass({ name: '4NWA', students: [emma] }), doelgroep: NW };
+    saveClass(klas);
+    expect(getClasses()[0].doelgroep).toEqual(NW);
+    expect(getClass(klas.id)?.doelgroep).toEqual(NW);
+  });
+
+  it('een kapotte doelgroep in de opslag wordt bij het lezen gesaneerd', () => {
+    localStorage.setItem('wf.classes.v1', JSON.stringify([klasMet({ ...NW, vak: 'Biologie', volgtKader: true })]));
+    expect(getClass('k1')?.doelgroep).toEqual(NW);
+    localStorage.setItem('wf.classes.v1', JSON.stringify([klasMet({ groep: 'kapot', titel: 'x' })]));
+    expect(getClass('k1')).toBeDefined();
+    expect(getClass('k1')?.doelgroep).toBeUndefined();
+  });
+});
+
+describe('zetKlasRichting', () => {
+  function bewaarKlas(naam = '4NWA'): string {
+    const klas = createClass({ name: naam, schoolYear: '2026-2027', students: [emma] });
+    saveClass(klas);
+    return klas.id;
+  }
+
+  it('zet de richting en verandert verder niets aan de klas', () => {
+    const id = bewaarKlas();
+    const voor = getClass(id)!;
+    expect(zetKlasRichting(id, NW)).toBe('ok');
+    const na = getClass(id)!;
+    expect(na.doelgroep).toEqual(NW);
+    expect({ ...na, doelgroep: undefined, updatedAt: 0 }).toEqual({ ...voor, doelgroep: undefined, updatedAt: 0 });
+    expect(na.students).toEqual([emma]);
+    expect(na.code).toBe(voor.code);
+    expect(na.createdAt).toBe(voor.createdAt);
+  });
+
+  it('vervangt een eerdere richting', () => {
+    const id = bewaarKlas();
+    zetKlasRichting(id, NW);
+    expect(zetKlasRichting(id, { groep: 'G-0117', titel: 'Humane wetenschappen', graad: 2, soort: 'so' })).toBe('ok');
+    expect(getClass(id)?.doelgroep).toEqual({ groep: 'G-0117', titel: 'Humane wetenschappen', graad: 2, soort: 'so' });
+  });
+
+  it('`undefined` wist de richting', () => {
+    const id = bewaarKlas();
+    zetKlasRichting(id, NW);
+    expect(zetKlasRichting(id, undefined)).toBe('ok');
+    expect('doelgroep' in getClass(id)!).toBe(false);
+    // Nog eens wissen mag.
+    expect(zetKlasRichting(id, undefined)).toBe('ok');
+  });
+
+  it('geeft alleen de witte lijst door: geen vak en geen kadervelden', () => {
+    const id = bewaarKlas();
+    zetKlasRichting(id, { ...NW, vak: 'Biologie', kader: HEX64, kaderVolledig: HEX64, volgtKader: true, setAfdrukken: { ODS_1: '0123456789abcdef' } });
+    expect(Object.keys(getClass(id)!.doelgroep!).sort()).toEqual(SLEUTELS_NW);
+  });
+
+  it('houdt een klaslijst die intussen elders wijzigde (een ander tabblad)', () => {
+    const id = bewaarKlas();
+    const kopieInHetScherm = getClass(id)!; // wat het scherm al een tijd vasthoudt
+    // Een ander tabblad voegt een leerling toe en hernoemt de klas.
+    saveClass({ ...getClass(id)!, name: '4NWA (nieuw)', students: [emma, noah] });
+    expect(zetKlasRichting(id, NW)).toBe('ok');
+    const na = getClass(id)!;
+    expect(na.doelgroep).toEqual(NW);
+    expect(na.name).toBe('4NWA (nieuw)');
+    expect(na.students.map((s) => s.name)).toEqual(['Emma Peeters', 'Noah Claes']);
+    // Zo zou het met de oude kopie misgaan; daarom leest de functie opnieuw.
+    saveClass({ ...kopieInHetScherm, doelgroep: NW });
+    expect(getClass(id)!.students.map((s) => s.name)).toEqual(['Emma Peeters']);
+  });
+
+  it('laat andere klassen ongemoeid', () => {
+    const een = bewaarKlas('4NWA');
+    const twee = bewaarKlas('4NWB');
+    zetKlasRichting(een, NW);
+    expect(getClass(twee)?.doelgroep).toBeUndefined();
+    expect(getClasses()).toHaveLength(2);
+  });
+
+  it("geeft 'weg' als de klas niet meer bestaat, en bewaart niets", () => {
+    const id = bewaarKlas();
+    expect(zetKlasRichting('bestaat-niet', NW)).toBe('weg');
+    expect(zetKlasRichting('bestaat-niet', undefined)).toBe('weg');
+    expect(getClasses()).toHaveLength(1);
+    expect(getClass(id)?.doelgroep).toBeUndefined();
+  });
+
+  it("geeft 'mislukt' bij een ongeldige doelgroep en wist de bestaande richting niet", () => {
+    const id = bewaarKlas();
+    zetKlasRichting(id, NW);
+    for (const kapot of [{ groep: 'kapot', titel: 'x', soort: 'so' }, {}, 'tekst', null, []] as unknown as Doelgroep[]) {
+      expect(zetKlasRichting(id, kapot)).toBe('mislukt');
+      expect(getClass(id)?.doelgroep).toEqual(NW);
+    }
+  });
+
+  it("geeft 'mislukt' als de opslag vol of geblokkeerd is, en de klas blijft zoals ze was", () => {
+    const id = bewaarKlas();
+    zetKlasRichting(id, NW);
+    const echt = localStorage;
+    const vol: Storage = {
+      get length() { return echt.length; },
+      key: (i: number) => echt.key(i),
+      getItem: (k: string) => echt.getItem(k),
+      setItem: () => { throw Object.assign(new Error('vol'), { name: 'QuotaExceededError' }); },
+      removeItem: (k: string) => echt.removeItem(k),
+      clear: () => echt.clear(),
+    } as Storage;
+    (globalThis as unknown as { localStorage: Storage }).localStorage = vol;
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(zetKlasRichting(id, { groep: 'G-0117', titel: 'Humane wetenschappen', graad: 2, soort: 'so' })).toBe('mislukt');
+    expect(zetKlasRichting(id, undefined)).toBe('mislukt');
+    spy.mockRestore();
+    (globalThis as unknown as { localStorage: Storage }).localStorage = echt;
+    expect(getClass(id)?.doelgroep).toEqual(NW);
   });
 });

@@ -82,12 +82,14 @@ export function Modal({
       }
     };
     document.addEventListener('keydown', onKey);
-    // focus in de modal zetten
-    setTimeout(() => {
+    // focus in de modal zetten, tenzij ze er al staat (een kind met autoFocus, of wie al in een veld klikte of typte)
+    const focusTimer = setTimeout(() => {
+      if (ref.current?.contains(document.activeElement)) return;
       const el = ref.current?.querySelector<HTMLElement>('input, select, textarea, button:not(.btn-icon)');
       el?.focus();
     }, 30);
     return () => {
+      clearTimeout(focusTimer);
       document.removeEventListener('keydown', onKey);
       if (prev?.isConnected) prev.focus();
     };

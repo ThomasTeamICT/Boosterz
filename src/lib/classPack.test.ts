@@ -4,9 +4,10 @@ import {
   findStudentClass, getClassPacks, importClassPackJson, readPastedClassPack,
 } from './classPack';
 import {
-  createAssignment, createClass, getClassByCode, getStudentContext, loadClassContext, saveAssignment,
-  saveClass, setStudentContext, statusForAssignment,
+  createAssignment, createClass, getClass, getClassByCode, getStudentContext, loadClassContext, saveAssignment,
+  saveClass, setStudentContext, statusForAssignment, zetKlasRichting,
 } from './classes';
+import type { Doelgroep } from './doelgroep';
 import { processCodes } from './inbox';
 import { encodeSubmission } from './share';
 import { adoptSharedCourse, conflictKey, getCourse, saveCourse } from './courses';
@@ -440,5 +441,133 @@ describe('readPastedClassPack (LL12)', () => {
     expect(readPastedClassPack('hallo juf')).toBeNull();
     expect(readPastedClassPack('https://example.org/#/klas/open?d=kapot%')).toBeNull();
     expect(readPastedClassPack('{"kind":"cursus"}')).toBeNull();
+  });
+});
+
+// ── De studierichting van de klas reist mee (docs/STUDIERICHTINGEN.md § 22.6.1) ─
+
+describe('klas.doelgroep in het klaspakket', () => {
+  const HEX64 = 'ab'.repeat(32);
+  const NW: Doelgroep = { groep: 'G-0193', titel: 'Natuurwetenschappen', graad: 2, jaar: 4, soort: 'so', onderdeel: 247 };
+
+  /** De klas van de leerkracht, met richting, en het pakket zoals het de deur uitgaat. */
+  async function metRichting() {
+    const { cls, opdrachten } = setupTeacherDevice();
+    expect(zetKlasRichting(cls.id, NW)).toBe('ok');
+    const klas = getClass(cls.id)!;
+    const encoded = await encodeClassPackToUrl(klas, opdrachten);
+    return { klas, opdrachten, encoded };
+  }
+
+  /** Een pakket als tekst, met een klas die we zelf samenstellen (voor geknutselde pakketten). */
+  function pakketTekst(klas: Record<string, unknown>): string {
+    return JSON.stringify({ v: 1, kind: 'klas', klas: { id: 'k1', name: '4NWA', code: 'ABC123', students: [], ...klas }, opdrachten: [] });
+  }
+
+  it('houdt de doelgroep heen en terug via de link', async () => {
+    const { encoded } = await metRichting();
+    const decoded = decodeClassPack(encoded.url.split('d=')[1])!;
+    expect(decoded.klas.doelgroep).toEqual(NW);
+    expect(readPastedClassPack(encoded.url)?.klas.doelgroep).toEqual(NW);
+  });
+
+  it('houdt de doelgroep heen en terug via het pakketbestand', async () => {
+    const { encoded } = await metRichting();
+    const bestand = classPackToJson(encoded.pack);
+    expect(JSON.parse(bestand).klas.doelgroep).toEqual(NW);
+    expect(importClassPackJson(bestand)?.klas.doelgroep).toEqual(NW);
+    expect(readPastedClassPack(bestand)?.klas.doelgroep).toEqual(NW);
+  });
+
+  it('voegt naast de doelgroep geen enkel ander veld toe aan het pakket', async () => {
+    // Hetzelfde toestel, dezelfde klas: één keer zonder en één keer met een richting.
+    const { cls, opdrachten } = setupTeacherDevice();
+    const zonder = await encodeClassPackToUrl(getClass(cls.id)!, opdrachten);
+    zetKlasRichting(cls.id, NW);
+    const met = await encodeClassPackToUrl(getClass(cls.id)!, opdrachten);
+
+    const zonderGelezen = decodeClassPack(zonder.url.split('d=')[1])!;
+    const metGelezen = decodeClassPack(met.url.split('d=')[1])!;
+    expect(Object.keys(metGelezen).sort()).toEqual(Object.keys(zonderGelezen).sort());
+    expect(Object.keys(metGelezen.klas).sort()).toEqual([...Object.keys(zonderGelezen.klas), 'doelgroep'].sort());
+    expect(Object.keys(metGelezen.klas.doelgroep!).sort()).toEqual(['graad', 'groep', 'jaar', 'onderdeel', 'soort', 'titel']);
+    // In het bestand ook: het pakket zelf (voor de klas) verschilt alleen in de doelgroep en de tijd van bewaren.
+    const { doelgroep: _dg, updatedAt: _t1, ...metRest } = JSON.parse(classPackToJson(met.pack)).klas;
+    const { updatedAt: _t2, ...zonderRest } = JSON.parse(classPackToJson(zonder.pack)).klas;
+    expect(metRest).toEqual(zonderRest);
+    // En de opdrachten en versie zijn dezelfde.
+    expect(metGelezen.v).toBe(1);
+    expect(metGelezen.opdrachten).toEqual(zonderGelezen.opdrachten);
+  });
+
+  it('een pakket zonder het veld blijft geldig en krijgt er geen', async () => {
+    const { cls, opdrachten } = setupTeacherDevice();
+    const encoded = await encodeClassPackToUrl(cls, opdrachten);
+    const decoded = decodeClassPack(encoded.url.split('d=')[1])!;
+    expect(decoded).not.toBeNull();
+    expect('doelgroep' in decoded.klas).toBe(false);
+    expect(importClassPackJson(pakketTekst({}))?.klas.name).toBe('4NWA');
+    expect('doelgroep' in importClassPackJson(pakketTekst({}))!.klas).toBe(false);
+  });
+
+  it('een geknutseld pakket met een slecht groepnummer laat het veld weg, maar blijft geldig', () => {
+    for (const groep of ['G-12', 'g-0193', '0193', 'G-0193; DROP', '', 12, null]) {
+      const klas = importClassPackJson(pakketTekst({ doelgroep: { groep, titel: 'x' } }))?.klas;
+      expect(klas, String(groep)).toBeDefined();
+      expect('doelgroep' in klas!, String(groep)).toBe(false);
+    }
+    expect('doelgroep' in importClassPackJson(pakketTekst({ doelgroep: 'G-0193' }))!.klas).toBe(false);
+  });
+
+  it('een geknutseld pakket met __proto__ of constructor in de doelgroep doet niets', () => {
+    const tekst = '{"v":1,"kind":"klas","klas":{"id":"k1","name":"K","code":"ABC123","students":[],'
+      + '"doelgroep":{"groep":"G-0193","titel":"NW","__proto__":{"vak":"Hack","kader":"' + HEX64 + '"},"constructor":{"prototype":{"x":1}}}},"opdrachten":[]}';
+    const klas = importClassPackJson(tekst)!.klas;
+    expect(klas.doelgroep).toEqual({ groep: 'G-0193', titel: 'NW', soort: 'so' });
+    expect(({} as { vak?: string }).vak).toBeUndefined();
+    // Ook een `__proto__` op het niveau van de klas verandert niets aan de klas of aan Object.
+    const klasProto = importClassPackJson('{"v":1,"kind":"klas","klas":{"id":"k1","name":"K","code":"ABC123","students":[],"__proto__":{"doelgroep":{"groep":"G-0193","titel":"NW"}}},"opdrachten":[]}')!.klas;
+    expect('doelgroep' in klasProto).toBe(false);
+    expect(({} as { doelgroep?: unknown }).doelgroep).toBeUndefined();
+  });
+
+  it('een geknutseld pakket kan geen vak of kadervelden op de klas zetten', () => {
+    const klas = importClassPackJson(pakketTekst({
+      doelgroep: { ...NW, vak: 'Biologie', kader: HEX64, kaderVolledig: HEX64, volgtKader: true, setAfdrukken: { ODS_1: '0123456789abcdef' } },
+    }))!.klas;
+    expect(klas.doelgroep).toEqual(NW);
+    expect(Object.keys(klas.doelgroep!).sort()).toEqual(['graad', 'groep', 'jaar', 'onderdeel', 'soort', 'titel']);
+  });
+
+  it('bij de leerling bewaard (readPacks): het veld blijft, ook via findStudentClass', async () => {
+    const { klas, encoded } = await metRichting();
+    freshDevice();
+    adoptClassPack(decodeClassPack(encoded.url.split('d=')[1])!);
+    expect(getClassPacks()[0].klas.doelgroep).toEqual(NW);
+    expect(findStudentClass(klas.code)?.cls.doelgroep).toEqual(NW);
+    // In de opslag staat alleen de doelgroep erbij, geen ander nieuw veld.
+    const bewaard = JSON.parse(localStorage.getItem('wf.classpacks.v1') ?? '[]')[0].klas;
+    expect(Object.keys(bewaard.doelgroep).sort()).toEqual(['graad', 'groep', 'jaar', 'onderdeel', 'soort', 'titel']);
+    expect(Object.keys(bewaard).sort()).toEqual(['code', 'createdAt', 'doelgroep', 'id', 'name', 'schoolYear', 'students', 'updatedAt']);
+  });
+
+  it('bij de leerling bewaard: een slechte of te rijke doelgroep in de opslag wordt bij het lezen gesaneerd', () => {
+    const rij = (doelgroep: unknown) => ({
+      klas: { id: 'k1', name: '4NWA', code: 'ABC123', students: [], createdAt: 1, updatedAt: 2, doelgroep }, opdrachten: [], adoptedAt: 3,
+    });
+    localStorage.setItem('wf.classpacks.v1', JSON.stringify([rij({ ...NW, vak: 'Biologie', kader: HEX64, volgtKader: true })]));
+    expect(getClassPacks()[0].klas.doelgroep).toEqual(NW);
+    localStorage.setItem('wf.classpacks.v1', JSON.stringify([rij({ groep: 'kapot', titel: 'x' })]));
+    expect(getClassPacks()).toHaveLength(1);
+    expect(getClassPacks()[0].klas.doelgroep).toBeUndefined();
+  });
+
+  it('geen persoonsgegevens: de doelgroep in het pakket noemt geen leerling', async () => {
+    const { encoded } = await metRichting();
+    const bestand = classPackToJson(encoded.pack);
+    const doelgroep = JSON.stringify(JSON.parse(bestand).klas.doelgroep);
+    expect(doelgroep).not.toContain('Emma');
+    expect(doelgroep).not.toContain('Noah');
+    expect(doelgroep).not.toContain('st1');
   });
 });

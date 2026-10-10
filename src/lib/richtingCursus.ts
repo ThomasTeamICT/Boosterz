@@ -62,9 +62,9 @@ function inkort(t: string, max: number): string {
 
 /**
  * Delen van een titel samenvoegen met " · ", hoogstens `max` tekens. Past het niet, dan wordt telkens het langste deel
- * ingekort: zo blijven de graad en het begin van de andere delen leesbaar.
+ * ingekort: zo blijven de graad en het begin van de andere delen leesbaar. Ook gebruikt door `gatenCursus.ts`.
  */
-function samenTitel(delen: readonly string[], max = MAX_TITEL): string {
+export function samenTitel(delen: readonly string[], max = MAX_TITEL): string {
   const lijst = delen.map((d) => d.trim()).filter((d) => d !== '');
   const lengte = () => lijst.join(SCHEIDER_TITEL).length;
   for (let ronde = 0; ronde < 50 && lengte() > max; ronde++) {

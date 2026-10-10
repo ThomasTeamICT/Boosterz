@@ -13,7 +13,7 @@ import { NieuweRichtingCursus } from './NieuweRichtingCursus';
 import { allSections, type Course } from '../../lib/courseTypes';
 import { getCurricula, normalizeGoalCode, normalizeGoalCodes, saveCurriculum } from '../../lib/curriculum';
 import type { Curriculum } from '../../lib/curriculumTypes';
-import { doelgroepVoorLeerplan, sanitizeDoelgroep, type Doelgroep } from '../../lib/doelgroep';
+import { sanitizeDoelgroep } from '../../lib/doelgroep';
 import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from '../../lib/minimumdoelen';
 import { contextVanSet, datumLeesbaar, laadSet, oudeVersieIds } from '../../lib/minimumdoelenBron';
 import {
@@ -54,13 +54,8 @@ export function kaderSleutelsVan(kader: RichtingKader): Set<string> {
   return uit;
 }
 
-/** De doelgroep van een cursus: die van de cursus zelf, anders die van haar leerplan (§ 10.2). Altijd gesaneerd. */
-export function doelgroepVanCursus(course: Course, curricula: readonly Curriculum[]): Doelgroep | undefined {
-  const eigen = sanitizeDoelgroep(course.doelgroep);
-  if (eigen) return eigen;
-  const leerplan = course.curriculumId ? curricula.find((c) => c.id === course.curriculumId) : undefined;
-  return leerplan ? doelgroepVoorLeerplan(leerplan.doelgroep) : undefined;
-}
+/** De doelgroep van een cursus staat sinds fase 2 in `lib/doelgroepGebruik.ts` (ook de klas gebruikt ze); bestaande imports blijven werken. */
+export { doelgroepVanCursus } from '../../lib/doelgroepGebruik';
 
 /**
  * Hoeveel doelen van het kader (set + vast nummer) de cursus raakt: de doelcodes op haar secties, opgezocht in haar leerplan,

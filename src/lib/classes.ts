@@ -13,6 +13,7 @@
 // meldweg bij mislukt schrijven als de rest van de app (reportWriteFailure).
 
 import type { Assignment, ClassGroup, ClassStudent } from './classTypes';
+import { doelgroepVoorKlas, type Doelgroep } from './doelgroep';
 import type { Submission, Widget } from './types';
 import type { Course, CourseProgress } from './courseTypes';
 import { progressPercent, referencedWidgetIds } from './courseTypes';
@@ -77,11 +78,14 @@ export function sanitizeClass(raw: unknown): ClassGroup | null {
   const students = Array.isArray(c.students)
     ? c.students.map(sanitizeStudent).filter((x): x is ClassStudent => x !== null)
     : [];
+  // Studierichting en jaar: alleen de witte lijst van `doelgroepVoorKlas` (§ 22.6.1), ook voor een klas uit een pakket.
+  const doelgroep = doelgroepVoorKlas(c.doelgroep);
   return {
     id: str(c.id) || uid(),
     name: name.slice(0, 80),
     code: (str(c.code) || makeCode()).toUpperCase(),
     schoolYear: str(c.schoolYear).trim() || undefined,
+    ...(doelgroep ? { doelgroep } : {}),
     students,
     createdAt: typeof c.createdAt === 'number' ? c.createdAt : Date.now(),
     updatedAt: typeof c.updatedAt === 'number' ? c.updatedAt : Date.now(),
@@ -163,6 +167,29 @@ export function createClass(init: { name: string; schoolYear?: string; students?
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
+}
+
+// ── Studierichting van een klas ─────────────────────────────────────────────
+
+/**
+ * Zet de studierichting en het jaar van een klas (`undefined` wist ze) en verandert verder niets (§ 22.6.2, F2-B12).
+ * De klas wordt hier opnieuw gelezen, niet meegegeven: `saveClass` vervangt de hele klas, en met een oude kopie zou een
+ * klaslijst of naam die intussen elders (een ander tabblad) wijzigde, stil verdwijnen.
+ *
+ * - `'ok'`: bewaard.
+ * - `'weg'`: de klas bestaat niet meer op dit toestel; er is niets bewaard.
+ * - `'mislukt'`: niets bewaard en niets veranderd: de opslag is vol of geblokkeerd, of `d` is geen geldige doelgroep
+ *   (dan wist deze functie de bestaande richting niet stil).
+ *
+ * De doelgroep gaat door `doelgroepVoorKlas`: geen vak en geen kadervelden.
+ */
+export function zetKlasRichting(classId: string, d: Doelgroep | undefined): 'ok' | 'weg' | 'mislukt' {
+  const klas = getClass(classId);
+  if (!klas) return 'weg';
+  const nieuw = d === undefined ? undefined : doelgroepVoorKlas(d);
+  if (d !== undefined && nieuw === undefined) return 'mislukt';
+  const { doelgroep: _oud, ...rest } = klas;
+  return saveClass(nieuw ? { ...rest, doelgroep: nieuw } : rest) ? 'ok' : 'mislukt';
 }
 
 // ── Klaslijst uit geplakte tekst ────────────────────────────────────────────

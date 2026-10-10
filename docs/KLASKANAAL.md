@@ -82,6 +82,7 @@ Het contract staat in `src/lib/sync/types.ts`:
 
 Inhoud (cursussen, widgets, media) gaat níét als gebeurtenis maar als **blob op inhoudshash**
 (zelfde idee als de medialaag): één upload per versie, elke leerling haalt ze één keer.
+Het klaspakket draagt ook `klas.doelgroep` (studierichting en jaar, geen persoonsgegevens).
 
 ### 4.3 Dienst (API)
 
