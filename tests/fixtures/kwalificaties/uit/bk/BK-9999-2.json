@@ -1,0 +1,23 @@
+{
+  "app": "boosterz",
+  "kind": "beroepskwalificatie",
+  "v": 1,
+  "bk": "BK-9999-2",
+  "nummer": "BK-9999",
+  "versie": 2,
+  "titel": "Nagebootste beroepskwalificatie",
+  "status": "ERKEND",
+  "vks": 2,
+  "definitie": "Een nagebootste beroepskwalificatie voor de tests van Boosterz, geen officiële gegevens.",
+  "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
+  "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-9999-2",
+  "naamsvermelding": "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
+  "licentie": "nog te bevestigen",
+  "opgehaald": "2026-10-10T00:00:00Z",
+  "aantal": 2,
+  "sha256": "1553cbb708aa1238ebd4e2bcd7e32a62d465c20160b179379bb4652b93afea41",
+  "competenties": [
+{"id":"bkc9999101","nr":1,"type":"Vakspecifieke competentie","tekst":"Werkt veilig met het materiaal","kennis":[{"type":"Kennis","tekst":"Kennis van de eerste regel"}],"vaardigheden":[{"type":"Cognitieve vaardigheden","tekst":"Past de eerste regel toe"}]},
+{"id":"bkc9999201","nr":2,"type":"Vakspecifieke competentie","tekst":"Plant het eigen werk","kennis":[{"type":"Kennis","tekst":"Kennis van planning"}],"vaardigheden":[{"type":"Cognitieve vaardigheden","tekst":"Maakt een planning"}]}
+  ]
+}

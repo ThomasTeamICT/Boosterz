@@ -1,0 +1,25 @@
+{
+  "app": "boosterz",
+  "kind": "beroepskwalificatie",
+  "v": 1,
+  "bk": "BK-9999-1",
+  "nummer": "BK-9999",
+  "versie": 1,
+  "titel": "Nagebootste beroepskwalificatie",
+  "status": "ERKEND",
+  "vks": 2,
+  "definitie": "Een nagebootste beroepskwalificatie voor de tests van Boosterz, geen officiële gegevens.",
+  "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
+  "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-9999-1",
+  "naamsvermelding": "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
+  "licentie": "nog te bevestigen",
+  "opgehaald": "2026-10-10T00:00:00Z",
+  "aantal": 3,
+  "sha256": "df4e2d9d13d94473adcd341b1ec8eecab9fc5a0480b27c19f1dc0df6ada1300c",
+  "competenties": [
+{"id":"bkc9999101","nr":1,"type":"Vakspecifieke competentie","tekst":"Werkt <b>veilig</b> met het materiaal","kennis":[{"type":"Kennis","tekst":"Kennis van de eerste regel"},{"type":"Basiskennis","tekst":"Basiskennis van de tweede regel"},{"type":"Kennis","tekst":"Kennis van de derde regel"}],"vaardigheden":[{"type":"Cognitieve vaardigheden","tekst":"Past de eerste regel toe"},{"type":"Motorische vaardigheden","tekst":"Werkt ordelijk"}],"referenties":["test 2","test 10"]},
+{"id":"bkc9999102","nr":2,"type":"Vakspecifieke competentie","tekst":"Houdt de werkplek netjes","kennis":[{"type":"Kennis","tekst":"Kennis van orde en netheid"}],"vaardigheden":[{"type":"Cognitieve vaardigheden","tekst":"Ruimt de werkplek op"}]},
+{"id":"bkc9999103","type":"Vakspecifieke competentie","tekst":"Overlegt met collega’s","kennis":[],"vaardigheden":[{"type":"Sociale vaardigheden","tekst":"Luistert naar collega’s"}]}
+  ],
+  "extra": {"domeinen":[{"domein":"Testdomein","pad":["Tests","Testdomein"],"pad_tekst":"Tests > Testdomein"}]}
+}

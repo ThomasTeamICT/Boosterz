@@ -1885,11 +1885,11 @@ Fase 3 start pas na fase 2 (na I-C, zie § 22). Tot dan wacht alles.
 |---|---|---|
 | Q0 Ontwerp in de repo (§ 23, bijlage E, rij in de stand bovenaan, één regel in CLAUDE.md), icoon, uittreksel van de runs van ronde 6 en 7 | **Klaar** (10 oktober 2026): `BeroepIcon`, regel in CLAUDE.md, uittreksel in `tests/fixtures/kwalificaties/api/ruw/` (de logregels van beide runs: vorm en proeven, geen volledige antwoorden, want de artifacts zijn vanuit de cloudsessie niet te downloaden) | hoofdsessie |
 | K1 Datamodule `beroepskwalificaties.ts` en API-hulp `onderwijsApi.mjs` | **Klaar** (10 oktober 2026): 238 + 56 tests, mutatieproef 13 van 13; nagekeken, zes kleine punten hersteld (ongeldige datum faalt dicht, diepe invoer gooit niet, een rare studiebekrachtiging stopt de run niet meer, `bijkomende_toelatingsvoorwaarden` valt weg) | kernbouwer |
-| K2 Ophaalscript, fixtures en scripttest | Wacht: na K1 | kernbouwer |
-| K3 Datatest | Wacht: na K1, levert op na K2 | bouwer (een andere agent dan die van K2) |
-| K4 Workflow "Leerplangegevens bijwerken" | Wacht: na K1 (naast K2) | bouwer, nagelezen door een reviewer (veiligheid) |
+| K2 Ophaalscript, fixtures en scripttest | **Klaar** (10 oktober 2026): `haal-beroepskwalificaties.mjs`, fixtures in `tests/fixtures/kwalificaties/`, 54 scripttests; nagekeken, zeven kleine punten hersteld (o.a. een open einde blijft open, de BK-lijst is echt een zachte bron, het rapportpad vooraf gecontroleerd), mutatieproef 31 van 31 | kernbouwer |
+| K3 Datatest | **Klaar** (10 oktober 2026): 70 kapotte kopieën met de verwachte melding, strenge vlaggen uit tot G1, slaat over zonder echte map; nagekeken, drie kleine punten hersteld | bouwer (een andere agent dan die van K2) |
+| K4 Workflow "Leerplangegevens bijwerken" | **Klaar** (10 oktober 2026): stap beroepskwalificaties vóór `npm ci`, noodinvoer, samenvatting en PR-tekst; veiligheidscontrole zonder blokkerende fout, één belangrijk punt (lijsten in de PR-tekst volledig) en drie kleine hersteld; `minimumdoelenWorkflow.test.ts` bewaakt de veiligheidsregels | bouwer, nagelezen door een reviewer (veiligheid) |
 | K5 Datamodel van het leerplan (`bkRefs`, `bkVersies`, methode, vingerafdruk) | **Klaar** (10 oktober 2026): gouden vingerafdrukken eerst vastgelegd en groen gebleven; nagekeken, één klein punt hersteld (de plaats van `bkRefs` in de vingerafdruk ligt vast) | kernbouwer |
-| I1 Integratie van de data en het datamodel | Wacht: na K1 tot K5 | hoofdsessie |
+| I1 Integratie van de data en het datamodel | **Klaar** (10 oktober 2026) | hoofdsessie |
 | G1 Eerste echte run in stappen | Wacht: na I1 | hoofdsessie |
 | K6 Lader, BK-kader van een richting, BK-leerplan en nakijkpoort | Wacht: na I1 | kernbouwer |
 | K7 Geraamte, dekking en teksten | Wacht: na K6 | bouwer |

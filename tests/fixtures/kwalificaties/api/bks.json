@@ -1,0 +1,765 @@
+{
+  "nagebootst": "geen officiële koppeling: nagebootste antwoorden voor de tests van Boosterz, in de vorm van ronde 6 en 7 (tests/fixtures/kwalificaties/api/ruw/)",
+  "BK-0390-2": {
+    "beroepskwalificatie": {
+      "versie_nr_lang": "BK-0390-2",
+      "versie_nr_kort": 2,
+      "titel": "Onthaalmedewerker",
+      "status": "erkend",
+      "statuscode": "ERKEND",
+      "vks_niveau": 3,
+      "nieuwste_versie": true,
+      "definitie": "Het correct ontvangen en informeren van personen …",
+      "omschrijving_kort": "De onthaalmedewerker (VKS-niveau 2) ontvangt en informeert …",
+      "erkenningsjaar": 2020,
+      "erkenningsdatum": "2020-02-28",
+      "led_onderwerp": {
+        "code": "812001",
+        "led_onderwerp_nummer": "LED-0267",
+        "omschrijving": "Toerisme algemeen"
+      },
+      "synoniemen": [
+        {
+          "waarde": "Balie- en informatiebediende"
+        }
+      ],
+      "domeinen": [
+        {
+          "domein": "Onthaal en informatie",
+          "pad": [
+            "Toerisme",
+            "Onthaal en informatie"
+          ],
+          "pad_tekst": "Toerisme > Onthaal en informatie"
+        }
+      ],
+      "competenties": [
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 1,
+          "competentie_code": "bkc0045062",
+          "waarde": "Werkt in teamverband",
+          "referenties": [
+            {
+              "referentie_nr": "co 01993"
+            }
+          ],
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Wisselt informatie uit met collega’s en eindverantwoordelijke"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Kennis van de bedrijfscultuur, procedures en regels in functie van de uitvoering van dit beroep"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 2,
+          "competentie_code": "bkc9039002",
+          "waarde": "Nagebootste competentie 2 van Onthaalmedewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 2"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 2"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 3,
+          "competentie_code": "bkc9039003",
+          "waarde": "Nagebootste competentie 3 van Onthaalmedewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 3"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 3"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 4,
+          "competentie_code": "bkc9039004",
+          "waarde": "Nagebootste competentie 4 van Onthaalmedewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 4"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 4"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 5,
+          "competentie_code": "bkc9039005",
+          "waarde": "Nagebootste competentie 5 van Onthaalmedewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 5"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 5"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 6,
+          "competentie_code": "bkc9039006",
+          "waarde": "Nagebootste competentie 6 van Onthaalmedewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 6"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 6"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 7,
+          "competentie_code": "bkc9039007",
+          "waarde": "Nagebootste competentie 7 van Onthaalmedewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 7"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 7"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 8,
+          "competentie_code": "bkc9039008",
+          "waarde": "Nagebootste competentie 8 van Onthaalmedewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 8"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 8"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 9,
+          "competentie_code": "bkc9039009",
+          "waarde": "Nagebootste competentie 9 van Onthaalmedewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 9"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 9"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 10,
+          "competentie_code": "bkc9039010",
+          "waarde": "Nagebootste competentie 10 van Onthaalmedewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 10"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 10"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 11,
+          "competentie_code": "bkc9039011",
+          "waarde": "Nagebootste competentie 11 van Onthaalmedewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 11"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 11"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 12,
+          "competentie_code": "bkc9039012",
+          "waarde": "Nagebootste competentie 12 van Onthaalmedewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 12"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 12"
+            }
+          ]
+        }
+      ],
+      "omgevingscontext": [
+        {
+          "waarde": "De beroepsuitoefening varieert naargelang de grootte van het …"
+        }
+      ],
+      "handelingscontext": [
+        {
+          "waarde": "Efficiënt, kwaliteitsvol handelen in alle omstandigheden."
+        }
+      ],
+      "autonomie": [
+        {
+          "autonomie_type": "Is zelfstandig in",
+          "waarde": "het nauwkeurig uitvoeren van de opdracht"
+        }
+      ],
+      "verantwoordelijkheid": [
+        {
+          "waarde": "Respecteert de bedrijfs/organisatiecultuur, procedures en …"
+        }
+      ],
+      "links": {
+        "self": {
+          "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0390-2"
+        },
+        "website": {
+          "href": "https://app.akov.be/pls/pakov/r/kwdb/vlaamse_kwalificatiestructuur/beroepskwalificatie?p1020_bk_nummer=BK-0390-2&clear=1020"
+        }
+      }
+    },
+    "totalItems": 1
+  },
+  "BK-0464-1": {
+    "beroepskwalificatie": {
+      "versie_nr_lang": "BK-0464-1",
+      "versie_nr_kort": 1,
+      "titel": "Recreatief medewerker",
+      "status": "erkend",
+      "statuscode": "ERKEND",
+      "vks_niveau": 4,
+      "nieuwste_versie": true,
+      "definitie": "Ondersteunt bij de voorbereiding en de uitvoering van het …",
+      "erkenningsjaar": 2020,
+      "erkenningsdatum": "2020-01-24",
+      "led_onderwerp": {
+        "code": "812001",
+        "led_onderwerp_nummer": "LED-0267",
+        "omschrijving": "Toerisme algemeen"
+      },
+      "synoniemen": [
+        {
+          "waarde": "Animator"
+        }
+      ],
+      "domeinen": [
+        {
+          "domein": "Animatie en begeleiding",
+          "pad": [
+            "Toerisme",
+            "Animatie en begeleiding"
+          ],
+          "pad_tekst": "Toerisme > Animatie en begeleiding"
+        }
+      ],
+      "competenties": [
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 1,
+          "competentie_code": "bkc0040761",
+          "waarde": "Controleert de veilige werking en/of de veiligheidsuitrusting …",
+          "referenties": [
+            {
+              "referentie_nr": "17903-c"
+            }
+          ],
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Leeft de veiligheidsrichtlijnen voor het gebruik van het materiaal en de infrastructuur na"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Kennis van veiligheidsrichtlijnen"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 2,
+          "competentie_code": "bkc9046402",
+          "waarde": "Nagebootste competentie 2 van Recreatief medewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 2"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 2"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 3,
+          "competentie_code": "bkc9046403",
+          "waarde": "Nagebootste competentie 3 van Recreatief medewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 3"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 3"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 4,
+          "competentie_code": "bkc9046404",
+          "waarde": "Nagebootste competentie 4 van Recreatief medewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 4"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 4"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 5,
+          "competentie_code": "bkc9046405",
+          "waarde": "Nagebootste competentie 5 van Recreatief medewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 5"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 5"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 6,
+          "competentie_code": "bkc9046406",
+          "waarde": "Nagebootste competentie 6 van Recreatief medewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 6"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 6"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 7,
+          "competentie_code": "bkc9046407",
+          "waarde": "Nagebootste competentie 7 van Recreatief medewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 7"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 7"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 8,
+          "competentie_code": "bkc9046408",
+          "waarde": "Nagebootste competentie 8 van Recreatief medewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 8"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 8"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 9,
+          "competentie_code": "bkc9046409",
+          "waarde": "Nagebootste competentie 9 van Recreatief medewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 9"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 9"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 10,
+          "competentie_code": "bkc9046410",
+          "waarde": "Nagebootste competentie 10 van Recreatief medewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 10"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 10"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 11,
+          "competentie_code": "bkc9046411",
+          "waarde": "Nagebootste competentie 11 van Recreatief medewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 11"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 11"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 12,
+          "competentie_code": "bkc9046412",
+          "waarde": "Nagebootste competentie 12 van Recreatief medewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 12"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 12"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 13,
+          "competentie_code": "bkc9046413",
+          "waarde": "Nagebootste competentie 13 van Recreatief medewerker",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Nagebootste vaardigheid bij competentie 13"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Nagebootste kennis bij competentie 13"
+            }
+          ]
+        }
+      ],
+      "omgevingscontext": [
+        {
+          "waarde": "De beroepsbeoefenaar werkt in wisselende contexten …"
+        }
+      ],
+      "handelingscontext": [
+        {
+          "waarde": "De beroepsbeoefenaar dient tijdens de uitvoering van de …"
+        }
+      ],
+      "autonomie": [
+        {
+          "autonomie_type": "Is zelfstandig in",
+          "waarde": "het beantwoorden van vragen van de deelnemers"
+        }
+      ],
+      "verantwoordelijkheid": [
+        {
+          "waarde": "Controleert de veilige werking en/of de veiligheidsuitrusting …"
+        }
+      ],
+      "attesten": [
+        {
+          "type": "Bijkomend attest",
+          "omschrijving": "EHBO-attest of attest Hulpverlener"
+        }
+      ],
+      "links": {
+        "self": {
+          "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0464-1"
+        },
+        "website": {
+          "href": "https://app.akov.be/pls/pakov/r/kwdb/vlaamse_kwalificatiestructuur/beroepskwalificatie?p1020_bk_nummer=BK-0464-1&clear=1020"
+        }
+      }
+    },
+    "totalItems": 1
+  },
+  "BK-9999-1": {
+    "beroepskwalificatie": {
+      "versie_nr_lang": "BK-9999-1",
+      "versie_nr_kort": 1,
+      "titel": "Nagebootste beroepskwalificatie",
+      "status": "erkend",
+      "statuscode": "ERKEND",
+      "vks_niveau": 2,
+      "nieuwste_versie": false,
+      "definitie": "Een nagebootste beroepskwalificatie voor de tests van Boosterz, geen officiële gegevens.",
+      "domeinen": [
+        {
+          "domein": "Testdomein",
+          "pad": [
+            "Tests",
+            "Testdomein"
+          ],
+          "pad_tekst": "Tests > Testdomein"
+        }
+      ],
+      "competenties": [
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 1,
+          "competentie_code": "bkc9999101",
+          "waarde": "Werkt <b>veilig</b> met het materiaal",
+          "referenties": [
+            {
+              "referentie_nr": "test 2"
+            },
+            {
+              "referentie_nr": "test 10"
+            }
+          ],
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Past de eerste regel toe"
+            },
+            {
+              "vaardigheid_type": "Motorische vaardigheden",
+              "waarde": "Werkt ordelijk"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Kennis van de eerste regel"
+            },
+            {
+              "kennis_type": "Basiskennis",
+              "waarde": "Basiskennis van de tweede regel"
+            },
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Kennis van de derde regel"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 2,
+          "competentie_code": "bkc9999102",
+          "waarde": "Houdt de werkplek netjes",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Ruimt de werkplek op"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Kennis van orde en netheid"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "competentie_code": "bkc9999103",
+          "waarde": "Overlegt met collega’s",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Sociale vaardigheden",
+              "waarde": "Luistert naar collega’s"
+            }
+          ],
+          "kennis": []
+        }
+      ],
+      "links": {
+        "self": {
+          "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-9999-1"
+        },
+        "website": {
+          "href": "https://app.akov.be/pls/pakov/r/kwdb/vlaamse_kwalificatiestructuur/beroepskwalificatie?p1020_bk_nummer=BK-9999-1&clear=1020"
+        }
+      }
+    },
+    "totalItems": 1
+  },
+  "BK-9999-2": {
+    "beroepskwalificatie": {
+      "versie_nr_lang": "BK-9999-2",
+      "versie_nr_kort": 2,
+      "titel": "Nagebootste beroepskwalificatie",
+      "status": "erkend",
+      "statuscode": "ERKEND",
+      "vks_niveau": 2,
+      "nieuwste_versie": true,
+      "definitie": "Een nagebootste beroepskwalificatie voor de tests van Boosterz, geen officiële gegevens.",
+      "competenties": [
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 1,
+          "competentie_code": "bkc9999101",
+          "waarde": "Werkt veilig met het materiaal",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Past de eerste regel toe"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Kennis van de eerste regel"
+            }
+          ]
+        },
+        {
+          "competentie_type": "Vakspecifieke competentie",
+          "nr": 2,
+          "competentie_code": "bkc9999201",
+          "waarde": "Plant het eigen werk",
+          "vaardigheden": [
+            {
+              "vaardigheid_type": "Cognitieve vaardigheden",
+              "waarde": "Maakt een planning"
+            }
+          ],
+          "kennis": [
+            {
+              "kennis_type": "Kennis",
+              "waarde": "Kennis van planning"
+            }
+          ]
+        }
+      ],
+      "links": {
+        "self": {
+          "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-9999-2"
+        },
+        "website": {
+          "href": "https://app.akov.be/pls/pakov/r/kwdb/vlaamse_kwalificatiestructuur/beroepskwalificatie?p1020_bk_nummer=BK-9999-2&clear=1020"
+        }
+      }
+    },
+    "totalItems": 1
+  },
+  "BK-9999-3": {
+    "status": 404
+  }
+}

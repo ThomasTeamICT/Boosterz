@@ -1,0 +1,203 @@
+[
+  {
+    "gegevens": [
+      {
+        "beroepskwalificatie_nr": "BK-0390",
+        "laatst_erkende_versie": {
+          "versie_nr_kort": 2,
+          "versie_nr_lang": "BK-0390-2",
+          "titel": "Onthaalmedewerker",
+          "erkenningsdatum": "2020-02-28",
+          "links": {
+            "self": {
+              "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0390-2"
+            }
+          }
+        },
+        "versies": [
+          {
+            "versie_nr_kort": 1,
+            "versie_nr_lang": "BK-0390-1",
+            "titel": "Onthaalmedewerker",
+            "status": "erkend",
+            "statuscode": "ERKEND",
+            "nieuwste_versie": false,
+            "links": {
+              "self": {
+                "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0390-1"
+              },
+              "website": {
+                "href": "https://app.akov.be/pls/pakov/r/kwdb/vlaamse_kwalificatiestructuur/beroepskwalificatie?p1020_bk_nummer=BK-0390-1&clear=1020"
+              }
+            }
+          },
+          {
+            "versie_nr_kort": 2,
+            "versie_nr_lang": "BK-0390-2",
+            "titel": "Onthaalmedewerker",
+            "status": "erkend",
+            "statuscode": "ERKEND",
+            "nieuwste_versie": true,
+            "links": {
+              "self": {
+                "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0390-2"
+              },
+              "website": {
+                "href": "https://app.akov.be/pls/pakov/r/kwdb/vlaamse_kwalificatiestructuur/beroepskwalificatie?p1020_bk_nummer=BK-0390-2&clear=1020"
+              }
+            }
+          }
+        ],
+        "geschrapt": false,
+        "synoniemen": []
+      },
+      {
+        "beroepskwalificatie_nr": "BK-0464",
+        "laatst_erkende_versie": {
+          "versie_nr_kort": 1,
+          "versie_nr_lang": "BK-0464-1",
+          "titel": "Recreatief medewerker",
+          "erkenningsdatum": "2020-01-24",
+          "links": {
+            "self": {
+              "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0464-1"
+            }
+          }
+        },
+        "versies": [
+          {
+            "versie_nr_kort": 1,
+            "versie_nr_lang": "BK-0464-1",
+            "titel": "Recreatief medewerker",
+            "status": "erkend",
+            "statuscode": "ERKEND",
+            "nieuwste_versie": true,
+            "links": {
+              "self": {
+                "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0464-1"
+              },
+              "website": {
+                "href": "https://app.akov.be/pls/pakov/r/kwdb/vlaamse_kwalificatiestructuur/beroepskwalificatie?p1020_bk_nummer=BK-0464-1&clear=1020"
+              }
+            }
+          }
+        ],
+        "geschrapt": false,
+        "synoniemen": []
+      }
+    ],
+    "meta": {
+      "total_elements": 3,
+      "total_pages": 2,
+      "number": 0,
+      "number_of_elements": 2,
+      "size": 2,
+      "first": true,
+      "last": false
+    },
+    "links": {
+      "self": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie"
+      },
+      "first": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie?page=0"
+      },
+      "last": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie?page=1"
+      },
+      "next": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie?page=1"
+      }
+    }
+  },
+  {
+    "gegevens": [
+      {
+        "beroepskwalificatie_nr": "BK-9999",
+        "laatst_erkende_versie": {
+          "versie_nr_kort": 2,
+          "versie_nr_lang": "BK-9999-2",
+          "titel": "Nagebootste beroepskwalificatie",
+          "erkenningsdatum": "2026-06-30",
+          "links": {
+            "self": {
+              "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-9999-2"
+            }
+          }
+        },
+        "versies": [
+          {
+            "versie_nr_kort": 1,
+            "versie_nr_lang": "BK-9999-1",
+            "titel": "Nagebootste beroepskwalificatie",
+            "status": "erkend",
+            "statuscode": "ERKEND",
+            "nieuwste_versie": false,
+            "links": {
+              "self": {
+                "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-9999-1"
+              },
+              "website": {
+                "href": "https://app.akov.be/pls/pakov/r/kwdb/vlaamse_kwalificatiestructuur/beroepskwalificatie?p1020_bk_nummer=BK-9999-1&clear=1020"
+              }
+            }
+          },
+          {
+            "versie_nr_kort": 2,
+            "versie_nr_lang": "BK-9999-2",
+            "titel": "Nagebootste beroepskwalificatie",
+            "status": "erkend",
+            "statuscode": "ERKEND",
+            "nieuwste_versie": false,
+            "links": {
+              "self": {
+                "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-9999-2"
+              },
+              "website": {
+                "href": "https://app.akov.be/pls/pakov/r/kwdb/vlaamse_kwalificatiestructuur/beroepskwalificatie?p1020_bk_nummer=BK-9999-2&clear=1020"
+              }
+            }
+          },
+          {
+            "versie_nr_kort": 3,
+            "versie_nr_lang": "BK-9999-3",
+            "titel": "Nagebootste beroepskwalificatie",
+            "status": "erkend",
+            "statuscode": "ERKEND",
+            "nieuwste_versie": true,
+            "links": {
+              "self": {
+                "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-9999-3"
+              },
+              "website": {
+                "href": "https://app.akov.be/pls/pakov/r/kwdb/vlaamse_kwalificatiestructuur/beroepskwalificatie?p1020_bk_nummer=BK-9999-3&clear=1020"
+              }
+            }
+          }
+        ],
+        "geschrapt": false,
+        "synoniemen": []
+      }
+    ],
+    "meta": {
+      "total_elements": 3,
+      "total_pages": 2,
+      "number": 1,
+      "number_of_elements": 1,
+      "size": 2,
+      "first": false,
+      "last": true
+    },
+    "links": {
+      "self": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie?page=1"
+      },
+      "first": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie?page=0"
+      },
+      "last": {
+        "href": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie?page=1"
+      }
+    }
+  }
+]

@@ -1,0 +1,737 @@
+{
+  "8": {
+    "structuuronderdeel_nummer": 8,
+    "titel": "Assistent dierlijke productie duaal",
+    "structuuronderdeel_groep": {
+      "structuuronderdeel_groep_nummer": "G-0008",
+      "titel": "Assistent dierlijke productie",
+      "finaliteit": {
+        "code": "A",
+        "omschrijving": "Arbeidsmarktfinaliteit"
+      },
+      "graad": {
+        "code": "2",
+        "omschrijving": "Tweede graad"
+      },
+      "onderwijsniveau": {
+        "code": "3",
+        "omschrijving": "Secundair Onderwijs"
+      },
+      "soort_leerjaar": {
+        "code": "1",
+        "omschrijving": "Leerjaar"
+      }
+    },
+    "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/8",
+    "begindatum": "2021-09-01",
+    "duaal": true,
+    "structuuronderdeel_details": [
+      {
+        "structuuronderdeel_detail_nummer": "ADV-0917",
+        "structuuronderdeel_detail_versie": "S-8-V1",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2021-09-01",
+        "einddatum": "2024-08-31",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-0917/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        },
+        "beroepskwalificaties": [
+          {
+            "beroepskwalificatie_nr": "BK-0390",
+            "versie_nr_kort": 1,
+            "versie_nr_lang": "BK-0390-1",
+            "titel": "Onthaalmedewerker",
+            "api_url": "https://onderwijs.api.vlaanderen.be/beroepskwalificatie/v1/BK-0390-1",
+            "volledigheid": "Volledig"
+          }
+        ],
+        "studiebekrachtigingen": []
+      },
+      {
+        "structuuronderdeel_detail_nummer": "ADV-1612",
+        "structuuronderdeel_detail_versie": "S-8-V2",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2023-09-01",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-1612/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        },
+        "led_onderwerp": {
+          "code": "812001",
+          "led_onderwerp_nummer": "LED-0267",
+          "omschrijving": "Toerisme algemeen"
+        },
+        "beroepskwalificaties": [
+          {
+            "beroepskwalificatie_nr": "BK-0464",
+            "versie_nr_kort": 1,
+            "versie_nr_lang": "BK-0464-1",
+            "titel": "Recreatief medewerker",
+            "api_url": "https://onderwijs.api.vlaanderen.be/beroepskwalificatie/v1/BK-0464-1",
+            "volledigheid": "Volledig"
+          },
+          {
+            "beroepskwalificatie_nr": "BK-0390",
+            "versie_nr_kort": 2,
+            "versie_nr_lang": "BK-0390-2",
+            "titel": "Onthaalmedewerker",
+            "api_url": "https://onderwijs.api.vlaanderen.be/beroepskwalificatie/v1/BK-0390-2",
+            "volledigheid": "Volledig"
+          }
+        ],
+        "leerjaren": [
+          {
+            "code": "1",
+            "omschrijving": "Eerste leerjaar",
+            "begindatum": "2023-09-01"
+          }
+        ],
+        "studiebekrachtigingen": [
+          {
+            "naam": "Diploma van secundair onderwijs, onderwijskwalificatie niveau 3",
+            "uitgebreide_naam": "Diploma van secundair onderwijs, onderwijskwalificatie niveau 3 Assistent dierlijke productie",
+            "led_bewijstype": "Diploma, onderwijskwalificatie niveau 3",
+            "vks_niveau": "OK3",
+            "onderwijskwalificatie": true,
+            "categorie": "Diploma",
+            "maximale_studiebekrachtiging": true
+          },
+          {
+            "naam": "Bewijs van slagen voor de basisvorming",
+            "uitgebreide_naam": "Bewijs van slagen voor de basisvorming Assistent dierlijke productie",
+            "led_bewijstype": "Bewijs van slagen voor de basisvorming",
+            "onderwijskwalificatie": false,
+            "categorie": "Bewijs",
+            "maximale_studiebekrachtiging": false
+          },
+          {
+            "naam": "Bewijs van beroepskwalificatie",
+            "uitgebreide_naam": "Bewijs van beroepskwalificatie Recreatief medewerker (BK-0464-1)",
+            "led_bewijstype": "Bewijs van beroepskwalificatie",
+            "onderwijskwalificatie": false,
+            "categorie": "Bewijs",
+            "maximale_studiebekrachtiging": false,
+            "beroepskwalificatie": {
+              "beroepskwalificatie_nr": "BK-0464",
+              "versie_nr_kort": 1,
+              "versie_nr_lang": "BK-0464-1",
+              "titel": "Recreatief medewerker",
+              "api_url": "https://onderwijs.api.vlaanderen.be/beroepskwalificatie/v1/BK-0464-1"
+            }
+          },
+          {
+            "naam": "Bewijs van beroepskwalificatie",
+            "uitgebreide_naam": "Bewijs van beroepskwalificatie Onthaalmedewerker (BK-0390-2)",
+            "led_bewijstype": "Bewijs van beroepskwalificatie",
+            "onderwijskwalificatie": false,
+            "categorie": "Bewijs",
+            "maximale_studiebekrachtiging": false,
+            "beroepskwalificatie": {
+              "beroepskwalificatie_nr": "BK-0390",
+              "versie_nr_kort": 2,
+              "versie_nr_lang": "BK-0390-2",
+              "titel": "Onthaalmedewerker",
+              "api_url": "https://onderwijs.api.vlaanderen.be/beroepskwalificatie/v1/BK-0390-2"
+            }
+          },
+          {
+            "naam": "Bewijs van deelkwalificatie",
+            "uitgebreide_naam": "Bewijs van deelkwalificatie Onthaal (BK-0390-2-DBK-01)",
+            "onderwijskwalificatie": false,
+            "categorie": "Bewijs",
+            "maximale_studiebekrachtiging": false,
+            "deelkwalificatie": {
+              "deelkwalificatie_nr_kort": "DBK-01",
+              "deelkwalificatie_nr_lang": "BK-0390-2-DBK-01",
+              "titel": "Onthaal"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "9": {
+    "structuuronderdeel_nummer": 9,
+    "titel": "Assistent plantaardige productie",
+    "structuuronderdeel_groep": {
+      "structuuronderdeel_groep_nummer": "G-0009",
+      "titel": "Assistent plantaardige productie",
+      "finaliteit": {
+        "code": "A",
+        "omschrijving": "Arbeidsmarktfinaliteit"
+      },
+      "onderwijsniveau": {
+        "code": "3",
+        "omschrijving": "Secundair Onderwijs"
+      },
+      "soort_leerjaar": {
+        "code": "1",
+        "omschrijving": "Leerjaar"
+      },
+      "opleidingsvorm": {
+        "omschrijving": "Beroepsonderwijs"
+      }
+    },
+    "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/9",
+    "begindatum": "2025-09-01",
+    "duaal": false,
+    "structuuronderdeel_details": [
+      {
+        "structuuronderdeel_detail_nummer": "ADV-1100",
+        "structuuronderdeel_detail_versie": "S-9-V1",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2025-09-01",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-1100/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        }
+      }
+    ]
+  },
+  "10": {
+    "structuuronderdeel_nummer": 10,
+    "titel": "Assistent plantaardige productie",
+    "structuuronderdeel_groep": {
+      "structuuronderdeel_groep_nummer": "G-0009",
+      "titel": "Assistent plantaardige productie",
+      "finaliteit": {
+        "code": "A",
+        "omschrijving": "Arbeidsmarktfinaliteit"
+      },
+      "onderwijsniveau": {
+        "code": "3",
+        "omschrijving": "Secundair Onderwijs"
+      },
+      "soort_leerjaar": {
+        "code": "1",
+        "omschrijving": "Leerjaar"
+      },
+      "opleidingsvorm": {
+        "omschrijving": "Beroepsonderwijs"
+      }
+    },
+    "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/10",
+    "begindatum": "2023-09-01",
+    "duaal": false,
+    "structuuronderdeel_details": [
+      {
+        "structuuronderdeel_detail_nummer": "ADV-1062",
+        "structuuronderdeel_detail_versie": "S-10-V1",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2023-09-01",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-1062/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        },
+        "beroepskwalificaties": [
+          {
+            "beroepskwalificatie_nr": "BK-9999",
+            "versie_nr_kort": 1,
+            "versie_nr_lang": "BK-9999-1",
+            "titel": "Nagebootste beroepskwalificatie",
+            "api_url": "https://onderwijs.api.vlaanderen.be/beroepskwalificatie/v1/BK-9999-1",
+            "volledigheid": "Volledig"
+          }
+        ]
+      },
+      {
+        "structuuronderdeel_detail_nummer": "ADV-1999",
+        "structuuronderdeel_detail_versie": "S-10-V2",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2027-09-01",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-1999/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        },
+        "beroepskwalificaties": [
+          {
+            "beroepskwalificatie_nr": "BK-9999",
+            "versie_nr_kort": 2,
+            "versie_nr_lang": "BK-9999-2",
+            "titel": "Nagebootste beroepskwalificatie",
+            "api_url": "https://onderwijs.api.vlaanderen.be/beroepskwalificatie/v1/BK-9999-2",
+            "volledigheid": "Volledig"
+          }
+        ]
+      }
+    ]
+  },
+  "11": {
+    "structuuronderdeel_nummer": 11,
+    "titel": "Assistent plantaardige productie duaal",
+    "structuuronderdeel_groep": {
+      "structuuronderdeel_groep_nummer": "G-0009",
+      "titel": "Assistent plantaardige productie",
+      "finaliteit": {
+        "code": "A",
+        "omschrijving": "Arbeidsmarktfinaliteit"
+      },
+      "onderwijsniveau": {
+        "code": "3",
+        "omschrijving": "Secundair Onderwijs"
+      },
+      "soort_leerjaar": {
+        "code": "1",
+        "omschrijving": "Leerjaar"
+      },
+      "opleidingsvorm": {
+        "omschrijving": "Beroepsonderwijs"
+      }
+    },
+    "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/11",
+    "begindatum": "2019-09-01",
+    "duaal": true,
+    "einddatum": "2025-08-31",
+    "structuuronderdeel_details": [
+      {
+        "structuuronderdeel_detail_nummer": "ADV-1194",
+        "structuuronderdeel_detail_versie": "S-11-V1",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2019-09-01",
+        "einddatum": "2025-08-31",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-1194/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        },
+        "beroepskwalificaties": [
+          {
+            "beroepskwalificatie_nr": "BK-9999",
+            "versie_nr_kort": 1,
+            "versie_nr_lang": "BK-9999-1",
+            "titel": "Nagebootste beroepskwalificatie",
+            "api_url": "https://onderwijs.api.vlaanderen.be/beroepskwalificatie/v1/BK-9999-1",
+            "volledigheid": "Volledig"
+          }
+        ]
+      }
+    ]
+  },
+  "12": {
+    "structuuronderdeel_nummer": 12,
+    "titel": "Assistent plantaardige productie duaal",
+    "structuuronderdeel_groep": {
+      "structuuronderdeel_groep_nummer": "G-0009",
+      "titel": "Assistent plantaardige productie",
+      "finaliteit": {
+        "code": "A",
+        "omschrijving": "Arbeidsmarktfinaliteit"
+      },
+      "onderwijsniveau": {
+        "code": "3",
+        "omschrijving": "Secundair Onderwijs"
+      },
+      "soort_leerjaar": {
+        "code": "1",
+        "omschrijving": "Leerjaar"
+      },
+      "opleidingsvorm": {
+        "omschrijving": "Beroepsonderwijs"
+      }
+    },
+    "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/12",
+    "begindatum": "2019-09-01",
+    "duaal": true,
+    "structuuronderdeel_details": [
+      {
+        "structuuronderdeel_detail_nummer": "ADV-1224",
+        "structuuronderdeel_detail_versie": "S-12-V1",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2019-09-01",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-1224/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        },
+        "beroepskwalificaties": [
+          {
+            "beroepskwalificatie_nr": "BK-9999",
+            "versie_nr_kort": 3,
+            "versie_nr_lang": "BK-9999-3",
+            "titel": "Nagebootste beroepskwalificatie zonder detail",
+            "api_url": "https://onderwijs.api.vlaanderen.be/beroepskwalificatie/v1/BK-9999-3",
+            "volledigheid": "Volledig"
+          }
+        ]
+      }
+    ]
+  },
+  "129": {
+    "structuuronderdeel_nummer": 129,
+    "titel": "Humane wetenschappen",
+    "structuuronderdeel_groep": {
+      "structuuronderdeel_groep_nummer": "G-0117",
+      "titel": "Humane wetenschappen",
+      "finaliteit": {
+        "code": "DO",
+        "omschrijving": "Doorstroomfinaliteit"
+      },
+      "graad": {
+        "code": "2",
+        "omschrijving": "Tweede graad"
+      },
+      "onderwijsniveau": {
+        "code": "3",
+        "omschrijving": "Secundair Onderwijs"
+      },
+      "soort_leerjaar": {
+        "code": "1",
+        "omschrijving": "Leerjaar"
+      }
+    },
+    "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/129",
+    "begindatum": "2021-09-01",
+    "structuuronderdeel_details": [
+      {
+        "structuuronderdeel_detail_nummer": "ADV-0671",
+        "structuuronderdeel_detail_versie": "S-129-V1",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2021-09-01",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-0671/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        }
+      }
+    ]
+  },
+  "247": {
+    "structuuronderdeel_nummer": 247,
+    "titel": "Natuurwetenschappen",
+    "structuuronderdeel_groep": {
+      "structuuronderdeel_groep_nummer": "G-0193",
+      "titel": "Natuurwetenschappen",
+      "finaliteit": {
+        "code": "DO",
+        "omschrijving": "Doorstroomfinaliteit"
+      },
+      "graad": {
+        "code": "2",
+        "omschrijving": "Tweede graad"
+      },
+      "onderwijsniveau": {
+        "code": "3",
+        "omschrijving": "Secundair Onderwijs"
+      },
+      "soort_leerjaar": {
+        "code": "1",
+        "omschrijving": "Leerjaar"
+      }
+    },
+    "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/247",
+    "begindatum": "2021-09-01",
+    "structuuronderdeel_details": [
+      {
+        "structuuronderdeel_detail_nummer": "ADV-0674",
+        "structuuronderdeel_detail_versie": "S-247-V1",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2021-09-01",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-0674/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        },
+        "beroepskwalificaties": []
+      }
+    ]
+  },
+  "379": {
+    "structuuronderdeel_nummer": 379,
+    "titel": "Eerste leerjaar A",
+    "structuuronderdeel_groep": {
+      "structuuronderdeel_groep_nummer": "G-0307",
+      "titel": "Eerste leerjaar A",
+      "graad": {
+        "code": "1",
+        "omschrijving": "Eerste graad"
+      },
+      "onderwijsniveau": {
+        "code": "3",
+        "omschrijving": "Secundair Onderwijs"
+      },
+      "soort_leerjaar": {
+        "code": "1",
+        "omschrijving": "Leerjaar"
+      }
+    },
+    "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/379",
+    "begindatum": "2019-09-01",
+    "structuuronderdeel_details": [
+      {
+        "structuuronderdeel_detail_nummer": "ADV-1578",
+        "structuuronderdeel_detail_versie": "S-379-V1",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2019-09-01",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-1578/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        }
+      }
+    ]
+  },
+  "417": {
+    "structuuronderdeel_nummer": 417,
+    "titel": "Humane wetenschappen",
+    "structuuronderdeel_groep": {
+      "structuuronderdeel_groep_nummer": "G-0327",
+      "titel": "Humane wetenschappen",
+      "finaliteit": {
+        "code": "DO",
+        "omschrijving": "Doorstroomfinaliteit"
+      },
+      "graad": {
+        "code": "3",
+        "omschrijving": "Derde graad"
+      },
+      "onderwijsniveau": {
+        "code": "3",
+        "omschrijving": "Secundair Onderwijs"
+      },
+      "soort_leerjaar": {
+        "code": "1",
+        "omschrijving": "Leerjaar"
+      }
+    },
+    "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/417",
+    "begindatum": "2023-09-01",
+    "structuuronderdeel_details": [
+      {
+        "structuuronderdeel_detail_nummer": "ADV-0756",
+        "structuuronderdeel_detail_versie": "S-417-V1",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2023-09-01",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-0756/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        }
+      }
+    ]
+  },
+  "565": {
+    "structuuronderdeel_nummer": 565,
+    "titel": "Aanloop assistent dierlijke productie duaal",
+    "structuuronderdeel_groep": {
+      "structuuronderdeel_groep_nummer": "G-0008",
+      "titel": "Assistent dierlijke productie",
+      "finaliteit": {
+        "code": "A",
+        "omschrijving": "Arbeidsmarktfinaliteit"
+      },
+      "graad": {
+        "code": "2",
+        "omschrijving": "Tweede graad"
+      },
+      "onderwijsniveau": {
+        "code": "3",
+        "omschrijving": "Secundair Onderwijs"
+      },
+      "soort_leerjaar": {
+        "code": "1",
+        "omschrijving": "Leerjaar"
+      }
+    },
+    "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/565",
+    "begindatum": "2021-09-01",
+    "duaal": true,
+    "aanloop": true,
+    "structuuronderdeel_details": [
+      {
+        "structuuronderdeel_detail_nummer": "ADV-0960",
+        "structuuronderdeel_detail_versie": "S-565-V1",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-0960/curriculumdossier",
+        "beroepskwalificaties": []
+      },
+      {
+        "structuuronderdeel_detail_nummer": "ADV-1609",
+        "structuuronderdeel_detail_versie": "S-565-V2",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2023-09-01",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-1609/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        },
+        "beroepskwalificaties": [
+          {
+            "beroepskwalificatie_nr": "BK-0464",
+            "versie_nr_kort": 1,
+            "versie_nr_lang": "BK-0464-1",
+            "titel": "Recreatief medewerker",
+            "api_url": "https://onderwijs.api.vlaanderen.be/beroepskwalificatie/v1/BK-0464-1",
+            "volledigheid": "Volledig"
+          }
+        ],
+        "studiebekrachtigingen": [
+          {
+            "naam": "Bewijs van beroepskwalificatie",
+            "uitgebreide_naam": "Bewijs van beroepskwalificatie Recreatief medewerker (BK-0464-1)",
+            "led_bewijstype": "Bewijs van beroepskwalificatie",
+            "onderwijskwalificatie": false,
+            "categorie": "Bewijs",
+            "maximale_studiebekrachtiging": false,
+            "beroepskwalificatie": {
+              "beroepskwalificatie_nr": "BK-0464",
+              "versie_nr_kort": 1,
+              "versie_nr_lang": "BK-0464-1",
+              "titel": "Recreatief medewerker",
+              "api_url": "https://onderwijs.api.vlaanderen.be/beroepskwalificatie/v1/BK-0464-1"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "679": {
+    "structuuronderdeel_nummer": 679,
+    "titel": "Animator",
+    "structuuronderdeel_groep": {
+      "structuuronderdeel_groep_nummer": "G-0429",
+      "titel": "Animator",
+      "graad": {
+        "code": "3",
+        "omschrijving": "Derde graad"
+      },
+      "onderwijsniveau": {
+        "code": "3",
+        "omschrijving": "Secundair Onderwijs"
+      },
+      "soort_leerjaar": {
+        "code": "1",
+        "omschrijving": "Leerjaar"
+      }
+    },
+    "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/679",
+    "begindatum": "2025-09-01",
+    "structuuronderdeel_details": [
+      {
+        "structuuronderdeel_detail_nummer": "ADV-1351",
+        "structuuronderdeel_detail_versie": "S-679-V1",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2025-09-01",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-1351/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        }
+      }
+    ]
+  },
+  "680": {
+    "structuuronderdeel_nummer": 680,
+    "titel": "Animator duaal",
+    "structuuronderdeel_groep": {
+      "structuuronderdeel_groep_nummer": "G-0429",
+      "titel": "Animator",
+      "graad": {
+        "code": "3",
+        "omschrijving": "Derde graad"
+      },
+      "onderwijsniveau": {
+        "code": "3",
+        "omschrijving": "Secundair Onderwijs"
+      },
+      "soort_leerjaar": {
+        "code": "1",
+        "omschrijving": "Leerjaar"
+      }
+    },
+    "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/680",
+    "begindatum": "2025-09-01",
+    "duaal": true,
+    "structuuronderdeel_details": [
+      {
+        "structuuronderdeel_detail_nummer": "ADV-1352",
+        "structuuronderdeel_detail_versie": "S-680-V1",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2025-09-01",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-1352/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        }
+      }
+    ]
+  },
+  "908": {
+    "structuuronderdeel_nummer": 908,
+    "titel": "Tweede leerjaar A: Moderne talen en wetenschappen",
+    "structuuronderdeel_groep": {
+      "structuuronderdeel_groep_nummer": "G-0311",
+      "titel": "Tweede leerjaar A",
+      "graad": {
+        "code": "1",
+        "omschrijving": "Eerste graad"
+      },
+      "onderwijsniveau": {
+        "code": "3",
+        "omschrijving": "Secundair Onderwijs"
+      },
+      "soort_leerjaar": {
+        "code": "1",
+        "omschrijving": "Leerjaar"
+      }
+    },
+    "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/908",
+    "begindatum": "2020-09-01",
+    "structuuronderdeel_details": [
+      {
+        "structuuronderdeel_detail_nummer": "ADV-1583",
+        "structuuronderdeel_detail_versie": "S-908-V1",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2020-09-01",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-1583/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        }
+      }
+    ]
+  },
+  "915": {
+    "structuuronderdeel_nummer": 915,
+    "titel": "Tweede leerjaar A: Stem-wetenschappen",
+    "structuuronderdeel_groep": {
+      "structuuronderdeel_groep_nummer": "G-0311",
+      "titel": "Tweede leerjaar A",
+      "graad": {
+        "code": "1",
+        "omschrijving": "Eerste graad"
+      },
+      "onderwijsniveau": {
+        "code": "3",
+        "omschrijving": "Secundair Onderwijs"
+      },
+      "soort_leerjaar": {
+        "code": "1",
+        "omschrijving": "Leerjaar"
+      }
+    },
+    "api_url": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/915",
+    "begindatum": "2020-09-01",
+    "structuuronderdeel_details": [
+      {
+        "structuuronderdeel_detail_nummer": "ADV-1587",
+        "structuuronderdeel_detail_versie": "S-915-V1",
+        "omschrijving": "<p style=\"margin-left:0px;\">Nagebootste omschrijving.</p>",
+        "begindatum": "2020-09-01",
+        "curriculumdossier": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel_detail/ADV-1587/curriculumdossier",
+        "status": {
+          "code": "ERKEND",
+          "omschrijving": "Erkend"
+        }
+      }
+    ]
+  },
+  "931": {
+    "status": 404
+  },
+  "nagebootst": "geen officiële koppeling: nagebootste antwoorden voor de tests van Boosterz, in de vorm van ronde 6 en 7 (tests/fixtures/kwalificaties/api/ruw/)"
+}

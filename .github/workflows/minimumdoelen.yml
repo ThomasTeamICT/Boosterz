@@ -4,9 +4,12 @@ name: Leerplangegevens bijwerken
 #   1. de minimumdoelen (Onderwijsdoelen-API)                    → public/leerplannen/minimumdoelen/
 #   2. de matrix van de studierichtingen (API Structuuronderdelen) → public/leerplannen/structuur/
 #   3. de koppeling richting → doelen (Onderwijsdoelen-API)        → public/leerplannen/structuur/richtingdoelen/
+#   4. de beroepskwalificaties per richting (API Structuuronderdelen en API Beroepskwalificaties)
+#                                                                  → public/leerplannen/kwalificaties/
 # Daarna draait de volledige testsuite (npx vitest run) en opent de taak een pull request als er iets veranderd
 # is. Een mens keurt het verschil goed; niets gaat automatisch live. Ontwerp: docs/LEERPLANNEN.md § 5 en
-# docs/STUDIERICHTINGEN.md § 6. De bestandsnaam blijft minimumdoelen.yml, zodat de geschiedenis en de cron blijven.
+# docs/STUDIERICHTINGEN.md § 6 en § 23.5.9. De bestandsnaam blijft minimumdoelen.yml, zodat de geschiedenis en de
+# cron blijven.
 #
 # De API-sleutel staat als geheim ONDERWIJSDOELEN_API_KEY (Settings → Secrets and variables →
 # Actions). Hij gaat enkel via de omgeving naar de scripts en komt nooit in een log of in een rapport.
@@ -21,8 +24,12 @@ name: Leerplangegevens bijwerken
 # Bij een geplande run is de invoer leeg: dan loopt alles. Met de hand kan het ook kleiner:
 #   - onderdelen = minimumdoelen      enkel de minimumdoelen (noodinvoer als de koppeling stuk blijft)
 #   - onderdelen = studierichtingen   enkel de matrix en de koppeling (de minimumdoelen in de repository blijven)
+#   - onderdelen = beroepskwalificaties  enkel de beroepskwalificaties (met de matrix uit de repository)
+#   - onderdelen = zonder-beroepskwalificaties  minimumdoelen en studierichtingen, zonder de beroepskwalificaties
+#                                     (noodinvoer als de stap van de beroepskwalificaties stuk blijft)
 #   - groepen = geen                  proefrun met enkel de matrix, zonder doelen te koppelen
 #   - groepen = G-0117,G-0327         proefrun: enkel deze groepen koppelen (hoogstens 50)
+#   - bk_onderdelen = 504,1           proefrun: enkel deze structuuronderdelen voor de beroepskwalificaties (hoogstens 50)
 # Een proefrun opent ook een pull request, met de waarschuwing dat je ze niet moet samenvoegen.
 
 on:
@@ -33,16 +40,22 @@ on:
         required: false
         type: string
       onderdelen:
-        description: 'Wat er opgehaald wordt: alles, enkel de minimumdoelen, of enkel de studierichtingen met de koppeling'
+        description: 'Wat er opgehaald wordt: alles, enkel de minimumdoelen, enkel de studierichtingen met de koppeling, enkel de beroepskwalificaties of alles zonder de beroepskwalificaties'
         required: false
         type: choice
         options:
           - alles
           - minimumdoelen
           - studierichtingen
+          - beroepskwalificaties
+          - zonder-beroepskwalificaties
         default: alles
       groepen:
         description: 'Proefrun voor de studierichtingen (leeg = alle groepen; geen = enkel de matrix; anders een lijst zoals G-0117,G-0327, hoogstens 50)'
+        required: false
+        type: string
+      bk_onderdelen:
+        description: 'Proefrun voor de beroepskwalificaties: structuuronderdeelnummers zoals 504,1 (leeg = alle geldige onderdelen; hoogstens 50)'
         required: false
         type: string
   schedule:
@@ -59,7 +72,7 @@ concurrency:
 jobs:
   bijwerken:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -67,12 +80,13 @@ jobs:
           node-version: 22
           cache: npm
 
-      # De volgorde doet ertoe: de twee stappen met het geheim draaien vóór de installatie van de npm-pakketten.
-      # De scripts hebben geen afhankelijkheden, en zo kan geen installscript van een pakket (dat met de
-      # rechten van deze taak draait) de bestanden aanpassen die in de stappen met het geheim lopen of
-      # de inloggegevens van de checkout lezen. Het geheim staat enkel in de omgeving van deze twee stappen.
+      # De volgorde doet ertoe: de drie stappen met het geheim draaien vóór de installatie van de npm-pakketten.
+      # De scripts hebben geen afhankelijkheden (enkel ingebouwde Node-modules), en zo kan geen installscript van
+      # een pakket (dat met de rechten van deze taak draait) de bestanden aanpassen die in de stappen met het
+      # geheim lopen of de inloggegevens van de checkout lezen. Het geheim staat enkel in de omgeving van deze
+      # drie stappen. De workflow stelt geen enkel API-adres in: de scripts gebruiken hun vaste adres.
       - name: Minimumdoelen ophalen
-        if: ${{ inputs.onderdelen != 'studierichtingen' }}
+        if: ${{ inputs.onderdelen == '' || inputs.onderdelen == 'alles' || inputs.onderdelen == 'minimumdoelen' || inputs.onderdelen == 'zonder-beroepskwalificaties' }}
         env:
           ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
           # De filter gaat via de omgeving, nooit rechtstreeks in de opdrachtregel (script-injectie).
@@ -86,10 +100,10 @@ jobs:
           node tools/leerplannen/haal-minimumdoelen.mjs ${args[@]+"${args[@]}"}
 
       # Deze stap leest de minimumdoelen die de vorige stap net schreef (of die al in de repository staan)
-      # voor de harde poorten van het script. Faalt één van de twee ophaalstappen, dan komt er geen
+      # voor de harde poorten van het script. Faalt één van de ophaalstappen, dan komt er geen
       # pull request en dus nooit een halve update.
       - name: Studierichtingen en koppeling ophalen
-        if: ${{ inputs.onderdelen != 'minimumdoelen' }}
+        if: ${{ inputs.onderdelen == '' || inputs.onderdelen == 'alles' || inputs.onderdelen == 'studierichtingen' || inputs.onderdelen == 'zonder-beroepskwalificaties' }}
         env:
           ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
           # Ook de groepen gaan via de omgeving en worden nagekeken vóór ze in de opdrachtregel komen.
@@ -108,6 +122,30 @@ jobs:
             args+=(--groepen "$GROEPEN")
           fi
           node tools/leerplannen/haal-studierichtingen.mjs ${args[@]+"${args[@]}"}
+
+      # Deze stap leest de matrix die de vorige stap net schreef (of die al in de repository staat) en schrijft
+      # enkel public/leerplannen/kwalificaties/ en het rapport. Het script gebruikt enkel ingebouwde Node-modules
+      # en de bronbestanden uit src/lib, dus het kan vóór de installatie van de npm-pakketten draaien. De
+      # noodinvoer 'zonder-beroepskwalificaties' slaat deze stap over (minimumdoelen en studierichtingen
+      # lopen dan zoals vóór de beroepskwalificaties).
+      - name: Beroepskwalificaties per richting ophalen
+        if: ${{ inputs.onderdelen == '' || inputs.onderdelen == 'alles' || inputs.onderdelen == 'beroepskwalificaties' }}
+        env:
+          ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
+          # De nummers van de proefrun gaan ook via de omgeving en worden nagekeken vóór ze in de opdrachtregel komen.
+          BK_ONDERDELEN: ${{ inputs.bk_onderdelen }}
+        run: |
+          set -euo pipefail
+          patroon='^([0-9]{1,6}(,[0-9]{1,6}){0,49})?$'
+          if ! [[ "${BK_ONDERDELEN:-}" =~ $patroon ]]; then
+            echo "::error::De invoer 'bk_onderdelen' is ongeldig. Laat ze leeg (alle geldige onderdelen) of geef een lijst zoals 504,1 (hoogstens 50 nummers van structuuronderdelen)."
+            exit 1
+          fi
+          args=()
+          if [ -n "${BK_ONDERDELEN:-}" ]; then
+            args+=(--onderdelen "$BK_ONDERDELEN")
+          fi
+          node tools/leerplannen/haal-beroepskwalificaties.mjs ${args[@]+"${args[@]}"}
 
       # --ignore-scripts: installscripts van pakketten zijn voor de controle niet nodig (vitest draait
       # met de esbuild-binary uit zijn eigen platformpakket) en krijgen zo geen kans om iets uit te voeren.
@@ -141,12 +179,23 @@ jobs:
           if-no-files-found: ignore
           retention-days: 90
 
+      - name: Rapport beroepskwalificaties bewaren
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: beroepskwalificaties-rapport
+          path: tools/leerplannen/rapport/laatste-beroepskwalificaties.json
+          if-no-files-found: ignore
+          retention-days: 90
+
       - name: Samenvatting
         if: always()
         continue-on-error: true
         env:
           ONDERDELEN: ${{ inputs.onderdelen }}
           GROEPEN: ${{ inputs.groepen }}
+          BK_ONDERDELEN: ${{ inputs.bk_onderdelen }}
         run: |
           set -euo pipefail
           node --input-type=module - <<'JS'
@@ -156,11 +205,18 @@ jobs:
           // Tekst uit de API of uit het rapport gaat altijd als codespan de samenvatting in: zonder
           // backticks, regeleinden en stuurtekens, en afgekapt op 120 tekens.
           const kort = (t) => '`' + String(t).replace(/[`|]/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').slice(0, 120) + '`';
-          // Het rapport van de studierichtingen komt van een ander script en kan onvolledig zijn. Een veld
-          // dat ontbreekt of een onverwachte vorm heeft, geeft "niet in het rapport" en nooit een fout.
+          // De rapporten komen van andere scripts en kunnen onvolledig zijn. Een veld dat ontbreekt of een
+          // onverwachte vorm heeft, geeft "niet in het rapport" en nooit een fout.
           const ONTBREEKT = 'niet in het rapport';
           const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
           const getal = (v) => (typeof v === 'number' && Number.isFinite(v) ? String(v) : ONTBREEKT);
+          // Een getal op zijn Vlaams: een punt voor de duizendtallen en een komma voor de decimalen (1.630 en 1.234,5).
+          const getalNl = (v) => {
+            if (typeof v !== 'number' || !Number.isFinite(v)) return ONTBREEKT;
+            const [heel, breuk] = String(v).split('.');
+            const metPunten = heel.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            return breuk === undefined ? metPunten : metPunten + ',' + breuk;
+          };
           const aantalIn = (a) => (Array.isArray(a) ? String(a.length) : ONTBREEKT);
           const tekst = (x) => {
             if (typeof x === 'string') return x;
@@ -173,43 +229,101 @@ jobs:
             }
             try { return JSON.stringify(x) ?? String(x); } catch { return String(x); }
           };
-          const leesRapport = (pad) => {
+          // Een element van een lijst uit het rapport van de beroepskwalificaties (en andere waarden daaruit). De vorm van die lijsten
+          // staat niet vast (docs/STUDIERICHTINGEN.md § 23.5.10): een tekst, een getal of een object. Bij een object komen alle velden
+          // in de tekst, in de volgorde van het rapport ("nummer 504: van BK-0390-2, naar BK-0390-3"), zodat er niets stil wegvalt
+          // wat het ophaalscript ook als vorm kiest. Een veld dat zelf een lijst of een object is, komt als lijst of als JSON.
+          const isEnkel = (v) => typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
+          const alsJson = (v) => { try { return JSON.stringify(v) ?? String(v); } catch { return String(v); } };
+          const enkel = (v) => (v === '' ? '""' : String(v));
+          const enkeleLijst = (v) => Array.isArray(v) && v.length > 0 && v.every(isEnkel);
+          const bkTekst = (x) => {
+            if (isEnkel(x)) return enkel(x);
+            if (enkeleLijst(x)) return x.map(enkel).join(', ');
+            if (x && typeof x === 'object' && !Array.isArray(x)) {
+              const delen = Object.entries(x).map(([sleutel, v]) => sleutel + ' ' + (isEnkel(v) ? enkel(v) : enkeleLijst(v) ? v.map(enkel).join(' / ') : alsJson(v)));
+              if (delen.length > 0) return delen[0] + (delen.length > 1 ? ': ' + delen.slice(1).join(', ') : '');
+            }
+            return alsJson(x);
+          };
+          const leesRapport = (pad, wat = 'de studierichtingen', stap = 'Studierichtingen en koppeling ophalen') => {
             if (!fs.existsSync(pad)) {
-              return { melding: 'Er is geen rapport van de studierichtingen: de stap is niet uitgevoerd of niet tot het einde gekomen. Zie het logboek van de stap "Studierichtingen en koppeling ophalen".' };
+              return { melding: 'Er is geen rapport van ' + wat + ': de stap is niet uitgevoerd of niet tot het einde gekomen. Zie het logboek van de stap "' + stap + '".' };
             }
             try {
               const r = JSON.parse(fs.readFileSync(pad, 'utf8'));
-              if (!r || typeof r !== 'object' || Array.isArray(r)) return { melding: 'Het rapport van de studierichtingen heeft een onverwachte vorm.' };
+              if (!r || typeof r !== 'object' || Array.isArray(r)) return { melding: 'Het rapport van ' + wat + ' heeft een onverwachte vorm.' };
               return { r };
             } catch {
-              return { melding: 'Het rapport van de studierichtingen is niet te lezen (geen geldige JSON).' };
+              return { melding: 'Het rapport van ' + wat + ' is niet te lezen (geen geldige JSON).' };
             }
           };
           const MAX_REGELS = 30;
-          const lijstRegels = (titel, a, toelichting, max = MAX_REGELS) => {
+          const lijstRegels = (titel, a, toelichting, max = MAX_REGELS, naarTekst = tekst) => {
             if (!Array.isArray(a)) return ['### ' + titel, '', 'Dit veld ontbreekt in het rapport of heeft een onverwachte vorm.', ''];
             if (a.length === 0) return [];
             return [
               '### ' + titel + ' (' + a.length + ')',
               '',
               ...(toelichting ? [toelichting, ''] : []),
-              ...a.slice(0, max).map((x) => '- ' + kort(tekst(x))),
+              ...a.slice(0, max).map((x) => '- ' + kort(naarTekst(x))),
               ...(a.length > max ? ['- … en ' + (a.length - max) + ' meer: zie het volledige rapport'] : []),
               '',
             ];
           };
+          // Hetzelfde voor een lijst uit het rapport van de beroepskwalificaties.
+          const bkLijstRegels = (titel, a, toelichting, max = MAX_REGELS) => lijstRegels(titel, a, toelichting, max, bkTekst);
           // De groepen zijn in de ophaalstap al nagekeken tegen dit patroon. Deze stap draait ook als dat
           // mislukte (always), dus keuren we ze hier nog eens: geldige invoer staat gewoon in de tekst, al het
           // andere gaat als codespan.
           const GROEPEN_GELDIG = /^(geen|G-[0-9]{4,6}(,G-[0-9]{4,6}){0,49})?$/;
           const proefregel = (groepen, vervolg) => '**Proefrun voor ' + (groepen === 'geen' ? 'enkel de matrix (geen groepen gekoppeld)' : GROEPEN_GELDIG.test(groepen) ? groepen : kort(groepen)) + ': niet samenvoegen.** ' + vervolg;
+          // Hetzelfde voor de proefrun van de beroepskwalificaties: de nummers zijn in de ophaalstap nagekeken tegen dit patroon.
+          const BK_ONDERDELEN_GELDIG = /^([0-9]{1,6}(,[0-9]{1,6}){0,49})?$/;
+          const bkProefregel = (nummers) => '**Proefrun** voor de onderdelen ' + (BK_ONDERDELEN_GELDIG.test(nummers) ? nummers.split(',').join(', ') : kort(nummers)) + ': niet samenvoegen.';
+          // Een lijst uit het rapport van de beroepskwalificaties op één regel: elk element als codespan, hoogstens `max`; "geen" als ze leeg is.
+          const opsomming = (a, max = 10) => {
+            if (!Array.isArray(a)) return ONTBREEKT;
+            if (a.length === 0) return 'geen';
+            return a.slice(0, max).map((x) => kort(bkTekst(x))).join(', ') + (a.length > max ? ' … en ' + (a.length - max) + ' meer: zie het volledige rapport' : '');
+          };
+          // Een aantal dat in het rapport een getal of een lijst kan zijn.
+          const opsommingOfAantal = (v) => {
+            if (Array.isArray(v)) return opsomming(v);
+            if (typeof v === 'number' && Number.isFinite(v)) return v === 0 ? 'geen' : getalNl(v) + ' (welke: zie het volledige rapport)';
+            return ONTBREEKT;
+          };
+          // Per soort, graad en finaliteit (sleutel zoals "gewoon|3|A") de onderdelen met en zonder beroepskwalificatie in de
+          // erkenning van nu. Geeft null als het veld geen bruikbare tellingen bevat.
+          const bkTelling = (o) => {
+            if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
+            const regels = [];
+            for (const [sleutel, v] of Object.entries(o)) {
+              const t = obj(v);
+              if (typeof t.metBk === 'number' && typeof t.zonderBk === 'number') regels.push({ sleutel, met: t.metBk, zonder: t.zonderBk });
+            }
+            if (regels.length === 0) return null;
+            return { met: regels.reduce((som, x) => som + x.met, 0), zonder: regels.reduce((som, x) => som + x.zonder, 0), regels };
+          };
+          const soortLabel = (sleutel) => {
+            const d = String(sleutel).split('|');
+            if (d.length !== 3) return String(sleutel);
+            const graad = d[1] === '1' ? '1ste graad' : d[1] === '2' || d[1] === '3' ? d[1] + 'de graad' : d[1];
+            return [d[0] === 'gewoon' ? '' : d[0], graad, d[2]].filter((t) => t !== '' && t !== '-').join(' ') || String(sleutel);
+          };
+          const MAX_SOORTEN = 12;
+          const soortenTekst = (t) => t.regels.slice(0, MAX_SOORTEN).map((x) => kort(soortLabel(x.sleutel) + ': ' + x.met + ' van ' + (x.met + x.zonder))).join(', ') + (t.regels.length > MAX_SOORTEN ? ', …' : '');
           // ── Einde van de gedeelde hulpfuncties ──
 
           const onderdelen = process.env.ONDERDELEN || 'alles';
           const groepen = process.env.GROEPEN || '';
-          const metMinimumdoelen = onderdelen !== 'studierichtingen';
-          const metStudierichtingen = onderdelen !== 'minimumdoelen';
+          const bkOnderdelen = process.env.BK_ONDERDELEN || '';
+          // Dezelfde keuzes als de voorwaarden (if:) van de drie ophaalstappen.
+          const metMinimumdoelen = ['alles', 'minimumdoelen', 'zonder-beroepskwalificaties'].includes(onderdelen);
+          const metStudierichtingen = ['alles', 'studierichtingen', 'zonder-beroepskwalificaties'].includes(onderdelen);
+          const metBeroepskwalificaties = ['alles', 'beroepskwalificaties'].includes(onderdelen);
           const proefrun = metStudierichtingen && groepen !== '';
+          const bkProefrun = metBeroepskwalificaties && bkOnderdelen !== '';
 
           const deelMinimumdoelen = () => {
             const pad = 'tools/leerplannen/rapport/laatste-ophaling.json';
@@ -323,6 +437,81 @@ jobs:
             return uit;
           };
 
+          const deelBeroepskwalificaties = () => {
+            const uit = ['## Beroepskwalificaties per richting', ''];
+            const { r, melding } = leesRapport('tools/leerplannen/rapport/laatste-beroepskwalificaties.json', 'de beroepskwalificaties', 'Beroepskwalificaties per richting ophalen');
+            if (!r) {
+              uit.push(melding);
+              return uit;
+            }
+            const l = obj(r.lijst);
+            const o = obj(r.onderdelen);
+            const b = obj(r.bks);
+            const c = obj(b.competenties);
+            const s = obj(r.bekrachtigingen);
+            const omvang = obj(r.omvang);
+            const erk = obj(o.erkenningenNu);
+            const tweede = obj(o.tweedeRonde);
+            const tel = bkTelling(o.perSoortGraadFinaliteit);
+            const tekstveld = (v) => (typeof v === 'string' && v !== '' ? kort(v) : ONTBREEKT);
+            if (r.fout) uit.push('**Fout:** ' + kort(bkTekst(r.fout)), '');
+            uit.push(
+              '| | |',
+              '|---|---|',
+              '| Bron | ' + tekstveld(r.bron) + ' |',
+              '| Proefrun (onderdelen) | ' + (r.proef === null ? 'nee' : r.proef === undefined ? ONTBREEKT : kort(bkTekst(r.proef))) + ' |',
+              '| Verzoeken | ' + getalNl(r.verzoeken) + ' |',
+              '| Duur in seconden | ' + getalNl(r.duurSeconden) + ' |',
+              '| Lijst van alle beroepskwalificaties: pagina\'s | ' + getalNl(l.paginas) + ' |',
+              '| Lijst: ontvangen van het totaal volgens de API | ' + getalNl(l.ontvangen) + ' van ' + getalNl(l.totaal) + (l.volledig === false ? ' (onvolledig: de lijst dient dan niet)' : '') + ' |',
+              '| Onderdelen opgevraagd | ' + getalNl(o.gevraagd) + ' |',
+              '| Onderdelen opgehaald | ' + getalNl(o.opgehaald) + ' |',
+              '| Onderdelen niet gevonden (twee keer 404) | ' + (Array.isArray(o.nietGevonden) ? String(o.nietGevonden.length) : getalNl(o.nietGevonden)) + ' |',
+              '| Tweede ronde: onderdelen / verzoeken | ' + getalNl(tweede.onderdelen) + ' / ' + getalNl(tweede.verzoeken) + ' |',
+              '| Met een beroepskwalificatie in de erkenning van nu | ' + (tel ? getalNl(tel.met) : ONTBREEKT) + ' |',
+              '| Zonder beroepskwalificatie in de erkenning van nu | ' + (tel ? getalNl(tel.zonder) : ONTBREEKT) + ' |',
+              '| Per soort, graad en finaliteit (met een beroepskwalificatie van alle geldige onderdelen) | ' + (tel ? soortenTekst(tel) : ONTBREEKT) + ' |',
+              '| Onderdelen met 0 / 1 / meer dan 1 erkenning van nu | ' + getalNl(erk['0']) + ' / ' + getalNl(erk['1']) + ' / ' + getalNl(erk.meer) + ' |',
+              '| Onderdelen met een toekomstige erkenning | ' + getalNl(o.toekomst) + ' |',
+              '| Erkenningen zonder lijst | ' + getalNl(o.geenLijst) + ' |',
+              '| ADV-nummers anders dan in de matrix | ' + aantalIn(o.advVerschilMetMatrix) + ' |',
+              '| Onderdelen nieuw gekoppeld | ' + aantalIn(o.nieuw) + ' |',
+              '| Niet meer gekoppeld (bestanden blijven staan) | ' + aantalIn(o.nietMeerGekoppeld) + ' |',
+              '| Andere versie gekoppeld | ' + aantalIn(o.andereVersie) + ' |',
+              '| Versies opgevraagd | ' + getalNl(b.gevraagd) + ' |',
+              '| Versies nieuw | ' + aantalIn(b.nieuw) + ' |',
+              '| Inhoud van een bestaande versie veranderd | ' + aantalIn(b.inhoudVeranderd) + ' |',
+              '| Versies niet meer in de bron (bestand blijft staan) | ' + aantalIn(b.nietMeerInBron) + ' |',
+              '| Versies niet gevonden | ' + aantalIn(b.nietGevonden) + ' |',
+              '| Versies onbruikbaar | ' + aantalIn(b.onbruikbaar) + ' |',
+              '| Nieuwere erkende versie bestaat | ' + aantalIn(l.nieuwereVersie) + ' |',
+              '| Gekoppelde versies die niet in de lijst staan | ' + aantalIn(l.nietInLijst) + ' |',
+              '| Competenties: totaal / zonder nr / dubbel nr / met HTML | ' + getalNl(c.totaal) + ' / ' + getalNl(c.zonderNr) + ' / ' + getalNl(c.dubbelNr) + ' / ' + getalNl(c.metHtml) + ' |',
+              '| Langste tekst van een competentie in tekens | ' + getalNl(c.langsteTekst) + ' |',
+              '| Studiebekrachtigingen: totaal / onderwijskwalificatie / deelkwalificaties / vorm onbekend | ' + getalNl(s.totaal) + ' / ' + getalNl(s.onderwijskwalificatie) + ' / ' + getalNl(s.dbk) + ' / ' + getalNl(s.vormOnbekend) + ' |',
+              '| Bestanden in de uitvoer / bytes | ' + getalNl(omvang.bestanden) + ' / ' + getalNl(omvang.bytes) + ' |',
+              '| Voorbeeld van een 404 | ' + tekstveld(r.voorbeeld404) + ' |',
+              '| Nog te bevestigen na de eerste echte run (docs/STUDIERICHTINGEN.md § 23.3) | ' + opsomming(r.teBevestigen, 20) + ' |',
+              '| Problemen | ' + aantalIn(r.problemen) + ' |',
+              '| Waarschuwingen | ' + aantalIn(r.waarschuwingen) + ' |',
+              '',
+              ...bkLijstRegels('Onderdelen nieuw gekoppeld', o.nieuw),
+              ...bkLijstRegels('Niet meer gekoppeld', o.nietMeerGekoppeld, 'De bestanden blijven staan.'),
+              ...bkLijstRegels('Andere versie gekoppeld', o.andereVersie),
+              ...(Array.isArray(o.nietGevonden) ? bkLijstRegels('Onderdelen niet gevonden', o.nietGevonden, 'De laatst bekende koppeling blijft staan. Kijk dit na.') : []),
+              ...bkLijstRegels('Versies nieuw', b.nieuw),
+              ...bkLijstRegels('Inhoud van een bestaande versie veranderd', b.inhoudVeranderd, 'Kijk dit na: leerplannen met die versie melden het aan de leerkracht.'),
+              ...bkLijstRegels('Versies niet meer in de bron', b.nietMeerInBron, 'De bestanden blijven staan.'),
+              ...bkLijstRegels('Versies niet gevonden', b.nietGevonden),
+              ...bkLijstRegels('Versies onbruikbaar', b.onbruikbaar, 'Een competentie zonder code of tekst: het laatst bekende bestand blijft staan.'),
+              ...bkLijstRegels('Nieuwere erkende versie bestaat, maar de richting verwijst nog naar de oude', l.nieuwereVersie),
+              ...bkLijstRegels('Problemen', r.problemen, null, 10),
+              ...bkLijstRegels('Waarschuwingen', r.waarschuwingen),
+            );
+            uit.push('Het volledige rapport (met de veldinventaris van de API) staat als artifact `beroepskwalificaties-rapport`.');
+            return uit;
+          };
+
           // Een deel dat niet samen te vatten is, mag de rest van de samenvatting niet meenemen.
           const veilig = (titel, f) => {
             try {
@@ -337,11 +526,16 @@ jobs:
           if (proefrun) {
             uit.push(proefregel(groepen, 'Sluit de pull request na het nakijken.'), '');
           }
+          if (bkProefrun) {
+            uit.push(bkProefregel(bkOnderdelen) + ' Sluit de pull request na het nakijken.', '');
+          }
           uit.push('Onderdelen in deze run: ' + kort(onderdelen) + '.', '');
           if (metMinimumdoelen) uit.push(...veilig('Minimumdoelen ophalen', deelMinimumdoelen), '');
-          else uit.push('## Minimumdoelen ophalen', '', 'Niet opgehaald in deze run (onderdelen: enkel de studierichtingen). De minimumdoelen in de repository zijn niet aangeraakt.', '');
-          if (metStudierichtingen) uit.push(...veilig('Studierichtingen en koppeling met de doelen', deelStudierichtingen));
-          else uit.push('## Studierichtingen en koppeling met de doelen', '', 'Niet opgehaald in deze run (onderdelen: enkel de minimumdoelen). De studierichtingen en de koppeling in de repository zijn niet aangeraakt.');
+          else uit.push('## Minimumdoelen ophalen', '', 'Niet opgehaald in deze run (onderdelen: ' + kort(onderdelen) + '). De minimumdoelen in de repository zijn niet aangeraakt.', '');
+          if (metStudierichtingen) uit.push(...veilig('Studierichtingen en koppeling met de doelen', deelStudierichtingen), '');
+          else uit.push('## Studierichtingen en koppeling met de doelen', '', 'Niet opgehaald in deze run (onderdelen: ' + kort(onderdelen) + '). De studierichtingen en de koppeling in de repository zijn niet aangeraakt.', '');
+          if (metBeroepskwalificaties) uit.push(...veilig('Beroepskwalificaties per richting', deelBeroepskwalificaties));
+          else uit.push('## Beroepskwalificaties per richting', '', 'Niet opgehaald in deze run (onderdelen: ' + kort(onderdelen) + '). De beroepskwalificaties in de repository zijn niet aangeraakt.');
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, uit.join('\n') + '\n');
           JS
 
@@ -355,11 +549,12 @@ jobs:
           SERVER_URL: ${{ github.server_url }}
           ONDERDELEN: ${{ inputs.onderdelen }}
           GROEPEN: ${{ inputs.groepen }}
+          BK_ONDERDELEN: ${{ inputs.bk_onderdelen }}
         run: |
           set -euo pipefail
 
           if [ -z "$(git status --porcelain -- public/leerplannen)" ]; then
-            printf '## Geen wijzigingen\n\nDe leerplangegevens (minimumdoelen, studierichtingen en doelen per richting) komen overeen met wat al in de repository staat.\n' >> "$GITHUB_STEP_SUMMARY"
+            printf '## Geen wijzigingen\n\nDe leerplangegevens (minimumdoelen, studierichtingen, doelen per richting en beroepskwalificaties) komen overeen met wat al in de repository staat.\n' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
@@ -378,6 +573,7 @@ jobs:
           # De tekst van de pull request komt uit de rapporten.
           RAPPORT_MINIMUMDOELEN=tools/leerplannen/rapport/laatste-ophaling.json \
             RAPPORT_STUDIERICHTINGEN=tools/leerplannen/rapport/laatste-studierichtingen.json \
+            RAPPORT_BEROEPSKWALIFICATIES=tools/leerplannen/rapport/laatste-beroepskwalificaties.json \
             RUN_URL="${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}" \
             node --input-type=module - > "$tekst" <<'JS'
           import fs from 'node:fs';
@@ -386,11 +582,18 @@ jobs:
           // Tekst uit de API of uit het rapport gaat altijd als codespan de samenvatting in: zonder
           // backticks, regeleinden en stuurtekens, en afgekapt op 120 tekens.
           const kort = (t) => '`' + String(t).replace(/[`|]/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').slice(0, 120) + '`';
-          // Het rapport van de studierichtingen komt van een ander script en kan onvolledig zijn. Een veld
-          // dat ontbreekt of een onverwachte vorm heeft, geeft "niet in het rapport" en nooit een fout.
+          // De rapporten komen van andere scripts en kunnen onvolledig zijn. Een veld dat ontbreekt of een
+          // onverwachte vorm heeft, geeft "niet in het rapport" en nooit een fout.
           const ONTBREEKT = 'niet in het rapport';
           const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
           const getal = (v) => (typeof v === 'number' && Number.isFinite(v) ? String(v) : ONTBREEKT);
+          // Een getal op zijn Vlaams: een punt voor de duizendtallen en een komma voor de decimalen (1.630 en 1.234,5).
+          const getalNl = (v) => {
+            if (typeof v !== 'number' || !Number.isFinite(v)) return ONTBREEKT;
+            const [heel, breuk] = String(v).split('.');
+            const metPunten = heel.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            return breuk === undefined ? metPunten : metPunten + ',' + breuk;
+          };
           const aantalIn = (a) => (Array.isArray(a) ? String(a.length) : ONTBREEKT);
           const tekst = (x) => {
             if (typeof x === 'string') return x;
@@ -403,43 +606,101 @@ jobs:
             }
             try { return JSON.stringify(x) ?? String(x); } catch { return String(x); }
           };
-          const leesRapport = (pad) => {
+          // Een element van een lijst uit het rapport van de beroepskwalificaties (en andere waarden daaruit). De vorm van die lijsten
+          // staat niet vast (docs/STUDIERICHTINGEN.md § 23.5.10): een tekst, een getal of een object. Bij een object komen alle velden
+          // in de tekst, in de volgorde van het rapport ("nummer 504: van BK-0390-2, naar BK-0390-3"), zodat er niets stil wegvalt
+          // wat het ophaalscript ook als vorm kiest. Een veld dat zelf een lijst of een object is, komt als lijst of als JSON.
+          const isEnkel = (v) => typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
+          const alsJson = (v) => { try { return JSON.stringify(v) ?? String(v); } catch { return String(v); } };
+          const enkel = (v) => (v === '' ? '""' : String(v));
+          const enkeleLijst = (v) => Array.isArray(v) && v.length > 0 && v.every(isEnkel);
+          const bkTekst = (x) => {
+            if (isEnkel(x)) return enkel(x);
+            if (enkeleLijst(x)) return x.map(enkel).join(', ');
+            if (x && typeof x === 'object' && !Array.isArray(x)) {
+              const delen = Object.entries(x).map(([sleutel, v]) => sleutel + ' ' + (isEnkel(v) ? enkel(v) : enkeleLijst(v) ? v.map(enkel).join(' / ') : alsJson(v)));
+              if (delen.length > 0) return delen[0] + (delen.length > 1 ? ': ' + delen.slice(1).join(', ') : '');
+            }
+            return alsJson(x);
+          };
+          const leesRapport = (pad, wat = 'de studierichtingen', stap = 'Studierichtingen en koppeling ophalen') => {
             if (!fs.existsSync(pad)) {
-              return { melding: 'Er is geen rapport van de studierichtingen: de stap is niet uitgevoerd of niet tot het einde gekomen. Zie het logboek van de stap "Studierichtingen en koppeling ophalen".' };
+              return { melding: 'Er is geen rapport van ' + wat + ': de stap is niet uitgevoerd of niet tot het einde gekomen. Zie het logboek van de stap "' + stap + '".' };
             }
             try {
               const r = JSON.parse(fs.readFileSync(pad, 'utf8'));
-              if (!r || typeof r !== 'object' || Array.isArray(r)) return { melding: 'Het rapport van de studierichtingen heeft een onverwachte vorm.' };
+              if (!r || typeof r !== 'object' || Array.isArray(r)) return { melding: 'Het rapport van ' + wat + ' heeft een onverwachte vorm.' };
               return { r };
             } catch {
-              return { melding: 'Het rapport van de studierichtingen is niet te lezen (geen geldige JSON).' };
+              return { melding: 'Het rapport van ' + wat + ' is niet te lezen (geen geldige JSON).' };
             }
           };
           const MAX_REGELS = 30;
-          const lijstRegels = (titel, a, toelichting, max = MAX_REGELS) => {
+          const lijstRegels = (titel, a, toelichting, max = MAX_REGELS, naarTekst = tekst) => {
             if (!Array.isArray(a)) return ['### ' + titel, '', 'Dit veld ontbreekt in het rapport of heeft een onverwachte vorm.', ''];
             if (a.length === 0) return [];
             return [
               '### ' + titel + ' (' + a.length + ')',
               '',
               ...(toelichting ? [toelichting, ''] : []),
-              ...a.slice(0, max).map((x) => '- ' + kort(tekst(x))),
+              ...a.slice(0, max).map((x) => '- ' + kort(naarTekst(x))),
               ...(a.length > max ? ['- … en ' + (a.length - max) + ' meer: zie het volledige rapport'] : []),
               '',
             ];
           };
+          // Hetzelfde voor een lijst uit het rapport van de beroepskwalificaties.
+          const bkLijstRegels = (titel, a, toelichting, max = MAX_REGELS) => lijstRegels(titel, a, toelichting, max, bkTekst);
           // De groepen zijn in de ophaalstap al nagekeken tegen dit patroon. Deze stap draait ook als dat
           // mislukte (always), dus keuren we ze hier nog eens: geldige invoer staat gewoon in de tekst, al het
           // andere gaat als codespan.
           const GROEPEN_GELDIG = /^(geen|G-[0-9]{4,6}(,G-[0-9]{4,6}){0,49})?$/;
           const proefregel = (groepen, vervolg) => '**Proefrun voor ' + (groepen === 'geen' ? 'enkel de matrix (geen groepen gekoppeld)' : GROEPEN_GELDIG.test(groepen) ? groepen : kort(groepen)) + ': niet samenvoegen.** ' + vervolg;
+          // Hetzelfde voor de proefrun van de beroepskwalificaties: de nummers zijn in de ophaalstap nagekeken tegen dit patroon.
+          const BK_ONDERDELEN_GELDIG = /^([0-9]{1,6}(,[0-9]{1,6}){0,49})?$/;
+          const bkProefregel = (nummers) => '**Proefrun** voor de onderdelen ' + (BK_ONDERDELEN_GELDIG.test(nummers) ? nummers.split(',').join(', ') : kort(nummers)) + ': niet samenvoegen.';
+          // Een lijst uit het rapport van de beroepskwalificaties op één regel: elk element als codespan, hoogstens `max`; "geen" als ze leeg is.
+          const opsomming = (a, max = 10) => {
+            if (!Array.isArray(a)) return ONTBREEKT;
+            if (a.length === 0) return 'geen';
+            return a.slice(0, max).map((x) => kort(bkTekst(x))).join(', ') + (a.length > max ? ' … en ' + (a.length - max) + ' meer: zie het volledige rapport' : '');
+          };
+          // Een aantal dat in het rapport een getal of een lijst kan zijn.
+          const opsommingOfAantal = (v) => {
+            if (Array.isArray(v)) return opsomming(v);
+            if (typeof v === 'number' && Number.isFinite(v)) return v === 0 ? 'geen' : getalNl(v) + ' (welke: zie het volledige rapport)';
+            return ONTBREEKT;
+          };
+          // Per soort, graad en finaliteit (sleutel zoals "gewoon|3|A") de onderdelen met en zonder beroepskwalificatie in de
+          // erkenning van nu. Geeft null als het veld geen bruikbare tellingen bevat.
+          const bkTelling = (o) => {
+            if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
+            const regels = [];
+            for (const [sleutel, v] of Object.entries(o)) {
+              const t = obj(v);
+              if (typeof t.metBk === 'number' && typeof t.zonderBk === 'number') regels.push({ sleutel, met: t.metBk, zonder: t.zonderBk });
+            }
+            if (regels.length === 0) return null;
+            return { met: regels.reduce((som, x) => som + x.met, 0), zonder: regels.reduce((som, x) => som + x.zonder, 0), regels };
+          };
+          const soortLabel = (sleutel) => {
+            const d = String(sleutel).split('|');
+            if (d.length !== 3) return String(sleutel);
+            const graad = d[1] === '1' ? '1ste graad' : d[1] === '2' || d[1] === '3' ? d[1] + 'de graad' : d[1];
+            return [d[0] === 'gewoon' ? '' : d[0], graad, d[2]].filter((t) => t !== '' && t !== '-').join(' ') || String(sleutel);
+          };
+          const MAX_SOORTEN = 12;
+          const soortenTekst = (t) => t.regels.slice(0, MAX_SOORTEN).map((x) => kort(soortLabel(x.sleutel) + ': ' + x.met + ' van ' + (x.met + x.zonder))).join(', ') + (t.regels.length > MAX_SOORTEN ? ', …' : '');
           // ── Einde van de gedeelde hulpfuncties ──
 
           const onderdelen = process.env.ONDERDELEN || 'alles';
           const groepen = process.env.GROEPEN || '';
-          const metMinimumdoelen = onderdelen !== 'studierichtingen';
-          const metStudierichtingen = onderdelen !== 'minimumdoelen';
+          const bkOnderdelen = process.env.BK_ONDERDELEN || '';
+          // Dezelfde keuzes als de voorwaarden (if:) van de drie ophaalstappen.
+          const metMinimumdoelen = ['alles', 'minimumdoelen', 'zonder-beroepskwalificaties'].includes(onderdelen);
+          const metStudierichtingen = ['alles', 'studierichtingen', 'zonder-beroepskwalificaties'].includes(onderdelen);
+          const metBeroepskwalificaties = ['alles', 'beroepskwalificaties'].includes(onderdelen);
           const proefrun = metStudierichtingen && groepen !== '';
+          const bkProefrun = metBeroepskwalificaties && bkOnderdelen !== '';
 
           const deelMinimumdoelen = () => {
             const r = JSON.parse(fs.readFileSync(process.env.RAPPORT_MINIMUMDOELEN, 'utf8'));
@@ -548,17 +809,66 @@ jobs:
             return uit;
           };
 
+          // De tekst staat letterlijk in docs/STUDIERICHTINGEN.md § 23.5.9. Een lijst die in het rapport ontbreekt of een
+          // onverwachte vorm heeft, geeft "niet in het rapport".
+          const deelBeroepskwalificaties = () => {
+            const uit = [];
+            const { r, melding } = leesRapport(process.env.RAPPORT_BEROEPSKWALIFICATIES, 'de beroepskwalificaties', 'Beroepskwalificaties per richting ophalen');
+            if (!r) {
+              uit.push('### Beroepskwalificaties per richting', '', melding, '');
+              return uit;
+            }
+            const l = obj(r.lijst);
+            const o = obj(r.onderdelen);
+            const b = obj(r.bks);
+            const s = obj(r.bekrachtigingen);
+            const tel = bkTelling(o.perSoortGraadFinaliteit);
+            const veranderd = Array.isArray(b.inhoudVeranderd) && b.inhoudVeranderd.length > 0;
+            uit.push('### Beroepskwalificaties per richting', '');
+            if (r.fout) uit.push('**Fout:** ' + kort(bkTekst(r.fout)), '');
+            uit.push(
+              '- Onderdelen opgevraagd: ' + getalNl(o.gevraagd) + '; met een beroepskwalificatie in de erkenning van nu: ' + (tel ? getalNl(tel.met) + ' (' + soortenTekst(tel) + ')' : ONTBREEKT) + '.',
+              '- Nieuw gekoppeld: ' + opsomming(o.nieuw) + ' · Niet meer gekoppeld: ' + opsomming(o.nietMeerGekoppeld) + ' (de bestanden blijven staan) · Andere versie gekoppeld: ' + opsomming(o.andereVersie) + '.',
+              '- Niet gevonden (twee keer 404; de laatst bekende koppeling blijft staan, kijk dit na): ' + opsommingOfAantal(o.nietGevonden) + '.',
+              '',
+              '### Beroepskwalificaties zelf',
+              '',
+              '- Versies: ' + getalNl(b.gevraagd) + ' (nieuw ' + aantalIn(b.nieuw) + (Array.isArray(b.nieuw) && b.nieuw.length > 0 ? ': ' + opsomming(b.nieuw) : '') + ').',
+              veranderd
+                ? '- **Inhoud van een bestaande versie veranderd: ' + opsomming(b.inhoudVeranderd) + '.** Kijk na: leerplannen met die versie melden het aan de leerkracht.'
+                : '- Inhoud van een bestaande versie veranderd: ' + opsomming(b.inhoudVeranderd) + '.',
+              '- Niet meer in de bron (het bestand blijft staan): ' + opsomming(b.nietMeerInBron) + ' · Onbruikbaar (competentie zonder code of tekst): ' + opsomming(b.onbruikbaar) + '.',
+              '- Nieuwere erkende versie bestaat, maar de richting verwijst nog naar de oude: ' + opsomming(l.nieuwereVersie) + '.',
+              typeof s.totaal === 'number'
+                ? '- Studiebekrachtigingen: ' + getalNl(s.totaal) + ' (onderwijskwalificatie ' + getalNl(s.onderwijskwalificatie) + '; deelkwalificaties ' + getalNl(s.dbk) + ', alleen bij naam).'
+                : '- Studiebekrachtigingen: ' + ONTBREEKT + '.',
+              '',
+            );
+            if (bkProefrun) uit.push(bkProefregel(bkOnderdelen), '');
+            return uit;
+          };
+
           const uit = ['# Leerplangegevens bijgewerkt', ''];
           if (proefrun) {
             uit.push(proefregel(groepen, 'Gebruik deze pull request om de gegevens na te kijken en sluit ze daarna.'), '');
           }
+          // Ook bovenaan (naast die van de groepen): de regel onderaan het deel van de beroepskwalificaties kan bij een lange tekst wegvallen.
+          if (bkProefrun) {
+            uit.push(bkProefregel(bkOnderdelen) + ' Gebruik deze pull request om de gegevens na te kijken en sluit ze daarna.', '');
+          }
           if (metMinimumdoelen) uit.push(...deelMinimumdoelen());
           if (metStudierichtingen) uit.push(...deelStudierichtingen());
-          const artifacts = [metMinimumdoelen ? '`minimumdoelen-rapport`' : null, metStudierichtingen ? '`studierichtingen-rapport`' : null].filter(Boolean);
+          if (metBeroepskwalificaties) uit.push(...deelBeroepskwalificaties());
+          const artifacts = [
+            metMinimumdoelen ? '`minimumdoelen-rapport`' : null,
+            metStudierichtingen ? '`studierichtingen-rapport`' : null,
+            metBeroepskwalificaties ? '`beroepskwalificaties-rapport`' : null,
+          ].filter(Boolean);
+          const opgesomd = artifacts.length > 1 ? artifacts.slice(0, -1).join(', ') + ' en ' + artifacts[artifacts.length - 1] : artifacts[0];
           const sluit = [
             '**Kijk het verschil na vóór je samenvoegt.** Controleer of de teksten letterlijk kloppen, of er geen sets of richtingen ontbreken en of de aantallen aannemelijk zijn. Niets gaat automatisch live: na het samenvoegen rolt de deploy-workflow het uit.',
             '',
-            'De volledige rapporten (met de veldinventaris van de API) staan als ' + (artifacts.length > 1 ? 'artifacts ' : 'artifact ') + artifacts.join(' en ') + ' bij [deze run](' + process.env.RUN_URL + ').',
+            'De volledige rapporten (met de veldinventaris van de API) staan als ' + (artifacts.length > 1 ? 'artifacts ' : 'artifact ') + opgesomd + ' bij [deze run](' + process.env.RUN_URL + ').',
           ].join('\n');
           // GitHub staat hoogstens 65536 tekens toe in de tekst van een pull request. Wordt de tekst te lang, dan
           // kort ik de lijsten in en blijft het slot staan.
