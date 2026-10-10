@@ -12,6 +12,7 @@ verder? Aanvulling op `docs/LEERPLANNEN.md` (de minimumdoelen komen al uit de On
 | Matrix van de studierichtingen als data | **In de repo** sinds de eerste echte run (PR #6, 9 oktober 2026), via de API Structuuronderdelen (§ 2). |
 | Herhaalbare import van de matrix in Boosterz (script, workflow, datatest, zoals de minimumdoelen) | **Klaar en live** (10 oktober 2026): de matrix (545 groepen) en de doelen per richting staan in `public/leerplannen/structuur/` en worden maandelijks bijgewerkt via de workflow "Leerplangegevens bijwerken" (met een pull request). Ontwerp en stand van zaken: `docs/STUDIERICHTINGEN.md`. |
 | Koppeling studierichting → doelen | **Uitgezocht** (runs 4 en 5): de filter op naam mengt graden en breekt op een komma; de filter `structuuronderdeel_groep_nummer` werkt per graad. Zie § 3. Bouw: `docs/STUDIERICHTINGEN.md`. |
+| Beroepskwalificaties bij richtingen met arbeidsmarktfinaliteit (O11 van STUDIERICHTINGEN.md) | **Gevonden** (ronde 6, run 38044584119, 10 oktober 2026): via het detail per structuuronderdeel, en de competenties via het detail per BK-versie (§ 4). Volgende: ronde 7 (curriculumdossier, volledige vorm van een BK), daarna een ontwerp voor de import. |
 | Aanbod per school (welke school welke richting inricht) | Later: de API's zijn bereikbaar (§ 4), het juiste adres voor het ingerichte aanbod is nog niet gevonden. |
 
 ## 1. Toegang
@@ -85,7 +86,25 @@ A 24), 3de graad 139 (DO 35, DU 53, A 51), en 2 zonder graad (OKAN, basisverplee
   parameter `schooljaar` verandert niets aan het aantal.
 - **Instellingen** `/instellingsgegevens/instelling/v2/instelling`: lijst van scholen.
 - **Beroepskwalificaties** `/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie`:
-  604, met versies en synoniemen; detail per `BK-…`.
+  604, met versies en synoniemen. Lijst: `gegevens[]` met `beroepskwalificatie_nr`, `laatst_erkende_versie`
+  (`versie_nr_lang`, `titel`, data) en `versies[]` (titel, definitie, status, `vks_niveau`, domeinen); totaal in
+  `meta.total_elements`. **Het detail werkt alleen met het versienummer** (`…/beroepskwalificatie/BK-0454-1`; met
+  `BK-0454` komt 404 "Er werd geen data gevonden."). Het detail geeft `beroepskwalificatie` met titel, status,
+  `vks_niveau`, definitie, domeinen en **`competenties[]`** (`competentie_type`, `nr`, `competentie_code` zoals
+  `bkc0039200`, `waarde` = de tekst, `kennis[]`, `vaardigheden[]`, `referenties[]`), plus omgevings- en
+  handelingscontext, autonomie en verantwoordelijkheid (ronde 6, 10 oktober 2026). Filters op de lijst
+  (`structuuronderdeel_nummer`, `adv`, `sector`, …) worden genegeerd.
+- **Koppeling studierichting → beroepskwalificatie** (ronde 6): het detail
+  `/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/{nummer}` heeft per erkenning
+  (`structuuronderdeel_details[]`, met `structuuronderdeel_detail_nummer` = het ADV-nummer) een lijst
+  `beroepskwalificaties[]` (`beroepskwalificatie_nr`, `versie_nr_kort`, `versie_nr_lang`, `titel`, `api_url`) en
+  `studiebekrachtigingen[]` (met `onderwijskwalificatie` waar/onwaar, `uitgebreide_naam`, een `beroepskwalificatie`
+  of een `deelkwalificatie` zoals `BK-0130-5-DBK-01`), en een adres `curriculumdossier`
+  (`…/structuuronderdeel_detail/ADV-0842/curriculumdossier`). Voorbeelden: onderdeel 504 (Onthaal en recreatie,
+  3de graad A) → BK-0390-2 Onthaalmedewerker en BK-0464-1 Recreatief medewerker; onderdeel 1 (Afwerking bouw
+  duaal) → drie BK's en drie deelkwalificaties. De lijst van de groepen (`structuuronderdeelgroep`, wat de import
+  nu ophaalt) bevat die velden **niet**: daarvoor is het detail per onderdeel nodig. Het omgekeerde (in een BK
+  naar de onderdelen zoeken) bestaat niet. Adressen voor onderwijskwalificaties en opleidingsprofielen geven 404.
 - **Opleidingstrajecten** `/kwalificaties-en-curriculum/trajecten/v1/opleidingstraject`: 682 (in een
   steekproef van 141: duaal leren, BuSO OV3 en volwassenenonderwijs), detail per id.
 - **App Opleidingsinhouden** `/app-opleidingsinhouden/v1/secundair-onderwijs/opleidingsinhoud/{ADV-nummer}`
