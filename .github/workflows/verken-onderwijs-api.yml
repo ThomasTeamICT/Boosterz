@@ -14,6 +14,8 @@ name: Verkenning Onderwijs-API's
 # logboek onder de 5000 regels die de GitHub-koppeling van de cloudsessie kan teruglezen.
 # Stand "koppeling" (ronde 4): per studierichting welke doelensets de doelen-API teruggeeft.
 # Stand "proeven" (ronde 5): filters van de doelen-API (groepsnummer, graad, stroom, geldigheid).
+# Stand "kwalificaties" (ronde 6): hoe een studierichting aan beroepskwalificaties (BK-...) vastzit.
+# Hoogstens 60 oproepen; de logboekregels beginnen met KWAL| en KWAL-SAMENVATTING|.
 # Stand "volledig": de brede verkenning van ronde 1 en 2 met het verslag.
 
 on:
@@ -28,6 +30,7 @@ on:
           - matrix
           - koppeling
           - proeven
+          - kwalificaties
           - volledig
 
 permissions:
@@ -68,8 +71,14 @@ jobs:
           ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
         run: node tools/verkenning/verken-onderwijs-api.mjs --proeven
 
+      - name: Beroepskwalificaties en koppelingen (met sleutel)
+        if: inputs.stand == 'kwalificaties'
+        env:
+          ONDERWIJSDOELEN_API_KEY: ${{ secrets.ONDERWIJSDOELEN_API_KEY }}
+        run: node tools/verkenning/verken-onderwijs-api.mjs --kwalificaties
+
       - name: Parameternamen uit de webapps (zonder sleutel)
-        if: always() && inputs.stand != 'volledig' && inputs.stand != 'proeven'
+        if: always() && inputs.stand != 'volledig' && inputs.stand != 'proeven' && inputs.stand != 'kwalificaties'
         continue-on-error: true
         run: node tools/verkenning/verken-onderwijs-api.mjs --parameters
 

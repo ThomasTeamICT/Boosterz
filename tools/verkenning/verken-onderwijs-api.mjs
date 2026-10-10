@@ -4,7 +4,7 @@
 // Vraag van de eigenaar: kunnen we de geldende matrix van alle studierichtingen van het secundair
 // onderwijs als data ophalen, en wat zit er verder in de API's van Onderwijs? Zie docs/LEERPLANNEN.md.
 //
-// Zeven standen, elk in een aparte stap van de workflow .github/workflows/verken-onderwijs-api.yml:
+// Acht standen, elk in een aparte stap van de workflow .github/workflows/verken-onderwijs-api.yml:
 //   --met-sleutel  proefoproepen naar onderwijs.api.vlaanderen.be met de sleutel uit de omgeving
 //                  (ONDERWIJSDOELEN_API_KEY). Alleen ingebouwde Node-modules, geen pakketten.
 //   --publiek      publieke bronnen zonder sleutel: het API-portaal, de technische ontwerpen (pdf),
@@ -17,35 +17,128 @@
 //                  studierichting=<naam> geeft, en of dat volledige sets zijn.
 //   --proeven      (ronde 5, met sleutel) filterproeven: groepsnummer, graad, stroom, geldigheid.
 //   --parameters   (ronde 3, zonder sleutel) de parameternamen uit de API-clients van de webapps.
+//   --kwalificaties (ronde 6, met sleutel) hoe een studierichting (structuuronderdeel, met ADV-nummers) aan
+//                  beroepskwalificaties (BK-…) en onderwijskwalificaties vastzit. Regels "KWAL|{json}" en
+//                  "KWAL-SAMENVATTING|{json}" in het logboek, alles ook in rapport/kwalificaties.json.
+//
+// Omgeving (alleen voor tests; de echte standaard blijft zoals hij was):
+//   VERKENNING_UIT                 map voor het rapport (standaard tools/verkenning/rapport)
+//   VERKENNING_API_BASIS           een lokale testserver (http://127.0.0.1:<poort>) in plaats van de echte API;
+//                                  andere adressen worden geweigerd, zodat de sleutel nooit elders heen gaat
+//   ONDERWIJSDOELEN_WACHT_FACTOR   vermenigvuldigt alle wachttijden (0 = niet wachten), zoals bij de ophaalscripts
 //
 // Veiligheid:
 //   - de sleutel gaat alleen in de kop x-api-key naar de host onderwijs.api.vlaanderen.be, nooit
 //     naar een andere host, en doorverwijzingen worden niet gevolgd (redirect: 'manual');
 //   - geen kopregels in het verslag; van elk antwoord alleen status, soort, veldnamen, aantallen en
 //     hoogstens twee ingekorte voorbeelden;
-//   - alle tekst uit een antwoord wordt ontdaan van stuurtekens en afgekapt.
+//   - alle tekst uit een antwoord wordt ontdaan van stuurtekens en afgekapt;
+//   - de sleutel wordt getrimd gebruikt (fetch doet dat in de kop ook); het script waarschuwt zonder de waarde te
+//     tonen als het geheim witruimte aan de rand of stuurtekens heeft. Uit alle uitvoer verdwijnt de sleutel
+//     zoals ze in de omgeving staat, getrimd en bij een geheim met meerdere regels per regel (ruw, JSON, URL);
+//   - een logboekregel van de stand --kwalificaties is hoogstens 8 KB en altijd geldige JSON ("ingekort": true
+//     als er iets weg moest); het rapportbestand houdt de volledige regels.
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const UIT = path.resolve(process.env.VERKENNING_UIT || 'tools/verkenning/rapport');
-const API_HOST = 'onderwijs.api.vlaanderen.be';
-const API = `https://${API_HOST}`;
+const ECHTE_HOST = 'onderwijs.api.vlaanderen.be';
+
+/** De echte API, tenzij een test een lokale nagebootste server meegeeft. Andere adressen worden geweigerd. */
+function kiesBasis() {
+  const ruw = process.env.VERKENNING_API_BASIS;
+  if (!ruw) return `https://${ECHTE_HOST}`;
+  let u;
+  try {
+    u = new URL(ruw);
+  } catch {
+    throw new Error('VERKENNING_API_BASIS is geen geldig adres');
+  }
+  if (u.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(u.hostname)) {
+    throw new Error('VERKENNING_API_BASIS mag alleen een lokale testserver zijn (http://127.0.0.1:<poort>)');
+  }
+  return u.origin;
+}
+
+const API = kiesBasis();
+const API_URL = new URL(API);
+const API_HOST = API_URL.host;
 const WACHT_MS = 400;
 const TIMEOUT_MS = 30000;
 const MAX_TEKST = 8 * 1024 * 1024;
 
-const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
+const WACHT_FACTOR = (() => {
+  const n = Number(process.env.ONDERWIJSDOELEN_WACHT_FACTOR);
+  return process.env.ONDERWIJSDOELEN_WACHT_FACTOR && Number.isFinite(n) && n >= 0 ? n : 1;
+})();
+const wacht = (ms) => new Promise((r) => setTimeout(r, ms * WACHT_FACTOR));
 
 // Sleutels die een webapp zelf in haar scripts meegeeft (bv. api_key: '\u2026' in env.js) komen nooit in
 // het logboek, ook niet als de overheid ze publiek meelevert. Ronde 2 zette er twee in het logboek;
 // sindsdien gaat alle tekst hierlangs. Ook lange reeksen van letters \u00e9n cijfers (sleutelvorm) gaan weg.
-const verberg = (t) =>
-  t
-    .replace(/((?:api[_-]?key|apikey|client[_-]?token|token|secret|password|wachtwoord)["']?\s*[:=]\s*["'`])[^"'`]*/gi, '$1<verborgen>')
-    .replace(/(?<![A-Za-z0-9])(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{24,}(?![A-Za-z0-9])/g, '<verborgen>');
+const SLEUTELVELD = /((?:api[_-]?key|apikey|client[_-]?token|token|secret|password|wachtwoord)["']?\s*[:=]\s*["'`])[^"'`]*/gi;
+const LANGE_REEKS = /(?<![A-Za-z0-9])(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{24,}(?![A-Za-z0-9])/g;
+
+/**
+ * Alle vormen waarin de eigen sleutel in een tekst kan opduiken, langste eerst: zoals ze in de omgeving staat,
+ * getrimd (fetch stuurt een kop zonder witruimte aan de rand; geeft de API die terug, dan is dat de getrimde
+ * vorm), en bij een geheim met meerdere regels ook elke regel apart. Elk in ruwe, JSON- en URL-vorm.
+ */
+let sleutelVormenCache = { ruw: null, vormen: [] };
+const sleutelVormen = () => {
+  const ruw = process.env.ONDERWIJSDOELEN_API_KEY || '';
+  if (sleutelVormenCache.ruw === ruw) return sleutelVormenCache.vormen;
+  const delen = new Set([ruw, ruw.trim()]);
+  for (const regel of ruw.split(/\r\n|[\r\n\u2028\u2029]/)) {
+    delen.add(regel);
+    delen.add(regel.trim());
+  }
+  const vormen = new Set();
+  for (const deel of delen) {
+    if (deel.length < 4) continue;
+    vormen.add(deel);
+    vormen.add(JSON.stringify(deel).slice(1, -1));
+    try {
+      vormen.add(encodeURIComponent(deel));
+    } catch {
+      /* losse surrogaat: geen URL-vorm mogelijk */
+    }
+  }
+  sleutelVormenCache = { ruw, vormen: [...vormen].sort((a, b) => b.length - a.length) };
+  return sleutelVormenCache.vormen;
+};
+
+/** Haalt de eigen sleutel uit de omgeving (ook getrimd, per regel, in JSON-vorm en als URL-tekst) uit een tekst die naar buiten gaat. */
+const wisSleutel = (t) => {
+  for (const vorm of sleutelVormen()) t = t.split(vorm).join('<verborgen>');
+  return t;
+};
+const verberg = (t) => wisSleutel(t).replace(SLEUTELVELD, '$1<verborgen>').replace(LANGE_REEKS, '<verborgen>');
+/** Laatste controle op een tekst die naar het logboek of een bestand gaat (laat JSON geldig): de sleutel en sleutelvormige reeksen gaan weg. */
+const bewaak = (t) => wisSleutel(String(t)).replace(LANGE_REEKS, '<verborgen>');
 const schoon = (t, n = 200) =>
   verberg(String(t ?? '')).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
+
+let sleutelGemeld = false;
+/**
+ * De sleutel uit de omgeving, getrimd: dat is ook wat fetch in de kop stuurt. Een geheim met witruimte of een nieuwe
+ * regel aan de rand (bv. na plakken of `echo`) of met stuurtekens krijgt één waarschuwing op stderr, zonder de waarde.
+ * Stuurtekens in het midden blijven staan: fetch weigert dan de kop, en elke foutmelding gaat door `schoon`.
+ */
+function leesSleutel() {
+  const ruw = process.env.ONDERWIJSDOELEN_API_KEY || '';
+  const sleutel = ruw.trim();
+  if (!sleutelGemeld && ruw) {
+    sleutelGemeld = true;
+    const problemen = [];
+    if (sleutel !== ruw) problemen.push('witruimte of een nieuwe regel aan het begin of einde (weggehaald)');
+    if (/[\u0000-\u001f\u007f-\u009f]/.test(sleutel)) problemen.push('stuurtekens of meerdere regels in het midden (de kop wordt dan geweigerd)');
+    if (problemen.length) console.error(`Waarschuwing: het geheim ONDERWIJSDOELEN_API_KEY heeft ${problemen.join(' en ')}. Controleer het geheim in GitHub; de waarde wordt niet getoond.`);
+  }
+  return sleutel;
+}
 
 // ── Vorm van een JSON-antwoord ──────────────────────────────────────────────
 
@@ -128,7 +221,7 @@ async function verzoek(url, { sleutel = null, accept = 'application/json, text/p
   const u = new URL(url);
   const headers = { accept, 'user-agent': 'Boosterz-verkenning (onderwijsplatform; contact via GitHub ThomasTeamICT/Boosterz)' };
   if (sleutel) {
-    if (u.host !== API_HOST || u.protocol !== 'https:') throw new Error(`sleutel geweigerd voor ${u.host}`);
+    if (u.host !== API_HOST || u.protocol !== API_URL.protocol) throw new Error(`sleutel geweigerd voor ${u.host}`);
     headers['x-api-key'] = sleutel;
   }
   const r = { url: `${u.origin}${u.pathname}${u.search}`, status: null, soort: null, grootte: null };
@@ -311,7 +404,7 @@ function regelVan(item) {
 }
 
 async function metSleutel() {
-  const sleutel = process.env.ONDERWIJSDOELEN_API_KEY;
+  const sleutel = leesSleutel();
   if (!sleutel) throw new Error('ONDERWIJSDOELEN_API_KEY ontbreekt in de omgeving');
   const resultaten = [];
   const gezien = new Set();
@@ -445,7 +538,7 @@ function richtingRegel(g, so) {
 }
 
 async function matrix() {
-  const sleutel = process.env.ONDERWIJSDOELEN_API_KEY;
+  const sleutel = leesSleutel();
   if (!sleutel) throw new Error('ONDERWIJSDOELEN_API_KEY ontbreekt in de omgeving');
   const uit = { tijd: new Date().toISOString(), filters: [], aanbod: null, groepen: 0, richtingen: 0 };
 
@@ -528,7 +621,7 @@ async function alleDoelenVan(sleutel, extra = '') {
 }
 
 async function koppeling() {
-  const sleutel = process.env.ONDERWIJSDOELEN_API_KEY;
+  const sleutel = leesSleutel();
   if (!sleutel) throw new Error('ONDERWIJSDOELEN_API_KEY ontbreekt in de omgeving');
   const uit = { tijd: new Date().toISOString(), sets: {}, richtingen: [], proeven: [] };
 
@@ -635,7 +728,7 @@ const PROEVEN_5 = [
 ];
 
 async function proeven() {
-  const sleutel = process.env.ONDERWIJSDOELEN_API_KEY;
+  const sleutel = leesSleutel();
   if (!sleutel) throw new Error('ONDERWIJSDOELEN_API_KEY ontbreekt in de omgeving');
   const uit = [];
   for (const q of PROEVEN_5) {
@@ -989,6 +1082,707 @@ function verslag() {
   return r.join('\n');
 }
 
+// ── Stand 8: kwalificaties (ronde 6) ────────────────────────────────────────
+
+// Vraag: hoe zit een studierichting (structuuronderdeel, met ADV-nummers in "erkenningen") vast aan
+// beroepskwalificaties (BK-…) en eventueel onderwijskwalificaties? Zo kunnen we later voor richtingen
+// met arbeidsmarktfinaliteit de beroepsgerichte vorming tonen (docs/ONDERWIJS-API.md § 4).
+//
+// De vorm van de antwoorden is nog niet gekend (CLAUDE.md, regel 11): alles is tolerant gebouwd, en
+// elke stap draait afgeschermd, zodat één vreemd antwoord de rest niet stopt. Uitvoer: één regel per
+// bevinding ("KWAL|{json}") en op het einde "KWAL-SAMENVATTING|{json}". Alleen GET, alleen naar de
+// API-host, hoogstens KWAL_MAX_OPROEPEN verzoeken, en elk adres hoogstens één keer.
+const KWAL_MAX_OPROEPEN = 60;
+const BK_PAD = `${KC}/beroepskwalificaties/v2/beroepskwalificatie`;
+const SO_PAD = `${KC}/structuuronderdelen/v2/structuuronderdeel`;
+const TRAJECT_PAD = `${KC}/trajecten/v1/opleidingstraject`;
+const STRUCTUUR_BESTAND = fileURLToPath(new URL('../../public/leerplannen/structuur/studierichtingen.json', import.meta.url));
+/** Als het bestand in de repo ontbreekt: onderdelen van groep G-0001 (Afwerking bouw, arbeidsmarktfinaliteit). */
+const VASTE_ONDERDELEN = [1, 505, 564];
+
+// Namen van velden die naar kwalificaties, opleidingen, structuuronderdelen, ADV, sectoren of competenties wijzen.
+// De sterke eerst: de zwakke (bv. alles met "structuuronderdeel") mogen de sterke niet uit de lijst duwen.
+const STERK_NAAM = /kwalificatie|beroep|competent|sector|(^|[^a-z])adv([^a-z]|$)/i;
+const ZWAK_NAAM = /opleiding|structuuronderde|studierichting|traject|profiel|erkenning/i;
+const VERWIJST_WAARDE = /\b(?:BK|ADV)-\d/;
+const API_ORIGIN = API_URL.origin;
+
+/** Alles op drie niveaus veldnamen afkappen (arrays tellen niet mee als niveau). Zonder prototype-valkuil. */
+function snoei(w, niveau = 0) {
+  if (Array.isArray(w)) return niveau >= 3 ? [] : w.slice(0, 5).map((x) => snoei(x, niveau));
+  if (w && typeof w === 'object') {
+    const o = Object.create(null);
+    if (niveau >= 3) return o;
+    for (const [k, v] of Object.entries(w).slice(0, 200)) o[k] = snoei(v, niveau + 1);
+    return o;
+  }
+  return w;
+}
+
+/** Veldnamen tot drie niveaus diep (hergebruikt `velden`), in een gedeelde Map. */
+const veldenTot3 = (w, uit = new Map()) => velden(snoei(w), '', uit);
+const veldenObject = (m, max = 250) => Object.fromEntries([...m].slice(0, max).map(([k, s]) => [schoon(k, 120), [...s].join('|')]));
+
+/** Een korte proef van één waarde. */
+function proefVan(w, n = 60) {
+  if (w === null) return 'null';
+  if (typeof w === 'string') return schoon(w, n);
+  if (typeof w === 'number' || typeof w === 'boolean') return String(w);
+  if (Array.isArray(w)) {
+    const eerste = w.find((x) => x === null || typeof x !== 'object');
+    return `[${w.length}]${eerste !== undefined ? ` ${proefVan(eerste, n)}` : ''}`;
+  }
+  if (w && typeof w === 'object') return `{${Object.keys(w).length}}`;
+  return '';
+}
+
+/** Per veld (tot drie niveaus) een korte proef, hoogstens `max` velden. */
+function proefPaden(w, pad = '', uit = new Map(), niveau = 0, max = 150) {
+  if (niveau >= 3 || uit.size >= max) return uit;
+  if (Array.isArray(w)) {
+    for (const x of w.slice(0, 3)) proefPaden(x, `${pad}[]`, uit, niveau, max);
+  } else if (w && typeof w === 'object') {
+    for (const [k, v] of Object.entries(w).slice(0, 200)) {
+      const p = pad ? `${pad}.${k}` : k;
+      if (!uit.has(p) && uit.size < max) uit.set(p, proefVan(v));
+      proefPaden(v, p, uit, niveau + 1, max);
+    }
+  }
+  return uit;
+}
+
+/** Proef van een veld dat ergens naar verwijst: ook de inhoud van een klein object of de eerste elementen. */
+function langeProef(v) {
+  if (v !== null && typeof v === 'object') return `${Array.isArray(v) ? `[${v.length}]` : '{}'} ${schoon(JSON.stringify(Array.isArray(v) ? v.slice(0, 2) : v), 150)}`;
+  return proefVan(v, 160);
+}
+
+/** Velden (tot zeven niveaus diep) waarvan de naam (en bij `metWaarde` ook de waarde: BK-… of ADV-…) naar iets wijst. */
+function relevanteVelden(w, patroon, metWaarde, max, uit = new Map(), pad = '', diepte = 0) {
+  if (diepte > 7 || uit.size >= max) return uit;
+  if (Array.isArray(w)) {
+    for (const x of w.slice(0, 20)) relevanteVelden(x, patroon, metWaarde, max, uit, `${pad}[]`, diepte + 1);
+  } else if (w && typeof w === 'object') {
+    for (const [k, v] of Object.entries(w).slice(0, 200)) {
+      const p = pad ? `${pad}.${k}` : k;
+      if (patroon.test(k) && !uit.has(p) && uit.size < max) uit.set(p, langeProef(v));
+      relevanteVelden(v, patroon, metWaarde, max, uit, p, diepte + 1);
+    }
+  } else if (metWaarde && typeof w === 'string' && VERWIJST_WAARDE.test(w) && !uit.has(pad) && uit.size < max) {
+    uit.set(pad, schoon(w, 160));
+  }
+  return uit;
+}
+
+/** De velden die naar kwalificaties, BK's, ADV, sectoren of competenties wijzen (hoogstens 40), daarna de zwakkere (tot 60). */
+function verwijzendeVelden(json) {
+  const uit = relevanteVelden(json, STERK_NAAM, true, 40);
+  return relevanteVelden(json, ZWAK_NAAM, false, 60, uit);
+}
+
+/** BK-codes en ADV-nummers (met het pad waar ze staan) en de adressen op de API-host die in een antwoord staan. */
+function verwijzingen(w) {
+  const uit = { bk: new Map(), adv: new Map(), links: new Set() };
+  const lees = (v, pad, d) => {
+    if (d > 9) return;
+    if (typeof v === 'string') {
+      for (const m of v.matchAll(/\bBK-\d[\w.-]*/g)) {
+        const code = m[0].replace(/[.-]+$/, '');
+        if (uit.bk.size < 30 && !uit.bk.has(code)) uit.bk.set(code, pad);
+      }
+      for (const m of v.matchAll(/\bADV-\d+/g)) if (uit.adv.size < 30 && !uit.adv.has(m[0])) uit.adv.set(m[0], pad);
+      if (v.length < 500 && /^https?:\/\//.test(v) && uit.links.size < 30) {
+        try {
+          const u = new URL(v);
+          if (u.origin === API_ORIGIN) uit.links.add(u.pathname);
+        } catch {
+          /* geen geldige URL */
+        }
+      }
+    } else if (Array.isArray(v)) {
+      for (const x of v.slice(0, 300)) lees(x, `${pad}[]`, d + 1);
+    } else if (v && typeof v === 'object') {
+      for (const [k, x] of Object.entries(v).slice(0, 300)) lees(x, pad ? `${pad}.${k}` : k, d + 1);
+    }
+  };
+  lees(w, '', 0);
+  return uit;
+}
+
+/** Het totaal van een lijstantwoord, ook onder andere namen (bv. meta.total_elements). */
+function totaalVan(json) {
+  const { totaal } = lijstEnTotaal(json);
+  if (totaal) return totaal.waarde;
+  let gevonden = null;
+  const zoek = (v, d) => {
+    if (gevonden !== null || d > 3 || !v || typeof v !== 'object' || Array.isArray(v)) return;
+    for (const [k, x] of Object.entries(v)) {
+      if (typeof x === 'number' && /^(total[_-]?(elements|items|count|results)|totaal.*|aantal.*)$/i.test(k)) {
+        gevonden = x;
+        return;
+      }
+      zoek(x, d + 1);
+    }
+  };
+  zoek(json, 0);
+  return gevonden;
+}
+
+/**
+ * De langste lijst van objecten in een antwoord, ook onder een onverwachte sleutel (links, @context en
+ * parameters tellen niet mee). Valt terug op de lijst die `lijstEnTotaal` vond.
+ */
+function grootsteLijst(json, gevonden) {
+  let beste = null;
+  let bestePad = null;
+  const zoek = (v, pad, d) => {
+    if (d > 5 || v === null || typeof v !== 'object') return;
+    if (Array.isArray(v)) {
+      const objecten = v.length > 0 && v.every((x) => x && typeof x === 'object' && !Array.isArray(x));
+      if (objecten && !/(^|\.)(links|_links|@context|mapping|parameters)(\.|$|\[)/.test(pad) && (!beste || v.length > beste.length)) {
+        beste = v;
+        bestePad = pad || '(wortel)';
+      }
+      return;
+    }
+    for (const [k, x] of Object.entries(v).slice(0, 100)) zoek(x, pad ? `${pad}.${k}` : k, d + 1);
+  };
+  zoek(json, '', 0);
+  return beste ? { lijst: beste, lijstPad: bestePad } : gevonden;
+}
+
+/**
+ * Het eerste herkenbare nummer of de eerste code van een element (voor het adres van het detail): eerst een
+ * waarde die bij `waardePatroon` past, anders een veld met de naam nummer, nr, id of code. Telkens gaan de velden
+ * van het element zelf vóór de geneste (een `sector.code` mag `beroepskwalificatie_nummer` niet voorbijsteken),
+ * en binnen één niveau geldt de volgorde van het antwoord.
+ */
+function idVan(item, waardePatroon = null) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+  const scalairen = [];
+  const lees = (o, pad, d) => {
+    if (d > 2 || !o || typeof o !== 'object' || Array.isArray(o)) return;
+    for (const [k, v] of Object.entries(o).slice(0, 80)) {
+      const p = pad ? `${pad}.${k}` : k;
+      if ((typeof v === 'string' && v.length > 0 && v.length <= 80) || typeof v === 'number') scalairen.push({ pad: p, naam: k, waarde: String(v), diepte: d });
+      else lees(v, p, d + 1);
+    }
+  };
+  lees(item, '', 0);
+  scalairen.sort((a, b) => a.diepte - b.diepte); // stabiel: binnen één niveau blijft de volgorde van het antwoord
+  const keus =
+    (waardePatroon && scalairen.find((x) => waardePatroon.test(x.waarde))) || scalairen.find((x) => /(^|_)(nummer|nr|id|code)$/i.test(x.naam));
+  return keus ? { pad: schoon(keus.pad, 80), waarde: keus.waarde } : null;
+}
+
+/** Een adres op de API-host in een element zelf (bv. api_url), dat onder `basis` ligt en nog een id erachter heeft. */
+function eigenLink(item, basis) {
+  let gevonden = null;
+  const lees = (v, d) => {
+    if (gevonden || d > 3) return;
+    if (typeof v === 'string') {
+      if (v.length > 400 || !/^(https?:\/\/|\/)/.test(v)) return;
+      try {
+        const u = new URL(v, `${API}/`);
+        if (u.origin === API_ORIGIN && u.pathname.startsWith(`${basis}/`) && u.pathname.length > basis.length + 1) gevonden = `${u.pathname}${u.search}`;
+      } catch {
+        /* geen geldige URL */
+      }
+    } else if (Array.isArray(v)) {
+      for (const x of v.slice(0, 5)) lees(x, d + 1);
+    } else if (v && typeof v === 'object') {
+      for (const x of Object.values(v).slice(0, 50)) lees(x, d + 1);
+    }
+  };
+  lees(item, 0);
+  return gevonden;
+}
+
+/** Lees de matrix uit de repo (null als hij ontbreekt of kapot is). */
+function leesStructuur() {
+  try {
+    const d = JSON.parse(fs.readFileSync(STRUCTUUR_BESTAND, 'utf8'));
+    return d && Array.isArray(d.groepen) && Array.isArray(d.onderdelen) ? d : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Kies uit de matrix in de repo de onderdelen om te bevragen: vier met arbeidsmarktfinaliteit (2de en 3de
+ * graad, één duaal, liefst in verschillende studiedomeinen) en één met doorstroomfinaliteit. Alleen
+ * onderdelen die vandaag gelden, geen aanloopjaar, gewoon voltijds secundair onderwijs (hoofdstructuur 311).
+ * Zonder bruikbare matrix: een paar vaste nummers.
+ */
+function kiesVoorbeelden(data, vandaag = new Date().toISOString().slice(0, 10)) {
+  const vast = { bron: 'vast', arbeidsmarkt: VASTE_ONDERDELEN.map((nr) => ({ nr })), doorstroom: [] };
+  if (!data || !Array.isArray(data.groepen) || !Array.isArray(data.onderdelen)) return vast;
+  const groepen = new Map(data.groepen.map((g) => [g.nummer, g]));
+  const adviesNummer = (o) => {
+    const lijst = Array.isArray(o.erkenningen) ? o.erkenningen.filter((e) => e && typeof e.nummer === 'string') : [];
+    const geldend = lijst.filter((e) => (!e.einddatum || e.einddatum >= vandaag) && (!e.status || /erkend/i.test(e.status)));
+    const gekozen = (geldend.length ? geldend : lijst).slice(-1)[0];
+    return gekozen ? schoon(gekozen.nummer, 20) : null;
+  };
+  const kandidaten = data.onderdelen
+    .filter((o) => o && typeof o.nummer === 'number' && groepen.has(o.groep))
+    .filter((o) => (!o.begindatum || o.begindatum <= vandaag) && (!o.einddatum || o.einddatum >= vandaag) && !o.aanloop)
+    .filter((o) => Array.isArray(o.hoofdstructuren) && o.hoofdstructuren.includes('311'))
+    .sort((a, b) => a.nummer - b.nummer)
+    .map((o) => ({
+      o,
+      g: groepen.get(o.groep),
+      domein: o.studiedomein && typeof o.studiedomein === 'object' ? o.studiedomein.omschrijving ?? null : null,
+    }));
+  const maak = ({ o, g, domein }) => ({
+    nr: o.nummer,
+    groep: schoon(g.nummer, 20),
+    titel: schoon(o.titel, 100),
+    graad: g.graad ?? null,
+    finaliteit: g.finaliteit ?? null,
+    duaal: !!o.duaal,
+    domein: domein ? schoon(domein, 60) : null,
+    adv: adviesNummer(o),
+  });
+  const A = kandidaten.filter((k) => k.g.finaliteit === 'A');
+  const bak = (graad, duaal) => A.filter((k) => k.g.graad === graad && !!k.o.duaal === duaal);
+  const gekozen = [];
+  const neem = (k) => {
+    if (k && !gekozen.includes(k)) gekozen.push(k);
+  };
+  neem(bak('2', false)[0]);
+  const derde = bak('3', false)[0];
+  neem(derde);
+  neem(bak('3', true)[0] || bak('2', true)[0]);
+  neem(bak('3', false).find((k) => k.domein !== (derde && derde.domein) && !gekozen.includes(k)) || bak('2', false)[1]);
+  for (const k of A) if (gekozen.length < 4) neem(k);
+  const doorstroom = kandidaten.find((k) => k.g.finaliteit === 'DO' && k.g.graad === '3' && !k.o.duaal) || kandidaten.find((k) => k.g.finaliteit === 'DO');
+  if (gekozen.length === 0) return vast;
+  return { bron: 'repo', arbeidsmarkt: gekozen.map(maak), doorstroom: doorstroom ? [maak(doorstroom)] : [] };
+}
+
+// Een logboekregel is hoogstens 8 KB. Past een regel niet, dan krimpt `maakRegel` eerst `proef`, dan `velden`,
+// `itemVelden` en `relevant`, en daarna alle andere lijsten en objecten van de regel, telkens door ze te halveren.
+// De regel blijft geldige JSON en krijgt `ingekort: true`. Het rapportbestand houdt de volledige gegevens.
+const MAX_REGEL = 8 * 1024;
+const bytes = (t) => Buffer.byteLength(t, 'utf8');
+
+/** Een kleinere kopie (de eerste helft van een lijst of de eerste helft van de sleutels), of null als er niets meer weg kan. */
+function krimp(w) {
+  if (Array.isArray(w)) return w.length > 0 ? w.slice(0, Math.floor(w.length / 2)) : null;
+  if (w && typeof w === 'object') {
+    const sleutels = Object.keys(w);
+    return sleutels.length > 0 ? Object.fromEntries(sleutels.slice(0, Math.floor(sleutels.length / 2)).map((k) => [k, w[k]])) : null;
+  }
+  return null;
+}
+
+/** "VOORVOEGSEL|{json}" van hoogstens `max` bytes, ontdaan van de sleutel en sleutelvormige reeksen. */
+function maakRegel(voorvoegsel, obj, max = MAX_REGEL) {
+  const regelVan = (o) => bewaak(`${voorvoegsel}|${JSON.stringify(o)}`);
+  let regel = regelVan(obj);
+  if (bytes(regel) <= max || !obj || typeof obj !== 'object' || Array.isArray(obj)) return regel;
+  const kort = { ...obj, ingekort: true };
+  /** Halveert de genoemde velden tot de regel past of er niets meer te halveren valt; true als de regel nu past. */
+  const krimpTot = (namen) => {
+    for (;;) {
+      let veranderd = false;
+      for (const k of namen) {
+        const kleiner = Object.hasOwn(kort, k) ? krimp(kort[k]) : null;
+        if (kleiner !== null) {
+          kort[k] = kleiner;
+          veranderd = true;
+        }
+      }
+      if (!veranderd) return false;
+      regel = regelVan(kort);
+      if (bytes(regel) <= max) return true;
+    }
+  };
+  const rest = Object.keys(kort).filter((k) => !['proef', 'velden', 'itemVelden', 'relevant', 'ingekort'].includes(k));
+  if (krimpTot(['proef']) || krimpTot(['velden', 'itemVelden', 'relevant']) || krimpTot(rest)) return regel;
+  // Laatste redmiddel: alleen de naam van de stap blijft over.
+  const kern = { ingekort: true, fout: 'regel te lang' };
+  for (const k of ['stap', 'deel', 'adres']) if (typeof obj[k] === 'string') kern[k] = obj[k].slice(0, 200);
+  return regelVan(kern);
+}
+
+/** Categorie van een veldpad, voor de samenvatting. */
+const categorie = (pad) =>
+  /onderwijskwalificatie/i.test(pad) ? 'onderwijskwalificatie' : /kwalificatie|beroep/i.test(pad) ? 'beroepskwalificatie' : /competent/i.test(pad) ? 'competentie' : /sector/i.test(pad) ? 'sector' : /structuuronderde|studierichting/i.test(pad) ? 'structuuronderdeel' : /(^|[^a-z])adv([^a-z]|$)/i.test(pad) ? 'adv' : /opleiding|traject|profiel/i.test(pad) ? 'opleiding' : 'ander';
+
+async function kwalificaties() {
+  const sleutel = leesSleutel();
+  if (!sleutel) throw new Error('ONDERWIJSDOELEN_API_KEY ontbreekt in de omgeving');
+  const uit = { tijd: new Date().toISOString(), maxOproepen: KWAL_MAX_OPROEPEN, oproepen: 0, voorbeelden: null, regels: [], samenvatting: [] };
+  const gehad = new Map();
+
+  /** Eén regel in het logboek (hoogstens 8 KB, altijd geldige JSON); de sleutel en sleutelvormige reeksen gaan nooit mee. */
+  const toon = (voorvoegsel, obj) => console.log(maakRegel(voorvoegsel, obj));
+  const meld = (obj) => {
+    uit.regels.push(obj);
+    toon('KWAL', obj);
+  };
+
+  /** Eén oproep (hoogstens één keer per adres), compact beschreven. `soort`: lijst, detail of kort. */
+  async function haal(stap, pad, opties = {}) {
+    if (typeof pad !== 'string' || !pad.startsWith('/')) throw new Error('intern: een pad begint met /');
+    if (gehad.has(pad)) return gehad.get(pad);
+    const rec = { stap, adres: schoon(pad, 300), ...(opties.etiket || {}) };
+    const res = { rec, json: null, lijst: null, v: null };
+    if (uit.oproepen >= KWAL_MAX_OPROEPEN) {
+      rec.overgeslagen = 'grens van oproepen bereikt';
+      meld(rec);
+      return res;
+    }
+    uit.oproepen++;
+    gehad.set(pad, res);
+    const r = await verzoek(API + pad, { sleutel });
+    rec.status = r.status ?? null;
+    rec.soort = r.soort || null;
+    if (r.fout) rec.fout = r.fout;
+    if (r.doorverwijzing) rec.doorverwijzing = r.doorverwijzing;
+    if (typeof r.tekst === 'string') {
+      rec.grootte = r.grootte;
+      let json = null;
+      try {
+        json = JSON.parse(r.tekst);
+      } catch {
+        /* geen JSON */
+      }
+      if (json === null || typeof json !== 'object') {
+        rec.json = false;
+        rec.begin = schoon(r.tekst, 160);
+        if (/^\s*(<!doctype|<html)/i.test(r.tekst)) rec.html = true;
+      } else {
+        rec.json = true;
+        res.json = json;
+        try {
+          // Een detail is geen lijst: de arrays erin (bv. opleidingen) horen bij het ene element.
+          const { lijst, lijstPad } = opties.soort === 'detail' ? { lijst: null, lijstPad: null } : grootsteLijst(json, lijstEnTotaal(json));
+          res.lijst = lijst;
+          rec.wortel = Array.isArray(json) ? `array(${json.length})` : Object.keys(json).slice(0, 30).map((k) => schoon(k, 60));
+          const totaal = totaalVan(json);
+          if (totaal !== null) rec.totaal = totaal;
+          if (lijst) rec.lijst = { pad: schoon(lijstPad, 80), lengte: lijst.length };
+          const itemVelden = new Map();
+          if (lijst) for (const it of lijst.slice(0, 5)) veldenTot3(it, itemVelden);
+          if (opties.soort === 'kort') {
+            rec.eersteVelden = [...(lijst ? itemVelden : veldenTot3(json)).keys()].slice(0, 20).map((k) => schoon(k, 80));
+          } else {
+            rec.velden = veldenObject(veldenTot3(json));
+            if (lijst) rec.itemVelden = veldenObject(itemVelden);
+            if (opties.proef) rec.proef = Object.fromEntries([...proefPaden(lijst ? lijst[0] : json)].map(([k, x]) => [schoon(k, 120), x]));
+            const rel = verwijzendeVelden(json);
+            if (rel.size) rec.relevant = Object.fromEntries([...rel].map(([k, x]) => [schoon(k, 120), x]));
+          }
+          const v = verwijzingen(json);
+          res.v = v;
+          if (v.bk.size) rec.bk = Object.fromEntries([...v.bk].slice(0, 10).map(([c, p]) => [schoon(c, 40), schoon(p, 120)]));
+          if (v.adv.size) rec.adv = Object.fromEntries([...v.adv].slice(0, 10).map(([c, p]) => [schoon(c, 40), schoon(p, 120)]));
+          if (v.links.size) rec.links = [...v.links].slice(0, 15).map((l) => schoon(l, 200));
+        } catch (e) {
+          rec.analyseFout = schoon(e && e.message ? e.message : e, 160);
+        }
+      }
+    }
+    // Aanvullingen van de aanroeper komen vóór het afdrukken, ook als het antwoord geen JSON was.
+    if (opties.verrijk) {
+      try {
+        opties.verrijk(res);
+      } catch (e) {
+        rec.verrijkFout = schoon(e && e.message ? e.message : e, 160);
+      }
+    }
+    meld(rec);
+    await wacht(WACHT_MS);
+    return res;
+  }
+
+  /** Zet in de regel van een lijst welk veld van het eerste element als id gekozen is (null: geen herkend). */
+  const idVeldIn = (patroon) => (res) => {
+    if (res.lijst && res.lijst[0]) {
+      const id = idVan(res.lijst[0], patroon);
+      res.rec.idVeld = id ? id.pad : null;
+    }
+  };
+
+  /** Een stap die mag mislukken zonder de rest te stoppen. */
+  async function afgeschermd(naam, fn) {
+    try {
+      return await fn();
+    } catch (e) {
+      meld({ stap: naam, fout: `stap mislukt: ${schoon(e && e.message ? e.message : e, 200)}` });
+      return null;
+    }
+  }
+
+  // ── 1. Beroepskwalificaties: pagina 1 van de lijst en het detail van drie BK's ──
+  const bk = await afgeschermd('bk', async () => {
+    const lijst = await haal('bk-lijst', BK_PAD, { soort: 'lijst', verrijk: idVeldIn(/^BK-/) });
+    const keuzes = [];
+    const voegToe = (pad, id, via) => {
+      if (pad && keuzes.length < 3 && !keuzes.some((k) => k.pad === pad)) keuzes.push({ pad, id, via });
+    };
+    for (const it of lijst.lijst || []) {
+      const link = eigenLink(it, BK_PAD);
+      const id = idVan(it, /^BK-/);
+      voegToe(link || (id ? `${BK_PAD}/${encodeURIComponent(id.waarde)}` : null), id ? id.waarde : null, link ? 'link' : id ? id.pad : null);
+    }
+    if (lijst.v) for (const code of lijst.v.bk.keys()) voegToe(`${BK_PAD}/${encodeURIComponent(code)}`, code, 'code in het antwoord');
+    const details = [];
+    for (const k of keuzes) details.push({ ...k, res: await haal('bk-detail', k.pad, { soort: 'detail', proef: true }) });
+    return { lijst, keuzes, details };
+  });
+
+  // ── 2. Structuuronderdelen: vier met arbeidsmarktfinaliteit, één met doorstroomfinaliteit ──
+  let voorbeelden;
+  try {
+    voorbeelden = kiesVoorbeelden(leesStructuur());
+  } catch {
+    voorbeelden = kiesVoorbeelden(null);
+  }
+  uit.voorbeelden = voorbeelden;
+  meld({ stap: 'voorbeelden', ...voorbeelden });
+  const onderdelen = [];
+  await afgeschermd('onderdelen', async () => {
+    for (const ex of [...voorbeelden.arbeidsmarkt, ...voorbeelden.doorstroom]) {
+      const res = await haal('onderdeel-detail', `${SO_PAD}/${encodeURIComponent(ex.nr)}`, {
+        soort: 'detail',
+        etiket: { voorbeeld: { nr: ex.nr, groep: ex.groep ?? null, graad: ex.graad ?? null, finaliteit: ex.finaliteit ?? null, duaal: ex.duaal ?? null } },
+      });
+      onderdelen.push({ ex, res });
+    }
+  });
+
+  // ── 3. Opleidingstrajecten: pagina 1 en het detail van drie trajecten ──
+  const trajecten = await afgeschermd('trajecten', async () => {
+    const lijst = await haal('traject-lijst', TRAJECT_PAD, { soort: 'lijst', verrijk: idVeldIn(null) });
+    const details = [];
+    const gebruikt = new Set();
+    for (const it of lijst.lijst || []) {
+      if (details.length >= 3) break;
+      const link = eigenLink(it, TRAJECT_PAD);
+      const id = idVan(it);
+      const pad = link || (id ? `${TRAJECT_PAD}/${encodeURIComponent(id.waarde)}` : null);
+      if (!pad || gebruikt.has(pad)) continue;
+      gebruikt.add(pad);
+      details.push({ pad, res: await haal('traject-detail', pad, { soort: 'detail' }) });
+    }
+    return { lijst, details };
+  });
+
+  // ── 4. Kandidaat-adressen en filters ──
+  const eerste = onderdelen.find((o) => o.ex.finaliteit === 'A' && o.ex.graad === '3' && !o.ex.duaal) || onderdelen[0] || null;
+  const nr = eerste ? eerste.ex.nr : VASTE_ONDERDELEN[0];
+  const adressen = [];
+  await afgeschermd('adressen', async () => {
+    const kandidaten = [
+      ['onderwijskwalificaties v1 enkelvoud', `${KC}/onderwijskwalificaties/v1/onderwijskwalificatie`],
+      ['onderwijskwalificaties v2 enkelvoud', `${KC}/onderwijskwalificaties/v2/onderwijskwalificatie`],
+      ['onderwijskwalificaties v1 meervoud', `${KC}/onderwijskwalificaties/v1/onderwijskwalificaties`],
+      ['onderwijskwalificaties v2 meervoud', `${KC}/onderwijskwalificaties/v2/onderwijskwalificaties`],
+      ['structuuronderdeel/{nummer}/beroepskwalificaties', `${SO_PAD}/${nr}/beroepskwalificaties`],
+      ['structuuronderdeel/{nummer}/kwalificaties', `${SO_PAD}/${nr}/kwalificaties`],
+      ['opleidingsprofielen', `${KC}/opleidingsprofielen`],
+    ];
+    for (const [naam, pad] of kandidaten) adressen.push({ naam, res: await haal('adres', pad, { soort: 'kort', etiket: { naam } }) });
+  });
+
+  // Filters op de lijst van beroepskwalificaties, met waarden uit stap 2. Een filter dat het totaal niet verandert
+  // (of, zonder totaal, dezelfde lijst geeft: even lang en hetzelfde eerste element) wordt genegeerd. Is geen van
+  // beide te vergelijken, dan is de uitkomst "onbekend": nooit "werkt" omdat er niets is om mee te vergelijken.
+  const filters = [];
+  const refRec = bk && bk.lijst ? bk.lijst.rec : null;
+  const kenmerk = (lijst) => (lijst && lijst.length > 0 ? `${lijst.length}|${JSON.stringify(snoei(lijst[0]))}` : null);
+  const refKenmerk = kenmerk(bk && bk.lijst ? bk.lijst.lijst : null);
+  await afgeschermd('filters', async () => {
+    if (!refRec || refRec.status !== 200 || !refRec.json) {
+      meld({ stap: 'filters', overgeslagen: 'de lijst van beroepskwalificaties is niet bereikbaar' });
+      return;
+    }
+    const detail = eerste ? eerste.res : null;
+    const adv = (detail && detail.v && [...detail.v.adv.keys()][0]) || (eerste && eerste.ex.adv) || null;
+    let sector = null;
+    for (const [k, x] of Object.entries((detail && detail.rec.relevant) || {})) {
+      if (/sector/i.test(k) && !/[{\[]/.test(String(x).slice(0, 1))) sector = String(x);
+    }
+    sector = sector || (eerste && eerste.ex.domein) || null;
+    const waarden = [
+      ['structuuronderdeel_nummer', String(nr)],
+      ['structuuronderdeel', String(nr)],
+      ['adv', adv],
+      ['adv_nummer', adv],
+      ['adv_nummer', adv ? adv.replace(/\D+/g, '') : null],
+      ['opleidingsinhoud', adv],
+      ['sector', sector],
+    ];
+    for (const [naam, waarde] of waarden) {
+      if (!waarde) {
+        meld({ stap: 'filter', filter: { naam, overgeslagen: 'geen waarde uit stap 2' } });
+        continue;
+      }
+      const verrijk = (res) => {
+        const rec = res.rec;
+        const f = { naam, waarde: schoon(waarde, 60), referentie: refRec.totaal ?? null };
+        rec.filter = f;
+        if (rec.status !== null && rec.status >= 400) {
+          f.werking = 'fout';
+          return;
+        }
+        if (rec.status !== 200 || !res.json) {
+          f.werking = 'onbekend';
+          f.reden = rec.status !== 200 ? `status ${rec.status ?? 'ontbreekt'}` : 'geen JSON';
+          return;
+        }
+        if (rec.totaal !== undefined) f.totaal = rec.totaal;
+        if (res.lijst) f.lengte = res.lijst.length;
+        if (res.lijst) f.eersteIds = res.lijst.slice(0, 3).map((it) => (idVan(it, /^BK-/) || {}).waarde ?? null);
+        const kenmerkFilter = kenmerk(res.lijst);
+        if (refRec.totaal !== undefined && rec.totaal !== undefined) {
+          f.vergeleken = 'totaal';
+          f.werking = rec.totaal === refRec.totaal ? 'genegeerd' : 'werkt';
+        } else if (refKenmerk !== null && kenmerkFilter !== null) {
+          f.vergeleken = 'lijst';
+          f.werking = kenmerkFilter === refKenmerk ? 'genegeerd' : 'werkt';
+        } else {
+          f.werking = 'onbekend';
+          f.reden = 'geen totaal of lijst om mee te vergelijken';
+        }
+      };
+      const pad = `${BK_PAD}?${encodeURIComponent(naam)}=${encodeURIComponent(waarde)}`;
+      const res = await haal('filter', pad, { soort: 'kort', verrijk });
+      if (!res.rec.filter) res.rec.filter = { naam, waarde: schoon(waarde, 60), werking: 'onbekend' };
+      filters.push({ naam, waarde, res });
+    }
+  });
+
+  // ── 4b. Terugkoppeling: de BK's die in een detail van een onderdeel staan, bevragen en zoeken naar het onderdeel ──
+  const terug = [];
+  await afgeschermd('terugkoppeling', async () => {
+    const reedsGehad = new Set((bk ? bk.keuzes : []).map((k) => k.id));
+    for (const o of onderdelen) {
+      if (terug.length >= 2) break;
+      if (!o.res.v) continue;
+      for (const code of o.res.v.bk.keys()) {
+        if (terug.length >= 2 || reedsGehad.has(code)) continue;
+        reedsGehad.add(code);
+        // Staat het onderdeel (zijn ADV-nummer of zijn nummer in een veld over structuuronderdelen) in het detail van de BK?
+        let advIn = false;
+        let nrIn = false;
+        const verrijk = (r) => {
+          const tekst = r.json ? JSON.stringify(r.json) : '';
+          const advs = [...(o.res.v ? o.res.v.adv.keys() : []), ...(o.ex.adv ? [o.ex.adv] : [])];
+          advIn = advs.some((a) => tekst.includes(a));
+          nrIn = new RegExp(`"[^"]*structuuronderde[^"]*"\\s*:\\s*"?${String(o.ex.nr).replace(/\D/g, '')}\\b`, 'i').test(tekst);
+          r.rec.terugverwijzing = { onderdeel: o.ex.nr, adv: advIn, nummer: nrIn };
+        };
+        const res = await haal('bk-detail-via-onderdeel', `${BK_PAD}/${encodeURIComponent(code)}`, { soort: 'detail', verrijk });
+        terug.push({ code, onderdeel: o.ex.nr, res, advIn, nrIn });
+      }
+    }
+  });
+
+  // ── 5. Samenvatting: welke velden of adressen een koppeling structuuronderdeel ↔ BK lijken te geven ──
+  const samenvatting = [];
+  const geef = (deel) => {
+    samenvatting.push(deel);
+    toon('KWAL-SAMENVATTING', deel);
+  };
+  const kort = (res) => ({ status: res.rec.status ?? res.rec.fout ?? null, json: !!res.rec.json });
+  await afgeschermd('samenvatting', async () => {
+    const lijstRec = bk && bk.lijst ? bk.lijst.rec : null;
+    geef({
+      deel: 'bk',
+      status: lijstRec ? lijstRec.status ?? lijstRec.fout ?? null : null,
+      totaal: lijstRec ? lijstRec.totaal ?? null : null,
+      lijst: lijstRec ? lijstRec.lijst ?? null : null,
+      idVeld: bk && bk.keuzes[0] ? bk.keuzes[0].via : null,
+      details: bk ? bk.details.map((d) => ({ adres: d.res.rec.adres, ...kort(d.res), velden: Object.keys(d.res.rec.velden || {}).length, verwijst: Object.keys(d.res.rec.relevant || {}).slice(0, 12) })) : [],
+    });
+    geef({
+      deel: 'onderdelen',
+      voorbeelden: onderdelen.map(({ ex, res }) => ({
+        nr: ex.nr,
+        finaliteit: ex.finaliteit ?? null,
+        graad: ex.graad ?? null,
+        duaal: ex.duaal ?? null,
+        ...kort(res),
+        bk: Object.keys(res.rec.bk || {}),
+        adv: Object.keys(res.rec.adv || {}),
+        kwalificatieVelden: Object.keys(res.rec.relevant || {}).filter((p) => ['beroepskwalificatie', 'onderwijskwalificatie', 'competentie', 'sector'].includes(categorie(p))).slice(0, 12),
+      })),
+    });
+
+    // Koppelingen: veld, filter of adres. Uniek per soort en pad.
+    const koppelingen = [];
+    const gezien = new Set();
+    const voeg = (k) => {
+      const sleutelK = `${k.van}|${k.via}|${k.pad || k.adres || k.naam}`;
+      if (!gezien.has(sleutelK)) {
+        gezien.add(sleutelK);
+        koppelingen.push(k);
+      }
+    };
+    for (const { res } of onderdelen) {
+      for (const [code, p] of Object.entries(res.rec.bk || {})) voeg({ van: 'structuuronderdeel', naar: 'beroepskwalificatie', via: 'veld (waarde)', pad: p, voorbeeld: code });
+      for (const [p, x] of Object.entries(res.rec.relevant || {})) {
+        if (['beroepskwalificatie', 'onderwijskwalificatie'].includes(categorie(p))) voeg({ van: 'structuuronderdeel', naar: categorie(p), via: 'veld (naam)', pad: p, proef: x.slice(0, 80) });
+      }
+    }
+    for (const d of [...(bk ? bk.details : []), ...terug.map((t) => ({ res: t.res }))]) {
+      for (const [code, p] of Object.entries(d.res.rec.adv || {})) voeg({ van: 'beroepskwalificatie', naar: 'adv', via: 'veld (waarde)', pad: p, voorbeeld: code });
+      for (const [p, x] of Object.entries(d.res.rec.relevant || {})) {
+        if (['structuuronderdeel', 'adv', 'opleiding'].includes(categorie(p))) voeg({ van: 'beroepskwalificatie', naar: categorie(p), via: 'veld (naam)', pad: p, proef: x.slice(0, 80) });
+      }
+    }
+    for (const t of terug) voeg({ van: 'beroepskwalificatie', naar: 'structuuronderdeel', via: 'terugverwijzing', pad: t.res.rec.adres, bewijs: { adv: t.advIn, nummer: t.nrIn } });
+    for (const f of filters) {
+      if (f.res.rec.filter && f.res.rec.filter.werking === 'werkt') voeg({ van: 'filter', naar: 'beroepskwalificatie', via: 'filter', naam: f.naam, waarde: f.res.rec.filter.waarde, totaal: f.res.rec.filter.totaal ?? null, referentie: f.res.rec.filter.referentie });
+    }
+    for (const a of adressen) {
+      // Alleen een adres dat ook iets teruggeeft telt als koppeling (een lege lijst zegt niets).
+      const aantal = a.res.rec.totaal ?? (a.res.rec.lijst ? a.res.rec.lijst.lengte : 0);
+      if (a.res.rec.status === 200 && aantal > 0 && /\/beroepskwalificaties$|\/kwalificaties$/.test(a.res.rec.adres)) voeg({ van: 'structuuronderdeel', naar: 'kwalificatie', via: 'adres', adres: a.res.rec.adres, aantal });
+    }
+    geef({ deel: 'koppelingen', aantal: koppelingen.length, lijst: koppelingen.slice(0, 40) });
+
+    geef({
+      deel: 'filters',
+      werken: filters.filter((f) => f.res.rec.filter.werking === 'werkt').map((f) => f.naam),
+      genegeerd: filters.filter((f) => f.res.rec.filter.werking === 'genegeerd').map((f) => f.naam),
+      fout: filters.filter((f) => f.res.rec.filter.werking === 'fout').map((f) => `${f.naam}:${f.res.rec.status ?? f.res.rec.fout}`),
+      onbekend: filters.filter((f) => f.res.rec.filter.werking === 'onbekend').map((f) => `${f.naam}:${f.res.rec.filter.reden ?? f.res.rec.status ?? f.res.rec.fout}`),
+    });
+    geef({
+      deel: 'adressen',
+      bereikbaar: adressen.filter((a) => a.res.rec.status === 200).map((a) => ({ naam: a.naam, json: !!a.res.rec.json, aantal: a.res.rec.totaal ?? (a.res.rec.lijst ? a.res.rec.lijst.lengte : null), velden: a.res.rec.eersteVelden || [] })),
+      niet: adressen.filter((a) => a.res.rec.status !== 200).map((a) => ({ naam: a.naam, status: a.res.rec.status ?? a.res.rec.fout ?? null })),
+      trajecten: trajecten ? { status: trajecten.lijst.rec.status ?? null, totaal: trajecten.lijst.rec.totaal ?? null, details: trajecten.details.map((d) => d.res.rec.status ?? null) } : null,
+    });
+    // Een echte code in een veld (BK-… of ADV-…) weegt zwaarder dan een veld met een passende naam.
+    const aantalVia = (van, via) => koppelingen.filter((k) => k.van === van && k.via === via).length;
+    const veldWaarde = aantalVia('structuuronderdeel', 'veld (waarde)');
+    const veldNaam = aantalVia('structuuronderdeel', 'veld (naam)');
+    const terugWaarde = aantalVia('beroepskwalificatie', 'veld (waarde)');
+    const terugNaam = aantalVia('beroepskwalificatie', 'veld (naam)');
+    const viaFilter = koppelingen.filter((k) => k.via === 'filter').length;
+    const viaAdres = koppelingen.filter((k) => k.via === 'adres').length;
+    const bevestigd = terug.some((t) => t.advIn || t.nrIn);
+    geef({
+      deel: 'conclusie',
+      structuuronderdeelNaarBk: veldWaarde > 0 ? 'ja, een BK-code staat in een veld van het onderdeel' : veldNaam > 0 ? 'mogelijk: velden met een kwalificatienaam, maar geen BK-code erin' : viaAdres > 0 ? 'ja, via een eigen adres' : 'niet gevonden in de details',
+      bkNaarStructuuronderdeel: terugWaarde > 0 ? 'ja, een ADV-nummer staat in een veld van de BK' : terugNaam > 0 ? 'mogelijk: velden over opleiding of structuuronderdeel, maar geen ADV-nummer erin' : 'niet gevonden in de details',
+      terugverwijzingBevestigd: bevestigd,
+      werkendeFilters: viaFilter,
+      eigenAdressen: viaAdres,
+    });
+  });
+  geef({ deel: 'klaar', oproepen: uit.oproepen, maxOproepen: KWAL_MAX_OPROEPEN });
+  uit.samenvatting = samenvatting;
+  return uit;
+}
+
 // ── Start ───────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -1012,13 +1806,16 @@ async function main() {
   } else if (stand === '--parameters') {
     const d = await parameters();
     fs.writeFileSync(path.join(UIT, 'parameters.json'), JSON.stringify(d, null, 1));
+  } else if (stand === '--kwalificaties') {
+    const d = await kwalificaties();
+    fs.writeFileSync(path.join(UIT, 'kwalificaties.json'), bewaak(JSON.stringify(d, null, 1)));
   } else if (stand === '--verslag') {
     const tekst = verslag();
     fs.writeFileSync(path.join(UIT, 'verslag.md'), tekst);
     console.log(tekst);
     if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, tekst.slice(0, 900000) + '\n');
   } else {
-    console.error('Gebruik: verken-onderwijs-api.mjs --met-sleutel | --publiek | --verslag | --matrix | --koppeling | --proeven | --parameters');
+    console.error('Gebruik: verken-onderwijs-api.mjs --met-sleutel | --publiek | --verslag | --matrix | --koppeling | --proeven | --parameters | --kwalificaties');
     process.exit(2);
   }
 }
@@ -1031,4 +1828,4 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
   });
 }
 
-export { beschrijf, lijstEnTotaal, velden, inkort, sporen, pdfTekst, apiLinks, schoon, richtingRegel };
+export { API, beschrijf, lijstEnTotaal, velden, inkort, sporen, pdfTekst, apiLinks, schoon, richtingRegel, kiesVoorbeelden, snoei, idVan, maakRegel };

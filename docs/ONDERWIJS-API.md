@@ -98,7 +98,16 @@ zelf, de omzendbrief SO 37. Het oude apigee-portaal geeft 404.
 
 Workflow `Verkenning Onderwijs-API's` (`.github/workflows/verken-onderwijs-api.yml`), met de hand te
 starten. Stand `matrix` (standaard) zet één regel per studierichting in het logboek (`RICHTING|{…}`),
-plus de filters en de aantallen van het aanbod; stand `volledig` doet de brede verkenning met verslag.
+plus de filters en de aantallen van het aanbod; stand `volledig` doet de brede verkenning met verslag;
+stand `kwalificaties` (ronde 6, hoogstens 60 oproepen) zoekt hoe een studierichting aan beroepskwalificaties
+(`BK-…`) en onderwijskwalificaties vastzit en zet de bevindingen in het logboek (`KWAL|{…}`, afgesloten met
+`KWAL-SAMENVATTING|{…}`, ook in `tools/verkenning/rapport/kwalificaties.json`). Een logboekregel is hoogstens
+8 KB: past hij niet, dan krimpt het script eerst `proef`, dan `velden`, `itemVelden` en `relevant`, en zet
+`"ingekort": true`; het rapportbestand houdt de volledige regels. Bij elke lijst staat in `idVeld` welk veld van
+het eerste element als id gekozen is (eigen velden gaan vóór geneste). Een filter krijgt `werkt` of `genegeerd`
+alleen als het totaal of de lijst (lengte en eerste element) echt te vergelijken is, anders `onbekend` (met een
+`reden`, en in de samenvatting onder `onbekend`). Het script gebruikt de sleutel getrimd en waarschuwt (zonder de
+waarde) als het geheim witruimte of stuurtekens heeft; de sleutel verdwijnt uit alle uitvoer, ook getrimd en per regel.
 Script: `tools/verkenning/verken-onderwijs-api.mjs`.
 
 Les uit ronde 2: de scripts van de webapps van de overheid bevatten hun eigen publieke sleutels. Het
