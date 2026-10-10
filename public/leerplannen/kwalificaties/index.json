@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "beroepskwalificaties-index",
+  "v": 1,
+  "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
+  "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/",
+  "naamsvermelding": "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
+  "licentie": "nog te bevestigen",
+  "opgehaald": "2026-10-10T21:47:42Z",
+  "lijstTotaal": 604,
+  "sha256": "105377a8ec7d8bbbdb67f93ca0cf86ad53a823efeaf312f6dd1cb05559d97755",
+  "bks": [
+{"bk":"BK-0019-3","nummer":"BK-0019","versie":3,"titel":"Bakker","vks":4,"status":"ERKEND","aantal":13,"sha256":"c9537eba1939767ca1754a22012576eaf5d54fe0c1d1591362e1ff66c0cad89a","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0019-3.json","laatstErkend":"BK-0019-3"},
+{"bk":"BK-0020-3","nummer":"BK-0020","versie":3,"titel":"Banketbakker","vks":4,"status":"ERKEND","aantal":13,"sha256":"5fabbc0b295cb35945cf8c84adc256d022960ce0567b27a1d7ac1f2fa913d454","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0020-3.json","laatstErkend":"BK-0020-3"},
+{"bk":"BK-0038-3","nummer":"BK-0038","versie":3,"titel":"Binnenschrijnwerker","vks":3,"status":"ERKEND","aantal":23,"sha256":"b7812353dac11671db3a692a84027804afd9379b86634298d425560de9d94457","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0038-3.json","laatstErkend":"BK-0038-3"},
+{"bk":"BK-0130-5","nummer":"BK-0130","versie":5,"titel":"Stukadoor","vks":3,"status":"ERKEND","aantal":25,"sha256":"0df489750238e0ae444df87a1495592f393284a956ecf7d2fcacdfb35e5c3246","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0130-5.json","laatstErkend":"BK-0130-5"},
+{"bk":"BK-0168-3","nummer":"BK-0168","versie":3,"titel":"Dekvloerlegger","vks":3,"status":"ERKEND","aantal":17,"sha256":"956c396d685889f9cc9713401de267e3e5bbce8d0f914e0e2836621bbdd899d3","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0168-3.json","laatstErkend":"BK-0168-3"},
+{"bk":"BK-0169-3","nummer":"BK-0169","versie":3,"titel":"Vloerder-tegelzetter","vks":3,"status":"ERKEND","aantal":17,"sha256":"e0ef3c008ddd16d27a82bb5125b00df8df55a7cab105a01f6e6f147ec2ffccdd","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0169-3.json","laatstErkend":"BK-0169-3"},
+{"bk":"BK-0179-3","nummer":"BK-0179","versie":3,"titel":"Polyvalent mecanicien personenwagens en lichte bedrijfsvoertuigen","vks":4,"status":"ERKEND","aantal":15,"sha256":"4e57171b873a0721d4d2b6d91aa2d5f4156cf5e56dbcc78b4b23a77e73f3ed15","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0179-3.json","laatstErkend":"BK-0179-3"},
+{"bk":"BK-0273-3","nummer":"BK-0273","versie":3,"titel":"Assistent dierlijke productie","vks":2,"status":"ERKEND","aantal":18,"sha256":"dba3f9b19df47405d681025288cb4a97e9972348ebada0caf7678cf8571af6ea","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0273-3.json","laatstErkend":"BK-0273-3"},
+{"bk":"BK-0278-3","nummer":"BK-0278","versie":3,"titel":"Assistent plantaardige productie","vks":2,"status":"ERKEND","aantal":18,"sha256":"de1dbe73c688d2ad1a6c261a27c811881af8c103c91cd466859853c7e2c9460a","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0278-3.json","laatstErkend":"BK-0278-3"},
+{"bk":"BK-0309-2","nummer":"BK-0309","versie":2,"titel":"Animator","vks":4,"status":"ERKEND","aantal":17,"sha256":"9938ce7ac1971804e4ab8c7092206546c00459e5425a6a0a509f67f97b21e8ff","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0309-2.json","laatstErkend":"BK-0309-2"},
+{"bk":"BK-0384-2","nummer":"BK-0384","versie":2,"titel":"Host","vks":4,"status":"ERKEND","aantal":10,"sha256":"904f4899efe6df7f9906a1b2112094e41c17629750f6e8a80083d610a122e2ae","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0384-2.json","laatstErkend":"BK-0384-2"},
+{"bk":"BK-0390-2","nummer":"BK-0390","versie":2,"titel":"Onthaalmedewerker","vks":3,"status":"ERKEND","aantal":12,"sha256":"7eb05a738086d7a8f65748c1071b3d0914ecc6ca5d5fe4b23e3c58caae3d6274","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0390-2.json","laatstErkend":"BK-0390-2"},
+{"bk":"BK-0391-2","nummer":"BK-0391","versie":2,"titel":"Kwaliteits- en procesverantwoordelijke (banket)bakkerij","vks":4,"status":"ERKEND","aantal":12,"sha256":"d2a200e5271858e15e58d3d6d91ab986be0b2021af6cd2de2580d31d5809779c","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0391-2.json","laatstErkend":"BK-0391-2"},
+{"bk":"BK-0436-2","nummer":"BK-0436","versie":2,"titel":"Uurwerkhersteller","vks":4,"status":"ERKEND","aantal":7,"sha256":"ddb74c849d07458e4586c68cd6e91e1f9ee7232ff5027fe9fc6368e01df95180","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0436-2.json","laatstErkend":"BK-0436-2"},
+{"bk":"BK-0453-1","nummer":"BK-0453","versie":1,"titel":"Buitenschrijnwerker hout","vks":3,"status":"ERKEND","aantal":23,"sha256":"fcf4b78e0e14ace87545ea58d80fe3407eaa2b64cfe0d55c3f6fdd840ff68ee4","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0453-1.json","laatstErkend":"BK-0453-1"},
+{"bk":"BK-0454-1","nummer":"BK-0454","versie":1,"titel":"Medewerker goudsmid","vks":3,"status":"ERKEND","aantal":9,"sha256":"d10b0876525cdc4c190d900f8c2906095d3d46423af589d09d867da07f79342d","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0454-1.json","laatstErkend":"BK-0454-1"},
+{"bk":"BK-0464-1","nummer":"BK-0464","versie":1,"titel":"Recreatief medewerker","vks":4,"status":"ERKEND","aantal":13,"sha256":"f05f36465255233c28a305732e78b522f812506d9bf814435625608eda80cde1","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0464-1.json","laatstErkend":"BK-0464-1"},
+{"bk":"BK-0492-1","nummer":"BK-0492","versie":1,"titel":"Uitvoerend danser","vks":3,"status":"ERKEND","aantal":10,"sha256":"824e422789699c57ce6ed8abad824678ba8eb050cff56d2eaff25b4b6b06fc31","opgehaald":"2026-10-10T21:47:42Z","bestand":"bk/BK-0492-1.json","laatstErkend":"BK-0492-1"}
+  ]
+}
