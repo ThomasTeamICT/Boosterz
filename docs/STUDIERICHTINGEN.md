@@ -29,6 +29,8 @@ De opdracht van de eigenaar, letterlijk: "ja, doe die import maar, einddoel is d
 | P13 Rooktest studierichtingen | **Klaar** (10 oktober 2026): sectie 20d op de fixtures (49 checks) en 20e op de echte data voor G-0193 en G-0327 (40 checks, alleen regex), twee keer na elkaar groen; de valkuil (§ 9.5) wordt in localStorage nagegaan. Geen fouten in de app gevonden | bouwer (een andere agent dan die van P8 tot P12) |
 | I4 Review, rechter, herstel, rooktest op echte data, uitrol | **Klaar** (10 oktober 2026). Vier reviewers (datastroom, juistheid, toegankelijkheid en taal, bundel en opslag), elk met een rechter: 21 bevindingen, 9 bevestigd, geen blokkerende. De vijf kleine punten (workflowteksten, links naar de wizard met `sets=`, zichtbaar onderscheid tussen gelijke setnamen, herlaadmelding) en de vier logicapunten (rij hieronder) zijn hersteld en onafhankelijk nagekeken. Sectie 20e (echte data) zit in P13 | hoofdsessie, reviewers, rechter |
 | I4 Herstel van vier punten uit de eindreview (logica) | **Klaar** (10 oktober 2026): drie rondes, telkens door een andere agent nagekeken, en samengevoegd. (1) Een onderdeel met `nietMeerInBron` telt niet meer als geldig (`geldigeOnderdelen`, § 9.2). (2) Een volledige set die groeit of krimpt, valt nu op: tweede afdruk `kaderVolledig`, één regel `veranderdSindsLeerplan` (§ 11.2); leerplannen van daarvoor werken zoals vroeger. (3) Na "Keuze aanpassen" met een andere keuze valt `volgtKader` weg (§ 10.2). (4) Botsende doelcodes krijgen de korte naam van de set in plaats van het set-id (§ 14.9). Tweede ronde: een cursus draagt nooit `kaderVolledig` (`doelgroepVoorCursus`), en de bekende beperking bij een andere lijst sets staat in § 11.2 | kernbouwer en een onafhankelijke controleur; integratie: hoofdsessie |
+| Fase 2 (§ 22): vingerafdruk per set, gaten dichten, mijn richtingen, klas en richting | **Ontwerp klaar** (10 oktober 2026): twee ontwerpen en een synthese; de eigen tabel "Stand van zaken fase 2" staat in § 22, de pakketten in bijlage D. Bouwen loopt. | hoofdsessie, bouwers |
+| Verkenning beroepskwalificaties (O11) | Stand `kwalificaties` in het verkenningsscript gebouwd en nagekeken; de run in GitHub Actions volgt (regel 11). | hoofdsessie |
 | Licentie en naamsvermelding API Structuuronderdelen | Te bevestigen via TechLoket, zoals bij laag 1 | eigenaar |
 
 ## 0. In het kort
@@ -1272,8 +1274,603 @@ De volledige lijst met bestanden, afhankelijkheden en acceptatiecriteria staat i
 - "Gepland" in `computeCoverage` en de cursuskaart: dat is O1.
 - Leerplancodes of inhoud van de netten per richting: nooit zonder toestemming.
 - Een richting en een jaar op een klas (`ClassGroup`), het aanbod per school, beroepskwalificaties bij A-richtingen: later.
-- "Maak een cursus voor wat nog niet gedekt is" vanuit de dekking: later. Het kan als een overdracht van een selectie naar het venster.
+- "Maak een cursus voor wat nog niet gedekt is" vanuit de dekking: in fase 2 (§ 22.4), samen met "een richting op een klas" (§ 22.6).
 - Het minimumdoelenscript laten overstappen op gedeelde hulpfuncties: een aparte opruimtaak.
+
+## 22. Fase 2: vingerafdruk per set, gaten dichten, mijn richtingen, klas en richting
+
+*Ontwerp van 10 oktober 2026: de synthese van twee ontwerpen ("leerkracht eerst" en "risico eerst") door een jurylid. Elke bewering over bestaande code is in de code nagekeken (stand na I4, commit fc4c8a0). Waar een ontwerp de code verkeerd las, staat de juiste lezing hier. Fase 2 gebruikt geen nieuwe API-gegevens: alles rekent op de matrix, de koppeling, de setbestanden en de opslag die al in de repo staan.*
+
+### Stand van zaken fase 2
+
+| Wat | Stand | Op wie |
+|---|---|---|
+| Ontwerp fase 2 in de repo (deze § 22, bijlage D, verwijzing in de stand van zaken bovenaan) | **Klaar** (10 oktober 2026) | hoofdsessie |
+| A1 Vingerafdruk per set (F2.1) en `doelgroepVoorKlas` | Wacht | kernbouwer |
+| A2 Logica gaten dichten (F2.2) | Wacht, na A1 | bouwer |
+| A3 Logica mijn richtingen en klas met richting (F2.3, F2.4) | Wacht, na A1 (naast A2) | bouwer |
+| I-A Integratie van de logica, hook verhuizen, stubs | Wacht, na A2 en A3 | hoofdsessie |
+| B1 Schermen gaten dichten | Wacht, na I-A (worktree A) | bouwer |
+| B2 Scherm mijn richtingen | Wacht, na I-A (worktree B) | bouwer |
+| B3 Schermen klas en richting | Wacht, na I-A (worktree C) | bouwer |
+| I-B Integratie van de schermen, hulp, budget, docs | Wacht, na B1 tot B3 | hoofdsessie |
+| C1 Rooktest 20f | Wacht, na I-B | bouwer (een andere agent dan B1 tot B3) |
+| I-C Review, rechter, herstel, uitrol | Wacht, na C1 | hoofdsessie, reviewers, rechter |
+| Open vragen V1 tot V10 (§ 22.12) | Wacht: de werkkeuze geldt tot de eigenaar beslist | eigenaar |
+
+### 22.1 In het kort
+
+| Onderdeel | Wat de leerkracht merkt | De kern |
+|---|---|---|
+| **F2.1** Vingerafdruk per set | Na "Keuze aanpassen" komt er geen valse melding "De officiële koppeling van deze richting is veranderd" meer, en een eigen doel valt niet meer vals weg bij "Kies de doelen opnieuw". | Eén nieuw veld `doelgroep.setAfdrukken`: per set een afdruk van 16 hex-tekens. Een set zonder afdruk wordt nooit vergeleken. Leerplannen van vóór fase 2 houden precies de oude regel tot ze met hun richting opnieuw bewaard worden. `kader` en `kaderVolledig` blijven geschreven. |
+| **F2.2** Gaten dichten | Op de richtingpagina: **"Plan de 37 doelen die nog nergens aan bod komen"**. In één venster kiest ze de sets en "In een nieuwe cursus" of "In een cursus die je al hebt". In de editor: **"Plan ze in deze cursus"**. | De doelen komen als lege secties met doelcodes op een cursus en tellen meteen als "gepland". Een nieuwe cursus krijgt een nagekeken leerplan met precies die doelen (of hergebruikt er een). Een bestaand leerplan past Boosterz nooit zelf aan: wat er niet in staat, komt niet op de cursus, met uitleg en een link naar het leerplan. |
+| **F2.3** Mijn richtingen | Bovenaan `/cursussen/richtingen` de eigen richtingen, met het aantal cursussen en klassen en wat de cursussen samen dekken. | De rijen komen meteen uit de opslag, zonder netwerk. De dekking rekent per zichtbare rij, één richting tegelijk, met dezelfde functies als het detail, en een samenvatting in het geheugen die bij elke opslagwijziging vervalt. Het detail vult die samenvatting ook. |
+| **F2.4** Klas en richting | In de klas: "Studierichting: Natuurwetenschappen · 4de jaar", de cursussen van die richting met "Toewijzen", en op vraag de dekking. Bij "Opdracht toevoegen" staan die cursussen bovenaan. Op de richtingpagina de klassen van die richting. | `ClassGroup.doelgroep` met een witte lijst (`doelgroepVoorKlas`: geen vak, geen kadervelden). Het veld reist mee in het klaspakket (link, bestand, opslag bij de leerling) en wordt overal gesaneerd via `sanitizeClass`. Geen persoonsgegevens. |
+
+**Regel voor heel fase 2.** Niets wordt weggeschreven zonder een uitdrukkelijke klik. Een mislukte schrijfpoging zegt dat er niets bewaard of veranderd is. Niets wat al bewaard is, verandert van betekenis zonder dat de leerkracht het ziet.
+
+### 22.2 Beslissingen
+
+| # | Beslissing | Waarom |
+|---|---|---|
+| F2-B1 | Eén afdruk per set (`setAfdrukken: Record<setId, 16 hex>`) die de vaste nummers van de koppeling en "volledig of deel" samen dekt. | Het kleinste formaat dat § 11.2 oplost: één afdruk ziet wat `kader` en `kaderVolledig` samen zagen, maar per set. |
+| F2-B2 | Een set **zonder** afdruk wordt nooit vergeleken. | Wat zonder kader gekozen is, is een eigen keuze en geen koppeling. Zo komt er geen valse melding. |
+| F2-B3 | **Geen automatische migratie en geen vastpinnen.** Een leerplan zonder `setAfdrukken` volgt de huidige regel byte voor byte, tot het met zijn richting opnieuw bewaard wordt. | "Niets stil veranderen". Vastpinnen (ontwerp "risico eerst") zou in minstens drie schrijfpaden code vragen (zie keuzes), voor leerplannen van 9 en 10 oktober. De fout die overblijft is zichtbaar: de wizard meldt wat hij niet aanvinkt. |
+| F2-B4 | `kader` en `kaderVolledig` blijven geschreven, in hetzelfde formaat, op elk leerplan dat `setAfdrukken` krijgt. | Een oudere app-versie (een tabblad dat niet herladen werd) saneert `setAfdrukken` weg en valt dan veilig terug op de oude regel. |
+| F2-B5 | Gaten dichten neemt alleen verplichte doelen met status `open`. Gepland, verdieping, optioneel en uitbreiding blijven erbuiten. | Gepland staat al op een sectie; verdieping komt al aan bod; optioneel telt niet mee in het percentage (B12). Anders ontstaan dubbels. |
+| F2-B6 | Een selectie uit de dekking is **altijd een lijst vaste nummers per set**, nooit `'alle'`, en gaat nooit door de samenstelwizard. | De valkuil van § 9.5. Een link (`sets=`, `zelf=`) kan geen selectie per doel dragen (B9). |
+| F2-B7 | (a) maakt altijd een **geraamte**, nooit een lege cursus. | Een lege cursus laat de doelen op "open" staan: het gat zou na de klik even groot zijn. |
+| F2-B8 | (b) **past een leerplan nooit aan.** Alleen doelen die al in het leerplan van de gekozen cursus staan, komen op de cursus. De rest wordt niet geplaatst, met de reden en een link "Open het leerplan". | Het eenvoudigste juiste gedrag (§ 22.4.4): geen stil neveneffect op andere cursussen die het leerplan delen, geen stil verlies van `volgtKader`, geen tweestapsbewaring zonder transactie, en één gedrag voor elk soort leerplan. Een leerplan aanpassen is een bewuste stap die al bestaat ("Keuze aanpassen"). |
+| F2-B9 | In de **editor** alleen "op deze cursus", inline in de weergave Minimumdoelen (geen tweede venster), via `draft.edit`. | De Doelendekking is zelf al een venster: een genest venster vraagt extra afspraken voor Escape en focus. De bewaarmotor bewaakt het bewaren al. De editor heeft geen "ongedaan maken", dus de leerkracht kiest de sets eerst. |
+| F2-B10 | Mijn richtingen en de klas tonen **dezelfde dekking** als het detail bij "Alle jaren van de graad", met dezelfde functies (`bijdragenVoorKader`). | Het getal waarop je klikt, is het getal dat je daarna ziet. |
+| F2-B11 | Een klas krijgt richting, titel, graad, jaar, soort en onderdeel (witte lijst). Geen vak, geen kadervelden. | Een klas is geen leerplan; het vak hoort bij de cursus. Een witte lijst laat een veld dat later bijkomt nooit per vergissing op een klas belanden. |
+| F2-B12 | De klasrichting bewaart met **opnieuw lezen en alleen dat veld wijzigen** (`zetKlasRichting`). | `saveClass` vervangt de hele klas: met een oude kopie zou een klaslijst uit een ander tabblad stil verdwijnen. |
+| F2-B13 | "Toewijzen" vanuit de klas opent het bestaande venster "Opdracht toevoegen" met de cursus al gekozen. | Eén bestaand bewaarpad met deadline en instructie; geen tweede manier om een opdracht te maken. |
+| F2-B14 | Geen nieuwe route. Het venster van de gaten, de dekking per rij en de kiezer in de klas zijn lui. | Het kritieke pad staat op 333,7 van 334,2 kB. |
+
+### 22.3 F2.1 Vingerafdruk per set
+
+#### 22.3.1 Het probleem
+
+Een leerplan van een richting bewaart nu twee afdrukken over al zijn sets samen (`kaderAfdrukken(kader, insluiten)` in `leerplanVoorRichting`, `doelgroepBijRichting` in samenstellen en inlezen). Verandert de lijst sets zonder richting, dan verschilt de afdruk over de nieuwe lijst en geeft `veranderdSindsLeerplan` `'alles'`. Dan telt een doel dat de leerkracht zelf bij een deelset koos als vervallen, en "Kies de doelen opnieuw" vinkt het uit (test "bekende beperking (§ 11.2)" in `doelenSamenstellen.test.ts`, r. 768).
+
+De lijst sets van een leerplan verandert op meer plaatsen dan "Keuze aanpassen": `leerplanUitSelectie` met `bestaand` (doelenSamenstellen.ts r. 739), `bouwOntwerp` bij opnieuw inlezen (leerplanInlezen.ts r. 520) en de setkiezer van een bewerkbaar leerplan (CurriculaPage.tsx r. 704). Een afdruk per set werkt voor alle drie zonder extra code.
+
+#### 22.3.2 Datamodel (`src/lib/doelgroep.ts`)
+
+```ts
+export interface Doelgroep {
+  // … bestaande velden ongewijzigd: groep, titel, graad, jaar, soort, onderdeel, vak, kader, kaderVolledig, volgtKader
+  /**
+   * Nieuw (fase 2). Per set van het leerplan die bij het bewaren in het kader van de richting stond: `setAfdruk`
+   * (16 kleine hex-tekens). Aanwezig (ook leeg) = nieuw formaat: dan beslist alleen dit veld wat vergeleken wordt.
+   * Alleen samen met een geldig `kader`, alleen op een leerplan, hoogstens 50 sets. Formaat nooit veranderen.
+   */
+  setAfdrukken?: Record<string, string>;
+}
+export const MAX_SET_AFDRUKKEN = 50;                                    // = MAX_SETS van een leerplan
+export function zonderKaderVelden(d: Doelgroep): Doelgroep;             // nieuw object zonder kader, kaderVolledig, setAfdrukken, volgtKader
+export function doelgroepVoorKlas(raw: unknown): Doelgroep | undefined; // F2.4: sanitizeDoelgroep, dan alleen groep, titel, graad, jaar, soort, onderdeel
+// doelgroepVoorCursus(raw) wordt: const d = sanitizeDoelgroep(raw); return d ? zonderKaderVelden(d) : undefined;
+```
+
+**De afdruk van één set** (`src/lib/richtingKader.ts`):
+
+```ts
+export function setAfdruk(k: KaderSet): string;
+//   sha256Hex(`${k.set.id}|${k.volledig ? '*' : '-'}|${ids}`).slice(0, 16), met ids = de vaste nummers van k.ids, getrimd,
+//   leeg weg, uniek, gesorteerd op code-eenheid, gescheiden door komma's. Ziet een deelset die verandert, een set die
+//   volledig wordt of niet meer, en een volledige set die groeit of krimpt. Het versiemerk zit er niet in (zoals nu).
+export function afdrukkenPerSet(kader: RichtingKader, sets: readonly string[]): Record<string, string>;
+//   alleen de sets van `sets` die in kader.sets staan; sleutels gesorteerd
+export function kaderAfdrukken(kader: RichtingKader, sets: readonly string[]):
+  { kader: string; kaderVolledig: string; setAfdrukken: Record<string, string> };   // uitgebreid, zelfde signatuur voor de rest
+export function veranderdSindsLeerplan(leerplan, kader): KaderVerandering;          // zelfde signatuur en type
+```
+
+Omdat `leerplanVoorRichting` en `doelgroepBijRichting` het resultaat van `kaderAfdrukken` al spreiden, krijgen alle schrijvers het nieuwe veld zonder codewijziging.
+
+#### 22.3.3 Sanering en grenzen
+
+| Waar | Wat |
+|---|---|
+| `sanitizeDoelgroep` | `setAfdrukken` blijft alleen bij een geldig `kader` en als het een gewoon object is (geen array). Een sleutel moet passen op `/^ODS_\d{1,9}$/` (zoals `SET_ID` in curriculum.ts r. 202), een waarde op `/^[0-9a-f]{16}$/`; de rest valt weg. Alleen eigen eigenschappen (`eigen`). Sleutels gesorteerd op code-eenheid, hoogstens 50. Altijd een nieuw object; `__proto__` haalt de regex nooit. Een leeg object blijft (nieuw formaat zonder sets in het kader). Idempotent. |
+| `doelgroepVoorLeerplan` | houdt het veld |
+| `doelgroepVoorCursus` | via `zonderKaderVelden`: geen enkel kaderveld |
+| `maakEigenKopie` (curriculum.ts r. 612) | de inline destructuring wordt `zonderKaderVelden(doelgroep)` |
+| `sanitizeCourse` (courses.ts r. 1333) | gebruikt voortaan `doelgroepVoorCursus` in plaats van `sanitizeDoelgroep`. Een cursus draagt zo nooit kadervelden, ook niet uit een geknutseld bestand. De app zelf schrijft ze nooit op een cursus, dus bestaande cursussen veranderen niet. |
+| `doelgroepVanBestaand` (doelenSamenstellen.ts r. 659) | snoeit `setAfdrukken` tot de sets van de nieuwe selectie (een set die wegvalt, verliest haar afdruk; een set die later zonder richting terugkomt, is een eigen keuze, F2-B2). Daarna de bestaande regel voor `volgtKader`. Een leerplan zonder `setAfdrukken` krijgt er hier geen. |
+| Export v2, deellink, cursusbestand, klaspakket, overdracht | niets nieuw: het veld reist mee in `doelgroep` en wordt aan elke grens gesaneerd. `doelenVingerafdruk` (curriculum.ts r. 549) rekent alleen over de doelen: "nagekeken" blijft nagekeken. |
+
+#### 22.3.4 De ene regel
+
+```ts
+export function veranderdSindsLeerplan(leerplan, kader): KaderVerandering {
+  if (!leerplan || leerplan.kind === 'eigen') return 'niets';
+  if (kader.herkomst === 'nog-niet-opgehaald' || (kader.herkomst === 'geen' && kader.sets.length === 0)) return 'niets';
+  const dg = doelgroepVoorLeerplan(leerplan.doelgroep);
+  const sets = Array.isArray(leerplan.minimumdoelenSets) ? leerplan.minimumdoelenSets : [];
+  if (dg?.setAfdrukken !== undefined) {                        // nieuw formaat
+    const perSet = new Map(kader.sets.map((k) => [k.set.id, k]));
+    const veranderd = new Set<string>();
+    for (const set of new Set(sets)) {
+      if (!Object.prototype.hasOwnProperty.call(dg.setAfdrukken, set)) continue;   // eigen keuze: nooit vergelijken
+      const k = perSet.get(set);
+      if (!k || setAfdruk(k) !== dg.setAfdrukken[set]) veranderd.add(set);
+    }
+    return veranderd.size > 0 ? veranderd : 'niets';           // 'alles' komt in het nieuwe formaat nooit voor
+  }
+  return oudeRegel(dg, kader, sets);                            // r. 683-691 van nu, ongewijzigd
+}
+```
+
+`vergelijkMetKader` (richtingCursus.ts r. 331) en `beginUitBewaarde` (richtingLink.ts r. 183) veranderen niet: ze rekenen al met `telt(set) = bekijk === 'alles' || bekijk.has(set)`. Wat dat geeft:
+- Een set die uit het kader viel (bv. een oude versie): haar afdruk past niet meer, ze wordt vergeleken en geeft `setsNietMeerInKader` en de vervallen verwijzingen, zoals nu.
+- Een volledige set die groeide: vergeleken; bij `volgtKader` en een gelijke versie geeft ze "nieuw", zoals nu.
+- Een afdruk van een set die niet meer in het leerplan staat: telt niet.
+- Wat blijft: veranderde de koppeling van een deelset **echt**, dan wordt die set vergeleken en kan een eigen extra doel daarin als vervallen tellen, zoals vandaag bij een echte verandering. De **valse** melding is weg.
+
+#### 22.3.5 Wie schrijft wat
+
+| Pad | `kader`, `kaderVolledig` | `setAfdrukken` | `volgtKader` |
+|---|---|---|---|
+| `leerplanVoorRichting` ("Maak een cursus", "Bewaar als leerplan", "Werk het leerplan bij") | nieuw, over `insluiten` | nieuw, over `insluiten` (vanzelf via `kaderAfdrukken`) | ja |
+| `doelgroepBijRichting` in SamenstellenPage (r. 430, 488) en LeerplanInlezenPage (r. 303) | nieuw | nieuw | nee |
+| "Keuze aanpassen" zonder richting (`doelgroepVanBestaand`) | blijven | gesnoeid tot de nieuwe sets; een oud leerplan krijgt er geen | valt weg als de keuze veranderde (ongewijzigd) |
+| `bouwOntwerp` met `bestaand` zonder nieuwe doelgroep, setkiezer CurriculaPage r. 704 | blijven | blijven (niet gesnoeid; de regel kijkt alleen naar sets die nog in het leerplan staan) | blijft |
+| F2.2 (a): nieuw leerplan voor de gaten | nieuw (via `doelgroepBijRichting`) | nieuw | nee |
+| `maakEigenKopie`, cursus, klas | weg | weg | weg |
+
+#### 22.3.6 Migratie en de bestaande velden
+
+| Stand van een bewaard leerplan | Wat de app doet | Verandert er iets in de opslag? |
+|---|---|---|
+| Zonder doelgroep, of een eigen kopie | zoals nu | nee |
+| `kader` (+ `kaderVolledig`), zonder `setAfdrukken` | de oude regel, byte voor byte (ook "zonder `kaderVolledig`: `'niets'` bij een gelijke `kader`") | nee |
+| … bewaard via "Keuze aanpassen" zonder richting | blijft oud formaat (de bekende beperking blijft voor dit leerplan bestaan) | alleen wat de leerkracht zelf bewaart |
+| … bewaard met de richting ("Werk het leerplan bij", "Kies de doelen opnieuw", inlezen met richting) | nieuw formaat, over het kader van nu (een bewuste herbasering) | ja, bij een bewuste bewaring |
+| Met `setAfdrukken` | de nieuwe regel | nee |
+| Met `setAfdrukken`, bewaard door een oudere app-versie | die saneert `setAfdrukken` weg; `kader` en `kaderVolledig` staan er nog: de oude regel | alleen door die oudere versie |
+
+`kader` en `kaderVolledig` blijven geschreven (±130 tekens per leerplan); de app leest ze alleen bij een leerplan zonder `setAfdrukken`. De formaten van `kaderVingerafdruk` en `volledigeSetsVingerafdruk` veranderen niet. Wanneer we ze niet meer schrijven, is open vraag V7.
+
+#### 22.3.7 Schermen
+
+Geen nieuwe teksten. Het enige zichtbare verschil: geen valse callout "De officiële koppeling van deze richting is veranderd …" en geen valse melding "<n> doelen staan niet (meer) in de koppeling …" in de wizard.
+
+#### 22.3.8 Tests (A1)
+
+- **Let op, bestaande tests:** `kaderAfdrukken` geeft voortaan ook `setAfdrukken`. Tests die hun doelgroep bouwen met `...kaderAfdrukken(…)` en de **oude** regel bedoelen (richtingKader.test.ts, richtingCursus.test.ts, richtingLink.test.ts, doelenSamenstellen.test.ts), bouwen ze voortaan expliciet zonder dat veld (helper `oudFormaat(kader, sets)` in de test). Hun verwachte uitkomsten veranderen niet. Dat is acceptatie, geen vrijheid.
+- `doelgroep.test.ts`: geldig; sleutel geen set-id; waarde geen 16 hex; hoofdletters in de hex; meer dan 50; `__proto__` en `constructor` als sleutel; geen object of een array; zonder `kader` weg; leeg object blijft; idempotent. `zonderKaderVelden` haalt de vier velden weg; `doelgroepVoorCursus` ook; `doelgroepVoorKlas` laat alleen de witte lijst over (ook `vak` en een onbekende sleutel weg).
+- `richtingKader.test.ts`: `setAfdruk` hangt niet af van de volgorde of dubbels; deel en volledig met dezelfde nummers verschillen; een volledige set die groeit of krimpt verandert de afdruk; `afdrukkenPerSet` slaat sets buiten het kader over. `veranderdSindsLeerplan` nieuw formaat: niets veranderd → `'niets'`; één deelset veranderd → `{A}`; volledige set gegroeid → `{V}`; set uit het kader → `{S}`; set zonder afdruk → nooit; afdruk van een set die niet meer in het leerplan staat → telt niet; leeg object → `'niets'`. Oud formaat: alle bestaande gevallen.
+- `doelenSamenstellen.test.ts`: de test "bekende beperking" wordt twee tests. (1) **nieuw formaat**: `zonderB` geeft `vervallen: 0`, `beginUitBewaarde` houdt a2, en `zonderB.doelgroep.setAfdrukken` heeft alleen nog ODS_9001. (2) **oud formaat** (dezelfde stappen met `oudFormaat`): `vervallen: 1`, zoals vandaag. Plus: een set die zonder richting terugkomt, heeft geen afdruk.
+- `richtingCursus.test.ts`, `richtingLink.test.ts`: `leerplanVoorRichting` en `doelgroepBijRichting` geven `setAfdrukken` voor precies de sets in het leerplan; `vergelijkMetKader` en `beginUitBewaarde` komen op dezelfde set-uitkomst.
+- `curriculum.test.ts`: `maakEigenKopie` zonder kadervelden; export en import v2 houden `setAfdrukken`; vingerafdruk en status "gecontroleerd" blijven; een leerplan-JSON van vóór fase 2 komt ongewijzigd door de sanering.
+- `courses.test.ts`: een cursusbestand met `kader` of `setAfdrukken` op de doelgroep verliest ze; zonder die velden verandert er niets (examples.test.ts blijft groen).
+- Mutatieproef door de reviewer: wie de tak voor het nieuwe formaat weghaalt, laat test (1) falen.
+
+### 22.4 F2.2 Gaten dichten vanuit de dekking
+
+#### 22.4.1 Welke doelen
+
+1. Alleen rijen van de dekking die op het scherm staat, met status `open`, `verplichteSet` waar en `optioneel` onwaar, elk (set, id) één keer, in de volgorde van het kader. Wat je ziet, is wat je krijgt.
+2. Op de richtingpagina volgt het de keuze "Tel mee". Bij "Alleen het 4de jaar" zijn het de open doelen van de cursussen van dat jaar, en het venster zegt dat.
+3. De leerkracht kiest per set (vakjes, standaard alles aan), niet per doel. Per doel bijsturen kan daarna in de cursus.
+4. De selectie is per set altijd een lijst vaste nummers (F2-B6), ook als alle doelen van een volledige set open zijn. Dit pad gaat nooit langs `zetDoelen`, `bouwSetKeuzes` of een beperkte `kiesbaar`.
+
+#### 22.4.2 (a) Een nieuwe cursus
+
+1. Bij het openen een momentopname van de open doelen per set. De setbestanden komen uit de dekking (al geladen; `DekkingGegevens.bestanden`, zie I-A).
+2. `keuzes = naarSetKeuzes(selectieVanOpen(…), bestanden)`. `ontbrekend` is normaal leeg (dezelfde bestanden); is het dat niet, dan wordt niets bewaard (melding "veranderd").
+3. **Hergebruik:** `vindLeerplanMetSelectie(getCurricula(), selectieVanKeuzes(keuzes), dg)` met de opslag op het moment van de klik. Twee keer hetzelfde gat plannen geeft hetzelfde leerplan.
+4. Anders `leerplanUitSelectie(keuzes, { titel, oudeVersies, doelgroep: doelgroepBijRichting(info, kader, setIds) })`: zonder `volgtKader` (anders zou "Werk het leerplan bij" de lijst met de rest van de sets vullen, die een andere cursus al dekt), met `kader`, `kaderVolledig` en `setAfdrukken` over `setIds` (de sets met minstens één gekozen doel). Niet bevestigd: niets bewaren, eerste waarschuwing tonen.
+5. `cursusVoorRichting({ titel, auteur: getPrefs().teacherName, doelgroep: doelgroepVan(info, keuze), leerplan, start: 'geraamte' })`. Het jaar komt van de pagina.
+6. Bewaren met `bewaarNieuweGatenCursus` (§ 22.4.6), dan een toast en `/cursus/bewerk/<id>`. Beveiligd tegen dubbel klikken (een `gemaakt`-ref, zoals NieuweRichtingCursus).
+
+**Titels** (hoogstens 120 tekens, met `samenTitel`, dat richtingCursus.ts daarvoor exporteert):
+- leerplan: "Aanvulling · " + `titelVoorRichtingLeerplan(info, kader, setIds)`, bv. "Aanvulling · Chemie · Natuurwetenschappen · 2de graad" of "Aanvulling · Chemie en 2 andere · Natuurwetenschappen · 2de graad";
+- voorstel voor de cursus, één set: `voorstelCursusTitel({ ...dg, vak: '<setnaam>' })` = "Chemie · Natuurwetenschappen · 4de jaar"; meer sets: `voorstelCursusTitel({ ...dg, vak: 'Aanvulling' })` = "Aanvulling · Natuurwetenschappen · 4de jaar". De doelgroep van de cursus zelf krijgt geen vak.
+
+#### 22.4.3 (b) Een bestaande cursus
+
+1. **Kandidaten:** de cursussen die in de dekking op het scherm meetellen (`DekkingGegevens.bijdragen` met een leerplan) en waarvan het leerplan minstens één gekozen doel bevat, de meeste eerst (`cursussenVoorGaten`). Cursussen met 0 passende doelen staan niet als keuze in de lijst; het venster telt ze wel.
+2. Per cursus: `codesVoorDoelen(leerplan, gekozen)`: strikt op set + vast nummer (O6), per doel de code van het eerste leerplandoel dat ernaar verwijst. Werkt ook met een ingelezen leerplan van een net (via `refs`).
+3. Bij de klik leest `bewaarGatenOpCursus` de cursus opnieuw (`getCourse`), controleert dat ze nog aan hetzelfde leerplan hangt, voegt de secties toe aan die verse versie (`voegGeplandeSectiesToe`) en bewaart met `saveCourseGuarded(nieuw, vers.updatedAt)` in één synchrone stap.
+4. Daarna een toast; het venster sluit en de focus gaat naar `#ri-dekking-kop` (krijgt `tabIndex={-1}`). Door de opslagwijziging rekent de dekking opnieuw: de doelen staan op "gepland".
+
+#### 22.4.4 Waarom (b) het leerplan nooit aanpast
+
+1. Een leerplan wordt bewust gedeeld (`vindLeerplanMetSelectie`, het leerplan van de hele richting). Uitbreiden laat bij **elke** cursus die eraan hangt doelen als "nog niet behandeld" verschijnen, en het percentage op haar cursuskaart (`computeCoverage`) zakt stil.
+2. Alleen een samengestelde lijst kan opnieuw samengesteld worden; `leerplanUitSelectie` gooit een `Error` bij elk ander leerplan. Uitbreiden zou dus per soort leerplan anders werken.
+3. De keuze verandert: `volgtKader` valt weg (`doelgroepVanBestaand`) en daarmee verdwijnt "Werk het leerplan bij" stil.
+4. Opnieuw samenstellen bouwt ook de teksten en labels van de bestaande doelen opnieuw uit de huidige setbestanden (`themaMet(labels…)`, `setLabels` hangt af van de andere sets), dus "puur toevoegen" is niet gewaarborgd.
+5. Leerplan en cursus zijn twee schrijfacties zonder transactie; `saveCurriculum` heeft geen bewaking tegen een ander tabblad.
+
+Wat de leerkracht dan doet: de doelen in een nieuwe cursus zetten (één klik in hetzelfde venster), of het leerplan bewust aanpassen via de link "Open het leerplan" (`/leerplannen?open=<id>`, bestaat: CurriculaPage r. 57), waar "Keuze aanpassen" staat. In de praktijk is het gewone geval van (b) een cursus die aan een groter leerplan hangt (bv. dat van de hele richting) en nog niet alle doelen op een sectie heeft: dat werkt altijd.
+
+#### 22.4.5 In de cursuseditor
+
+- Alleen in de weergave Minimumdoelen (`MinimumdoelenDekking.tsx`), alleen als `GoalCoverage` de nieuwe prop `onEdit` meekrijgt (CourseEditorPage geeft `onEdit={edit}`, met `edit = draft.edit`, dat een functie aanvaardt: r. 256 en 320).
+- "Open" betekent in de editor: deze cursus dekt het niet. De editor plant dus alleen doelen die in het leerplan van de cursus staan en nog op geen enkele sectie staan. Een nieuwe cursus maken kan in de editor niet: dat zou dubbels geven met de andere cursussen van de richting. Daarvoor staat er een zin bij de bestaande link naar de richting.
+- Een inline paneel in dezelfde weergave (geen genest venster): sets kiezen, dan "Zet ze in deze cursus". Bij de klik laadt de editor `gatenCursus` lui en roept `onEdit((c) => voegGeplandeSectiesToe(c, curriculum, codes).course)` aan. De functie draait op de laatste stand van de cursus; de bewaarmotor bewaart met zijn eigen bewaking en meldingen.
+
+#### 22.4.6 Logica
+
+```ts
+// src/lib/gatenDichten.ts (nieuw, licht: alleen types en normalizeGoalCode; mag in het chunk van MinimumdoelenDekking)
+export function openVerplichteDoelen(dekking: Pick<MdDekking, 'rijen'>): KaderDoel[];
+export interface OpenSet { set: string; setNaam: string; doelen: KaderDoel[] }
+export function openPerSet(doelen: readonly KaderDoel[]): OpenSet[];                         // volgorde van het kader
+export function openNietVerplicht(dekking: Pick<MdDekking, 'rijen'>): number;                // voor de hint over optionele doelen
+export function selectieVanOpen(open: readonly OpenSet[], sets: ReadonlySet<string>): Map<string, string[]>;  // altijd lijsten
+export function codesVoorDoelen<T extends { set: string; id: string }>(leerplan: Curriculum, doelen: readonly T[]):
+  { codes: string[]; inLeerplan: T[]; nietInLeerplan: T[] };                                 // codes genormaliseerd, uniek, in leerplanvolgorde
+export interface Doelcursus { course: Course; leerplan: Curriculum; passend: number }
+export function cursussenVoorGaten(doelen: readonly { set: string; id: string }[], bijdragen: readonly CursusBijdrage[]):
+  { kandidaten: Doelcursus[]; zonderPassend: number };                                       // meeste passend eerst, dan titel (nl)
+
+// src/lib/gatenCursus.ts (nieuw, zwaar: richtingCursus, doelenSamenstellen; alleen lui geladen)
+export type GatenLeerplan =
+  | { soort: 'hergebruik' | 'nieuw'; leerplan: Curriculum }
+  | { soort: 'niet-nagekeken'; waarschuwing: string }          // al door zonderSetId
+  | { soort: 'veranderd' };                                     // ontbrekend > 0 of een set zonder bestand
+export function leerplanVoorGaten(o: { info: RichtingInfo; kader: RichtingKader; selectie: ReadonlyMap<string, readonly string[]>;
+  bestanden: ReadonlyMap<string, MinimumdoelenSetBestand>; curricula: readonly Curriculum[]; oudeVersies?: ReadonlySet<string> }): GatenLeerplan;
+export function titelsVoorGaten(info: RichtingInfo, kader: RichtingKader, keuze: RichtingKeuze, setIds: readonly string[],
+  setNamen: ReadonlyMap<string, string>): { cursus: string; leerplan: string };
+export function voegGeplandeSectiesToe(course: Course, leerplan: Curriculum, codes: readonly string[]):
+  { course: Course; toegevoegd: string[]; alOpCursus: string[]; hoofdstukken: number };
+//  - codes die al op een sectie staan (ook een keuzesectie) → alOpCursus, niet opnieuw;
+//  - de rest via geraamteHoofdstukken(leerplan, rest);
+//  - een nieuw hoofdstuk met dezelfde titel als een bestaand (getrimd, toLocaleLowerCase('nl')) → zijn secties achteraan
+//    in dat hoofdstuk; anders een nieuw hoofdstuk achteraan;
+//  - INVARIANT: elk bestaand hoofdstuk, elke sectie en elk blok blijft diep gelijk en in dezelfde volgorde; nieuwe ids
+//    (uid); er komen nooit keuzesecties bij; een nieuwe sectie bevat alleen de doelen-callout en telt dus als 'gepland'.
+export interface GatenOpslag {
+  saveCurriculum(c: Curriculum): boolean; deleteCurriculum(id: string): void; saveCourse(c: Course): boolean;
+  getCourse(id: string): Course | undefined; saveCourseGuarded(c: Course, verwacht: number): GuardedSaveResult;
+}
+export function bewaarNieuweGatenCursus(o: { leerplan: Curriculum; nieuwLeerplan: boolean; cursus: Course }, opslag: GatenOpslag):
+  { ok: true } | { ok: false; wat: 'leerplan' | 'cursus' };
+//  eerst het leerplan (alleen als het nieuw is); lukt de cursus niet, dan wordt een nieuw leerplan weer gewist
+export function bewaarGatenOpCursus(o: { courseId: string; leerplan: Curriculum; codes: readonly string[] }, opslag: GatenOpslag):
+  | { ok: true; course: Course; toegevoegd: number }
+  | { ok: false; reden: 'gewijzigd' | 'verwijderd' | 'mislukt' | 'ander-leerplan' | 'niets-te-doen' };
+```
+
+`DekkingGegevens` (RichtingDekking) krijgt `bijdragen`, `bestanden` en `kader` erbij (I-A): dezelfde berekening, geen tweede.
+
+#### 22.4.7 Schermen en letterlijke teksten
+
+**Richtingpagina, sectie "Wat je cursussen samen dekken"**, onder de samenvatting, alleen bij status klaar:
+
+| Toestand | Tekst |
+|---|---|
+| Minstens één open verplicht doel | primaire knop met `PlannedIcon`: "Plan de 37 doelen die nog nergens aan bod komen" · enkelvoud: "Plan het doel dat nog nergens aan bod komt" |
+| Geen enkel open verplicht doel | "Er zijn geen verplichte minimumdoelen meer die nergens aan bod komen." |
+
+**Venster `GatenVenster.tsx`** (lui geladen bij de klik; Modal, titel als h2):
+
+| Waar | Tekst |
+|---|---|
+| Titel | "Plan wat nog nergens aan bod komt" |
+| Intro | "Boosterz zet de gekozen doelen als lege secties in een cursus, met de doelcodes erop. Zo staan ze gepland; daarna werk je ze zelf uit. Een AI-sleutel heb je niet nodig." |
+| Hint | "Doelen die al gepland staan of alleen in verdieping aan bod komen, blijven waar ze staan." |
+| Alleen als `openNietVerplicht > 0` | "De 4 optionele doelen en uitbreidingsdoelen die nog nergens aan bod komen, zitten er niet in." · enkelvoud: "Het optionele doel of uitbreidingsdoel dat nog nergens aan bod komt, zit er niet in." |
+| Bij "Tel mee: alleen het jaar" | "Je telt nu alleen de cursussen van het 4de jaar." |
+| fieldset | legend "Welke doelen?" · hint "Vink uit wat in een andere cursus thuishoort." · per set een vakje "Chemie · 9 doelen" / "Chemie · 1 doel" (setnaam via `setNamenVan`, nooit een set-id) · `details` met summary "Toon de doelen" en per doel "<code> — <korte tekst>" |
+| Teller (`aria-live="polite"`) | "Je koos 21 doelen uit 3 sets." · "Je koos 9 doelen uit 1 set." · "Je koos 1 doel uit 1 set." · "Je koos nog geen doelen." |
+| fieldset | legend "Waar komen ze?" · radio "In een nieuwe cursus" (standaard) · radio "In een cursus die je al hebt" |
+| Geen kandidaat | de tweede radio op `aria-disabled`, met de hint "Geen cursus van deze richting heeft een van de gekozen doelen in haar leerplan. Maak er een nieuwe cursus voor, of pas eerst het leerplan van een cursus aan bij Leerplannen." |
+| Bij "In een nieuwe cursus" | Field "Titel van de cursus" (met voorstel) · hint "Boosterz maakt er een nagekeken leerplan bij met precies deze doelen, of gebruikt het leerplan dat er al is." |
+| Bij "In een cursus die je al hebt" | fieldset legend "Welke cursus?" · per kandidaat een radio "<titel>" met de meta "4de jaar" of "hele graad" en "<k> van de <n> gekozen doelen staan in haar leerplan" (enkelvoud: "1 van de <n> gekozen doelen staat in haar leerplan") |
+| Onder de lijst, als `zonderPassend > 0` | "3 andere cursussen van deze richting hebben geen van deze doelen in hun leerplan." · enkelvoud: "1 andere cursus van deze richting heeft geen van deze doelen in haar leerplan." |
+| Voorbeeldzin (`aria-live`), k = n | "Alle 21 gekozen doelen staan in het leerplan van ‘Biologie 4de jaar’. Ze komen er als lege secties bij; wat al in de cursus staat, blijft zoals het is." |
+| Voorbeeldzin, k < n | "17 gekozen doelen staan niet in het leerplan van ‘Biologie 4de jaar’ en komen er niet bij: Boosterz past een leerplan nooit zelf aan." met de link "Open het leerplan" en daarna "of kies ‘In een nieuwe cursus’." |
+| Knoppen | "Annuleren" · primair "Maak de cursus" / "Zet ze in deze cursus" / bij k < n "Zet de 4 doelen in deze cursus" (enkelvoud "Zet het doel in deze cursus") |
+| Voet (`voetTekst` + `zegOntbreekt`, `aria-disabled`) | "Nog nodig: minstens één doel, een titel." · "Nog nodig: minstens één doel, een cursus." |
+| Fouten (`callout err`, focus erheen) | "Het leerplan kon niet als nagekeken bewaard worden: <eerste waarschuwing>. Er is niets bewaard." · "De sets zijn intussen veranderd. Sluit dit venster en probeer opnieuw. Er is niets bewaard." · "Er is niets bewaard: de opslag van dit toestel is vol of geblokkeerd." · "Deze cursus werd intussen elders aangepast. Er is niets veranderd. Probeer opnieuw." · "Deze cursus bestaat niet meer. Er is niets veranderd." · "Deze cursus hangt intussen aan een ander leerplan. Er is niets veranderd. Probeer opnieuw." |
+| Gelukt (a) | toast "Cursus gemaakt: 3 hoofdstukken, 21 doelcodes klaar op de secties." en bij hergebruik erachter " Er stond al een leerplan met precies deze doelen: de cursus hangt daaraan." Daarna de editor. |
+| Gelukt (b) | toast "21 doelen staan nu gepland in ‘Biologie 4de jaar’." · enkelvoud "1 doel staat nu gepland in ‘Biologie 4de jaar’." |
+
+De zin over de volle opslag herhaalt de melding van de opslaglaag niet (`reportWriteFailure` meldt die zelf, zoals `bewaarFout('mislukt')` nu leeg is): ze zegt alleen dat er niets bewaard is.
+
+**Cursuseditor** (`MinimumdoelenDekking.tsx`, alleen met `onEdit`, alleen bij een klare dekking):
+
+| Waar | Tekst |
+|---|---|
+| Regel | "3 doelen uit het leerplan van deze cursus staan nog op geen enkele sectie." · enkelvoud: "1 doel uit het leerplan van deze cursus staat nog op geen enkele sectie." |
+| Knop | "Plan ze in deze cursus" · enkelvoud "Plan het in deze cursus" |
+| Paneel (`role="group"`, h3 "Plan in deze cursus", focus erheen) | "Boosterz zet ze als lege secties met de doelcodes erop achteraan in je cursus, of achteraan in een hoofdstuk met dezelfde naam. Wat al in de cursus staat, blijft zoals het is." · bij meer dan één set de fieldset "Welke doelen?" zoals in het venster; bij één set "Chemie · 3 doelen" · knoppen "Zet ze in deze cursus" en "Annuleren" |
+| Andere open doelen | "12 andere doelen die deze cursus niet dekt, staan niet in haar leerplan." (enkelvoud "1 ander doel …, staat …") en, met een richting, vóór de bestaande link: "Wat geen enkele cursus behandelt, plan je bij de studierichting." |
+| Toast | "3 doelen staan nu gepland in deze cursus." · fout bij het laden: "Dit kon niet geladen worden. Controleer je verbinding en probeer opnieuw." |
+
+Of de wijziging bewaard is, toont de bewaarstatus van de editor, zoals bij elke bewerking. Na "Annuleren" of na het toevoegen gaat de focus terug naar de knop of naar de samenvatting.
+
+Css: `src/styles/gaten.css` (voorvoegsel `gt-`), alleen tokens. Teksten met getallen in `src/lib/gatenWeergave.ts`.
+
+#### 22.4.8 Tests (A2, B1)
+
+- `gatenDichten.test.ts`: `openVerplichteDoelen` laat gepland, verdieping, optioneel en uitbreiding weg; `selectieVanOpen` geeft voor een volledige set waarvan alles open is een lijst; `codesVoorDoelen` strikt op set + id, een netleerplan met twee refs per doel, een andere versie van een set geeft `nietInLeerplan`; `cursussenVoorGaten` sorteert en telt `zonderPassend`, cursussen zonder leerplan vallen weg.
+- `gatenCursus.test.ts` (met de hand nagerekend):
+  - **valkuil**: een deelset van 4 van 13 geeft in het leerplan precies 4 doelen; een volledige set waarvan 3 van de 16 open zijn, geeft er 3;
+  - het nieuwe leerplan: samengesteld, bevestigd, zonder `volgtKader`, met `setAfdrukken` voor precies de sets met een gekozen doel, zonder jaar;
+  - hergebruik van een nagekeken leerplan met dezelfde selectie; geen hergebruik van een eigen kopie of een leerplan van een andere groep;
+  - een ontbrekend setbestand of `ontbrekend > 0` geeft `veranderd`; meer dan 50 sets geeft `niet-nagekeken`;
+  - `voegGeplandeSectiesToe`: het bestaande deel diep gelijk, samenvoegen op titel, achteraan, `alOpCursus`, geen dubbele code, `sanitizeCourse` laat alles staan, daarna geeft `dekkingMinimumdoelen` voor precies die doelen "gepland";
+  - `bewaarNieuweGatenCursus` en `bewaarGatenOpCursus` met een nagebootste opslag: leerplan vol, cursus vol (nieuw leerplan gewist, hergebruikt leerplan blijft), `gewijzigd`, `verwijderd`, `ander-leerplan`, niets te doen;
+  - titels ≤ 120 tekens, zonder set-id.
+- `gatenWeergave.test.ts`: elke tekst in enkelvoud en meervoud, geen set-id.
+
+### 22.5 F2.3 Mijn richtingen op `/cursussen/richtingen`
+
+#### 22.5.1 Wat telt als "mijn"
+
+- Een cursus via `doelgroepVanCursus` (haar doelgroep, anders die van haar leerplan). De functie verhuist puur naar `src/lib/doelgroepGebruik.ts`; `RichtingDoelen.tsx` exporteert ze daaruit verder, zodat bestaande imports blijven werken.
+- Een klas via `ClassGroup.doelgroep` (F2.4).
+- Eén rij per `groep|soort`. 1A en 2A (G-0307 en G-0311) zijn twee rijen, gewoon en buitengewoon ook.
+- Een richting met alleen een leerplan telt niet (V5).
+- Volgorde: op titel (nl), dan op groepnummer; groepen die niet in de matrix staan achteraan.
+
+#### 22.5.2 Hoe het licht blijft
+
+1. **De rijen** komen zonder netwerk uit de opslag: titel uit de doelgroep (momentopname), zodra de matrix er is uit `info.groep.titel`; de tellers; de link. De lijstpagina laadt de matrix al.
+2. **De dekking per rij** alleen voor een rij met minstens één cursus, alleen als de rij zichtbaar is (`IntersectionObserver`, `rootMargin: '200px'`; zonder IO meteen), en **één richting tegelijk** (een wachtrij op moduleniveau). Zo wisselen de 40 plaatsen van de cache van `laadSet` nooit tussen twee richtingen, en vraagt het netwerk hoogstens wat één bezoek aan het detail vraagt (±23 setbestanden). Een mislukte rij houdt de wachtrij niet op.
+3. **Een samenvatting in het geheugen** (`src/lib/dekkingCache.ts`), sleutel `kaderGroepSleutel(info, soort)` (in de 1ste graad rekenen 1A en 2A zo één keer). Alleen getallen. Elke `onStorageChange` verhoogt een generatie en maakt alles ongeldig. Nooit in localStorage: geen oud getal na een herlading, geen risico bij een volle opslag.
+4. **Het detail vult de cache** als het rekent met "Alle jaren van de graad". Wie terugkeert naar de lijst, ziet het getal meteen.
+5. **Dezelfde getallen** als het detail: `DekkingKort` gebruikt `useRichtingKader`, `useRichtingDekking` (na I-A in een eigen bestand) met `telMee = 'alle'` en daarin `bijdragenVoorKader`. Het kader hangt niet van jaar of variant af (richtingKader.ts r. 457 tot 548: alleen groep en soort), dus de sleutel klopt.
+
+Tijdens het laden staat er "De dekking wordt berekend…", ook bij rijen die wachten. Geen `aria-live` per rij (veel rijen zouden te veel voorlezen); de regel wordt voorgelezen als je erop komt.
+
+#### 22.5.3 Logica
+
+```ts
+// src/lib/richtingOverzicht.ts (nieuw)
+export function bijdragenVoorKader(o: { courses: readonly Course[]; curricula: readonly Curriculum[]; info: RichtingInfo;
+  soort: SoortKeuze; matrix: MatrixBestand; vandaag: string; jaar?: number }): CursusBijdrage[];
+//   precies de logica die nu inline in useRichtingDekking staat (RichtingDekking.tsx r. 104-115): hoort = zelfde
+//   kaderGroepSleutel, met richtingInfo voor andere groepen; jaar = telJaar
+export interface MijnRichting { sleutel: string; groep: string; soort: SoortKeuze; titel: string; graad?: 1 | 2 | 3;
+  cursussen: number; klassen: number; jaren: number[] }
+export function mijnRichtingen(o: { courses: readonly Course[]; curricula: readonly Curriculum[];
+  klassen: readonly Pick<ClassGroup, 'doelgroep'>[] }): MijnRichting[];               // zonder matrix; titel = nieuwste momentopname
+export function mijnRichtingMeta(r: MijnRichting): string;   // "2de graad · 3 cursussen (3de en 4de jaar) · 1 klas"
+export function linkVoorRij(r: MijnRichting): string;        // ?jaar=<j> als alle doelgroepen één jaar delen; &soort=buso
+export interface DekkingKortGetallen { totaal: number; gedekt: number; gepland: number; percent: number; eersteGraad: boolean }
+export function kortVan(d: MdDekking, eersteGraad: boolean): DekkingKortGetallen;
+export function dekkingRijZin(d: DekkingKortGetallen): string;
+export function klasDekkingZin(richtingMetGraad: string, d: DekkingKortGetallen): string;   // F2.4
+
+// src/lib/dekkingCache.ts (nieuw; abonneert zich bij het eerste gebruik op onStorageChange)
+export function leesDekkingKort(sleutel: string): DekkingKortGetallen | undefined;
+export function bewaarDekkingKort(sleutel: string, d: DekkingKortGetallen): void;
+
+// src/components/richting/rijWachtrij.ts (nieuw, B2)
+export function useBeurt(wil: boolean): { aanDeBeurt: boolean; klaar: () => void };   // één tegelijk, ook na een fout
+```
+
+```tsx
+// src/components/richting/DekkingKort.tsx (stub in I-A met deze vaste props, echt in B2)
+export interface DekkingKortProps {
+  groep: string; soort: SoortKeuze;
+  plaats: 'rij' | 'klas';       // 'rij' wacht op zichtbaarheid en beurt; 'klas' rekent meteen (in een open details)
+  titel: string;                // voor de sr-only bij "Opnieuw proberen"
+}
+// laadt zelf de gegevens met useRichtingGegevens (gedeelde belofte) en vandaag() uit richtingLink.ts
+```
+
+#### 22.5.4 Scherm en letterlijke teksten
+
+Het blok staat in RichtingLijst direct onder de kop, vóór "Hoe werkt dit?", alleen als er minstens één rij is (`src/components/richting/MijnRichtingen.tsx`).
+
+| Waar | Tekst |
+|---|---|
+| h2 | "Mijn richtingen" |
+| Hint | "De richtingen waarvoor je cursussen of klassen hebt op dit toestel, met wat je cursussen samen dekken." |
+| Rij (`ul` > `li`, de link minstens 44 px hoog) | link met de titel "Natuurwetenschappen"; meta "2de graad · 3 cursussen (3de en 4de jaar) · 1 klas" · "1 cursus" · "nog geen cursus" · "2 klassen" · buitengewoon erachter "· buitengewoon (OV4)" · afgebouwd "· afgebouwd" |
+| Dekking, bezig | "De dekking wordt berekend…" |
+| Dekking, klaar | "Je cursussen dekken 9 van de 171 minimumdoelen (5 %)." met erbij " 4 staan gepland." (enkelvoud " 1 staat gepland.") |
+| 1ste graad | erachter " Het 1ste en het 2de jaar tellen samen." |
+| Geen cursus (alleen klassen) | "Nog geen cursus voor deze richting." (geen berekening) |
+| Geen kader | "De officiële bron koppelt geen minimumdoelen aan deze richting." |
+| Nog niet opgehaald | "De doelen van deze richting zijn nog niet opgehaald." |
+| Fout | "De dekking kon niet berekend worden." met de knop "Opnieuw proberen" (sr-only " (Natuurwetenschappen)", 44 px) |
+| Groep niet in de matrix | "Deze richting staat niet (meer) in de officiële matrix." (de rij is dan geen link) |
+| Matrix nog niet in Boosterz | geen dekkingsregel: de bestaande melding `NogGeenData` zegt het al |
+
+Nooit een groepnummer op het scherm. Op 390 px één kolom, lange titels breken af (`overflow-wrap: anywhere`). Css in `src/styles/mijnrichtingen.css` (`mr-`).
+
+#### 22.5.5 Tests (A3, B2)
+
+- `richtingOverzicht.test.ts`: een richting via de cursus, via het leerplan en via een klas; so en buso apart; 1A en 2A apart; jaren; sortering; meta in enkelvoud en meervoud; `linkVoorRij` met één jaar en gemengd; een ongeldige doelgroep valt weg; `kortVan`, `dekkingRijZin`, `klasDekkingZin`. **Regressie:** `bijdragenVoorKader` geeft op de fixture (ook de 1ste graad, ook met `jaar`) hetzelfde als de huidige inline berekening.
+- `dekkingCache.test.ts`: lezen, bewaren, ongeldig na een opslagwijziging.
+- `rijWachtrij.test.ts`: één tegelijk; de volgende krijgt de beurt na `klaar`, ook na een fout; een rij die verdwijnt geeft haar beurt terug.
+
+### 22.6 F2.4 Een klas koppelen aan een richting en een jaar
+
+#### 22.6.1 Datamodel en grenzen
+
+```ts
+// classTypes.ts
+import type { Doelgroep } from './doelgroep';
+export interface ClassGroup { /* … */ doelgroep?: Doelgroep }   // alleen via doelgroepVoorKlas
+```
+
+| Grens | Wat |
+|---|---|
+| `sanitizeClass` (classes.ts r. 72) | `const dg = doelgroepVoorKlas(c.doelgroep)` en `...(dg ? { doelgroep: dg } : {})`. Idempotent. Daarmee gedekt: `getClasses` (`wf.classes.v1`), `sanitizePack` (klaspakket als link en als `.klaspakket.json`, classPack.ts r. 107) en `readPacks` (opslag bij de leerling, `wf.classpacks.v1`, r. 295). |
+| `saveClass`, `buildClassPack` | spreiden het object: het veld reist vanzelf mee. Geen formaatversie omhoog (v blijft 1). `classPack.ts` verandert niet. |
+| Export en import | een klas reist alleen via het klaspakket; er is geen andere export van klassen (`wf.classes.v1` wordt alleen in classes.ts gelezen en in storageHealth.ts geteld). De CSV-export gaat over leerlingen en krijgt het veld niet. |
+| Bij de leerling | het veld staat in `wf.classpacks.v1` en wordt nergens getoond. Het is geen persoonsgegeven: een groepnummer, een titel uit de matrix, een jaar. |
+| Klaskanaal (concept) | een `pack` gaat als blob mee (`src/lib/sync/types.ts`, `packHash`), dus er is niets apart nodig. Eén zin in `docs/KLASKANAAL.md` § 4.2: "Het klaspakket draagt ook `klas.doelgroep` (studierichting en jaar, geen persoonsgegevens)." |
+| Oudere app-versie | saneert het veld weg; wie vanuit een oud tabblad een klas bewaart, verliest de keuze van de richting (R7). |
+| Opdrachten (`Assignment`) | ongewijzigd |
+
+#### 22.6.2 Logica
+
+```ts
+// src/lib/doelgroepGebruik.ts (nieuw, licht: alleen doelgroep.ts en types)
+export function doelgroepVanCursus(course: Pick<Course, 'doelgroep' | 'curriculumId'>,
+  curricula: readonly Pick<Curriculum, 'id' | 'doelgroep'>[]): Doelgroep | undefined;     // verhuisd uit RichtingDoelen.tsx r. 58, zelfde gedrag
+export function pastBijKlas(klas: Doelgroep, cursus: Doelgroep): boolean;
+//   zelfdeRichting (groep en soort), en het jaar ontbreekt bij één van beide of is gelijk; 1A en 2A passen dus niet
+export function cursussenVoorToewijzen(courses: readonly Course[], curricula: readonly Curriculum[], klas?: Doelgroep):
+  { passend: Course[]; andere: Course[] };              // passend: eerst hetzelfde jaar, dan zonder jaar; binnen elk de volgorde van courses
+export function klassenVoorToewijzen(classes: readonly ClassGroup[], cursus?: Doelgroep): { passend: ClassGroup[]; andere: ClassGroup[] };
+export function klassenVanRichting(classes: readonly ClassGroup[], groep: string, soort: 'so' | 'buso'): ClassGroup[];  // op jaar, dan naam
+
+// src/lib/classes.ts, sectie "Studierichting van een klas"
+export function zetKlasRichting(classId: string, d: Doelgroep | undefined): 'ok' | 'weg' | 'mislukt';
+//   leest de klas opnieuw (getClass), zet of wist alleen `doelgroep` (via doelgroepVoorKlas) en bewaart met saveClass
+```
+
+#### 22.6.3 Wat het oplevert
+
+1. **Klasoverzicht** (`/klas/:id`, ClassDashboardPage): een sectie "Studierichting" na "Opdrachten". De richting kiezen met het bestaande `RichtingKiezerModal`, lui geladen zoals in de cursusinstellingen (CourseEditorPage r. 1090-1106). Met een richting: de cursussen van die richting (`KlasRichting.tsx`), elk met "Staat in deze klas" of de knop "Toewijzen", die "Opdracht toevoegen" opent met die cursus al gekozen (nieuwe prop `voorgekozen` op `NewAssignmentModal`). Op vraag (`details`) de dekking van de richting (`DekkingKort`, plaats `klas`): zo laadt de matrix (1,37 MB, 63 kB gzip) niet bij elk bezoek aan de klas.
+2. **"Opdracht toevoegen"** (`NewAssignmentModal`): met een klasrichting en minstens één passende cursus krijgt de keuzelijst twee `optgroup`'s. Er wordt niets vooraf gekozen, behalve via `voorgekozen`.
+3. **Toewijzen vanuit een cursus** (`AssignToClassSection` in ShareModal.tsx): een optionele prop `doelgroep`, die `CourseShareModal` berekent met `doelgroepVanCursus(course, getCurricula())`. De passende klassen staan bovenaan in een eigen `optgroup`. ShareModal importeert zelf geen curriculum.ts. Geen voorkeuze (bestaand gedrag blijft: alleen bij precies één klas).
+4. **Richtingpagina**: een sectie "Klassen van deze richting" (`RichtingKlassen.tsx`) na "Cursussen voor deze richting".
+5. **Mijn klassen** (ClassesPage): de richting achter de klascode-regel.
+6. **Mijn richtingen** telt de klassen mee (F2.3).
+
+#### 22.6.4 Schermen en letterlijke teksten
+
+**ClassDashboardPage, `section` met h2 "Studierichting"**
+
+| Toestand | Tekst en knoppen |
+|---|---|
+| Geen richting | "Koppel deze klas aan een studierichting en een jaar. Dan zie je hier de cursussen van die richting, en bij ‘Opdracht toevoegen’ staan ze bovenaan." · knop "Kies een studierichting" |
+| Met richting | vet "Natuurwetenschappen · 4de jaar" (`doelgroepTekst`) · knoppen "Wijzig" (sr-only " de studierichting") en "Geen richting" |
+| Kiezer | titel "Studierichting van deze klas" · laadt hij niet: toast "De lijst met studierichtingen kon niet geladen worden. Controleer je verbinding en herlaad de pagina." (bestaande tekst) |
+| Toasts | "Studierichting van ‘4NWA’: Natuurwetenschappen · 4de jaar." · "‘4NWA’ heeft geen studierichting meer." |
+| Fouten (`callout err`) | "De studierichting kon niet bewaard worden: de opslag van dit toestel is vol of geblokkeerd." · "Deze klas bestaat niet meer op dit toestel." |
+| Focus | na "Geen richting" naar "Kies een studierichting"; na het kiezen naar "Wijzig" |
+
+**`KlasRichting.tsx`** (onder de richting, in dezelfde sectie)
+
+| Waar | Tekst |
+|---|---|
+| h3 | "Cursussen voor deze richting" |
+| Rij | link "<titel>" naar de editor · meta "4de jaar" of "hele graad" · badge "Staat in deze klas" of knop "Toewijzen" (sr-only " (<titel>)", 44 px) |
+| Geen cursus | "Nog geen cursus voor deze richting op dit toestel." met de link "Maak er een bij de studierichting" (`richtingLinkNaar`) |
+| `details` summary | "Toon wat je cursussen voor deze richting dekken" |
+| Daarin | bezig "De dekking wordt berekend…" · klaar "Je cursussen voor Natuurwetenschappen (2de graad) dekken 9 van de 171 minimumdoelen (5 %)." · met de link "Bekijk per doel wat ze dekken" · de andere toestanden zoals in § 22.5.4 |
+
+**Andere plaatsen**
+
+| Waar | Tekst |
+|---|---|
+| NewAssignmentModal | `optgroup` "Voor Natuurwetenschappen · 4de jaar" en "Andere cursussen" · hint onder de keuzelijst "De cursussen voor de studierichting van deze klas staan bovenaan." |
+| AssignToClassSection | `optgroup` "Klassen voor Natuurwetenschappen · 4de jaar" en "Andere klassen" (de richting van de cursus, `doelgroepTekst(d, { zonderVak: true })`) |
+| ClassesPage | achter de klascode-regel: " · Natuurwetenschappen · 4de jaar" |
+| Richtingpagina, h2 | "Klassen van deze richting" |
+| Rij | link "<klasnaam>" naar `/klas/<id>` · meta "4de jaar · 22 leerlingen" of "Hele graad · 22 leerlingen" (enkelvoud "1 leerling") · "2 van de 3 cursussen van deze richting staan in deze klas." |
+| Geen klas | "Nog geen klas met deze studierichting. Je kiest de studierichting van een klas in het klasoverzicht." met de link "Naar mijn klassen" |
+
+Teksten met getallen in `src/lib/klasRichtingWeergave.ts`. Css in `src/styles/klasrichting.css` (`kr-`). Icoon `RichtingIcon` (bestaat; niet op het leerlingpad).
+
+#### 22.6.5 Tests (A3, B3)
+
+- `classes.test.ts`: `sanitizeClass` houdt een geldige doelgroep, laat vak, kader, `setAfdrukken`, `volgtKader` en onbekende sleutels weg, laat een ongeldige doelgroep weg, is idempotent; `saveClass` en `getClasses` houden het veld; `zetKlasRichting` houdt een klaslijst die intussen elders gewijzigd werd, geeft `weg` en `mislukt`.
+- `classPack.test.ts`: heen en terug via link en bestand houdt `klas.doelgroep`; een geknutseld pakket met `__proto__` of een slecht groepnummer laat het veld weg; een pakket zonder veld blijft geldig; `readPacks` houdt het veld; naast `doelgroep` komt er geen enkel nieuw veld in het pakket.
+- `doelgroepGebruik.test.ts`: `pastBijKlas` (jaar leeg of gelijk, andere soort, 1A tegenover 2A); de volgorde bij het toewijzen; `klassenVanRichting`; `doelgroepVanCursus` gelijk aan het oude gedrag.
+- `klasRichtingWeergave.test.ts`: enkelvoud en meervoud.
+
+### 22.7 Bundel
+
+Gemeten op `dist` van de stand na I4 (kB = 1000 bytes).
+
+| Chunk | Nu | Verwacht | Budget | Hoe |
+|---|---|---|---|---|
+| Kritiek pad (index + vendor) | 333,7 | 333,7 tot 333,9 | 334,2 | Geen gewijzigde module zit in de statische sluiting van het leerlingpad; JoinPage laadt classes lui (r. 33). `EAGER_ICON_NAMES` verandert niet. Groei kan alleen uit de preloadlijst (`__vite__mapDeps`) komen als een route er een nieuw statisch chunk bij krijgt: helpers staan daarom in bestaande of lichte modules, en elk B-pakket meet en meldt. |
+| CourseEditorPage | 74,97 | ≤ 75,1 | 80 | alleen de prop `onEdit={edit}`; geen import van `gatenDichten` of `gatenCursus` |
+| MinimumdoelenDekking (lui) | 10,6 | ±12,5 | 80 | `gatenDichten` (licht); `gatenCursus` pas bij de klik |
+| GatenVenster + gatenCursus (lui, nieuw) | – | ±9 | 80 | pas bij de klik |
+| RichtingenPage | 60,6 | ±66 | 80 | MijnRichtingen en RichtingKlassen inline; DekkingKort en het venster lui |
+| DekkingKort (lui, gedeeld) | – | ±3 | 80 | lijst en klas |
+| ClassDashboardPage | 23,7 | ±27 | 80 | sectie, KlasRichting en optgroups inline; kiezer en DekkingKort lui |
+| classes | 9,7 | ±10 | 80 | `doelgroepVoorKlas` (doelgroep.ts heeft geen imports) |
+| ShareModal | 11,1 | ±11,4 | 80 | optgroups; doelgroep als prop |
+
+Overschrijdt het kritieke pad 334,2 kB, dan verplaatst de hoofdsessie eerst code; pas daarna een bewuste verhoging met een geschiedenisregel in `vite.config.ts` (V6). Alleen de hoofdsessie raakt `vite.config.ts` aan.
+
+### 22.8 Toegankelijkheid, 390 px en taal (voor elk schermpakket)
+
+- Geen eigen `main`; één h1 per scherm (bestaand); koppen in vensters zijn h2, in panelen h3.
+- Vakjes en radio's in een fieldset met een legend; tellers en voorbeeldzinnen in `aria-live="polite"`; een status nooit alleen met kleur.
+- Knoppen die nog niet kunnen: `aria-disabled` met "Nog nodig: …", nooit `disabled`.
+- Focus na elke actie waarbij een knop verdwijnt: zoals per scherm beschreven.
+- Knoppen, labels en rijen minstens 44 px op ≤ 640 px. Op 390 px één kolom, `overflow-wrap: anywhere`, niets horizontaal scrollen.
+- Nooit een set-id of groepnummer op het scherm: setnamen via `setNamenVan` en `veiligeSetNaam`, waarschuwingen via `zonderSetId`. Termen uit CLAUDE.md: leerplan, toewijzen, bewaren. Css alleen met tokens; nooit witte tekst op `--brand`.
+
+### 22.9 Rooktest, sectie 20f (op de fixtures, na 20e en vóór "21. Importeren")
+
+`rtOpen('20f', { fixtures: true })`, verse opslag, tot slot "Terug zoals het was".
+
+1. `/cursussen/richtingen` heeft geen h2 "Mijn richtingen".
+2. Via het detail van G-0193 (`?jaar=4`) "Maak een cursus voor deze richting", vak "Biologie", met een geraamte. Terug naar de lijst: h2 "Mijn richtingen", een link `#/cursussen/richtingen/G-0193?jaar=4` met "Natuurwetenschappen" en /1 cursus/, binnen 15 s /Je cursussen dekken \d+ van de \d+ minimumdoelen \(\d+ %\)\./; op 390 px niets horizontaal, de rij minstens 44 px.
+3. Detail: de knop /Plan de \d+ doelen die nog nergens aan bod komen/; venster-h2 "Plan wat nog nergens aan bod komt". Alleen het eerste vakje laten staan, de teller /Je koos (\d+) doel(en)? uit 1 set\./ geeft n. "In een cursus die je al hebt" staat op `aria-disabled` met /Geen cursus van deze richting heeft een van de gekozen doelen/ (het Biologie-leerplan bevat ze niet). "Maak de cursus" → `/cursus/bewerk/`. In localStorage: een nieuw leerplan, samengesteld en gecontroleerd, `doelgroep.groep` G-0193, exact n refs allemaal in die ene set, geen `volgtKader`, `doelgroep.setAfdrukken` met precies die set als sleutel en een waarde op /^[0-9a-f]{16}$/; de cursus heeft jaar 4 en secties met goalCodes. Terug op het detail: het aantal geplande doelen steeg met precies n.
+4. Een tweede cursus via "Alle minimumdoelen van de richting" en "Met een lege cursus". Venster: alle vakjes aan, "In een cursus die je al hebt", die cursus; de voorbeeldzin /Alle \d+ gekozen doelen staan in het leerplan van/; "Zet ze in deze cursus" → toast /staan nu gepland in/. In localStorage: het eerste hoofdstuk van die cursus diep gelijk aan vroeger, nieuwe hoofdstukken achteraan met goalCodes, het leerplan ongewijzigd (zelfde id en `updatedAt`). Op het detail: "Er zijn geen verplichte minimumdoelen meer die nergens aan bod komen."
+5. Editor: een cursus via "Kies de sets voor deze cursus" (Biologie) met een lege cursus; Doelendekking → Minimumdoelen → /\d+ doelen uit het leerplan van deze cursus staan nog op geen enkele sectie/ → "Plan ze in deze cursus" → "Zet ze in deze cursus" → toast /staan nu gepland in deze cursus/; een sectie met de callout "Doelen in deze sectie"; de dekking toont "gepland".
+6. F2.1: bij Leerplannen "Keuze aanpassen" (zonder richting) op het leerplan van de hele richting: één doel erbij in een deelset en een andere set weg, bewaren. Het detail toont **geen** /De officiële koppeling van deze richting is veranderd/.
+7. Klas: `/klassen` → nieuwe klas "Proefklas 4NW" → "Kies een studierichting", zoeken "natuurwet", Natuurwetenschappen, "4de jaar", "Kies deze richting". De sectie toont "Natuurwetenschappen · 4de jaar"; `wf.classes.v1` heeft `doelgroep` {groep G-0193, jaar 4, soort so} zonder vak, kader of `setAfdrukken`. "Toewijzen" bij een cursus opent "Opdracht toevoegen" met die cursus gekozen; "Toevoegen"; de rij toont "Staat in deze klas". "Opdracht toevoegen" heeft `optgroup[label="Voor Natuurwetenschappen · 4de jaar"]`. Het detail van G-0193 toont "Klassen van deze richting" met een link naar `#/klas/<id>`; Mijn richtingen toont /1 klas/. De klaslink ("Klaslink & pakket") gedecodeerd in Node met lz-string: `klas.doelgroep.groep === 'G-0193'` en geen `vak`.
+8. Op 390 px: het detail met het venster, de lijst met Mijn richtingen, de klas met de sectie; elk scherm 1 main en 1 h1; de nieuwe knoppen minstens 44 px.
+9. Geen console- of paginafouten. Twee keer na elkaar groen.
+
+Sectie 20e (echte data) krijgt alleen regex-checks voor stap 2 en 3 op G-0193.
+
+### 22.10 Hulp en docs (I-B)
+
+**HelpPage.tsx**, twee vragen:
+- "Hoe plan ik wat mijn cursussen nog niet dekken?" — "Open je studierichting bij Cursussen, ‘Voor een studierichting’. Onderaan, bij ‘Wat je cursussen samen dekken’, kies je ‘Plan de … doelen die nog nergens aan bod komen’. Je zet ze in een nieuwe cursus of in een cursus die je al hebt. Ze komen er als lege secties met de doelcodes op; daarna werk je ze zelf uit. Een AI-sleutel heb je daarvoor niet nodig."
+- "Kan ik een klas aan een studierichting koppelen?" — "Ja. Open de klas en kies bij ‘Studierichting’ de richting en het jaar. Je ziet dan de cursussen van die richting, en bij ‘Opdracht toevoegen’ staan die cursussen bovenaan."
+
+**Docs:** in STUDIERICHTINGEN.md een rij "Fase 2 (§ 22)" in de stand van zaken bovenaan; § 11.2: de bekende beperking is opgelost voor leerplannen met `setAfdrukken` (verwijzing naar § 22.3); § 21: "een richting op een klas" en "een cursus voor wat nog niet gedekt is" gaan naar fase 2. KLASKANAAL.md: één zin (A3). CLAUDE.md: geen wijziging (de verwijzing naar STUDIERICHTINGEN.md volstaat; het werkwijzeblok blijft onaangeroerd).
+
+### 22.11 Risico's
+
+| # | Risico | Opvang |
+|---|---|---|
+| R1 | Een leerplan van vóór fase 2 houdt de bekende beperking | Bewust (F2-B3). De wizard meldt wat hij niet aanvinkt; bij de eerste bewaring met de richting komt het nieuwe formaat. Het gaat om leerplannen van 9 en 10 oktober. |
+| R2 | Een oudere app-versie bewaart een leerplan en laat `setAfdrukken` weg | `kader` en `kaderVolledig` blijven geschreven: de oude regel geldt, zonder valse melding door het nieuwe veld. |
+| R3 | Binnen een set die echt veranderde, telt een eigen extra doel als vervallen | Huidig gedrag bij een echte verandering, vastgelegd in § 22.3.4. |
+| R4 | Gaten: stil `'alle'` (§ 9.5) | Altijd lijsten, geen pad langs `zetDoelen`/`bouwSetKeuzes`, een regressietest. |
+| R5 | Gaten: een gedeeld leerplan verandert | (b) past een leerplan nooit aan; (a) maakt een nieuw leerplan of hergebruikt er een met precies dezelfde doelen. |
+| R6 | (a): leerplan bewaard, cursus niet | Een nieuw leerplan wordt weer gewist; een hergebruikt blijft. Getest met een nagebootste opslag. |
+| R7 | Een oud tabblad bewaart een klas en laat `doelgroep` weg | Kleine kans, gevolg alleen de keuze van de richting; staat in de docs. |
+| R8 | Meer opslag door aanvullingsleerplannen | Hergebruik; alleen open doelen (±310 B per doel); de titel "Aanvulling · …" maakt opruimen makkelijk. |
+| R9 | Kost van Mijn richtingen | Alleen zichtbare rijen met een cursus, één tegelijk, samenvatting in het geheugen, het detail vult ze; per rij hoogstens één bezoek aan het detail. |
+| R10 | De matrix laadt in de klas | Alleen met een klasrichting én pas bij het openen van de dekking; gedeelde belofte en service worker. De lijst met cursussen heeft geen matrix nodig. |
+| R11 | Overzicht en detail tonen andere getallen | Dezelfde functies (`bijdragenVoorKader`, `useRichtingDekking`), een regressietest en een rookcheck. |
+| R12 | Een nieuw gedeeld chunk doet de preloadlijst van de hoofdbundel groeien | Lichte modules, luie imports pas bij een klik, meting na elk B-pakket. |
+| R13 | Een hoofdstuktitel die toevallig gelijk is | De secties komen dan in dat hoofdstuk; zichtbaar en makkelijk te verplaatsen. |
+| R14 | De editor heeft geen "ongedaan maken" | Eerst sets kiezen in het paneel; alleen toevoegen, nooit iets wijzigen. |
+| R15 | De klasdekking gaat over de hele richting, niet over wat de klas kreeg | De zin noemt "je cursussen voor <richting>"; per klas is V4. |
+
+### 22.12 Open vragen voor de eigenaar (met werkkeuze)
+
+- **V1.** Moet "Plan" ook doelen meenemen die al gepland staan of alleen in verdieping aan bod komen? **Werkkeuze: nee, alleen wat nergens aan bod komt.**
+- **V2.** Mag Boosterz bij "In een cursus die je al hebt" het leerplan van die cursus zelf uitbreiden? **Werkkeuze: nee. Wat niet in het leerplan staat, komt er niet bij; het venster wijst naar "Open het leerplan" en naar een nieuwe cursus.**
+- **V3.** Moeten leerplannen van vóór fase 2 bij de eerste "Keuze aanpassen" hun oude afdruk "vastpinnen" (ontwerp "risico eerst")? **Werkkeuze: nee; ze krijgen het nieuwe formaat bij de eerste bewaring met de richting.**
+- **V4.** Dekking in de klas: over de hele richting, of alleen over de cursussen die de klas als opdracht kreeg? **Werkkeuze: de hele richting, op vraag, met dezelfde getallen als de richtingpagina. Per klas: later.**
+- **V5.** Moet Mijn richtingen ook richtingen tonen met alleen een leerplan, zonder cursus of klas? **Werkkeuze: nee.**
+- **V6.** Mag het budget van het kritieke pad bewust tot ±334,6 kB als een nieuw chunk de preloadlijst doet groeien? **Werkkeuze: ja, gemeten en met een geschiedenisregel, maar eerst code verplaatsen.**
+- **V7.** Blijven we `kader` en `kaderVolledig` schrijven naast `setAfdrukken`? **Werkkeuze: ja (±130 tekens per leerplan); opruimen is een latere beslissing.**
+- **V8.** Een AI-start in het venster van de gaten? **Werkkeuze: nee; de AI kan daarna op de cursus zelf.**
+- **V9.** Toewijzen op de exacte richting, zodat 1A en 2A niet door elkaar lopen? **Werkkeuze: ja.**
+- **V10.** Moet het klasoverzicht zelf een richting voorstellen op basis van de cursussen die de klas al kreeg? **Werkkeuze: niet in fase 2.**
+
+### 22.13 Bewust niet in fase 2
+
+- Een leerplan uitbreiden vanuit de dekking (V2), en `saveCurriculumGuarded`.
+- Een selectie per doel in de samenstelwizard (`?doelen=`).
+- "Gepland" in `computeCoverage` (O1 blijft).
+- Een richting kiezen bij het aanmaken van een klas; een richtingvoorstel uit de opdrachten (V10); een dekking per klas (V4).
+- De dekkingssamenvatting in localStorage.
+- Mijn richtingen voor leerplannen zonder cursus (V5).
+- Vastpinnen van oude afdrukken (V3).
+- Eén klik "Toewijzen" zonder het venster "Opdracht toevoegen".
+- Beroepskwalificaties (O11).
 
 ## Bijlage A. Pakketten
 
@@ -1586,3 +2183,29 @@ Uit de synthese, met bestanden, afhankelijkheden en acceptatiecriteria.
 - Uit 'data eerst': F5 (onderwijssoort tegenover setnaam) als harde poort vóór de eerste run. Het is een telling tot G1, net als de kruiscontrole.
 - Uit 'data eerst': vite.config.ts aanpassen in een bouwpakket (P5). Het budget past alleen de hoofdsessie aan, na een meting.
 - Uit 'data eerst': R4 met een aparte groepsleutel 'lj3' voor jaar 7. 7de jaren zijn in de matrix eigen groepen (type7), dus de sleutel is gewoon het groepnummer.
+
+## Bijlage D. Pakketten fase 2
+
+```
+A1 kernbouwer (F2.1 + doelgroepVoorKlas) ─┬─ A2 bouwer (F2.2 logica) ─┐
+                                          └─ A3 bouwer (F2.3/F2.4 logica) ┴─ I-A hoofdsessie ─┬─ B1 bouwer (F2.2 schermen, worktree A) ─┐
+                                                                                             ├─ B2 bouwer (F2.3 scherm,   worktree B) ─┼─ I-B ─ C1 bouwer (rooktest 20f) ─ I-C
+                                                                                             └─ B3 bouwer (F2.4 schermen, worktree C) ─┘
+```
+
+Voor elk pakket: het levert pas op als `npm run lint` (0 fouten, geen extra waarschuwingen), `npm run typecheck` en `npx vitest run` groen zijn; voor B1 tot B3 ook `npm run build` (budget gemeld) en de bestaande rooktest op `vite preview`. Agents committen niet. A2 en A3, en B1, B2 en B3, raken nooit hetzelfde bestand.
+
+| Pakket | Wie | Na | Bestanden (alleen deze) | Acceptatie |
+|---|---|---|---|---|
+| **A1** Vingerafdruk per set | kernbouwer | – | `src/lib/doelgroep.ts` (+test), `src/lib/richtingKader.ts` (+test), `src/lib/doelenSamenstellen.ts` (alleen `doelgroepVanBestaand`) (+test), `src/lib/curriculum.ts` (alleen `maakEigenKopie`) (+test), `src/lib/courses.ts` (alleen de regel in `sanitizeCourse`) + `courses.test.ts`, `richtingCursus.test.ts`, `richtingLink.test.ts`, commentaar in `richtingCursus.ts` en `richtingLink.ts` | § 22.3 volledig; `doelgroepVoorKlas` en `zonderKaderVelden` bestaan; formaten van `kaderVingerafdruk` en `volledigeSetsVingerafdruk` ongewijzigd; tests van § 22.3.8, met de oude-regeltests expliciet in het oude formaat en hun verwachte uitkomsten ongewijzigd; de test "bekende beperking" is twee tests |
+| **A2** Logica gaten dichten | bouwer | A1 | nieuw `src/lib/gatenDichten.ts`, `src/lib/gatenCursus.ts` en hun tests; `src/lib/richtingCursus.ts` (alleen `export` voor `samenTitel`) | § 22.4.1 tot 22.4.6; puur (geen React, geen opslag behalve de meegegeven `GatenOpslag`); tests van § 22.4.8 met de valkuilregressie; geen set-id in een tekst |
+| **A3** Logica mijn richtingen en klas | bouwer | A1 | `src/lib/classTypes.ts`, `src/lib/classes.ts` (alleen `sanitizeClass` en de nieuwe sectie), nieuw `src/lib/doelgroepGebruik.ts`, `src/lib/richtingOverzicht.ts`, `src/lib/dekkingCache.ts` en hun tests, `classes.test.ts`, `classPack.test.ts`, `src/components/richting/RichtingDoelen.tsx` (alleen `doelgroepVanCursus` verhuist en wordt verder geëxporteerd), `docs/KLASKANAAL.md` (één zin) | § 22.5.3 en § 22.6.1 tot 22.6.2; tests van § 22.5.5 en § 22.6.5; de regressie van `bijdragenVoorKader` op de fixture; `classPack.ts` ongewijzigd |
+| **I-A** Integratie en stubs | hoofdsessie | A2, A3 | `useRichtingDekking` verhuist naar `src/components/richting/useRichtingDekking.ts` (gebruikt `bijdragenVoorKader`; `DekkingGegevens` krijgt `bijdragen`, `bestanden`, `kader`; schrijft de cache bij "Alle jaren"); `RichtingDekking.tsx` en `RichtingDetail.tsx` importeren van daar; stubs `DekkingKort.tsx` (vaste props van § 22.5.3, toont "De dekking wordt berekend…") en `RichtingKlassen.tsx` (geeft niets), die in `RichtingDetail` gemonteerd wordt | volledige poort; rooktest 20d en 20e ongewijzigd groen (de dekking op het detail blijft gelijk); budget gemeten; commit |
+| **B1** Schermen gaten dichten | bouwer, worktree A | I-A | nieuw `GatenVenster.tsx` (lui), `src/lib/gatenWeergave.ts` (+test), `src/styles/gaten.css`; `RichtingDekking.tsx` (knop en luie import), `MinimumdoelenDekking.tsx` (paneel), `GoalCoverage.tsx` (prop doorgeven), `CourseEditorPage.tsx` (alleen `onEdit={edit}`) | teksten van § 22.4.7 letterlijk; bewaren alleen via `bewaarNieuweGatenCursus`, `bewaarGatenOpCursus` en `onEdit`; focus zoals beschreven; CourseEditorPage ≤ 75,1 kB; 44 px en 390 px |
+| **B2** Scherm mijn richtingen | bouwer, worktree B | I-A | nieuw `MijnRichtingen.tsx`, `rijWachtrij.ts` (+test), `src/styles/mijnrichtingen.css`; `DekkingKort.tsx` (stub wordt echt); `RichtingLijst.tsx` (blok monteren) | § 22.5.2 en § 22.5.4 letterlijk; zonder rijen geen blok; één richting tegelijk; niets in localStorage; de props van DekkingKort ongewijzigd |
+| **B3** Schermen klas en richting | bouwer, worktree C | I-A | `ClassDashboardPage.tsx` (sectie, `NewAssignmentModal` met optgroups en `voorgekozen`), nieuw `src/components/klas/KlasRichting.tsx`, `RichtingKlassen.tsx` (stub wordt echt), `ShareModal.tsx`, `CourseShareModal.tsx`, `ClassesPage.tsx`, nieuw `src/lib/klasRichtingWeergave.ts` (+test), `src/styles/klasrichting.css` | § 22.6.3 en § 22.6.4 letterlijk; bewaren alleen via `zetKlasRichting`, en elke `false` krijgt een melding; DekkingKort via de stub; de kiezer lui; ClassDashboardPage < 28 kB |
+| **I-B** Integratie van de schermen | hoofdsessie | B1, B2, B3 | samenvoegen; `HelpPage.tsx` (§ 22.10); `vite.config.ts` alleen als V6 nodig is; docs (§ 22.10) | volledige poort, rooktest twee keer groen, kritiek pad gemeten en gemeld |
+| **C1** Rooktest 20f | bouwer (een andere agent dan B1 tot B3) | I-B | `tests/smoke.mjs` (alleen een nieuwe sectie 20f vóór "21. Importeren", plus de regex-checks in 20e) | § 22.9; twee keer na elkaar groen; bestaande checks ongewijzigd |
+| **I-C** Review en uitrol | hoofdsessie, vier reviewers, rechter | C1 | herstel in de bestanden van A1 tot C1; stand van zaken | vier invalshoeken: (1) juistheid van F2.1 en F2.2 (afdrukken, oude regel, valkuil, codes, secties), (2) opslag en grenzen (sanering, klaspakket, terugdraaien, nooit stil overschrijven), (3) toegankelijkheid, taal en 390 px, (4) bundel en kost; daarna de rechter; alleen bevestigde punten worden hersteld; volledige poort met `tests/ai/mock-studio.mjs`; commit en push; deploy groen |
+
+**Wat niemand aanraakt** (behalve waar het hierboven staat): `computeCoverage`; `tools/leerplannen/haal-*.mjs` en `public/leerplannen/**`; `vite.config.ts` (alleen de hoofdsessie); de bestaande checks in `tests/smoke.mjs`; `CurriculumPicker.tsx`; `NieuweRichtingCursus.tsx` en `RichtingKiezerModal.tsx` (hun props blijven vast); `classPack.ts`; de formaten van `kaderVingerafdruk` en `volledigeSetsVingerafdruk`.
