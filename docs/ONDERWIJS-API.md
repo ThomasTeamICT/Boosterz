@@ -12,7 +12,7 @@ verder? Aanvulling op `docs/LEERPLANNEN.md` (de minimumdoelen komen al uit de On
 | Matrix van de studierichtingen als data | **In de repo** sinds de eerste echte run (PR #6, 9 oktober 2026), via de API Structuuronderdelen (§ 2). |
 | Herhaalbare import van de matrix in Boosterz (script, workflow, datatest, zoals de minimumdoelen) | **Klaar en live** (10 oktober 2026): de matrix (545 groepen) en de doelen per richting staan in `public/leerplannen/structuur/` en worden maandelijks bijgewerkt via de workflow "Leerplangegevens bijwerken" (met een pull request). Ontwerp en stand van zaken: `docs/STUDIERICHTINGEN.md`. |
 | Koppeling studierichting → doelen | **Uitgezocht** (runs 4 en 5): de filter op naam mengt graden en breekt op een komma; de filter `structuuronderdeel_groep_nummer` werkt per graad. Zie § 3. Bouw: `docs/STUDIERICHTINGEN.md`. |
-| Beroepskwalificaties bij richtingen met arbeidsmarktfinaliteit (O11 van STUDIERICHTINGEN.md) | **Gevonden** (ronde 6, run 38044584119, 10 oktober 2026): via het detail per structuuronderdeel, en de competenties via het detail per BK-versie (§ 4). Volgende: ronde 7 (curriculumdossier, volledige vorm van een BK), daarna een ontwerp voor de import. |
+| Beroepskwalificaties bij richtingen met arbeidsmarktfinaliteit (O11 van STUDIERICHTINGEN.md) | **Gevonden** (ronde 6, run 38044584119, 10 oktober 2026): via het detail per structuuronderdeel, en de competenties via het detail per BK-versie (§ 4). Ronde 7 (run 38047507450): het curriculumdossier is een Word-document, de competenties zijn gestructureerd (§ 4). Volgende: een ontwerp voor de import van de beroepskwalificaties per richting. |
 | Aanbod per school (welke school welke richting inricht) | Later: de API's zijn bereikbaar (§ 4), het juiste adres voor het ingerichte aanbod is nog niet gevonden. |
 
 ## 1. Toegang
@@ -105,6 +105,16 @@ A 24), 3de graad 139 (DO 35, DU 53, A 51), en 2 zonder graad (OKAN, basisverplee
   duaal) → drie BK's en drie deelkwalificaties. De lijst van de groepen (`structuuronderdeelgroep`, wat de import
   nu ophaalt) bevat die velden **niet**: daarvoor is het detail per onderdeel nodig. Het omgekeerde (in een BK
   naar de onderdelen zoeken) bestaat niet. Adressen voor onderwijskwalificaties en opleidingsprofielen geven 404.
+- **Curriculumdossier en de vorm van een competentie** (ronde 7, run 38047507450, 10 oktober 2026):
+  `…/structuuronderdeel_detail/{ADV}/curriculumdossier` geeft JSON met `informatie_type: CURRICULUMDOSSIER`,
+  `content_type` (Word, `.docx`), `filename` (bv. "Onthaal en recreatie_CD_2024.docx") en `content` (het bestand in
+  base64, 50 tot 67 kB). Het is dus een document, geen gestructureerde lijst; het verwijst in de JSON niet naar
+  onderwijsdoelen of BK's. `…/structuuronderdeel_detail/{ADV}` zelf geeft 404. Een competentie in het detail van een
+  BK-versie heeft `competentie_type` (in de proef alleen "Vakspecifieke competentie"), `nr`, `competentie_code`,
+  `waarde` (tot ±105 tekens), `kennis[]` (`kennis_type`, `waarde`, tot ±400 tekens), `vaardigheden[]`
+  (`vaardigheid_type`, `waarde`) en `referenties[]` (`referentie_nr`). BK-0390-2 (Onthaalmedewerker) heeft 12
+  competenties, BK-0464-1 (Recreatief medewerker) 13; ze delen geen competentiecodes. Onderdeel 504 heeft 5
+  studiebekrachtigingen, waarvan 1 met `onderwijskwalificatie: true`.
 - **Opleidingstrajecten** `/kwalificaties-en-curriculum/trajecten/v1/opleidingstraject`: 682 (in een
   steekproef van 141: duaal leren, BuSO OV3 en volwassenenonderwijs), detail per id.
 - **App Opleidingsinhouden** `/app-opleidingsinhouden/v1/secundair-onderwijs/opleidingsinhoud/{ADV-nummer}`
