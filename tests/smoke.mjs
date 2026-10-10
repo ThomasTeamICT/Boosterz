@@ -1507,6 +1507,383 @@ await page.evaluate((v) => {
   if (v.naam === null) localStorage.removeItem('wf.nakijker.naam'); else localStorage.setItem('wf.nakijker.naam', v.naam);
 }, wizardVoor);
 
+// ── 20d. Studierichtingen ───────────────────────────────────────────────────
+// Het hele pad van docs/STUDIERICHTINGEN.md § 16 (1) tot en met (13), op de nagebootste matrix van tests/fixtures/structuur/uit/:
+// richting kiezen, cursus maken zonder AI, de valkuil van § 9.5, de dekking met "gepland", samenstellen met een richting en
+// 390 px. Eigen context zonder service worker: anders onderschept die de bestanden en ziet page.route ze niet. Eigen context
+// betekent ook een eigen browserprofiel: de rest van de rooktest merkt hier niets van, en de sectie zet toch zelf terug wat ze
+// veranderde ("Terug zoals het was"). Sectie 20e hieronder draait dezelfde hoofdstroom op de echte data.
+console.log('20d. Studierichtingen');
+const RT_FIXTURES = new URL('./fixtures/structuur/uit/', import.meta.url);
+const RT_ECHT = new URL('../public/leerplannen/structuur/', import.meta.url);
+const RT_SETINDEX = new URL('../public/leerplannen/minimumdoelen/index.json', import.meta.url);
+const rtJson = (url) => { try { return JSON.parse(readFileSync(url, 'utf8')); } catch { return null; } };
+const rtAantalDoelen = (n) => `${n} ${n === 1 ? 'doel' : 'doelen'}`;
+
+/**
+ * De set van een vak bij een richting, zoals de koppeling hem geeft: de ene set met die korte naam die nu geldt en bij het gewone
+ * secundair onderwijs hoort. Daaruit volgt precies welke vaste nummers het leerplan moet bevatten (de valkuil van § 9.5: een deelset
+ * van 4 van 13 doelen blijft 4 doelen). Geeft null als er niet precies één zo'n set is.
+ */
+function rtVerwacht(map, groep, vak) {
+  const koppeling = rtJson(new URL(`richtingdoelen/${groep}.json`, map));
+  const index = rtJson(RT_SETINDEX);
+  if (!koppeling || !index || !Array.isArray(koppeling.sets) || !Array.isArray(index.sets)) return null;
+  const info = new Map(index.sets.map((s) => [s.id, s]));
+  const kandidaten = koppeling.sets.filter((k) => {
+    const s = info.get(k.set);
+    return !!s && s.korteNaam === vak && s.geldigheid === 'Geldig' && !/^Buitengewoon/i.test(s.naam);
+  });
+  if (kandidaten.length !== 1) return null;
+  const [k] = kandidaten;
+  return { set: k.set, ids: k.ids.map(String), setAantal: k.setAantal };
+}
+
+/**
+ * Een eigen context en pagina voor één sectie. Met `fixtures` serveert page.route de bestanden van de nagebootste matrix in plaats
+ * van public/leerplannen/structuur/ (en een 404 voor wat er niet is, zoals de echte server). Console- en paginafouten gaan naar de
+ * lijst van de hele rooktest en naar `fouten`, voor de eigen check van de sectie.
+ */
+async function rtOpen(label, { fixtures }) {
+  const ctx = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1360, height: 900 } });
+  const p = await ctx.newPage();
+  const fouten = [];
+  p.on('pageerror', (e) => { fouten.push(`pageerror(${label}): ${e.message}`); errors.push(`pageerror(${label}): ${e.message}`); });
+  p.on('console', (m) => {
+    if (m.type() !== 'error' || /ERR_CERT_AUTHORITY_INVALID/.test(m.text())) return;
+    fouten.push(`console(${label}): ${m.text()}`);
+    errors.push(`console(${label}): ${m.text()}`);
+  });
+  const treffers = [];
+  if (fixtures) {
+    await p.route('**/leerplannen/structuur/**', (r) => {
+      const rest = decodeURIComponent(new URL(r.request().url()).pathname.split('/leerplannen/structuur/')[1] ?? '');
+      treffers.push(rest);
+      let body = null;
+      if (/^[\w./-]+$/.test(rest) && !rest.includes('..')) { try { body = readFileSync(new URL(rest, RT_FIXTURES)); } catch { body = null; } }
+      if (body === null) return r.fulfill({ status: 404, contentType: 'text/plain', body: 'niet gevonden' });
+      return r.fulfill({ status: 200, contentType: 'application/json', body });
+    });
+  }
+  const go = async (hash) => { await p.goto(BASE + hash, { waitUntil: 'networkidle' }); await sleep(500); };
+  return { ctx, p, go, fouten, treffers };
+}
+
+/** Heel localStorage van de pagina, en het weer zetten ervan. */
+const rtSnap = (p) => p.evaluate(() => Object.fromEntries(Object.keys(localStorage).map((k) => [k, localStorage.getItem(k)])));
+const rtTerugZetten = (p, snap) => p.evaluate((s) => {
+  localStorage.clear();
+  for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v);
+  const nu = Object.fromEntries(Object.keys(localStorage).map((k) => [k, localStorage.getItem(k)]));
+  return JSON.stringify(Object.entries(nu).sort()) === JSON.stringify(Object.entries(s).sort());
+}, snap);
+
+/** Geen horizontaal scrollen, ook niet in het open venster. */
+const rtSmal = (p) => p.evaluate(() => {
+  const d = document.querySelector('[role="dialog"]');
+  return document.documentElement.scrollWidth <= window.innerWidth + 1 && (!d || d.scrollWidth <= d.clientWidth + 1);
+});
+/** De tekst van main (zonder de bronregel, waar het groepnummer mag staan) en van een open venster: nooit een set-id of groepnummer. */
+const rtGeenIds = async (p) => !/ODS_\d|G-0\d/.test(await p.evaluate(() => {
+  const m = document.querySelector('main').cloneNode(true);
+  m.querySelectorAll('.ri-bron').forEach((e) => e.remove());
+  const d = document.querySelector('[role="dialog"]');
+  return `${m.textContent} ${d ? d.textContent : ''}`;
+}));
+/** De cursus van een richting en haar leerplan, zoals ze in localStorage staan (genormaliseerde codes, verwijzingen als "set|vast nummer"). */
+const rtOpslag = (p, groep) => p.evaluate((g) => {
+  const norm = (t) => String(t ?? '').trim().toLowerCase();
+  const cursussen = JSON.parse(localStorage.getItem('wf.courses.v1') || '[]');
+  const leerplannen = JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]');
+  const c = cursussen.find((x) => x.doelgroep?.groep === g);
+  if (!c) return null;
+  const l = leerplannen.find((x) => x.id === c.curriculumId);
+  return {
+    id: c.id,
+    titel: c.title,
+    doelgroep: c.doelgroep,
+    curriculumId: c.curriculumId,
+    codes: [...new Set(c.chapters.flatMap((h) => h.sections.flatMap((s) => s.goalCodes ?? [])).map(norm))].sort(),
+    leerplan: l ? {
+      methode: l.herkomst?.methode,
+      status: l.controle?.status,
+      sets: l.minimumdoelenSets ?? [],
+      codes: [...new Set(l.goals.map((x) => norm(x.code)))].sort(),
+      refs: l.goals.flatMap((x) => (x.refs ?? []).map((r) => `${r.set}|${r.id}`)).sort(),
+      n: l.goals.length,
+    } : null,
+  };
+}, groep);
+
+{
+  const { ctx, p, go, fouten, treffers } = await rtOpen('20d', { fixtures: true });
+  const bio = rtVerwacht(RT_FIXTURES, 'G-0193', 'Biologie');
+  const bioRefs = (bio?.ids ?? []).map((id) => `${bio.set}|${id}`).sort();
+  const tekst = () => p.locator('main').innerText();
+  check('fixtures: Biologie is een deelset van G-0193 en geldt nog in de huidige index (anders: maak de nagebootste koppeling opnieuw met tools/leerplannen/maak-nagebootste-koppeling.mjs)', !!bio && bio.ids.length < bio.setAantal);
+
+  // (1) Op Cursussen staat de ingang "Voor een studierichting"
+  await go('/#/cursussen');
+  const voor = await rtSnap(p); // na het zaaien van de voorbeeldinhoud
+  const ingang = p.locator('a.btn[href="#/cursussen/richtingen"]');
+  check('(1) Cursussen: de knop "Voor een studierichting" gaat naar #/cursussen/richtingen', (await ingang.count()) >= 1 && /Voor een studierichting/.test(await ingang.first().innerText()));
+  await ingang.first().click();
+  await p.waitForSelector('.ri-lijst', { timeout: 15000 });
+
+  // (2) De lijst
+  check('(2) lijst: één main en één h1 "Doelen en cursussen per studierichting"', (await p.locator('main').count()) === 1 && (await p.locator('main h1').count()) === 1 && (await p.locator('main h1').innerText()).trim() === 'Doelen en cursussen per studierichting');
+  check('(2) lijst: paginatitel "Studierichtingen · Boosterz"', (await p.title()) === 'Studierichtingen · Boosterz');
+  const nRijen = await p.locator('a.ri-rij').count();
+  check(`(2) lijst: de nagebootste matrix wordt gebruikt (bestand geserveerd, ${nRijen} van hoogstens 9 richtingen)`, treffers.includes('studierichtingen.json') && nRijen >= 4 && nRijen <= 9);
+  check('(2) lijst: de teller kondigt het aantal aan (aria-live)', /^\d+ richting(en)?$/.test((await p.locator('.ri-aantal[aria-live="polite"]').innerText()).trim()));
+  check('(2) lijst: de bronregel noemt de overheid en de ophaaldatum, zonder groepnummer', /^Bron: Vlaamse overheid, Departement Onderwijs en Vorming \(API Structuuronderdelen\), opgehaald op \d{1,2} [a-z]+ \d{4}\.$/.test((await p.locator('.ri-bron').innerText()).trim()) && (await rtGeenIds(p)));
+
+  // (3) 2de graad en zoeken: de link naar Natuurwetenschappen
+  await p.getByLabel('2de graad', { exact: true }).check();
+  await p.fill('input[type=search]', 'natuurwet');
+  await sleep(700);
+  const rijNw = p.locator('a.ri-rij[href="#/cursussen/richtingen/G-0193"]');
+  check('(3) "2de graad" + zoeken op "natuurwet": één link naar #/cursussen/richtingen/G-0193 (Natuurwetenschappen)', (await p.locator('a.ri-rij').count()) === 1 && (await rijNw.count()) === 1 && /Natuurwetenschappen/.test(await rijNw.innerText()));
+  await rijNw.click();
+  await p.waitForSelector('.ri-sets', { timeout: 15000 });
+  await sleep(600);
+
+  // (4) Het detail
+  check('(4) detail: één main en één h1 "Natuurwetenschappen"', (await p.locator('main').count()) === 1 && (await p.locator('main h1').count()) === 1 && (await p.locator('main h1').innerText()).trim() === 'Natuurwetenschappen');
+  let t = await tekst();
+  check('(4) detail: "Voor deze richting gelden N minimumdoelen uit S sets."', /Voor deze richting gelden \d+ minimumdoelen uit \d+ sets\./.test(t));
+  check('(4) detail: de herkomst komt uit de Onderwijsdoelen-API van de Vlaamse overheid', /komt uit de Onderwijsdoelen-API van de Vlaamse overheid/.test(t));
+  check(`(4) detail: Biologie is een deel van een set: "Biologie · ${bio?.ids.length} van ${bio?.setAantal} doelen"`, /Biologie · \d+ van \d+ doelen/.test(t) && !!bio && bio.ids.length < bio.setAantal && t.includes(`Biologie · ${bio.ids.length} van ${bio.setAantal} doelen`));
+  check('(4) detail: het groepnummer staat alleen in de bronregel ("nummer in de matrix: G-0193")', /\(nummer in de matrix: G-0193\)\.$/.test((await p.locator('.ri-bron').innerText()).trim()) && (await rtGeenIds(p)));
+
+  // (5) Het jaar
+  await p.getByLabel('4de jaar', { exact: true }).check();
+  await sleep(300);
+  check('(5) "4de jaar" zet ?jaar=4 in de adresbalk', /[?&]jaar=4(&|$)/.test(p.url()));
+
+  // (6) Een cursus maken zonder AI, voor Biologie
+  await p.getByRole('button', { name: 'Maak een cursus voor deze richting' }).click();
+  const venster = p.getByRole('dialog');
+  await venster.waitFor({ timeout: 10000 });
+  check('(6) venster: de kop is "Nieuwe cursus voor Natuurwetenschappen · 4de jaar"', (await venster.locator('h2').first().innerText()).trim() === 'Nieuwe cursus voor Natuurwetenschappen · 4de jaar');
+  await venster.getByLabel('Je vak (mag leeg blijven)').fill('Biologie');
+  await sleep(900);
+  check('(6) venster: het voorstel zegt "Voorgesteld bij ‘Biologie’"', /Voorgesteld bij ‘Biologie’/.test(await venster.locator('.rc-voorstel').innerText()));
+  check('(6) venster: de set Biologie staat aangevinkt, en alleen die (de STEM-sets niet)', (await venster.getByRole('checkbox', { name: /^Biologie/ }).isChecked()) && (await venster.locator('.rc-sets input[type=checkbox]:checked').count()) === 1);
+  check(`(6) venster: de teller telt de deelset, niet de hele set ("Je koos 1 set met ${rtAantalDoelen(bio?.ids.length)}.")`, !!bio && (await venster.locator('.rc-teller').innerText()).trim() === `Je koos 1 set met ${rtAantalDoelen(bio.ids.length)}.`);
+  const aiKeuze = venster.getByRole('radio', { name: 'Laat de AI een eerste versie maken' });
+  check('(6) venster: zonder sleutel is "Laat de AI een eerste versie maken" aria-disabled, met uitleg', (await aiKeuze.getAttribute('aria-disabled')) === 'true' && /Daarvoor heb je een eigen AI-sleutel nodig/.test(await venster.locator('#rc-b-ai').innerText()));
+  check('(6) venster: geen set-id of groepnummer in de tekst', await rtGeenIds(p));
+  await p.waitForFunction(() => {
+    const knop = [...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === 'Maak de cursus');
+    return !!knop && knop.getAttribute('aria-disabled') !== 'true';
+  }, null, { timeout: 15000 });
+  await venster.getByRole('button', { name: 'Maak de cursus' }).click();
+  await p.waitForURL(/#\/cursus\/bewerk\//, { timeout: 15000 });
+  const toast = await p.locator('.toast-ok').first().innerText({ timeout: 2500 }).catch(() => '');
+  await sleep(600);
+  check('(6) "Maak de cursus" opent de cursuseditor (/cursus/bewerk/)', /#\/cursus\/bewerk\/[^/?]+/.test(p.url()));
+  check(`(6) de melding: "Cursus gemaakt: N hoofdstukken, ${bio?.ids.length} doelcodes klaar op de secties." (één doelcode per doel van de deelset)`, /^Cursus gemaakt: \d+ hoofdstuk(ken)?, \d+ doelcodes? klaar op de secties\.$/.test(toast.trim()) && !!bio && new RegExp(`, ${bio.ids.length} doelcodes klaar`).test(toast));
+  const o = await rtOpslag(p, 'G-0193');
+  check('(6) opgeslagen: de cursus heeft doelgroep {groep G-0193, jaar 4, vak Biologie} (Natuurwetenschappen, 2de graad, gewoon onderwijs)', !!o && o.doelgroep.groep === 'G-0193' && o.doelgroep.jaar === 4 && o.doelgroep.vak === 'Biologie' && o.doelgroep.titel === 'Natuurwetenschappen' && o.doelgroep.graad === 2 && o.doelgroep.soort === 'so');
+  check('(6) opgeslagen: de cursus hangt aan een leerplan (curriculumId) dat op het toestel staat', !!o && typeof o.curriculumId === 'string' && o.curriculumId.length > 0 && !!o.leerplan);
+  check('(6) opgeslagen: het leerplan is samengesteld en nagekeken (herkomst samengesteld, status gecontroleerd)', !!o?.leerplan && o.leerplan.methode === 'samengesteld' && o.leerplan.status === 'gecontroleerd');
+  check(`(6) de valkuil (§ 9.5): het leerplan bevat precies de ${bio?.ids.length} nummers van de deelset Biologie, niet de ${bio?.setAantal} van de hele set`, !!o?.leerplan && !!bio && o.leerplan.n === bio.ids.length && o.leerplan.n < bio.setAantal && JSON.stringify(o.leerplan.sets) === JSON.stringify([bio.set]) && JSON.stringify(o.leerplan.refs) === JSON.stringify(bioRefs));
+  check('(6) opgeslagen: de secties van de cursus hebben goalCodes, precies de doelcodes van het leerplan', !!o?.leerplan && o.codes.length > 0 && JSON.stringify(o.codes) === JSON.stringify(o.leerplan.codes));
+
+  // (7) Terug: de cursus, de dekking en "gepland"
+  await p.goBack();
+  await p.waitForSelector('.dk-samenvatting', { timeout: 30000 });
+  await sleep(500);
+  const cursussen = p.locator('section[aria-labelledby="ri-cursussen-kop"]');
+  check('(7) terug op de richting: de cursus staat onder "Cursussen voor deze richting"', !!o && (await cursussen.locator('a.ri-item-titel').allInnerTexts()).map((x) => x.trim()).includes(o.titel));
+  const dekking = p.locator('section[aria-labelledby="ri-dekking-kop"]');
+  const dekTekst = await dekking.innerText();
+  check('(7) dekking: "Je cursussen dekken 0 van de N minimumdoelen" (een geraamte dekt niets)', /Je cursussen dekken 0 van de \d+ minimumdoelen \(0 %\)/.test(dekTekst));
+  check('(7) dekking: "N doelen staan al gepland op een sectie die nog leeg is" (geraamte = gepland, niet gedekt)', /\d+ doelen staan al gepland op een sectie die nog leeg is/.test(dekTekst));
+  await dekking.locator('summary', { hasText: /^Biologie: / }).click();
+  await dekking.locator('details.dk-set[open] .dk-status').first().waitFor({ timeout: 5000 });
+  const statussen = (await dekking.locator('details.dk-set[open] .dk-status').allInnerTexts()).map((x) => x.replace(/\s+/g, ' ').trim());
+  check(`(7) dekking: elk van de ${bio?.ids.length} doelen van Biologie staat "Gepland in ‘…’ (de sectie is nog leeg)", niets is gedekt`, !!bio && statussen.length === bio.ids.length && statussen.every((s) => /^Gepland in ‘.+’ \(de sectie is nog leeg\)$/.test(s)));
+
+  // (8) De 1ste graad: "Eerste leerjaar A"
+  await go('/#/cursussen/richtingen');
+  await p.getByLabel('1ste graad', { exact: true }).check();
+  await p.locator('a.ri-rij[href="#/cursussen/richtingen/G-0307"]').click();
+  await p.waitForSelector('.dk-samenvatting', { timeout: 30000 });
+  t = await tekst();
+  check('(8) "Eerste leerjaar A": de kop en de zin dat de officiële bron de doelen per stroom koppelt', (await p.locator('main h1').innerText()).trim() === 'Eerste leerjaar A' && /In de 1ste graad koppelt de officiële bron de doelen niet per richting of basisoptie, maar per stroom\./.test(t));
+  check('(8) "Eerste leerjaar A": bij de dekking tellen het 1ste en het 2de jaar samen', /In de 1ste graad tellen de cursussen van het 1ste en het 2de jaar samen: de minimumdoelen gelden voor de hele graad\./.test(t));
+  check('(8) "Eerste leerjaar A": geen set-id of groepnummer buiten de bronregel', await rtGeenIds(p));
+
+  // (9) Een richting die niet bestaat
+  await go('/#/cursussen/richtingen/G-9999');
+  await p.waitForSelector('main h1', { timeout: 15000 });
+  check('(9) G-9999: de kop "Studierichting niet gevonden", de uitleg en de link "Alle richtingen"', (await p.locator('main h1').innerText()).trim() === 'Studierichting niet gevonden' && /Deze studierichting bestaat niet \(meer\) in de matrix\./.test(await tekst()) && (await p.getByRole('link', { name: 'Alle richtingen' }).count()) === 1 && (await p.locator('main').count()) === 1 && (await p.locator('main h1').count()) === 1);
+
+  // (10) Samenstellen met een richting begint bij stap 2
+  await go('/#/leerplannen/samenstellen?richting=G-0193&jaar=4');
+  await p.waitForSelector('h2.il-stapkop', { timeout: 20000 });
+  await sleep(800);
+  check('(10) samenstellen met een richting: stap 2 "Doelen kiezen"', /^Stap 2 van 3: Doelen kiezen$/.test((await p.locator('h2.il-stapkop').innerText()).trim()));
+  check('(10) samenstellen met een richting: de callout "Je begint met de doelen die de officiële bron aan de studierichting Natuurwetenschappen (2de graad) koppelt."', /Je begint met de doelen die de officiële bron aan de studierichting Natuurwetenschappen \(2de graad\) koppelt\. Vink uit wat je niet nodig hebt\./.test(await p.locator('main .callout').first().innerText()));
+  check('(10) samenstellen met een richting: de doelen van de richting staan al gekozen, zonder set-id of groepnummer', /Je koos \d+ doelen uit \d+ sets\./.test(await tekst()) && (await rtGeenIds(p)));
+
+  // (11) De cursuseditor: instellingen en de dekking op minimumdoelen
+  await go(`/#/cursus/bewerk/${o?.id}`);
+  await p.getByRole('button', { name: /Instellingen/ }).waitFor({ timeout: 15000 });
+  await p.getByRole('button', { name: /Instellingen/ }).click();
+  const waarde = p.locator('.rc-instelling .rc-waarde');
+  await waarde.waitFor({ timeout: 10000 });
+  check('(11) Cursusinstellingen: "Studierichting" toont "Biologie · Natuurwetenschappen · 4de jaar"', (await waarde.innerText()).trim() === 'Biologie · Natuurwetenschappen · 4de jaar' && (await p.getByRole('dialog').getByText('Studierichting', { exact: true }).count()) >= 1);
+  await p.keyboard.press('Escape');
+  await sleep(300);
+  await p.getByRole('button', { name: /Doelendekking/ }).click();
+  const schakelaar = p.locator('.dk-schakelaar');
+  await schakelaar.waitFor({ timeout: 15000 });
+  const stand = () => schakelaar.locator('button').evaluateAll((l) => Object.fromEntries(l.map((b) => [b.textContent.trim(), b.getAttribute('aria-pressed')])));
+  const voorKlik = await stand();
+  check('(11) Doelendekking: de schakelaar "Leerplan" / "Minimumdoelen" heeft aria-pressed, en "Leerplan" staat aan', voorKlik['Leerplan'] === 'true' && voorKlik['Minimumdoelen'] === 'false');
+  check('(11) Doelendekking, weergave "Leerplan": "N doelen staan alleen op secties die nog leeg zijn: die zijn gepland, nog niet uitgewerkt."', /\d+ doelen staan alleen op secties die nog leeg zijn: die zijn gepland, nog niet uitgewerkt\./.test(await p.getByRole('dialog').innerText()));
+  await schakelaar.getByRole('button', { name: 'Minimumdoelen' }).click();
+  await p.waitForSelector('.dk-samenvatting', { timeout: 20000 });
+  const naKlik = await stand();
+  check('(11) Doelendekking: na een klik staat "Minimumdoelen" aan (aria-pressed="true") en "Leerplan" niet', naKlik['Minimumdoelen'] === 'true' && naKlik['Leerplan'] === 'false');
+  const dekEditor = await p.getByRole('dialog').innerText();
+  check('(11) Doelendekking, weergave "Minimumdoelen": "Deze cursus dekt 0 van de N minimumdoelen van Natuurwetenschappen (2de graad)." en wat gepland staat', /Deze cursus dekt 0 van de \d+ minimumdoelen van Natuurwetenschappen \(2de graad\)\./.test(dekEditor) && /\d+ doelen staan al gepland op een sectie die nog leeg is/.test(dekEditor));
+  check('(11) Doelendekking: de link "Bekijk wat al je cursussen voor Natuurwetenschappen samen dekken" gaat naar de richting en het jaar', (await p.getByRole('dialog').getByRole('link', { name: 'Bekijk wat al je cursussen voor Natuurwetenschappen samen dekken' }).getAttribute('href')) === '#/cursussen/richtingen/G-0193?jaar=4');
+
+  // (12) 390 px: de lijst, het detail en het venster, zonder horizontaal scrollen en zonder set-id of groepnummer
+  await p.setViewportSize({ width: 390, height: 844 });
+  await go('/#/cursussen/richtingen');
+  await p.waitForSelector('.ri-lijst', { timeout: 15000 });
+  check('(12) 390 px: de lijst scrollt niet horizontaal, zonder set-id of groepnummer', (await rtSmal(p)) && (await rtGeenIds(p)));
+  await go('/#/cursussen/richtingen/G-0193?jaar=4');
+  await p.waitForSelector('.dk-samenvatting', { timeout: 30000 });
+  check('(12) 390 px: het detail (met de cursus en de dekking) scrollt niet horizontaal, zonder set-id of groepnummer buiten de bronregel', (await rtSmal(p)) && (await rtGeenIds(p)));
+  await p.getByRole('button', { name: 'Maak een cursus voor deze richting' }).click();
+  await p.getByRole('dialog').waitFor({ timeout: 10000 });
+  await sleep(500);
+  check('(12) 390 px: het venster "Nieuwe cursus" scrollt niet horizontaal, zonder set-id of groepnummer', (await rtSmal(p)) && (await rtGeenIds(p)));
+  await p.keyboard.press('Escape');
+  await p.setViewportSize({ width: 1360, height: 900 });
+
+  // (13) Geen console- of paginafouten; terug zoals het was
+  check('(13) geen console- of paginafouten in deze sectie', fouten.length === 0);
+  const teruggezet = await rtTerugZetten(p, voor);
+  const na = await rtOpslag(p, 'G-0193');
+  check('Terug zoals het was: localStorage is weer zoals na het zaaien, en de cursus voor de richting is weg', teruggezet && na === null);
+  await ctx.close();
+}
+
+// ── 20e. Studierichtingen op de echte data ──────────────────────────────────
+// Dezelfde hoofdstroom (lijst, detail, venster, cursus maken, dekking) op public/leerplannen/structuur/, voor G-0193 en G-0327.
+// Alleen met reguliere expressies voor wat op het scherm staat: de aantallen veranderen elke maand. Wat de app moet bewaren, volgt
+// uit het koppelingsbestand zelf. Zonder het echte bestand (de eerste echte ophaalrun is nog niet samengevoegd) wordt de sectie
+// overgeslagen.
+console.log('20e. Studierichtingen op de echte data');
+{
+  const matrix = rtJson(new URL('studierichtingen.json', RT_ECHT));
+  const richtingen = [
+    { groep: 'G-0193', jaar: 4, vak: 'Biologie', zoek: 'natuurwet' },
+    { groep: 'G-0327', jaar: 6, vak: 'Gedragswetenschappen', zoek: 'humane' },
+  ].map((r) => ({ ...r, g: matrix?.groepen?.find((x) => x.nummer === r.groep) }))
+    .filter((r) => {
+      const ok = !!r.g && rtJson(new URL(`richtingdoelen/${r.groep}.json`, RT_ECHT)) !== null;
+      if (!ok && matrix) console.log(`  - ${r.groep} overgeslagen: de matrix of het koppelingsbestand van deze richting staat niet in public/leerplannen/structuur/`);
+      return ok;
+    });
+  if (!matrix) {
+    console.log('  - 20e overgeslagen: public/leerplannen/structuur/studierichtingen.json bestaat niet (de eerste echte ophaalrun is nog niet samengevoegd).');
+  } else if (richtingen.length > 0) {
+    const { ctx, p, go, fouten } = await rtOpen('20e', { fixtures: false });
+    await go('/#/cursussen');
+    const voor = await rtSnap(p);
+    for (const r of richtingen) {
+      const titel = r.g.titel;
+      const graad = `${r.g.graad}de graad`;
+      const jaar = `${r.jaar}de jaar`;
+      const wie = `20e ${r.groep} (${titel})`;
+      const verwacht = rtVerwacht(RT_ECHT, r.groep, r.vak);
+      const tekst = () => p.locator('main').innerText();
+
+      // Lijst
+      await go('/#/cursussen/richtingen');
+      await p.waitForSelector('.ri-lijst', { timeout: 20000 });
+      check(`${wie}: de lijst heeft één main, één h1 en een bronregel zonder groepnummer`, (await p.locator('main').count()) === 1 && (await p.locator('main h1').count()) === 1 && /^Bron: Vlaamse overheid, Departement Onderwijs en Vorming \(API Structuuronderdelen\), opgehaald op \d{1,2} [a-z]+ \d{4}\.$/.test((await p.locator('.ri-bron').innerText()).trim()) && (await rtGeenIds(p)));
+      await p.getByLabel(graad, { exact: true }).check();
+      await p.fill('input[type=search]', r.zoek);
+      await sleep(700);
+      const rij = p.locator(`a.ri-rij[href="#/cursussen/richtingen/${r.groep}"]`);
+      check(`${wie}: "${graad}" + zoeken op "${r.zoek}" vindt de richting`, (await rij.count()) === 1);
+      await rij.click();
+      await p.waitForSelector('.ri-sets', { timeout: 30000 });
+      await sleep(600);
+
+      // Detail
+      let t = await tekst();
+      check(`${wie}: de kop is de titel van de richting`, (await p.locator('main h1').innerText()).trim() === titel);
+      check(`${wie}: "Voor deze richting gelden N minimumdoelen uit S sets." en de herkomst uit de Onderwijsdoelen-API`, /Voor deze richting gelden \d+ minimumdoelen uit \d+ sets\./.test(t) && /komt uit de Onderwijsdoelen-API van de Vlaamse overheid/.test(t));
+      check(`${wie}: de set ${r.vak} staat in de lijst`, new RegExp(`${r.vak} · (\\d+ van \\d+ doelen|\\d+ doel(en)?)`).test(t));
+      check(`${wie}: het groepnummer staat alleen in de bronregel`, new RegExp(`\\(nummer in de matrix: ${r.groep}\\)\\.$`).test((await p.locator('.ri-bron').innerText()).trim()) && (await rtGeenIds(p)));
+      await p.getByLabel(jaar, { exact: true }).check();
+      await sleep(300);
+      check(`${wie}: "${jaar}" zet ?jaar=${r.jaar} in de adresbalk`, new RegExp(`[?&]jaar=${r.jaar}(&|$)`).test(p.url()));
+
+      // Venster en cursus maken
+      await p.getByRole('button', { name: 'Maak een cursus voor deze richting' }).click();
+      const venster = p.getByRole('dialog');
+      await venster.waitFor({ timeout: 10000 });
+      check(`${wie}: de kop van het venster is "Nieuwe cursus voor ${titel} · ${jaar}"`, (await venster.locator('h2').first().innerText()).trim() === `Nieuwe cursus voor ${titel} · ${jaar}`);
+      await venster.getByLabel('Je vak (mag leeg blijven)').fill(r.vak);
+      await sleep(900);
+      check(`${wie}: het voorstel zegt "Voorgesteld bij ‘${r.vak}’" en de set staat aangevinkt`, new RegExp(`Voorgesteld bij ‘${r.vak}’`).test(await venster.locator('.rc-voorstel').innerText()) && (await venster.getByRole('checkbox', { name: new RegExp(`^${r.vak}`) }).first().isChecked()));
+      check(`${wie}: de teller telt de gekozen set ("Je koos 1 set met N doelen.")`, /^Je koos 1 set met \d+ doel(en)?\.$/.test((await venster.locator('.rc-teller').innerText()).trim()) && (!verwacht || (await venster.locator('.rc-teller').innerText()).trim() === `Je koos 1 set met ${rtAantalDoelen(verwacht.ids.length)}.`));
+      check(`${wie}: zonder sleutel is de AI-keuze aria-disabled`, (await venster.getByRole('radio', { name: 'Laat de AI een eerste versie maken' }).getAttribute('aria-disabled')) === 'true');
+      check(`${wie}: geen set-id of groepnummer in het venster`, await rtGeenIds(p));
+      await p.waitForFunction(() => {
+        const knop = [...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === 'Maak de cursus');
+        return !!knop && knop.getAttribute('aria-disabled') !== 'true';
+      }, null, { timeout: 20000 });
+      await venster.getByRole('button', { name: 'Maak de cursus' }).click();
+      await p.waitForURL(/#\/cursus\/bewerk\//, { timeout: 20000 });
+      const toast = await p.locator('.toast-ok').first().innerText({ timeout: 2500 }).catch(() => '');
+      await sleep(600);
+      check(`${wie}: de melding "Cursus gemaakt: N hoofdstukken, N doelcodes klaar op de secties."`, /^Cursus gemaakt: \d+ hoofdstuk(ken)?, \d+ doelcodes? klaar op de secties\.$/.test(toast.trim()));
+      const o = await rtOpslag(p, r.groep);
+      check(`${wie}: de cursus heeft doelgroep {groep ${r.groep}, jaar ${r.jaar}, vak ${r.vak}}, een leerplan (samengesteld, nagekeken) en goalCodes op de secties`, !!o && o.doelgroep.groep === r.groep && o.doelgroep.jaar === r.jaar && o.doelgroep.vak === r.vak && typeof o.curriculumId === 'string' && !!o.leerplan && o.leerplan.methode === 'samengesteld' && o.leerplan.status === 'gecontroleerd' && o.codes.length > 0 && JSON.stringify(o.codes) === JSON.stringify(o.leerplan.codes));
+      if (verwacht) {
+        const refs = verwacht.ids.map((id) => `${verwacht.set}|${id}`).sort();
+        check(`${wie}: de valkuil — het leerplan bevat precies de nummers van de set ${r.vak} uit de koppeling (${rtAantalDoelen(verwacht.ids.length)} van ${verwacht.setAantal} in de set)`, !!o?.leerplan && o.leerplan.n === verwacht.ids.length && JSON.stringify(o.leerplan.sets) === JSON.stringify([verwacht.set]) && JSON.stringify(o.leerplan.refs) === JSON.stringify(refs));
+      } else {
+        console.log(`  - ${wie}: geen unieke geldige set "${r.vak}" in de koppeling; de controle op de nummers (valkuil) is overgeslagen`);
+      }
+
+      // Terug: dekking met "gepland"
+      await p.goBack();
+      await p.waitForSelector('.dk-samenvatting', { timeout: 60000 });
+      await sleep(500);
+      check(`${wie}: de cursus staat onder "Cursussen voor deze richting"`, !!o && (await p.locator('section[aria-labelledby="ri-cursussen-kop"] a.ri-item-titel').allInnerTexts()).map((x) => x.trim()).includes(o.titel));
+      const dekTekst = await p.locator('section[aria-labelledby="ri-dekking-kop"]').innerText();
+      check(`${wie}: "Je cursussen dekken 0 van de N minimumdoelen" en "N doelen staan al gepland" (geraamte = gepland, niet gedekt)`, /Je cursussen dekken 0 van de \d+ minimumdoelen \(0 %\)/.test(dekTekst) && /\d+ doel(en)? (staat|staan) al gepland op een sectie die nog leeg is/.test(dekTekst));
+
+      // 390 px op het detail en het venster
+      await p.setViewportSize({ width: 390, height: 844 });
+      await sleep(300);
+      check(`${wie}: 390 px: het detail scrollt niet horizontaal, zonder set-id of groepnummer buiten de bronregel`, (await rtSmal(p)) && (await rtGeenIds(p)));
+      await p.getByRole('button', { name: 'Maak een cursus voor deze richting' }).click();
+      await p.getByRole('dialog').waitFor({ timeout: 10000 });
+      await sleep(500);
+      check(`${wie}: 390 px: het venster scrollt niet horizontaal, zonder set-id of groepnummer`, (await rtSmal(p)) && (await rtGeenIds(p)));
+      await p.keyboard.press('Escape');
+      await p.setViewportSize({ width: 1360, height: 900 });
+    }
+    check('20e: geen console- of paginafouten in deze sectie', fouten.length === 0);
+    check('Terug zoals het was: localStorage is weer zoals na het zaaien', await rtTerugZetten(p, voor));
+    await ctx.close();
+  }
+}
+
 // ── 21. Importeren (zonder AI) ──────────────────────────────────────────────
 console.log('21. Importeren');
 await go('/#/importeren');
