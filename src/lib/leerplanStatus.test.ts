@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { bevestigLeerplan, createCurriculum, doelenVingerafdruk, maakEigenKopie } from './curriculum';
+import { bevestigLeerplan, createCurriculum, doelenVingerafdruk, exportCurriculumJson, importCurriculumJson, maakEigenKopie } from './curriculum';
 import type { ControleRapport } from './curriculumCheck';
-import type { Curriculum } from './curriculumTypes';
-import { STATUS_LABEL, effectieveStatus, isOfficieel, nagekekenTekst } from './leerplanStatus';
+import type { Curriculum, CurriculumMethode } from './curriculumTypes';
+import { STATUS_LABEL, effectieveStatus, isBkLeerplan, isOfficieel, isSamengesteld, nagekekenTekst, uitOfficieleBron } from './leerplanStatus';
 
 /** Bevestigen met een rapport zonder fouten voor precies deze doelen (de poort zelf is elders getest). */
 function bevestig(cur: Curriculum, opts: { door: string; op?: number }): Curriculum {
@@ -75,5 +75,74 @@ describe('isOfficieel', () => {
     expect(isOfficieel(leerplan())).toBe(false);
     expect(isOfficieel({ ...leerplan(), herkomst: { methode: 'officieel', ingelezenOp: 1 } })).toBe(true);
     expect(isOfficieel({ ...leerplan(), herkomst: { methode: 'pdf', ingelezenOp: 1 } })).toBe(false);
+  });
+});
+
+// ── Fase 3: het BK-leerplan (docs/STUDIERICHTINGEN.md § 23.6.3) ──
+
+/** Een nagemaakt BK-leerplan (verzonnen competenties), nagekeken. */
+function bkLeerplan(): Curriculum {
+  const cur = createCurriculum({
+    title: 'Onthaalmedewerker (nagemaakt)', net: 'beroepskwalificaties', subject: 'Onthaal', level: '3de graad', kind: 'leerplan',
+    herkomst: { methode: 'beroepskwalificatie', ingelezenOp: 1 },
+    bkVersies: [{ bk: 'BK-0390-2', sha: '0123456789abcdef', alle: true }],
+    goals: [
+      { id: 'a', code: 'BK-0390-2.01', text: 'Competentie één.', bkRefs: [{ bk: 'BK-0390-2', id: 'bkc1' }] },
+      { id: 'b', code: 'BK-0390-2.02', text: 'Competentie twee.', bkRefs: [{ bk: 'BK-0390-2', id: 'bkc2' }] },
+    ],
+  });
+  return bevestig(cur, { door: 'Boosterz (officiële bron)' });
+}
+
+/** Per methode: komt een leerplan met die methode uit een officiële bron? Een `Record`: een nieuwe methode moet hier bij. */
+const UIT_OFFICIELE_BRON: Record<CurriculumMethode, boolean> = {
+  officieel: true,
+  samengesteld: true,
+  beroepskwalificatie: true,
+  export: false,
+  pdf: false,
+  tekst: false,
+  ai: false,
+  handmatig: false,
+};
+
+describe('isBkLeerplan en uitOfficieleBron', () => {
+  it('kijken naar de methode van de herkomst', () => {
+    for (const [methode, verwacht] of Object.entries(UIT_OFFICIELE_BRON)) {
+      const cur: Curriculum = { ...leerplan(), herkomst: { methode: methode as CurriculumMethode, ingelezenOp: 1 } };
+      expect(uitOfficieleBron(cur), methode).toBe(verwacht);
+      expect(isBkLeerplan(cur), methode).toBe(methode === 'beroepskwalificatie');
+      expect(isOfficieel(cur), methode).toBe(methode === 'officieel');
+      expect(isSamengesteld(cur), methode).toBe(methode === 'samengesteld');
+    }
+    expect(uitOfficieleBron(leerplan())).toBe(false);
+    expect(isBkLeerplan(leerplan())).toBe(false);
+  });
+
+  it('een eigen kopie van een BK-leerplan blijft een BK-leerplan (de methode blijft), maar is niet nagekeken', () => {
+    const kopie = maakEigenKopie(bkLeerplan());
+    expect(isBkLeerplan(kopie)).toBe(true);
+    expect(uitOfficieleBron(kopie)).toBe(true);
+    expect(effectieveStatus(kopie)).toBe('niet-gecontroleerd');
+  });
+});
+
+describe('effectieveStatus van een BK-leerplan', () => {
+  it('is nagekeken, ook na export en import', () => {
+    const l = bkLeerplan();
+    expect(effectieveStatus(l)).toBe('gecontroleerd');
+    expect(effectieveStatus(importCurriculumJson(exportCurriculumJson(l)) as Curriculum)).toBe('gecontroleerd');
+  });
+
+  it('N7: zonder bkRefs (zoals een oudere app het bewaart) of met een andere competentie is het "gewijzigd"', () => {
+    const l = bkLeerplan();
+    expect(effectieveStatus({ ...l, goals: l.goals.map((g) => ({ ...g, bkRefs: undefined })) })).toBe('gewijzigd');
+    expect(effectieveStatus({ ...l, goals: l.goals.map((g, i) => (i === 0 ? { ...g, bkRefs: [{ bk: 'BK-0390-2', id: 'bkc9' }] } : g)) })).toBe('gewijzigd');
+  });
+
+  it('een ander versiemerk in bkVersies verandert de status niet: het hoort niet bij de doelen', () => {
+    const l = bkLeerplan();
+    expect(effectieveStatus({ ...l, bkVersies: [{ bk: 'BK-0390-2', sha: 'fedcba9876543210' }] })).toBe('gecontroleerd');
+    expect(effectieveStatus({ ...l, bkVersies: undefined })).toBe('gecontroleerd');
   });
 });

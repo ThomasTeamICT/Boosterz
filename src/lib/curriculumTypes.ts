@@ -8,16 +8,25 @@
 
 import type { Doelgroep } from './doelgroep';
 
-export type CurriculumNet = 'minimumdoelen' | 'go' | 'kov' | 'ovsg' | 'pov' | 'eigen';
+export type CurriculumNet = 'minimumdoelen' | 'beroepskwalificaties' | 'go' | 'kov' | 'ovsg' | 'pov' | 'eigen';
 
-export const CURRICULUM_NETS: { id: CurriculumNet; label: string; hint: string }[] = [
-  { id: 'minimumdoelen', label: 'Minimumdoelen (Vlaamse overheid)', hint: 'onderwijsdoelen.be — de wettelijke basis voor elk net' },
-  { id: 'go', label: 'GO! leerplan', hint: 'pro.g-o.be' },
-  { id: 'kov', label: 'Katholiek Onderwijs Vlaanderen', hint: 'leerplannen KOV / ZILL (basis)' },
-  { id: 'ovsg', label: 'OVSG (stedelijk & gemeentelijk)', hint: 'ovsg.be' },
-  { id: 'pov', label: 'POV (provinciaal)', hint: 'pov.be' },
-  { id: 'eigen', label: 'Eigen leerplan', hint: 'vakgroep, school of jezelf' },
-];
+/**
+ * Label en uitleg per net, in de volgorde van de keuzelijsten. Een `Record`: een net zonder rij laat de typecheck
+ * falen, zodat een nieuw net nooit stil uit de lijsten valt.
+ */
+const NETTEN: Record<CurriculumNet, { label: string; hint: string }> = {
+  minimumdoelen: { label: 'Minimumdoelen (Vlaamse overheid)', hint: 'onderwijsdoelen.be — de wettelijke basis voor elk net' },
+  beroepskwalificaties: { label: 'Beroepskwalificaties (Vlaamse overheid)', hint: 'Vlaamse kwalificatiestructuur' },
+  go: { label: 'GO! leerplan', hint: 'pro.g-o.be' },
+  kov: { label: 'Katholiek Onderwijs Vlaanderen', hint: 'leerplannen KOV / ZILL (basis)' },
+  ovsg: { label: 'OVSG (stedelijk & gemeentelijk)', hint: 'ovsg.be' },
+  pov: { label: 'POV (provinciaal)', hint: 'pov.be' },
+  eigen: { label: 'Eigen leerplan', hint: 'vakgroep, school of jezelf' },
+};
+
+export const CURRICULUM_NETS: { id: CurriculumNet; label: string; hint: string }[] = (Object.keys(NETTEN) as CurriculumNet[]).map(
+  (id) => ({ id, label: NETTEN[id].label, hint: NETTEN[id].hint }),
+);
 
 export interface CurriculumGoal {
   id: string;
@@ -39,6 +48,27 @@ export interface CurriculumGoal {
   refs?: MinimumdoelRef[];
   /** De verwijzingen zoals ze letterlijk in de bron staan, bv. "MD 09.01, MD 09.03". */
   refsBron?: string;
+  /**
+   * Competentie van een beroepskwalificatie waar dit doel letterlijk uit komt (docs/STUDIERICHTINGEN.md § 23.6). Een
+   * apart veld, nooit in `refs`: `refs` betekent overal "minimumdoel". Blijft bij het saneren alleen staan op een
+   * leerplan met methode `beroepskwalificatie`, en telt mee in de vingerafdruk van de doelen.
+   */
+  bkRefs?: BkRef[];
+}
+
+/** Verwijzing van een leerplandoel naar één competentie van een beroepskwalificatie. Formaat nooit veranderen: telt mee in de vingerafdruk. */
+export interface BkRef {
+  /** BK-versie, bv. "BK-0390-2". */
+  bk: string;
+  /** competentie_code, bv. "bkc0039200": met `bk` de sleutel. Nooit op het scherm en nooit in een doelcode. */
+  id: string;
+}
+
+/** Een BK-versie van een leerplan bij het maken: de eerste 16 hex-tekens van haar sha256 in de index, en of alle competenties gekozen werden. */
+export interface BkVersieMerk {
+  bk: string;
+  sha: string;
+  alle?: true;
 }
 
 /** Verwijzing van een leerplandoel naar één officieel minimumdoel. */
@@ -72,7 +102,8 @@ export type CurriculumMethode =
   | 'pdf' // de officiële pdf, met de leerplanlezer
   | 'tekst' // geplakte tekst, met de leerplanlezer
   | 'ai' // door de AI omgezet (laatste redmiddel)
-  | 'handmatig';
+  | 'handmatig'
+  | 'beroepskwalificatie'; // competenties letterlijk uit één of meer BK-versies (bkLeerplan.ts); nooit gemengd met minimumdoelen
 
 export interface CurriculumHerkomst {
   methode: CurriculumMethode;
@@ -139,6 +170,12 @@ export interface Curriculum {
    * vingerafdruk (`doelenVingerafdruk`) en verandert niets aan de nakijkstatus.
    */
   doelgroep?: Doelgroep;
+  /**
+   * BK-versies van een leerplan met methode `beroepskwalificatie`, met hun versiemerk bij het maken. Valt bij het
+   * saneren weg op elk ander leerplan. Hoort niet bij de doelen: telt niet mee in de vingerafdruk (zoals
+   * `minimumdoelenSets`).
+   */
+  bkVersies?: BkVersieMerk[];
   goals: CurriculumGoal[];
   createdAt: number;
   updatedAt: number;

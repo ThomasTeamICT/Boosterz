@@ -48,10 +48,10 @@ const KORT: Partial<Record<CurriculumNet, string>> = { go: 'GO!', kov: 'KOV', ov
 const LABEL: Partial<Record<CurriculumNet, string>> = { go: 'GO!', ovsg: 'OVSG', pov: 'POV', eigen: 'Eigen of ander' };
 
 /**
- * De netten in de inleeswizard: alles uit `CURRICULUM_NETS` behalve "minimumdoelen" (die haal je
- * rechtstreeks uit de officiële minimumdoelen, niet uit een leerplan van een net).
+ * De netten in de inleeswizard: alles uit `CURRICULUM_NETS` behalve "minimumdoelen" en "beroepskwalificaties" (die
+ * haal je rechtstreeks uit de officiële bron, niet uit een leerplan van een net).
  */
-export const NET_KEUZES: readonly NetKeuze[] = CURRICULUM_NETS.filter((n) => n.id !== 'minimumdoelen').map((n) => ({
+export const NET_KEUZES: readonly NetKeuze[] = CURRICULUM_NETS.filter((n) => n.id !== 'minimumdoelen' && n.id !== 'beroepskwalificaties').map((n) => ({
   id: n.id,
   label: LABEL[n.id] ?? n.label,
   kort: KORT[n.id] ?? '',

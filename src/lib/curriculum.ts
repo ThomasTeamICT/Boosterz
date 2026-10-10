@@ -3,6 +3,8 @@
 // uit pdf/tekst, dekking) staat in aiCurriculum.ts en de leerplanpagina.
 
 import type {
+  BkRef,
+  BkVersieMerk,
   ControleStatus,
   Curriculum,
   CurriculumControle,
@@ -223,7 +225,98 @@ export const MAX_DOELTHEMA = 500;
 export const MAX_DOELTOELICHTING = 2000;
 /** Een intern doelnummer: letters, cijfers, "_" en "-", hoogstens 64 tekens. */
 const DOEL_ID = /^[A-Za-z0-9_-]{1,64}$/;
-const METHODES: readonly CurriculumMethode[] = ['officieel', 'samengesteld', 'export', 'pdf', 'tekst', 'ai', 'handmatig'];
+/**
+ * Elke methode die een bestand mag noemen. Een `Record`: een nieuwe methode zonder plaats hier laat de typecheck falen,
+ * zodat de herkomst van zo'n leerplan nooit stil wegvalt bij het saneren.
+ */
+const METHODE_BEKEND: Record<CurriculumMethode, true> = {
+  officieel: true,
+  samengesteld: true,
+  export: true,
+  pdf: true,
+  tekst: true,
+  ai: true,
+  handmatig: true,
+  beroepskwalificatie: true,
+};
+const METHODES = Object.keys(METHODE_BEKEND) as CurriculumMethode[];
+
+// ── Beroepskwalificaties (docs/STUDIERICHTINGEN.md § 23.6) ──────────────────
+// Bewust hier herhaald in plaats van geïmporteerd uit beroepskwalificaties.ts: dit bestand hoort bij elke pagina. Een
+// test (curriculum.test.ts) vergelijkt de bron met `BK_VERSIE` en `COMPETENTIE_CODE` daar en in het ontwerp.
+
+/** Een BK-versie, bv. "BK-0390-2": gelijk aan `BK_VERSIE` in beroepskwalificaties.ts. */
+export const BK_VERSIE_ID = /^BK-\d{3,6}-\d{1,4}$/;
+/** Een competentiecode, bv. "bkc0039200": gelijk aan `COMPETENTIE_CODE` in beroepskwalificaties.ts. */
+export const BK_COMPETENTIE_ID = /^[A-Za-z0-9_.-]{1,64}$/;
+/** Het versiemerk van een BK-versie in een leerplan: de eerste 16 kleine hex-tekens van de sha256 in de index. */
+const BK_MERK = /^[0-9a-f]{16}$/;
+/** Hoeveel competenties één doel hoogstens noemt (`bkRefs`). Een BK-leerplan heeft er precies één per doel. */
+export const MAX_BK_REFS = 10;
+/** Hoeveel BK-versies een leerplan hoogstens noemt (`bkVersies`): gelijk aan `MAX_BK_PER_LEERPLAN`. */
+export const MAX_BK_VERSIES = 20;
+
+/** Een eigen veld van een object, nooit iets uit het prototype (een gedeeld bestand kan "__proto__" bevatten). */
+function eigenVeld(o: object, sleutel: string): unknown {
+  return Object.prototype.hasOwnProperty.call(o, sleutel) ? (o as Record<string, unknown>)[sleutel] : undefined;
+}
+
+/** Een BK-versie als ze klopt (getrimd), anders `undefined`. */
+function bkVersieVan(v: unknown): string | undefined {
+  const bk = typeof v === 'string' ? v.trim() : '';
+  return BK_VERSIE_ID.test(bk) ? bk : undefined;
+}
+
+/**
+ * Verwijzingen naar competenties saneren (`CurriculumGoal.bkRefs`): alleen objecten met een eigen `bk` die een BK-versie
+ * is en een eigen `id` dat een competentiecode is (getrimd; een getal wordt tekst; geen naam die al op elk object staat,
+ * zoals "__proto__" of "constructor"). Andere velden vallen weg. Ontdubbeld op `bk` + `id`, hoogstens `MAX_BK_REFS`.
+ * Leeg = `undefined`. Idempotent.
+ */
+function sanitizeBkRefs(raw: unknown): BkRef[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const uit: BkRef[] = [];
+  const gezien = new Set<string>();
+  for (const item of raw) {
+    if (uit.length >= MAX_BK_REFS) break;
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const bk = bkVersieVan(eigenVeld(item, 'bk'));
+    if (!bk) continue;
+    const ruwId = eigenVeld(item, 'id');
+    const id = typeof ruwId === 'string' ? ruwId.trim() : isEindig(ruwId) ? String(ruwId) : '';
+    if (!BK_COMPETENTIE_ID.test(id) || id in Object.prototype) continue;
+    const sleutel = `${bk}\u0000${id}`;
+    if (gezien.has(sleutel)) continue;
+    gezien.add(sleutel);
+    uit.push({ bk, id });
+  }
+  return uit.length > 0 ? uit : undefined;
+}
+
+/**
+ * BK-versies van een leerplan saneren (`Curriculum.bkVersies`): alleen objecten met een eigen `bk` die een BK-versie is
+ * (getrimd) en een eigen `sha` van precies 16 kleine hex-tekens; `alle` alleen als het `true` is. Andere velden vallen
+ * weg. Per BK-versie alleen de eerste, hoogstens `MAX_BK_VERSIES`. Leeg = `undefined`. Idempotent.
+ */
+function sanitizeBkVersies(raw: unknown): BkVersieMerk[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const uit: BkVersieMerk[] = [];
+  const gezien = new Set<string>();
+  for (const item of raw) {
+    if (uit.length >= MAX_BK_VERSIES) break;
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const bk = bkVersieVan(eigenVeld(item, 'bk'));
+    if (!bk || gezien.has(bk)) continue;
+    const sha = eigenVeld(item, 'sha');
+    if (typeof sha !== 'string' || !BK_MERK.test(sha)) continue;
+    gezien.add(bk);
+    const merk: BkVersieMerk = { bk, sha };
+    if (eigenVeld(item, 'alle') === true) merk.alle = true;
+    uit.push(merk);
+  }
+  return uit.length > 0 ? uit : undefined;
+}
+
 const CONTROLE_STATUSSEN: readonly ControleStatus[] = ['niet-gecontroleerd', 'gecontroleerd', 'gewijzigd'];
 
 function isEindig(v: unknown): v is number {
@@ -297,7 +390,12 @@ interface GesaneerdDoel {
   afgekapt: boolean;
 }
 
-function saneerDoel(raw: unknown): GesaneerdDoel | null {
+/**
+ * `metBk`: de verwijzingen naar competenties (`bkRefs`) meenemen. Alleen `sanitizeCurriculum` zet dit aan, en alleen voor
+ * een leerplan met methode `beroepskwalificatie`: zo draagt een leerplan van een net of van de AI nooit een
+ * BK-verwijzing die niemand nakeek (docs/STUDIERICHTINGEN.md § 23.2, F3-B7).
+ */
+function saneerDoel(raw: unknown, metBk = false): GesaneerdDoel | null {
   if (!raw || typeof raw !== 'object') return null;
   const g = raw as Record<string, unknown>;
   const volledigeTekst = tekstMetRegels(str(g.text ?? g.doel ?? g.omschrijving));
@@ -322,6 +420,11 @@ function saneerDoel(raw: unknown): GesaneerdDoel | null {
   if (refs) goal.refs = refs;
   const refsBron = tekstVeld(g.refsBron, 500);
   if (refsBron) goal.refsBron = refsBron;
+  // Fase 3: verwijzingen naar competenties, alleen op een BK-leerplan. Geen lege `bkRefs: []` bewaren.
+  if (metBk) {
+    const bkRefs = sanitizeBkRefs(eigenVeld(g, 'bkRefs'));
+    if (bkRefs) goal.bkRefs = bkRefs;
+  }
   return { goal, afgekapt: text.length < volledigeTekst.length || theme.length < volledigThema.length || note.length < volledigeNoot.length };
 }
 
@@ -341,14 +444,17 @@ export function sanitizeGoals(raw: unknown, opts: { autoPrefix?: string } = {}):
   return saneerDoelen(raw, opts).goals;
 }
 
-/** Zoals `sanitizeGoals`, met het aantal doelen waarvan een tekst, rubriek of toelichting ingekort werd. */
-function saneerDoelen(raw: unknown, opts: { autoPrefix?: string } = {}): { goals: CurriculumGoal[]; afgekapt: number } {
+/**
+ * Zoals `sanitizeGoals`, met het aantal doelen waarvan een tekst, rubriek of toelichting ingekort werd. `metBk`: zie
+ * `saneerDoel`.
+ */
+function saneerDoelen(raw: unknown, opts: { autoPrefix?: string; metBk?: boolean } = {}): { goals: CurriculumGoal[]; afgekapt: number } {
   const list = Array.isArray(raw) ? raw : [];
   const goals: CurriculumGoal[] = [];
   let afgekapt = 0;
   for (const item of list) {
     if (goals.length >= MAX_DOELEN) break; // wat daarna komt, valt weg (en telt mee in "weggevallen")
-    const doel = saneerDoel(item);
+    const doel = saneerDoel(item, opts.metBk === true);
     if (!doel) continue;
     goals.push(doel.goal);
     if (doel.afgekapt) afgekapt++;
@@ -506,11 +612,15 @@ function sanitizeCurriculumMetRapport(raw: unknown): SaneerUitkomst {
       : outer) as Record<string, unknown>;
   const ruw = c.goals ?? c.doelen;
   const aantalRuw = Array.isArray(ruw) ? ruw.length : 0;
-  const { goals, afgekapt } = saneerDoelen(ruw, { autoPrefix: str(c.subject).slice(0, 3) || 'DOEL' });
+  const createdAt = typeof c.createdAt === 'number' ? c.createdAt : Date.now();
+  // De herkomst vóór de doelen: alleen een leerplan met methode "beroepskwalificatie" houdt de verwijzingen naar
+  // competenties (`bkRefs`) en de BK-versies (`bkVersies`); op elk ander leerplan vallen ze weg.
+  const herkomst = sanitizeHerkomst(c.herkomst, createdAt);
+  const metBk = herkomst?.methode === 'beroepskwalificatie';
+  const { goals, afgekapt } = saneerDoelen(ruw, { autoPrefix: str(c.subject).slice(0, 3) || 'DOEL', metBk });
   const weggevallen = aantalRuw - goals.length;
   if (!goals.length) return { curriculum: null, weggevallen, afgekapt };
   const net = CURRICULUM_NETS.some((n) => n.id === c.net) ? (c.net as Curriculum['net']) : 'eigen';
-  const createdAt = typeof c.createdAt === 'number' ? c.createdAt : Date.now();
   const cur: Curriculum = {
     id: str(c.id) || uid(),
     title: str(c.title ?? c.titel).trim() || 'Leerplan',
@@ -525,8 +635,12 @@ function sanitizeCurriculumMetRapport(raw: unknown): SaneerUitkomst {
   };
   // Versie 2: alleen meenemen wat klopt, en geen lege velden toevoegen.
   if (c.kind === 'leerplan' || c.kind === 'eigen') cur.kind = c.kind;
-  const herkomst = sanitizeHerkomst(c.herkomst, createdAt);
   if (herkomst) cur.herkomst = herkomst;
+  // Fase 3: de BK-versies, alleen op een BK-leerplan. Hoort niet bij de doelen: telt niet mee in de vingerafdruk.
+  if (metBk) {
+    const bkVersies = sanitizeBkVersies(eigenVeld(c, 'bkVersies'));
+    if (bkVersies) cur.bkVersies = bkVersies;
+  }
   const controle = sanitizeControle(c.controle);
   if (controle) cur.controle = controle;
   const sets = sanitizeSets(c.minimumdoelenSets);
@@ -542,9 +656,11 @@ function sanitizeCurriculumMetRapport(raw: unknown): SaneerUitkomst {
 
 /**
  * Vingerafdruk (sha-256, hex) van de doelen van een leerplan: code, tekst, rubriek, niveau,
- * toelichting en verwijzingen, in volgorde. Het interne `id` telt niet mee. Wie na het
- * bevestigen een doel wijzigt, krijgt een andere vingerafdruk; zo wordt "gecontroleerd"
- * zichtbaar "gewijzigd" (docs/LEERPLANNEN.md § 8).
+ * toelichting en verwijzingen (naar minimumdoelen en, in fase 3, naar competenties), in volgorde.
+ * Het interne `id` telt niet mee. Wie na het bevestigen een doel wijzigt, krijgt een andere
+ * vingerafdruk; zo wordt "gecontroleerd" zichtbaar "gewijzigd" (docs/LEERPLANNEN.md § 8).
+ * Het formaat nooit veranderen: een doel zonder `bkRefs` geeft byte voor byte dezelfde JSON als
+ * vóór fase 3, zodat elk bewaard leerplan zijn nakijkstatus houdt (gouden test in curriculum.test.ts).
  */
 export function doelenVingerafdruk(goals: readonly CurriculumGoal[]): string {
   const vast = goals.map((g) => {
@@ -554,6 +670,7 @@ export function doelenVingerafdruk(goals: readonly CurriculumGoal[]): string {
     if (g.note) o.note = g.note;
     if (g.refs && g.refs.length > 0) o.refs = g.refs.map((r) => ({ set: r.set, id: r.id, code: r.code }));
     if (g.refsBron) o.refsBron = g.refsBron;
+    if (g.bkRefs && g.bkRefs.length > 0) o.bkRefs = g.bkRefs.map((r) => ({ bk: r.bk, id: r.id }));
     return o;
   });
   return sha256Hex(JSON.stringify(vast));
@@ -620,11 +737,18 @@ export function maakEigenKopie(cur: Curriculum, titel?: string): Curriculum {
   return {
     ...rest,
     ...(eigenDoelgroep ? { doelgroep: eigenDoelgroep } : {}),
+    ...(rest.bkVersies ? { bkVersies: rest.bkVersies.map((m) => ({ ...m })) } : {}),
     id: uid(),
     title: titel?.trim() || `${cur.title} (eigen kopie)`,
     kind: 'eigen',
     example: undefined,
-    goals: cur.goals.map((g) => ({ ...g, id: uid(), refs: g.refs?.map((r) => ({ ...r })) })),
+    goals: cur.goals.map((g) => {
+      const kopie: CurriculumGoal = { ...g, id: uid(), refs: g.refs?.map((r) => ({ ...r })) };
+      // Een BK-leerplan houdt in een eigen kopie zijn verwijzingen naar competenties (en zijn `bkVersies`, hierboven).
+      // Alleen als het doel ze heeft: een ander doel krijgt er geen (lege) sleutel bij.
+      if (g.bkRefs) kopie.bkRefs = g.bkRefs.map((r) => ({ ...r }));
+      return kopie;
+    }),
     createdAt: nu,
     updatedAt: nu,
   };

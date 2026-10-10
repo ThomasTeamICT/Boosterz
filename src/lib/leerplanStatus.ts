@@ -38,11 +38,20 @@ export function isSamengesteld(cur: Curriculum): boolean {
 }
 
 /**
- * Komen alle doelen letterlijk uit de officiële minimumdoelen: een hele set (`isOfficieel`) of een samengestelde
- * lijst (`isSamengesteld`)? Zo'n leerplan heeft de sets zelf als bron en is vrij te delen.
+ * Is dit een leerplan met de competenties van één of meer beroepskwalificaties, letterlijk uit de officiële bron
+ * (bkLeerplan.ts, docs/STUDIERICHTINGEN.md § 23.6)? Ook een eigen kopie ervan houdt die methode.
+ */
+export function isBkLeerplan(cur: Curriculum): boolean {
+  return cur.herkomst?.methode === 'beroepskwalificatie';
+}
+
+/**
+ * Komen alle doelen letterlijk uit een officiële bron: een hele set minimumdoelen (`isOfficieel`), een samengestelde
+ * lijst (`isSamengesteld`) of de competenties van beroepskwalificaties (`isBkLeerplan`)? Zo'n leerplan heeft de officiële
+ * bron zelf als bron, en geen leerplan van een net.
  */
 export function uitOfficieleBron(cur: Curriculum): boolean {
-  return isOfficieel(cur) || isSamengesteld(cur);
+  return isOfficieel(cur) || isSamengesteld(cur) || isBkLeerplan(cur);
 }
 
 /**

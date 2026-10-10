@@ -1,18 +1,25 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  BK_COMPETENTIE_ID,
+  BK_VERSIE_ID,
   bevestigLeerplan,
   bewaakControle,
   doelenVingerafdruk,
+  EXAMPLE_CURRICULUM_ID,
   exportCurriculumJson,
   getCurriculum,
   importCurriculumJson,
   importCurriculumJsonMetRapport,
   isVeiligDoelId,
   maakEigenKopie,
+  MAX_BK_REFS,
+  MAX_BK_VERSIES,
   MAX_DOELEN,
   MAX_DOELTEKST,
   MAX_DOELTHEMA,
   MAX_DOELTOELICHTING,
+  netLabel,
   sanitizeCurriculum,
   sanitizeGoal,
   sanitizeGoals,
@@ -20,7 +27,11 @@ import {
   type BevestigOpties,
 } from './curriculum';
 import { controleerLeerplan, type ControleRapport } from './curriculumCheck';
-import type { Curriculum } from './curriculumTypes';
+import { CURRICULUM_NETS, type Curriculum, type CurriculumGoal, type CurriculumMethode } from './curriculumTypes';
+import { NET_KEUZES } from './leerplanNetten';
+import { effectieveStatus } from './leerplanStatus';
+import { ensureExampleCurriculum } from './seed';
+import { sha256Hex } from './sha256';
 
 /** Een rapport zonder fouten voor de (gesaneerde) doelen van `cur`: om opslag en export te testen. */
 function geslaagd(cur: Curriculum): ControleRapport {
@@ -89,6 +100,199 @@ function v2Ruw(): Record<string, unknown> {
     updatedAt: 1_650_000_000_000,
   };
 }
+
+// ── Gouden vingerafdrukken (fase 3, K5): bestaande leerplannen veranderen niet ──
+//
+// Leerplannen zoals de app ze bewaarde vóór fase 3 (beroepskwalificaties), gemaakt met de code van toen en hier
+// bevroren: een officiële set (ODS_3142), een samengestelde lijst op de structuurfixtures (G-0193, Biologie en STEM, met
+// de kadervelden van fase 2), een eigen kopie ervan, een ingelezen netleerplan met twee verwijzingen per doel, en een
+// leerplan van vóór versie 2. Daarnaast het voorbeeldleerplan van de app (seed.ts), live. Hun vingerafdruk, hun vorm na
+// het saneren, hun exportbestand en hun nakijkstatus zijn vaste waarden: ze mogen nooit veranderen (N1 en N7 in
+// docs/STUDIERICHTINGEN.md § 23.6.7). Verandert er hier een waarde, dan ziet een leerkracht een bewaard leerplan
+// "gewijzigd" worden zonder dat iemand iets deed.
+
+const GOUD_LEERPLANNEN: Record<string, Record<string, unknown>> = {
+  officieel: {
+    "id": "0hxna2a1bkjq",
+    "title": "STEM · 2de graad",
+    "net": "minimumdoelen",
+    "subject": "STEM",
+    "level": "2de graad",
+    "source": "Secundair onderwijs 2de graad -  STEM - Cesuurdoelen. Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be) (opgehaald 5 oktober 2026)",
+    "goals": [
+      {"id": "jawx3at0bkj9", "code": "12.01.01", "text": "De leerlingen ontwikkelen een oplossing voor een probleem door STEM-disciplines geïntegreerd toe te passen.", "theme": "STEM - Engineering", "refs": [{"set": "ODS_3142", "id": "91977", "code": "12.01.01"}]},
+      {"id": "a7khcluhbkj9", "code": "12.01.02", "text": "De leerlingen gebruiken met de nodige nauwkeurigheid meetinstrumenten en hulpmiddelen.", "theme": "STEM - Engineering", "refs": [{"set": "ODS_3142", "id": "91978", "code": "12.01.02"}]},
+      {"id": "3sh39d8xbkj9", "code": "12.02.01", "text": "De leerlingen gebruiken met de nodige nauwkeurigheid meetinstrumenten en hulpmiddelen.", "theme": "Onderzoeksvaardigheden wetenschappen", "refs": [{"set": "ODS_3142", "id": "91979", "code": "12.02.01"}]},
+    ],
+    "createdAt": 1791653645510,
+    "updatedAt": 1791653645510,
+    "kind": "leerplan",
+    "herkomst": {"methode": "officieel", "ingelezenOp": 1791653645493, "versie": "2.1", "geldigVanaf": "2023-09-01", "bronUrl": "https://www.onderwijsdoelen.be/", "bronNaam": "ODS_3142", "bronSha256": "fec1c7701cdc9723e83378b2fd5c2c4001e229782982198b2049d2c8b3e727a7"},
+    "minimumdoelenSets": ["ODS_3142"],
+    "controle": {"status": "gecontroleerd", "door": "Boosterz (officiële bron)", "op": 1791653645516, "doelenSha256": "e9f1a1da82906cdd67258c2129ced09909e28374eecef8f6212db9a4c88411ef", "samenvatting": "Letterlijk overgenomen uit de officiële set ODS_3142 (3 doelen)."},
+  },
+  samengesteld: {
+    "id": "jarxuwnlbkke",
+    "title": "Biologie · Natuurwetenschappen · 2de graad",
+    "net": "minimumdoelen",
+    "subject": "Biologie",
+    "level": "2de graad",
+    "source": "Samengesteld uit de officiële minimumdoelen: Biologie (ODS_3132), STEM (ODS_3142). Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be) (opgehaald 5 oktober 2026)",
+    "goals": [
+      {"id": "2asu1fe1bkkd", "code": "08.01.01", "text": "De leerlingen bespreken transport van water en assimilaten in relatie tot de morfologie van de plant.", "theme": "Biologie › Uitgebreide biologie", "refs": [{"set": "ODS_3132", "id": "91766", "code": "08.01.01"}]},
+      {"id": "ofuugkhdbkke", "code": "08.01.02", "text": "De leerlingen situeren organismen in het driedomeinensysteem.", "theme": "Biologie › Uitgebreide biologie", "refs": [{"set": "ODS_3132", "id": "91767", "code": "08.01.02"}]},
+      {"id": "d369i4ybbkke", "code": "08.01.03", "text": "De leerlingen analyseren het gedrag van en interacties tussen organismen van dezelfde soort en van verschillende soorten.", "theme": "Biologie › Uitgebreide biologie", "refs": [{"set": "ODS_3132", "id": "91768", "code": "08.01.03"}]},
+      {"id": "hhsoi24dbkke", "code": "08.01.04", "text": "De leerlingen leggen het voorkomen of een toepassing van micro-organismen uit aan de hand van structuur, metabolisme of voortplanting.", "theme": "Biologie › Uitgebreide biologie", "refs": [{"set": "ODS_3132", "id": "91769", "code": "08.01.04"}]},
+      {"id": "lkpd9wk7bkke", "code": "12.02.01", "text": "De leerlingen gebruiken met de nodige nauwkeurigheid meetinstrumenten en hulpmiddelen.", "theme": "STEM › Onderzoeksvaardigheden wetenschappen", "refs": [{"set": "ODS_3142", "id": "91979", "code": "12.02.01"}]},
+    ],
+    "createdAt": 1791653645534,
+    "updatedAt": 1791653645532,
+    "kind": "leerplan",
+    "herkomst": {"methode": "samengesteld", "ingelezenOp": 1791653645532},
+    "minimumdoelenSets": ["ODS_3132", "ODS_3142"],
+    "doelgroep": {"groep": "G-0193", "titel": "Natuurwetenschappen", "soort": "so", "graad": 2, "vak": "Biologie", "kader": "81c5deef9ec68f937a5b040c8532e75fd2572bb7251596106575da536cff854c", "kaderVolledig": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "setAfdrukken": {"ODS_3132": "0ad5821e3db60cf4", "ODS_3142": "b5c98b1728abae84"}, "volgtKader": true},
+    "controle": {"status": "gecontroleerd", "door": "Boosterz (officiële bron)", "op": 1791653645537, "doelenSha256": "73295915386335e33b72b79df4b929099c7021ac6e110b3efc81c350240a7c27", "samenvatting": "Letterlijk overgenomen uit 2 officiële sets (5 doelen), zelf gekozen."},
+  },
+  kopie: {
+    "id": "xyku1xyxbkkh",
+    "title": "Biologie · Natuurwetenschappen · 2de graad (eigen kopie)",
+    "net": "minimumdoelen",
+    "subject": "Biologie",
+    "level": "2de graad",
+    "source": "Samengesteld uit de officiële minimumdoelen: Biologie (ODS_3132), STEM (ODS_3142). Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be) (opgehaald 5 oktober 2026)",
+    "goals": [
+      {"id": "ype0s262bkkh", "code": "08.01.01", "text": "De leerlingen bespreken transport van water en assimilaten in relatie tot de morfologie van de plant.", "theme": "Biologie › Uitgebreide biologie", "refs": [{"set": "ODS_3132", "id": "91766", "code": "08.01.01"}]},
+      {"id": "o2hdp3rlbkkh", "code": "08.01.02", "text": "De leerlingen situeren organismen in het driedomeinensysteem.", "theme": "Biologie › Uitgebreide biologie", "refs": [{"set": "ODS_3132", "id": "91767", "code": "08.01.02"}]},
+      {"id": "ptlflkhibkkh", "code": "08.01.03", "text": "De leerlingen analyseren het gedrag van en interacties tussen organismen van dezelfde soort en van verschillende soorten.", "theme": "Biologie › Uitgebreide biologie", "refs": [{"set": "ODS_3132", "id": "91768", "code": "08.01.03"}]},
+      {"id": "ge6zs9hcbkkh", "code": "08.01.04", "text": "De leerlingen leggen het voorkomen of een toepassing van micro-organismen uit aan de hand van structuur, metabolisme of voortplanting.", "theme": "Biologie › Uitgebreide biologie", "refs": [{"set": "ODS_3132", "id": "91769", "code": "08.01.04"}]},
+      {"id": "kgrb06txbkkh", "code": "12.02.01", "text": "De leerlingen gebruiken met de nodige nauwkeurigheid meetinstrumenten en hulpmiddelen.", "theme": "STEM › Onderzoeksvaardigheden wetenschappen", "refs": [{"set": "ODS_3142", "id": "91979", "code": "12.02.01"}]},
+    ],
+    "createdAt": 1791653645537,
+    "updatedAt": 1791653645537,
+    "kind": "eigen",
+    "herkomst": {"methode": "samengesteld", "ingelezenOp": 1791653645532},
+    "minimumdoelenSets": ["ODS_3132", "ODS_3142"],
+    "doelgroep": {"groep": "G-0193", "titel": "Natuurwetenschappen", "soort": "so", "graad": 2, "vak": "Biologie"},
+  },
+  net: {
+    "id": "4qjvgcxlbkkh",
+    "title": "Natuurwetenschappen (nagemaakt netleerplan)",
+    "net": "kov",
+    "subject": "Natuurwetenschappen",
+    "level": "2de graad",
+    "source": "nagemaakte bron voor de gouden test, geen echt leerplan",
+    "goals": [
+      {"id": "n1", "code": "LPD 1", "text": "De leerlingen onderzoeken een ecosysteem.", "theme": "Biologie", "refs": [{"set": "ODS_3132", "id": "91766", "code": "08.01.01"}, {"set": "ODS_3132", "id": "91767", "code": "08.01.02"}], "refsBron": "MD 1, MD 2"},
+      {"id": "n2", "code": "LPD 2", "text": "De leerlingen voeren een STEM-project uit.\nMet een verslag.", "theme": "STEM", "level": "uitbreiding", "note": "Toelichting.", "refs": [{"set": "ODS_3142", "id": "91977", "code": "12.01.01"}, {"set": "ODS_3142", "id": "91978", "code": "12.01.02"}], "refsBron": "MD 3, MD 4"},
+      {"id": "n3", "code": "LPD 3", "text": "De leerlingen verklaren fotosynthese.", "refs": [{"set": "ODS_3132", "id": "91768", "code": "08.01.03"}, {"set": "ODS_3142", "id": "91979", "code": "12.02.01"}]},
+    ],
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000100000,
+    "kind": "leerplan",
+    "herkomst": {"methode": "pdf", "ingelezenOp": 1760000000000, "leerplancode": "TEST-NW-2", "versie": "2025", "geldigVanaf": "2025-09-01", "bronNaam": "test.pdf", "bronSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+    "minimumdoelenSets": ["ODS_3132", "ODS_3142"],
+    "controle": {"status": "gecontroleerd", "door": "Testleerkracht", "op": 1760000200000, "doelenSha256": "a13f848a80ab31bec0f8140cba4d96e44d324cad44a271dbb59163a0bbf1bf03", "samenvatting": "3 doelen letterlijk, 6 verwijzingen in orde."},
+  },
+  v1: {
+    "id": "oud-v1",
+    "title": "Wiskunde",
+    "net": "go",
+    "subject": "Wiskunde",
+    "level": "1e graad",
+    "source": "pro.g-o.be",
+    "goals": [
+      {"id": "a", "code": "WIS 9.9", "text": "Getallen lezen", "theme": "Getallen", "level": "basis", "note": "Toelichting"},
+      {"id": "b", "code": "WIS 1.1", "text": "Meten", "theme": "Meten"},
+    ],
+    "createdAt": 1,
+    "updatedAt": 2,
+  },
+};
+
+/** Per bevroren leerplan: de vingerafdruk van de doelen, het versiemerk van het exportbestand na saneren, de status. */
+const GOUD: Record<string, { vingerafdruk: string; export: string; status: string }> = {
+  officieel: {
+    vingerafdruk: 'e9f1a1da82906cdd67258c2129ced09909e28374eecef8f6212db9a4c88411ef',
+    export: 'dda5376c8e6d704555ee64155b7fa456951015e24f0f605f1f8fb18939d71061',
+    status: 'gecontroleerd',
+  },
+  samengesteld: {
+    vingerafdruk: '73295915386335e33b72b79df4b929099c7021ac6e110b3efc81c350240a7c27',
+    export: '9491cdfa5aaa55a210ad59279c462d9799dca7d60b4dd73024e3a3acafd59d8f',
+    status: 'gecontroleerd',
+  },
+  kopie: {
+    vingerafdruk: '73295915386335e33b72b79df4b929099c7021ac6e110b3efc81c350240a7c27',
+    export: '7bfbf04600d86925ea40f1e01416d8a8de7118c1fd59f43708fd1b398deaa792',
+    status: 'niet-gecontroleerd',
+  },
+  net: {
+    vingerafdruk: 'a13f848a80ab31bec0f8140cba4d96e44d324cad44a271dbb59163a0bbf1bf03',
+    export: '820f9dcf500c3b602b11add34c8c49fdc25f67d33ddce90562574c9c6a0026c9',
+    status: 'gecontroleerd',
+  },
+  v1: {
+    vingerafdruk: 'feab045f397640b59207fc634e39fae8a5397ece3d040123fcd0c188e635a4ea',
+    export: '56eb03623e404bb6b71fe3521b82b8c5b82ec2c82ad1086e87d9aa6cca456b5e',
+    status: 'niet-gecontroleerd',
+  },
+};
+/** Vingerafdruk van de doelen van het voorbeeldleerplan van de app (seed.ts). */
+const GOUD_VOORBEELD = '77f4cfcb1425cf122c5e7f17bec4afa96c296f64db57ef2cb5d064abe5272c10';
+
+/** Een diepe kopie, zoals een leerplan uit localStorage of uit een bestand komt. */
+function uitJson<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v)) as T;
+}
+
+describe('gouden vingerafdrukken: bestaande leerplannen (N1, N7)', () => {
+  for (const [naam, bevroren] of Object.entries(GOUD_LEERPLANNEN)) {
+    const goud = GOUD[naam];
+
+    it(`${naam}: dezelfde vingerafdruk, dezelfde vorm na saneren, hetzelfde exportbestand en dezelfde status`, () => {
+      const cur = uitJson(bevroren) as unknown as Curriculum;
+      expect(doelenVingerafdruk(cur.goals)).toBe(goud.vingerafdruk);
+      if (cur.controle?.doelenSha256) expect(cur.controle.doelenSha256).toBe(goud.vingerafdruk);
+      // Saneren (bewaren in een bestand, importeren) voegt geen sleutel toe en verandert geen waarde.
+      const gesaneerd = sanitizeCurriculum(uitJson(bevroren)) as Curriculum;
+      expect(uitJson(gesaneerd)).toStrictEqual(bevroren);
+      expect(sanitizeCurriculum(uitJson(gesaneerd))).toStrictEqual(gesaneerd);
+      // Het exportbestand (versie 2) is byte voor byte hetzelfde, ook na nog een keer importeren en exporteren.
+      const json = exportCurriculumJson(gesaneerd);
+      expect(sha256Hex(json)).toBe(goud.export);
+      expect(exportCurriculumJson(importCurriculumJson(json) as Curriculum)).toBe(json);
+      expect(json).not.toMatch(/bkRefs|bkVersies|beroepskwalificatie/);
+      // Dezelfde nakijkstatus: rechtstreeks, na saneren en na importeren.
+      expect(effectieveStatus(cur)).toBe(goud.status);
+      expect(effectieveStatus(gesaneerd)).toBe(goud.status);
+      expect(effectieveStatus(importCurriculumJson(json) as Curriculum)).toBe(goud.status);
+      // Bewaren verandert de status niet.
+      saveCurriculum(cur);
+      expect(effectieveStatus(getCurriculum(cur.id) as Curriculum)).toBe(goud.status);
+    });
+  }
+
+  it('een eigen kopie heeft dezelfde vingerafdruk als het origineel, maar is niet nagekeken', () => {
+    for (const naam of ['samengesteld', 'net', 'officieel']) {
+      const cur = uitJson(GOUD_LEERPLANNEN[naam]) as unknown as Curriculum;
+      const kopie = maakEigenKopie(cur);
+      expect(doelenVingerafdruk(kopie.goals), naam).toBe(GOUD[naam].vingerafdruk);
+      expect(effectieveStatus(kopie), naam).toBe('niet-gecontroleerd');
+      expect(Object.keys(kopie), naam).not.toContain('bkVersies');
+      expect(kopie.goals.every((g) => !('bkRefs' in g)), naam).toBe(true);
+    }
+    expect(GOUD.kopie.vingerafdruk).toBe(GOUD.samengesteld.vingerafdruk);
+  });
+
+  it('het voorbeeldleerplan van de app (seed.ts): dezelfde vingerafdruk en dezelfde vorm na saneren', () => {
+    const voorbeeld = ensureExampleCurriculum() as Curriculum;
+    expect(voorbeeld.id).toBe(EXAMPLE_CURRICULUM_ID);
+    expect(doelenVingerafdruk(voorbeeld.goals)).toBe(GOUD_VOORBEELD);
+    expect(uitJson(sanitizeCurriculum(uitJson(voorbeeld)))).toStrictEqual(uitJson(voorbeeld));
+    expect(effectieveStatus(voorbeeld)).toBe('niet-gecontroleerd');
+    expect(exportCurriculumJson(voorbeeld)).not.toMatch(/bkRefs|bkVersies/);
+  });
+});
 
 describe('sanitizeGoal: verwijzingen (versie 2)', () => {
   it('neemt geldige refs mee: getrimd, een getal als id wordt tekst', () => {
@@ -817,5 +1021,449 @@ describe('grenzen aan wat een bestand mag bevatten (B4)', () => {
     const nog = importCurriculumJsonMetRapport(exportCurriculumJson(r.curriculum as Curriculum));
     expect(nog.afgekapt).toBe(0);
     expect(nog.curriculum?.goals.map((g) => g.text.length)).toEqual(r.curriculum?.goals.map((g) => g.text.length));
+  });
+});
+
+// ── Fase 3: beroepskwalificaties in het datamodel (K5, docs/STUDIERICHTINGEN.md § 23.6.2 en § 23.6.3) ──
+
+const MERK_A = '0123456789abcdef';
+const MERK_B = 'fedcba9876543210';
+
+/** Een nagemaakt BK-leerplan: verzonnen competentieteksten en -codes, geen echte gegevens uit de API. */
+function bkRuw(): Record<string, unknown> {
+  return {
+    id: 'bk-1',
+    title: 'Onthaalmedewerker (nagemaakt)',
+    net: 'beroepskwalificaties',
+    subject: 'Onthaal',
+    level: '3de graad',
+    source: 'Vlaamse kwalificatiestructuur: Onthaalmedewerker (BK-0390-2)',
+    kind: 'leerplan',
+    herkomst: { methode: 'beroepskwalificatie', bronUrl: 'https://onderwijs-api-portaal.vlaanderen.be/', ingelezenOp: 1_760_000_000_000 },
+    bkVersies: [{ bk: 'BK-0390-2', sha: MERK_A, alle: true }, { bk: 'BK-0464-1', sha: MERK_B }],
+    goals: [
+      { id: 'c1', code: 'BK-0390-2.01', text: 'Nagemaakte competentie één.', theme: 'Onthaalmedewerker › Vakspecifieke competentie', bkRefs: [{ bk: 'BK-0390-2', id: 'bkc0000001' }] },
+      { id: 'c2', code: 'BK-0390-2.02', text: 'Nagemaakte competentie twee.', theme: 'Onthaalmedewerker › Vakspecifieke competentie', bkRefs: [{ bk: 'BK-0390-2', id: 'bkc0000002' }] },
+      { id: 'c3', code: 'BK-0464-1.01', text: 'Nagemaakte competentie drie.', theme: 'Recreatief medewerker', bkRefs: [{ bk: 'BK-0464-1', id: 'bkc0000003' }] },
+    ],
+    createdAt: 1_760_000_000_000,
+    updatedAt: 1_760_000_000_000,
+  };
+}
+
+/** Het BK-leerplan met één doel en de gegeven `bkRefs` (rauw), gesaneerd: de `bkRefs` van dat doel. */
+function bkRefsNa(bkRefs: unknown): CurriculumGoal['bkRefs'] {
+  const ruw = { ...bkRuw(), goals: [{ code: 'BK-0390-2.01', text: 'x', bkRefs }] };
+  return sanitizeCurriculum(ruw)?.goals[0].bkRefs;
+}
+
+/** De gesaneerde `bkVersies` van het BK-leerplan met de gegeven (rauwe) lijst. */
+function bkVersiesNa(bkVersies: unknown): Curriculum['bkVersies'] {
+  return sanitizeCurriculum({ ...bkRuw(), bkVersies })?.bkVersies;
+}
+
+describe('CURRICULUM_NETS en NET_KEUZES (fase 3)', () => {
+  it('het net "beroepskwalificaties" staat na de minimumdoelen; de andere netten zijn ongewijzigd', () => {
+    expect(CURRICULUM_NETS).toEqual([
+      { id: 'minimumdoelen', label: 'Minimumdoelen (Vlaamse overheid)', hint: 'onderwijsdoelen.be — de wettelijke basis voor elk net' },
+      { id: 'beroepskwalificaties', label: 'Beroepskwalificaties (Vlaamse overheid)', hint: 'Vlaamse kwalificatiestructuur' },
+      { id: 'go', label: 'GO! leerplan', hint: 'pro.g-o.be' },
+      { id: 'kov', label: 'Katholiek Onderwijs Vlaanderen', hint: 'leerplannen KOV / ZILL (basis)' },
+      { id: 'ovsg', label: 'OVSG (stedelijk & gemeentelijk)', hint: 'ovsg.be' },
+      { id: 'pov', label: 'POV (provinciaal)', hint: 'pov.be' },
+      { id: 'eigen', label: 'Eigen leerplan', hint: 'vakgroep, school of jezelf' },
+    ]);
+    expect(netLabel('beroepskwalificaties')).toBe('Beroepskwalificaties (Vlaamse overheid)');
+    expect(netLabel('onbekend')).toBe('Eigen leerplan');
+  });
+
+  it('de inleeswizard biedt geen minimumdoelen en geen beroepskwalificaties aan: zijn netten blijven dezelfde', () => {
+    expect(NET_KEUZES.map((n) => n.id)).toEqual(['go', 'kov', 'ovsg', 'pov', 'eigen']);
+  });
+
+  it('een bestand met net "beroepskwalificaties" houdt dat net', () => {
+    expect(sanitizeCurriculum(bkRuw())?.net).toBe('beroepskwalificaties');
+    expect(sanitizeCurriculum({ ...v2Ruw(), net: 'beroepskwalificaties' })?.net).toBe('beroepskwalificaties');
+  });
+});
+
+describe('BK_VERSIE_ID en BK_COMPETENTIE_ID: gelijk aan de bron', () => {
+  /** De regex van `export const <naam> = /…/;` in een bronbestand, als tekst. */
+  function regexUit(pad: URL, naam: string): string | undefined {
+    const m = new RegExp(`export const ${naam} = /(.+)/([a-z]*);`).exec(readFileSync(pad, 'utf8'));
+    return m ? `${m[1]}|${m[2]}` : undefined;
+  }
+  const ONTWERP = new URL('../../docs/STUDIERICHTINGEN.md', import.meta.url);
+  const MODULE = new URL('./beroepskwalificaties.ts', import.meta.url);
+
+  it('gelijk aan BK_VERSIE en COMPETENTIE_CODE in het ontwerp (§ 23.5.3)', () => {
+    expect(regexUit(ONTWERP, 'BK_VERSIE')).toBe(`${BK_VERSIE_ID.source}|${BK_VERSIE_ID.flags}`);
+    expect(regexUit(ONTWERP, 'COMPETENTIE_CODE')).toBe(`${BK_COMPETENTIE_ID.source}|${BK_COMPETENTIE_ID.flags}`);
+    expect(readFileSync(ONTWERP, 'utf8')).toContain(`export const MAX_BK_PER_LEERPLAN = ${MAX_BK_VERSIES};`);
+  });
+
+  // beroepskwalificaties.ts komt met pakket K1; tot dan staat deze test op "overgeslagen".
+  it.skipIf(!existsSync(MODULE))('gelijk aan BK_VERSIE en COMPETENTIE_CODE in beroepskwalificaties.ts', () => {
+    expect(regexUit(MODULE, 'BK_VERSIE')).toBe(`${BK_VERSIE_ID.source}|${BK_VERSIE_ID.flags}`);
+    expect(regexUit(MODULE, 'COMPETENTIE_CODE')).toBe(`${BK_COMPETENTIE_ID.source}|${BK_COMPETENTIE_ID.flags}`);
+  });
+
+  it('herkent een BK-versie, en geen nummer zonder versie, geen deelkwalificatie en geen ander formaat', () => {
+    for (const bk of ['BK-0390-2', 'BK-123-1', 'BK-123456-1234', 'BK-0454-1']) expect(BK_VERSIE_ID.test(bk), bk).toBe(true);
+    for (const bk of ['BK-0390', 'BK-12-1', 'BK-1234567-1', 'BK-0390-12345', 'BK-0390-', 'bk-0390-2', ' BK-0390-2', 'BK-0390-2\n', 'BK-0130-5-DBK-01', 'ODS_3287', 'BK-0390-2.01', '']) {
+      expect(BK_VERSIE_ID.test(bk), JSON.stringify(bk)).toBe(false);
+    }
+  });
+});
+
+describe('sanitizeCurriculum: bkRefs en bkVersies (fase 3)', () => {
+  it('een BK-leerplan houdt bkRefs ({bk, id}) op elk doel en bkVersies ({bk, sha, alle?})', () => {
+    const cur = sanitizeCurriculum(bkRuw()) as Curriculum;
+    expect(cur.herkomst?.methode).toBe('beroepskwalificatie');
+    expect(cur.goals.map((g) => g.bkRefs)).toEqual([
+      [{ bk: 'BK-0390-2', id: 'bkc0000001' }],
+      [{ bk: 'BK-0390-2', id: 'bkc0000002' }],
+      [{ bk: 'BK-0464-1', id: 'bkc0000003' }],
+    ]);
+    expect(cur.bkVersies).toStrictEqual([{ bk: 'BK-0390-2', sha: MERK_A, alle: true }, { bk: 'BK-0464-1', sha: MERK_B }]);
+    expect(cur.goals.every((g) => !('refs' in g))).toBe(true);
+  });
+
+  it('bkRefs: getrimd, een getal als id wordt tekst, andere velden vallen weg', () => {
+    const refs = bkRefsNa([
+      { bk: ' BK-0390-2 ', id: ' bkc0000001 ', code: 'valt weg', tekst: 'valt weg' },
+      { bk: 'BK-0390-2', id: 39200 },
+      { bk: 'BK-0390-2', id: 'a.b_c-1' },
+    ]);
+    expect(refs).toStrictEqual([{ bk: 'BK-0390-2', id: 'bkc0000001' }, { bk: 'BK-0390-2', id: '39200' }, { bk: 'BK-0390-2', id: 'a.b_c-1' }]);
+    for (const r of refs ?? []) expect(Object.keys(r)).toEqual(['bk', 'id']);
+  });
+
+  it('bkRefs: ongeldige vormen en te lange waarden vallen weg', () => {
+    const geldig = [{ bk: 'BK-0390-2', id: 'x'.repeat(64) }, { bk: 'BK-123456-1234', id: 'bkc1' }];
+    const refs = bkRefsNa([
+      null, undefined, 'BK-0390-2', 7, true, [], ['BK-0390-2', 'bkc1'], {},
+      { bk: 'BK-0390', id: 'bkc1' }, { bk: 'bk-0390-2', id: 'bkc1' }, { bk: 'BK-12-1', id: 'bkc1' }, { bk: 'BK-1234567-1', id: 'bkc1' },
+      { bk: 'BK-0390-12345', id: 'bkc1' }, { bk: 'BK-0130-5-DBK-01', id: 'bkc1' }, { bk: 'ODS_3287', id: 'bkc1' }, { bk: 390, id: 'bkc1' },
+      { bk: 'BK-0390-2' }, { bk: 'BK-0390-2', id: '' }, { bk: 'BK-0390-2', id: '   ' }, { bk: 'BK-0390-2', id: 'x'.repeat(65) },
+      { bk: 'BK-0390-2', id: 'a b' }, { bk: 'BK-0390-2', id: 'a/b' }, { bk: 'BK-0390-2', id: 'bkc°1' }, { bk: 'BK-0390-2', id: 'é' },
+      { bk: 'BK-0390-2', id: Infinity }, { bk: 'BK-0390-2', id: Number.NaN }, { bk: 'BK-0390-2', id: null }, { bk: 'BK-0390-2', id: true },
+      { bk: 'BK-0390-2', id: { waarde: 'bkc1' } }, { bk: 'BK-0390-2', id: ['bkc1'] }, { set: 'ODS_3287', id: '92187', code: '09.02' },
+      ...geldig,
+    ]);
+    expect(refs).toStrictEqual(geldig);
+  });
+
+  it('bkRefs: geen lijst, of niets bruikbaars, laat geen sleutel achter', () => {
+    for (const bkRefs of [undefined, null, 'BK-0390-2', { bk: 'BK-0390-2', id: 'bkc1' }, [], [null, { bk: 'x' }]]) {
+      const cur = sanitizeCurriculum({ ...bkRuw(), goals: [{ code: 'A', text: 'x', bkRefs }] });
+      expect(cur?.goals[0], JSON.stringify(bkRefs)).not.toHaveProperty('bkRefs');
+    }
+  });
+
+  it('__proto__: een naam uit het prototype als id valt weg, en niets komt uit het prototype', () => {
+    for (const id of ['__proto__', 'constructor', 'toString', 'hasOwnProperty', 'valueOf']) {
+      expect(bkRefsNa([{ bk: 'BK-0390-2', id }]), id).toBeUndefined();
+    }
+    // Een object met "__proto__" als eigen sleutel (zo leest JSON.parse een bestand): niets van wat eronder staat telt.
+    const ruw = JSON.parse(`{
+      "title": "t", "herkomst": {"methode": "beroepskwalificatie", "ingelezenOp": 1},
+      "__proto__": {"bkVersies": [{"bk": "BK-0390-2", "sha": "${MERK_A}"}]},
+      "goals": [
+        {"code": "A", "text": "a", "bkRefs": [{"__proto__": {"bk": "BK-0390-2", "id": "bkc1"}}]},
+        {"code": "B", "text": "b", "__proto__": {"bkRefs": [{"bk": "BK-0390-2", "id": "bkc2"}]}},
+        {"code": "C", "text": "c", "bkRefs": [{"bk": "BK-0390-2", "id": "bkc3", "__proto__": {"x": 1}}]}
+      ]
+    }`) as Record<string, unknown>;
+    const cur = sanitizeCurriculum(ruw) as Curriculum;
+    expect(cur).not.toHaveProperty('bkVersies');
+    expect(cur.goals[0]).not.toHaveProperty('bkRefs');
+    expect(cur.goals[1]).not.toHaveProperty('bkRefs');
+    expect(cur.goals[2].bkRefs).toStrictEqual([{ bk: 'BK-0390-2', id: 'bkc3' }]);
+    expect(Object.getPrototypeOf(cur.goals[2].bkRefs?.[0])).toBe(Object.prototype);
+    // Overgeërfde velden (een object met een ander prototype) tellen evenmin.
+    const geerfd = Object.create({ bk: 'BK-0390-2', id: 'bkc4' }) as object;
+    expect(bkRefsNa([geerfd])).toBeUndefined();
+    expect(bkVersiesNa([Object.create({ bk: 'BK-0390-2', sha: MERK_A }) as object])).toBeUndefined();
+    // En het gedeelde prototype blijft schoon.
+    expect(({} as Record<string, unknown>).bk).toBeUndefined();
+    expect(({} as Record<string, unknown>).bkRefs).toBeUndefined();
+  });
+
+  it(`bkRefs: ontdubbeld op bk + id, hoogstens ${MAX_BK_REFS}`, () => {
+    expect(MAX_BK_REFS).toBe(10);
+    const dubbel = bkRefsNa([
+      { bk: 'BK-0390-2', id: 'bkc1' }, { bk: ' BK-0390-2', id: 'bkc1 ' }, { bk: 'BK-0464-1', id: 'bkc1' }, { bk: 'BK-0390-3', id: 'bkc1' },
+    ]);
+    expect(dubbel).toStrictEqual([{ bk: 'BK-0390-2', id: 'bkc1' }, { bk: 'BK-0464-1', id: 'bkc1' }, { bk: 'BK-0390-3', id: 'bkc1' }]);
+    const veel = Array.from({ length: 15 }, (_, i) => ({ bk: 'BK-0390-2', id: `bkc${i}` }));
+    expect(bkRefsNa(veel)).toStrictEqual(veel.slice(0, MAX_BK_REFS));
+    // Ongeldige elementen tellen niet mee voor de grens.
+    expect(bkRefsNa([...Array.from({ length: 12 }, () => null), ...veel.slice(0, 3)])).toStrictEqual(veel.slice(0, 3));
+  });
+
+  it(`bkVersies: sha van 16 kleine hex-tekens, alle alleen true, ontdubbeld op bk, hoogstens ${MAX_BK_VERSIES}`, () => {
+    expect(MAX_BK_VERSIES).toBe(20);
+    expect(bkVersiesNa([
+      null, 'BK-0390-2', [], {}, { bk: 'BK-0390-2' },
+      { bk: 'BK-0390-2', sha: MERK_A.toUpperCase() }, { bk: 'BK-0390-2', sha: MERK_A.slice(1) }, { bk: 'BK-0390-2', sha: `${MERK_A}0` },
+      { bk: 'BK-0390-2', sha: 'g'.repeat(16) }, { bk: 'BK-0390-2', sha: ` ${MERK_A}` }, { bk: 'BK-0390-2', sha: 123456789 }, { bk: 'BK-0390-2', sha: 'a'.repeat(64) },
+      { bk: 'BK-0390', sha: MERK_A }, { bk: 'BK-0130-5-DBK-01', sha: MERK_A }, { bk: '__proto__', sha: MERK_A },
+      { bk: ' BK-0390-2 ', sha: MERK_A, alle: 'true', extra: 'valt weg' },
+      { bk: 'BK-0390-2', sha: MERK_B, alle: true }, // dezelfde BK-versie: alleen de eerste telt
+      { bk: 'BK-0464-1', sha: MERK_B, alle: true },
+      { bk: 'BK-0465-1', sha: MERK_A, alle: false }, { bk: 'BK-0466-1', sha: MERK_A, alle: 1 },
+    ])).toStrictEqual([
+      { bk: 'BK-0390-2', sha: MERK_A },
+      { bk: 'BK-0464-1', sha: MERK_B, alle: true },
+      { bk: 'BK-0465-1', sha: MERK_A },
+      { bk: 'BK-0466-1', sha: MERK_A },
+    ]);
+    const veel = Array.from({ length: 25 }, (_, i) => ({ bk: `BK-0${100 + i}-1`, sha: MERK_A }));
+    expect(bkVersiesNa(veel)).toStrictEqual(veel.slice(0, MAX_BK_VERSIES));
+    for (const leeg of [undefined, null, 'BK-0390-2', { bk: 'BK-0390-2', sha: MERK_A }, [], [null]]) {
+      expect(sanitizeCurriculum({ ...bkRuw(), bkVersies: leeg }), JSON.stringify(leeg)).not.toHaveProperty('bkVersies');
+    }
+  });
+
+  it('alleen bij methode "beroepskwalificatie": op elk ander leerplan vallen bkRefs en bkVersies weg', () => {
+    const anders: CurriculumMethode[] = ['officieel', 'samengesteld', 'export', 'pdf', 'tekst', 'ai', 'handmatig'];
+    const herkomsten: unknown[] = [...anders.map((methode) => ({ methode, ingelezenOp: 1 })), undefined, null, 'beroepskwalificatie', { methode: 'gegokt' }, { methode: 'Beroepskwalificatie' }];
+    for (const herkomst of herkomsten) {
+      for (const kind of ['leerplan', 'eigen', undefined]) {
+        const cur = sanitizeCurriculum({ ...bkRuw(), herkomst, kind }) as Curriculum;
+        const wat = `${JSON.stringify(herkomst)} ${kind}`;
+        expect(cur.goals, wat).toHaveLength(3);
+        expect(cur.goals.some((g) => 'bkRefs' in g), wat).toBe(false);
+        expect(cur, wat).not.toHaveProperty('bkVersies');
+      }
+    }
+    // De methode beslist, niet het net of de soort: ook een eigen kopie, of een ander net, met die methode houdt ze.
+    for (const extra of [{ kind: 'eigen' }, { net: 'kov' }, { net: 'eigen', kind: undefined }]) {
+      const cur = sanitizeCurriculum({ ...bkRuw(), ...extra }) as Curriculum;
+      expect(cur.goals.every((g) => g.bkRefs?.length === 1), JSON.stringify(extra)).toBe(true);
+      expect(cur.bkVersies, JSON.stringify(extra)).toHaveLength(2);
+    }
+  });
+
+  it('sanitizeGoal en sanitizeGoals (AI, inlezen) laten bkRefs altijd weg', () => {
+    const doel = { code: 'A', text: 'x', bkRefs: [{ bk: 'BK-0390-2', id: 'bkc1' }] };
+    expect(sanitizeGoal(doel)).not.toHaveProperty('bkRefs');
+    expect(sanitizeGoals([doel, { ...doel, code: 'B' }]).some((g) => 'bkRefs' in g)).toBe(false);
+  });
+
+  it('is idempotent, ook na JSON', () => {
+    const een = sanitizeCurriculum(bkRuw()) as Curriculum;
+    expect(sanitizeCurriculum(een)).toStrictEqual(een);
+    expect(sanitizeCurriculum(JSON.parse(JSON.stringify(een)))).toStrictEqual(een);
+    const rommelig = sanitizeCurriculum({ ...bkRuw(), bkVersies: [{ bk: ' BK-0390-2', sha: MERK_A, alle: 'ja' }, { bk: 'BK-0390-2', sha: MERK_B }] }) as Curriculum;
+    expect(sanitizeCurriculum(rommelig)).toStrictEqual(rommelig);
+  });
+});
+
+describe('doelenVingerafdruk met bkRefs (fase 3)', () => {
+  it('zonder bkRefs, of met een lege lijst, is de JSON byte voor byte die van vóór fase 3', () => {
+    const doel: CurriculumGoal = { id: 'a', code: 'LPD 1', text: 'Tekst.', theme: 'T', refs: [{ set: 'ODS_1', id: '7', code: '01.01' }], refsBron: 'MD 1' };
+    const vroeger = sha256Hex(JSON.stringify([{ code: 'LPD 1', text: 'Tekst.', theme: 'T', refs: [{ set: 'ODS_1', id: '7', code: '01.01' }], refsBron: 'MD 1' }]));
+    expect(doelenVingerafdruk([doel])).toBe(vroeger);
+    expect(doelenVingerafdruk([{ ...doel, bkRefs: [] }])).toBe(vroeger);
+    expect(doelenVingerafdruk([{ ...doel, bkRefs: undefined }])).toBe(vroeger);
+  });
+
+  it('het formaat staat vast: bkRefs na refsBron, als {bk, id}; andere velden tellen niet', () => {
+    const doel: CurriculumGoal = { id: 'a', code: 'BK-0390-2.01', text: 't', bkRefs: [{ bk: 'BK-0390-2', id: 'bkc1' }] };
+    expect(doelenVingerafdruk([doel])).toBe(sha256Hex('[{"code":"BK-0390-2.01","text":"t","bkRefs":[{"bk":"BK-0390-2","id":"bkc1"}]}]'));
+    const refMetExtra = { bk: 'BK-0390-2', id: 'bkc1', titel: 'telt niet' };
+    const metExtra: CurriculumGoal = { ...doel, bkRefs: [refMetExtra] };
+    expect(doelenVingerafdruk([metExtra])).toBe(doelenVingerafdruk([doel]));
+
+    // De plaats van bkRefs tussen de andere velden ligt ook vast. De sleutels staan hier bewust in een andere volgorde
+    // dan in de JSON: de functie legt de volgorde op, niet het doel. De waarden zijn met node:crypto apart berekend.
+    const vol: CurriculumGoal = {
+      bkRefs: [{ id: 'bkc1', bk: 'BK-0390-2' }, { id: 'bkc2', bk: 'BK-0464-1' }],
+      refsBron: 'MD 1',
+      refs: [{ code: '01.01', id: '7', set: 'ODS_1' }],
+      note: 'Toelichting.',
+      level: 'uitbreiding',
+      theme: 'Onthaalmedewerker › Vakspecifieke competentie',
+      text: 't',
+      code: 'BK-0390-2.01',
+      id: 'a',
+    };
+    const volJson =
+      '[{"code":"BK-0390-2.01","text":"t","theme":"Onthaalmedewerker › Vakspecifieke competentie","level":"uitbreiding",' +
+      '"note":"Toelichting.","refs":[{"set":"ODS_1","id":"7","code":"01.01"}],"refsBron":"MD 1",' +
+      '"bkRefs":[{"bk":"BK-0390-2","id":"bkc1"},{"bk":"BK-0464-1","id":"bkc2"}]}]';
+    expect(sha256Hex(volJson)).toBe('24e959999d585e46c5423b7e282d8640664c00fe4b340412b4b47d3540c76b0d');
+    expect(doelenVingerafdruk([vol])).toBe(sha256Hex(volJson));
+
+    // De vorm van een echt BK-doel (§ 23.6.4): altijd een rubriek, en bkRefs erna.
+    const metThema: CurriculumGoal = { bkRefs: [{ id: 'bkc1', bk: 'BK-0390-2' }], theme: 'Onthaalmedewerker › Vakspecifieke competentie', text: 't', code: 'BK-0390-2.01', id: 'a' };
+    const themaJson = '[{"code":"BK-0390-2.01","text":"t","theme":"Onthaalmedewerker › Vakspecifieke competentie","bkRefs":[{"bk":"BK-0390-2","id":"bkc1"}]}]';
+    expect(sha256Hex(themaJson)).toBe('425985ab03c32eb7937f8dddf314d7a9a1198f3cd6fefe23d315d81ae175c7f1');
+    expect(doelenVingerafdruk([metThema])).toBe(sha256Hex(themaJson));
+  });
+
+  it('gouden vingerafdruk van een volledig BK-leerplan: verandert nooit, ook niet na bewaren, nakijken of exporteren', () => {
+    // Het nagemaakte BK-leerplan van bkRuw(), na saneren. De waarde is met node:crypto apart berekend uit deze JSON.
+    const bkJson =
+      '[{"code":"BK-0390-2.01","text":"Nagemaakte competentie één.","theme":"Onthaalmedewerker › Vakspecifieke competentie",' +
+      '"bkRefs":[{"bk":"BK-0390-2","id":"bkc0000001"}]},' +
+      '{"code":"BK-0390-2.02","text":"Nagemaakte competentie twee.","theme":"Onthaalmedewerker › Vakspecifieke competentie",' +
+      '"bkRefs":[{"bk":"BK-0390-2","id":"bkc0000002"}]},' +
+      '{"code":"BK-0464-1.01","text":"Nagemaakte competentie drie.","theme":"Recreatief medewerker",' +
+      '"bkRefs":[{"bk":"BK-0464-1","id":"bkc0000003"}]}]';
+    const GOUD_BK = '0c39c54ff5438c9ee64136dc5b08771b229a443bf4b00f4bca5d5f3b8cebe930';
+    expect(sha256Hex(bkJson)).toBe(GOUD_BK);
+    const cur = sanitizeCurriculum(bkRuw()) as Curriculum;
+    expect(doelenVingerafdruk(cur.goals)).toBe(GOUD_BK);
+    const nagekeken = bevestig(cur, { door: 'Boosterz (officiële bron)', op: 9 });
+    expect(nagekeken.controle?.doelenSha256).toBe(GOUD_BK);
+    const terug = importCurriculumJson(exportCurriculumJson(nagekeken)) as Curriculum;
+    expect(doelenVingerafdruk(terug.goals)).toBe(GOUD_BK);
+    expect(effectieveStatus(terug)).toBe('gecontroleerd');
+  });
+
+  it('een andere BK-versie, een andere competentie, een extra verwijzing of een andere volgorde geeft een andere vingerafdruk', () => {
+    const goals = (sanitizeCurriculum(bkRuw()) as Curriculum).goals;
+    const basis = doelenVingerafdruk(goals);
+    const met = (i: number, bkRefs: CurriculumGoal['bkRefs']) => goals.map((g, j) => (j === i ? { ...g, bkRefs } : g));
+    const varianten = [
+      met(0, [{ bk: 'BK-0390-3', id: 'bkc0000001' }]),
+      met(0, [{ bk: 'BK-0390-2', id: 'bkc0000009' }]),
+      met(0, [{ bk: 'BK-0390-2', id: 'bkc0000001' }, { bk: 'BK-0390-2', id: 'bkc0000002' }]),
+      met(0, undefined),
+      [goals[1], goals[0], goals[2]],
+    ];
+    const afdrukken = varianten.map((v) => doelenVingerafdruk(v));
+    for (const a of afdrukken) expect(a).not.toBe(basis);
+    expect(new Set(afdrukken).size).toBe(afdrukken.length);
+  });
+});
+
+describe('export en import (versie 2) van een BK-leerplan', () => {
+  const nagekeken = () => bevestig(sanitizeCurriculum(bkRuw()) as Curriculum, { door: 'Boosterz (officiële bron)', op: 9 });
+
+  it('houdt "Nagekeken", bkRefs en bkVersies; opnieuw exporteren geeft hetzelfde bestand', () => {
+    const cur = nagekeken();
+    expect(cur.controle?.doelenSha256).toBe(doelenVingerafdruk(cur.goals));
+    expect(cur.controle?.doelenSha256).not.toBe(doelenVingerafdruk(cur.goals.map((g) => ({ ...g, bkRefs: undefined }))));
+    const json = exportCurriculumJson(cur);
+    expect(JSON.parse(json)).toMatchObject({ app: 'boosterz', kind: 'leerplan', v: 2 });
+    const terug = importCurriculumJson(json) as Curriculum;
+    expect(terug.controle?.status).toBe('gecontroleerd');
+    expect(effectieveStatus(terug)).toBe('gecontroleerd');
+    expect(terug).toEqual(cur);
+    expect(terug.goals.map((g) => g.bkRefs)).toEqual(cur.goals.map((g) => g.bkRefs));
+    expect(terug.bkVersies).toStrictEqual(cur.bkVersies);
+    expect(exportCurriculumJson(terug)).toBe(json);
+    saveCurriculum(terug);
+    expect(effectieveStatus(getCurriculum('bk-1') as Curriculum)).toBe('gecontroleerd');
+    expect(getCurriculum('bk-1')?.goals[0].bkRefs).toEqual([{ bk: 'BK-0390-2', id: 'bkc0000001' }]);
+  });
+
+  it('een andere competentie in het bestand geeft "gewijzigd" (zonder bkRefs in de vingerafdruk faalt deze test)', () => {
+    const json = exportCurriculumJson(nagekeken());
+    const bestand = () => JSON.parse(json) as { curriculum: { goals: { bkRefs?: { bk: string; id: string }[] }[]; bkVersies?: unknown } };
+    const anderId = bestand();
+    anderId.curriculum.goals[1].bkRefs = [{ bk: 'BK-0390-2', id: 'bkc0000009' }];
+    expect(importCurriculumJson(JSON.stringify(anderId))?.controle?.status).toBe('gewijzigd');
+    const andereVersie = bestand();
+    andereVersie.curriculum.goals[2].bkRefs = [{ bk: 'BK-0464-2', id: 'bkc0000003' }];
+    expect(importCurriculumJson(JSON.stringify(andereVersie))?.controle?.status).toBe('gewijzigd');
+    const tweeRefs = bestand();
+    tweeRefs.curriculum.goals[0].bkRefs?.push({ bk: 'BK-0464-1', id: 'bkc0000003' });
+    expect(importCurriculumJson(JSON.stringify(tweeRefs))?.controle?.status).toBe('gewijzigd');
+    // Een ongeldige verwijzing valt weg bij het saneren: ook dat is een wijziging.
+    const ongeldig = bestand();
+    ongeldig.curriculum.goals[0].bkRefs = [{ bk: 'BK-0390-2', id: 'a b' }];
+    const terug = importCurriculumJson(JSON.stringify(ongeldig)) as Curriculum;
+    expect(terug.goals[0]).not.toHaveProperty('bkRefs');
+    expect(terug.controle?.status).toBe('gewijzigd');
+  });
+
+  it('N7: een BK-leerplan dat een oudere app zonder bkRefs bewaarde, is "gewijzigd"', () => {
+    const json = exportCurriculumJson(nagekeken());
+    // Een oudere app kent het veld niet en laat het weg.
+    const zonderRefs = JSON.parse(json) as { curriculum: { goals: Record<string, unknown>[]; herkomst?: unknown } };
+    for (const g of zonderRefs.curriculum.goals) delete g.bkRefs;
+    const terug = importCurriculumJson(JSON.stringify(zonderRefs)) as Curriculum;
+    expect(terug.controle?.status).toBe('gewijzigd');
+    expect(effectieveStatus(terug)).toBe('gewijzigd');
+    // Een oudere app kent ook de methode niet en laat de herkomst weg: dan vallen de bkRefs hier ook weg.
+    const zonderHerkomst = JSON.parse(json) as { curriculum: Record<string, unknown> };
+    delete zonderHerkomst.curriculum.herkomst;
+    const terug2 = importCurriculumJson(JSON.stringify(zonderHerkomst)) as Curriculum;
+    expect(terug2.goals.some((g) => 'bkRefs' in g)).toBe(false);
+    expect(terug2).not.toHaveProperty('bkVersies');
+    expect(terug2.controle?.status).toBe('gewijzigd');
+    // Wie de methode in het bestand verandert, verliest de verwijzingen en het nakijken.
+    const andereMethode = JSON.parse(json) as { curriculum: { herkomst: { methode: string } } };
+    andereMethode.curriculum.herkomst.methode = 'pdf';
+    expect(importCurriculumJson(JSON.stringify(andereMethode))?.controle?.status).toBe('gewijzigd');
+  });
+
+  it('bkVersies wijzigen, inkorten of weghalen laat het leerplan nagekeken: ze tellen niet mee in de vingerafdruk', () => {
+    const json = exportCurriculumJson(nagekeken());
+    const ander = JSON.parse(json) as { curriculum: Record<string, unknown> };
+    ander.curriculum.bkVersies = [{ bk: 'BK-0390-2', sha: MERK_B }];
+    const terug = importCurriculumJson(JSON.stringify(ander)) as Curriculum;
+    expect(terug.controle?.status).toBe('gecontroleerd');
+    expect(terug.bkVersies).toStrictEqual([{ bk: 'BK-0390-2', sha: MERK_B }]);
+    ander.curriculum.bkVersies = [{ bk: 'BK-0390-2', sha: 'GEEN-HEX' }];
+    const zonder = importCurriculumJson(JSON.stringify(ander)) as Curriculum;
+    expect(zonder.controle?.status).toBe('gecontroleerd');
+    expect(zonder).not.toHaveProperty('bkVersies');
+    expect(bewaakControle({ ...nagekeken(), bkVersies: undefined }).controle?.status).toBe('gecontroleerd');
+  });
+
+  it('bkRefs op een leerplan van een net vallen weg; was het nagekeken met die verwijzingen, dan wordt het "gewijzigd"', () => {
+    const net = sanitizeCurriculum(v2Ruw()) as Curriculum;
+    const goals = net.goals.map((g, i) => ({ ...g, bkRefs: [{ bk: 'BK-0390-2', id: `bkc${i}` }] }));
+    const metRefs: Curriculum = { ...net, goals, controle: { status: 'gecontroleerd', door: 'An', doelenSha256: doelenVingerafdruk(goals) } };
+    expect(bewaakControle(metRefs)).toBe(metRefs);
+    const terug = importCurriculumJson(exportCurriculumJson(metRefs)) as Curriculum;
+    expect(terug.goals.some((g) => 'bkRefs' in g)).toBe(false);
+    expect(terug.controle?.status).toBe('gewijzigd');
+  });
+
+  it('bkRefs en bkVersies in het bestand van een nagekeken netleerplan vallen weg en veranderen niets', () => {
+    const cur = bevestig(sanitizeCurriculum(v2Ruw()) as Curriculum, { door: 'An', op: 5 });
+    const json = exportCurriculumJson(cur);
+    const gewoon = importCurriculumJson(json) as Curriculum;
+    const geknoeid = JSON.parse(json) as { curriculum: { goals: Record<string, unknown>[]; bkVersies?: unknown } };
+    for (const g of geknoeid.curriculum.goals) g.bkRefs = [{ bk: 'BK-0390-2', id: 'bkc1' }];
+    geknoeid.curriculum.bkVersies = [{ bk: 'BK-0390-2', sha: MERK_A }];
+    const terug = importCurriculumJson(JSON.stringify(geknoeid)) as Curriculum;
+    expect(terug).toStrictEqual(gewoon);
+    expect(terug.controle?.status).toBe('gecontroleerd');
+    expect(exportCurriculumJson(terug)).toBe(json);
+  });
+
+  it('bevestigLeerplan saneert een BK-leerplan zoals een import: de vingerafdruk is die van wat bewaard wordt', () => {
+    const ruw = { ...bkRuw(), goals: [{ id: 'c1', code: 'bk-0390-2.01', text: 'Nagemaakte  competentie.', bkRefs: [{ bk: ' BK-0390-2', id: ' bkc0000001 ', x: 1 }] }] } as unknown as Curriculum;
+    const b = bevestigLeerplan(ruw, { door: 'An', rapport: geslaagd(ruw) });
+    expect(b.goals[0]).toMatchObject({ code: 'BK-0390-2.01', text: 'Nagemaakte competentie.', bkRefs: [{ bk: 'BK-0390-2', id: 'bkc0000001' }] });
+    expect(importCurriculumJson(exportCurriculumJson(b))?.controle?.status).toBe('gecontroleerd');
+  });
+});
+
+describe('maakEigenKopie van een BK-leerplan', () => {
+  it('houdt bkRefs (een echte kopie), bkVersies en de methode; niet nagekeken; overleeft export en import', () => {
+    const cur = bevestig(sanitizeCurriculum(bkRuw()) as Curriculum, { door: 'An' });
+    const kopie = maakEigenKopie(cur);
+    expect(kopie.kind).toBe('eigen');
+    expect(kopie).not.toHaveProperty('controle');
+    expect(kopie.herkomst?.methode).toBe('beroepskwalificatie');
+    expect(kopie.goals.map((g) => g.bkRefs)).toEqual(cur.goals.map((g) => g.bkRefs));
+    expect(kopie.goals[0].bkRefs).not.toBe(cur.goals[0].bkRefs);
+    expect(kopie.goals[0].bkRefs?.[0]).not.toBe(cur.goals[0].bkRefs?.[0]);
+    expect(kopie.bkVersies).toEqual(cur.bkVersies);
+    expect(kopie.bkVersies).not.toBe(cur.bkVersies);
+    expect(doelenVingerafdruk(kopie.goals)).toBe(doelenVingerafdruk(cur.goals));
+    const terug = importCurriculumJson(exportCurriculumJson(kopie)) as Curriculum;
+    expect(terug.goals.map((g) => g.bkRefs)).toEqual(cur.goals.map((g) => g.bkRefs));
+    expect(terug.bkVersies).toEqual(cur.bkVersies);
+    expect(effectieveStatus(terug)).toBe('niet-gecontroleerd');
   });
 });
