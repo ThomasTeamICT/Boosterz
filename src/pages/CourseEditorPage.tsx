@@ -508,6 +508,7 @@ export function CourseEditorPage() {
             widgets={widgets}
             onFillGaps={() => { setGoalsOpen(false); setAiModal({ mode: 'optimize', preset: 'hiaten' }); }}
             onOpenSettings={() => { setGoalsOpen(false); setSettingsOpen(true); }}
+            onEdit={edit}
           />
         </Modal>
       )}

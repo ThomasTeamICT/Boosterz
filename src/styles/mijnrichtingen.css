@@ -1,0 +1,36 @@
+/* ── Mijn richtingen (/cursussen/richtingen) ─────────────────────────────── */
+/*
+ * Het blok bovenaan de lijst met studierichtingen en de dekkingsregel (DekkingKort), die ook in het klasoverzicht staat.
+ * Voorvoegsel mr-. Alleen tokens uit global.css; nooit witte tekst op --brand (gebruik --brand-fill). Een status staat altijd
+ * in tekst. Op 390 px één kolom, lange titels breken af en niets scrolt horizontaal. Tikdoelen zijn 44 px.
+ * De dekkingsregel staat ook buiten .ri-page (in de klas): niets hier hangt aan die klasse.
+ */
+
+.mr { margin: 0 0 22px; min-width: 0; }
+.mr h2 { margin: 0 0 4px; font-size: 1.2rem; }
+.mr-hint { margin: 0 0 8px; color: var(--text-soft); font-size: 0.88rem; max-width: 72ch; overflow-wrap: break-word; }
+
+.mr-lijst { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.mr-rij {
+  min-width: 0; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.mr-rij:hover { border-color: var(--line-strong); box-shadow: var(--shadow-1); }
+
+/* De titel met de meta eronder: een link naar de richting, of gewone tekst als de richting niet meer bestaat. */
+.mr-kop { display: grid; gap: 2px; box-sizing: border-box; min-height: 44px; padding: 10px 14px; color: var(--text); }
+.mr-link { text-decoration: none; border-radius: var(--radius-m); }
+.mr-titel { font-family: var(--font-display); font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.mr-link:hover .mr-titel { text-decoration: underline; }
+.mr-meta { font-size: 0.86rem; line-height: 1.4; color: var(--text-soft); overflow-wrap: break-word; }
+
+/* De dekking onder de kop: één regel tekst, met zo nodig een knop "Opnieuw proberen". */
+.mr-kaart { display: grid; justify-items: start; gap: 6px; min-width: 0; padding: 0 14px 12px; }
+.mr-tekst { margin: 0; max-width: 72ch; font-size: 0.92rem; line-height: 1.45; color: var(--text); overflow-wrap: break-word; }
+.mr-tekst:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+
+/* In de klas staat de regel buiten een kaart met rand: dan zonder inspringing. */
+.mr-kaart-vrij { padding: 0; }
+
+@media (max-width: 640px) {
+  .mr-opnieuw { min-height: 44px; }
+}

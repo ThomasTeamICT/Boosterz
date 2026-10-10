@@ -1,33 +1,43 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState, type ComponentType } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ArrowRight, Calendar, Clock, ClipboardCheck, ClipboardList, FileText, Globe, Inbox, Puzzle, School, Search,
 } from 'lucide-react';
 import type { Assignment, ClassGroup, ClassStudent } from '../lib/classTypes';
 import type { Course } from '../lib/courseTypes';
+import type { Curriculum } from '../lib/curriculumTypes';
 import type { Widget } from '../lib/types';
 import {
   applyStudentList, assignmentsForClass, deleteAssignment, dueBadge, duplicateNames, getClass,
   goalScoresForStudent, loadClassContext, saveClass, sortedStudents, statusForAssignment,
-  submissionsFor, upsertAssignment, type AssignmentStatus, type ClassDataContext,
+  submissionsFor, upsertAssignment, zetKlasRichting, type AssignmentStatus, type ClassDataContext,
 } from '../lib/classes';
 import { classPackFileName, classPackToJson, encodeClassPackToUrl, QR_MAX_CHARS } from '../lib/classPack';
 import { getCourses } from '../lib/courses';
 import { getWidgets, onStorageChange } from '../lib/storage';
-import { goalLabel } from '../lib/curriculum';
+import { getCurricula, goalLabel } from '../lib/curriculum';
 import { awaitsGrading, goalScoreKey } from '../lib/goals';
 import { getTypeDef } from '../widgets/registry';
 import { downloadFile, formatDate, formatDateShort, uid } from '../lib/utils';
+import { doelgroepTekst, doelgroepVoorKlas, type Doelgroep } from '../lib/doelgroep';
+import { cursussenVoorToewijzen } from '../lib/doelgroepGebruik';
+import {
+  ANDERE_CURSUSSEN, CURSUSSEN_BOVENAAN_HINT, CURSUSSEN_LADEN, FOUT_CURSUSSEN_LADEN, KIES_RICHTING_KNOP, KIEZER_LADEN_MISLUKT,
+  KIEZER_TITEL, KLAS_RICHTING_KOP, KLAS_RICHTING_UITLEG, cursussenVoorLabel, foutVoorUitslag, richtingGekozenTekst, richtingWeggehaaldTekst,
+} from '../lib/klasRichtingWeergave';
 import { CodeQr } from '../components/CodeQr';
+import type { KlasRichtingProps } from '../components/klas/KlasRichting';
+import type { RichtingKiezerModalProps } from '../components/richting/RichtingKiezerModal';
 import { ConfirmModal, CopyButton, EmptyState, Field, Modal, useToast } from '../components/ui';
 import {
   AddIcon, AssignIcon, BackIcon, CheckIcon, CourseIcon, DeleteIcon, EditIcon, ExportIcon,
-  GoalIcon, LinkIcon, PrivacyIcon, StudentIcon, WarningIcon,
+  GoalIcon, LinkIcon, PrivacyIcon, RichtingIcon, StudentIcon, WarningIcon,
 } from '../components/icons';
 import {
   duplicateStudentIds, duplicateStudentNames, duplicatesInClassMessage, goalScoreView,
   klasCsv, nameTaken, nameTakenMessage, pastedDuplicatesMessage, statusSummaryProvisional, toDateInputValue,
 } from './klasWeergave';
+import '../styles/klasrichting.css';
 import '../styles/opvolgen.css';
 
 /** Leerlinglink van een klas (de hub waar de leerling zijn opdrachten ziet). */
@@ -71,6 +81,14 @@ export function ClassDashboardPage() {
   const students = useMemo(() => (cls ? sortedStudents(cls.students) : []), [cls]);
   const dubbeleNamen = useMemo(() => duplicateStudentNames(students), [students]);
 
+  // De cursussen voor de studierichting van de klas (sectie Studierichting): alleen lezen als de klas een richting heeft.
+  const heeftRichting = cls?.doelgroep !== undefined;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const courses = useMemo<Course[]>(() => (heeftRichting ? getCourses() : []), [heeftRichting, tick]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const curricula = useMemo(() => (heeftRichting ? getCurricula() : []), [heeftRichting, tick]);
+  const inKlas = useMemo(() => new Set(assignments.filter((a) => a.kind === 'course').map((a) => a.targetId)), [assignments]);
+
   const statuses = useMemo(() => {
     const map = new Map<string, AssignmentStatus>();
     for (const s of students) {
@@ -80,7 +98,12 @@ export function ClassDashboardPage() {
   }, [students, assignments, ctx]);
 
   const [shareOpen, setShareOpen] = useState(false);
-  const [newAssignment, setNewAssignment] = useState(false);
+  // `voorgekozen`: de cursus die "Toewijzen" in de sectie Studierichting al koos (anders opent het venster leeg).
+  const [newAssignment, setNewAssignment] = useState<{ voorgekozen?: string } | null>(null);
+  // Na een toewijzing vanuit de sectie Studierichting verdwijnt de knop "Toewijzen": dan krijgt de titel van de cursus de focus.
+  const [focusCursus, setFocusCursus] = useState<{ id: string } | null>(null);
+  // Een andere klas (de route verandert, de pagina niet): geen oude focusvraag meenemen.
+  useEffect(() => setFocusCursus(null), [id]);
   const [editList, setEditList] = useState(false);
   const [deleteAssignmentTarget, setDeleteAssignmentTarget] = useState<Assignment | null>(null);
 
@@ -159,7 +182,7 @@ export function ClassDashboardPage() {
           <h2 style={{ margin: 0, fontSize: '1.05rem', flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
             <ClipboardList size={20} /> Opdrachten
           </h2>
-          <button className="btn btn-sm btn-primary" onClick={() => setNewAssignment(true)}><AddIcon size={16} /> Opdracht toevoegen</button>
+          <button className="btn btn-sm btn-primary" onClick={() => setNewAssignment({})}><AddIcon size={16} /> Opdracht toevoegen</button>
         </div>
         {assignments.length === 0 ? (
           <p className="hint" style={{ marginBottom: 0 }}>
@@ -208,6 +231,19 @@ export function ClassDashboardPage() {
           </ul>
         )}
       </section>
+
+      {/* ── Studierichting ───────────────────────────────────────────────── */}
+      {/* `key`: een andere klas (de route verandert, de pagina niet) begint met een schone sectie, zonder de melding van de vorige. */}
+      <StudierichtingSectie
+        key={cls.id}
+        cls={cls}
+        courses={courses}
+        curricula={curricula}
+        inKlas={inKlas}
+        focusCursus={focusCursus}
+        onToewijzen={(course) => setNewAssignment({ voorgekozen: course.id })}
+        onBewaard={() => { setFocusCursus(null); setTick((t) => t + 1); }}
+      />
 
       {/* ── Nog te verbeteren ────────────────────────────────────────────── */}
       {teVerbeteren.length > 0 && (
@@ -311,10 +347,13 @@ export function ClassDashboardPage() {
         <NewAssignmentModal
           cls={cls}
           existing={assignments}
-          onClose={() => setNewAssignment(false)}
-          onSaved={(created) => {
+          voorgekozen={newAssignment.voorgekozen}
+          onClose={() => setNewAssignment(null)}
+          onSaved={(created, kind, targetId) => {
             toast(created ? 'Opdracht toegevoegd' : 'Opdracht bijgewerkt', 'ok');
             setTick((t) => t + 1);
+            // De knop "Toewijzen" waar de leerkracht vandaan kwam, is nu een badge: de focus gaat naar de titel van de cursus.
+            if (kind === 'course' && newAssignment.voorgekozen === targetId) setFocusCursus({ id: targetId });
           }}
         />
       )}
@@ -342,6 +381,107 @@ export function ClassDashboardPage() {
         />
       )}
     </div>
+  );
+}
+
+// ── Studierichting van de klas ──────────────────────────────────────────────
+
+/**
+ * De studierichting (en het jaar) van de klas (docs/STUDIERICHTINGEN.md § 22.6). Met een richting staan hier de cursussen van
+ * die richting en, op vraag, wat ze dekken (`KlasRichting`). Het venster om een richting te kiezen wordt pas geladen als je
+ * erom vraagt, zodat het klasoverzicht klein blijft; lukt het laden niet (offline), dan blijft de klas gewoon werken.
+ * Bewaren gebeurt alleen met `zetKlasRichting`: die leest de klas opnieuw en wijzigt alleen dit veld, en elke mislukking
+ * krijgt hier een melding.
+ */
+function StudierichtingSectie({
+  cls, courses, curricula, inKlas, focusCursus, onToewijzen, onBewaard,
+}: {
+  cls: ClassGroup;
+  courses: Course[];
+  curricula: Curriculum[];
+  inKlas: ReadonlySet<string>;
+  focusCursus: { id: string } | null;
+  onToewijzen: (course: Course) => void;
+  /** De klas is veranderd in de opslag: het klasoverzicht leest ze opnieuw. */
+  onBewaard: () => void;
+}) {
+  const toast = useToast();
+  const kopId = useId();
+  const dg = cls.doelgroep;
+  const [Kiezer, setKiezer] = useState<ComponentType<RichtingKiezerModalProps> | null>(null);
+  const [open, setOpen] = useState(false);
+  const [laadt, setLaadt] = useState(false);
+  const [fout, setFout] = useState('');
+  const kiesRef = useRef<HTMLButtonElement>(null);
+
+  // De cursussen van de richting (en de dekking erachter) staan in een eigen chunk, zodat het klasoverzicht klein blijft: ze
+  // worden pas geladen als de klas een richting heeft. Lukt dat niet (offline), dan zegt de sectie het en werkt de klas verder.
+  const [KlasRichting, setKlasRichting] = useState<ComponentType<KlasRichtingProps> | null>(null);
+  const [cursussenMislukt, setCursussenMislukt] = useState(false);
+  useEffect(() => {
+    if (!dg || KlasRichting) return;
+    import('../components/klas/KlasRichting').then((m) => setKlasRichting(() => m.KlasRichting), () => setCursussenMislukt(true));
+  }, [dg, KlasRichting]);
+
+  const openKiezer = () => {
+    if (laadt) return;
+    // Een nieuwe poging: de melding van de vorige mislukking hoort er niet meer bij.
+    setFout('');
+    if (Kiezer) { setOpen(true); return; }
+    setLaadt(true);
+    import('../components/richting/RichtingKiezerModal').then(
+      (m) => { setKiezer(() => m.RichtingKiezerModal); setLaadt(false); setOpen(true); },
+      () => { setLaadt(false); toast(KIEZER_LADEN_MISLUKT, 'err'); },
+    );
+  };
+
+  /** Bewaart de richting (of wist ze). Een mislukking sluit het venster en zegt wat er mis is: er is dan niets veranderd. */
+  const bewaar = (d: Doelgroep | undefined) => {
+    const uitslag = zetKlasRichting(cls.id, d);
+    if (uitslag !== 'ok') {
+      setFout(foutVoorUitslag(uitslag));
+      return;
+    }
+    setFout('');
+    const nieuw = d === undefined ? undefined : doelgroepVoorKlas(d);
+    toast(nieuw ? richtingGekozenTekst(cls.name, nieuw) : richtingWeggehaaldTekst(cls.name), 'ok');
+    onBewaard();
+    // De knop waar de focus stond, is nu een andere ("Kies een studierichting" wordt "Wijzig" en omgekeerd): de focus volgt.
+    setTimeout(() => kiesRef.current?.focus(), 0);
+  };
+
+  return (
+    <section className="card card-pad kr-sectie" aria-labelledby={kopId}>
+      <h2 id={kopId} className="kr-kop"><RichtingIcon size={20} /> {KLAS_RICHTING_KOP}</h2>
+
+      {fout && (
+        <div className="callout err kr-melding" role="alert">
+          <span aria-hidden><WarningIcon size={18} /></span>
+          <div>{fout}</div>
+        </div>
+      )}
+
+      {dg ? <p className="kr-waarde"><strong>{doelgroepTekst(dg)}</strong></p> : <p className="kr-uitleg">{KLAS_RICHTING_UITLEG}</p>}
+      <div className="kr-instelling-knoppen">
+        {/* Eén knop voor "Kies een studierichting" en "Wijzig": ze behoudt de focus als de richting wisselt. */}
+        <button ref={kiesRef} type="button" className={`btn btn-sm ${dg ? 'btn-ghost' : 'btn-primary'}`} onClick={openKiezer} aria-busy={laadt || undefined}>
+          {dg ? <>Wijzig<span className="sr-only"> de studierichting</span></> : KIES_RICHTING_KNOP}
+        </button>
+        {dg && <button type="button" className="btn btn-sm btn-quiet" onClick={() => bewaar(undefined)}>Geen richting</button>}
+      </div>
+      {dg && (KlasRichting
+        ? <KlasRichting doelgroep={dg} courses={courses} curricula={curricula} inKlas={inKlas} onToewijzen={onToewijzen} focusCursus={focusCursus} />
+        : <p className="kr-bezig" role={cursussenMislukt ? 'alert' : 'status'}>{cursussenMislukt ? FOUT_CURSUSSEN_LADEN : CURSUSSEN_LADEN}</p>)}
+
+      {open && Kiezer && (
+        <Kiezer
+          titel={KIEZER_TITEL}
+          huidig={dg}
+          onKies={(d) => { setOpen(false); bewaar(d); }}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </section>
   );
 }
 
@@ -555,20 +695,28 @@ function ClassShareModal({
 // ── Opdracht toevoegen ──────────────────────────────────────────────────────
 
 function NewAssignmentModal({
-  cls, existing, onClose, onSaved,
+  cls, existing, voorgekozen, onClose, onSaved,
 }: {
   cls: ClassGroup;
   existing: Assignment[];
+  /** De cursus die al gekozen staat ("Toewijzen" in de sectie Studierichting). Anders staat er niets vooraf gekozen. */
+  voorgekozen?: string;
   onClose: () => void;
-  onSaved: (created: boolean) => void;
+  onSaved: (created: boolean, kind: 'course' | 'widget', targetId: string) => void;
 }) {
   const courses = useMemo<Course[]>(() => getCourses(), []);
+  // Heeft de klas een studierichting, dan staan de cursussen voor die richting bovenaan (twee groepen in de keuzelijst).
+  const groepen = useMemo(() => {
+    if (!cls.doelgroep) return null;
+    const { passend, andere } = cursussenVoorToewijzen(courses, getCurricula(), cls.doelgroep);
+    return passend.length > 0 ? { label: cursussenVoorLabel(cls.doelgroep), passend, andere } : null;
+  }, [courses, cls.doelgroep]);
   const widgets = useMemo<Widget[]>(
     () => getWidgets().filter((w) => getTypeDef(w.type).hasSubmissions),
     []
   );
   const [kind, setKind] = useState<'course' | 'widget'>(courses.length > 0 ? 'course' : 'widget');
-  const [targetId, setTargetId] = useState('');
+  const [targetId, setTargetId] = useState(() => (voorgekozen && courses.some((c) => c.id === voorgekozen) ? voorgekozen : ''));
   const [due, setDue] = useState('');
   const [note, setNote] = useState('');
   // Zijn deadline en instructie overgenomen van een bestaande opdracht? Dan
@@ -577,6 +725,11 @@ function NewAssignmentModal({
   const overgenomen = useRef(false);
 
   const alReeds = (id: string) => existing.some((a) => a.kind === kind && a.targetId === id);
+  const cursusOptie = (c: Course) => (
+    <option key={c.id} value={c.id}>
+      {c.coverEmoji} {c.title}{alReeds(c.id) ? ' (staat er al, wordt bijgewerkt)' : ''}
+    </option>
+  );
 
   // Bij een wissel van cursus of oefening de deadline en instructie van de
   // bestaande opdracht tonen: "bijwerken" overschrijft ze, en leeg laten zou
@@ -608,7 +761,7 @@ function NewAssignmentModal({
       dueAt: Number.isFinite(dueAt) ? dueAt : null,
       note,
     });
-    onSaved(created);
+    onSaved(created, kind, targetId);
     onClose();
   };
 
@@ -638,14 +791,15 @@ function NewAssignmentModal({
         courses.length === 0 ? (
           <p className="hint">Je hebt nog geen cursussen. Maak er eerst een bij <strong>Cursussen</strong>.</p>
         ) : (
-          <Field label="Cursus">
+          <Field label="Cursus" hint={groepen ? CURSUSSEN_BOVENAAN_HINT : undefined}>
             <select className="select" value={targetId} onChange={(e) => setTargetId(e.target.value)}>
               <option value="">— kies een cursus —</option>
-              {courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.coverEmoji} {c.title}{alReeds(c.id) ? ' (staat er al, wordt bijgewerkt)' : ''}
-                </option>
-              ))}
+              {groepen ? (
+                <>
+                  <optgroup label={groepen.label}>{groepen.passend.map(cursusOptie)}</optgroup>
+                  {groepen.andere.length > 0 && <optgroup label={ANDERE_CURSUSSEN}>{groepen.andere.map(cursusOptie)}</optgroup>}
+                </>
+              ) : courses.map(cursusOptie)}
             </select>
           </Field>
         )

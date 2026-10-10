@@ -8,6 +8,7 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { BackIcon, InfoIcon } from '../icons';
 import { Field } from '../ui';
 import { FoutBericht, LaadBericht } from '../curriculum/LaadStatus';
+import { MijnRichtingen } from './MijnRichtingen';
 import { graadTekst } from '../../lib/doelgroep';
 import { datumLeesbaar } from '../../lib/minimumdoelenBron';
 import { FINALITEIT_LABEL, filterRichtingen, kenmerkenVan, type RichtingFilter, type RichtingInfo } from '../../lib/richtingKader';
@@ -204,6 +205,8 @@ export function RichtingLijst({ stand, opnieuw, vandaag }: RichtingPaginaProps) 
           </p>
         </div>
       </div>
+
+      <MijnRichtingen stand={stand} vandaag={vandaag} lijstZoek={search} />
 
       <details className="callout mat-details ri-hoe">
         <summary>

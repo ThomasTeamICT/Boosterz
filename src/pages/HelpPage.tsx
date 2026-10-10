@@ -167,6 +167,14 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
     a: 'Ja. Onderaan de pagina van een studierichting zie je per minimumdoel welke cursus het dekt, wat al gepland staat en wat nog ontbreekt. Een cursus telt mee als je er een richting aan koppelt en als zijn leerplan naar de minimumdoelen verwijst.',
   },
   {
+    q: 'Hoe plan ik wat mijn cursussen nog niet dekken?',
+    a: 'Open je studierichting bij Cursussen, ‘Voor een studierichting’. Onderaan, bij ‘Wat je cursussen samen dekken’, kies je ‘Plan de … doelen die nog nergens aan bod komen’. Je zet ze in een nieuwe cursus of in een cursus die je al hebt. Ze komen er als lege secties met de doelcodes op; daarna werk je ze zelf uit. Een AI-sleutel heb je daarvoor niet nodig.',
+  },
+  {
+    q: 'Kan ik een klas aan een studierichting koppelen?',
+    a: 'Ja. Open de klas en kies bij ‘Studierichting’ de richting en het jaar. Je ziet dan de cursussen van die richting, en bij ‘Opdracht toevoegen’ staan die cursussen bovenaan.',
+  },
+  {
     q: 'Ik heb al cursusmateriaal in Word of pdf. Hoe krijg ik dat erin?',
     a: 'Ga naar Importeren (ook via de knop op de widgetpagina): sleep je .docx, pdf, markdown of tekst erin. Je ziet de tekst en kiest wat je ermee doet: een cursus laten bouwen met AI (optioneel gekoppeld aan een leerplan), oefeningen laten maken in de AI-studio, of zonder AI omzetten naar een cursus waarbij koppen hoofdstukken en secties worden. Daarna pas je alles aan in de editor en kan je het met de optimaliseer-knop vereenvoudigen, differentiëren of controlevragen laten toevoegen.',
   },

@@ -1,0 +1,147 @@
+/* ── Gaten dichten ─────────────────────────────────────────────────────────── */
+/*
+ * De knop "Plan de … doelen die nog nergens aan bod komen" op de richtingpagina, het venster "Plan wat nog nergens aan bod
+ * komt" en het paneel "Plan in deze cursus" in de cursuseditor (docs/STUDIERICHTINGEN.md § 22.4.7). Voorvoegsel gt-. Alleen
+ * tokens uit global.css; nooit witte tekst op --brand (gebruik --brand-fill). Het venster rendert via een portal buiten de
+ * pagina, dus niets hier hangt aan .ri-page. Op 390 px staat alles in één kolom, breekt lange woorden af en scrolt niets
+ * horizontaal; tikdoelen zijn vanaf 640 px en smaller 44 px hoog.
+ */
+
+/* ── De knop op de richtingpagina ──────────────────────────────────────── */
+
+.gt-plan { margin: 16px 0 4px; display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.gt-plan-knop { min-height: 44px; max-width: 100%; text-align: left; white-space: normal; }
+.gt-plan-knop > svg { flex: none; }
+.gt-geen { margin: 14px 0 0; color: var(--text-soft); max-width: 72ch; overflow-wrap: break-word; }
+.gt-melding { align-items: flex-start; margin: 0 0 14px; }
+.gt-melding > svg { flex: none; margin-top: 2px; }
+.gt-melding > div { min-width: 0; }
+.gt-melding p { margin: 0; min-width: 0; overflow-wrap: break-word; }
+.gt-melding-tekst { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.gt-melding:focus { outline: none; }
+.gt-melding:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+
+/* ── Het venster ───────────────────────────────────────────────────────── */
+
+.gt { min-width: 0; }
+.gt a { overflow-wrap: anywhere; }
+.gt-intro { margin: 0 0 10px; color: var(--text-soft); max-width: 72ch; overflow-wrap: break-word; }
+.gt-hint { margin: 0 0 8px; color: var(--text-soft); font-size: 0.92rem; max-width: 72ch; overflow-wrap: break-word; }
+
+.gt-groep { border: 0; margin: 16px 0 0; padding: 0; min-width: 0; }
+.gt-groep > legend { padding: 0; margin-bottom: 4px; font-family: var(--font-display); font-weight: 700; font-size: 1.02rem; }
+.gt-uitleg { margin: 0 0 6px; color: var(--text-soft); font-size: 0.9rem; max-width: 72ch; overflow-wrap: break-word; }
+
+/* De sets met een vakje en een uitklapper met hun doelen */
+.gt-setlijst { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.gt-set { min-width: 0; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised); }
+.gt-set:has(.gt-vak input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.gt-vak {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 10px 12px; cursor: pointer;
+  font-family: var(--font-display); font-weight: 700; line-height: 1.4; overflow-wrap: break-word; hyphens: auto;
+}
+.gt-vak input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--brand-fill); cursor: pointer; }
+.gt-vak > span { min-width: 0; }
+.gt-vak:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: var(--radius-m); }
+.gt-details { padding: 0 12px 4px 44px; min-width: 0; }
+.gt-details > summary {
+  display: flex; align-items: center; min-height: 40px; cursor: pointer; font-weight: 600; color: var(--text-soft); list-style: none;
+}
+.gt-details > summary::-webkit-details-marker { display: none; }
+.gt-details > summary::before {
+  content: ''; flex: none; width: 8px; height: 8px; margin-right: 10px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform 0.15s;
+}
+.gt-details[open] > summary::before { transform: rotate(45deg); }
+.gt-details > summary:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: var(--radius-s); }
+.gt-doelen { list-style: none; margin: 0 0 8px; padding: 0; }
+.gt-doel { padding: 7px 0; border-top: 1px solid var(--line); font-size: 0.92rem; line-height: 1.45; overflow-wrap: anywhere; }
+.gt-doel:first-child { border-top: 0; }
+.gt-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 700; }
+
+/* Eén set: geen vakje, alleen een regel */
+.gt-eenset { margin: 6px 0 0; font-family: var(--font-display); font-weight: 700; overflow-wrap: break-word; }
+
+.gt-teller { margin: 8px 0 0; min-height: 1.4em; font-weight: 700; color: var(--text-soft); font-size: 0.92rem; overflow-wrap: break-word; }
+
+/* Waar komen ze? */
+.gt-keuze { margin: 8px 0 0; border: 1.5px solid var(--line-strong); border-radius: var(--radius-m); background: var(--bg-raised); }
+.gt-keuze:has(> .gt-keuze-rij input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.gt-keuze-rij { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 12px 14px; cursor: pointer; }
+.gt-keuze-rij input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--brand-fill); cursor: pointer; }
+.gt-keuze-rij:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: var(--radius-m); }
+.gt-keuze-titel { font-family: var(--font-display); font-weight: 700; min-width: 0; overflow-wrap: break-word; }
+.gt-keuze-zin { margin: -6px 14px 12px 46px; color: var(--text-soft); font-size: 0.88rem; max-width: 72ch; overflow-wrap: break-word; }
+.gt-keuze-inhoud { padding: 0 14px 12px 46px; min-width: 0; }
+.gt-keuze-inhoud .field { margin-bottom: 4px; }
+/* Een keuze die nog niet kan (aria-disabled): zichtbaar anders, met de uitleg eronder. */
+.gt-keuze-rij:has(input[aria-disabled='true']) { cursor: not-allowed; color: var(--text-soft); }
+.gt-keuze-rij input[aria-disabled='true'] { cursor: not-allowed; }
+
+/* Welke cursus? */
+.gt-cursussen { border: 0; margin: 4px 0 0; padding: 0; min-width: 0; }
+.gt-cursussen > legend { padding: 0; margin-bottom: 6px; font-weight: 700; }
+.gt-cursuslijst { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.gt-cursus {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 10px 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.gt-cursus:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.gt-cursus:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; }
+.gt-cursus input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--brand-fill); cursor: pointer; }
+.gt-cursus-tekst { display: grid; gap: 2px; min-width: 0; }
+.gt-cursus-titel { font-family: var(--font-display); font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.gt-cursus-meta { font-size: 0.85rem; color: var(--text-soft); overflow-wrap: break-word; }
+.gt-zonder { margin: 8px 0 0; color: var(--text-soft); font-size: 0.9rem; overflow-wrap: break-word; }
+.gt-voorbeeld { margin: 10px 0 0; min-height: 1.4em; overflow-wrap: break-word; max-width: 72ch; }
+.gt-voorbeeld p { margin: 0 0 4px; }
+.gt-link { display: inline-flex; align-items: center; min-height: 32px; font-weight: 700; }
+
+/* Voet van het venster: wat er nog nodig is, boven de knoppen */
+.gt-voet { flex: 1 1 auto; min-width: 0; display: grid; gap: 8px; justify-items: end; }
+.gt-nodig { margin: 0; color: var(--text-soft); font-size: 0.92rem; text-align: right; overflow-wrap: break-word; }
+.gt-knoppen { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.gt-knop { min-height: 44px; }
+/*
+ * Een knop die nog niet kan blijft klikbaar en leesbaar (aria-disabled): een gestippelde rand en een zachte achtergrond,
+ * met tekst van minstens 4,5 : 1. Geen opacity: die maakt de tekst bleek.
+ */
+.gt-knop[aria-disabled='true'],
+.gt-knop[aria-disabled='true']:hover {
+  background: var(--bg-sunken); color: var(--text-soft); border: 2px dashed var(--text-soft); padding: 8px 15px; cursor: not-allowed;
+}
+.gt-knop[aria-disabled='true']:active { transform: none; }
+
+/* ── Het paneel "Plan in deze cursus" in de cursuseditor ───────────────── */
+
+.gt-editor { margin: 14px 0 6px; min-width: 0; }
+.gt-editor-regel { margin: 0 0 8px; max-width: 72ch; overflow-wrap: break-word; }
+.gt-editor-knop { min-height: 40px; }
+.gt-paneel {
+  margin: 10px 0 6px; padding: 14px; min-width: 0; border: 1.5px solid var(--brand); border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.gt-paneel:focus { outline: none; }
+.gt-paneel:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.gt-paneel > h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.gt-paneel-knoppen { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 14px; }
+.gt-paneel-nodig { margin: 10px 0 0; color: var(--text-soft); font-size: 0.92rem; overflow-wrap: break-word; }
+.gt-andere { margin: 10px 0 0; color: var(--text-soft); font-size: 0.92rem; max-width: 72ch; overflow-wrap: break-word; }
+.gt-andere + .gt-andere { margin-top: 4px; }
+
+/* ── Smalle schermen ───────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .gt-plan-knop, .gt-editor-knop, .gt-paneel .btn, .gt .btn, .gt-melding-tekst .btn { min-height: 44px; }
+  .gt-plan-knop { width: 100%; justify-content: center; }
+  .gt-details { padding-left: 12px; }
+  .gt-details > summary { min-height: 44px; }
+  .gt-keuze-zin { margin-left: 14px; }
+  .gt-keuze-inhoud { padding-left: 14px; }
+  .gt .input, .gt .select { min-height: 44px; }
+  .gt-voet { justify-items: stretch; }
+  .gt-nodig { text-align: left; }
+  .gt-knoppen { width: 100%; }
+  .gt-knoppen .btn { flex: 1 1 auto; }
+  .gt-paneel-knoppen .btn { flex: 1 1 auto; }
+  .gt-link { min-height: 44px; }
+}

@@ -49,7 +49,7 @@ function shortTitle(title: string, max = 14): string {
 }
 
 export function GoalCoverage({
-  course, curriculum, widgets = [], onFillGaps, onOpenSettings,
+  course, curriculum, widgets = [], onFillGaps, onOpenSettings, onEdit,
 }: {
   course: Course;
   /** Leerplan van de cursus; aanwezig = matrix op leerplandoelen. */
@@ -60,10 +60,12 @@ export function GoalCoverage({
   onFillGaps?: () => void;
   /** Opent de cursusinstellingen — voor "Koppel een leerplan" zonder leerplan. */
   onOpenSettings?: () => void;
+  /** Wijzigt de cursus in de editor: dan kan de weergave Minimumdoelen doelen als lege secties in de cursus zetten. */
+  onEdit?: (next: (c: Course) => Course) => void;
 }): JSX.Element {
   if (curriculum) {
     return (
-      <CurriculumCoverage course={course} curriculum={curriculum} widgets={widgets} onFillGaps={onFillGaps} />
+      <CurriculumCoverage course={course} curriculum={curriculum} widgets={widgets} onFillGaps={onFillGaps} onEdit={onEdit} />
     );
   }
   return <FreeTextCoverage course={course} onOpenSettings={onOpenSettings} />;
@@ -78,12 +80,13 @@ const STATUS_META: Record<CoverageRow['status'], { icon: typeof CheckIcon; label
 };
 
 function CurriculumCoverage({
-  course, curriculum, widgets, onFillGaps,
+  course, curriculum, widgets, onFillGaps, onEdit,
 }: {
   course: Course;
   curriculum: Curriculum;
   widgets: Widget[];
   onFillGaps?: () => void;
+  onEdit?: (next: (c: Course) => Course) => void;
 }): JSX.Element {
   const result = useMemo(() => computeCoverage(course, curriculum, widgets), [course, curriculum, widgets]);
   // Doelen die alleen op nog lege secties staan: gepland, nog niet uitgewerkt (§ 14.5).
@@ -162,7 +165,7 @@ function CurriculumCoverage({
       <div>
         {schakelaar}
         <Suspense fallback={<p className="dk-laden" role="status">De dekking op de minimumdoelen wordt geladen…</p>}>
-          <MinimumdoelenDekking course={course} curriculum={curriculum} widgets={widgets} />
+          <MinimumdoelenDekking course={course} curriculum={curriculum} widgets={widgets} onEdit={onEdit} />
         </Suspense>
       </div>
     );

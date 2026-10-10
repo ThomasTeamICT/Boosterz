@@ -6,10 +6,11 @@
 // leerplan. Dit bestand bevat ook de stukken die het richtingenscherm met de editor deelt: de status van een doel, de keuze
 // "Toon" en de lijst met sets (RichtingDekking.tsx importeert ze hier).
 
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckIcon, CloseIcon, PlannedIcon, WarningIcon } from '../icons';
 import { FoutBericht, LaadBericht } from '../curriculum/LaadStatus';
+import { useToast } from '../ui';
 import { useSetBestanden } from '../curriculum/samenstellen/useSetBestanden';
 import { useRichtingGegevens, useRichtingKader } from '../richting/useRichtingGegevens';
 import type { Course } from '../../lib/courseTypes';
@@ -18,6 +19,7 @@ import {
   dekkingMinimumdoelen,
   kaderDoelen,
   setsAlsKader,
+  type KaderDoel,
   type MdDekking,
   type MdRij,
   type MdStatus,
@@ -49,11 +51,33 @@ import {
   type Toon,
 } from '../../lib/dekkingWeergave';
 import { doelgroepVoorLeerplan, sanitizeDoelgroep, type Doelgroep } from '../../lib/doelgroep';
+import { codesVoorDoelen, openPerSet, openVerplichteDoelen, type OpenSet } from '../../lib/gatenDichten';
+import {
+  ANNULEREN_TEKST,
+  DOELEN_HINT,
+  DOELEN_LEGEND,
+  FOUT_LADEN_GATEN,
+  FOUT_NIETS_TE_DOEN,
+  PANEEL_TITEL,
+  PANEEL_UITLEG,
+  PLAN_BIJ_RICHTING_TEKST,
+  TOON_DOELEN,
+  andereOpenTekst,
+  doelRegelTekst,
+  editorKnopTekst,
+  editorRegel,
+  geplandInDezeCursusToast,
+  nogNodigTekst,
+  paneelZetTekst,
+  setVakjeTekst,
+  tellerTekst,
+} from '../../lib/gatenWeergave';
 import type { MinimumdoelenSetBestand } from '../../lib/minimumdoelen';
 import { contextVanSet } from '../../lib/minimumdoelenBron';
 import { richtingInfo, type RichtingKader, type RichtingKeuze } from '../../lib/richtingKader';
 import type { Widget } from '../../lib/types';
 import '../../styles/dekking.css';
+import '../../styles/gaten.css';
 
 // ── Wat het richtingenscherm en de editor delen ─────────────────────────────
 
@@ -154,6 +178,82 @@ export function setNamenVan(dekking: Pick<MdDekking, 'perSet'>, bestanden: Reado
   });
 }
 
+// ── Gaten dichten: de sets kiezen (het venster op de richtingpagina en het paneel in de editor delen dit) ──
+
+/** De sets die de leerkracht niet uitvinkte. Een set die later bijkomt, staat dus standaard aan. */
+export function gekozenOpenSets(sets: readonly OpenSet[], uit: ReadonlySet<string>): OpenSet[] {
+  return sets.filter((s) => !uit.has(s.set));
+}
+
+/** De doelen van die sets, in de volgorde van het kader. */
+export function gekozenOpenDoelen(sets: readonly OpenSet[], uit: ReadonlySet<string>): KaderDoel[] {
+  return gekozenOpenSets(sets, uit).flatMap((s) => s.doelen);
+}
+
+function DoelenUitklapper({ set, naam }: { set: OpenSet; naam: string }) {
+  // De doelen staan pas in de pagina als de set openstaat: een set met honderden doelen blijft zo snel.
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="gt-details" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary>{TOON_DOELEN}<span className="sr-only">{` van ‘${naam}’`}</span></summary>
+      {open && (
+        <ul className="gt-doelen">
+          {set.doelen.map((doel) => (
+            <li key={doel.id} className="gt-doel">{doelRegelTekst(doel.code, kortTekst(doel.tekst, 160))}</li>
+          ))}
+        </ul>
+      )}
+    </details>
+  );
+}
+
+/**
+ * "Welke doelen?": per set een vakje ("Chemie · 9 doelen") met een uitklapper om de doelen te zien, en de teller. De
+ * leerkracht kiest per set, niet per doel; per doel bijsturen kan daarna in de cursus. `uit` zijn de sets die ze uitvinkte.
+ * Met `alsTekstBijEenSet` staat een enkele set als gewone regel, want er valt niets af te vinken (het paneel in de editor).
+ */
+export function GatenSetsKeuze({ sets, namen, uit, onZet, eersteId, alsTekstBijEenSet }: {
+  sets: readonly OpenSet[];
+  /** De namen van de sets voor het scherm (zie `setNamenVan`); een set zonder naam in die lijst krijgt zijn korte naam. */
+  namen: ReadonlyMap<string, string>;
+  uit: ReadonlySet<string>;
+  onZet: (set: string, aan: boolean) => void;
+  /** Het id van het eerste vakje, voor de focus als er nog iets ontbreekt. */
+  eersteId?: string;
+  alsTekstBijEenSet?: boolean;
+}) {
+  const naamVan = (s: OpenSet) => namen.get(s.set) ?? veiligeSetNaam(s.setNaam);
+  if (alsTekstBijEenSet && sets.length === 1) {
+    return <p className="gt-eenset">{setVakjeTekst(naamVan(sets[0]), sets[0].doelen.length)}</p>;
+  }
+  const gekozen = gekozenOpenSets(sets, uit);
+  const doelen = gekozen.reduce((som, s) => som + s.doelen.length, 0);
+  return (
+    <fieldset className="gt-groep">
+      <legend>{DOELEN_LEGEND}</legend>
+      <p className="gt-uitleg">{DOELEN_HINT}</p>
+      <ul className="gt-setlijst">
+        {sets.map((s, i) => {
+          const naam = naamVan(s);
+          return (
+            <li key={s.set} className="gt-set">
+              <label className="gt-vak">
+                <input
+                  type="checkbox" id={i === 0 ? eersteId : undefined} checked={!uit.has(s.set)}
+                  onChange={(e) => onZet(s.set, e.target.checked)}
+                />
+                <span>{setVakjeTekst(naam, s.doelen.length)}</span>
+              </label>
+              <DoelenUitklapper set={s} naam={naam} />
+            </li>
+          );
+        })}
+      </ul>
+      <p className="gt-teller" aria-live="polite" aria-atomic="true">{tellerTekst(doelen, gekozen.length)}</p>
+    </fieldset>
+  );
+}
+
 // ── De weergave in de editor ────────────────────────────────────────────────
 
 export interface MinimumdoelenDekkingProps {
@@ -161,6 +261,11 @@ export interface MinimumdoelenDekkingProps {
   curriculum: Curriculum;
   /** Widgets van dit toestel: de ingebedde exemplaren tellen mee. */
   widgets: Widget[];
+  /**
+   * Wijzigt de cursus in de editor (`draft.edit`: de functie draait op de laatste stand, de bewaarmotor bewaart). Alleen mét deze
+   * prop staat er "Plan ze in deze cursus" (§ 22.4.5).
+   */
+  onEdit?: (next: (c: Course) => Course) => void;
 }
 
 /** Vandaag als JJJJ-MM-DD op het toestel van de leerkracht (zoals op het richtingenscherm). */
@@ -169,9 +274,158 @@ function vandaagLokaal(): string {
   return `${nu.getFullYear()}-${String(nu.getMonth() + 1).padStart(2, '0')}-${String(nu.getDate()).padStart(2, '0')}`;
 }
 
+/** Geen enkele set uitgevinkt: het begin van elk paneel. */
+const GEEN_SETS_UIT: ReadonlySet<string> = new Set();
+
+/** Wat de editor kan plannen: de open doelen die in het leerplan van deze cursus staan, en het aantal dat er niet in staat. */
+interface Plan {
+  /** De open doelen met een doelcode in het leerplan van de cursus, per set. */
+  perSet: OpenSet[];
+  aantal: number;
+  /** Open doelen die deze cursus niet dekt en die niet in haar leerplan staan. */
+  buitenLeerplan: number;
+}
+
+function planVan(dekking: MdDekking, curriculum: Curriculum): Plan {
+  const { inLeerplan, nietInLeerplan } = codesVoorDoelen(curriculum, openVerplichteDoelen(dekking));
+  return { perSet: openPerSet(inLeerplan), aantal: inLeerplan.length, buitenLeerplan: nietInLeerplan.length };
+}
+
+/**
+ * "Plan ze in deze cursus" (§ 22.4.5): de open doelen uit het leerplan van deze cursus die nog op geen enkele sectie staan,
+ * als lege secties met doelcodes achteraan in de cursus. Een inline paneel in dezelfde weergave, geen tweede venster. Bij de
+ * klik laadt de editor `gatenCursus` lui en vraagt `onEdit` de wijziging op de laatste stand van de cursus; de bewaarmotor van de
+ * editor bewaart met zijn eigen bewaking en meldingen. Het leerplan blijft zoals het is.
+ */
+function PlanInCursus({ plan, dekking, curriculum, namen, onEdit, samenvattingRef }: {
+  plan: Plan;
+  dekking: MdDekking;
+  curriculum: Curriculum;
+  namen: ReadonlyMap<string, string>;
+  onEdit: (next: (c: Course) => Course) => void;
+  samenvattingRef: RefObject<HTMLParagraphElement>;
+}) {
+  const toast = useToast();
+  const id = useId();
+  const paneelId = `${id}-paneel`;
+  const kopId = `${id}-kop`;
+  const eersteId = `${id}-eerste`;
+  const nodigId = `${id}-nodig`;
+  const [open, setOpen] = useState(false);
+  /** De sets die de leerkracht uitvinkte; een set die later bijkomt (na een wijziging van de cursus), staat standaard aan. */
+  const [uit, setUit] = useState<ReadonlySet<string>>(GEEN_SETS_UIT);
+  /** De dekking op het moment van de wijziging: zodra de dekking verandert, gaat de focus terug naar de knop of de samenvatting. */
+  const [focusNa, setFocusNa] = useState<MdDekking | null>(null);
+  const bezig = useRef(false);
+  const knopRef = useRef<HTMLButtonElement>(null);
+  const paneelRef = useRef<HTMLDivElement>(null);
+
+  const toonPaneel = open && plan.aantal > 0;
+  // Bij één set staat er geen vakje (alsTekstBijEenSet): dan telt ze altijd, ook als de leerkracht ze eerder uitvinkte.
+  const effectiefUit = plan.perSet.length === 1 ? GEEN_SETS_UIT : uit;
+  const gekozen = useMemo(() => gekozenOpenDoelen(plan.perSet, effectiefUit), [plan.perSet, effectiefUit]);
+
+  useEffect(() => {
+    if (!toonPaneel) return;
+    paneelRef.current?.scrollIntoView?.({ block: 'nearest' });
+    paneelRef.current?.focus();
+  }, [toonPaneel]);
+
+  useEffect(() => {
+    if (!focusNa || dekking === focusNa) return;
+    setFocusNa(null);
+    // De knop is weg als er niets meer te plannen valt: dan gaat de focus naar de samenvatting.
+    (knopRef.current ?? samenvattingRef.current)?.focus();
+  }, [dekking, focusNa, samenvattingRef]);
+
+  const zetSet = (set: string, aan: boolean) => setUit((vorige) => {
+    const volgende = new Set(vorige);
+    if (aan) volgende.delete(set);
+    else volgende.add(set);
+    return volgende;
+  });
+
+  const annuleer = () => {
+    setOpen(false);
+    knopRef.current?.focus();
+  };
+
+  const zet = () => {
+    if (bezig.current) return;
+    if (gekozen.length === 0) {
+      document.getElementById(eersteId)?.focus();
+      return;
+    }
+    const codes = codesVoorDoelen(curriculum, gekozen).codes;
+    bezig.current = true;
+    void import('../../lib/gatenCursus').then(
+      ({ voegGeplandeSectiesToe }) => {
+        let toegevoegd = 0;
+        onEdit((c) => {
+          const r = voegGeplandeSectiesToe(c, curriculum, codes);
+          toegevoegd = r.toegevoegd.length;
+          return r.course;
+        });
+        bezig.current = false;
+        if (toegevoegd > 0) {
+          toast(geplandInDezeCursusToast(gekozen.length), 'ok');
+          setOpen(false);
+          setFocusNa(dekking);
+        } else {
+          toast(FOUT_NIETS_TE_DOEN);
+        }
+      },
+      () => {
+        bezig.current = false;
+        toast(FOUT_LADEN_GATEN, 'err');
+      },
+    );
+  };
+
+  if (plan.aantal === 0) return null;
+  const nodig = gekozen.length === 0 ? nogNodigTekst(['minstens één doel']) : '';
+  return (
+    <div className="gt-editor">
+      <p className="gt-editor-regel">{editorRegel(plan.aantal)}</p>
+      <button
+        ref={knopRef} type="button" className="btn btn-sm btn-primary gt-editor-knop"
+        aria-expanded={toonPaneel} aria-controls={toonPaneel ? paneelId : undefined}
+        onClick={() => {
+          if (toonPaneel) {
+            paneelRef.current?.focus();
+            return;
+          }
+          // Een nieuw paneel begint met alle sets aan.
+          setUit(GEEN_SETS_UIT);
+          setOpen(true);
+        }}
+      >
+        <PlannedIcon size={16} aria-hidden="true" /> {editorKnopTekst(plan.aantal)}
+      </button>
+      {toonPaneel && (
+        <div ref={paneelRef} id={paneelId} role="group" aria-labelledby={kopId} tabIndex={-1} className="gt-paneel">
+          <h3 id={kopId}>{PANEEL_TITEL}</h3>
+          <p className="gt-uitleg">{PANEEL_UITLEG}</p>
+          <GatenSetsKeuze sets={plan.perSet} namen={namen} uit={effectiefUit} onZet={zetSet} eersteId={eersteId} alsTekstBijEenSet />
+          {nodig && <p id={nodigId} className="gt-paneel-nodig">{nodig}</p>}
+          <div className="gt-paneel-knoppen">
+            <button
+              type="button" className="btn btn-sm btn-primary gt-knop" aria-disabled={nodig ? 'true' : undefined}
+              aria-describedby={nodig ? nodigId : undefined} onClick={zet}
+            >
+              {paneelZetTekst(gekozen.length)}
+            </button>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={annuleer}>{ANNULEREN_TEKST}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 type Bron = { soort: 'kader'; kader: RichtingKader } | { soort: 'sets'; sets: readonly string[] };
 
-function Berekening({ bron, van, uitleg, doelgroep, course, curriculum, widgets }: MinimumdoelenDekkingProps & {
+function Berekening({ bron, van, uitleg, doelgroep, course, curriculum, widgets, onEdit }: MinimumdoelenDekkingProps & {
   bron: Bron;
   /** Waarvan de cursus de doelen dekt, voor in de samenvatting. */
   van: string;
@@ -196,6 +450,9 @@ function Berekening({ bron, van, uitleg, doelgroep, course, curriculum, widgets 
     return dekkingMinimumdoelen(doelen, [{ course, leerplan: curriculum }], widgets);
   }, [klaar, bron, ids, bestanden, course, curriculum, widgets]);
   const namen = useMemo(() => (dekking ? setNamenVan(dekking, bestanden) : new Map<string, string>()), [dekking, bestanden]);
+  // Plannen kan alleen met `onEdit` (de editor) en alleen bij een klare dekking.
+  const plan = useMemo(() => (dekking && onEdit ? planVan(dekking, curriculum) : undefined), [dekking, onEdit, curriculum]);
+  const samenvattingRef = useRef<HTMLParagraphElement>(null);
 
   if (ids.length === 0) return <p className="dk-uitleg">{GEEN_SETS_TEKST}</p>;
   if (mislukt.length > 0) return <FoutBericht fout={FOUT_SETS_DEKKING} onOpnieuw={() => mislukt.forEach(opnieuw)} />;
@@ -207,10 +464,15 @@ function Berekening({ bron, van, uitleg, doelgroep, course, curriculum, widgets 
   return (
     <div className="dk">
       {uitleg && <p className="dk-uitleg">{uitleg}</p>}
-      <p className="dk-samenvatting" aria-live="polite"><strong>{samenvattingCursus(dekking, van)}</strong></p>
+      <p className="dk-samenvatting" aria-live="polite" tabIndex={-1} ref={samenvattingRef}><strong>{samenvattingCursus(dekking, van)}</strong></p>
       {[optioneel, buitenKaderTekst(buitenKader), zelfdeNummer].filter(Boolean).map((zin) => <p key={zin} className="dk-uitleg dk-extra">{zin}</p>)}
+      {plan && onEdit && (
+        <PlanInCursus plan={plan} dekking={dekking} curriculum={curriculum} namen={namen} onEdit={onEdit} samenvattingRef={samenvattingRef} />
+      )}
       <ToonKeuze toon={toon} onToon={setToon} />
       <DekkingPerSet dekking={dekking} toon={toon} namen={namen} />
+      {plan && plan.buitenLeerplan > 0 && <p className="gt-andere">{andereOpenTekst(plan.buitenLeerplan)}</p>}
+      {plan && plan.buitenLeerplan > 0 && doelgroep && <p className="gt-andere">{PLAN_BIJ_RICHTING_TEKST}</p>}
       {doelgroep && (
         <p className="dk-link"><Link to={richtingLinkNaar(doelgroep)}>{richtingLinkTekst(doelgroep.titel)}</Link></p>
       )}

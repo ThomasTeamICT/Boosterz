@@ -4,6 +4,9 @@ import { Accessibility, ArrowRight, Globe, Mail, School } from 'lucide-react';
 import type { Widget } from '../lib/types';
 import { encodeWidgetToUrl, exportWidgetJson, playUrlForCode } from '../lib/share';
 import { assignmentsForClass, dueBadge, getClasses, upsertAssignment } from '../lib/classes';
+import type { Doelgroep } from '../lib/doelgroep';
+import { klassenVoorToewijzen } from '../lib/doelgroepGebruik';
+import { ANDERE_KLASSEN, klassenVoorLabel } from '../lib/klasRichtingWeergave';
 import { countUnresolvedMedia, inlineMedia } from '../lib/mediaStore';
 import { downloadFile } from '../lib/utils';
 import {
@@ -238,10 +241,29 @@ function toDateInputValue(ts: number): string {
  * de leerkracht in zijn klasoverzicht. Ook gebruikt door de cursus-deelmodal.
  */
 export function AssignToClassSection({
-  kind, targetId, title,
-}: { kind: 'course' | 'widget'; targetId: string; title: string }) {
+  kind, targetId, title, doelgroep,
+}: {
+  kind: 'course' | 'widget';
+  targetId: string;
+  title: string;
+  /**
+   * De studierichting en het jaar van de cursus (de aanroeper rekent ze uit, want dit bestand haalt geen leerplannen binnen).
+   * Met een doelgroep staan de klassen voor die richting bovenaan, in een eigen groep van de keuzelijst. Er wordt niets
+   * vooraf gekozen: dat blijft alleen als er precies één klas is.
+   */
+  doelgroep?: Doelgroep;
+}) {
   const toast = useToast();
   const classes = useMemo(() => getClasses(), []);
+  // Alleen groepen als er klassen voor de richting van de cursus zijn; anders blijft het één gewone lijst.
+  const groepen = useMemo(() => {
+    if (!doelgroep) return null;
+    const { passend, andere } = klassenVoorToewijzen(classes, doelgroep);
+    return passend.length > 0 ? { label: klassenVoorLabel(doelgroep), passend, andere } : null;
+  }, [classes, doelgroep]);
+  const klasOptie = (c: (typeof classes)[number]) => (
+    <option key={c.id} value={c.id}>{c.name}{c.schoolYear ? ` (${c.schoolYear})` : ''}</option>
+  );
   const [classId, setClassId] = useState(() => (classes.length === 1 ? classes[0].id : ''));
   const [due, setDue] = useState('');
   const [note, setNote] = useState('');
@@ -308,9 +330,12 @@ export function AssignToClassSection({
           <Field label="Klas">
             <select className="select" value={classId} onChange={(e) => { setClassId(e.target.value); setMelding(''); }}>
               <option value="">— kies een klas —</option>
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}{c.schoolYear ? ` (${c.schoolYear})` : ''}</option>
-              ))}
+              {groepen ? (
+                <>
+                  <optgroup label={groepen.label}>{groepen.passend.map(klasOptie)}</optgroup>
+                  {groepen.andere.length > 0 && <optgroup label={ANDERE_KLASSEN}>{groepen.andere.map(klasOptie)}</optgroup>}
+                </>
+              ) : classes.map(klasOptie)}
             </select>
           </Field>
         </div>

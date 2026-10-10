@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { Globe, Mail, School } from 'lucide-react';
 import type { Course } from '../../lib/courseTypes';
 import { courseReadUrl, encodeCourseToUrl, exportCourseJson } from '../../lib/courses';
 import { referencedWidgetIds } from '../../lib/courseTypes';
+import { getCurricula } from '../../lib/curriculum';
+import { doelgroepVanCursus } from '../../lib/doelgroepGebruik';
 import { downloadFile } from '../../lib/utils';
 import { AssignToClassSection } from '../ShareModal';
 import { AssignIcon, ExportIcon, LinkIcon, WarningIcon } from '../icons';
@@ -12,6 +14,9 @@ import { CopyButton, Modal } from '../ui';
 export function CourseShareModal({ course, onClose }: { course: Course; onClose: () => void }) {
   const [selected, setSelected] = useState<string[]>(() => course.chapters.map((c) => c.id));
   const [qr, setQr] = useState('');
+  // De studierichting en het jaar van de cursus (haar eigen doelgroep, anders die van haar leerplan): de klassen voor die
+  // richting staan bij "Toewijzen aan een klas" bovenaan.
+  const doelgroep = useMemo(() => doelgroepVanCursus(course, getCurricula()), [course]);
 
   const partial = selected.length > 0 && selected.length < course.chapters.length;
   // Async: media staan in IndexedDB en gaan als data-URL in de link (lib/mediaStore).
@@ -63,7 +68,7 @@ export function CourseShareModal({ course, onClose }: { course: Course; onClose:
 
   return (
     <Modal title={`“${course.title}” delen`} onClose={onClose} wide>
-      <AssignToClassSection kind="course" targetId={course.id} title={course.title} />
+      <AssignToClassSection kind="course" targetId={course.id} title={course.title} doelgroep={doelgroep} />
 
       <hr className="divider" />
 

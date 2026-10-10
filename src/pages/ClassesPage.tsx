@@ -10,6 +10,7 @@ import { ConfirmModal, EmptyState, Field, Modal, useToast } from '../components/
 import { formatDateShort } from '../lib/utils';
 import { useNewParam } from '../lib/useNewParam';
 import { AddIcon, AssignIcon, DeleteIcon, PrivacyIcon, StudentIcon, WarningIcon } from '../components/icons';
+import { richtingAchterKlascode } from '../lib/klasRichtingWeergave';
 import { duplicateStudentNames, pastedDuplicatesMessage } from './klasWeergave';
 
 /**
@@ -87,6 +88,7 @@ export function ClassesPage() {
                 <p className="hint" style={{ margin: 0 }}>
                   Klascode <strong style={{ fontFamily: 'monospace', letterSpacing: '0.12em' }}>{cls.code}</strong>
                   {' · '}bijgewerkt {formatDateShort(cls.updatedAt)}
+                  {richtingAchterKlascode(cls.doelgroep)}
                 </p>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 'auto', paddingTop: 8 }}>
                   <Link to={`/klas/${cls.id}`} className="btn btn-sm btn-primary"><ArrowRight size={16} /> Openen</Link>

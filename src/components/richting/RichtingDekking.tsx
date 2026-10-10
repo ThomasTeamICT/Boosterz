@@ -5,10 +5,11 @@
 // haalt de setbestanden op en kiest de cursussen die meetellen. Het resultaat gaat naar deze sectie én naar
 // de lijst "Cursussen voor deze richting" (RichtingCursussen), zodat de twee nooit van elkaar afwijken.
 
-import { useId, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
 import { Link } from 'react-router-dom';
 import { DekkingPerSet, ToonKeuze } from '../course/MinimumdoelenDekking';
 import { FoutBericht, LaadBericht } from '../curriculum/LaadStatus';
+import { PlannedIcon, RetryIcon, WarningIcon } from '../icons';
 import {
   EERSTE_GRAAD_ZIN,
   FOUT_SETS_DEKKING,
@@ -22,12 +23,21 @@ import {
   type Toon,
 } from '../../lib/dekkingWeergave';
 import { jaarTekst } from '../../lib/doelgroep';
+import { openVerplichteDoelen } from '../../lib/gatenDichten';
+import { FOUT_LADEN_GATEN, GEEN_OPEN_TEKST, planKnopTekst } from '../../lib/gatenWeergave';
 import type { RichtingInfo, RichtingKeuze } from '../../lib/richtingKader';
 import '../../styles/dekking.css';
+import '../../styles/gaten.css';
 
 // De berekening staat in useRichtingDekking.ts; de types gaan van daar ook naar de andere secties.
 import type { DekkingGegevens, DekkingStand, TelMee } from './useRichtingDekking';
 export type { CursusUitkomst, DekkingGegevens, DekkingStand, TelMee } from './useRichtingDekking';
+
+// Het venster om gaten te dichten (en wat het zwaar maakt: gatenCursus) wordt pas geladen als de leerkracht op de knop klikt.
+// We laden het eerst los in (`laadVenster`): lukt dat niet (de verbinding viel weg), dan blijft de pagina zoals ze is, met een
+// melding bij de knop, in plaats van dat de pagina met een fout vervangen wordt.
+const laadVenster = () => import('./GatenVenster');
+const GatenVenster = lazy(() => laadVenster().then((m) => ({ default: m.GatenVenster })));
 
 // ── De sectie ───────────────────────────────────────────────────────────────
 
@@ -60,7 +70,51 @@ function TelMeeKeuze({ info, keuze, telMee, onTelMee }: {
   );
 }
 
-function DekkingInhoud({ info, gegevens }: { info: RichtingInfo; gegevens: DekkingGegevens }) {
+/**
+ * Onder de samenvatting (§ 22.4.7): de knop om de verplichte doelen die nog nergens aan bod komen te plannen, of de zin dat
+ * er geen meer zijn. De knop opent het venster met de dekking zoals ze nu op het scherm staat.
+ */
+function PlanBlok({ gegevens, laadt, fout, onPlan, knopRef }: {
+  gegevens: DekkingGegevens;
+  laadt: boolean;
+  fout: boolean;
+  onPlan: (gegevens: DekkingGegevens) => void;
+  knopRef: RefObject<HTMLButtonElement>;
+}) {
+  const aantal = useMemo(() => openVerplichteDoelen(gegevens.dekking).length, [gegevens.dekking]);
+  if (aantal === 0) return <p className="gt-geen">{GEEN_OPEN_TEKST}</p>;
+  return (
+    <div className="gt-plan">
+      <button
+        ref={knopRef} type="button" className="btn btn-primary gt-plan-knop" aria-busy={laadt || undefined}
+        onClick={() => onPlan(gegevens)}
+      >
+        <PlannedIcon size={18} aria-hidden="true" /> {planKnopTekst(aantal)}
+      </button>
+      {fout && (
+        <div className="callout err gt-melding" role="alert">
+          <WarningIcon size={18} aria-hidden="true" />
+          <div className="gt-melding-tekst">
+            <p>{FOUT_LADEN_GATEN}</p>
+            {/* Een mislukte dynamische import onthoudt de browser: een tweede klik doet geen nieuw verzoek, herladen wel. */}
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => window.location.reload()}>
+              <RetryIcon size={16} aria-hidden="true" /> Herlaad de pagina
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DekkingInhoud({ info, gegevens, laadt, fout, onPlan, knopRef }: {
+  info: RichtingInfo;
+  gegevens: DekkingGegevens;
+  laadt: boolean;
+  fout: boolean;
+  onPlan: (gegevens: DekkingGegevens) => void;
+  knopRef: RefObject<HTMLButtonElement>;
+}) {
   const [toon, setToon] = useState<Toon>('alle');
   const { dekking, cursussen, namen, telJaar } = gegevens;
   const extra = [optioneelZin(dekking.optioneel), zelfdeNummerZin(dekking.zelfdeNummerAndereSet)].filter(Boolean);
@@ -72,6 +126,7 @@ function DekkingInhoud({ info, gegevens }: { info: RichtingInfo; gegevens: Dekki
         <p className="dk-samenvatting"><strong>{samenvattingRichting(dekking, telJaar)}</strong></p>
         {extra.map((zin) => <p key={zin} className="dk-uitleg dk-extra">{zin}</p>)}
       </div>
+      <PlanBlok gegevens={gegevens} laadt={laadt} fout={fout} onPlan={onPlan} knopRef={knopRef} />
       <ToonKeuze toon={toon} onToon={setToon} />
       <DekkingPerSet dekking={dekking} toon={toon} namen={namen} />
       {nietMee.length > 0 && (
@@ -98,9 +153,44 @@ export function RichtingDekking({ info, keuze, stand, telMee, onTelMee }: {
   telMee: TelMee;
   onTelMee: (t: TelMee) => void;
 }) {
+  /** De dekking zoals ze stond toen de leerkracht op de knop klikte: het venster werkt met die momentopname. */
+  const [venster, setVenster] = useState<DekkingGegevens | null>(null);
+  const [laadt, setLaadt] = useState(false);
+  const [laadFout, setLaadFout] = useState(false);
+  /** Telt op als het venster klaar is met het plannen in een bestaande cursus: dan gaat de focus naar de kop van de sectie. */
+  const [focusKop, setFocusKop] = useState(0);
+  const knopRef = useRef<HTMLButtonElement>(null);
+  const laadBezig = useRef(false);
+
+  // Het venster sluit en de knop kan verdwijnen (er is niets meer te plannen): de focus gaat naar de kop van de sectie. Dit
+  // effect draait na het opruimen van het venster, dat de focus anders terugzet op de knop.
+  useEffect(() => {
+    if (focusKop > 0) document.getElementById('ri-dekking-kop')?.focus();
+  }, [focusKop]);
+
+  const plan = (gegevens: DekkingGegevens) => {
+    // Beveiligd tegen dubbel klikken: tijdens het laden telt een tweede klik niet.
+    if (laadBezig.current) return;
+    laadBezig.current = true;
+    setLaadFout(false);
+    setLaadt(true);
+    laadVenster().then(
+      () => {
+        laadBezig.current = false;
+        setLaadt(false);
+        setVenster(gegevens);
+      },
+      () => {
+        laadBezig.current = false;
+        setLaadt(false);
+        setLaadFout(true);
+      },
+    );
+  };
+
   return (
     <section className="ri-sectie dk" aria-labelledby="ri-dekking-kop">
-      <h2 id="ri-dekking-kop">Wat je cursussen samen dekken</h2>
+      <h2 id="ri-dekking-kop" tabIndex={-1}>Wat je cursussen samen dekken</h2>
       {stand.status === 'geen' ? (
         <p>{geenDekkingTekst(stand.herkomst)}</p>
       ) : (
@@ -108,8 +198,19 @@ export function RichtingDekking({ info, keuze, stand, telMee, onTelMee }: {
           <TelMeeKeuze info={info} keuze={keuze} telMee={telMee} onTelMee={onTelMee} />
           {stand.status === 'laden' && <LaadBericht tekst={LADEN_SETS_DEKKING} />}
           {stand.status === 'fout' && <FoutBericht fout={FOUT_SETS_DEKKING} onOpnieuw={stand.opnieuw} />}
-          {stand.status === 'klaar' && <DekkingInhoud info={info} gegevens={stand.waarde} />}
+          {stand.status === 'klaar' && (
+            <DekkingInhoud info={info} gegevens={stand.waarde} laadt={laadt} fout={laadFout} onPlan={plan} knopRef={knopRef} />
+          )}
         </>
+      )}
+      {venster && (
+        <Suspense fallback={null}>
+          <GatenVenster
+            info={info} keuze={keuze} gegevens={venster}
+            onClose={() => setVenster(null)}
+            onGepland={() => { setVenster(null); setFocusKop((n) => n + 1); }}
+          />
+        </Suspense>
       )}
     </section>
   );

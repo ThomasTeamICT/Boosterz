@@ -1,0 +1,74 @@
+/* ── Klas en studierichting ─────────────────────────────────────────────────── */
+/*
+ * De sectie "Studierichting" in het klasoverzicht, de cursussen van die richting met "Toewijzen", en de dekking op vraag
+ * (docs/STUDIERICHTINGEN.md § 22.6). Voorvoegsel kr-. Alleen tokens uit global.css; nooit witte tekst op --brand (de
+ * knoppen gebruiken --brand-fill via .btn-primary). Een status staat altijd ook in tekst ("Staat in deze klas" heeft een
+ * vinkje en een woord, geen kleur alleen). Werkt op 390 px zonder horizontaal scrollen: alles breekt lange woorden af en
+ * de tikdoelen zijn op smalle schermen 44 px hoog.
+ */
+
+.kr-sectie { margin-bottom: 20px; min-width: 0; }
+.kr-kop {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 1.05rem; overflow-wrap: anywhere;
+}
+.kr-kop > svg { flex: none; }
+
+.kr-melding { align-items: flex-start; margin: 0 0 12px; }
+.kr-melding > span, .kr-melding-icoon { flex: none; margin-top: 1px; }
+.kr-melding > div, .kr-melding-tekst { min-width: 0; overflow-wrap: break-word; }
+.kr-melding-tekst { flex: 1 1 220px; }
+.kr-melding p { margin: 0 0 8px; }
+.kr-melding p:last-child { margin-bottom: 0; }
+.callout.err > .kr-melding-icoon { color: var(--err-text); }
+
+/* De richting (of de uitleg zonder richting) en de knoppen eronder */
+.kr-uitleg { margin: 0 0 12px; max-width: 72ch; color: var(--text-soft); overflow-wrap: break-word; }
+.kr-waarde { margin: 0 0 10px; min-width: 0; overflow-wrap: anywhere; }
+.kr-instelling-knoppen { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Links in een zin of onder een lijst */
+.kr-link { display: inline-flex; align-items: center; min-height: 32px; font-weight: 600; overflow-wrap: anywhere; }
+
+/* De cursussen voor de richting */
+.kr-cursussen { margin: 14px 0 0; min-width: 0; }
+.kr-subkop { margin: 0 0 8px; font-size: 0.98rem; }
+.kr-leeg { margin: 0; color: var(--text-soft); overflow-wrap: break-word; }
+.kr-lijst { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.kr-lijst > li { min-width: 0; }
+.kr-rij {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px;
+  padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.kr-rij-tekst { flex: 1 1 220px; min-width: 0; display: grid; gap: 2px; }
+.kr-titel { font-family: var(--font-display); font-weight: 700; overflow-wrap: anywhere; }
+.kr-meta { color: var(--text-soft); font-size: 0.9rem; overflow-wrap: break-word; }
+.kr-badge { flex: none; }
+.kr-knop { flex: none; }
+
+/* De dekking op vraag */
+.kr-dekking { margin: 14px 0 0; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised); }
+/* De summary blijft een list-item: zo houdt ze haar pijltje en is duidelijk dat ze openklapt. */
+.kr-dekking > summary {
+  display: list-item; list-style-position: inside; box-sizing: border-box; min-height: 44px; padding: 10px 14px; cursor: pointer;
+  font-weight: 600; overflow-wrap: anywhere;
+}
+.kr-dekking > summary:focus-visible { outline: 3px solid var(--brand); outline-offset: -3px; border-radius: var(--radius-m); }
+.kr-dekking-inhoud { padding: 0 14px 12px; min-width: 0; overflow-wrap: break-word; }
+.kr-dekking-inhoud .hint, .kr-dekking-inhoud p { overflow-wrap: break-word; }
+.kr-bezig { margin: 0 0 8px; color: var(--text-soft); font-weight: 600; }
+.kr-fout { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 8px; color: var(--err-text); font-weight: 600; }
+.kr-fout > svg { flex: none; margin-top: 3px; }
+.kr-dekking-link { margin: 8px 0 0; }
+
+/* Tikdoelen van 44 px op smalle schermen; alles in één kolom */
+@media (max-width: 640px) {
+  .kr-sectie { padding-left: 14px; padding-right: 14px; }
+  .kr-instelling-knoppen .btn, .kr-knop { min-height: 44px; }
+  .kr-instelling-knoppen { width: 100%; }
+  .kr-instelling-knoppen .btn { flex: 1 1 auto; }
+  .kr-link { min-height: 44px; }
+  .kr-titel { display: inline-flex; align-items: center; box-sizing: border-box; min-height: 44px; }
+  .kr-rij { padding: 8px 12px; }
+  .kr-knop { width: 100%; }
+  .kr-badge { min-height: 44px; }
+}
