@@ -47,6 +47,7 @@ Gebruik de namen uit `src/components/icons.ts`, niet zelf een icoon:
 | Uittesten, spelen | `TryIcon` | play |
 | Terug | `BackIcon` | arrow-left |
 | Studierichting | `RichtingIcon` | signpost |
+| Beroepskwalificatie | `BeroepIcon` | briefcase-business |
 
 En verder: `AddIcon`, `SearchIcon`, `MoreIcon`, `CloseIcon`, `GoalIcon`,
 `CourseIcon`, `StudentIcon`, `QrIcon`, `LinkIcon`, `CopyIcon`, `TipIcon`,

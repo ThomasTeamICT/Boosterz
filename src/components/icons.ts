@@ -42,4 +42,5 @@ export {
   Check as CheckIcon,
   RotateCcw as RetryIcon,
   CalendarClock as PlannedIcon,
+  BriefcaseBusiness as BeroepIcon,
 } from 'lucide-react';
