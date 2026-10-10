@@ -1867,6 +1867,37 @@ console.log('20e. Studierichtingen op de echte data');
       const dekTekst = await p.locator('section[aria-labelledby="ri-dekking-kop"]').innerText();
       check(`${wie}: "Je cursussen dekken 0 van de N minimumdoelen" en "N doelen staan al gepland" (geraamte = gepland, niet gedekt)`, /Je cursussen dekken 0 van de \d+ minimumdoelen \(0 %\)/.test(dekTekst) && /\d+ doel(en)? (staat|staan) al gepland op een sectie die nog leeg is/.test(dekTekst));
 
+      // Fase 2 (docs/STUDIERICHTINGEN.md § 22.9, stap 2 en 3), alleen met reguliere expressies: "Mijn richtingen" op de lijst en het
+      // venster om de gaten te dichten. Het venster wordt hier niet bevestigd; sectie 20f doet dat op de fixtures.
+      if (r.groep === 'G-0193') {
+        await go('/#/cursussen/richtingen');
+        await p.waitForSelector('.ri-lijst', { timeout: 20000 });
+        const mijnRij = p.locator(`section.mr a[href="#/cursussen/richtingen/${r.groep}?jaar=${r.jaar}"]`);
+        const mijnTekst = (await mijnRij.count()) === 1 ? await mijnRij.innerText() : '';
+        check(`${wie}: (fase 2) de lijst heeft een h2 "Mijn richtingen" met een link naar de richting, "${titel}" en "1 cursus"`, (await p.locator('main h2', { hasText: /^Mijn richtingen$/ }).count()) === 1 && mijnTekst.includes(titel) && /(?<!\d)1 cursus(?!sen)/.test(mijnTekst));
+        const mijnDekking = await p.waitForFunction(() => /Je cursussen dekken \d+ van de \d+ minimumdoelen \(\d+ %\)\./.test(document.querySelector('section.mr')?.innerText ?? ''), null, { timeout: 15000 }).then(() => true, () => false);
+        check(`${wie}: (fase 2) binnen 15 seconden "Je cursussen dekken N van de N minimumdoelen (N %)." bij de rij`, mijnDekking);
+        check(`${wie}: (fase 2) Mijn richtingen: geen set-id of groepnummer`, await rtGeenIds(p));
+        await go(`/#/cursussen/richtingen/${r.groep}?jaar=${r.jaar}`);
+        await p.waitForSelector('.dk-samenvatting', { timeout: 60000 });
+        await sleep(500);
+        const planKnop = p.getByRole('button', { name: /^Plan de \d+ doelen die nog nergens aan bod komen$/ });
+        check(`${wie}: (fase 2) het detail heeft de knop "Plan de N doelen die nog nergens aan bod komen"`, (await planKnop.count()) === 1);
+        await planKnop.click();
+        const gatenVenster = p.getByRole('dialog');
+        await gatenVenster.waitFor({ timeout: 10000 });
+        await sleep(500);
+        check(`${wie}: (fase 2) het venster heeft de h2 "Plan wat nog nergens aan bod komt", zonder set-id of groepnummer`, (await gatenVenster.locator('h2').first().innerText()).trim() === 'Plan wat nog nergens aan bod komt' && (await rtGeenIds(p)));
+        const gatenVakjes = gatenVenster.locator('.gt-setlijst input[type=checkbox]');
+        const nGatenVakjes = await gatenVakjes.count();
+        for (let i = 1; i < nGatenVakjes; i++) await gatenVakjes.nth(i).uncheck();
+        await sleep(300);
+        check(`${wie}: (fase 2) met alleen het eerste vakje zegt de teller "Je koos N doel(en) uit 1 set."`, nGatenVakjes > 1 && /^Je koos \d+ doel(en)? uit 1 set\.$/.test((await gatenVenster.locator('.gt-teller').innerText()).trim()));
+        check(`${wie}: (fase 2) "In een cursus die je al hebt" staat op aria-disabled, met de uitleg waarom`, (await gatenVenster.getByRole('radio', { name: 'In een cursus die je al hebt' }).getAttribute('aria-disabled')) === 'true' && /Geen cursus van deze richting heeft een van de gekozen doelen/.test(await gatenVenster.innerText()));
+        await gatenVenster.getByRole('button', { name: 'Annuleren' }).click();
+        await gatenVenster.waitFor({ state: 'detached', timeout: 10000 });
+      }
+
       // 390 px op het detail en het venster
       await p.setViewportSize({ width: 390, height: 844 });
       await sleep(300);
@@ -1882,6 +1913,454 @@ console.log('20e. Studierichtingen op de echte data');
     check('Terug zoals het was: localStorage is weer zoals na het zaaien', await rtTerugZetten(p, voor));
     await ctx.close();
   }
+}
+
+// ── 20f. Fase 2: gaten dichten, mijn richtingen, klas en richting ───────────
+// Het hele pad van docs/STUDIERICHTINGEN.md § 22.9, op de nagebootste matrix van tests/fixtures/structuur/uit/ (de setbestanden zijn
+// de echte): "Mijn richtingen" op de lijst, de gaten in de dekking dichten in een nieuwe cursus en in een cursus die al bestaat, het
+// paneel "Plan ze in deze cursus" in de editor, "Keuze aanpassen" zonder valse melding (F2.1), en een klas met een studierichting
+// en een jaar (cursussen toewijzen, de klaslink). Wat de app moet bewaren, wordt in localStorage nagegaan. Eigen context zonder
+// service worker (zoals 20d); de sectie zet zelf terug wat ze veranderde ("Terug zoals het was").
+console.log('20f. Fase 2: gaten dichten, mijn richtingen, klas en richting');
+{
+  const { ctx, p, go, fouten } = await rtOpen('20f', { fixtures: true });
+  const norm = (t) => String(t ?? '').trim().toLowerCase();
+  /** Dezelfde waarde met gesorteerde sleutels: voor "diep gelijk", los van de volgorde van de velden. */
+  const canon = (v) => JSON.stringify(v, (_k, x) => (x && typeof x === 'object' && !Array.isArray(x)
+    ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+    : x));
+  /** Cursussen, leerplannen en klassen zoals ze in localStorage staan. */
+  const lees = () => p.evaluate(() => ({
+    cursussen: JSON.parse(localStorage.getItem('wf.courses.v1') || '[]'),
+    leerplannen: JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]'),
+    klassen: JSON.parse(localStorage.getItem('wf.classes.v1') || '[]'),
+  }));
+  const codesVan = (c) => [...new Set(c.chapters.flatMap((h) => h.sections.flatMap((s) => s.goalCodes ?? [])).map(norm))].sort();
+  const cursusIdUitUrl = () => (/#\/cursus\/bewerk\/([^/?#]+)/.exec(p.url()) ?? [])[1];
+  const geplandOpDetail = async () => {
+    const m = /(\d+) doel(?:en)? (?:staat|staan) al gepland/.exec(await p.locator('section[aria-labelledby="ri-dekking-kop"]').innerText());
+    return m ? Number(m[1]) : NaN;
+  };
+  const wachtOpDetail = async () => {
+    await p.waitForSelector('.dk-samenvatting', { timeout: 30000 });
+    await sleep(500);
+  };
+  const toasts = () => p.locator('.toast-stack').innerText().catch(() => '');
+  /** Wacht tot "Maak de cursus" in het open venster kan (de sets zijn geladen). */
+  const wachtOpMaakKnop = () => p.waitForFunction(() => {
+    const knop = [...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === 'Maak de cursus');
+    return !!knop && knop.getAttribute('aria-disabled') !== 'true';
+  }, null, { timeout: 30000 });
+
+  await go('/#/cursussen');
+  const voor = await rtSnap(p); // na het zaaien van de voorbeeldinhoud, vóór deze sectie iets verandert
+  const bio = rtVerwacht(RT_FIXTURES, 'G-0193', 'Biologie');
+  check('fixtures: Biologie is een deelset van G-0193 (anders: maak de nagebootste koppeling opnieuw met tools/leerplannen/maak-nagebootste-koppeling.mjs)', !!bio && bio.ids.length < bio.setAantal);
+
+  // (1) Zonder cursus of klas is er geen blok "Mijn richtingen"
+  await go('/#/cursussen/richtingen');
+  await p.waitForSelector('.ri-lijst', { timeout: 15000 });
+  check('(1) lijst: zonder cursus of klas voor een richting is er geen h2 "Mijn richtingen"', (await p.locator('main h2', { hasText: /^Mijn richtingen$/ }).count()) === 0 && (await p.locator('section.mr').count()) === 0);
+
+  // (2) Een cursus voor Natuurwetenschappen (4de jaar, Biologie) maken: de lijst toont ze bij "Mijn richtingen"
+  await go('/#/cursussen/richtingen/G-0193?jaar=4');
+  await wachtOpDetail();
+  await p.getByRole('button', { name: 'Maak een cursus voor deze richting' }).click();
+  let venster = p.getByRole('dialog');
+  await venster.waitFor({ timeout: 10000 });
+  await venster.getByLabel('Je vak (mag leeg blijven)').fill('Biologie');
+  await sleep(900);
+  await wachtOpMaakKnop();
+  await venster.getByRole('button', { name: 'Maak de cursus' }).click();
+  await p.waitForURL(/#\/cursus\/bewerk\//, { timeout: 15000 });
+  await sleep(600);
+  const bioCursusId = cursusIdUitUrl();
+  await go('/#/cursussen/richtingen');
+  await p.waitForSelector('.ri-lijst', { timeout: 15000 });
+  const mijn = p.locator('section.mr');
+  check('(2) lijst: met een cursus staat er een h2 "Mijn richtingen" met een uitleg', (await p.locator('main h2', { hasText: /^Mijn richtingen$/ }).count()) === 1 && /De richtingen waarvoor je cursussen of klassen hebt op dit toestel, met wat je cursussen samen dekken\./.test(await mijn.innerText()));
+  const rijLink = mijn.locator('a[href="#/cursussen/richtingen/G-0193?jaar=4"]');
+  const rijTekst = (await rijLink.count()) === 1 ? await rijLink.innerText() : '';
+  check('(2) lijst: een link #/cursussen/richtingen/G-0193?jaar=4 met "Natuurwetenschappen" en "1 cursus" (4de jaar)', /Natuurwetenschappen/.test(rijTekst) && /(?<!\d)1 cursus(?!sen)/.test(rijTekst) && /2de graad · 1 cursus \(4de jaar\)/.test(rijTekst));
+  const dekRegex = /Je cursussen dekken \d+ van de \d+ minimumdoelen \(\d+ %\)\./;
+  const dekKlaar = await p.waitForFunction((bron) => new RegExp(bron).test(document.querySelector('section.mr')?.innerText ?? ''), dekRegex.source, { timeout: 15000 }).then(() => true, () => false);
+  check('(2) lijst: binnen 15 seconden "Je cursussen dekken N van de N minimumdoelen (N %)." bij de rij', dekKlaar);
+  check('(2) lijst: de rij zegt "Natuurwetenschappen" zonder groepnummer of set-id', await rtGeenIds(p));
+  await p.setViewportSize({ width: 390, height: 844 });
+  await sleep(300);
+  const rijHoogte = (await rijLink.boundingBox())?.height ?? 0;
+  check(`(2) lijst op 390 px: niets horizontaal en de rij is minstens 44 px hoog (${Math.round(rijHoogte)} px)`, (await rtSmal(p)) && rijHoogte >= 44);
+  await p.setViewportSize({ width: 1360, height: 900 });
+
+  // (3) Gaten dichten in een nieuwe cursus: alleen de eerste set
+  await go('/#/cursussen/richtingen/G-0193?jaar=4');
+  await wachtOpDetail();
+  const geplandVoor3 = await geplandOpDetail();
+  const planKnop = p.getByRole('button', { name: /^Plan de \d+ doelen die nog nergens aan bod komen$/ });
+  check('(3) detail: de knop "Plan de N doelen die nog nergens aan bod komen" (onder de samenvatting)', (await planKnop.count()) === 1);
+  const open3 = Number(/\d+/.exec(await planKnop.innerText())?.[0]);
+  await planKnop.click();
+  venster = p.getByRole('dialog');
+  await venster.waitFor({ timeout: 10000 });
+  await sleep(500);
+  check('(3) venster: de kop is "Plan wat nog nergens aan bod komt" (h2)', (await venster.locator('h2').first().innerText()).trim() === 'Plan wat nog nergens aan bod komt');
+  check('(3) venster: geen set-id of groepnummer in de tekst, en bij "Alle jaren van de graad" geen zin over het jaar', (await rtGeenIds(p)) && !/Je telt nu alleen de cursussen/.test(await venster.innerText()));
+  const vakjes = venster.locator('.gt-setlijst input[type=checkbox]');
+  const nVakjes = await vakjes.count();
+  const eerstesetLabel = (await vakjes.first().locator('xpath=ancestor::label').innerText()).trim();
+  for (let i = 1; i < nVakjes; i++) await vakjes.nth(i).uncheck();
+  await sleep(300);
+  const teller = (await venster.locator('.gt-teller').innerText()).trim();
+  const mTeller = /^Je koos (\d+) doel(?:en)? uit 1 set\.$/.exec(teller);
+  const n3 = mTeller ? Number(mTeller[1]) : NaN;
+  check(`(3) venster: met alleen het eerste vakje ("${eerstesetLabel}") zegt de teller "Je koos ${n3} doel(en) uit 1 set."`, nVakjes > 1 && !!mTeller && n3 >= 1 && new RegExp(` · ${n3} doel(en)?$`).test(eerstesetLabel));
+  const bestaandRadio = venster.getByRole('radio', { name: 'In een cursus die je al hebt' });
+  check('(3) venster: "In een cursus die je al hebt" staat op aria-disabled, met de uitleg waarom', (await bestaandRadio.getAttribute('aria-disabled')) === 'true' && /Geen cursus van deze richting heeft een van de gekozen doelen/.test(await venster.innerText()));
+  check('(3) venster: "In een nieuwe cursus" is de standaard', await venster.getByRole('radio', { name: 'In een nieuwe cursus' }).isChecked());
+  // (8) Op 390 px: het detail met het venster, en de nieuwe knoppen
+  await p.setViewportSize({ width: 390, height: 844 });
+  await sleep(300);
+  const venster390 = await venster.locator('.gt-knop').evaluateAll((l) => l.map((b) => Math.round(b.getBoundingClientRect().height)));
+  const planHoogte390 = (await planKnop.boundingBox())?.height ?? 0;
+  check('(8) 390 px: het detail met het venster scrollt niet horizontaal, heeft één main en één h1 en geen set-id of groepnummer buiten de bronregel', (await rtSmal(p)) && (await p.locator('main').count()) === 1 && (await p.locator('main h1').count()) === 1 && (await rtGeenIds(p)));
+  check(`(8) 390 px: de knoppen van het venster (${venster390.join(', ')} px) en de knop "Plan de … doelen" (${Math.round(planHoogte390)} px) zijn minstens 44 px hoog`, venster390.length >= 2 && venster390.every((h) => h >= 44) && planHoogte390 >= 44);
+  await p.setViewportSize({ width: 1360, height: 900 });
+  await sleep(300);
+  await wachtOpMaakKnop();
+  const bestaandVoor =new Set((await lees()).cursussen.map((c) => c.id));
+  await venster.getByRole('button', { name: 'Maak de cursus' }).click();
+  await p.waitForURL(/#\/cursus\/bewerk\//, { timeout: 15000 });
+  await sleep(600);
+  const nieuweId = cursusIdUitUrl();
+  check('(3) "Maak de cursus" opent de cursuseditor (/cursus/bewerk/<id>) van een nieuwe cursus', !!nieuweId && !bestaandVoor.has(nieuweId));
+  const na3 = await lees();
+  const cursus3 = na3.cursussen.find((c) => c.id === nieuweId);
+  const leerplan3 = na3.leerplannen.find((l) => l.id === cursus3?.curriculumId);
+  const refs3 = (leerplan3?.goals ?? []).flatMap((g) => (g.refs ?? []).map((r) => `${r.set}|${r.id}`));
+  const sets3 = [...new Set((leerplan3?.goals ?? []).flatMap((g) => (g.refs ?? []).map((r) => r.set)))];
+  const dg3 = leerplan3?.doelgroep;
+  check(`(3) opgeslagen: een nieuw leerplan, samengesteld en gecontroleerd, voor G-0193, met exact ${n3} verwijzingen in één set`, !!leerplan3 && leerplan3.herkomst?.methode === 'samengesteld' && leerplan3.controle?.status === 'gecontroleerd' && dg3?.groep === 'G-0193' && refs3.length === n3 && leerplan3.goals.length === n3 && sets3.length === 1 && JSON.stringify(leerplan3.minimumdoelenSets) === JSON.stringify(sets3));
+  check('(3) opgeslagen: het leerplan is nieuw (niet het Biologie-leerplan van de eerste cursus) en volgt het kader niet (geen volgtKader)', !!leerplan3 && leerplan3.id !== na3.cursussen.find((c) => c.id === bioCursusId)?.curriculumId && dg3?.volgtKader === undefined);
+  const afdr3 = dg3?.setAfdrukken;
+  check('(3) opgeslagen: doelgroep.setAfdrukken heeft precies die ene set als sleutel, met een waarde van 16 hex-tekens', !!afdr3 && JSON.stringify(Object.keys(afdr3)) === JSON.stringify(sets3) && /^[0-9a-f]{16}$/.test(afdr3[sets3[0]] ?? ''));
+  check('(3) opgeslagen: de cursus heeft jaar 4, doelgroep G-0193 zonder kadervelden, en secties met goalCodes die precies de doelcodes van het leerplan zijn', !!cursus3 && cursus3.doelgroep?.groep === 'G-0193' && cursus3.doelgroep?.jaar === 4 && cursus3.doelgroep?.kader === undefined && cursus3.doelgroep?.setAfdrukken === undefined && codesVan(cursus3).length > 0 && canon(codesVan(cursus3)) === canon([...new Set(leerplan3.goals.map((g) => norm(g.code)))].sort()));
+  const toast3 = await toasts();
+  check(`(3) de melding "Cursus gemaakt: N hoofdstukken, ${n3} doelcodes klaar op de secties."`, new RegExp(`Cursus gemaakt: \\d+ hoofdstuk(ken)?, ${n3} doelcodes? klaar op de secties\\.`).test(toast3));
+  await go('/#/cursussen/richtingen/G-0193?jaar=4');
+  await wachtOpDetail();
+  const geplandNa3 = await geplandOpDetail();
+  check(`(3) terug op het detail: het aantal geplande doelen steeg met precies ${n3} (${geplandVoor3} naar ${geplandNa3})`, geplandNa3 === geplandVoor3 + n3);
+  const open3Na = Number(/\d+/.exec(await p.getByRole('button', { name: /^Plan de \d+ doelen die nog nergens aan bod komen$/ }).innerText())?.[0]);
+  check(`(3) terug op het detail: de knop telt ${n3} open doelen minder (${open3} naar ${open3Na})`, open3Na === open3 - n3);
+  // Bij "Tel mee: alleen het 4de jaar" zegt het venster dat het alleen de cursussen van dat jaar telt
+  await p.getByLabel('Alleen het 4de jaar', { exact: true }).check();
+  await sleep(1000);
+  await p.getByRole('button', { name: /^Plan de \d+ doelen die nog nergens aan bod komen$/ }).click();
+  venster = p.getByRole('dialog');
+  await venster.waitFor({ timeout: 10000 });
+  await sleep(300);
+  check('(3) venster bij "Tel mee: alleen het 4de jaar": "Je telt nu alleen de cursussen van het 4de jaar."', /Je telt nu alleen de cursussen van het 4de jaar\./.test(await venster.innerText()));
+  await venster.getByRole('button', { name: 'Annuleren' }).click();
+  await venster.waitFor({ state: 'detached', timeout: 10000 });
+  await p.getByLabel('Alle jaren van de graad', { exact: true }).check();
+  await sleep(1000);
+
+  // (4) Gaten dichten in een cursus die je al hebt: een cursus met het leerplan van de hele richting, nog zonder secties
+  await p.getByRole('button', { name: 'Maak een cursus voor deze richting' }).click();
+  venster = p.getByRole('dialog');
+  await venster.waitFor({ timeout: 10000 });
+  await venster.getByRole('radio', { name: /^Alle minimumdoelen van de richting/ }).check();
+  await venster.getByRole('radio', { name: 'Met een lege cursus' }).check();
+  await sleep(500);
+  await wachtOpMaakKnop();
+  await venster.getByRole('button', { name: 'Maak de cursus' }).click();
+  await p.waitForURL(/#\/cursus\/bewerk\//, { timeout: 15000 });
+  await sleep(600);
+  const leegId = cursusIdUitUrl();
+  const voor4 = await lees();
+  const leeg = voor4.cursussen.find((c) => c.id === leegId);
+  const leerplanLeeg = voor4.leerplannen.find((l) => l.id === leeg?.curriculumId);
+  const hoofdstukVoor = canon(leeg?.chapters?.[0]);
+  const aantalHoofdstukkenVoor = leeg?.chapters?.length ?? 0;
+  check('(4) tweede cursus: "Alle minimumdoelen van de richting" met "Met een lege cursus" geeft een cursus zonder doelcodes op de secties, met een leerplan van de hele richting', !!leeg && !!leerplanLeeg && codesVan(leeg).length === 0 && leerplanLeeg.goals.length > n3 && leerplanLeeg.doelgroep?.volgtKader === true);
+  await go('/#/cursussen/richtingen/G-0193?jaar=4');
+  await wachtOpDetail();
+  await p.getByRole('button', { name: /^Plan de \d+ doelen die nog nergens aan bod komen$/ }).click();
+  venster = p.getByRole('dialog');
+  await venster.waitFor({ timeout: 10000 });
+  await sleep(500);
+  const aan = await venster.locator('.gt-setlijst input[type=checkbox]:checked').count();
+  const alle = await venster.locator('.gt-setlijst input[type=checkbox]').count();
+  check(`(4) venster: standaard staan alle ${alle} vakjes aan`, alle > 1 && aan === alle);
+  const bestaandRadio4 = venster.getByRole('radio', { name: 'In een cursus die je al hebt' });
+  check('(4) venster: nu is "In een cursus die je al hebt" te kiezen (het leerplan van de hele richting bevat de open doelen)', (await bestaandRadio4.getAttribute('aria-disabled')) === null);
+  await bestaandRadio4.check();
+  const kandidaten = venster.locator('.gt-cursus');
+  check('(4) venster: precies één cursus past, met "k van de n gekozen doelen staan in haar leerplan" en "4de jaar"', (await kandidaten.count()) === 1 && /4de jaar · (Het gekozen doel staat|\d+ van de \d+ gekozen doelen staa[nt]) in haar leerplan/.test(await kandidaten.first().innerText()));
+  check('(4) venster: onder de lijst "2 andere cursussen van deze richting hebben geen van deze doelen in hun leerplan."', /^2 andere cursussen van deze richting hebben geen van deze doelen in hun leerplan\.$/.test((await venster.locator('.gt-zonder').innerText()).trim()));
+  check('(4) venster: zonder gekozen cursus zegt de voet "Nog nodig: een cursus." en blijft de knop aria-disabled', /^Nog nodig: een cursus\.$/.test((await venster.locator('.gt-nodig').innerText()).trim()) && (await venster.getByRole('button', { name: /^Zet (ze|het|de \d+ doelen|het doel) in deze cursus$/ }).getAttribute('aria-disabled')) === 'true');
+  await kandidaten.first().locator('input[type=radio]').check();
+  await sleep(300);
+  const voorbeeld = (await venster.locator('.gt-voorbeeld').innerText()).trim();
+  check('(4) venster: de voorbeeldzin "Alle N gekozen doelen staan in het leerplan van ‘…’. Ze komen er als lege secties bij; wat al in de cursus staat, blijft zoals het is."', /^Alle \d+ gekozen doelen staan in het leerplan van ‘.+’\. Ze komen er als lege secties bij; wat al in de cursus staat, blijft zoals het is\.$/.test(voorbeeld));
+  check('(4) venster: geen set-id of groepnummer in de tekst', await rtGeenIds(p));
+  await p.setViewportSize({ width: 390, height: 844 });
+  await sleep(300);
+  check('(8) 390 px: het venster met een gekozen cursus scrollt niet horizontaal, zonder set-id of groepnummer', (await rtSmal(p)) && (await rtGeenIds(p)));
+  const knoppen390 = await venster.locator('.gt-knop').evaluateAll((l) => l.map((b) => Math.round(b.getBoundingClientRect().height)));
+  check(`(8) 390 px: de knoppen van het venster zijn minstens 44 px hoog (${knoppen390.join(', ')} px)`, knoppen390.length >= 2 && knoppen390.every((h) => h >= 44));
+  await p.setViewportSize({ width: 1360, height: 900 });
+  await venster.getByRole('button', { name: /^Zet ze in deze cursus$/ }).click();
+  await p.getByRole('dialog').waitFor({ state: 'detached', timeout: 10000 });
+  await sleep(500);
+  const toast4 = await toasts();
+  check('(4) de melding "N doelen staan nu gepland in ‘…’."', /\d+ doelen staan nu gepland in ‘.+’\./.test(toast4) && /staan nu gepland in/.test(toast4));
+  check('(4) de focus gaat naar de kop "Wat je cursussen samen dekken"', (await p.evaluate(() => document.activeElement?.id)) === 'ri-dekking-kop');
+  const na4 = await lees();
+  const leegNa = na4.cursussen.find((c) => c.id === leegId);
+  const leerplanLeegNa = na4.leerplannen.find((l) => l.id === leeg?.curriculumId);
+  check('(4) opgeslagen: het eerste hoofdstuk van de cursus is diep gelijk aan vroeger', !!leegNa && canon(leegNa.chapters[0]) === hoofdstukVoor);
+  const nieuweHoofdstukken = (leegNa?.chapters ?? []).slice(aantalHoofdstukkenVoor);
+  check(`(4) opgeslagen: er zijn nieuwe hoofdstukken achteraan (${nieuweHoofdstukken.length}), elk met secties met goalCodes`, nieuweHoofdstukken.length > 0 && nieuweHoofdstukken.every((h) => h.sections.some((s) => (s.goalCodes ?? []).length > 0)) && codesVan(leegNa).length > 0);
+  check('(4) opgeslagen: het leerplan is ongewijzigd (zelfde id en updatedAt, en overal hetzelfde)', !!leerplanLeegNa && canon(leerplanLeegNa) === canon(leerplanLeeg) && leerplanLeegNa.id === leerplanLeeg.id && leerplanLeegNa.updatedAt === leerplanLeeg.updatedAt);
+  check('(4) opgeslagen: de andere cursussen en leerplannen veranderden niet', canon(na4.cursussen.filter((c) => c.id !== leegId)) === canon(voor4.cursussen.filter((c) => c.id !== leegId)) && canon(na4.leerplannen) === canon(voor4.leerplannen));
+  await sleep(1500);
+  const dek4 = await p.locator('section[aria-labelledby="ri-dekking-kop"]').innerText();
+  check('(4) detail: "Er zijn geen verplichte minimumdoelen meer die nergens aan bod komen." en geen knop "Plan de … doelen" meer', /Er zijn geen verplichte minimumdoelen meer die nergens aan bod komen\./.test(dek4) && (await p.getByRole('button', { name: /^Plan (de \d+ doelen|het doel) die nog nergens aan bod komen/ }).count()) === 0);
+  check('(4) detail: "0 nog niet" in de samenvatting (alles staat gepland of is gedekt)', /, 0 nog niet\./.test(dek4));
+
+  // (5) Dezelfde hulp in de cursuseditor: "Plan ze in deze cursus"
+  await go('/#/cursussen/richtingen/G-0193?jaar=4');
+  await wachtOpDetail();
+  await p.getByRole('button', { name: 'Maak een cursus voor deze richting' }).click();
+  venster = p.getByRole('dialog');
+  await venster.waitFor({ timeout: 10000 });
+  await venster.getByLabel('Je vak (mag leeg blijven)').fill('Biologie');
+  await sleep(900);
+  await venster.getByRole('radio', { name: 'Met een lege cursus' }).check();
+  await wachtOpMaakKnop();
+  await venster.getByRole('button', { name: 'Maak de cursus' }).click();
+  await p.waitForURL(/#\/cursus\/bewerk\//, { timeout: 15000 });
+  await sleep(800);
+  const edId = cursusIdUitUrl();
+  const voor5 = (await lees()).cursussen.find((c) => c.id === edId);
+  check('(5) editor: een lege cursus met de set Biologie (geen doelcodes op de secties)', !!voor5 && codesVan(voor5).length === 0);
+  await p.getByRole('button', { name: /Doelendekking/ }).click();
+  const schakelaar = p.locator('.dk-schakelaar');
+  await schakelaar.waitFor({ timeout: 15000 });
+  await schakelaar.getByRole('button', { name: 'Minimumdoelen' }).click();
+  await p.waitForSelector('.dk-samenvatting', { timeout: 20000 });
+  await sleep(500);
+  const dlg = p.getByRole('dialog');
+  const aantalBio = bio?.ids.length;
+  check(`(5) editor: "${aantalBio} doelen uit het leerplan van deze cursus staan nog op geen enkele sectie."`, new RegExp(`^${aantalBio} doelen uit het leerplan van deze cursus staan nog op geen enkele sectie\\.$`).test((await dlg.locator('.gt-editor-regel').innerText()).trim()));
+  const andere = (await dlg.locator('.gt-andere').allInnerTexts()).map((x) => x.trim());
+  check('(5) editor: "N andere doelen die deze cursus niet dekt, staan niet in haar leerplan." en de verwijzing naar de studierichting', andere.some((x) => /^\d+ andere doelen die deze cursus niet dekt, staan niet in haar leerplan\.$/.test(x)) && andere.includes('Wat geen enkele cursus behandelt, plan je bij de studierichting.'));
+  await dlg.getByRole('button', { name: 'Plan ze in deze cursus' }).click();
+  const paneel = dlg.getByRole('group', { name: 'Plan in deze cursus' });
+  await paneel.waitFor({ timeout: 5000 });
+  check('(5) editor: het paneel heeft h3 "Plan in deze cursus", krijgt de focus en noemt de ene set zonder vakje ("Biologie · N doelen")', (await paneel.locator('h3').innerText()).trim() === 'Plan in deze cursus' && (await p.evaluate(() => document.activeElement?.getAttribute('role'))) === 'group' && (await paneel.locator('.gt-eenset').innerText()).trim() === `Biologie · ${aantalBio} doelen` && (await paneel.locator('input[type=checkbox]').count()) === 0);
+  check('(5) editor: de uitleg van het paneel', /Boosterz zet ze als lege secties met de doelcodes erop achteraan in je cursus, of achteraan in een hoofdstuk met dezelfde naam\. Wat al in de cursus staat, blijft zoals het is\./.test(await paneel.innerText()));
+  await paneel.getByRole('button', { name: 'Zet ze in deze cursus' }).click();
+  await sleep(600);
+  const toast5 = await toasts();
+  check(`(5) editor: de melding "${aantalBio} doelen staan nu gepland in deze cursus."`, new RegExp(`${aantalBio} doelen staan nu gepland in deze cursus\\.`).test(toast5));
+  await p.waitForFunction((id) => {
+    const c = JSON.parse(localStorage.getItem('wf.courses.v1') || '[]').find((x) => x.id === id);
+    return !!c && c.chapters.some((h) => h.sections.some((s) => (s.goalCodes ?? []).length > 0));
+  }, edId, { timeout: 15000 }).catch(() => {});
+  const na5 = (await lees()).cursussen.find((c) => c.id === edId);
+  const metCallout = (na5?.chapters ?? []).flatMap((h) => h.sections).filter((s) => (s.goalCodes ?? []).length > 0 && (s.blocks ?? []).some((b) => b.type === 'callout' && b.title === 'Doelen in deze sectie'));
+  check(`(5) opgeslagen: een sectie met goalCodes en de callout "Doelen in deze sectie" (${metCallout.length} sectie(s), ${codesVan(na5 ?? { chapters: [] }).length} doelcodes)`, metCallout.length > 0 && codesVan(na5).length === aantalBio);
+  const dek5 = await dlg.locator('.dk-samenvatting').innerText();
+  check(`(5) editor: de dekking toont de doelen als gepland ("${aantalBio} doelen staan al gepland op een sectie die nog leeg is")`, new RegExp(`${aantalBio} doelen staan al gepland op een sectie die nog leeg is`).test(dek5) && (await dlg.getByRole('button', { name: /^Plan (ze|het) in deze cursus$/ }).count()) === 0);
+  await dlg.locator('details.dk-set summary', { hasText: /^Biologie: / }).click();
+  await dlg.locator('details.dk-set[open] .dk-status').first().waitFor({ timeout: 5000 });
+  const statussen5 = (await dlg.locator('details.dk-set[open] .dk-status').allInnerTexts()).map((x) => x.replace(/\s+/g, ' ').trim());
+  check('(5) editor: elk doel van Biologie staat op "Gepland in ‘…’ (de sectie is nog leeg)"', statussen5.length === aantalBio && statussen5.every((x) => /^Gepland in ‘.+’ \(de sectie is nog leeg\)$/.test(x)));
+  await p.keyboard.press('Escape');
+  await sleep(400);
+  const sectieTitel = metCallout[0]?.title ?? '';
+  await p.getByRole('button', { name: new RegExp(sectieTitel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).first().click();
+  await sleep(500);
+  check('(5) editor: de sectie toont haar doelcodes en de callout "Doelen in deze sectie"', (await p.evaluate(() => [...document.querySelectorAll('input')].some((e) => e.value === 'Doelen in deze sectie'))) && /\d\d\.\d\d\.\d\d\s+De leerlingen/.test(await p.evaluate(() => document.body.innerText)));
+
+  // (6) F2.1: "Keuze aanpassen" zonder richting geeft geen valse melding meer over de koppeling
+  const kies = (await lees());
+  const lpHeleRichting = kies.leerplannen.find((l) => l.id === leerplanLeeg?.id);
+  const setsVoor = [...(lpHeleRichting?.minimumdoelenSets ?? [])];
+  const afdrukkenVoor = lpHeleRichting?.doelgroep?.setAfdrukken ?? {};
+  const wegNaam = 'Cultureel bewustzijn';
+  check('(6) het leerplan van de hele richting heeft setAfdrukken voor al haar sets (het is na fase 2 gemaakt)', !!lpHeleRichting && setsVoor.length > 5 && JSON.stringify(Object.keys(afdrukkenVoor).sort()) === JSON.stringify([...setsVoor].sort()));
+  await go(`/#/leerplannen?open=${encodeURIComponent(lpHeleRichting.id)}`);
+  await p.getByRole('link', { name: 'Keuze aanpassen' }).waitFor({ timeout: 15000 });
+  await p.getByRole('link', { name: 'Keuze aanpassen' }).click();
+  await p.waitForSelector('.sam-blok .sam-doel', { timeout: 30000 });
+  await sleep(500);
+  const samKop6 = () => p.locator('h2.il-stapkop').innerText().then((x) => x.trim());
+  const samTotaal6 = () => p.locator('.sam-totaal').innerText().then((x) => x.trim());
+  check('(6) Keuze aanpassen: h1 "Doelenlijst aanpassen", stap 2 met de doelen van de richting', /^Doelenlijst aanpassen$/.test(await p.locator('main h1').innerText()) && (await samKop6()) === 'Stap 2 van 3: Doelen kiezen' && /^Je koos \d+ doelen uit \d+ sets\.$/.test(await samTotaal6()));
+  const totaalVoor = Number(/Je koos (\d+) doelen/.exec(await samTotaal6())?.[1]);
+  // Een doel erbij in een deelset: het eerste blok met aangevinkte én niet-aangevinkte doelen
+  const deelBlok = p.locator('.sam-blok').filter({ has: p.locator('.sam-doel input:checked') }).filter({ has: p.locator('.sam-doel input:not(:checked)') }).first();
+  check('(6) Keuze aanpassen: er is een deelset (een deel van de doelen van de set staat aangevinkt)', (await deelBlok.count()) === 1);
+  const deelTelling = async () => (await deelBlok.locator('.sam-telling').first().innerText()).replace(/\s+/g, ' ').trim();
+  const tellingVoor = await deelTelling();
+  await deelBlok.locator('.sam-doel input:not(:checked)').first().check();
+  await sleep(300);
+  check(`(6) Keuze aanpassen: één doel erbij in de deelset (${tellingVoor} naar ${await deelTelling()}) geeft ${totaalVoor + 1} doelen`, (await samTotaal6()).startsWith(`Je koos ${totaalVoor + 1} doelen`));
+  // Een andere set weg: in stap 1
+  await p.getByRole('button', { name: /^Terug/ }).click();
+  await sleep(300);
+  const chipsVoor = await p.locator('.sam-chip').count();
+  await p.getByRole('button', { name: new RegExp(`^Haal ${wegNaam}`) }).first().click();
+  await sleep(300);
+  check(`(6) Keuze aanpassen: "${wegNaam}" weghalen laat ${chipsVoor - 1} gekozen sets over`, (await p.locator('.sam-chip').count()) === chipsVoor - 1);
+  await p.getByRole('button', { name: /^Volgende/ }).click();
+  await sleep(400);
+  await p.getByRole('button', { name: /^Volgende/ }).click();
+  await p.waitForSelector('#sam-titel', { timeout: 15000 });
+  await p.getByRole('button', { name: 'Bewaar de lijst' }).click();
+  await p.waitForSelector('text=/Dit leerplan staat op slot/', { timeout: 15000 });
+  const na6 = await lees();
+  const lpNa = na6.leerplannen.find((l) => l.id === lpHeleRichting.id);
+  const setsNa = lpNa?.minimumdoelenSets ?? [];
+  const afdrukkenNa = lpNa?.doelgroep?.setAfdrukken ?? {};
+  const weggevallen = setsVoor.filter((x) => !setsNa.includes(x));
+  const doelenVanWeg = lpHeleRichting.goals.filter((g) => (g.refs ?? []).some((r) => r.set === weggevallen[0])).length;
+  check(`(6) opgeslagen: hetzelfde leerplan (zelfde id), een set minder, nog nagekeken, en één doel meer in de deelset (${lpHeleRichting.goals.length} - ${doelenVanWeg} + 1 = ${lpNa?.goals.length} doelen)`, na6.leerplannen.length === kies.leerplannen.length && weggevallen.length === 1 && setsNa.length === setsVoor.length - 1 && lpNa.controle?.status === 'gecontroleerd' && lpNa.goals.length === lpHeleRichting.goals.length - doelenVanWeg + 1);
+  check('(6) opgeslagen: setAfdrukken is gesnoeid tot de sets die overblijven, en de afdruk van elke set die bleef is dezelfde gebleven', JSON.stringify(Object.keys(afdrukkenNa).sort()) === JSON.stringify([...setsNa].sort()) && setsNa.every((x) => afdrukkenNa[x] === afdrukkenVoor[x]) && afdrukkenNa[weggevallen[0]] === undefined);
+  await go('/#/cursussen/richtingen/G-0193?jaar=4');
+  await wachtOpDetail();
+  await p.waitForSelector('section[aria-labelledby="ri-leerplannen-kop"] .ri-items', { timeout: 15000 });
+  await sleep(500);
+  const leerplannenTekst = await p.locator('section[aria-labelledby="ri-leerplannen-kop"]').innerText();
+  check('(6) detail: het leerplan staat bij "Leerplannen van deze richting op dit toestel" en er is geen melding "De officiële koppeling van deze richting is veranderd"', leerplannenTekst.includes(lpNa.title) && !/De officiële koppeling van deze richting is veranderd/.test(await p.locator('main').innerText()));
+  // Controle dat de melding wél kan komen: hetzelfde leerplan zoals het van vóór fase 2 zou zijn (zonder setAfdrukken) geeft de oude regel
+  await p.evaluate((id) => {
+    const lijst = JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]');
+    const c = lijst.find((x) => x.id === id);
+    delete c.doelgroep.setAfdrukken;
+    localStorage.setItem('wf.curricula.v1', JSON.stringify(lijst));
+  }, lpHeleRichting.id);
+  // Echt herladen: dezelfde adresbalk laadt de pagina niet opnieuw, en de pagina leest de opslag bij het openen.
+  await p.reload({ waitUntil: 'networkidle' });
+  await wachtOpDetail();
+  await p.waitForSelector('section[aria-labelledby="ri-leerplannen-kop"] .ri-items', { timeout: 15000 });
+  await sleep(500);
+  check('(6) controle: zonder setAfdrukken (een leerplan van vóór fase 2) volgt de app de oude regel en komt de melding wél (er staat dus wat te vergelijken)', /De officiële koppeling van deze richting is veranderd sinds je ‘.+’ maakte/.test(await p.locator('main').innerText()));
+  await p.evaluate(([id, afdrukken]) => {
+    const lijst = JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]');
+    lijst.find((x) => x.id === id).doelgroep.setAfdrukken = afdrukken;
+    localStorage.setItem('wf.curricula.v1', JSON.stringify(lijst));
+  }, [lpHeleRichting.id, afdrukkenNa]);
+
+
+  // (7) Een klas met een studierichting en een jaar
+  await go('/#/klassen');
+  await p.getByRole('button', { name: /Nieuwe klas/ }).first().click();
+  const dlg7 = p.getByRole('dialog');
+  await dlg7.waitFor({ timeout: 10000 });
+  await dlg7.getByLabel('Naam van de klas').fill('Proefklas 4NW');
+  await dlg7.getByLabel(/Klaslijst plakken/).fill('Leerling A\nLeerling B');
+  await dlg7.getByRole('button', { name: 'Aanmaken' }).click();
+  await p.waitForURL(/#\/klas\/[^/?#]+$/, { timeout: 10000 });
+  const klasId = (/#\/klas\/([^/?#]+)$/.exec(p.url()) ?? [])[1];
+  const klasSectie = p.locator('section.kr-sectie');
+  await klasSectie.waitFor({ timeout: 10000 });
+  check('(7) klas: een sectie met h2 "Studierichting", de uitleg en de knop "Kies een studierichting"', (await klasSectie.locator('h2').innerText()).trim() === 'Studierichting' && /Koppel deze klas aan een studierichting en een jaar\. Dan zie je hier de cursussen van die richting, en bij ‘Opdracht toevoegen’ staan ze bovenaan\./.test(await klasSectie.innerText()) && (await klasSectie.getByRole('button', { name: 'Kies een studierichting' }).count()) === 1);
+  await p.setViewportSize({ width: 390, height: 844 });
+  await sleep(300);
+  const kiesHoogte = (await klasSectie.getByRole('button', { name: 'Kies een studierichting' }).boundingBox())?.height ?? 0;
+  check(`(8) 390 px: de klas (zonder richting) scrollt niet horizontaal, heeft één main en één h1, en "Kies een studierichting" is minstens 44 px hoog (${Math.round(kiesHoogte)} px)`, (await rtSmal(p)) && (await p.locator('main').count()) === 1 && (await p.locator('main h1').count()) === 1 && kiesHoogte >= 44);
+  await p.setViewportSize({ width: 1360, height: 900 });
+  await klasSectie.getByRole('button', { name: 'Kies een studierichting' }).click();
+  const kz = p.getByRole('dialog');
+  await kz.waitFor({ timeout: 15000 });
+  check('(7) kiezer: de titel is "Studierichting van deze klas"', (await kz.locator('h2').first().innerText()).trim() === 'Studierichting van deze klas');
+  await kz.getByLabel('2de graad', { exact: true }).check();
+  await kz.getByLabel('Zoek een richting').fill('natuurwet');
+  await sleep(800);
+  await kz.getByRole('radio', { name: /Natuurwetenschappen/ }).first().check();
+  await kz.getByLabel('4de jaar', { exact: true }).check();
+  await sleep(300);
+  check('(7) kiezer: "Gekozen: Natuurwetenschappen (…)" en geen groepnummer of set-id', /^Gekozen: Natuurwetenschappen \(/.test((await kz.locator('.rc-gekozen').innerText()).trim()) && !/ODS_\d|G-0\d/.test(await kz.innerText()));
+  await kz.getByRole('button', { name: 'Kies deze richting' }).click();
+  await kz.waitFor({ state: 'detached', timeout: 10000 });
+  await sleep(500);
+  check('(7) klas: de sectie toont vet "Natuurwetenschappen · 4de jaar" en de knoppen "Wijzig" en "Geen richting"', (await klasSectie.locator('.kr-waarde strong').innerText()).trim() === 'Natuurwetenschappen · 4de jaar' && (await klasSectie.getByRole('button', { name: /^Wijzig/ }).count()) === 1 && (await klasSectie.getByRole('button', { name: 'Geen richting' }).count()) === 1);
+  check('(7) klas: de melding "Studierichting van ‘Proefklas 4NW’: Natuurwetenschappen · 4de jaar." en de focus op "Wijzig"', /Studierichting van ‘Proefklas 4NW’: Natuurwetenschappen · 4de jaar\./.test(await toasts()) && /^Wijzig/.test(await p.evaluate(() => document.activeElement?.textContent?.trim() ?? '')));
+  const klasOpslag = (await lees()).klassen.find((k) => k.id === klasId);
+  const kdg = klasOpslag?.doelgroep;
+  check('(7) opgeslagen: wf.classes.v1 heeft doelgroep {groep G-0193, jaar 4, soort so}, zonder vak, kader, kaderVolledig, setAfdrukken of volgtKader', !!kdg && kdg.groep === 'G-0193' && kdg.jaar === 4 && kdg.soort === 'so' && ['vak', 'kader', 'kaderVolledig', 'setAfdrukken', 'volgtKader'].every((v) => !(v in kdg)));
+  await klasSectie.locator('.kr-lijst').waitFor({ timeout: 15000 });
+  check('(7) klas: onder de h3 "Cursussen voor deze richting" staan de cursussen van de richting, elk met "4de jaar" en een knop "Toewijzen"', (await klasSectie.locator('h3', { hasText: /^Cursussen voor deze richting$/ }).count()) === 1 && (await klasSectie.locator('.kr-rij').count()) === 4 && (await klasSectie.locator('.kr-rij', { hasText: '4de jaar' }).count()) === 4 && (await klasSectie.getByRole('button', { name: /^Toewijzen/ }).count()) === 4);
+  // Toewijzen
+  const eersteRij = klasSectie.locator('.kr-rij').first();
+  const cursusVoorKlas = await eersteRij.locator('a.kr-titel').getAttribute('data-cursus');
+  await eersteRij.getByRole('button', { name: /^Toewijzen/ }).click();
+  const opdracht = p.getByRole('dialog');
+  await opdracht.waitFor({ timeout: 10000 });
+  check('(7) Toewijzen opent "Opdracht toevoegen" met die cursus al gekozen', (await opdracht.locator('h2').first().innerText()).trim() === 'Opdracht toevoegen' && (await opdracht.getByLabel('Cursus', { exact: true }).inputValue()) === cursusVoorKlas);
+  await opdracht.getByRole('button', { name: 'Toevoegen', exact: true }).click();
+  await opdracht.waitFor({ state: 'detached', timeout: 10000 });
+  await sleep(500);
+  const nuRij = klasSectie.locator('.kr-rij').filter({ has: p.locator(`a[data-cursus="${cursusVoorKlas}"]`) });
+  check('(7) Toewijzen: de rij toont "Staat in deze klas" en de focus staat op de titel van de cursus', /Staat in deze klas/.test(await nuRij.innerText()) && (await nuRij.getByRole('button', { name: /^Toewijzen/ }).count()) === 0 && (await p.evaluate(() => document.activeElement?.getAttribute('data-cursus'))) === cursusVoorKlas);
+  check('(7) Toewijzen: er staat een opdracht voor die cursus in de klas (wf.assignments.v1)', (await p.evaluate(([k, c]) => JSON.parse(localStorage.getItem('wf.assignments.v1') || '[]').filter((a) => a.classId === k && a.kind === 'course' && a.targetId === c).length, [klasId, cursusVoorKlas])) === 1);
+  // "Opdracht toevoegen" zelf: de cursussen van de richting bovenaan
+  await p.getByRole('button', { name: /Opdracht toevoegen/ }).first().click();
+  const opdracht2 = p.getByRole('dialog');
+  await opdracht2.waitFor({ timeout: 10000 });
+  check('(7) Opdracht toevoegen: de keuzelijst heeft optgroup "Voor Natuurwetenschappen · 4de jaar" en "Andere cursussen", met de hint dat de cursussen van de richting bovenaan staan', (await opdracht2.locator('optgroup[label="Voor Natuurwetenschappen · 4de jaar"]').count()) === 1 && (await opdracht2.locator('optgroup[label="Andere cursussen"]').count()) === 1 && (await opdracht2.locator('optgroup[label="Voor Natuurwetenschappen · 4de jaar"] option').count()) === 4 && /De cursussen voor de studierichting van deze klas staan bovenaan\./.test(await opdracht2.innerText()));
+  await opdracht2.getByRole('button', { name: 'Annuleren' }).click();
+  await opdracht2.waitFor({ state: 'detached', timeout: 10000 });
+  // Mijn klassen
+  await go('/#/klassen');
+  check('(7) Mijn klassen: achter de klascode staat " · Natuurwetenschappen · 4de jaar"', /Klascode\s+\S+\s+·\s+bijgewerkt .+ · Natuurwetenschappen · 4de jaar/.test(await p.locator('.card', { hasText: 'Proefklas 4NW' }).first().innerText()));
+  // De richtingpagina: de klassen van deze richting
+  await go('/#/cursussen/richtingen/G-0193?jaar=4');
+  await wachtOpDetail();
+  const klassenSectie = p.locator('section[aria-labelledby="ri-klassen-kop"]');
+  const klasLink = klassenSectie.locator(`a[href="#/klas/${klasId}"]`);
+  check('(7) richtingpagina: h2 "Klassen van deze richting" met een link naar de klas, "4de jaar · 2 leerlingen" en "1 van de 4 cursussen van deze richting staat in deze klas."', (await klassenSectie.locator('h2').innerText()).trim() === 'Klassen van deze richting' && (await klasLink.count()) === 1 && (await klasLink.innerText()).trim() === 'Proefklas 4NW' && /4de jaar · 2 leerlingen/.test(await klassenSectie.innerText()) && /1 van de 4 cursussen van deze richting staat in deze klas\./.test(await klassenSectie.innerText()));
+  await go('/#/cursussen/richtingen');
+  await p.waitForSelector('section.mr', { timeout: 15000 });
+  check('(7) Mijn richtingen: de rij van Natuurwetenschappen toont "1 klas"', /(?<!\d)1 klas(?!sen)/.test(await p.locator('section.mr a[href="#/cursussen/richtingen/G-0193?jaar=4"]').innerText()));
+  // De klaslink: het pakket draagt de richting, zonder vak
+  await go(`/#/klas/${klasId}`);
+  await p.getByRole('button', { name: /Klaslink & pakket/ }).click();
+  const link = p.locator('[aria-label="Klaspakketlink"]');
+  await link.waitFor({ timeout: 20000 });
+  const pakketUrl = await link.inputValue();
+  const pakket = (() => {
+    try { return JSON.parse(LZString.decompressFromEncodedURIComponent((/#\/klas\/open\?d=(.+)$/.exec(pakketUrl) ?? [])[1] ?? '') ?? 'null'); } catch { return null; }
+  })();
+  check('(7) klaspakket: de klaslink gedecodeerd heeft klas.doelgroep.groep G-0193, jaar 4, soort so en geen vak of kadervelden', !!pakket && pakket.klas?.doelgroep?.groep === 'G-0193' && pakket.klas.doelgroep.jaar === 4 && pakket.klas.doelgroep.soort === 'so' && ['vak', 'kader', 'kaderVolledig', 'setAfdrukken', 'volgtKader'].every((v) => !(v in pakket.klas.doelgroep)));
+  await p.keyboard.press('Escape');
+  await sleep(300);
+
+  // (8) Op 390 px: de lijst met Mijn richtingen, de klas met de sectie en het detail
+  await p.setViewportSize({ width: 390, height: 844 });
+  await go('/#/cursussen/richtingen');
+  await p.waitForSelector('section.mr', { timeout: 15000 });
+  const rijHoogte2 = (await p.locator('section.mr a.mr-link').first().boundingBox())?.height ?? 0;
+  check(`(8) 390 px: de lijst met Mijn richtingen scrollt niet horizontaal, één main en één h1, de rij is minstens 44 px hoog (${Math.round(rijHoogte2)} px), zonder groepnummer of set-id`, (await rtSmal(p)) && (await p.locator('main').count()) === 1 && (await p.locator('main h1').count()) === 1 && rijHoogte2 >= 44 && (await rtGeenIds(p)));
+  await go(`/#/klas/${klasId}`);
+  await p.locator('section.kr-sectie .kr-lijst').waitFor({ timeout: 15000 });
+  const knoppenKlas = await p.locator('section.kr-sectie button').evaluateAll((l) => l.filter((b) => b.getBoundingClientRect().height > 0).map((b) => ({ t: b.textContent.trim().replace(/\s+/g, ' '), h: Math.round(b.getBoundingClientRect().height) })));
+  check(`(8) 390 px: de klas met de sectie scrollt niet horizontaal, één main en één h1, en elke knop in de sectie is minstens 44 px hoog (${knoppenKlas.map((k) => `${k.t}: ${k.h}`).join('; ')})`, (await rtSmal(p)) && (await p.locator('main').count()) === 1 && (await p.locator('main h1').count()) === 1 && knoppenKlas.length >= 5 && knoppenKlas.every((k) => k.h >= 44) && (await rtGeenIds(p)));
+  await go('/#/cursussen/richtingen/G-0193?jaar=4');
+  await wachtOpDetail();
+  check('(8) 390 px: het detail (met de klassen van de richting) scrollt niet horizontaal, één main en één h1, zonder groepnummer of set-id buiten de bronregel', (await rtSmal(p)) && (await p.locator('main').count()) === 1 && (await p.locator('main h1').count()) === 1 && (await rtGeenIds(p)));
+  await p.setViewportSize({ width: 1360, height: 900 });
+
+  // (9) Geen console- of paginafouten; terug zoals het was
+  check('(9) geen console- of paginafouten in deze sectie', fouten.length === 0);
+  const teruggezet = await rtTerugZetten(p, voor);
+  const na = await lees();
+  check('Terug zoals het was: localStorage is weer zoals na het zaaien, en de cursussen en de klas van deze sectie zijn weg', teruggezet && na.cursussen.every((c) => c.doelgroep?.groep !== 'G-0193') && na.klassen.every((k) => k.doelgroep === undefined));
+  await ctx.close();
 }
 
 // ── 21. Importeren (zonder AI) ──────────────────────────────────────────────

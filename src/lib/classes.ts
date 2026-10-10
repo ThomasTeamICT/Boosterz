@@ -410,22 +410,20 @@ export function upsertAssignment(init: {
   targetId: string;
   dueAt?: number | null;
   note?: string;
-}): { assignment: Assignment; created: boolean } {
+}): { assignment: Assignment; created: boolean; /** Onwaar als de opslag vol of geblokkeerd is: dan is er niets bewaard. */ ok: boolean } {
   const bestaande = assignmentsForClass(init.classId).find(
     (a) => a.kind === init.kind && a.targetId === init.targetId
   );
   if (!bestaande) {
     const assignment = createAssignment(init);
-    saveAssignment(assignment);
-    return { assignment, created: true };
+    return { assignment, created: true, ok: saveAssignment(assignment) };
   }
   const assignment: Assignment = {
     ...bestaande,
     dueAt: init.dueAt ?? null,
     note: init.note?.trim() || undefined,
   };
-  saveAssignment(assignment);
-  return { assignment, created: false };
+  return { assignment, created: false, ok: saveAssignment(assignment) };
 }
 
 export function deleteAssignment(id: string): boolean {

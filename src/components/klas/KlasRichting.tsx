@@ -31,7 +31,7 @@ import '../../styles/klasrichting.css';
 // De dekking staat in een eigen chunk (ze haalt de setbestanden van het kader op). We laden die eerst los in (`laadKort`): lukt
 // dat niet (offline), dan krijgt de leerkracht een melding in plaats van een fout die de hele klas wegveegt. Een tweede klik
 // helpt dan niet, want de browser onthoudt de mislukte import; daarom nodigt de melding uit om de pagina te herladen.
-const laadKort = () => import('../richting/DekkingKort');
+const laadKort = () => import('../richting/DekkingKortKlas');
 const DekkingKort = lazy(() => laadKort().then((m) => ({ default: m.DekkingKort })));
 
 type KortStand = 'dicht' | 'laden' | 'klaar' | 'fout';

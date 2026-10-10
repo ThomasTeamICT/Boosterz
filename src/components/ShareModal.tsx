@@ -304,11 +304,17 @@ export function AssignToClassSection({
     if (!classId) return;
     const dueAt = due ? new Date(`${due}T23:59:59`).getTime() : null;
     const cls = classes.find((c) => c.id === classId);
-    const { assignment, created } = upsertAssignment({
+    const { assignment, created, ok } = upsertAssignment({
       classId, kind, targetId,
       dueAt: Number.isFinite(dueAt) ? dueAt : null,
       note: note.trim() || undefined,
     });
+    // Een volle opslag: geen "staat nu in …" en geen succes melden.
+    if (!ok) {
+      setMelding('');
+      toast('Er is niets bewaard: de opslag van dit toestel is vol of geblokkeerd.', 'err');
+      return;
+    }
     const badge = dueBadge(assignment.dueAt);
     const tekst = `“${title}” staat nu in ${cls?.name ?? 'de klas'}${badge ? ` (deadline: ${badge.label})` : ''}.`;
     setMelding(tekst);

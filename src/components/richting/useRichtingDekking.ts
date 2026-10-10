@@ -6,7 +6,6 @@
 // getallen ook in de cache van het overzicht (lib/dekkingCache.ts), zodat de lijst ze meteen toont als je terugkeert.
 
 import { useEffect, useMemo, useState } from 'react';
-import { setNamenVan } from '../course/MinimumdoelenDekking';
 import { useSetBestanden } from '../curriculum/samenstellen/useSetBestanden';
 import type { RichtingContext } from './RichtingDoelen';
 import type { Course } from '../../lib/courseTypes';
@@ -21,6 +20,7 @@ import {
 import type { MinimumdoelenSetBestand } from '../../lib/minimumdoelen';
 import { kaderGroepSleutel, type KaderHerkomst, type RichtingKader } from '../../lib/richtingKader';
 import { bijdragenVoorKader, kortVan } from '../../lib/richtingOverzicht';
+import { setNamenVan } from '../../lib/setNamen';
 import type { MatrixBestand } from '../../lib/studierichtingen';
 import { getWidgets, onStorageChange } from '../../lib/storage';
 

@@ -512,6 +512,30 @@ describe('upsertAssignment', () => {
     const { assignment } = upsertAssignment({ classId: 'k1', kind: 'widget', targetId: 'w1', dueAt: null, note: 'iets' });
     expect(assignment.dueAt).toBeNull();
   });
+
+  it('meldt ok, en onwaar bij een volle opslag: dan is er niets bewaard (nieuw en bijwerken)', () => {
+    expect(upsertAssignment({ classId: 'k1', kind: 'course', targetId: 'c1', dueAt: 1000, note: 'eerst' }).ok).toBe(true);
+    const echt = localStorage;
+    const vol: Storage = {
+      get length() { return echt.length; },
+      key: (i: number) => echt.key(i),
+      getItem: (k: string) => echt.getItem(k),
+      setItem: () => { throw Object.assign(new Error('vol'), { name: 'QuotaExceededError' }); },
+      removeItem: (k: string) => echt.removeItem(k),
+      clear: () => echt.clear(),
+    } as Storage;
+    (globalThis as unknown as { localStorage: Storage }).localStorage = vol;
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const nieuw = upsertAssignment({ classId: 'k1', kind: 'course', targetId: 'c2', dueAt: null });
+    const bij = upsertAssignment({ classId: 'k1', kind: 'course', targetId: 'c1', dueAt: 2000, note: 'later' });
+    spy.mockRestore();
+    (globalThis as unknown as { localStorage: Storage }).localStorage = echt;
+    expect(nieuw).toMatchObject({ created: true, ok: false });
+    expect(bij).toMatchObject({ created: false, ok: false });
+    const bewaard = assignmentsForClass('k1');
+    expect(bewaard).toHaveLength(1);
+    expect(bewaard[0]).toMatchObject({ targetId: 'c1', dueAt: 1000, note: 'eerst' });
+  });
 });
 
 // ── Deadlines ───────────────────────────────────────────────────────────────

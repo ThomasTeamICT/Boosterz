@@ -43,7 +43,6 @@ import {
   samenvattingCursus,
   setSamenvatting,
   statusTekst,
-  uniekeSetNamen,
   veiligeSetNaam,
   zelfdeNummerZin,
   zichtbareSets,
@@ -72,8 +71,7 @@ import {
   setVakjeTekst,
   tellerTekst,
 } from '../../lib/gatenWeergave';
-import type { MinimumdoelenSetBestand } from '../../lib/minimumdoelen';
-import { contextVanSet } from '../../lib/minimumdoelenBron';
+import { setNamenVan } from '../../lib/setNamen';
 import { richtingInfo, type RichtingKader, type RichtingKeuze } from '../../lib/richtingKader';
 import type { Widget } from '../../lib/types';
 import '../../styles/dekking.css';
@@ -170,13 +168,8 @@ export function DekkingPerSet({ dekking, toon, namen }: { dekking: MdDekking; to
   );
 }
 
-/** De namen van de sets voor het scherm: dubbele korte namen krijgen de context erachter ("Pool · Domein"). */
-export function setNamenVan(dekking: Pick<MdDekking, 'perSet'>, bestanden: ReadonlyMap<string, MinimumdoelenSetBestand>): Map<string, string> {
-  return uniekeSetNamen(dekking.perSet, (set) => {
-    const naam = bestanden.get(set)?.set.naam;
-    return typeof naam === 'string' ? contextVanSet(naam) : '';
-  });
-}
+/** De namen van de sets voor het scherm; staat in lib/setNamen.ts, zodat de dekkingsberekening dit scherm niet meelaadt. */
+export { setNamenVan };
 
 // ── Gaten dichten: de sets kiezen (het venster op de richtingpagina en het paneel in de editor delen dit) ──
 

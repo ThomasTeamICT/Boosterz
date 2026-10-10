@@ -719,6 +719,8 @@ function NewAssignmentModal({
   const [targetId, setTargetId] = useState(() => (voorgekozen && courses.some((c) => c.id === voorgekozen) ? voorgekozen : ''));
   const [due, setDue] = useState('');
   const [note, setNote] = useState('');
+  const [bewaarFout, setBewaarFout] = useState(false);
+  const bewaarFoutRef = useRef<HTMLDivElement>(null);
   // Zijn deadline en instructie overgenomen van een bestaande opdracht? Dan
   // horen ze bij die opdracht en mogen ze weg bij een andere keuze. Wat de
   // leerkracht zelf intikte, blijft staan.
@@ -754,16 +756,22 @@ function NewAssignmentModal({
     if (!targetId) return;
     // Deadline = einde van de gekozen dag; zo is "vandaag" ook echt vandaag nog.
     const dueAt = due ? new Date(`${due}T23:59:59`).getTime() : null;
-    const { created } = upsertAssignment({
+    const { created, ok } = upsertAssignment({
       classId: cls.id,
       kind,
       targetId,
       dueAt: Number.isFinite(dueAt) ? dueAt : null,
       note,
     });
+    // Een volle opslag: niets zeggen dat niet gebeurde. Het venster blijft open, met de melding.
+    if (!ok) {
+      setBewaarFout(true);
+      return;
+    }
     onSaved(created, kind, targetId);
     onClose();
   };
+  useEffect(() => { if (bewaarFout) bewaarFoutRef.current?.focus(); }, [bewaarFout]);
 
   return (
     <Modal
@@ -776,6 +784,11 @@ function NewAssignmentModal({
         </>
       }
     >
+      {bewaarFout && (
+        <div className="callout err" role="alert" tabIndex={-1} ref={bewaarFoutRef}>
+          Er is niets bewaard: de opslag van dit toestel is vol of geblokkeerd.
+        </div>
+      )}
       <Field label="Wat geef je op?">
         <select
           className="select"
