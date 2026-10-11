@@ -62,24 +62,24 @@ vi.mock('./beroepskwalificaties', async (importOriginal) => {
 // met `process.stdout.write`, hoogstens 20 regels): eslint verbiedt console in src, en zonder uitvoer leest
 // niemand de melding zelf.
 
-/**
- * BB4, `nr` van elke competentie: een geheel getal en uniek in de versie. Staat op false tot de eerste echte
- * run (G1) heeft aangetoond dat de echte data 0 gevallen telt. Met true is elk geval een fout. Zolang ze false
- * is, worden de gevallen alleen geteld (de doelcode volgt dan de plaats in het bestand).
- */
-const NR_STRENG = false;
+// De vier schakelaars hieronder stonden op false tot de eerste volledige run (G1 stap 3, run 38089367245, 10 oktober
+// 2026). Die telde op de echte data telkens 0 gevallen (BB4 0 van 274, BB5 0 van 274, KP6 0 van 92, KP7 0 van 833), dus
+// staan ze sinds G1 stap 4 op true: elk geval is een fout.
 
-/** BB5, geen HTML-tags in de teksten van de competenties. Idem: false tot G1, dan true als de telling 0 is. */
-const TEKST_STRENG = false;
+/** BB4, `nr` van elke competentie: een geheel getal en uniek in de versie. */
+const NR_STRENG = true;
+
+/** BB5, geen HTML-tags in de teksten van de competenties. */
+const TEKST_STRENG = true;
 
 /**
  * KP6, elk geldig gewoon onderdeel van de 3de graad A (geen aanloop, status "opgehaald") heeft een
- * beroepskwalificatie in een erkenning van nu. Idem: false tot G1, dan true als de telling 0 is.
+ * beroepskwalificatie in een erkenning van nu.
  */
-const BK_A3_STRENG = false;
+const BK_A3_STRENG = true;
 
-/** KP7, de ADV-nummers van een record tegenover de matrix. Idem: false tot G1, dan true als de telling 0 is. */
-const ERKENNING_KRUIS_STRENG = false;
+/** KP7, de ADV-nummers van een record tegenover de matrix. */
+const ERKENNING_KRUIS_STRENG = true;
 
 // Elke controle leest tientallen bestanden; op een trage machine of onder last heeft 5 seconden niet altijd genoeg.
 vi.setConfig({ testTimeout: 30_000 });
@@ -91,6 +91,8 @@ const FIXTURE_UIT = join(ROOT, 'tests', 'fixtures', 'kwalificaties', 'uit');
 const FIXTURE_STRUCTUUR = join(ROOT, 'tests', 'fixtures', 'structuur', 'uit');
 /** De datum waarmee de fixtures gemaakt zijn (`--vandaag` in tests/fixtures/kwalificaties/LEESMIJ.md). */
 const FIXTURE_VANDAAG = '2026-10-10';
+/** Vandaag, voor de vaste verwachtingen op de echte map (BC1). */
+const VANDAAG_ECHT = new Date().toISOString().slice(0, 10);
 
 // ── Hulpfuncties ────────────────────────────────────────────────────────────
 
@@ -752,7 +754,7 @@ function aanwezigheidsfout(heeftIndex: boolean, bkBestanden: readonly string[]):
 const heeftMap = existsSync(KWALIFICATIES_MAP);
 const bkBestanden = existsSync(join(KWALIFICATIES_MAP, 'bk')) ? readdirSync(join(KWALIFICATIES_MAP, 'bk')).filter((n) => n.endsWith('.json')) : [];
 const ontbreekt = aanwezigheidsfout(existsSync(join(KWALIFICATIES_MAP, 'index.json')), bkBestanden);
-/** De echte map volgt de gedeelde schakelaars bovenaan: tot de eerste echte run (G1) staan ze uit. */
+/** De echte map volgt de gedeelde schakelaars bovenaan (sinds G1 stap 4 aan). */
 const ECHTE_OPTIES: Opties = { a3Streng: BK_A3_STRENG, kruisStreng: ERKENNING_KRUIS_STRENG, nrStreng: NR_STRENG, tekstStreng: TEKST_STRENG };
 const echt = heeftMap ? controleerKwalificatieMap(KWALIFICATIES_MAP, STRUCTUUR_MAP, ECHTE_OPTIES) : undefined;
 
@@ -773,6 +775,32 @@ describe.runIf(heeftMap)('meegeleverde beroepskwalificaties (public/leerplannen/
     // Eerst de info (ook als er fouten zijn), want console mag niet in src: zo ziet wie de test draait de meldingen.
     process.stdout.write(infoUitvoer(echt?.info ?? []));
     expect(echt?.fouten).toEqual([]);
+  });
+
+  // BC1 (G1 stap 4): een vaste verwachting uit de verkenning (ronde 6 en 7) en de eerste volledige run. Onderdeel 504
+  // (Onthaal en recreatie) heeft in ADV-0842 precies BK-0390-2 (12 competenties) en BK-0464-1 (13), zonder gedeelde
+  // competentiecodes. Alleen zolang ADV-0842 geldt en de index die versies met een bestand noemt: een latere erkenning of
+  // een nieuwe versie maakt de verwachting zinloos, niet fout.
+  it('BC1: onderdeel 504 heeft in ADV-0842 precies Onthaalmedewerker (12) en Recreatief medewerker (13)', () => {
+    const koppeling = JSON.parse(readFileSync(join(KWALIFICATIES_MAP, 'koppeling.json'), 'utf8')) as {
+      onderdelen: { onderdeel: number; erkenningen?: { adv: string; einddatum?: string | null; bks?: { bk: string }[] }[] }[];
+    };
+    const index = JSON.parse(readFileSync(join(KWALIFICATIES_MAP, 'index.json'), 'utf8')) as { bks: { bk: string; bestand?: string }[] };
+    const erkenning = koppeling.onderdelen.find((o) => o.onderdeel === 504)?.erkenningen?.find((e) => e.adv === 'ADV-0842');
+    const verwacht = ['BK-0390-2', 'BK-0464-1'];
+    const metBestand = verwacht.every((bk) => index.bks.some((b) => b.bk === bk && typeof b.bestand === 'string'));
+    const geldt = erkenning !== undefined && (!erkenning.einddatum || erkenning.einddatum >= VANDAAG_ECHT);
+    if (!geldt || !metBestand) {
+      process.stdout.write('beroepskwalificaties: BC1 overgeslagen (ADV-0842 geldt niet meer of de index noemt de versies niet met een bestand).\n');
+      return;
+    }
+    expect((erkenning.bks ?? []).map((b) => b.bk).sort()).toEqual(verwacht);
+    const codes = verwacht.map((bk) => {
+      const bestand = JSON.parse(readFileSync(join(KWALIFICATIES_MAP, 'bk', `${bk}.json`), 'utf8')) as { competenties: { id: string }[] };
+      return bestand.competenties.map((c) => c.id);
+    });
+    expect(codes.map((c) => c.length)).toEqual([12, 13]);
+    expect(codes[0].filter((id) => codes[1].includes(id))).toEqual([]);
   });
 });
 
@@ -2205,10 +2233,10 @@ describe('hulpfuncties van de datatest', () => {
     expect(t.tekst()).toBe(' (bv. a; b; c)');
   });
 
-  it('de gedeelde schakelaars staan uit tot de eerste echte run, en gelden alleen voor de echte map', () => {
-    // G1 (§ 23.5.13 stap 4) zet ze op true waar de telling op de echte data 0 is, en past deze test aan.
-    expect([NR_STRENG, TEKST_STRENG, BK_A3_STRENG, ERKENNING_KRUIS_STRENG]).toEqual([false, false, false, false]);
-    expect(ECHTE_OPTIES).toEqual({ a3Streng: false, kruisStreng: false, nrStreng: false, tekstStreng: false });
+  it('de gedeelde schakelaars staan aan sinds G1 stap 4, en gelden alleen voor de echte map', () => {
+    // G1 stap 3 telde op de echte data 0 gevallen voor elk van de vier; stap 4 zette ze op true (§ 23.5.13).
+    expect([NR_STRENG, TEKST_STRENG, BK_A3_STRENG, ERKENNING_KRUIS_STRENG]).toEqual([true, true, true, true]);
+    expect(ECHTE_OPTIES).toEqual({ a3Streng: true, kruisStreng: true, nrStreng: true, tekstStreng: true });
     // De fixtures en de zelftest draaien zonder schakelaars, tenzij een case er een aanzet.
     expect(FIXTURE_OPTIES).toEqual({ vandaag: '2026-10-10' });
   });
@@ -2220,5 +2248,5 @@ describe('hulpfuncties van de datatest', () => {
   });
 });
 
-// BC1 (onderdeel 504 in ADV-0842 heeft precies BK-0390-2 en BK-0464-1) komt erbij in G1 (§ 23.5.13 stap 4), als
-// de echte data er is. De fixtures hebben onderdeel 504 niet.
+// BC1 (onderdeel 504 in ADV-0842 heeft precies BK-0390-2 en BK-0464-1) staat bij de echte map hierboven; de fixtures
+// hebben onderdeel 504 niet.

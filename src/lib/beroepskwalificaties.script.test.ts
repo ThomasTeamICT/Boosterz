@@ -1103,21 +1103,26 @@ describe('haal-beroepskwalificaties.mjs met opgeslagen antwoorden', () => {
       expect(run.stderr).not.toMatch(/P6 \(a\)/);
     });
 
-    it('P5 op de grens: precies 50 % mag nog (0); minder → 3', () => {
-      // G-0008 (onderdeel 8, met BK) en G-0193 (onderdeel 247, een lege lijst) worden gewone richtingen van de
-      // 3de graad A: 1 van de 2 heeft een BK nu.
-      const derdeGraadA = (m: MatrixBestand, groepen: string[]) => {
+    it('P5 op de grens: precies 80 % mag nog (0); minder → 3', () => {
+      // Vijf richtingen worden gewone richtingen van de 3de graad A: G-0008 (onderdeel 8, met BK), en G-0193 (247),
+      // G-0117 (129), G-0327 (417) en G-0307 (379). De eerste drie van die vier krijgen een BK: 4 van de 5.
+      const groepen = ['G-0008', 'G-0193', 'G-0117', 'G-0327', 'G-0307'];
+      const derdeGraadA = (m: MatrixBestand) => {
         for (const g of m.groepen) if (groepen.includes(g.nummer)) Object.assign(g, { graad: '3', finaliteit: 'A' });
       };
+      const ref = [bkRef('BK-0390', 2, 'Onthaalmedewerker')];
+      let vier = ONDERDELEN;
+      for (const nr of [247, 129, 417]) vier = zetBks(vier, nr, ref);
       const o = opstelling('p5-grens');
-      const map = maakMatrix(o, (m) => derdeGraadA(m, ['G-0008', 'G-0193']));
-      const run = draaiBron(o, { structuur: map });
+      const map = maakMatrix(o, derdeGraadA);
+      const run = draaiBron(o, { structuur: map, onderdelen: vier });
       expect(run.status, run.stderr).toBe(0);
-      expect(rapportVan(o).onderdelen.derdeGraadA).toEqual({ onderdelen: 2, metBk: 1 });
-      // Met G-0117 (onderdeel 129, zonder lijst) erbij: 1 van de 3.
+      expect(rapportVan(o).onderdelen.derdeGraadA).toEqual({ onderdelen: 5, metBk: 4 });
+      // Eén BK minder: 3 van de 5 (60 %).
+      const drie = zetBks(vier, 417, []);
       const o2 = opstelling('p5-grens-over');
-      const map2 = maakMatrix(o2, (m) => derdeGraadA(m, ['G-0008', 'G-0193', 'G-0117']));
-      eisStop(o2, draaiBron(o2, { structuur: map2 }), 3, /P5: maar 1 van de 3 gewone onderdelen van de 3de graad met finaliteit A/);
+      const map2 = maakMatrix(o2, derdeGraadA);
+      eisStop(o2, draaiBron(o2, { structuur: map2, onderdelen: drie }), 3, /P5: maar 3 van de 5 gewone onderdelen van de 3de graad met finaliteit A .*minder dan 80 %/);
     });
 
     it('P6 (a) op de grens: precies 10 % minder onderdelen met een BK nu mag nog (0); meer → 3', () => {

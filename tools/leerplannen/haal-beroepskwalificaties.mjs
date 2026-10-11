@@ -66,8 +66,11 @@ const MAX_LIJST_PAGINAS = 100;
 const MAX_ONDERDEEL_NUMMER = 999999;
 /** P6 (a) en (b): zoveel mag het aantal hoogstens dalen tegenover het bestaande bestand. */
 const MAX_DALING = 0.1;
-/** P5: bij een volledige run moet minstens dit deel van de gewone onderdelen van de 3de graad A een BK nu hebben. */
-const P5_MIN_DEEL = 0.5;
+/**
+ * P5: bij een volledige run moet minstens dit deel van de gewone onderdelen van de 3de graad A een BK nu hebben. De eerste
+ * volledige run (G1 stap 3, 10 oktober 2026) mat 92 van de 92 (100 %); de grens is die meting min een marge.
+ */
+const P5_MIN_DEEL = 0.8;
 /** P6 (c): hoogstens max(5, 5 %) van de gevraagde onderdelen mag twee keer 404 geven. */
 const P6_ONDERDELEN = { vast: 5, deel: 0.05 };
 /** P6 (d): hoogstens max(3, 5 %) van de gevraagde BK-versies mag twee keer 404 geven. */
