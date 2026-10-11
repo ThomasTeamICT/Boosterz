@@ -4,6 +4,27 @@
 
 De opdracht van de eigenaar, letterlijk: "ja, doe die import maar, einddoel is de volledige en duidelijke dekking (ook updatebaar via api enzovoorts) en een duidelijk hulpmiddel om cursussen te maken voor bepaalde richtingen, jaargangen meteen gekoppeld aan de juiste doelen en leerplannen etc".
 
+## Hervatten (gepauzeerd op 11 oktober 2026)
+
+De eigenaar pauzeerde het werk op 11 oktober 2026 (tokens nodig voor een ander project) en wil er later volgende week verder aan werken. Fase 1, 2 en 3 zijn **klaar en live**: matrix en doelen per richting, cursushulp en dekking, gaten dichten, mijn richtingen, klas aan richting, en de beroepskwalificaties per richting (703 richtingen, 274 BK-versies, data-PR #10 samengevoegd, commit 83acd3d). Alle poorten waren groen bij de laatste commit. Er loopt niets meer in de achtergrond.
+
+**Besluit van de eigenaar (11 oktober 2026), licentie en bronvermelding:** de eigenaar stelt de vraag van § 23.10 zelf aan TechLoket Onderwijs en verwacht niet snel een antwoord; hij vindt het niet problematisch. Werkkeuze: **een algemene bronvermelding zonder naam van een agentschap**, waar er een nodig is: "Bron: Vlaamse overheid, Onderwijs en Vorming" (met de API of site tussen haakjes, en de ophaaldatum). `licentie: "nog te bevestigen"` blijft staan tot er een antwoord is.
+
+**Wat er volgende keer kan gebeuren, in deze volgorde (klein naar groot):**
+
+| # | Wat | Waar | Grootte |
+|---|---|---|---|
+| 1 | De bronvermelding algemeen maken: "Departement Onderwijs en Vorming" bij de minimumdoelen wordt "Onderwijs en Vorming" (onderwijsdoelen.be noemt AHOVOKS als uitgever, zie § 23.10); de BK-vermelding wordt "Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)". Constanten aanpassen met hun tests; de volgende maandelijkse run (de 3de van de maand, 05:23 UTC) schrijft de bestanden opnieuw. | `src/lib/minimumdoelen.ts` en `tools/leerplannen/haal-minimumdoelen.mjs` (naamsvermelding), `src/lib/beroepskwalificaties.ts` (`BK_NAAMSVERMELDING`, `KOPPELING_NAAMSVERMELDING`), `src/lib/studierichtingen.ts` (`STRUCTUUR_NAAMSVERMELDING`), de bronregel in `src/lib/bkWeergave.ts` | klein, hoofdsessie |
+| 2 | De hint "Kijk ze na" bij een kopie van een BK-leerplan in de leerplaneditor: "Maak het leerplan opnieuw bij ‘Beroepskwalificaties’ bij de studierichting: het wordt dan meteen nagekeken bewaard.", en bij status `gewijzigd` ook de knop "Eigen kopie maken" (voorstel van S3, § 23 stand I4) | `src/pages/CurriculaPage.tsx` (`CurriculumEditor`) | klein, bouwer |
+| 3 | Na de tweede maandelijkse run (3 november 2026): T7 en W2 nakijken in het rapport (`versieOverlap`: blijft `competentie_code` gelijk over versies?), de data-PR nakijken zoals § 23.5.13 en samenvoegen op teken van de eigenaar | rapport van de workflow, § 23.3 en § 23.12 | klein, hoofdsessie |
+| 4 | Eventueel de koppeling slanker maken: ze weegt 1,58 MB (75 kB gzip), vooral door de extra velden van de studiebekrachtigingen (0,59 MB) en afgelopen erkenningen (0,40 MB) | `tools/leerplannen/haal-beroepskwalificaties.mjs`, `src/lib/beroepskwalificaties.ts` | middel, kernbouwer |
+| 5 | Fase 3b (W14, later): de BK-dekking ook in de cursuseditor, in "Mijn richtingen" en in de klas, en "Plan de competenties die nog nergens aan bod komen" | nieuw ontwerp nodig | groot |
+| 6 | Een licentie voor de repo zelf, vóór een brede uitrol (LEERPLANNEN.md § 12, punt 3) | eigenaar | beslissing |
+
+**Bij de eigenaar:** het antwoord van TechLoket (dan § 23.10 en `licentie` bijwerken); de takken van de gesloten proef-PR's #7, #8 en #9 verwijderen (deze sessie mocht dat niet); de open werkkeuzes W1 tot W15 (§ 23.12) en V1 tot V10 (§ 22). Het niveaumodel (`docs/NIVEAUS.md`) start pas op teken van de eigenaar.
+
+**Werkwijze bij het hervatten:** lees CLAUDE.md en dit blok; `git pull`; de kwaliteitspoort uit CLAUDE.md (de rooktest duurt nu ±6 minuten per run, twee keer na elkaar). De gedeelde regels voor bouwagents stonden in de scratchpad van deze sessie en zijn weg: geef elke agent opnieuw de regels mee (eigen worktree met een symlink naar `node_modules`, geen git stash/checkout/reset/commit, alleen de genoemde bestanden, poorten groen vóór opleveren, verslag in het Nederlands).
+
 ## Stand van zaken
 
 | Wat | Stand | Op wie |
