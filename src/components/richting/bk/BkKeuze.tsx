@@ -21,6 +21,7 @@ import type { Curriculum } from '../../../lib/curriculumTypes';
 import type { Doelgroep } from '../../../lib/doelgroep';
 import type { RichtingBk } from '../../../lib/richtingBk';
 import type { RichtingInfo } from '../../../lib/richtingKader';
+import { titelToevoeging, uniekeTitel } from './bkSectieHulp';
 
 export { cursusVoorBk };
 
@@ -124,9 +125,11 @@ export type KeuzeUitkomst =
 
 /**
  * Het leerplan voor een keuze competenties (§ 23.7.3): een bestaand nagekeken leerplan met precies deze competenties en
- * hetzelfde versiemerk (`vindBkLeerplan`), anders een nieuw leerplan (`leerplanUitBk`). Niet nagekeken: niets bewaren, de
- * melding staat in `tekst`. De keuze is een lijst codes per BK-versie; wat niet in het bestand staat of geen tekst heeft,
- * valt weg. Bewaren doet de aanroeper.
+ * hetzelfde versiemerk, of een ouder merk na een update die het niet raakte (`vindBkLeerplan` met de bestanden), anders een
+ * nieuw leerplan (`leerplanUitBk`). Een nieuw leerplan krijgt nooit de titel van een leerplan dat al op het toestel staat
+ * (`uniekeTitel`, met " · van 11 oktober 2026" erachter). Niet nagekeken: niets bewaren, de melding staat in `tekst`. De
+ * keuze is een lijst codes per BK-versie; wat niet in het bestand staat of geen tekst heeft, valt weg. Bewaren doet de
+ * aanroeper.
  */
 export function leerplanVoorKeuze(o: {
   info: RichtingInfo;
@@ -136,6 +139,8 @@ export function leerplanVoorKeuze(o: {
   selectie: ReadonlyMap<string, readonly string[]>;
   gegevens: Pick<BkGegevens, 'bestanden' | 'merken'>;
   curricula: readonly Curriculum[];
+  /** JJJJ-MM-DD, voor het onderscheidende stuk van een titel die al bestaat; standaard vandaag. */
+  vandaag?: string;
 }): KeuzeUitkomst {
   const keuzes: BkKeuzeBestand[] = [];
   for (const [bk, ids] of o.selectie) {
@@ -148,17 +153,20 @@ export function leerplanVoorKeuze(o: {
   if (keuzes.length === 0) return { soort: 'probleem', tekst: 'Kies minstens één competentie.' };
 
   const selectie = new Map(keuzes.map((k) => [k.bestand.bk, k.competenties] as const));
-  const bestaand = vindBkLeerplan(o.curricula, selectie, o.doelgroep, o.gegevens.merken);
+  const bestaand = vindBkLeerplan(o.curricula, selectie, o.doelgroep, o.gegevens.merken, o.gegevens.bestanden);
   if (bestaand) return { soort: 'hergebruik', leerplan: bestaand };
 
   const titels = keuzes.map((k) => k.bestand.titel.trim());
   const deel = keuzes.length === 1 && keuzes[0].competenties.length < infoVan(keuzes[0].bestand).aantal
     ? { gekozen: keuzes[0].competenties.length, totaal: infoVan(keuzes[0].bestand).aantal }
     : undefined;
+  // Nooit een tweede leerplan met dezelfde titel (bv. na "tekst aangepast", of naast een eigen kopie met die naam).
+  const bestaandeTitels = (Array.isArray(o.curricula) ? o.curricula : []).map((c) => c?.title).filter((t): t is string => typeof t === 'string');
+  const vandaag = o.vandaag ?? new Date().toISOString().slice(0, 10);
   const u = leerplanUitBk(keuzes, {
     doelgroep: o.doelgroep,
     merken: o.gegevens.merken,
-    titel: titelVoorBkLeerplan(o.info, titels, deel),
+    titel: uniekeTitel(titelVoorBkLeerplan(o.info, titels, deel), bestaandeTitels, titelToevoeging('kaart', vandaag)),
     vak: o.vak || undefined,
   });
   if (!u.bevestigd) return { soort: 'probleem', tekst: bkNietNagekeken(u.waarschuwingen[0] ?? '') };

@@ -13,6 +13,8 @@ import {
   bkCompetentieRegel,
   bkInleesTekst,
   bkIntroAantal,
+  bkKaartFout,
+  bkKaartLaden,
   bkKaartMeta,
   bkKennisEnVaardigheden,
   bkKiesZelf,
@@ -35,6 +37,7 @@ import {
   bkToonCompetenties,
   datumTekst,
 } from './bkWeergave';
+import * as L from './bkLabels';
 import type { BkMelding } from './bkLeerplan';
 import { dekkingBk } from './dekkingBk';
 import { statusTekst } from './dekkingWeergave';
@@ -215,6 +218,35 @@ describe('de sectie bij de richting', () => {
 });
 
 // ── Meldingen na een update ─────────────────────────────────────────────────
+
+describe('de laad- en foutmelding van één kaart', () => {
+  it('bkKaartLaden noemt de beroepskwalificatie bij haar naam, in het enkelvoud van één kaart', () => {
+    expect(bkKaartLaden('Onthaalmedewerker')).toBe('De competenties van ‘Onthaalmedewerker’ worden geladen…');
+    expect(bkKaartLaden('  Onthaalmedewerker ')).toBe('De competenties van ‘Onthaalmedewerker’ worden geladen…');
+    // Niet de algemene zin van de sectie, die over alle beroepskwalificaties gaat.
+    expect(bkKaartLaden('Onthaalmedewerker')).not.toBe(W.BK_LADEN);
+  });
+
+  it('bkKaartFout: kon de verbinding niet maken, of zijn de gegevens beschadigd', () => {
+    expect(bkKaartFout('Onthaalmedewerker')).toBe('De competenties van ‘Onthaalmedewerker’ konden niet geladen worden. Controleer je verbinding en probeer opnieuw.');
+    expect(bkKaartFout('Onthaalmedewerker', false)).toBe(bkKaartFout('Onthaalmedewerker'));
+    expect(bkKaartFout('Onthaalmedewerker', true)).toBe('De competenties van ‘Onthaalmedewerker’ zijn beschadigd en konden niet gelezen worden. Probeer het later opnieuw.');
+  });
+
+  it('twee kaarten krijgen twee verschillende meldingen', () => {
+    expect(bkKaartLaden('Onthaalmedewerker')).not.toBe(bkKaartLaden('Recreatief medewerker'));
+    expect(bkKaartFout('Onthaalmedewerker')).not.toBe(bkKaartFout('Recreatief medewerker'));
+    expect(bkKaartFout('Onthaalmedewerker', true)).not.toBe(bkKaartFout('Recreatief medewerker', true));
+  });
+
+  it('een lege titel geeft "deze beroepskwalificatie" in plaats van lege aanhalingstekens', () => {
+    for (const leeg of ['', '   ', undefined as unknown as string]) {
+      expect(bkKaartLaden(leeg)).toBe('De competenties van deze beroepskwalificatie worden geladen…');
+      expect(bkKaartFout(leeg)).toBe('De competenties van deze beroepskwalificatie konden niet geladen worden. Controleer je verbinding en probeer opnieuw.');
+      expect(bkKaartFout(leeg, true)).toBe('De competenties van deze beroepskwalificatie zijn beschadigd en konden niet gelezen worden. Probeer het later opnieuw.');
+    }
+  });
+});
 
 describe('bkMeldingTekst', () => {
   const o = { bkTitel: 'Onthaalmedewerker', leerplanTitel: 'Mijn leerplan' };
@@ -424,6 +456,34 @@ describe('de leerplanpagina', () => {
   });
 });
 
+describe('bkLabels: wat de leerplanpagina en de inleespagina nodig hebben, zonder de rest mee te trekken', () => {
+  const HIER = fileURLToPath(new URL('.', import.meta.url));
+  const bron = (pad: string): string => readFileSync(join(HIER, pad), 'utf8');
+  /** De bronregels zonder commentaar. */
+  const code = (tekst: string): string => tekst.split('\n').filter((r) => !/^\s*(\/\/|\*|\/\*)/.test(r)).join('\n');
+
+  it('bkWeergave voert dezelfde namen opnieuw uit, met dezelfde waarden', () => {
+    expect(Object.keys(L).sort()).toEqual(['BK_LABEL_KOPIE', 'BK_LABEL_OFFICIEEL', 'bkInleesTekst']);
+    expect(W.BK_LABEL_OFFICIEEL).toBe(L.BK_LABEL_OFFICIEEL);
+    expect(W.BK_LABEL_KOPIE).toBe(L.BK_LABEL_KOPIE);
+    expect(W.bkInleesTekst).toBe(L.bkInleesTekst);
+  });
+
+  it('bkLabels.ts heeft geen enkele import (anders komt er weer een heel bestand mee op de leerplanpagina)', () => {
+    const tekst = code(bron('bkLabels.ts'));
+    expect(tekst).not.toMatch(/^\s*import\s/m);
+    expect(tekst).not.toMatch(/\brequire\(|\bimport\(/);
+  });
+
+  it('de leerplanpagina en de inleespagina halen de labels uit bkLabels en niet uit bkWeergave', () => {
+    for (const pad of ['../components/curriculum/ControleLabel.tsx', '../pages/LeerplanInlezenPage.tsx']) {
+      const tekst = bron(pad);
+      expect(tekst, pad).toMatch(/from '(\.\.\/)+lib\/bkLabels'/);
+      expect(tekst, pad).not.toMatch(/from '(\.\.\/)+lib\/bkWeergave'/);
+    }
+  });
+});
+
 // ── De vaste zinnen, letterlijk uit § 23.7 ──────────────────────────────────
 
 describe('de vaste zinnen staan letterlijk zoals in het ontwerp', () => {
@@ -522,6 +582,7 @@ describe('geen competentiecode, ADV-nummer, onderdeelnummer, groepnummer of set-
       );
     }
     teksten.push(
+      bkKaartLaden('Onthaalmedewerker'), bkKaartFout('Onthaalmedewerker'), bkKaartFout('Onthaalmedewerker', true),
       bkKopRegel(['A', 'B', 'C', 'D', 'E']), bkToekomstTekst('2027-09-01', ['Onthaalmedewerker']), bkNietMeerInBron('2026-12-03'), bkBronregel('2026-11-03T10:00:00Z').replace('API Structuuronderdelen', 'API'), bkBronregel(),
       bkNietNagekeken('Kies minstens één competentie.'), bkNogNodig({ titel: true, competenties: true }), bkInleesTekst('Onthaalmedewerker'),
       bkCompetentieRegel('BK-0390-2.03', 'Werkt in teamverband'), bkRedenTekst('geen-verwijzingen', 'Biologie'),

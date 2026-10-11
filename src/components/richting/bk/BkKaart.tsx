@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import { AddIcon, BeroepIcon, GoalIcon, InfoIcon, WarningIcon } from '../../icons';
 import { FoutBericht, LaadBericht } from '../../curriculum/LaadStatus';
 import type { BkBestand, BkTekst, Competentie } from '../../../lib/beroepskwalificaties';
+import { FOUT_BK_BESCHADIGD } from '../../../lib/beroepskwalificatiesBron';
 import {
   BK_DEFINITIE_VRAAG,
   BK_GEEN_KENNIS,
@@ -18,10 +19,11 @@ import {
   BK_KNOP_BEWAAR,
   BK_KNOP_CURSUS,
   BK_KNOP_OPEN,
-  BK_LADEN,
   BK_NIEUWERE_VERSIE,
   BK_VAARDIGHEDEN_KOP,
   BK_ZONDER_BESTAND,
+  bkKaartFout,
+  bkKaartLaden,
   bkKaartMeta,
   bkKennisEnVaardigheden,
   bkKnopSrTekst,
@@ -38,6 +40,33 @@ import { BK_ANDERE_COMPETENTIES, kaderVan, redenBewaar, redenCursus } from './bk
 
 /** Het bestand van één BK-versie: laden, mislukt, of klaar (`null`: het bestand bestaat niet). */
 export type BestandStand = Laadstand<BkBestand | null>;
+
+/** Heeft deze kaart geen bestand om te tonen: de index kent het niet (`zonderBestand`), of het bestand bestaat niet (`null`)? */
+export function kaartZonderBestand(regel: Pick<RichtingBkRegel, 'zonderBestand'>, stand: BestandStand | undefined): boolean {
+  return regel.zonderBestand === true || (stand?.status === 'klaar' && stand.waarde === null);
+}
+
+/** Laadt het bestand van deze kaart nog? Zonder stand is het laden nog niet begonnen en telt het mee. Eén definitie voor de kaart en de sectie. */
+export function kaartLaadt(regel: Pick<RichtingBkRegel, 'zonderBestand'>, stand: BestandStand | undefined): boolean {
+  return !kaartZonderBestand(regel, stand) && (stand === undefined || stand.status === 'laden');
+}
+
+/** De zin voor een schermlezer zolang minstens één kaart laadt. De kaarten zelf zeggen elk hun eigen laadregel, zonder rol. */
+export const BK_KAARTEN_LADEN = 'De competenties worden geladen…';
+
+/**
+ * De ene statusregio van de sectie voor het laden van alle kaarten samen. Elke kaart toont haar eigen laadregel alleen om te
+ * zien (anders staan er bij 9 kaarten 9 identieke regio's), dus dit is het enige wat een schermlezer erover hoort. De regio
+ * staat er altijd, ook als ze leeg is: een tekst die in een bestaande regio verschijnt, wordt voorgelezen, een regio die er met
+ * haar tekst bij komt niet altijd. De zin is alleen voor een schermlezer: wie ziet, ziet de laadregel op elke kaart.
+ */
+export function KaartenLaadStatus({ laden }: { laden: boolean }) {
+  return (
+    <div role="status" className="sr-only">
+      {laden ? BK_KAARTEN_LADEN : ''}
+    </div>
+  );
+}
 
 // ── Wat de kaart toont ──────────────────────────────────────────────────────
 
@@ -171,8 +200,8 @@ export function BkKaart({
   const openRef = useRef<HTMLAnchorElement>(null);
 
   const bestand = stand?.status === 'klaar' && stand.waarde !== null ? stand.waarde : undefined;
-  const zonderBestand = regel.zonderBestand === true || (stand?.status === 'klaar' && stand.waarde === null);
-  const laden = !zonderBestand && (stand === undefined || stand.status === 'laden');
+  const zonderBestand = kaartZonderBestand(regel, stand);
+  const laden = kaartLaadt(regel, stand);
   const mislukt = stand?.status === 'fout' && !zonderBestand ? stand.fout : undefined;
 
   const rijen = useMemo(() => (bestand ? rijenVan(regel.bk, bestand) : []), [regel.bk, bestand]);
@@ -222,10 +251,12 @@ export function BkKaart({
         </div>
       )}
       {zonderBestand && <p className="bk-leeg">{BK_ZONDER_BESTAND}</p>}
-      {laden && <LaadBericht tekst={BK_LADEN} />}
+      {/* Zonder role=status: bij een richting met 9 kaarten stonden er 9 statusregio's tegelijk. De tekst blijft gewoon zichtbaar. */}
+      {laden && <LaadBericht tekst={bkKaartLaden(regel.titel)} melden={false} />}
       {mislukt !== undefined && (
         <FoutBericht
-          fout={mislukt}
+          fout={bkKaartFout(regel.titel, mislukt === FOUT_BK_BESCHADIGD)}
+          naam={regel.titel}
           onOpnieuw={() => {
             onOpnieuw();
             kopRef.current?.focus();

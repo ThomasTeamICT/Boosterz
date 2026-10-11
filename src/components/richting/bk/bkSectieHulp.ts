@@ -56,6 +56,31 @@ export const BK_NOG_NODIG_GEGEVENS = 'Nog nodig: even wachten tot Boosterz de la
 export const BK_NOG_NODIG_BEZIG = 'Nog nodig: even wachten tot het leerplan bewaard is.';
 export const BK_NOG_NODIG_KEUZE = 'Nog nodig: minstens één competentie die je koos en die nog in de officiële lijst staat.';
 
+/**
+ * In een melding met een knop die een nieuw leerplan maakt, als dat leerplan er al is (bv. net gemaakt): de knop en de
+ * uitleg vooraf zijn dan weg, en deze zin zegt waar het nieuwe leerplan is. Erachter staat "Open het leerplan".
+ * "Je hebt al een leerplan met de versie van nu: ‘<titel>’." (bij een aangepaste lijst "met de lijst van nu").
+ */
+export function bkAlLeerplanVanNu(soort: 'andere-versie' | 'lijst-aangepast', titel: string): string {
+  const wat = soort === 'andere-versie' ? 'de versie van nu' : 'de lijst van nu';
+  const t = typeof titel === 'string' ? titel.trim() : '';
+  return t === '' ? `Je hebt al een leerplan met ${wat}.` : `Je hebt al een leerplan met ${wat}: ‘${t}’.`;
+}
+
+/** Na de zin over een onderdeel van de richting dat niet meer in de bron staat (`bkOnderdeelNietMeerInBron`). */
+export const BK_LAATST_BEKENDE_BKS = 'Je ziet de laatst bekende beroepskwalificaties.';
+
+/**
+ * Boven de kaarten, als een onderdeel van de richting waar de kaarten uit komen twee keer niet gevonden werd
+ * (`RichtingBk.onderdeelNietMeerInBron`, § 23.5.7): de kaarten zijn de laatst bekende. Zonder geldige dag zonder datum.
+ * "De Vlaamse overheid geeft sinds 3 november 2026 niet meer alle gegevens van deze richting. Je ziet de laatst bekende
+ * beroepskwalificaties." Ook waar als maar één variant van de richting wegviel: dan zijn het niet meer álle gegevens.
+ */
+export function bkOnderdeelNietMeerInBron(sinds: string | undefined): string {
+  const datum = datumTekst(sinds);
+  return `De Vlaamse overheid geeft ${datum !== '' ? `sinds ${datum} ` : ''}niet meer alle gegevens van deze richting. ${BK_LAATST_BEKENDE_BKS}`;
+}
+
 /** Hint bij "Maak een leerplan met de versie van nu" als het oude leerplan maar een deel van de competenties had. */
 export function bkHintKeuzeNieuweVersie(gekozen: number): string {
   const deel = gekozen === 1 ? 'de competentie die je koos' : `de ${gekozen} competenties die je koos`;
@@ -116,6 +141,45 @@ export function kaderVan(versie: string, bestand: BkBestand) {
  */
 export function competentieIds(versie: string, bestand: BkBestand): string[] {
   return kaderVan(versie, bestand).map((d) => d.id);
+}
+
+// ── Het leerplan van een kaart ──────────────────────────────────────────────
+
+export interface KaartLeerplanIn {
+  /** De BK-versies van de kaarten. */
+  versies: readonly string[];
+  /** De geladen bestanden, per BK-versie. Verplicht: zonder bestanden herkent `vindBkLeerplan` niets na een update. */
+  bestanden: ReadonlyMap<string, BkBestand>;
+  /** De leerplannen op dit toestel. */
+  curricula: readonly Curriculum[];
+  /** De doelgroep van de richting. */
+  doelgroep: Doelgroep;
+  /** BK-versie → versiemerk uit de index. */
+  merken: ReadonlyMap<string, string>;
+  /** BK-versie → het id van het leerplan dat de sectie net bewaarde (de opslag is misschien nog niet doorgegeven). */
+  bewaard: ReadonlyMap<string, string>;
+}
+
+/**
+ * Per kaart het leerplan achter "Open het leerplan": het nagekeken leerplan met alle competenties (met tekst) van die versie
+ * (`vindBkLeerplan`, met de bestanden, dus ook na een update die het leerplan niet raakt, § 23.6.4), anders het leerplan dat
+ * de sectie net voor die kaart bewaarde. Een kaart zonder geladen bestand krijgt er geen: dan is niet aan te tonen welke
+ * competenties "alle" zijn.
+ */
+export function leerplanPerKaart(o: KaartLeerplanIn): Map<string, Curriculum> {
+  const uit = new Map<string, Curriculum>();
+  const curricula = Array.isArray(o.curricula) ? o.curricula : [];
+  for (const versie of o.versies) {
+    const bestand = o.bestanden.get(versie);
+    if (!bestand) continue;
+    let l = vindBkLeerplan(curricula, new Map([[versie, competentieIds(versie, bestand)]]), o.doelgroep, o.merken, o.bestanden);
+    if (!l) {
+      const id = o.bewaard.get(versie);
+      l = id !== undefined ? curricula.find((c) => c?.id === id) : undefined;
+    }
+    if (l) uit.set(versie, l);
+  }
+  return uit;
 }
 
 // ── Wat een nieuw leerplan bevat ────────────────────────────────────────────
@@ -230,6 +294,54 @@ export function beschrijfMelding(doel: Exclude<BewaarDoel, { soort: 'kaart' }>, 
   return weg === 0 ? { zonderKeuze } : { hint: bkHintKeuzeNieuweLijst({ bkTitel, behouden, weg }), zonderKeuze };
 }
 
+/** Wat een melding met een knop voor een nieuw leerplan toont (§ 23.7.2). */
+export type MeldingInhoud =
+  /** Het nieuwe leerplan staat er al: de zin met zijn titel en "Open het leerplan"; geen uitleg vooraf en geen knop. */
+  | { soort: 'al'; tekst: string; leerplan: Curriculum }
+  /** Nog niet: de uitleg vooraf (wat de knop met de keuze van de leerkracht doet) en de knop. */
+  | { soort: 'knop'; uitleg: MeldingUitleg };
+
+export interface MeldingIn {
+  doel: Exclude<BewaarDoel, { soort: 'kaart' }>;
+  /** De geladen bestanden, per BK-versie. */
+  bestanden: ReadonlyMap<string, BkBestand>;
+  /** De leerplannen op dit toestel. */
+  curricula: readonly Curriculum[];
+  /** De doelgroep van de richting (bij een melding telt die van het oude leerplan, `doelgroepVoorDoel`). */
+  doelgroep: Doelgroep;
+  /** BK-versie → versiemerk uit de index. */
+  merken: ReadonlyMap<string, string>;
+  /** Het id van het leerplan dat de knop van deze melding net maakte. */
+  onthouden?: string;
+  /** De titel van de beroepskwalificatie van de melding ("Onthaalmedewerker"), voor de uitleg vooraf. */
+  bkTitel: string;
+}
+
+/**
+ * Het leerplan dat de knop van een melding zou maken, als het al op dit toestel staat: het leerplan dat deze knop net maakte
+ * (`onthouden`), of een nagekeken leerplan met precies de competenties van de samenstelling (`vindBkLeerplan`, met de
+ * bestanden).
+ */
+export function leerplanVoorMelding(o: Omit<MeldingIn, 'bkTitel'>): Curriculum | undefined {
+  const curricula = Array.isArray(o.curricula) ? o.curricula : [];
+  const net = o.onthouden !== undefined ? curricula.find((c) => c?.id === o.onthouden) : undefined;
+  if (net) return net;
+  const sam = stelSamen(o.doel, o.bestanden);
+  if (!sam.ok || sam.leeg) return undefined;
+  return vindBkLeerplan(curricula, selectieVan(sam.keuzes), doelgroepVoorDoel(o.doel, o.doelgroep), o.merken, o.bestanden);
+}
+
+/**
+ * Wat de melding toont: staat het nieuwe leerplan er al, dan alleen waar het is (zonder uitleg in de toekomende tijd over een
+ * knop die er niet meer is), anders de uitleg en de knop. De waarschuwing over het oude leerplan en de vaste hint blijven
+ * in beide gevallen staan: ze kloppen nog.
+ */
+export function meldingInhoud(o: MeldingIn): MeldingInhoud {
+  const al = leerplanVoorMelding(o);
+  if (al) return { soort: 'al', tekst: bkAlLeerplanVanNu(o.doel.soort, al.title), leerplan: al };
+  return { soort: 'knop', uitleg: beschrijfMelding(o.doel, o.bestanden, o.bkTitel) };
+}
+
 // ── De titel ────────────────────────────────────────────────────────────────
 
 const MAX_TITEL = 120;
@@ -323,7 +435,8 @@ export function bouwNieuwLeerplan(o: BouwIn): NieuwLeerplan {
   if (sam.leeg && o.doel.soort !== 'kaart') return { soort: 'fout', tekst: bkNietNagekeken(BK_GEEN_KEUZE_MEER) };
 
   const doelgroep = doelgroepVoorDoel(o.doel, o.doelgroep);
-  const bestaand = vindBkLeerplan(o.curricula, selectieVan(sam.keuzes), doelgroep, o.merken);
+  // Met de bestanden: een leerplan dat een update niet raakte (alleen kennis of context veranderde), telt ook.
+  const bestaand = vindBkLeerplan(o.curricula, selectieVan(sam.keuzes), doelgroep, o.merken, o.bestanden);
   if (bestaand) return { soort: 'bestaat', leerplan: bestaand };
 
   // Een deel alleen bij één beroepskwalificatie, zoals de standaardtitel van `leerplanUitBk`.

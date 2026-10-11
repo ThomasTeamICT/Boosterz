@@ -747,15 +747,25 @@ export function leerplanUitBk(keuzes: readonly BkKeuze[], o: BkLeerplanOpties): 
  * Het BK-leerplan op dit toestel met precies deze selectie, zodat er geen tweede, gelijk leerplan in de opslag komt. Het
  * past als het een BK-leerplan is, geen eigen kopie (`kind` 'eigen'), nagekeken (`effectieveStatus` 'gecontroleerd'),
  * niet van een andere richting (`groep`; zonder doelgroep telt dat niet), met dezelfde competenties per versie (de
- * volgorde telt niet) én per versie hetzelfde versiemerk als nu (`merken`). Ontbreekt een merk in `merken`, dan past
- * niets: dezelfde versie is dan niet aan te tonen. De eerste die past, dus de nieuwste. Een lege selectie past nooit.
- * Een competentie zonder tekst (`tekstVanCompetentie` leeg) staat nooit in een BK-leerplan: laat ze uit `selectie`.
+ * volgorde telt niet), en per versie:
+ * - hetzelfde versiemerk als nu (`merken`); of
+ * - een ander merk, maar na een update die het leerplan niet raakt (§ 23.6.6, "niets te doen"): het bestand van die
+ *   versie zit in `bestanden`, is bruikbaar en heeft het merk van nu, elke gekozen competentie staat erin met een tekst
+ *   (`tekstVanCompetentie`) die letterlijk die van haar doel is, en had het leerplan alle competenties, dan kwam er geen
+ *   bij. Dat is precies het geval waarin `vergelijkMetBk` niets meldt. Zonder `bestanden` (of zonder het bestand van die
+ *   versie) past een ander merk nooit. Het leerplan zelf verandert niet: zijn merk blijft het oude. Bewust: alleen de
+ *   competentieteksten tellen, niet de titel van de beroepskwalificatie, het soort of het nummer van een competentie (die
+ *   vergelijkt `vergelijkMetBk` evenmin); het herkende leerplan houdt dan zijn oude titel, thema's en codes (§ 23.6.4).
+ * Ontbreekt een merk in `merken`, dan past niets: dezelfde versie is dan niet aan te tonen. De eerste die past, dus de
+ * nieuwste. Een lege selectie past nooit. Een competentie zonder tekst (`tekstVanCompetentie` leeg) staat nooit in een
+ * BK-leerplan: laat ze uit `selectie`.
  */
 export function vindBkLeerplan(
   curricula: readonly Curriculum[],
   selectie: ReadonlyMap<string, readonly string[]>,
   doelgroep: Doelgroep,
   merken: ReadonlyMap<string, string>,
+  bestanden?: ReadonlyMap<string, BkBestand>,
 ): Curriculum | undefined {
   const gewenst = gesaneerdeSelectie(selectie);
   if (gewenst.size === 0) return undefined;
@@ -764,18 +774,64 @@ export function vindBkLeerplan(
     if (!c || !isBkLeerplan(c) || c.kind === 'eigen') continue;
     const groepVanLeerplan = sanitizeDoelgroep(c.doelgroep)?.groep;
     if (groep !== undefined && groepVanLeerplan !== undefined && groepVanLeerplan !== groep) continue;
-    if (!zelfdeSelectie(gewenst, selectieVanBkLeerplan(c))) continue;
+    const eigen = selectieVanBkLeerplan(c);
+    if (!zelfdeSelectie(gewenst, eigen)) continue;
     const merkLijst: readonly BkVersieMerk[] = Array.isArray(c.bkVersies) ? c.bkVersies : [];
-    const versies = new Map(merkLijst.map((m) => [m?.bk, m?.sha] as const));
+    const versies = new Map(merkLijst.map((m) => [m?.bk, m] as const));
     if (versies.size !== gewenst.size) continue;
-    const zelfdeMerk = [...gewenst.keys()].every((bk) => {
+    let teksten: Map<string, string> | undefined;
+    const past = [...gewenst.keys()].every((bk) => {
       const nu = merken instanceof Map ? merken.get(bk) : undefined;
-      return nu !== undefined && versies.get(bk) === nu;
+      const merk = versies.get(bk);
+      if (nu === undefined || !isObject(merk)) return false;
+      if (merk.sha === nu) return true;
+      if (teksten === undefined) teksten = tekstenVanDoelen(c);
+      const bestand = bestanden instanceof Map ? bestanden.get(bk) : undefined;
+      return updateRaaktLeerplanNiet(bk, merk.alle === true, eigen.get(bk) ?? [], teksten, bestand, nu);
     });
     // De nakijkstatus rekent over alle doelen: pas bekijken als selectie en merken kloppen.
-    if (zelfdeMerk && effectieveStatus(c) === 'gecontroleerd') return c;
+    if (past && effectieveStatus(c) === 'gecontroleerd') return c;
   }
   return undefined;
+}
+
+/** De tekst van elk doel met precies één verwijzing, per competentie (`bk` + code); de eerste telt. */
+function tekstenVanDoelen(leerplan: Curriculum): Map<string, string> {
+  const uit = new Map<string, string>();
+  for (const goal of Array.isArray(leerplan.goals) ? leerplan.goals : []) {
+    const refs = Array.isArray(goal?.bkRefs) ? goal.bkRefs : [];
+    if (refs.length !== 1) continue;
+    const sleutel = `${refs[0]?.bk}\u0000${refs[0]?.id}`;
+    if (!uit.has(sleutel)) uit.set(sleutel, typeof goal.text === 'string' ? goal.text : '');
+  }
+  return uit;
+}
+
+/**
+ * Raakt de update van versie `bk` een leerplan met deze gekozen competenties (`ids`) niet? Alleen met een bruikbaar bestand
+ * van die versie dat precies bij het merk van nu (`nuMerk`) hoort; elke gekozen competentie staat erin met een tekst gelijk
+ * aan die van haar doel (`teksten`); en bij `alle` kwam er geen competentie bij. Dezelfde regels als `vergelijkMetBk`: waar
+ * dit waar is, meldt dat niets. Liever een tweede leerplan dan een leerplan herkennen dat niet meer klopt.
+ */
+function updateRaaktLeerplanNiet(
+  bk: string,
+  alle: boolean,
+  ids: readonly string[],
+  teksten: ReadonlyMap<string, string>,
+  bestand: BkBestand | undefined,
+  nuMerk: string,
+): boolean {
+  if (ids.length === 0 || !isBruikbaarBestand(bestand) || bestand.bk !== bk || merkVanBestand(bestand) !== nuMerk) return false;
+  const huidig = competentiesMetTekst(bestand);
+  for (const id of ids) {
+    const c = huidig.get(id);
+    if (!c || teksten.get(`${bk}\u0000${id}`) !== tekstVanCompetentie(c)) return false;
+  }
+  if (alle) {
+    const gekozen = new Set(ids);
+    if ([...huidig.keys()].some((id) => !gekozen.has(id))) return false;
+  }
+  return true;
 }
 
 // ── Na een maandelijkse update ──────────────────────────────────────────────
@@ -815,13 +871,7 @@ export function vergelijkMetBk(
   for (const m of Array.isArray(leerplan.bkVersies) ? leerplan.bkVersies : []) {
     if (m && typeof m.bk === 'string' && !merkVan.has(m.bk)) merkVan.set(m.bk, m);
   }
-  const tekstVan = new Map<string, string>();
-  for (const goal of Array.isArray(leerplan.goals) ? leerplan.goals : []) {
-    const refs = Array.isArray(goal?.bkRefs) ? goal.bkRefs : [];
-    if (refs.length !== 1) continue;
-    const sleutel = `${refs[0].bk}\u0000${refs[0].id}`;
-    if (!tekstVan.has(sleutel)) tekstVan.set(sleutel, typeof goal.text === 'string' ? goal.text : '');
-  }
+  const tekstVan = tekstenVanDoelen(leerplan);
   // Alleen het kader van de hele richting zegt welke versies er niet (meer) bij horen.
   const metApi = kader?.herkomst === 'api' && Array.isArray(kader.bks) && kader.onderdeel === undefined;
   const inKader = new Set(metApi ? kader.bks.map((b) => b.bk) : []);

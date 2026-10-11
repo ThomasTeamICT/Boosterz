@@ -71,6 +71,12 @@ export interface RichtingBk {
   onderdeel?: number;
   /** Het laatste tijdstip waarop een van de onderdelen opgehaald werd (anders dat van de koppeling). */
   opgehaald?: string;
+  /**
+   * JJJJ-MM-DD: een onderdeel waar vandaag een BK uit komt, werd twee keer niet gevonden in de bron (status
+   * 'niet-gevonden'): zijn BK's zijn de laatst bekende (§ 23.5.7). Bij meer zulke onderdelen de vroegste dag. Alleen met een
+   * geldige `nietMeerInBron` op het record (de validator eist die bij 'niet-gevonden').
+   */
+  onderdeelNietMeerInBron?: string;
   /** Op titel (nl), dan op versie (`vergelijkBkVersie`). */
   bks: RichtingBkRegel[];
   /** Wat leerlingen kunnen behalen (studiebekrachtigingen van de erkenningen die vandaag gelden), op naam. */
@@ -154,6 +160,8 @@ function eindeInOnderdeel(bk: string, relevant: readonly Erkenning[]): string | 
  * - `onderdeel`: alleen als het kader voor één gekozen onderdeel gemaakt is.
  * - Per versie: titel, niveau en aantal uit de index; `zonderBestand` als de index er geen bestand voor heeft;
  *   `nieuwereVersie` als de laatst erkende versie van hetzelfde nummer hoger is; `nietMeerInBron` uit de index.
+ * - `onderdeelNietMeerInBron`: de vroegste `nietMeerInBron` van de geweten onderdelen met status 'niet-gevonden' waar
+ *   vandaag minstens één BK uit komt (hun laatst bekende record). Een onderdeel zonder BK van vandaag telt niet.
  * - `toekomst`: op de vroegste begindatum van een toekomstige erkenning wordt de lijst opnieuw berekend (zelfde
  *   onderdelen, zelfde regels); is ze anders en niet leeg, dan staat ze hier.
  *
@@ -279,7 +287,17 @@ export function bkKader(
   const tijden = geweten.map((n) => records.get(n)?.opgehaald).filter(nietLeeg).sort();
   const opgehaald = tijden.length > 0 ? tijden[tijden.length - 1] : nietLeeg(koppeling.opgehaald) ? koppeling.opgehaald : undefined;
 
-  const uit: RichtingBk = { herkomst, ...variant, ...(opgehaald ? { opgehaald } : {}), bks, bekrachtigingen };
+  // Een onderdeel dat niet meer in de bron staat, maar waar vandaag een BK uit komt: de kaarten zijn de laatst bekende.
+  const weg = geweten
+    .map((n) => records.get(n) as OnderdeelKwalificaties)
+    .filter((r) => r.status === 'niet-gevonden' && versiesVan((perOnderdeel.get(r.onderdeel) as { nu: Erkenning[] }).nu).size > 0)
+    .map((r) => (nietLeeg(r.nietMeerInBron) ? r.nietMeerInBron.trim().slice(0, 10) : ''))
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .sort();
+
+  const uit: RichtingBk = {
+    herkomst, ...variant, ...(opgehaald ? { opgehaald } : {}), ...(weg.length > 0 ? { onderdeelNietMeerInBron: weg[0] } : {}), bks, bekrachtigingen,
+  };
   const toekomst = toekomstVan(geweten, perOnderdeel, onderdelenVan, titelVan);
   if (toekomst) uit.toekomst = toekomst;
   return uit;

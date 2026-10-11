@@ -182,13 +182,39 @@ export const FOUT_BK_KEUZE = 'De keuze van de competenties kon niet getoond word
 export const BK_PAGINA_HERLADEN = 'Pagina herladen';
 
 /**
+ * Een titel die in het veld voor het vak past (`max` tekens, standaard `MAX_DOELGROEP_VAK`) zonder midden in een woord of in een
+ * haakje te eindigen. Past de titel, dan blijft ze zoals ze is (getrimd). Anders valt eerst een slotstuk tussen haakjes weg
+ * ("… kartonverwerking (digital print operator)": een toevoeging, geen kern), en past ze dan nog niet, dan wordt ze afgekapt
+ * op de laatste spatie, zonder een open haakje of een scheidingsteken (komma, schuine streep, streepje) achteraan. Een titel
+ * zonder spatie wordt hard afgekapt op `max`.
+ */
+export function bkVakKort(titel: string, max: number = MAX_DOELGROEP_VAK): string {
+  let t = typeof titel === 'string' ? titel.trim() : '';
+  if (t.length <= max) return t;
+  const zonderToevoeging = t.replace(/\s*\([^()]*\)$/, '').trimEnd();
+  if (zonderToevoeging !== '') t = zonderToevoeging;
+  if (t.length <= max) return t;
+  // Kijk één teken verder dan `max`: staat daar een spatie, dan is het laatste woord nog helemaal binnen de grens.
+  const venster = t.slice(0, max + 1);
+  const spatie = venster.lastIndexOf(' ');
+  let stuk = (spatie > 0 ? venster.slice(0, spatie) : t.slice(0, max)).trimEnd();
+  // Een haakje dat nog openstaat, valt met zijn inhoud weg.
+  while (stuk.includes('(') && (stuk.match(/\(/g) ?? []).length > (stuk.match(/\)/g) ?? []).length) {
+    stuk = stuk.slice(0, stuk.lastIndexOf('(')).trimEnd();
+  }
+  stuk = stuk.replace(/[\s,;:/&\-–—([{]+$/, '');
+  return stuk !== '' ? stuk : t.slice(0, max).trim();
+}
+
+/**
  * Het vak voor het titelvoorstel bij de competenties van een beroepskwalificatie: de titel van de beroepskwalificatie als er
  * competenties van precies één titel gekozen zijn, "Beroepsgerichte vorming" bij meer titels, en niets zonder keuze. Een
- * titel die twee keer voorkomt (twee versies van dezelfde beroepskwalificatie) telt één keer, een lege titel niet.
+ * titel die twee keer voorkomt (twee versies van dezelfde beroepskwalificatie) telt één keer, een lege titel niet. Een titel
+ * die niet in het veld voor het vak past, wordt netjes ingekort (`bkVakKort`).
  */
 export function bkVakVoorstel(titels: readonly string[]): string {
   const uniek = uniekeNamen((Array.isArray(titels) ? titels : []).filter((t): t is string => typeof t === 'string' && t.trim() !== '').map((t) => t.trim()));
-  return uniek.length === 0 ? '' : uniek.length === 1 ? uniek[0] : BK_VAK_MEER;
+  return uniek.length === 0 ? '' : uniek.length === 1 ? bkVakKort(uniek[0]) : BK_VAK_MEER;
 }
 
 /**
@@ -199,7 +225,7 @@ export function bkVakVoorstel(titels: readonly string[]): string {
  */
 export function bkVoorgevuldVak(startTitel: string | undefined, gekozenTitels: readonly string[]): string {
   if (startTitel === undefined) return '';
-  return (bkVakVoorstel(gekozenTitels) || startTitel.trim()).slice(0, MAX_DOELGROEP_VAK);
+  return bkVakVoorstel(gekozenTitels) || bkVakKort(startTitel);
 }
 
 /**

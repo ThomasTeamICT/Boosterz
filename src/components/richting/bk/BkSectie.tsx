@@ -10,7 +10,8 @@
 // leerplan" neemt alle competenties; de knoppen bij een melding houden de keuze van het oude leerplan (zie `stelSamen`).
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { InfoIcon, WarningIcon } from '../../icons';
+import { Link } from 'react-router-dom';
+import { GoalIcon, InfoIcon, WarningIcon } from '../../icons';
 import { FoutBericht, LaadBericht } from '../../curriculum/LaadStatus';
 import { useToast } from '../../ui';
 import { NieuweRichtingCursus } from '../NieuweRichtingCursus';
@@ -23,7 +24,6 @@ import {
   leerplanUitBk,
   selectieVanBkLeerplan,
   vergelijkMetBk,
-  vindBkLeerplan,
   type BkKeuze,
   type BkMelding,
 } from '../../../lib/bkLeerplan';
@@ -35,6 +35,7 @@ import {
   BK_KNOP_ANDERE_VERSIE,
   BK_KNOP_BIJWERKEN,
   BK_KNOP_NIEUWE_LIJST,
+  BK_KNOP_OPEN,
   BK_KOP_KNOP,
   BK_LADEN,
   BK_NIVEAU_UITLEG,
@@ -48,6 +49,7 @@ import {
   bkBekrachtigingTekst,
   bkBronregel,
   bkIntroAantal,
+  bkKnopSrTekst,
   bkKopRegel,
   bkMeldingTekst,
   bkNietNagekeken,
@@ -61,19 +63,17 @@ import { BK_ZONDER_TITEL, bkKader, type RichtingBk, type RichtingBkRegel } from 
 import { doelgroepVan, geldigeOnderdelen } from '../../../lib/richtingKader';
 import { variantLabels } from '../../../lib/richtingWeergave';
 import { useLaadstand } from '../../../lib/useLaadstand';
-import { BkKaart, type BestandStand } from './BkKaart';
+import { BkKaart, KaartenLaadStatus, kaartLaadt, type BestandStand } from './BkKaart';
 import {
   BK_ALGEMENE_FOUT,
   BK_KOP_MIST,
   BK_OPSLAG_MISLUKT,
   BK_TOAST_BESTAAT_AL,
-  beschrijfMelding,
+  bkOnderdeelNietMeerInBron,
   bouwNieuwLeerplan,
-  competentieIds,
-  doelgroepVoorDoel,
+  leerplanPerKaart,
+  meldingInhoud,
   redenMelding,
-  selectieVan,
-  stelSamen,
   versiesVoorDoel,
   type BewaarDoel,
 } from './bkSectieHulp';
@@ -216,14 +216,17 @@ function kaartVoor(m: BkMelding, bks: readonly RichtingBkRegel[]): string | unde
 /**
  * Een melding over een bestaand leerplan, met haar knop. `knop.reden` is het "Nog nodig: …" van een knop die nog niet kan
  * (aria-disabled, zonder reden is de knop actief). `uitleg` zegt vooraf wat de knop met de keuze van de leerkracht doet; `hint`
- * is de vaste hint van de melding.
+ * is de vaste hint van de melding. `al`: het leerplan dat de knop zou maken, staat er al. Dan staat in de plaats van uitleg en
+ * knop een zin met de titel en de link "Open het leerplan"; de waarschuwing en de hint blijven (ze kloppen nog).
+ * Geëxporteerd voor `BkSectie.test.ts`.
  */
-function MeldingBlok({ soort, tekst, uitleg, hint, knop, fout }: {
+export function MeldingBlok({ soort, tekst, uitleg, hint, knop, al, fout }: {
   soort: 'warn' | 'note';
   tekst: string;
   uitleg?: string;
   hint?: string;
   knop?: { label: string; reden: string | undefined; onClick: () => void };
+  al?: { tekst: string; leerplan: Curriculum };
   fout?: string | null;
 }) {
   const nodigId = useId();
@@ -237,6 +240,14 @@ function MeldingBlok({ soort, tekst, uitleg, hint, knop, fout }: {
         <div className="bk-melding-tekst">
           <p>{tekst}</p>
           {uitleg && <p id={uitlegId}>{uitleg}</p>}
+          {al && (
+            <>
+              <p>{al.tekst}</p>
+              <Link className="btn btn-ghost bk-knop" to={`/leerplannen?open=${encodeURIComponent(al.leerplan.id)}`}>
+                <GoalIcon size={18} /> {BK_KNOP_OPEN}<span className="sr-only">{bkKnopSrTekst(al.leerplan.title)}</span>
+              </Link>
+            </>
+          )}
           {knop && (
             <button
               type="button" className="btn btn-ghost bk-knop" aria-disabled={kan ? undefined : 'true'}
@@ -322,20 +333,11 @@ export function BkSectie({ context, vandaag, opnieuw }: BkSectieProps) {
   };
 
   // Het nagekeken leerplan op dit toestel met alle competenties (met tekst) van elke versie: daar staat "Open het leerplan".
-  const bestaandPerBk = useMemo(() => {
-    const uit = new Map<string, Curriculum>();
-    for (const regel of bks) {
-      const bestand = bestanden.get(regel.bk);
-      if (!bestand) continue;
-      let l = vindBkLeerplan(curricula, new Map([[regel.bk, competentieIds(regel.bk, bestand)]]), doelgroep, merken);
-      if (!l) {
-        const id = bewaard.get(regel.bk);
-        l = id !== undefined ? curricula.find((c) => c.id === id) : undefined;
-      }
-      if (l) uit.set(regel.bk, l);
-    }
-    return uit;
-  }, [bks, bestanden, curricula, doelgroep, merken, bewaard]);
+  // Met de bestanden: ook een leerplan dat een update niet raakte (alleen kennis of context veranderde, § 23.6.6).
+  const bestaandPerBk = useMemo(
+    () => leerplanPerKaart({ versies: bks.map((b) => b.bk), bestanden, curricula, doelgroep, merken, bewaard }),
+    [bks, bestanden, curricula, doelgroep, merken, bewaard],
+  );
 
   // Wat er veranderde sinds een leerplan van deze richting gemaakt werd. Alleen nagekeken BK-leerplannen van deze richting:
   // een leerplan dat de leerkracht aanpaste of dat bij een andere richting hoort, krijgt nooit een melding of een knop.
@@ -462,29 +464,25 @@ export function BkSectie({ context, vandaag, opnieuw }: BkSectieProps) {
     }
   };
 
-  /** Staat het leerplan dat de knop zou maken al op dit toestel? Dan is de knop weg (zoals bij "alle competenties"). */
-  const bestaatAl = (item: MeldingItem, doel: BewaarDoel): boolean => {
-    const onthouden = bewaard.get(item.sleutel);
-    if (onthouden !== undefined && curricula.some((c) => c.id === onthouden)) return true;
-    const sam = stelSamen(doel, bestanden);
-    if (!sam.ok || sam.leeg) return false;
-    return vindBkLeerplan(curricula, selectieVan(sam.keuzes), doelgroepVoorDoel(doel, doelgroep), merken) !== undefined;
-  };
-
   /** De melding van een bestaand leerplan, met haar knop. */
   const meldingBlok = (item: MeldingItem) => {
     const m = item.melding;
     const tekst = bkMeldingTekst(m, { bkTitel: titelVan(m.bk), leerplanTitel: item.leerplan.title });
     const fout = fouten.get(item.sleutel) ?? null;
     // De knoppen die een nieuw leerplan maken houden de keuze van het oude leerplan, en zeggen vooraf wat dat betekent.
+    // Staat het leerplan dat de knop zou maken er al (net gemaakt, of al eerder), dan is de knop weg (zoals bij "alle
+    // competenties") en zegt de melding waar het nieuwe leerplan is, in de plaats van de uitleg vooraf.
     const nieuwLeerplan = (doel: Exclude<BewaarDoel, { soort: 'kaart' }>, label: string, hint?: string) => {
-      const uitleg = beschrijfMelding(doel, bestanden, titelVan(m.bk));
+      const inhoud = meldingInhoud({ doel, bestanden, curricula, doelgroep, merken, onthouden: bewaard.get(item.sleutel), bkTitel: titelVan(m.bk) });
+      if (inhoud.soort === 'al') {
+        return <MeldingBlok key={item.sleutel} soort="warn" tekst={tekst} hint={hint} fout={fout} al={{ tekst: inhoud.tekst, leerplan: inhoud.leerplan }} />;
+      }
       return (
         <MeldingBlok
-          key={item.sleutel} soort="warn" tekst={tekst} uitleg={uitleg.hint} hint={hint} fout={fout}
-          knop={bestaatAl(item, doel) ? undefined : {
+          key={item.sleutel} soort="warn" tekst={tekst} uitleg={inhoud.uitleg.hint} hint={hint} fout={fout}
+          knop={{
             label,
-            reden: redenMelding({ kanBewaren, bezig, zonderKeuze: uitleg.zonderKeuze }),
+            reden: redenMelding({ kanBewaren, bezig, zonderKeuze: inhoud.uitleg.zonderKeuze }),
             onClick: () => void bewaar(doel, item.sleutel),
           }}
         />
@@ -517,6 +515,8 @@ export function BkSectie({ context, vandaag, opnieuw }: BkSectieProps) {
   const metNiveau = bks.some((b) => b.vks !== undefined);
   const toekomst = bk?.toekomst ? bkToekomstTekst(bk.toekomst.vanaf, bk.toekomst.titels) : '';
   const bekrachtigingen = bk?.bekrachtigingen ?? [];
+  // Eén statusregio voor het laden van de bestanden van alle kaarten samen (de laadregels op de kaarten hebben zelf geen rol).
+  const kaartenLaden = stand.status === 'klaar' && bks.some((regel) => kaartLaadt(regel, bestandStanden.get(regel.bk)));
 
   let inhoud: JSX.Element;
   if (stand.status === 'laden') {
@@ -538,6 +538,13 @@ export function BkSectie({ context, vandaag, opnieuw }: BkSectieProps) {
     inhoud = (
       <>
         <p>{bkIntroAantal(bks.length)}</p>
+        {bk?.onderdeelNietMeerInBron !== undefined && (
+          // Een onderdeel van de richting staat niet meer in de bron: de kaarten hieronder zijn de laatst bekende (§ 23.5.7).
+          <div className="callout warn bk-melding" role="note">
+            <WarningIcon size={20} className="bk-melding-icoon" />
+            <div className="bk-melding-tekst"><p>{bkOnderdeelNietMeerInBron(bk.onderdeelNietMeerInBron)}</p></div>
+          </div>
+        )}
         <p className="bk-uitleg">{BK_INTRO_UITLEG}</p>
         {metNiveau && (
           <details className="bk-details">
@@ -578,6 +585,7 @@ export function BkSectie({ context, vandaag, opnieuw }: BkSectieProps) {
   return (
     <section className="ri-sectie bk-sectie" aria-labelledby={KOP_ID}>
       <h2 id={KOP_ID} tabIndex={-1}>{BK_SECTIE_TITEL}</h2>
+      <KaartenLaadStatus laden={kaartenLaden} />
       {inhoud}
       {stand.status === 'klaar' && (
         <>

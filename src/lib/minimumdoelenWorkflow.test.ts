@@ -403,6 +403,7 @@ function rapportBk(extra: Rec = {}): Rec {
       gevraagd: 833,
       opgehaald: 833,
       nietGevonden: 0,
+      nietGevondenOnderdelen: [],
       tweedeRonde: { onderdelen: 0, verzoeken: 0 },
       perSoortGraadFinaliteit: { 'gewoon|3|A': { metBk: 118, zonderBk: 10 } },
       erkenningenNu: { 0: 0, 1: 833, meer: 0 },
@@ -526,7 +527,7 @@ describe('workflow minimumdoelen.yml: lijsten uit het rapport van de beroepskwal
 
   it('doen dat in elke lijst van het rapport, ook in de fout, de problemen en de waarschuwingen', { timeout: TIJDLIMIET }, () => {
     const rapport = rapportBk({
-      onderdelen: { nietGevonden: [{ nummer: 7, status: 404 }], advVerschilMetMatrix: [{ nummer: 9, adv: 'ADV-1' }] },
+      onderdelen: { nietGevonden: 1, nietGevondenOnderdelen: [7], advVerschilMetMatrix: [{ nummer: 9, adv: 'ADV-1' }] },
       bks: {
         nieuw: [{ bk: 'BK-0390-3', aantal: 12 }],
         inhoudVeranderd: [{ bk: 'BK-0464-1', van: 'aaaa', naar: 'bbbb' }],
@@ -541,7 +542,7 @@ describe('workflow minimumdoelen.yml: lijsten uit het rapport van de beroepskwal
     });
     // De pull request toont minder dan de samenvatting: de lijsten van de versies die niet gevonden zijn, de problemen en de waarschuwingen staan alleen in de samenvatting.
     const beide = [
-      '`nummer 7: status 404`',
+      '`7`',
       '`bk BK-0390-3: aantal 12`',
       '`bk BK-0464-1: van aaaa, naar bbbb`',
       '`bk BK-0100-1: sinds 2026-10-10`',
@@ -555,6 +556,26 @@ describe('workflow minimumdoelen.yml: lijsten uit het rapport van de beroepskwal
       expect(pullRequest.tekst, `pull request mist ${v}`).toContain(v);
     }
     for (const v of alleenSamenvatting) expect(samenvatting.tekst, `samenvatting mist ${v}`).toContain(v);
+  });
+
+  it('noemen de onderdelen die niet gevonden zijn bij nummer, zoals het script ze schrijft (een getal en een lijst)', { timeout: TIJDLIMIET }, () => {
+    // Het script schrijft `nietGevonden` als getal en zet de nummers in `nietGevondenOnderdelen` (haal-beroepskwalificaties.mjs).
+    const rapport = rapportBk({ onderdelen: { nietGevonden: 2, nietGevondenOnderdelen: [7, 931] } });
+    const [samenvatting, pullRequest] = beideTeksten(rapport);
+    expect(samenvatting.tekst).toContain('| Onderdelen niet gevonden (twee keer 404) | 2 |');
+    expect(samenvatting.tekst).toContain('### Onderdelen niet gevonden (2)');
+    expect(samenvatting.tekst).toContain('- `7`\n- `931`');
+    expect(pullRequest.tekst).toContain('- Niet gevonden (twee keer 404; de laatst bekende koppeling blijft staan, kijk dit na): `7`, `931`.');
+    expect(pullRequest.tekst).not.toContain('welke: zie het volledige rapport');
+  });
+
+  it('zeggen "geen" als er geen onderdeel ontbreekt, en vallen terug op het aantal zonder lijst', { timeout: TIJDLIMIET }, () => {
+    const geen = beideTeksten(rapportBk());
+    expect(geen[0].tekst).not.toContain('### Onderdelen niet gevonden');
+    expect(geen[1].tekst).toContain('kijk dit na): geen.');
+    // Een rapport zonder lijst (van een oudere versie van het script): het aantal, zonder crash.
+    const oud = rapportBk({ onderdelen: { nietGevonden: 3, nietGevondenOnderdelen: undefined } });
+    expect(maakPrTekst(oud)).toContain('kijk dit na): 3 (welke: zie het volledige rapport).');
   });
 
   it('zetten de wijziging van een versie in de zin van de pull request', { timeout: TIJDLIMIET }, () => {

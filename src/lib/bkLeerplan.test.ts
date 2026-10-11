@@ -790,6 +790,152 @@ describe('vindBkLeerplan: hergebruik alleen bij gelijke selectie én gelijk vers
   });
 });
 
+describe('vindBkLeerplan na een update die het leerplan niet raakt (I4 model-1)', () => {
+  // Het versiemerk is de sha256 van het hele bestand: een ander synoniem, een andere kennisregel of een andere tekst van een
+  // competentie die niet gekozen is, geeft een nieuw merk. `vergelijkMetBk` meldt dan niets ("niets te doen"), dus het
+  // leerplan moet herkend blijven, anders verschijnt "Bewaar als leerplan" opnieuw en komt er een tweede, gelijk leerplan.
+  const kader8 = bkKader(KOPPELING, INDEX, INFO_8, { groep: 'G-0008', soort: 'so' }, VANDAAG);
+  const zes = ids(ONTHAAL).slice(0, 6);
+  const alle = nagekeken([alleVan(ONTHAAL)]);
+  const deel = nagekeken([{ bestand: ONTHAAL, competenties: zes }]);
+  const merkenMet = (...lijst: BkBestand[]) => new Map([...MERKEN, ...lijst.map((b) => [b.bk, merkVan(b)] as const)]);
+  const met = (...lijst: BkBestand[]) => new Map(lijst.map((b) => [b.bk, b] as const));
+  const sel = (l: Curriculum) => selectieVanBkLeerplan(l);
+
+  /** Dezelfde competenties, alleen `extra` anders (een synoniem erbij): een nieuw merk. */
+  const extraAnders: BkBestand = (() => {
+    const b: BkBestand = {
+      ...structuredClone(ONTHAAL),
+      extra: { ...structuredClone(ONTHAAL.extra ?? {}), synoniemen: [{ waarde: 'Balie- en informatiebediende' }, { waarde: 'Onthaalbediende' }] },
+      sha256: sha256Hex(`${ONTHAAL.sha256}|synoniem`),
+    };
+    expect(valideerBkBestand(b, b.bk)).toEqual([]);
+    return b;
+  })();
+  const kennisAnders = bijgewerkt(ONTHAAL, (cs) => cs.map((c) => ({ ...c, kennis: [{ tekst: 'Nieuwe kennis' }] })));
+  const nietGekozenAnders = bijgewerkt(ONTHAAL, (cs) => cs.map((c, i) => (i === 11 ? { ...c, tekst: `${c.tekst} (verbeterd)` } : c)));
+  const gekozenAnders = bijgewerkt(ONTHAAL, (cs) => cs.map((c, i) => (i === 2 ? { ...c, tekst: `${c.tekst} (verbeterd)` } : c)));
+  const alleenHtml = bijgewerkt(ONTHAAL, (cs) => cs.map((c, i) => (i === 0 ? { ...c, tekst: 'Werkt <b>in</b> teamverband' } : c)));
+  const gekozenWeg = bijgewerkt(ONTHAAL, (cs) => cs.filter((_, i) => i !== 1));
+  const erbij = bijgewerkt(ONTHAAL, (cs) => [...cs, { ...cs[0], id: 'bkc9039013', nr: 13, tekst: 'Een nieuwe competentie' }]);
+  const tekstKwijt = bijgewerkt(ONTHAAL, (cs) => cs.map((c, i) => (i === 3 ? { ...c, tekst: '<p>&nbsp;</p>' } : c)));
+
+  it('vertrekpunt: elk bijgewerkt bestand heeft een ander merk dan het leerplan', () => {
+    for (const b of [extraAnders, kennisAnders, nietGekozenAnders, gekozenAnders, alleenHtml, gekozenWeg, erbij, tekstKwijt]) {
+      expect(merkVan(b)).not.toBe(merkVan(ONTHAAL));
+      expect(valideerBkBestand(b, b.bk)).toEqual([]);
+    }
+    expect(alle.bkVersies).toEqual([{ bk: 'BK-0390-2', sha: merkVan(ONTHAAL), alle: true }]);
+  });
+
+  it('alleen een synoniem in extra veranderde: herkend (de kaart toont "Open het leerplan"), en vergelijkMetBk meldt niets', () => {
+    const merken = merkenMet(extraAnders);
+    expect(vergelijkMetBk(alle, kader8, met(extraAnders), merken)).toEqual([]);
+    expect(vindBkLeerplan([alle], sel(alle), DG, merken, met(extraAnders))).toBe(alle);
+    expect(vindBkLeerplan([deel], sel(deel), DG, merken, met(extraAnders))).toBe(deel);
+    // Het leerplan zelf verandert niet: het oude merk blijft.
+    expect(alle.bkVersies?.[0].sha).toBe(merkVan(ONTHAAL));
+  });
+
+  it('zonder de bestanden (of zonder het bestand van die versie) herkent een ander merk niets, zoals vroeger', () => {
+    const merken = merkenMet(extraAnders);
+    expect(vindBkLeerplan([alle], sel(alle), DG, merken)).toBeUndefined();
+    expect(vindBkLeerplan([alle], sel(alle), DG, merken, new Map())).toBeUndefined();
+    expect(vindBkLeerplan([alle], sel(alle), DG, merken, met(RECREATIEF))).toBeUndefined();
+    expect(vindBkLeerplan([alle], sel(alle), DG, merken, {} as unknown as Map<string, BkBestand>)).toBeUndefined();
+  });
+
+  it('een andere tekst van een competentie die niet gekozen is: een deel wordt herkend, "alle" niet (daar is het tekst-aangepast)', () => {
+    const merken = merkenMet(nietGekozenAnders);
+    expect(vergelijkMetBk(deel, kader8, met(nietGekozenAnders), merken)).toEqual([]);
+    expect(vindBkLeerplan([deel], sel(deel), DG, merken, met(nietGekozenAnders))).toBe(deel);
+    expect(vergelijkMetBk(alle, kader8, met(nietGekozenAnders), merken)).toEqual([{ soort: 'tekst-aangepast', bk: 'BK-0390-2', aantal: 1 }]);
+    expect(vindBkLeerplan([alle], sel(alle), DG, merken, met(nietGekozenAnders))).toBeUndefined();
+  });
+
+  it('een andere tekst van een gekozen competentie: niet herkend (dan "Werk het leerplan bij")', () => {
+    const merken = merkenMet(gekozenAnders);
+    expect(vergelijkMetBk(deel, kader8, met(gekozenAnders), merken)).toEqual([{ soort: 'tekst-aangepast', bk: 'BK-0390-2', aantal: 1 }]);
+    expect(vindBkLeerplan([deel], sel(deel), DG, merken, met(gekozenAnders))).toBeUndefined();
+    expect(vindBkLeerplan([alle], sel(alle), DG, merken, met(gekozenAnders))).toBeUndefined();
+  });
+
+  it('een competentie erbij: bij "alle" niet herkend (lijst-aangepast), bij een deel wel', () => {
+    const merken = merkenMet(erbij);
+    expect(vindBkLeerplan([alle], sel(alle), DG, merken, met(erbij))).toBeUndefined();
+    expect(vindBkLeerplan([alle], new Map([['BK-0390-2', ids(erbij)]]), DG, merken, met(erbij))).toBeUndefined();
+    expect(vindBkLeerplan([deel], sel(deel), DG, merken, met(erbij))).toBe(deel);
+  });
+
+  it('een gekozen competentie weg, of zonder tekst: niet herkend', () => {
+    expect(vindBkLeerplan([deel], sel(deel), DG, merkenMet(gekozenWeg), met(gekozenWeg))).toBeUndefined();
+    expect(vindBkLeerplan([deel], sel(deel), DG, merkenMet(tekstKwijt), met(tekstKwijt))).toBeUndefined();
+  });
+
+  it('herkend precies als vergelijkMetBk niets meldt (alle bijgewerkte bestanden, voor "alle" en voor een deel)', () => {
+    for (const b of [extraAnders, kennisAnders, nietGekozenAnders, gekozenAnders, alleenHtml, gekozenWeg, erbij, tekstKwijt]) {
+      const merken = merkenMet(b);
+      for (const l of [alle, deel]) {
+        const stil = vergelijkMetBk(l, kader8, met(b), merken).length === 0;
+        expect(vindBkLeerplan([l], sel(l), DG, merken, met(b)) === l, `${b.sha256.slice(0, 8)} ${l.bkVersies?.[0].alle ? 'alle' : 'deel'}`).toBe(stil);
+      }
+    }
+  });
+
+  it('liever een tweede leerplan dan een vals herkend: een bestand van een andere update, of onbruikbaar', () => {
+    // De index noemt al het merk van `kennisAnders`, maar in het geheugen zit nog een ander bestand (oud uit de cache).
+    expect(vindBkLeerplan([alle], sel(alle), DG, merkenMet(kennisAnders), met(extraAnders))).toBeUndefined();
+    // Een bestand dat niet door de validator komt.
+    const kapot = { ...structuredClone(extraAnders), aantal: 99 };
+    expect(vindBkLeerplan([alle], sel(alle), DG, merkenMet(extraAnders), met(kapot))).toBeUndefined();
+    // Geen merk in de index: niets.
+    expect(vindBkLeerplan([alle], sel(alle), DG, new Map(), met(extraAnders))).toBeUndefined();
+  });
+
+  it('een gewijzigd leerplan (niet meer nagekeken) of een eigen kopie blijft ongezien, ook met de bestanden', () => {
+    const merken = merkenMet(extraAnders);
+    const gewijzigd = structuredClone(alle);
+    gewijzigd.goals[0].text = 'Iets anders';
+    expect(vindBkLeerplan([gewijzigd], sel(alle), DG, merken, met(extraAnders))).toBeUndefined();
+    expect(vindBkLeerplan([maakEigenKopie(alle)], sel(alle), DG, merken, met(extraAnders))).toBeUndefined();
+  });
+
+  it('twee beroepskwalificaties: elke versie apart (gelijk merk, of een update zonder gevolg)', () => {
+    const twee = nagekeken([{ bestand: ONTHAAL, competenties: zes }, alleVan(RECREATIEF)]);
+    const recreatiefKennis = bijgewerkt(RECREATIEF, (cs) => cs.map((c) => ({ ...c, kennis: [{ tekst: 'Andere kennis' }] })));
+    const recreatiefTekst = bijgewerkt(RECREATIEF, (cs) => cs.map((c, i) => (i === 0 ? { ...c, tekst: 'Andere tekst' } : c)));
+    expect(vindBkLeerplan([twee], sel(twee), DG, merkenMet(extraAnders, recreatiefKennis), met(extraAnders, recreatiefKennis))).toBe(twee);
+    expect(vindBkLeerplan([twee], sel(twee), DG, merkenMet(recreatiefKennis), met(ONTHAAL, recreatiefKennis))).toBe(twee);
+    expect(vindBkLeerplan([twee], sel(twee), DG, merkenMet(extraAnders, recreatiefTekst), met(extraAnders, recreatiefTekst))).toBeUndefined();
+    // Zonder het bestand van de ene veranderde versie: niet.
+    expect(vindBkLeerplan([twee], sel(twee), DG, merkenMet(extraAnders, recreatiefKennis), met(extraAnders))).toBeUndefined();
+  });
+
+  it('bewuste keuze: herkend betekent "de gekozen competentieteksten zijn letterlijk gelijk", niet "ook titel, soort en codes"', () => {
+    // Een andere titel van de beroepskwalificatie, een ander soort competentie of een hernummering geeft een nieuw merk,
+    // maar `vergelijkMetBk` meldt niets, dus er is geen "Werk het leerplan bij". Alleen `vindBkLeerplan` strenger maken zou
+    // het dubbele leerplan terugbrengen, zonder uitweg. Het herkende leerplan houdt zijn titel, thema's en codes (§ 23.6.4).
+    const titelAnders: BkBestand = { ...structuredClone(ONTHAAL), titel: 'Onthaal- en baliemedewerker', sha256: sha256Hex(`${ONTHAAL.sha256}|titel`) };
+    const soortAnders = bijgewerkt(ONTHAAL, (cs) => cs.map((c) => ({ ...c, type: 'Generieke competentie' })));
+    const nrAnders = bijgewerkt(ONTHAAL, (cs) => cs.map((c) => ({ ...c, nr: (c.nr ?? 0) + 100 })));
+    expect(valideerBkBestand(titelAnders, titelAnders.bk)).toEqual([]);
+    for (const b of [titelAnders, soortAnders, nrAnders]) {
+      const merken = merkenMet(b);
+      expect(merkVan(b)).not.toBe(merkVan(ONTHAAL));
+      expect(vergelijkMetBk(alle, kader8, met(b), merken)).toEqual([]);
+      expect(vindBkLeerplan([alle], sel(alle), DG, merken, met(b))).toBe(alle);
+      expect(vindBkLeerplan([deel], sel(deel), DG, merken, met(b))).toBe(deel);
+    }
+    // Wat het herkende leerplan dan houdt: de oude titel, het oude thema en de oude code (zoals na "Werk het leerplan bij").
+    const eerste = ONTHAAL.competenties[0].id;
+    const doel = alle.goals.find((g) => g.bkRefs?.[0]?.id === eerste);
+    expect(alle.title.startsWith('Onthaalmedewerker')).toBe(true);
+    expect(doel?.theme).toBe('Onthaalmedewerker › Vakspecifieke competentie');
+    expect(doel?.code).toBe('BK-0390-2.01');
+    expect(doelcodesVanBestand(nrAnders).get(eerste)).toBe('BK-0390-2.101');
+  });
+});
+
 // ── Titel ───────────────────────────────────────────────────────────────────
 
 describe('titelVoorBkLeerplan', () => {

@@ -2639,6 +2639,172 @@ const rtHoogtes = (loc) => loc.evaluateAll((l) => l.filter((e) => e.getBoundingC
   await ctx.close();
 }
 
+// ── 20g-2. Beroepskwalificaties na een maandelijkse update ──────────────────
+// Wat 20g niet kan zien, omdat het pas na een update komt (docs/STUDIERICHTINGEN.md § 23.6.4, § 23.7.2 en § 23.8, I4). Op de
+// nagebootste bestanden van 20g, die page.route per stap wat aanpast:
+// (1) een update die het leerplan niet raakt (alleen een synoniem erbij, dus een ander versiemerk): de kaart houdt "Open het
+//     leerplan", zonder melding; ter controle geeft een andere tekst van een competentie wel "Werk het leerplan bij";
+// (2) een onderdeel van de richting dat niet meer in de bron staat: de waarschuwing boven de kaarten;
+// (3) een nieuwe versie: op G-0009 loopt de erkenning met BK-9999-1 af op 31 augustus 2027 en geldt vanaf 1 september 2027
+//     die met BK-9999-2 (de toekomstige erkenning van de fixtures). De melding met haar knop, en na de klik "Je hebt al een
+//     leerplan met de versie van nu: ‘…’." met de link, ook na herladen.
+// De klok staat vast (11 oktober 2026, in stap 3 daarna 2 september 2027): de fixtures hebben datums in de toekomst. Herladen
+// gaat altijd langs about:blank: de lader onthoudt zijn beloftes zolang de pagina leeft. Eigen context; tot slot "Terug zoals
+// het was".
+console.log('20g-2. Beroepskwalificaties na een update');
+{
+  const { ctx, p, go, fouten } = await rtOpen('20g-2', { fixtures: true });
+  /** Per bestand in de map een aanpassing van de JSON; wat er niet in staat, is de fixture zoals ze is (of een 404). */
+  let aanpassingen = {};
+  const aangepast = [];
+  await p.route('**/leerplannen/kwalificaties/**', (r) => {
+    const rest = decodeURIComponent(new URL(r.request().url()).pathname.split('/leerplannen/kwalificaties/')[1] ?? '');
+    let json = null;
+    if (/^[\w./-]+$/.test(rest) && !rest.includes('..')) { try { json = JSON.parse(readFileSync(new URL(rest, RT_KW_FIXTURES), 'utf8')); } catch { json = null; } }
+    if (json === null) return r.fulfill({ status: 404, contentType: 'text/plain', body: 'niet gevonden' });
+    const pas = aanpassingen[rest];
+    if (pas) { json = pas(json); aangepast.push(rest); }
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json) });
+  });
+  const herlaad = async (hash) => { await p.goto('about:blank'); await go(hash); };
+  const leerplannen = () => p.evaluate(() => JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]'));
+  const bkLeerplan = (lijst, bk) => lijst.find((l) => l.herkomst?.methode === 'beroepskwalificatie' && l.bkVersies?.[0]?.bk === bk);
+  const sectie = p.locator('section.bk-sectie');
+  const kaartVan = (bk) => sectie.locator('article.bk-kaart').filter({ has: p.locator('.bk-meta', { hasText: `officieel nummer ${bk}` }) });
+  /** Wacht tot de kaart klaar is: haar bestand is geladen, en ze toont "Open het leerplan" of een "Bewaar als leerplan" die kan. */
+  const wachtOpKaart = (bk) => p.waitForFunction((b) => {
+    const kaart = [...document.querySelectorAll('section.bk-sectie article.bk-kaart')].find((a) => a.querySelector('.bk-meta')?.textContent.includes(`officieel nummer ${b}`));
+    if (!kaart || !/\d+ competenti/.test(kaart.querySelector('.bk-meta')?.textContent ?? '')) return false;
+    if ([...kaart.querySelectorAll('a')].some((a) => a.textContent.trim() === 'Open het leerplan')) return true;
+    const knop = [...kaart.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Bewaar als leerplan');
+    return !!knop && knop.getAttribute('aria-disabled') !== 'true';
+  }, bk, { timeout: 30000 }).then(async () => { await sleep(300); return true; }, () => false);
+  /** "Open het leerplan" van de kaart zelf (de link in een melding heeft de titel erachter). */
+  const openVanKaart = (bk) => kaartVan(bk).getByRole('link', { name: 'Open het leerplan', exact: true });
+  const ZIN_ONDERDEEL = 'De Vlaamse overheid geeft sinds 5 oktober 2026 niet meer alle gegevens van deze richting. Je ziet de laatst bekende beroepskwalificaties.';
+  const G8 = '/#/cursussen/richtingen/G-0008?jaar=3';
+  const G9 = '/#/cursussen/richtingen/G-0009';
+  /** Een ander versiemerk voor BK-0390-2: in de index én in het bestand (anders horen ze bij een andere update). */
+  const merkInIndex = (sha) => (json) => ({ ...json, bks: json.bks.map((b) => (b.bk === 'BK-0390-2' ? { ...b, sha256: sha } : b)) });
+
+  await p.clock.setFixedTime(new Date('2026-10-11T10:00:00Z'));
+  await go('/#/cursussen');
+  const voor = await rtSnap(p); // na het zaaien van de voorbeeldinhoud, vóór deze sectie iets verandert
+
+  // (1) "Bewaar als leerplan" bij Onthaalmedewerker, dan een update met alleen een synoniem erbij
+  await go(G8);
+  await rtBkWachtOpKaarten(p);
+  const klaar0 = await wachtOpKaart('BK-0390-2');
+  await kaartVan('BK-0390-2').getByRole('button', { name: 'Bewaar als leerplan' }).click({ timeout: 10000 }).catch(() => {});
+  await openVanKaart('BK-0390-2').waitFor({ timeout: 10000 }).catch(() => {});
+  const na0 = await leerplannen();
+  const lp1 = bkLeerplan(na0, 'BK-0390-2');
+  const merkFixture = rtJson(new URL('index.json', RT_KW_FIXTURES))?.bks?.find((b) => b.bk === 'BK-0390-2')?.sha256?.slice(0, 16);
+  check('(1) vertrekpunt: "Bewaar als leerplan" bij Onthaalmedewerker gaf een nagekeken BK-leerplan met het merk van de fixtures, en de kaart toont "Open het leerplan"', klaar0 && !!lp1 && lp1.controle?.status === 'gecontroleerd' && lp1.bkVersies?.[0]?.sha === merkFixture && (await openVanKaart('BK-0390-2').count()) === 1);
+  check('(1) vertrekpunt: zonder aanpassing staat er geen waarschuwing over een onderdeel en geen melding bij de kaart', !(await sectie.innerText()).includes('niet meer alle gegevens van deze richting') && (await kaartVan('BK-0390-2').locator('.bk-meldingen').count()) === 0);
+
+  const SYNONIEM = createHash('sha256').update('20g-2: een synoniem erbij').digest('hex');
+  aanpassingen = {
+    'index.json': merkInIndex(SYNONIEM),
+    'bk/BK-0390-2.json': (json) => ({ ...json, sha256: SYNONIEM, extra: { ...json.extra, synoniemen: [...(json.extra?.synoniemen ?? []), { waarde: 'Onthaalbediende' }] } }),
+  };
+  aangepast.length = 0;
+  await herlaad(G8);
+  await rtBkWachtOpKaarten(p);
+  const klaar1 = await wachtOpKaart('BK-0390-2');
+  const na1 = await leerplannen();
+  check('(1) na de update: de index en het bestand met het nieuwe merk (en het synoniem erbij) zijn echt geladen, en het leerplan heeft nog het oude merk', klaar1 && aangepast.includes('index.json') && aangepast.includes('bk/BK-0390-2.json') && lp1?.bkVersies?.[0]?.sha !== SYNONIEM.slice(0, 16));
+  check('(1) na een update die het leerplan niet raakt (alleen een synoniem): de kaart houdt "Open het leerplan", geen "Bewaar als leerplan" en geen melding', (await openVanKaart('BK-0390-2').count()) === 1 && (await kaartVan('BK-0390-2').getByRole('button', { name: 'Bewaar als leerplan' }).count()) === 0 && (await kaartVan('BK-0390-2').locator('.bk-meldingen').count()) === 0);
+  check('(1) na de update: geen tweede leerplan, en het leerplan zelf veranderde niet', na1.length === na0.length && JSON.stringify(bkLeerplan(na1, 'BK-0390-2')) === JSON.stringify(lp1));
+
+  // Ter controle: een andere tekst van een gekozen competentie raakt het leerplan wel (de aanpassing komt dus echt aan)
+  const TEKST = createHash('sha256').update('20g-2: een andere tekst').digest('hex');
+  aanpassingen = {
+    'index.json': merkInIndex(TEKST),
+    'bk/BK-0390-2.json': (json) => ({ ...json, sha256: TEKST, competenties: json.competenties.map((c, i) => (i === 0 ? { ...c, tekst: `${c.tekst} (aangepast)` } : c)) }),
+  };
+  await herlaad(G8);
+  await rtBkWachtOpKaarten(p);
+  const klaar1b = await wachtOpKaart('BK-0390-2');
+  const melding1b = await kaartVan('BK-0390-2').locator('.bk-meldingen').innerText().catch(() => '');
+  check('(1) ter controle: een andere tekst van een competentie geeft "Bewaar als leerplan" en de melding "De officiële tekst van 1 competentie van ‘Onthaalmedewerker’ werd aangepast …" met "Werk het leerplan bij"', klaar1b && (await openVanKaart('BK-0390-2').count()) === 0 && (await kaartVan('BK-0390-2').getByRole('button', { name: 'Bewaar als leerplan' }).count()) === 1 && melding1b.includes(`De officiële tekst van 1 competentie van ‘Onthaalmedewerker’ werd aangepast sinds je ‘${lp1?.title}’ maakte.`) && (await kaartVan('BK-0390-2').getByRole('button', { name: 'Werk het leerplan bij' }).count()) === 1);
+
+  // (2) Onderdeel 8 (waar vandaag beide beroepskwalificaties van G-0008 uit komen) staat niet meer in de bron
+  aanpassingen = {
+    'koppeling.json': (json) => ({ ...json, onderdelen: json.onderdelen.map((o) => (o.onderdeel === 8 ? { ...o, status: 'niet-gevonden', nietMeerInBron: '2026-10-05' } : o)) }),
+  };
+  aangepast.length = 0;
+  await herlaad(G8);
+  await rtBkWachtOpKaarten(p);
+  const klaar2 = await wachtOpKaart('BK-0390-2');
+  const waarschuwing = sectie.locator('div.callout.warn.bk-melding[role="note"]', { hasText: 'niet meer alle gegevens van deze richting' });
+  const plaats2 = await p.evaluate(() => {
+    const s = document.querySelector('section.bk-sectie');
+    const kinderen = [...(s?.children ?? [])];
+    const i = kinderen.findIndex((e) => e.matches('div.callout.warn') && e.textContent.includes('niet meer alle gegevens van deze richting'));
+    const intro = kinderen.findIndex((e) => e.tagName === 'P' && /^Bij deze richting horen 2 beroepskwalificaties\.$/.test(e.textContent.trim()));
+    const uitleg = kinderen.findIndex((e) => e.matches('p.bk-uitleg'));
+    const lijst = kinderen.findIndex((e) => e.matches('ul.bk-kaarten'));
+    return i > -1 && intro > -1 && intro < i && i < uitleg && uitleg < lijst;
+  });
+  check('(2) koppeling met onderdeel 8 op "niet-gevonden" (laatst bekende erkenningen) is echt geladen', klaar2 && aangepast.includes('koppeling.json'));
+  check(`(2) een onderdeel niet meer in de bron: één callout warn (role note) "${ZIN_ONDERDEEL}"`, (await waarschuwing.count()) === 1 && (await waarschuwing.innerText()).trim() === ZIN_ONDERDEEL);
+  check('(2) de waarschuwing staat in de sectie na "Bij deze richting horen 2 beroepskwalificaties." en vóór de uitleg en de kaarten, en de twee kaarten (de laatst bekende) blijven', plaats2 && (await sectie.locator('article.bk-kaart').count()) === 2 && (await openVanKaart('BK-0390-2').count()) === 1);
+
+  // (3) Een nieuwe versie: BK-9999-1 op G-0009, vóór en na 1 september 2027 (de nieuwe erkenning met BK-9999-2)
+  aanpassingen = {};
+  await herlaad(G9);
+  const klaar3a = await wachtOpKaart('BK-9999-1');
+  await kaartVan('BK-9999-1').getByRole('button', { name: 'Bewaar als leerplan' }).click({ timeout: 10000 }).catch(() => {});
+  await openVanKaart('BK-9999-1').waitFor({ timeout: 10000 }).catch(() => {});
+  const oud9 = bkLeerplan(await leerplannen(), 'BK-9999-1');
+  check('(3) vertrekpunt (11 oktober 2026): "Bewaar als leerplan" bij BK-9999-1 op G-0009 gaf een nagekeken leerplan; er is nog geen kaart van BK-9999-2', klaar3a && !!oud9 && oud9.controle?.status === 'gecontroleerd' && (await kaartVan('BK-9999-2').count()) === 0);
+
+  // De maandelijkse update na 1 september 2027: de erkenning met BK-9999-1 (onderdeel 10) kreeg een einddatum, en ook die van
+  // de duale variant (onderdeel 12, met BK-9999-3 zonder bestand). Anders wijst de melding naar de hoogste versie in het kader,
+  // BK-9999-3, en staat ze bij die kaart.
+  const loopAf = { 10: 'ADV-1062', 12: 'ADV-1224' };
+  aanpassingen = {
+    'koppeling.json': (json) => ({ ...json, onderdelen: json.onderdelen.map((o) => (loopAf[o.onderdeel] ? { ...o, erkenningen: o.erkenningen.map((e) => (e.adv === loopAf[o.onderdeel] ? { ...e, einddatum: '2027-08-31' } : e)) } : o)) }),
+  };
+  aangepast.length = 0;
+  await p.clock.setFixedTime(new Date('2027-09-02T10:00:00Z'));
+  await herlaad(G9);
+  const klaar3b = await wachtOpKaart('BK-9999-2');
+  const melding3 = kaartVan('BK-9999-2').locator('.bk-meldingen');
+  const melding3Tekst = await melding3.innerText().catch(() => '');
+  const knop3 = kaartVan('BK-9999-2').getByRole('button', { name: 'Maak een leerplan met de versie van nu' });
+  check('(3) op 2 september 2027: de koppeling met de einddatums is echt geladen, en alleen de kaart van BK-9999-2 staat er nog', klaar3b && aangepast.includes('koppeling.json') && (await sectie.locator('article.bk-kaart').count()) === 1 && (await kaartVan('BK-9999-2').count()) === 1);
+  check(`(3) op 2 september 2027: bij de kaart van BK-9999-2 de melding "Je leerplan ‘${oud9?.title}’ volgt een vorige versie van ‘Nagebootste beroepskwalificatie’." met de knop "Maak een leerplan met de versie van nu"`, klaar3b && melding3Tekst.includes(`Je leerplan ‘${oud9?.title}’ volgt een vorige versie van ‘Nagebootste beroepskwalificatie’.`) && (await knop3.count()) === 1 && (await knop3.getAttribute('aria-disabled')) !== 'true' && !melding3Tekst.includes('Je hebt al een leerplan'));
+  await knop3.click({ timeout: 10000 }).catch(() => {});
+  const toast3 = await p.waitForFunction(() => /Leerplan bewaard en nagekeken\./.test(document.querySelector('.toast-stack')?.innerText ?? ''), null, { timeout: 8000 }).then(() => true, () => false);
+  await melding3.getByText(/^Je hebt al een leerplan met de versie van nu/).waitFor({ timeout: 10000 }).catch(() => {});
+  const nieuw9 = bkLeerplan(await leerplannen(), 'BK-9999-2');
+  const alZin = `Je hebt al een leerplan met de versie van nu: ‘${nieuw9?.title}’.`;
+  /** De melding na de klik of na herladen: de zin met de titel, de link naar het nieuwe leerplan, de hint; geen knop meer. */
+  const meldingAl = async () => {
+    const tekst = await melding3.innerText().catch(() => '');
+    const link = melding3.getByRole('link', { name: `Open het leerplan (${nieuw9?.title})`, exact: true });
+    return !!nieuw9 && tekst.includes(alZin) && (await link.count()) === 1 && (await link.getAttribute('href'))?.endsWith(`#/leerplannen?open=${encodeURIComponent(nieuw9.id)}`)
+      && tekst.includes('Je cursussen blijven aan het oude leerplan hangen.') && (await knop3.count()) === 0;
+  };
+  check('(3) de klik geeft "Leerplan bewaard en nagekeken." en een nagekeken leerplan met BK-9999-2; het oude leerplan blijft', toast3 && !!nieuw9 && nieuw9.controle?.status === 'gecontroleerd' && nieuw9.id !== oud9?.id && !!bkLeerplan(await leerplannen(), 'BK-9999-1'));
+  check(`(3) na de klik: "${alZin}" met de link "Open het leerplan" naar dat leerplan en de hint; de knop is weg`, await meldingAl());
+  await herlaad(G9);
+  const klaar3c = await wachtOpKaart('BK-9999-2');
+  check('(3) na herladen: dezelfde zin en dezelfde link (het leerplan wordt herkend, niet onthouden), en de kaart van BK-9999-2 toont "Open het leerplan"', klaar3c && (await meldingAl()) && (await openVanKaart('BK-9999-2').count()) === 1);
+  await p.setViewportSize({ width: 390, height: 844 });
+  await sleep(400);
+  check('(3) 390 px: de melding met de zin en de link scrollt niet horizontaal', await rtSmal(p));
+  await p.setViewportSize({ width: 1360, height: 900 });
+
+  // Geen console- of paginafouten; terug zoals het was
+  check('20g-2: geen console- of paginafouten in deze sectie', fouten.length === 0);
+  const teruggezet = await rtTerugZetten(p, voor);
+  check('20g-2: terug zoals het was (localStorage weer zoals na het zaaien, geen BK-leerplannen meer)', teruggezet && (await leerplannen()).every((l) => l.herkomst?.methode !== 'beroepskwalificatie'));
+  await ctx.close();
+}
+
 // ── 20h. Beroepskwalificaties op de echte data ──────────────────────────────
 // Dezelfde sectie als in 20g, voor G-0393 (Onthaal en recreatie) op public/leerplannen/kwalificaties/. Alleen met reguliere
 // expressies voor wat op het scherm staat: de aantallen veranderen elke maand. Zonder het echte koppelingsbestand (de eerste echte

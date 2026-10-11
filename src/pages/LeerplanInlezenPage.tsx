@@ -25,7 +25,7 @@ import {
   type BronGegevens, type Gevonden, type LeerplanKeuze, type Ontbrekend,
 } from '../lib/leerplanInlezen';
 import { AI_VOORINVULLING_SLEUTEL } from '../lib/leerplanAiOverdracht';
-import { bkInleesTekst } from '../lib/bkWeergave';
+import { bkInleesTekst } from '../lib/bkLabels';
 import { isBkLeerplan, isSamengesteld, uitOfficieleBron } from '../lib/leerplanStatus';
 import type { RichtingInfo, RichtingKader } from '../lib/richtingKader';
 import {

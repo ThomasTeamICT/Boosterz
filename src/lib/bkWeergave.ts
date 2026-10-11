@@ -73,6 +73,29 @@ export function bkKopRegel(titels: readonly string[]): string {
 
 export const BK_SECTIE_TITEL = 'Beroepskwalificaties';
 export const BK_LADEN = 'De beroepskwalificaties worden geladen…';
+
+/** "De competenties van ‘Onthaalmedewerker’": de naam waarmee een kaart over zichzelf spreekt. Zonder titel: "deze beroepskwalificatie". */
+function competentiesVanKaart(titel: string): string {
+  const t = typeof titel === 'string' ? titel.trim() : '';
+  return t === '' ? 'De competenties van deze beroepskwalificatie' : `De competenties van ‘${t}’`;
+}
+
+/** De laadregel van één kaart: "De competenties van ‘Onthaalmedewerker’ worden geladen…". Het meervoud van de sectie (`BK_LADEN`) klopt voor één kaart niet. */
+export function bkKaartLaden(titel: string): string {
+  return `${competentiesVanKaart(titel)} worden geladen…`;
+}
+
+/**
+ * De foutmelding van één kaart: "De competenties van ‘Onthaalmedewerker’ konden niet geladen worden. Controleer je
+ * verbinding en probeer opnieuw." Zijn de bestanden beschadigd (`beschadigd`), dan helpt de verbinding niet en zegt de zin dat
+ * ze "beschadigd zijn", zoals de melding van de sectie.
+ */
+export function bkKaartFout(titel: string, beschadigd = false): string {
+  return beschadigd
+    ? `${competentiesVanKaart(titel)} zijn beschadigd en konden niet gelezen worden. Probeer het later opnieuw.`
+    : `${competentiesVanKaart(titel)} konden niet geladen worden. Controleer je verbinding en probeer opnieuw.`;
+}
+
 export const BK_NOG_NIET_OPGEHAALD = 'De beroepskwalificaties van deze richting zijn nog niet opgehaald. Boosterz haalt ze elke maand op bij de Vlaamse overheid.';
 export const BK_GEEN = 'De officiële bron koppelt geen beroepskwalificatie aan deze richting. De beroepsgerichte doelen staan dan in het leerplan van je net.';
 
@@ -405,10 +428,6 @@ export const BK_CURSUS_VOLGT_BK = 'Volgt een beroepskwalificatie: zie ‘Compete
 
 // ── Leerplanpagina en inleespagina (§ 23.7.5) ───────────────────────────────
 
-export const BK_LABEL_OFFICIEEL = 'Officiële beroepskwalificatie';
-export const BK_LABEL_KOPIE = 'Kopie van een officiële beroepskwalificatie';
-
-/** De zin op de inleespagina bij een BK-leerplan. */
-export function bkInleesTekst(titel: string): string {
-  return `${typeof titel === 'string' ? titel.trim() : ''} komt rechtstreeks uit een officiële beroepskwalificatie. Er valt niets in te lezen: de competenties staan letterlijk zoals in de officiële bron.`;
-}
+// De twee labels en de zin voor de inleespagina staan in `bkLabels.ts`, zonder imports: de leerplanpagina en de inleespagina
+// halen ze op en mogen daarmee niet de rest van dit bestand (en de dekking) mee binnentrekken. Ze blijven hier bereikbaar.
+export { BK_LABEL_KOPIE, BK_LABEL_OFFICIEEL, bkInleesTekst } from './bkLabels';

@@ -498,7 +498,7 @@ jobs:
               ...bkLijstRegels('Onderdelen nieuw gekoppeld', o.nieuw),
               ...bkLijstRegels('Niet meer gekoppeld', o.nietMeerGekoppeld, 'De bestanden blijven staan.'),
               ...bkLijstRegels('Andere versie gekoppeld', o.andereVersie),
-              ...(Array.isArray(o.nietGevonden) ? bkLijstRegels('Onderdelen niet gevonden', o.nietGevonden, 'De laatst bekende koppeling blijft staan. Kijk dit na.') : []),
+              ...bkLijstRegels('Onderdelen niet gevonden', o.nietGevondenOnderdelen, 'De laatst bekende koppeling blijft staan. Kijk dit na.'),
               ...bkLijstRegels('Versies nieuw', b.nieuw),
               ...bkLijstRegels('Inhoud van een bestaande versie veranderd', b.inhoudVeranderd, 'Kijk dit na: leerplannen met die versie melden het aan de leerkracht.'),
               ...bkLijstRegels('Versies niet meer in de bron', b.nietMeerInBron, 'De bestanden blijven staan.'),
@@ -829,7 +829,7 @@ jobs:
             uit.push(
               '- Onderdelen opgevraagd: ' + getalNl(o.gevraagd) + '; met een beroepskwalificatie in de erkenning van nu: ' + (tel ? getalNl(tel.met) + ' (' + soortenTekst(tel) + ')' : ONTBREEKT) + '.',
               '- Nieuw gekoppeld: ' + opsomming(o.nieuw) + ' · Niet meer gekoppeld: ' + opsomming(o.nietMeerGekoppeld) + ' (de bestanden blijven staan) · Andere versie gekoppeld: ' + opsomming(o.andereVersie) + '.',
-              '- Niet gevonden (twee keer 404; de laatst bekende koppeling blijft staan, kijk dit na): ' + opsommingOfAantal(o.nietGevonden) + '.',
+              '- Niet gevonden (twee keer 404; de laatst bekende koppeling blijft staan, kijk dit na): ' + (Array.isArray(o.nietGevondenOnderdelen) ? opsomming(o.nietGevondenOnderdelen) : opsommingOfAantal(o.nietGevonden)) + '.',
               '',
               '### Beroepskwalificaties zelf',
               '',

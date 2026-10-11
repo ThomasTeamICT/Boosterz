@@ -423,6 +423,8 @@ describe('bkKader: randgevallen', () => {
     expect(k.herkomst).toBe('api');
     expect(k.bks.map((b) => b.bk)).toEqual(['BK-0390-2']);
     expect(k.opgehaald).toBe('2026-09-01T00:00:00Z');
+    // De laatst bekende koppeling, met een waarschuwing (§ 23.5.7): het scherm moet het kunnen zeggen.
+    expect(k.onderdeelNietMeerInBron).toBe('2026-10-01');
   });
 
   it('een geannuleerde of nog niet erkende erkenning telt niet', () => {
@@ -528,5 +530,76 @@ describe('bkKader: randgevallen', () => {
   it('een ongeldige dag is een fout in de code: luid, ook met een gekozen onderdeel', () => {
     expect(() => bkKader(KOPPELING, INDEX, g8, keuze('G-0008'), 'gisteren')).toThrow(TypeError);
     expect(() => bkKader(KOPPELING, INDEX, g8, keuze('G-0008', { onderdeel: 8 }), '2026-10-10T00:00:00Z')).toThrow(TypeError);
+  });
+});
+
+// ── Een onderdeel dat niet meer in de bron staat (I4 data-2) ────────────────
+
+describe('bkKader: onderdeelNietMeerInBron (de laatst bekende koppeling, met een waarschuwing)', () => {
+  const g8 = info('G-0008');
+  const weg = (onderdeel: number, nietMeerInBron: string, erkenningen: Erkenning[]): OnderdeelKwalificaties => ({
+    onderdeel, groep: 'G-0008', status: 'niet-gevonden', nietMeerInBron, opgehaald: '2026-09-01T00:00:00Z', erkenningen,
+  });
+
+  it('op de fixtures (alles opgehaald, of niet gevonden zonder record): geen waarschuwing', () => {
+    expect(kader('G-0008').onderdeelNietMeerInBron).toBeUndefined();
+    expect(kader('G-0009').onderdeelNietMeerInBron).toBeUndefined();
+    expect(kader('G-0009', { onderdeel: 931 }).onderdeelNietMeerInBron).toBeUndefined();
+  });
+
+  it('één onderdeel niet meer gevonden, een ander wel opgehaald: de dag van het onderdeel dat wegviel', () => {
+    const k = bkKader(geldig(koppelingMet([
+      opgehaald(8, 'G-0008', [erkenning('ADV-1', ['BK-0464-1'])]),
+      weg(565, '2026-11-03', [erkenning('ADV-2', ['BK-0390-2', 'BK-0464-1'])]),
+    ])), INDEX, g8, keuze('G-0008'), VANDAAG);
+    expect(k.herkomst).toBe('api');
+    expect(k.bks.map((b) => b.bk)).toEqual(['BK-0390-2', 'BK-0464-1']);
+    expect(k.onderdeelNietMeerInBron).toBe('2026-11-03');
+    // De bronregel toont de datum van het onderdeel dat wel opgehaald werd: zonder het veld zag niemand het.
+    expect(k.opgehaald).toBe('2026-10-10T00:00:00Z');
+  });
+
+  it('meer onderdelen niet meer gevonden: de vroegste dag', () => {
+    const k = bkKader(geldig(koppelingMet([
+      weg(8, '2026-12-01', [erkenning('ADV-1', ['BK-0464-1'])]),
+      weg(565, '2026-11-03', [erkenning('ADV-2', ['BK-0390-2'])]),
+    ])), INDEX, g8, keuze('G-0008'), VANDAAG);
+    expect(k.onderdeelNietMeerInBron).toBe('2026-11-03');
+  });
+
+  it('een onderdeel dat wegviel maar vandaag geen BK oplevert, telt niet (de kaarten komen er niet uit)', () => {
+    const zonderBk = bkKader(geldig(koppelingMet([
+      opgehaald(8, 'G-0008', [erkenning('ADV-1', ['BK-0464-1'])]),
+      weg(565, '2026-11-03', [erkenning('ADV-2', [])]),
+    ])), INDEX, g8, keuze('G-0008'), VANDAAG);
+    expect(zonderBk.bks.map((b) => b.bk)).toEqual(['BK-0464-1']);
+    expect(zonderBk.onderdeelNietMeerInBron).toBeUndefined();
+    // Een erkenning die vandaag niet meer geldt, levert ook geen BK van vandaag.
+    const verlopen = bkKader(geldig(koppelingMet([
+      opgehaald(8, 'G-0008', [erkenning('ADV-1', ['BK-0464-1'])]),
+      weg(565, '2026-11-03', [erkenning('ADV-2', ['BK-0390-2'], { einddatum: '2025-08-31' })]),
+    ])), INDEX, g8, keuze('G-0008'), VANDAAG);
+    expect(verlopen.onderdeelNietMeerInBron).toBeUndefined();
+    // Geen BK in de hele richting ('geen'): ook geen waarschuwing over kaarten die er niet zijn.
+    const geen = bkKader(geldig(koppelingMet([opgehaald(8, 'G-0008', [erkenning('ADV-1', [])]), weg(565, '2026-11-03', [erkenning('ADV-2', [])])])), INDEX, g8, keuze('G-0008'), VANDAAG);
+    expect(geen.herkomst).toBe('geen');
+    expect(geen.onderdeelNietMeerInBron).toBeUndefined();
+  });
+
+  it('het kader van één variant: alleen dat onderdeel telt', () => {
+    const koppeling = geldig(koppelingMet([
+      opgehaald(8, 'G-0008', [erkenning('ADV-1', ['BK-0464-1'])]),
+      weg(565, '2026-11-03', [erkenning('ADV-2', ['BK-0390-2'])]),
+    ]));
+    expect(bkKader(koppeling, INDEX, g8, keuze('G-0008', { onderdeel: 8 }), VANDAAG).onderdeelNietMeerInBron).toBeUndefined();
+    expect(bkKader(koppeling, INDEX, g8, keuze('G-0008', { onderdeel: 565 }), VANDAAG).onderdeelNietMeerInBron).toBe('2026-11-03');
+  });
+
+  it('een record van een andere richting telt niet, en de invoer verandert niet', () => {
+    const koppeling = diepBevroren(geldig(koppelingMet([
+      opgehaald(8, 'G-0008', [erkenning('ADV-1', ['BK-0464-1'])]),
+      { ...weg(565, '2026-11-03', [erkenning('ADV-2', ['BK-0390-2'])]), groep: 'G-0009' },
+    ])));
+    expect(bkKader(koppeling, INDEX, g8, keuze('G-0008'), VANDAAG).onderdeelNietMeerInBron).toBeUndefined();
   });
 });

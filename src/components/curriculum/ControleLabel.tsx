@@ -2,7 +2,7 @@
 // tekst, nooit alleen kleur. De status zelf (en haar afleiding) staat in lib/leerplanStatus.ts.
 
 import { BadgeCheck, CircleDashed, Landmark, PencilLine } from 'lucide-react';
-import { BK_LABEL_KOPIE, BK_LABEL_OFFICIEEL } from '../../lib/bkWeergave';
+import { BK_LABEL_KOPIE, BK_LABEL_OFFICIEEL } from '../../lib/bkLabels';
 import type { ControleStatus, Curriculum } from '../../lib/curriculumTypes';
 import { STATUS_LABEL, isBkLeerplan, isSamengesteld } from '../../lib/leerplanStatus';
 import '../../styles/leerplan.css';

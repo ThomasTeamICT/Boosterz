@@ -495,13 +495,18 @@ async function waitForStored(page, pred, ms = 6000) {
   {
     const { browser, page, errs } = await setup(null, () => ({ status: 503 }), { hash: '/#/cursussen/richtingen/G-0008?jaar=3', fixtures: true });
     const aanvragen = { recreatief: 0, onthaal: 0 };
+    // De sectie op de pagina laadt de bestanden ook (om bestaande leerplannen te herkennen): het bestand blijft mislukken tot het
+    // venster zijn fout getoond heeft, zodat ook het venster de mislukte poging ziet.
+    let falen = true;
     await page.route('**/leerplannen/kwalificaties/bk/BK-0390-2.json', (route) => { aanvragen.onthaal++; return route.fallback(); });
     await page.route('**/leerplannen/kwalificaties/bk/BK-0464-1.json', async (route) => {
       aanvragen.recreatief++;
-      if (aanvragen.recreatief === 1) return route.fulfill({ status: 500, contentType: 'text/plain', body: 'kapot' });
+      if (falen) return route.fulfill({ status: 500, contentType: 'text/plain', body: 'kapot' });
       await new Promise((r) => setTimeout(r, 1500));
       return route.fulfill({ status: 200, contentType: 'application/json', body: lees('kwalificaties/uit/bk/BK-0464-1.json') });
     });
+    // De sectie had de bestanden al geladen vóór deze routes er waren: opnieuw laden, zodat alles langs de routes hierboven gaat.
+    await page.reload({ waitUntil: 'networkidle' });
     const dlg = await openVenster(page);
     await dlg.getByRole('radio', { name: BK_KEUZE }).check();
     await dlg.getByRole('checkbox', { name: 'Alle 12 competenties' }).waitFor({ timeout: 10000 });
@@ -512,7 +517,9 @@ async function waitForStored(page, pred, ms = 6000) {
     // Een competentie aanvinken in de beroepskwalificatie die wel laadde
     await dlg.locator('.rc-bk-details > summary').first().click();
     await dlg.locator('.rc-bk-lijst').first().locator('input').nth(2).check();
-    // "Opnieuw proberen" met het toetsenbord
+    // "Opnieuw proberen" met het toetsenbord; vanaf nu lukt het bestand
+    const voorOpnieuw = { ...aanvragen };
+    falen = false;
     await opnieuw.focus();
     await page.keyboard.press('Enter');
     await page.waitForTimeout(300);
@@ -536,7 +543,7 @@ async function waitForStored(page, pred, ms = 6000) {
       && (await dlg.locator('.rc-bk-lijst').first().locator('input:checked').count()) === 1
       && (await dlg.locator('.rc-teller').innerText()) === 'Je koos 1 competentie uit 1 beroepskwalificatie.'
       && daarna.tag !== 'BODY' && daarna.inVenster);
-    check('opnieuw proberen: alleen het mislukte bestand is opnieuw opgehaald', aanvragen.recreatief === 2 && aanvragen.onthaal === 1);
+    check('opnieuw proberen: alleen het mislukte bestand is opnieuw opgehaald', aanvragen.recreatief === voorOpnieuw.recreatief + 1 && aanvragen.onthaal === voorOpnieuw.onthaal, { voorOpnieuw, aanvragen });
     check('geen paginafouten (opnieuw proberen)', errs.length === 0, errs);
     await browser.close();
   }

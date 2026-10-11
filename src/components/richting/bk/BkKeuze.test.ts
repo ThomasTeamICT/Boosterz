@@ -69,6 +69,15 @@ function maakBk(bk: string, titel: string, aantal: number, teksten: Record<numbe
   return b;
 }
 
+/** Dezelfde versie, met een andere tekst voor de competentie op plaats `i` (0-based): een nieuw merk. */
+function maakAnders(b: BkBestand, i: number): BkBestand {
+  const competenties = structuredClone(b.competenties).map((c, j) => (j === i ? { ...c, tekst: `${c.tekst} (verbeterd)` } : c));
+  const nieuw: BkBestand = { ...structuredClone(b), competenties, sha256: sha256Hex(`${b.sha256}|${i}`) };
+  const fouten = valideerBkBestand(nieuw, b.bk);
+  if (fouten.length > 0) throw new Error(`maakAnders: ${fouten.join(' ')}`);
+  return nieuw;
+}
+
 function gegevensVan(...bestanden: BkBestand[]): BkGegevens {
   return {
     bestanden: new Map(bestanden.map((b) => [b.bk, b] as const)),
@@ -274,14 +283,49 @@ describe('leerplanVoorKeuze', () => {
     }
   });
 
-  it('hergebruikt niet als het versiemerk sindsdien veranderde (een nieuwe update van de index)', () => {
+  it('hergebruikt na een update die de gekozen teksten niet raakt (ander merk, zelfde teksten: I4 model-1)', () => {
     const gekozen = kies(ONTHAAL, 0, 7);
     const bestaand = leerplanMet(new Map([['BK-0390-2', gekozen]]), [ONTHAAL]);
+    // Een ander merk, maar de gekozen competenties staan er letterlijk zo in: geen tweede, gelijk leerplan.
     const bijgewerkt: BkBestand = { ...structuredClone(ONTHAAL), sha256: sha256Hex('andere inhoud') };
     const u = leerplanVoorKeuze({
       info: INFO, doelgroep: DG, selectie: new Map([['BK-0390-2', gekozen]]), gegevens: gegevensVan(bijgewerkt), curricula: [bestaand],
     });
+    expect(u.soort).toBe('hergebruik');
+    if (u.soort === 'hergebruik') expect(u.leerplan.id).toBe(bestaand.id);
+    // Een andere tekst van een competentie die niet gekozen is (de 12de): ook hergebruik.
+    const nietGekozen = maakAnders(ONTHAAL, 11);
+    expect(leerplanVoorKeuze({
+      info: INFO, doelgroep: DG, selectie: new Map([['BK-0390-2', gekozen]]), gegevens: gegevensVan(nietGekozen), curricula: [bestaand],
+    }).soort).toBe('hergebruik');
+  });
+
+  it('hergebruikt niet als de tekst van een gekozen competentie veranderde, en geeft het nieuwe leerplan een andere titel', () => {
+    const gekozen = kies(ONTHAAL, 0, 6);
+    const bestaand = leerplanMet(new Map([['BK-0390-2', gekozen]]), [ONTHAAL]);
+    const anders = maakAnders(ONTHAAL, 2);
+    const u = leerplanVoorKeuze({
+      info: INFO, doelgroep: DG, selectie: new Map([['BK-0390-2', gekozen]]), gegevens: gegevensVan(anders), curricula: [bestaand], vandaag: '2026-10-11',
+    });
     expect(u.soort).toBe('nieuw');
+    if (u.soort !== 'nieuw') return;
+    // Dezelfde standaardtitel als het leerplan dat er al staat: er komt een onderscheidend stuk achter (uniekeTitel).
+    expect(bestaand.title).toBe('Onthaalmedewerker (6 van 12 competenties) · Assistent dierlijke productie · 2de graad');
+    expect(u.leerplan.title).toBe('Onthaalmedewerker (6 van 12 competenties) · Assistent dierlijke productie · 2de graad · van 11 oktober 2026');
+    expect(u.leerplan.title.length).toBeLessThanOrEqual(120);
+    // Nog een keer (zonder het eerste nieuwe te herkennen): weer een andere titel.
+    const nogEen = leerplanVoorKeuze({
+      info: INFO, doelgroep: DG, selectie: new Map([['BK-0390-2', gekozen]]), gegevens: gegevensVan(maakAnders(ONTHAAL, 3)), curricula: [u.leerplan, bestaand], vandaag: '2026-10-11',
+    });
+    expect(nogEen.soort).toBe('nieuw');
+    if (nogEen.soort === 'nieuw') expect(nogEen.leerplan.title).toBe(`${u.leerplan.title} (2)`);
+  });
+
+  it('zonder gelijke titel op het toestel blijft de gewone titel, en rommel in de lijst gooit niet', () => {
+    const rommel = [{ title: undefined } as unknown as Curriculum, null as unknown as Curriculum];
+    const u = leerplanVoorKeuze({ info: INFO, doelgroep: DG, selectie: new Map([['BK-0390-2', ids(ONTHAAL)]]), gegevens: gegevensVan(ONTHAAL), curricula: rommel });
+    expect(u.soort).toBe('nieuw');
+    if (u.soort === 'nieuw') expect(u.leerplan.title).toBe('Onthaalmedewerker · Assistent dierlijke productie · 2de graad');
   });
 
   it('hergebruikt niet als het versiemerk in de index ontbreekt: dezelfde versie is dan niet aan te tonen', () => {

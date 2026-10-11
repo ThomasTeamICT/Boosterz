@@ -23,6 +23,7 @@ import {
   BK_ANDERE_COMPETENTIES,
   BK_GEEN_KEUZE_MEER,
   BK_KOP_MIST,
+  BK_LAATST_BEKENDE_BKS,
   BK_NOG_NODIG_BEZIG,
   BK_NOG_NODIG_GEGEVENS,
   BK_NOG_NODIG_KEUZE,
@@ -30,10 +31,15 @@ import {
   BK_OPSLAG_MISLUKT,
   BK_TOAST_BESTAAT_AL,
   beschrijfMelding,
+  bkAlLeerplanVanNu,
   bkHintKeuzeNieuweLijst,
   bkHintKeuzeNieuweVersie,
+  bkOnderdeelNietMeerInBron,
   bouwNieuwLeerplan,
   competentieIds,
+  leerplanPerKaart,
+  leerplanVoorMelding,
+  meldingInhoud,
   redenBewaar,
   redenCursus,
   redenMelding,
@@ -256,6 +262,64 @@ describe('"Maak een leerplan met de versie van nu"', () => {
   });
 });
 
+// ── Na de klik: het nieuwe leerplan is er al (I4 toegang-5) ─────────────────
+
+describe('de melding na "Maak een leerplan met de versie van nu" of "… met de lijst van nu"', () => {
+  const basis = { doelgroep: DG, merken: MERKEN, bkTitel: 'Nagebootste beroepskwalificatie' };
+
+  it('andere versie: vóór de klik de uitleg en de knop, erna de zin met de titel en het nieuwe leerplan', () => {
+    const deelEen = nagekeken([{ bestand: NAGEBOOTST_1, competenties: ids(NAGEBOOTST_1).slice(0, 2) }]);
+    const doel: BewaarDoel = { soort: 'andere-versie', leerplan: deelEen, oud: 'BK-9999-1', nu: 'BK-9999-2' };
+    const files = bestanden(NAGEBOOTST_2);
+    const voor = meldingInhoud({ ...basis, doel, bestanden: files, curricula: [deelEen] });
+    expect(voor).toEqual({ soort: 'knop', uitleg: { hint: bkHintKeuzeNieuweVersie(2), zonderKeuze: false } });
+
+    const nieuw = nieuwUit(bouw(doel, files, { curricula: [deelEen], vandaag: '2027-09-02' }));
+    const na = meldingInhoud({ ...basis, doel, bestanden: files, curricula: [nieuw, deelEen] });
+    expect(na.soort).toBe('al');
+    if (na.soort !== 'al') return;
+    expect(na.leerplan.id).toBe(nieuw.id);
+    expect(na.tekst).toBe(`Je hebt al een leerplan met de versie van nu: ‘${nieuw.title}’.`);
+    expect(nieuw.title).toBe('Nagebootste beroepskwalificatie · Assistent dierlijke productie · 2de graad');
+    // Geen uitleg in de toekomende tijd meer ("Het nieuwe leerplan krijgt …"): die hoort bij een knop die er niet meer is.
+    expect(na).not.toHaveProperty('uitleg');
+  });
+
+  it('lijst aangepast bij een deel: erna "met de lijst van nu", ook na herladen (zonder onthouden id)', () => {
+    const acht = ids(ONTHAAL).slice(0, 8);
+    const oud = nagekeken([{ bestand: ONTHAAL, competenties: acht }]);
+    const weg = bijgewerkt(ONTHAAL, (cs) => cs.filter((_, i) => i !== 3));
+    const merken = metNieuw(weg);
+    const doel: BewaarDoel = { soort: 'lijst-aangepast', leerplan: oud, bk: 'BK-0390-2' };
+    const voor = meldingInhoud({ ...basis, merken, doel, bestanden: bestanden(weg), curricula: [oud], bkTitel: 'Onthaalmedewerker' });
+    expect(voor.soort).toBe('knop');
+    if (voor.soort === 'knop') expect(voor.uitleg.hint).toMatch(/^Van ‘Onthaalmedewerker’ houdt het nieuwe leerplan/);
+
+    const nieuw = nieuwUit(bouw(doel, bestanden(weg), { merken, curricula: [oud] }));
+    const na = meldingInhoud({ ...basis, merken, doel, bestanden: bestanden(weg), curricula: [nieuw, oud], bkTitel: 'Onthaalmedewerker' });
+    expect(na).toEqual({ soort: 'al', tekst: `Je hebt al een leerplan met de lijst van nu: ‘${nieuw.title}’.`, leerplan: nieuw });
+    schermVeilig(na.soort === 'al' ? na.tekst : undefined);
+  });
+
+  it('het leerplan dat de knop net maakte, telt ook als de versiemerken (nog) ontbreken', () => {
+    const alleEen = nagekeken([{ bestand: NAGEBOOTST_1, competenties: ids(NAGEBOOTST_1) }]);
+    const doel: BewaarDoel = { soort: 'andere-versie', leerplan: alleEen, oud: 'BK-9999-1', nu: 'BK-9999-2' };
+    const nieuw = nieuwUit(bouw(doel, bestanden(NAGEBOOTST_2), { curricula: [alleEen] }));
+    const zonderMerken = { ...basis, merken: new Map<string, string>(), doel, bestanden: bestanden(NAGEBOOTST_2), curricula: [nieuw, alleEen] };
+    expect(leerplanVoorMelding(zonderMerken)).toBeUndefined();
+    expect(leerplanVoorMelding({ ...zonderMerken, onthouden: nieuw.id })).toBe(nieuw);
+    expect(meldingInhoud({ ...zonderMerken, onthouden: nieuw.id }).soort).toBe('al');
+    // Een onthouden id dat niet (meer) op het toestel staat, telt niet: dan de knop.
+    expect(meldingInhoud({ ...zonderMerken, onthouden: 'weg' }).soort).toBe('knop');
+  });
+
+  it('het oude leerplan zelf telt nooit als het nieuwe', () => {
+    const alleEen = nagekeken([{ bestand: NAGEBOOTST_1, competenties: ids(NAGEBOOTST_1) }]);
+    const doel: BewaarDoel = { soort: 'andere-versie', leerplan: alleEen, oud: 'BK-9999-1', nu: 'BK-9999-2' };
+    expect(leerplanVoorMelding({ ...basis, doel, bestanden: bestanden(NAGEBOOTST_1, NAGEBOOTST_2), curricula: [alleEen] })).toBeUndefined();
+  });
+});
+
 // ── "Bewaar als leerplan" ───────────────────────────────────────────────────
 
 describe('"Bewaar als leerplan" (de kaart)', () => {
@@ -290,10 +354,89 @@ describe('"Bewaar als leerplan" (de kaart)', () => {
     expect(competentieIds('BK-0390-2', ONTHAAL)).toEqual(ids(ONTHAAL));
   });
 
+  it('na een update die het leerplan niet raakt (alleen een synoniem of kennis): geen tweede leerplan (I4 model-1)', () => {
+    const l = nieuwUit(bouw(doel, bestanden(ONTHAAL)));
+    const extraAnders: BkBestand = {
+      ...structuredClone(ONTHAAL),
+      extra: { ...structuredClone(ONTHAAL.extra ?? {}), synoniemen: [{ waarde: 'Onthaalbediende' }] },
+      sha256: sha256Hex(`${ONTHAAL.sha256}|synoniem`),
+    };
+    expect(valideerBkBestand(extraAnders, extraAnders.bk)).toEqual([]);
+    const kennisAnders = bijgewerkt(ONTHAAL, (cs) => cs.map((c) => ({ ...c, kennis: [{ tekst: 'Nieuwe kennis' }] })));
+    for (const nieuw of [extraAnders, kennisAnders]) {
+      const r = bouw(doel, bestanden(nieuw), { merken: metNieuw(nieuw), curricula: [l] });
+      expect(r.soort).toBe('bestaat');
+      if (r.soort === 'bestaat') expect(r.leerplan.id).toBe(l.id);
+    }
+    // Een andere tekst van een gekozen competentie: wel een nieuw leerplan (de melding biedt "Werk het leerplan bij" aan).
+    const tekstAnders = bijgewerkt(ONTHAAL, (cs) => cs.map((c, i) => (i === 4 ? { ...c, tekst: `${c.tekst} (verbeterd)` } : c)));
+    expect(bouw(doel, bestanden(tekstAnders), { merken: metNieuw(tekstAnders), curricula: [l] }).soort).toBe('nieuw');
+  });
+
+  it('een melding bij een deel: een tweede klik na een update zonder gevolg vindt het nieuwe leerplan nog', () => {
+    const acht = ids(ONTHAAL).slice(0, 8);
+    const oud = nagekeken([{ bestand: ONTHAAL, competenties: acht }]);
+    const weg = bijgewerkt(ONTHAAL, (cs) => cs.filter((_, i) => i !== 3));
+    const doelLijst: BewaarDoel = { soort: 'lijst-aangepast', leerplan: oud, bk: 'BK-0390-2' };
+    const eerste = nieuwUit(bouw(doelLijst, bestanden(weg), { merken: metNieuw(weg), curricula: [oud] }));
+    // Daarna verandert alleen de kennis: het nieuwe leerplan staat er nog, er komt er geen derde.
+    const daarna = bijgewerkt(weg, (cs) => cs.map((c) => ({ ...c, kennis: [{ tekst: 'Andere kennis' }] })));
+    const r = bouw(doelLijst, bestanden(daarna), { merken: metNieuw(daarna), curricula: [eerste, oud] });
+    expect(r.soort).toBe('bestaat');
+    if (r.soort === 'bestaat') expect(r.leerplan.id).toBe(eerste.id);
+  });
+
   it('de selectie van een samenstelling is die van vindBkLeerplan', () => {
     const s = stelSamen(doel, bestanden(ONTHAAL));
     expect(s.ok).toBe(true);
     if (s.ok) expect(selectieVan(s.keuzes)).toEqual(new Map([['BK-0390-2', ids(ONTHAAL)]]));
+  });
+});
+
+describe('leerplanPerKaart: "Open het leerplan" op de kaart (I4 model-1)', () => {
+  const VERSIES = ['BK-0390-2', 'BK-0464-1'];
+  const alle = nagekeken([{ bestand: ONTHAAL, competenties: ids(ONTHAAL) }]);
+  const deel = nagekeken([{ bestand: ONTHAAL, competenties: ids(ONTHAAL).slice(0, 6) }]);
+  /** Alleen een synoniem in `extra` anders: een nieuw merk, dezelfde competenties. */
+  const synoniem: BkBestand = {
+    ...structuredClone(ONTHAAL),
+    extra: { ...structuredClone(ONTHAAL.extra ?? {}), synoniemen: [{ waarde: 'Onthaalbediende' }] },
+    sha256: sha256Hex(`${ONTHAAL.sha256}|synoniem-kaart`),
+  };
+  const per = (o: { bestanden: ReadonlyMap<string, BkBestand>; curricula: Curriculum[]; merken?: ReadonlyMap<string, string>; bewaard?: ReadonlyMap<string, string> }) =>
+    leerplanPerKaart({ versies: VERSIES, doelgroep: DG, merken: MERKEN, bewaard: new Map(), ...o });
+
+  it('vertrekpunt: het bijgewerkte bestand is bruikbaar en heeft een ander merk', () => {
+    expect(valideerBkBestand(synoniem, synoniem.bk)).toEqual([]);
+    expect(merkVan(synoniem)).not.toBe(merkVan(ONTHAAL));
+  });
+
+  it('hetzelfde merk: de kaart van die versie krijgt het leerplan met alle competenties, de andere kaart niets', () => {
+    const m = per({ bestanden: bestanden(ONTHAAL, RECREATIEF), curricula: [deel, alle] });
+    expect([...m.keys()]).toEqual(['BK-0390-2']);
+    expect(m.get('BK-0390-2')).toBe(alle);
+  });
+
+  it('na een update die het leerplan niet raakt (een synoniem): de kaart houdt "Open het leerplan", geen tweede "Bewaar als leerplan"', () => {
+    const merken = metNieuw(synoniem);
+    expect(vergelijkMetBk(alle, KADER_8, bestanden(synoniem), merken)).toEqual([]);
+    expect(per({ bestanden: bestanden(synoniem, RECREATIEF), curricula: [alle], merken }).get('BK-0390-2')).toBe(alle);
+  });
+
+  it('een andere tekst van een competentie: geen leerplan meer op de kaart (de melding biedt "Werk het leerplan bij" aan)', () => {
+    const tekst = bijgewerkt(ONTHAAL, (cs) => cs.map((c, i) => (i === 0 ? { ...c, tekst: `${c.tekst} (verbeterd)` } : c)));
+    expect(per({ bestanden: bestanden(tekst), curricula: [alle], merken: metNieuw(tekst) }).size).toBe(0);
+  });
+
+  it('zonder geladen bestand van de kaart: niets, ook niet met een bewaard id', () => {
+    expect(per({ bestanden: new Map(), curricula: [alle], bewaard: new Map([['BK-0390-2', alle.id]]) }).size).toBe(0);
+  });
+
+  it('het leerplan dat de sectie net bewaarde, als de opslag het nog niet als nagekeken teruggeeft', () => {
+    const gewijzigd: Curriculum = { ...structuredClone(alle), goals: alle.goals.map((g, i) => (i === 0 ? { ...g, text: 'Iets anders' } : g)) };
+    expect(per({ bestanden: bestanden(ONTHAAL), curricula: [gewijzigd] }).size).toBe(0);
+    expect(per({ bestanden: bestanden(ONTHAAL), curricula: [gewijzigd], bewaard: new Map([['BK-0390-2', gewijzigd.id]]) }).get('BK-0390-2')).toBe(gewijzigd);
+    expect(per({ bestanden: bestanden(ONTHAAL), curricula: [gewijzigd], bewaard: new Map([['BK-0390-2', 'weg']]) }).size).toBe(0);
   });
 });
 
@@ -398,6 +541,30 @@ describe('de zinnen van de sectie', () => {
     expect(BK_NOG_NODIG_GEGEVENS).toBe('Nog nodig: even wachten tot Boosterz de laatste gegevens geladen heeft.');
     expect(BK_NOG_NODIG_BEZIG).toBe('Nog nodig: even wachten tot het leerplan bewaard is.');
     expect(BK_NOG_NODIG_KEUZE).toBe('Nog nodig: minstens één competentie die je koos en die nog in de officiële lijst staat.');
+  });
+
+  it('het nieuwe leerplan is er al (I4 toegang-5): een zin met de titel, per soort melding', () => {
+    expect(bkAlLeerplanVanNu('andere-versie', 'Onthaalmedewerker · Onthaal en recreatie · 3de graad · nieuwe versie van 2 september 2027'))
+      .toBe('Je hebt al een leerplan met de versie van nu: ‘Onthaalmedewerker · Onthaal en recreatie · 3de graad · nieuwe versie van 2 september 2027’.');
+    expect(bkAlLeerplanVanNu('lijst-aangepast', '  Onthaalmedewerker (7 van 11 competenties) · Onthaal en recreatie  '))
+      .toBe('Je hebt al een leerplan met de lijst van nu: ‘Onthaalmedewerker (7 van 11 competenties) · Onthaal en recreatie’.');
+    expect(bkAlLeerplanVanNu('andere-versie', '')).toBe('Je hebt al een leerplan met de versie van nu.');
+    expect(bkAlLeerplanVanNu('lijst-aangepast', undefined as unknown as string)).toBe('Je hebt al een leerplan met de lijst van nu.');
+    // Geen toekomende tijd meer over een knop die er niet is.
+    expect(bkAlLeerplanVanNu('andere-versie', 'X')).not.toMatch(/krijgt|houdt|zal/);
+    schermVeilig(bkAlLeerplanVanNu('andere-versie', 'X'), bkAlLeerplanVanNu('lijst-aangepast', 'X'));
+  });
+
+  it('een onderdeel van de richting staat niet meer in de bron (I4 data-2): met de dag, en zonder geldige dag zonder datum', () => {
+    expect(BK_LAATST_BEKENDE_BKS).toBe('Je ziet de laatst bekende beroepskwalificaties.');
+    expect(bkOnderdeelNietMeerInBron('2026-11-03'))
+      .toBe('De Vlaamse overheid geeft sinds 3 november 2026 niet meer alle gegevens van deze richting. Je ziet de laatst bekende beroepskwalificaties.');
+    expect(bkOnderdeelNietMeerInBron(undefined))
+      .toBe('De Vlaamse overheid geeft niet meer alle gegevens van deze richting. Je ziet de laatst bekende beroepskwalificaties.');
+    expect(bkOnderdeelNietMeerInBron('2026-13-40')).toBe(bkOnderdeelNietMeerInBron(undefined));
+    schermVeilig(bkOnderdeelNietMeerInBron('2026-11-03'), bkOnderdeelNietMeerInBron(undefined));
+    // Nooit het woord dat de bron gebruikt, of een nummer van een onderdeel.
+    expect(bkOnderdeelNietMeerInBron('2026-11-03')).not.toMatch(/structuuronderdeel|onderdeel \d/i);
   });
 
   it('de kopregel belooft niet dat de sectie vanzelf komt (bij een fout komt ze pas na "Opnieuw proberen")', () => {

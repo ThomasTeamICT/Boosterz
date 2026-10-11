@@ -6,6 +6,7 @@ import type { BkBestand, BkIndex } from './beroepskwalificaties';
 import { BK_VENSTER_FOUT, BK_VENSTER_LADEN } from './bkWeergave';
 import { leerplanUitBk } from './bkLeerplan';
 import type { Doelgroep } from './doelgroep';
+import { voorstelCursusTitel } from './richtingCursus';
 import { doelgroepVan, richtingInfo, type RichtingInfo } from './richtingKader';
 import { MAX_DOELGROEP_VAK } from './doelgroep';
 import {
@@ -16,6 +17,7 @@ import {
   bevestigRichting,
   bkBestandStanden,
   bkGekozen,
+  bkVakKort,
   bkVakVoorstel,
   bkVoorgevuldVak,
   FOUT_BK_KEUZE,
@@ -414,6 +416,98 @@ describe('bkVakVoorstel en BK_VAK_MEER', () => {
     );
     expect(u.bevestigd, u.waarschuwingen.join(' | ')).toBe(true);
     expect(u.leerplan.subject).toBe(BK_VAK_MEER);
+  });
+});
+
+/** De langste titel van de echte beroepskwalificaties (BK-0229-3, 103 tekens): uit de index van de ophaalrun van oktober 2026. */
+const BK_0229_3 = 'Operator digitaal drukken in de printmedia / in de papier- en kartonverwerking (digital print operator)';
+const BK_0229_3_KORT = 'Operator digitaal drukken in de printmedia / in de papier- en kartonverwerking';
+
+/** Eindigt niet op een open haakje of een scheidingsteken, en alle haakjes die open gaan, sluiten ook. */
+const netjes = (t: string): void => {
+  expect(t, t).not.toMatch(/[\s,;:/&\-–—([{]$/);
+  expect((t.match(/\(/g) ?? []).length, t).toBe((t.match(/\)/g) ?? []).length);
+};
+
+describe('bkVakKort', () => {
+  it('een titel die past, blijft zoals ze is (getrimd), ook op de grens', () => {
+    expect(bkVakKort('Onthaalmedewerker')).toBe('Onthaalmedewerker');
+    expect(bkVakKort('  Onthaalmedewerker (met haakjes) ')).toBe('Onthaalmedewerker (met haakjes)');
+    expect(bkVakKort('a'.repeat(MAX_DOELGROEP_VAK))).toBe('a'.repeat(MAX_DOELGROEP_VAK));
+    expect(bkVakKort('')).toBe('');
+    expect(bkVakKort(undefined as unknown as string)).toBe('');
+  });
+
+  it('de echte titel van BK-0229-3 verliest haar slotstuk tussen haakjes en past dan (78 tekens)', () => {
+    expect(BK_0229_3.length).toBe(103);
+    const kort = bkVakKort(BK_0229_3);
+    expect(kort).toBe(BK_0229_3_KORT);
+    expect(kort.length).toBeLessThanOrEqual(MAX_DOELGROEP_VAK);
+    netjes(kort);
+  });
+
+  it('past ze daarna nog niet, dan wordt ze afgekapt op de laatste spatie, nooit midden in een woord', () => {
+    const t = `${BK_0229_3_KORT} en nog een aanvulling die er nooit in past`;
+    const kort = bkVakKort(t);
+    expect(kort).toBe(BK_0229_3_KORT);
+    expect(t.startsWith(`${kort} `)).toBe(true);
+    // Staat er precies na de grens een spatie, dan is het laatste woord nog helemaal binnen.
+    const op = 'woord '.repeat(30).trim();
+    expect(bkVakKort(op)).toBe('woord '.repeat(13).trim());
+    expect(bkVakKort(`${'a'.repeat(MAX_DOELGROEP_VAK - 4)} bcd efg`)).toBe(`${'a'.repeat(MAX_DOELGROEP_VAK - 4)} bcd`);
+    expect(bkVakKort(`${'a'.repeat(MAX_DOELGROEP_VAK - 3)} bcd efg`)).toBe('a'.repeat(MAX_DOELGROEP_VAK - 3));
+  });
+
+  it('een haakje dat nog openstaat, valt met zijn inhoud weg', () => {
+    const t = `Medewerker ${'a'.repeat(60)} (digitale ploeg voor de drukkerij en daarna nog meer`;
+    const kort = bkVakKort(t);
+    expect(kort).toBe(`Medewerker ${'a'.repeat(60)}`);
+    netjes(kort);
+    // Ook als het slotstuk niet dicht is: er blijft geen kapot haakje over.
+    netjes(bkVakKort(`${BK_0229_3_KORT} (digital print operator voor kranten en meer`));
+  });
+
+  it('een scheidingsteken achteraan valt ook weg', () => {
+    expect(bkVakKort(`${'a'.repeat(MAX_DOELGROEP_VAK - 8)} en / ${'b'.repeat(20)}`)).toBe(`${'a'.repeat(MAX_DOELGROEP_VAK - 8)} en`);
+    expect(bkVakKort(`${'a'.repeat(MAX_DOELGROEP_VAK - 3)}, ${'b'.repeat(20)}`)).toBe('a'.repeat(MAX_DOELGROEP_VAK - 3));
+  });
+
+  it('een titel zonder spatie wordt hard afgekapt op de grens', () => {
+    expect(bkVakKort('A'.repeat(100))).toBe('A'.repeat(MAX_DOELGROEP_VAK));
+  });
+
+  it('is altijd binnen de grens, ook voor rare invoer', () => {
+    for (const t of ['(' + 'a '.repeat(80), ')'.repeat(120), ' '.repeat(5) + 'x'.repeat(200), '(abc) '.repeat(40), `${'a'.repeat(79)} b`, `${'a'.repeat(80)} b`, `(${'a'.repeat(100)})`]) {
+      expect(bkVakKort(t).length, t).toBeLessThanOrEqual(MAX_DOELGROEP_VAK);
+    }
+    // Is de titel alleen een haakjesstuk, dan blijft er tekst over.
+    expect(bkVakKort(`(${'a'.repeat(100)})`).length).toBeGreaterThan(0);
+  });
+
+  it('een andere grens kan', () => {
+    expect(bkVakKort('Onthaal en recreatie', 10)).toBe('Onthaal en');
+    expect(bkVakKort('Onthaal en recreatie', 9)).toBe('Onthaal');
+  });
+});
+
+describe('bkVakVoorstel en bkVoorgevuldVak bij een titel die niet in het veld past (BK-0229-3)', () => {
+  it('bkVakVoorstel geeft de ingekorte titel, ook als er maar één titel gekozen is', () => {
+    expect(bkVakVoorstel([BK_0229_3])).toBe(BK_0229_3_KORT);
+    expect(bkVakVoorstel([BK_0229_3, BK_0229_3])).toBe(BK_0229_3_KORT);
+    expect(bkVakVoorstel([BK_0229_3, 'Onthaalmedewerker'])).toBe(BK_VAK_MEER);
+  });
+
+  it('het voorgevulde vak eindigt niet midden in een haakje, met of zonder keuze', () => {
+    expect(bkVoorgevuldVak(BK_0229_3, [])).toBe(BK_0229_3_KORT);
+    expect(bkVoorgevuldVak(BK_0229_3, [BK_0229_3])).toBe(BK_0229_3_KORT);
+    expect(bkVoorgevuldVak(BK_0229_3, ['Onthaalmedewerker'])).toBe('Onthaalmedewerker');
+  });
+
+  it('de cursustitel krijgt het ingekorte vak en geen afgekapt haakje', () => {
+    const vak = bkVoorgevuldVak(BK_0229_3, [BK_0229_3]);
+    const titel = voorstelCursusTitel({ groep: 'G-0532', titel: 'Drukker', soort: 'so', vak });
+    expect(titel.startsWith(`${BK_0229_3_KORT} · `)).toBe(true);
+    expect(titel).not.toContain('(');
   });
 });
 
