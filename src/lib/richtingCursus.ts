@@ -532,6 +532,10 @@ export function geraamteHoofdstukken(leerplan: Curriculum, codes?: readonly stri
  * `setAfdrukken` en `volgtKader` (`doelgroepVoorCursus`: die horen bij een leerplan, niet bij een cursus). Met
  * `geraamte` komen de hoofdstukken van `geraamteHoofdstukken` (beperkt tot `codes`); met `leeg`, of als het leerplan
  * geen bruikbare doelen heeft, blijft het ene lege hoofdstuk van `createCourse`. Bewaren doet de aanroeper.
+ *
+ * `hoofdstukken` (optioneel, alleen bij `geraamte`): een eigen geraamte in plaats van dat van `geraamteHoofdstukken`, zoals
+ * `bkGeraamte` het maakt voor de competenties van een beroepskwalificatie. Zijn het er geen, dan blijft het lege hoofdstuk
+ * staan: er valt dan niet terug op `geraamteHoofdstukken`. Zonder dit veld is het gedrag zoals altijd.
  */
 export function cursusVoorRichting(o: {
   titel: string;
@@ -540,10 +544,11 @@ export function cursusVoorRichting(o: {
   leerplan: Curriculum;
   codes?: readonly string[];
   start: Startvorm;
+  hoofdstukken?: CourseChapter[];
 }): Course {
   const cursus = createCourse(o.titel, o.auteur);
   if (o.start === 'geraamte') {
-    const hoofdstukken = geraamteHoofdstukken(o.leerplan, o.codes);
+    const hoofdstukken = o.hoofdstukken ?? geraamteHoofdstukken(o.leerplan, o.codes);
     if (hoofdstukken.length > 0) cursus.chapters = hoofdstukken;
   }
   cursus.curriculumId = o.leerplan.id;

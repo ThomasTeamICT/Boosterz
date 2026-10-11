@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { sanitizeCourse, createCourse } from './courses';
-import type { Course } from './courseTypes';
+import type { Course, CourseChapter } from './courseTypes';
 import { createCurriculum, maakEigenKopie, normalizeGoalCode } from './curriculum';
 import type { Curriculum } from './curriculumTypes';
 import { doelgroepTekst, zonderKaderVelden, type Doelgroep } from './doelgroep';
@@ -1121,6 +1121,47 @@ describe('cursusVoorRichting', () => {
     expect(gesaneerd.doelgroep).toEqual(c.doelgroep);
     expect(gesaneerd.curriculumId).toBe(lp.id);
     expect(gesaneerd.chapters).toHaveLength(1);
+  });
+
+  describe('de optionele parameter `hoofdstukken` (K7: een eigen geraamte, zoals bkGeraamte het maakt)', () => {
+    const eigen: CourseChapter[] = [
+      { id: 'h-eigen', title: 'Eigen hoofdstuk', sections: [{ id: 's-eigen', title: 'Eigen sectie', blocks: [], goalCodes: [codesVan(lp)[0]] }] },
+    ];
+
+    it('bij "geraamte" komen die hoofdstukken op de cursus, in plaats van het geraamte van het leerplan; de rest is hetzelfde', () => {
+      const c = cursusVoorRichting({ titel: 'Eigen', auteur: 'Juf An', doelgroep: DOELGROEP, leerplan: lp, start: 'geraamte', hoofdstukken: eigen });
+      expect(c.chapters).toEqual(eigen);
+      expect(c.chapters[0]).toBe(eigen[0]);
+      const gewoon = cursusVoorRichting({ titel: 'Eigen', auteur: 'Juf An', doelgroep: DOELGROEP, leerplan: lp, start: 'geraamte' });
+      expect(c.chapters).not.toEqual(gewoon.chapters);
+      expect(c.curriculumId).toBe(gewoon.curriculumId);
+      expect(c.subtitle).toBe(gewoon.subtitle);
+      expect(c.doelgroep).toEqual(gewoon.doelgroep);
+      expect(c.title).toBe(gewoon.title);
+    });
+
+    it('bij "leeg" doen ze niets: het ene lege hoofdstuk van createCourse', () => {
+      const c = cursusVoorRichting({ titel: 'Eigen', auteur: '', doelgroep: DOELGROEP, leerplan: lp, start: 'leeg', hoofdstukken: eigen });
+      expect(c.chapters).toHaveLength(1);
+      expect(c.chapters[0].title).toBe(createCourse('x', '').chapters[0].title);
+      expect(c.chapters[0].sections[0].blocks).toEqual([]);
+    });
+
+    it('een lege lijst laat het lege hoofdstuk staan, zonder terugval op het geraamte van het leerplan; `codes` doen dan niets', () => {
+      const c = cursusVoorRichting({ titel: 'Eigen', auteur: '', doelgroep: DOELGROEP, leerplan: lp, start: 'geraamte', hoofdstukken: [], codes: codesVan(lp) });
+      expect(c.chapters).toHaveLength(1);
+      expect(sectieCodes(c.chapters)).toEqual([]);
+      const metCodes = cursusVoorRichting({ titel: 'Eigen', auteur: '', doelgroep: DOELGROEP, leerplan: lp, start: 'geraamte', hoofdstukken: eigen, codes: ['bestaat niet'] });
+      expect(metCodes.chapters).toEqual(eigen);
+    });
+
+    it('zonder het veld, of met `undefined`, is het gedrag zoals altijd', () => {
+      const zonder = cursusVoorRichting({ titel: 'X', auteur: 'Juf An', doelgroep: DOELGROEP, leerplan: lp, start: 'geraamte' });
+      const undef = cursusVoorRichting({ titel: 'X', auteur: 'Juf An', doelgroep: DOELGROEP, leerplan: lp, start: 'geraamte', hoofdstukken: undefined });
+      expect(sectieCodes(zonder.chapters)).toEqual(codesVan(lp));
+      expect(sectieCodes(undef.chapters)).toEqual(codesVan(lp));
+      expect(undef.chapters.map((h) => h.title)).toEqual(zonder.chapters.map((h) => h.title));
+    });
   });
 });
 

@@ -23,7 +23,7 @@
 
 import type { Course } from './courseTypes';
 import { computeCoverage, geplandeRijen } from './coverage';
-import type { Curriculum } from './curriculumTypes';
+import type { Curriculum, CurriculumGoal } from './curriculumTypes';
 import { doelgroepVoorLeerplan, sanitizeDoelgroep, type Doelgroep } from './doelgroep';
 import { htmlNaarTekst, type Minimumdoel, type MinimumdoelenSetBestand } from './minimumdoelen';
 import { isOptioneel, themaVanDoel } from './minimumdoelenLeerplan';
@@ -235,17 +235,38 @@ function verwijzingenVan(refs: unknown): { set: string; id: string }[] {
   return uit;
 }
 
-function heeftVerwijzingen(leerplan: Curriculum): boolean {
+/** Welke verwijzingen van een leerplandoel tellen: de functie van de aanroeper, of standaard de `refs` naar minimumdoelen. */
+type VerwijzingenVan = (goal: CurriculumGoal) => readonly { set: string; id: string }[];
+
+/** De opties van `dekkingMinimumdoelen`. */
+export interface DekkingOpties {
+  /**
+   * Welke verwijzingen van een leerplandoel meetellen, als set + vast nummer. Standaard de `refs` naar minimumdoelen:
+   * zonder deze optie rekent alles zoals altijd. Voor de competenties van beroepskwalificaties (`dekkingBk.ts`) is het
+   * set de BK-versie en het vaste nummer de competentiecode. Wat de functie teruggeeft, wordt net zo gesaneerd als `refs`
+   * (getrimd, zonder lege delen).
+   */
+  verwijzingen?: VerwijzingenVan;
+}
+
+/** De functie die de verwijzingen van een doel geeft: die van de aanroeper (gesaneerd), anders `refs`. */
+function verwijzingenFunctie(opties: DekkingOpties | undefined): (goal: CurriculumGoal) => { set: string; id: string }[] {
+  const eigen = opties?.verwijzingen;
+  if (typeof eigen === 'function') return (goal) => verwijzingenVan(eigen(goal));
+  return (goal) => verwijzingenVan(goal.refs);
+}
+
+function heeftVerwijzingen(leerplan: Curriculum, verwijzingen: (goal: CurriculumGoal) => unknown[]): boolean {
   const goals: unknown = leerplan.goals;
-  return Array.isArray(goals) && goals.some((g) => !!g && typeof g === 'object' && verwijzingenVan((g as { refs?: unknown }).refs).length > 0);
+  return Array.isArray(goals) && goals.some((g) => !!g && typeof g === 'object' && verwijzingen(g as CurriculumGoal).length > 0);
 }
 
 /** Waarom een cursus niet meetelt, of `undefined` als ze meetelt. Altijd met het leerplan van de cursus zelf. */
-function redenNietMee(b: CursusBijdrage): NietMeeReden | undefined {
+function redenNietMee(b: CursusBijdrage, verwijzingen: (goal: CurriculumGoal) => unknown[]): NietMeeReden | undefined {
   const cid = typeof b.course.curriculumId === 'string' ? b.course.curriculumId : '';
   if (cid === '') return 'geen-leerplan';
   if (!b.leerplan || b.leerplan.id !== cid) return 'leerplan-ontbreekt';
-  if (!heeftVerwijzingen(b.leerplan)) return 'geen-verwijzingen';
+  if (!heeftVerwijzingen(b.leerplan, verwijzingen)) return 'geen-verwijzingen';
   return undefined;
 }
 
@@ -253,7 +274,7 @@ function redenNietMee(b: CursusBijdrage): NietMeeReden | undefined {
  * Afgerond (`Math.round`), maar nooit 100 zolang er een verplicht doel niet gedekt is: 199 van 200 is 99 %, geen 100 %.
  * Zonder verplichte doelen 0.
  */
-function percentVan(gedekt: number, totaal: number): number {
+export function percentVan(gedekt: number, totaal: number): number {
   if (totaal <= 0) return 0;
   const p = Math.round((gedekt / totaal) * 100);
   return gedekt < totaal && p >= 100 ? 99 : p;
@@ -277,12 +298,18 @@ function samenvattingVan(d: { kader: number; cursussen: number; totaal: number; 
  *
  * Alleen leerplandoelen die de cursus behandelt (gedekt, gepland of verdieping) tellen: voor de rijen, voor `draagtBij`,
  * voor `buitenKader` en voor `zelfdeNummerAndereSet`.
+ *
+ * `opties.verwijzingen` zegt welke verwijzingen van een leerplandoel meetellen (standaard `refs`, dus de minimumdoelen):
+ * zo rekent de dekking op de competenties van beroepskwalificaties met dezelfde regels (`dekkingBk.ts`, § 23.6.9).
+ * Zonder opties is het resultaat precies dat van vroeger.
  */
 export function dekkingMinimumdoelen(
   kader: readonly KaderDoel[],
   bijdragen: readonly CursusBijdrage[],
   widgets: readonly Widget[],
+  opties?: DekkingOpties,
 ): MdDekking {
+  const verwijzingen = verwijzingenFunctie(opties);
   // Sleutel → plaats in het kader; vast nummer → plaatsen (voor zelfdeNummerAndereSet). Een dubbele sleutel telt één keer.
   const plaats = new Map<string, number>();
   const perNummer = new Map<string, number[]>();
@@ -313,7 +340,7 @@ export function dekkingMinimumdoelen(
 
   for (const bijdrage of bijdragen) {
     const course = bijdrage.course;
-    const reden = redenNietMee(bijdrage);
+    const reden = redenNietMee(bijdrage, verwijzingen);
     if (reden) {
       cursussen.push({ courseId: course.id, titel: course.title, telt: false, reden, draagtBij: 0, buitenKader: 0 });
       continue;
@@ -326,7 +353,7 @@ export function dekkingMinimumdoelen(
     for (const row of result.rows) {
       if (row.status === 'missing') continue;
       const s: MdVia['status'] = row.status === 'optional' ? 'verdieping' : gepland.has(row) ? 'gepland' : 'gedekt';
-      for (const ref of verwijzingenVan(row.goal.refs)) {
+      for (const ref of verwijzingen(row.goal)) {
         const sleutel = sleutelVan(ref.set, ref.id);
         const i = plaats.get(sleutel);
         if (i !== undefined) {

@@ -9,6 +9,7 @@ import {
   cursussenVoorRichting,
   dekkingMinimumdoelen,
   kaderDoelen,
+  percentVan,
   setsAlsKader,
   type CursusBijdrage,
   type KaderDoel,
@@ -779,6 +780,39 @@ function dg(groepNr: string, extra: Partial<Doelgroep> = {}): Doelgroep {
   const graad = groepNr === 'G-0193' ? 2 : 1;
   return { groep: groepNr, titel: `Titel ${groepNr}`, graad, soort: 'so', ...extra } as Doelgroep;
 }
+
+// ── De optie `verwijzingen` (K7: dezelfde regels voor de competenties van beroepskwalificaties) ──
+
+describe('dekkingMinimumdoelen: de vierde parameter `opties.verwijzingen`', () => {
+  it('standaard verandert er niets; een eigen functie bepaalt welke verwijzingen tellen (en wordt gesaneerd); percentVan is te gebruiken', () => {
+    const basis = dekkingMinimumdoelen(DOELEN, BIJDRAGEN, [W_CH1]);
+    // Zonder opties, met lege opties, met een niet-bestaande functie of met een functie die `refs` teruggeeft: hetzelfde.
+    expect(dekkingMinimumdoelen(DOELEN, BIJDRAGEN, [W_CH1], undefined)).toEqual(basis);
+    expect(dekkingMinimumdoelen(DOELEN, BIJDRAGEN, [W_CH1], {})).toEqual(basis);
+    expect(dekkingMinimumdoelen(DOELEN, BIJDRAGEN, [W_CH1], { verwijzingen: undefined })).toEqual(basis);
+    expect(dekkingMinimumdoelen(DOELEN, BIJDRAGEN, [W_CH1], { verwijzingen: (g) => g.refs ?? [] })).toEqual(basis);
+
+    // Alleen het doel BIO1 verwijst nog, naar Biologie 1001 (en één lege verwijzing, die wegvalt). Het leerplan zonder `refs`
+    // (LP_ZONDER) heeft ook een doel BIO1: die cursus telt nu wel mee, het netleerplan van Chemie niet meer.
+    const alleenBio1 = (g: { code: string }) => (g.code === 'BIO1' ? [{ set: BIO, id: '1001' }, { set: ' ', id: '' }] : []);
+    const d = dekkingMinimumdoelen(DOELEN, BIJDRAGEN, [], { verwijzingen: alleenBio1 });
+    expect(statussen(d)).toEqual({
+      [`${BIO}|1001`]: 'gedekt', [`${BIO}|1002`]: 'open', [`${BIO}|1003`]: 'open', [`${BIO}|1004`]: 'open', [`${BIO}|1005`]: 'open',
+      [`${CHE}|2002`]: 'open', [`${CHE}|2004`]: 'open', [`${UIT}|3001`]: 'open', [`${UIT}|3002`]: 'open',
+    });
+    expect(tellers(d)).toEqual({ totaal: 6, gedekt: 1, gepland: 0, verdieping: 0, open: 5, percent: 17 });
+    expect(d.cursussen).toEqual([
+      { courseId: 'c-bio', titel: 'Biologie in het 3de jaar', telt: true, draagtBij: 1, buitenKader: 0 },
+      { courseId: 'c-che', titel: 'Chemie', telt: false, reden: 'geen-verwijzingen', draagtBij: 0, buitenKader: 0 },
+      { courseId: 'c-geen', titel: 'Zonder leerplan', telt: false, reden: 'geen-leerplan', draagtBij: 0, buitenKader: 0 },
+      { courseId: 'c-weg', titel: 'Leerplan van een ander toestel', telt: false, reden: 'leerplan-ontbreekt', draagtBij: 0, buitenKader: 0 },
+      { courseId: 'c-zonder', titel: 'Leerplan zonder verwijzingen', telt: true, draagtBij: 1, buitenKader: 0 },
+    ]);
+
+    // percentVan is geëxporteerd: afgerond, 0 bij een leeg kader en 99 in plaats van 100 zolang er een niet gedekt is.
+    expect([percentVan(1, 3), percentVan(2, 3), percentVan(3, 3), percentVan(0, 0), percentVan(199, 200)]).toEqual([33, 67, 100, 0, 99]);
+  });
+});
 
 describe('cursussenVoorRichting', () => {
   const lp1A = leerplan('lp-1a', [], { doelgroep: dg('G-0311') });
