@@ -2363,6 +2363,323 @@ console.log('20f. Fase 2: gaten dichten, mijn richtingen, klas en richting');
   await ctx.close();
 }
 
+// ── 20g. Fase 3: beroepskwalificaties per richting ──────────────────────────
+// Het hele pad van docs/STUDIERICHTINGEN.md § 23.8 (1) tot en met (9), op de nagebootste beroepskwalificaties van
+// tests/fixtures/kwalificaties/uit/ (de matrix en de minimumdoelen zijn die van 20d tot 20f): richting G-0008 in het 3de jaar heeft
+// twee beroepskwalificaties. De sectie en de kopregel, een kaart met zijn competenties, het venster "Nieuwe cursus" met de valkuil
+// van § 9.5 (één competentie uitvinken geeft precies één doel minder), wat er in localStorage komt, de dekking, "Bewaar als
+// leerplan", een richting zonder beroepskwalificaties (G-0193: geen verzoek naar de map) en 390 px. Wat de app moet bewaren, wordt
+// in localStorage nagegaan. Eigen context zonder service worker (zoals 20d); de sectie zet zelf terug wat ze veranderde
+// ("Terug zoals het was"). Sectie 20h hieronder bekijkt de echte data, zodra die er is.
+console.log('20g. Fase 3: beroepskwalificaties per richting');
+const RT_KW_FIXTURES = new URL('./fixtures/kwalificaties/uit/', import.meta.url);
+const RT_KW_ECHT = new URL('../public/leerplannen/kwalificaties/', import.meta.url);
+
+/**
+ * De tekst van main (zonder de bronregel, waar het groepnummer mag staan, maar met ook wat dichtstaat) en van een open venster:
+ * nooit een set-id, ADV-nummer, competentiecode of groepnummer.
+ */
+const rtBkGeenIds = async (p) => !/ODS_|ADV-|bkc\d|G-0\d/.test(await p.evaluate(() => {
+  const m = document.querySelector('main').cloneNode(true);
+  m.querySelectorAll('.ri-bron').forEach((e) => e.remove());
+  const d = document.querySelector('[role="dialog"]');
+  return `${m.textContent} ${d ? d.textContent : ''}`;
+}));
+/** Wacht tot elke kaart van de sectie er staat en haar bestand geladen is (de meta noemt dan het aantal competenties). */
+async function rtBkWachtOpKaarten(p) {
+  await p.waitForSelector('section.bk-sectie article.bk-kaart', { timeout: 60000 });
+  await p.waitForFunction(() => {
+    const meta = [...document.querySelectorAll('section.bk-sectie .bk-meta')];
+    return meta.length > 0 && meta.every((e) => /\d+ competenti/.test(e.textContent));
+  }, null, { timeout: 60000 });
+  await sleep(300);
+}
+/** De hoogte van elk zichtbaar element van een locator, afgerond. */
+const rtHoogtes = (loc) => loc.evaluateAll((l) => l.filter((e) => e.getBoundingClientRect().height > 0).map((e) => Math.round(e.getBoundingClientRect().height)));
+
+{
+  const { ctx, p, go, fouten } = await rtOpen('20g', { fixtures: true });
+  const norm = (t) => String(t ?? '').trim().toLowerCase();
+  const zonderRuimte = (t) => String(t ?? '').replace(/\s+/g, ' ').trim();
+  // De beroepskwalificaties komen uit de nagebootste map; wat daar niet staat, is een 404 (zoals op de echte server).
+  const kwTreffers = [];
+  await p.route('**/leerplannen/kwalificaties/**', (r) => {
+    const rest = decodeURIComponent(new URL(r.request().url()).pathname.split('/leerplannen/kwalificaties/')[1] ?? '');
+    kwTreffers.push(rest);
+    let body = null;
+    if (/^[\w./-]+$/.test(rest) && !rest.includes('..')) { try { body = readFileSync(new URL(rest, RT_KW_FIXTURES)); } catch { body = null; } }
+    if (body === null) return r.fulfill({ status: 404, contentType: 'text/plain', body: 'niet gevonden' });
+    return r.fulfill({ status: 200, contentType: 'application/json', body });
+  });
+  // Elk verzoek naar de map, ook wat de route niet bereikt: stap 7 telt ze.
+  const kwVerzoeken = [];
+  p.on('request', (r) => { if (/\/leerplannen\/kwalificaties\//.test(r.url())) kwVerzoeken.push(r.url()); });
+
+  const lees = () => p.evaluate(() => ({
+    cursussen: JSON.parse(localStorage.getItem('wf.courses.v1') || '[]'),
+    leerplannen: JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]'),
+  }));
+  const kaarten = p.locator('section.bk-sectie article.bk-kaart');
+  /** De kaarten zoals ze op het scherm staan: titel, meta, het aantal competenties en het officiële nummer uit de meta. */
+  const kaartInfo = async () => (await kaarten.evaluateAll((l) => l.map((a) => ({
+    titel: a.querySelector('h3')?.textContent.trim() ?? '',
+    meta: a.querySelector('.bk-meta')?.textContent.trim() ?? '',
+  })))).map((k) => {
+    const m = /^Niveau (\d) · (\d+) competenties? · officieel nummer (BK-\d+-\d+)/.exec(k.meta);
+    return { ...k, n: m ? Number(m[2]) : NaN, bk: m ? m[3] : '' };
+  });
+  /** Wacht tot "Maak de cursus" in het open venster kan (de bestanden zijn geladen). */
+  const wachtOpMaakKnop = () => p.waitForFunction(() => {
+    const knop = [...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === 'Maak de cursus');
+    return !!knop && knop.getAttribute('aria-disabled') !== 'true';
+  }, null, { timeout: 30000 });
+  /** Het venster "Nieuwe cursus" vanaf de knop van één kaart. */
+  const openVenster = async (kaart) => {
+    await kaart.getByRole('button', { name: /^Maak een cursus met deze competenties/ }).click();
+    const venster = p.getByRole('dialog');
+    await venster.waitFor({ timeout: 10000 });
+    await wachtOpMaakKnop();
+    await sleep(300);
+    return venster;
+  };
+  const groepVan = (venster, titel) => venster.locator('fieldset.rc-bk-groep').filter({ has: p.locator('legend', { hasText: titel }) });
+  const richtingTitel = 'Assistent dierlijke productie';
+
+  await go('/#/cursussen');
+  const voor = await rtSnap(p); // na het zaaien van de voorbeeldinhoud, vóór deze sectie iets verandert
+  const fixIndex = rtJson(new URL('index.json', RT_KW_FIXTURES));
+  const fixAantal = (bk) => fixIndex?.bks?.find((b) => b.bk === bk)?.aantal;
+  check('fixtures: BK-0390-2 heeft 12 en BK-0464-1 13 competenties in de nagebootste index (anders: maak de fixtures opnieuw, zie tests/fixtures/kwalificaties/LEESMIJ.md)', fixAantal('BK-0390-2') === 12 && fixAantal('BK-0464-1') === 13);
+
+  // (1) Het detail van G-0008 (3de jaar): de kopregel onder de titel en de knop die naar de sectie gaat
+  await go('/#/cursussen/richtingen/G-0008?jaar=3');
+  await rtBkWachtOpKaarten(p);
+  const kop = p.locator('.page-head');
+  const kopTekst = await kop.innerText();
+  const kaartenNu = await kaartInfo();
+  check('(1) detail: een kop "Assistent dierlijke productie" en een kopregel "Beroepskwalificaties: …." (de kopregel staat onder de titel)', (await p.locator('main h1').innerText()).trim() === richtingTitel && /Beroepskwalificaties: .+\./.test(kopTekst) && (await p.evaluate(() => {
+    const h1 = document.querySelector('main h1');
+    const regel = document.querySelector('.page-head .bk-kopregel');
+    return !!h1 && !!regel && !!(h1.compareDocumentPosition(regel) & Node.DOCUMENT_POSITION_FOLLOWING);
+  })));
+  check('(1) detail: de kopregel noemt de twee beroepskwalificaties met hun naam ("Beroepskwalificaties: A en B.")', kaartenNu.length === 2 && kopTekst.includes(`Beroepskwalificaties: ${kaartenNu[0].titel} en ${kaartenNu[1].titel}.`));
+  check('(1) detail: de nagebootste bestanden worden gebruikt (koppeling, index en de twee beroepskwalificaties geserveerd)', ['koppeling.json', 'index.json', 'bk/BK-0390-2.json', 'bk/BK-0464-1.json'].every((f) => kwTreffers.includes(f)));
+  await p.getByRole('button', { name: 'Naar de beroepskwalificaties' }).click();
+  const focusOpKop = await p.waitForFunction(() => {
+    const a = document.activeElement;
+    return a?.tagName === 'H2' && a.id === 'ri-bk-kop' && a.textContent.trim() === 'Beroepskwalificaties';
+  }, null, { timeout: 5000 }).then(() => true, () => false);
+  check('(1) "Naar de beroepskwalificaties" zet de focus op de h2 "Beroepskwalificaties"', focusOpKop);
+
+  // (2) De sectie en de kaarten
+  const sectie = p.locator('section.bk-sectie');
+  check('(2) sectie: één h2 "Beroepskwalificaties", "Bij deze richting horen 2 beroepskwalificaties." en de uitleg', (await sectie.locator('h2').count()) === 1 && (await sectie.locator('h2').innerText()).trim() === 'Beroepskwalificaties' && /Bij deze richting horen 2 beroepskwalificaties\./.test(await sectie.innerText()) && /Een beroepskwalificatie beschrijft wat iemand moet kunnen om een beroep uit te oefenen/.test(await sectie.innerText()));
+  check('(2) sectie: twee kaarten (h3 met de titel), elk met "Niveau N · N competenties · officieel nummer BK-…" en de aantallen van de index (12 en 13)', kaartenNu.length === 2 && (await kaarten.locator('h3').count()) === 2 && kaartenNu.every((k) => k.titel !== '' && /^Niveau \d · \d+ competenties · officieel nummer BK-\d+-\d+/.test(k.meta)) && kaartenNu[0].n === fixAantal(kaartenNu[0].bk) && kaartenNu[1].n === fixAantal(kaartenNu[1].bk));
+  check('(2) sectie: het officiële nummer staat in de meta, ná de titel, en nooit in een kop', (await sectie.locator('h2, h3, h4').allInnerTexts()).every((t) => !/BK-\d/.test(t)) && kaartenNu.every((k) => k.meta.includes(`officieel nummer ${k.bk}`)));
+  check('(2) sectie: een BK die alleen in één variant geldt, zegt het ("alleen in: …")', /alleen in: .+/.test(kaartenNu[0].meta) && !/alleen in:/.test(kaartenNu[1].meta));
+  const kaart0 = kaarten.first();
+  const toonKnop = kaart0.locator('summary', { hasText: /^Toon de \d+ competenties$/ });
+  const nToon = Number(/\d+/.exec(await toonKnop.innerText())?.[0]);
+  await toonKnop.click();
+  await sleep(200);
+  check(`(2) kaart: "Toon de ${nToon} competenties" toont ${nToon} li (en ${nToon} is het aantal uit de meta)`, nToon === kaartenNu[0].n && (await kaart0.locator('ol.bk-competenties > li').count()) === nToon);
+  const kvSummaries = kaart0.locator('li.bk-competentie > details.bk-kv > summary');
+  check('(2) kaart: elke competentie heeft een geneste "Kennis en vaardigheden (N + N)"', (await kvSummaries.count()) >= 1 && (await kvSummaries.allInnerTexts()).every((t) => /^Kennis en vaardigheden \(\d+ \+ \d+\)$/.test(t.trim())));
+  await kvSummaries.first().click();
+  const kv = kaart0.locator('details.bk-kv[open]').first();
+  check('(2) kaart: de geopende "Kennis en vaardigheden" heeft een h4 "Kennis" en een h4 "Vaardigheden", elk met een lijst', (await kv.locator('h4', { hasText: /^Kennis$/ }).count()) === 1 && (await kv.locator('h4', { hasText: /^Vaardigheden$/ }).count()) === 1 && (await kv.locator('ul > li').count()) >= 2);
+  const behaalbaar = sectie.locator('details > summary', { hasText: /^Wat leerlingen in deze richting kunnen behalen \(\d+\)$/ });
+  const nBehaalbaar = Number(/\((\d+)\)/.exec((await behaalbaar.first().innerText().catch(() => '')) || '')?.[1]);
+  await behaalbaar.first().click();
+  await sleep(200);
+  check(`(2) sectie: "Wat leerlingen in deze richting kunnen behalen (${nBehaalbaar})" toont ${nBehaalbaar} regels, met de hint over een deelkwalificatie`, (await behaalbaar.count()) === 1 && nBehaalbaar >= 1 && (await sectie.locator('ul.bk-behaalbaar > li').count()) === nBehaalbaar && /Een deelkwalificatie is een deel van een beroepskwalificatie\./.test(await sectie.innerText()));
+  check('(2) sectie: de bronregel noemt de Vlaamse kwalificatiestructuur en de ophaaldatum', /^Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur \(API Beroepskwalificaties\) en API Structuuronderdelen, opgehaald op \d{1,2} [a-z]+ \d{4}\./.test((await sectie.locator('.bk-bron').innerText()).trim()));
+  check('(2) sectie: geen ODS_, ADV-, bkc-code of groepnummer buiten de bronregel (ook niet in wat dichtstaat)', await rtBkGeenIds(p));
+
+  // (3) Het venster: eerst vanaf de kaart van de tweede beroepskwalificatie (startBk), dan de hoofdstroom vanaf de eerste
+  const [bk1, bk2] = kaartenNu;
+  let venster = await openVenster(kaarten.nth(1));
+  check('(3) venster vanaf de tweede kaart: de kop is "Nieuwe cursus voor Assistent dierlijke productie · 3de jaar"', (await venster.locator('h2').first().innerText()).trim() === `Nieuwe cursus voor ${richtingTitel} · 3de jaar`);
+  check('(3) venster vanaf de tweede kaart: de keuze "De competenties van een beroepskwalificatie" staat aan', await venster.getByRole('radio', { name: 'De competenties van een beroepskwalificatie' }).isChecked());
+  const startAlle = (titel) => groepVan(venster, titel).locator('.rc-bk-alle input').evaluate((e) => ({ aan: e.checked, deels: e.indeterminate }));
+  const startEerste = await startAlle(bk1.titel);
+  const startTweede = await startAlle(bk2.titel);
+  check(`(3) venster vanaf de tweede kaart: alleen "${bk2.titel}" staat aangevinkt, de eerste beroepskwalificatie niet`, !startEerste.aan && !startEerste.deels && startTweede.aan && !startTweede.deels);
+  check(`(3) venster vanaf de tweede kaart: "Je koos ${bk2.n} competenties uit 1 beroepskwalificatie." en het vak is de titel van die kaart`, (await venster.locator('.rc-teller').innerText()).trim() === `Je koos ${bk2.n} competenties uit 1 beroepskwalificatie.` && (await venster.getByLabel('Je vak (mag leeg blijven)').inputValue()) === bk2.titel);
+  check('(3) venster vanaf de tweede kaart: de titel van de cursus is "<kaart> · Assistent dierlijke productie · 3de jaar"', (await venster.getByLabel('Titel van de cursus').inputValue()) === `${bk2.titel} · ${richtingTitel} · 3de jaar`);
+  await venster.getByRole('button', { name: 'Annuleren' }).click();
+  await venster.waitFor({ state: 'detached', timeout: 10000 });
+  check('(3) venster vanaf de tweede kaart: "Annuleren" bewaart niets (geen cursus voor G-0008)', (await lees()).cursussen.every((c) => c.doelgroep?.groep !== 'G-0008'));
+
+  venster = await openVenster(kaarten.first());
+  check('(3) venster vanaf de eerste kaart: de keuze "De competenties van een beroepskwalificatie" staat aan, met de hint over aparte leerplannen', await venster.getByRole('radio', { name: 'De competenties van een beroepskwalificatie' }).isChecked() && /Minimumdoelen en competenties komen in aparte leerplannen: een cursus volgt één leerplan\./.test(await venster.innerText()));
+  const tellerTekst = (await venster.locator('.rc-teller').innerText()).trim();
+  const mTeller = /^Je koos (\d+) competenties uit 1 beroepskwalificatie\.$/.exec(tellerTekst);
+  const n = mTeller ? Number(mTeller[1]) : NaN;
+  check(`(3) venster: "Je koos ${n} competenties uit 1 beroepskwalificatie." (alleen de beroepskwalificatie van de kaart, met al haar ${bk1.n} competenties)`, !!mTeller && n === bk1.n && n >= 2);
+  check('(3) venster: geen ODS_, ADV-, bkc-code of groepnummer in de tekst', await rtBkGeenIds(p));
+  // De valkuil (§ 9.5): één competentie uitvinken via "Kies zelf de competenties" geeft één doel minder, geen "alle"
+  const groep1 = groepVan(venster, bk1.titel);
+  await groep1.locator('summary', { hasText: /^Kies zelf de competenties/ }).click();
+  const lijst = groep1.locator('.rc-bk-lijst');
+  const labels = (await lijst.locator('label').allInnerTexts()).map(zonderRuimte);
+  check(`(3) venster: "Kies zelf de competenties (${n} van ${n})" toont ${n} vakjes, allemaal aangevinkt`, labels.length === n && (await lijst.locator('input[type=checkbox]:checked').count()) === n && (await groep1.locator('summary').first().innerText()).trim() === `Kies zelf de competenties (${n} van ${n})`);
+  const uitgevinkt = labels[0];
+  await lijst.locator('input[type=checkbox]').first().uncheck();
+  await sleep(300);
+  check(`(3) de valkuil: één competentie uitvinken geeft "Je koos ${n - 1} competenties uit 1 beroepskwalificatie." en "Kies zelf de competenties (${n - 1} van ${n})"`, (await venster.locator('.rc-teller').innerText()).trim() === `Je koos ${n - 1} competenties uit 1 beroepskwalificatie.` && (await groep1.locator('summary').first().innerText()).trim() === `Kies zelf de competenties (${n - 1} van ${n})`);
+  const alleVakje = await groep1.locator('.rc-bk-alle input').evaluate((e) => ({ aan: e.checked, deels: e.indeterminate }));
+  check('(3) venster: het vakje "Alle N competenties" staat nu gedeeltelijk aangevinkt (niet aan, niet uit)', !alleVakje.aan && alleVakje.deels);
+  await venster.getByRole('button', { name: 'Maak de cursus' }).click();
+  await p.waitForURL(/#\/cursus\/bewerk\//, { timeout: 15000 });
+  const toast = await p.locator('.toast-ok').first().innerText({ timeout: 2500 }).catch(() => '');
+  await sleep(600);
+  check('(3) "Maak de cursus" opent de cursuseditor (/cursus/bewerk/)', /#\/cursus\/bewerk\/[^/?]+/.test(p.url()));
+  check(`(3) de melding: "Cursus gemaakt: 1 hoofdstuk, ${n - 1} competenties klaar op de secties."`, toast.trim() === `Cursus gemaakt: 1 hoofdstuk, ${n - 1} competenties klaar op de secties.`);
+
+  // (4) Wat in localStorage staat: een nagekeken BK-leerplan met n-1 doelen, en een cursus met n-1 secties
+  const opslag = await lees();
+  const cursus = opslag.cursussen.find((c) => c.doelgroep?.groep === 'G-0008');
+  const leerplan = opslag.leerplannen.find((l) => l.id === cursus?.curriculumId);
+  const doelen = leerplan?.goals ?? [];
+  check('(4) opgeslagen: een cursus met doelgroep G-0008 (jaar 3, vak = titel van de beroepskwalificatie) en een leerplan dat op het toestel staat', !!cursus && !!leerplan && cursus.doelgroep.jaar === 3 && cursus.doelgroep.vak === bk1.titel && cursus.title === `${bk1.titel} · ${richtingTitel} · 3de jaar`);
+  check('(4) opgeslagen: het leerplan heeft methode beroepskwalificatie, net beroepskwalificaties en status gecontroleerd (nagekeken)', leerplan?.herkomst?.methode === 'beroepskwalificatie' && leerplan.net === 'beroepskwalificaties' && leerplan.controle?.status === 'gecontroleerd');
+  check(`(4) de valkuil, opgeslagen: het leerplan bevat precies ${n - 1} doelen (n-1), niet de ${n} van de hele beroepskwalificatie`, doelen.length === n - 1 && n - 1 < bk1.n);
+  const goalTeksten = new Set(doelen.map((g) => zonderRuimte(g.text)));
+  check('(4) opgeslagen: precies de uitgevinkte competentie ontbreekt; de andere staan er letterlijk in', !goalTeksten.has(uitgevinkt) && labels.slice(1).every((t) => goalTeksten.has(t)));
+  check('(4) opgeslagen: elk doel heeft precies één bkRefs naar de beroepskwalificatie van de kaart, en een code als BK-0390-2.03', doelen.length > 0 && doelen.every((g) => Array.isArray(g.bkRefs) && g.bkRefs.length === 1 && g.bkRefs[0].bk === bk1.bk && /^BK-\d{3,6}-\d{1,4}\.\d{2,3}$/.test(g.code) && g.code.startsWith(`${bk1.bk}.`)) && new Set(doelen.map((g) => norm(g.code))).size === doelen.length);
+  check('(4) opgeslagen: geen refs naar minimumdoelen op de doelen en geen minimumdoelenSets op het leerplan', doelen.every((g) => g.refs === undefined) && leerplan?.minimumdoelenSets === undefined);
+  const secties = (cursus?.chapters ?? []).flatMap((h) => h.sections);
+  check(`(4) opgeslagen: de cursus heeft één hoofdstuk en ${n - 1} secties, elk met één goalCode`, cursus?.chapters.length === 1 && secties.length === n - 1 && secties.every((s) => Array.isArray(s.goalCodes) && s.goalCodes.length === 1));
+  check('(4) opgeslagen: de goalCodes van de secties zijn precies de doelcodes van het leerplan, en een sectie heeft alleen doelen-callouts (een geraamte)', JSON.stringify(secties.map((s) => norm(s.goalCodes[0])).sort()) === JSON.stringify(doelen.map((g) => norm(g.code)).sort()) && secties.every((s) => s.blocks.length >= 1 && s.blocks.every((b) => b.type === 'callout' && b.kind === 'goal')));
+
+  // (5) Terug op het detail: de dekking op competenties, "gepland", en de tekst in het blok Minimumdoelen
+  await p.goBack();
+  await p.waitForSelector('.dk-samenvatting', { timeout: 30000 });
+  await p.waitForFunction(() => /Je cursussen dekken \d+ van de \d+ competenties/.test(document.querySelector('.dk-bk')?.innerText ?? ''), null, { timeout: 30000 });
+  await sleep(500);
+  const dekking = p.locator('section[aria-labelledby="ri-dekking-kop"]');
+  const dekTekst = await dekking.innerText();
+  const [mdTekst, bkTekst] = dekTekst.split(/^Competenties van de beroepskwalificaties$/m);
+  check('(5) dekking: een h3 "Competenties van de beroepskwalificaties", na de h3 "Minimumdoelen"', JSON.stringify(await dekking.locator('h3').allInnerTexts()) === JSON.stringify(['Minimumdoelen', 'Competenties van de beroepskwalificaties']));
+  const totaal = Number(/Je cursussen dekken 0 van de (\d+) competenties\./.exec(bkTekst ?? '')?.[1]);
+  check(`(5) dekking: "Je cursussen dekken 0 van de ${totaal} competenties." (het totaal van beide beroepskwalificaties: ${bk1.n} + ${bk2.n})`, totaal === bk1.n + bk2.n);
+  check(`(5) dekking: "${n - 1} competenties staan al gepland op een sectie die nog leeg is" (geraamte = gepland, niet gedekt)`, new RegExp(`${n - 1} competenties staan al gepland op een sectie die nog leeg is`).test(bkTekst ?? ''));
+  check('(5) dekking: in het blok Minimumdoelen staat de BK-cursus bij "Cursussen die niet meetellen" met "Telt hier niet mee: deze cursus volgt een beroepskwalificatie (zie ‘Competenties van de beroepskwalificaties’)."', !!cursus && (mdTekst ?? '').includes(cursus.title) && (mdTekst ?? '').includes('Telt hier niet mee: deze cursus volgt een beroepskwalificatie (zie ‘Competenties van de beroepskwalificaties’).') && /Je cursussen dekken 0 van de \d+ minimumdoelen/.test(mdTekst ?? ''));
+  const cursussenTekst = await p.locator('section[aria-labelledby="ri-cursussen-kop"]').innerText();
+  check('(5) cursussen: de cursus staat onder "Cursussen voor deze richting" met "Volgt een beroepskwalificatie: zie ‘Competenties van de beroepskwalificaties’ hieronder."', !!cursus && cursussenTekst.includes(cursus.title) && cursussenTekst.includes('Volgt een beroepskwalificatie: zie ‘Competenties van de beroepskwalificaties’ hieronder.'));
+  const perBk = (await dekking.locator('.dk-bk details.dk-set > summary').allInnerTexts()).map(zonderRuimte);
+  check(`(5) dekking: per beroepskwalificatie een uitklapper "${bk1.titel}: 0 van ${bk1.n} gedekt (0 %)" en "${bk2.titel}: 0 van ${bk2.n} gedekt (0 %)"`, JSON.stringify(perBk) === JSON.stringify([`${bk1.titel}: 0 van ${bk1.n} gedekt (0 %)`, `${bk2.titel}: 0 van ${bk2.n} gedekt (0 %)`]));
+  check('(5) dekking: geen ODS_, ADV-, bkc-code of groepnummer buiten de bronregel', await rtBkGeenIds(p));
+
+  // (6) "Bewaar als leerplan" bij de andere beroepskwalificatie
+  await rtBkWachtOpKaarten(p);
+  const aantalLeerplannen = (await lees()).leerplannen.length;
+  // De knop kan pas als de sectie de versiemerken van de index kent (anders staat hij op aria-disabled).
+  await p.waitForFunction(() => {
+    const kaart = document.querySelectorAll('section.bk-sectie article.bk-kaart')[1];
+    const knop = kaart && [...kaart.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Bewaar als leerplan');
+    return !!knop && knop.getAttribute('aria-disabled') !== 'true';
+  }, null, { timeout: 15000 });
+  await kaarten.nth(1).getByRole('button', { name: 'Bewaar als leerplan' }).click();
+  const toastBewaard = await p.waitForFunction(() => /Leerplan bewaard en nagekeken\./.test(document.querySelector('.toast-stack')?.innerText ?? ''), null, { timeout: 8000 }).then(() => true, () => false);
+  check('(6) "Bewaar als leerplan" bij de andere beroepskwalificatie geeft de melding "Leerplan bewaard en nagekeken."', toastBewaard);
+  const openLink = kaarten.nth(1).getByRole('link', { name: 'Open het leerplan' });
+  const focusOpOpen = await p.waitForFunction(() => {
+    const a = document.activeElement;
+    return a?.tagName === 'A' && a.textContent.trim() === 'Open het leerplan';
+  }, null, { timeout: 5000 }).then(() => true, () => false);
+  check('(6) daarna staat er "Open het leerplan" in plaats van de knop, en de focus staat erop', (await openLink.count()) === 1 && (await kaarten.nth(1).getByRole('button', { name: 'Bewaar als leerplan' }).count()) === 0 && focusOpOpen);
+  const na6 = await lees();
+  const leerplan2 = na6.leerplannen.find((l) => l.herkomst?.methode === 'beroepskwalificatie' && l.bkVersies?.some((v) => v.bk === bk2.bk));
+  check(`(6) opgeslagen: een tweede nagekeken BK-leerplan met alle ${bk2.n} competenties van ${bk2.titel}; het eerste leerplan veranderde niet`, na6.leerplannen.length === aantalLeerplannen + 1 && !!leerplan2 && leerplan2.controle?.status === 'gecontroleerd' && leerplan2.goals.length === bk2.n && na6.leerplannen.find((l) => l.id === leerplan?.id)?.updatedAt === leerplan?.updatedAt);
+  await openLink.click();
+  await p.waitForFunction(() => /Officiële beroepskwalificatie/.test(document.querySelector('main')?.innerText ?? ''), null, { timeout: 15000 }).catch(() => {});
+  const leerplanPagina = await p.locator('main').innerText();
+  check('(6) de leerplanpagina toont "Officiële beroepskwalificatie" en "Nagekeken", de titel van het leerplan, en geen "Nakijken en bevestigen"', /Officiële beroepskwalificatie/.test(leerplanPagina) && !/Kopie van een officiële beroepskwalificatie/.test(leerplanPagina) && /Nagekeken/.test(leerplanPagina) && !!leerplan2 && leerplanPagina.includes(leerplan2.title) && !/Nakijken en bevestigen/.test(leerplanPagina));
+
+  // (7) Een richting zonder beroepskwalificaties (G-0193, doorstroom): geen sectie en geen enkel verzoek naar de map
+  const voorG0193 = kwVerzoeken.length;
+  await go('/#/cursussen/richtingen/G-0193?jaar=4');
+  await p.reload({ waitUntil: 'networkidle' }); // een nieuwe pagina: wat de lader onthield, telt niet
+  await p.waitForSelector('.ri-sets', { timeout: 30000 });
+  await sleep(1500);
+  check('(7) G-0193: de kop "Natuurwetenschappen" staat er, maar geen h2 "Beroepskwalificaties", geen kopregel en geen sectie', (await p.locator('main h1').innerText()).trim() === 'Natuurwetenschappen' && (await p.locator('main h2', { hasText: /^Beroepskwalificaties$/ }).count()) === 0 && (await p.locator('.bk-kopregel, .bk-sectie, .dk-bk').count()) === 0);
+  check(`(7) G-0193: geen enkel verzoek naar leerplannen/kwalificaties/ na het herladen (de luisteraar werkt: G-0008 deed er ${voorG0193} en dit nieuwe detail ${kwVerzoeken.length - voorG0193})`, voorG0193 >= 4 && kwVerzoeken.length === voorG0193);
+
+  // (8) Op 390 px: het detail met de kaarten en het venster
+  await p.setViewportSize({ width: 390, height: 844 });
+  await go('/#/cursussen/richtingen/G-0008?jaar=3');
+  await rtBkWachtOpKaarten(p);
+  await kaarten.first().locator('summary', { hasText: /^Toon de \d+ competenties$/ }).click();
+  await kaarten.first().locator('li.bk-competentie > details.bk-kv > summary').first().click();
+  await sleep(300);
+  const hKnoppen = await rtHoogtes(p.locator('.bk-naar, section.bk-sectie .bk-knop'));
+  const hSummaries = await rtHoogtes(p.locator('section.bk-sectie summary'));
+  check('(8) 390 px: het detail met de kaarten scrollt niet horizontaal, heeft één main en één h1, en geen ODS_, ADV-, bkc-code of groepnummer buiten de bronregel', (await rtSmal(p)) && (await p.locator('main').count()) === 1 && (await p.locator('main h1').count()) === 1 && (await rtBkGeenIds(p)));
+  check(`(8) 390 px: de knoppen van de sectie zijn minstens 44 px hoog (${hKnoppen.join(', ')} px)`, hKnoppen.length >= 5 && hKnoppen.every((h) => h >= 44));
+  check(`(8) 390 px: de uitklappers van de kaarten zijn minstens 44 px hoog (${[...new Set(hSummaries)].join(', ')} px)`, hSummaries.length >= 5 && hSummaries.every((h) => h >= 44));
+  venster = await openVenster(kaarten.first());
+  await groepVan(venster, bk1.titel).locator('summary', { hasText: /^Kies zelf de competenties/ }).click();
+  await groepVan(venster, bk2.titel).locator('summary', { hasText: /^Kies zelf de competenties/ }).click();
+  await sleep(300);
+  const hVakjes = await rtHoogtes(venster.locator('.rc-bk-rij'));
+  const hVensterSummaries = await rtHoogtes(venster.locator('.rc-bk-details > summary'));
+  check('(8) 390 px: het venster met de competenties scrollt niet horizontaal, heeft één main en één h1, en geen ODS_, ADV-, bkc-code of groepnummer', (await rtSmal(p)) && (await p.locator('main').count()) === 1 && (await p.locator('main h1').count()) === 1 && (await rtBkGeenIds(p)));
+  check(`(8) 390 px: de rijen met een vakje (${hVakjes.length}) en de uitklappers in het venster zijn minstens 44 px hoog (laagste: ${Math.min(...hVakjes, ...hVensterSummaries)} px)`, hVakjes.length >= bk1.n + bk2.n && hVensterSummaries.length === 2 && [...hVakjes, ...hVensterSummaries].every((h) => h >= 44));
+  await p.keyboard.press('Escape');
+  await p.getByRole('dialog').waitFor({ state: 'detached', timeout: 10000 });
+  await p.setViewportSize({ width: 1360, height: 900 });
+
+  // (9) Geen console- of paginafouten; terug zoals het was
+  check('(9) geen console- of paginafouten in deze sectie', fouten.length === 0);
+  const teruggezet = await rtTerugZetten(p, voor);
+  const na = await lees();
+  check('Terug zoals het was: localStorage is weer zoals na het zaaien, en de cursus en de BK-leerplannen van deze sectie zijn weg', teruggezet && na.cursussen.every((c) => c.doelgroep?.groep !== 'G-0008') && na.leerplannen.every((l) => l.herkomst?.methode !== 'beroepskwalificatie'));
+  await ctx.close();
+}
+
+// ── 20h. Beroepskwalificaties op de echte data ──────────────────────────────
+// Dezelfde sectie als in 20g, voor G-0393 (Onthaal en recreatie) op public/leerplannen/kwalificaties/. Alleen met reguliere
+// expressies voor wat op het scherm staat: de aantallen veranderen elke maand. Zonder het echte koppelingsbestand (de eerste echte
+// ophaalrun van de beroepskwalificaties is nog niet samengevoegd) wordt de sectie overgeslagen.
+console.log('20h. Beroepskwalificaties op de echte data');
+{
+  const koppelingEcht = rtJson(new URL('koppeling.json', RT_KW_ECHT));
+  const matrix = rtJson(new URL('studierichtingen.json', RT_ECHT));
+  const g = matrix?.groepen?.find((x) => x.nummer === 'G-0393');
+  if (!koppelingEcht) {
+    console.log('  - 20h overgeslagen: public/leerplannen/kwalificaties/koppeling.json bestaat niet (de eerste echte ophaalrun van de beroepskwalificaties is nog niet samengevoegd).');
+  } else if (!g || rtJson(new URL('richtingdoelen/G-0393.json', RT_ECHT)) === null) {
+    console.log('  - 20h overgeslagen: de matrix of het koppelingsbestand van G-0393 staat niet in public/leerplannen/structuur/.');
+  } else {
+    const { ctx, p, go, fouten } = await rtOpen('20h', { fixtures: false });
+    const wie = `20h G-0393 (${g.titel})`;
+    await go('/#/cursussen');
+    const voor = await rtSnap(p);
+    await go('/#/cursussen/richtingen/G-0393');
+    await rtBkWachtOpKaarten(p);
+    const kaarten = p.locator('section.bk-sectie article.bk-kaart');
+    check(`${wie}: de kop is de titel van de richting, met één main en één h1`, (await p.locator('main h1').innerText()).trim() === g.titel && (await p.locator('main').count()) === 1 && (await p.locator('main h1').count()) === 1);
+    check(`${wie}: onder de titel staat de kopregel "Beroepskwalificaties: …." met de knop "Naar de beroepskwalificaties"`, /^Beroepskwalificaties: .+\.\s*Naar de beroepskwalificaties/s.test((await p.locator('.page-head .bk-kopregel').innerText()).trim()));
+    check(`${wie}: de sectie heeft een h2 "Beroepskwalificaties" en minstens één kaart (${await kaarten.count()})`, (await p.locator('section.bk-sectie h2').innerText()).trim() === 'Beroepskwalificaties' && (await kaarten.count()) >= 1);
+    check(`${wie}: elke kaart heeft een titel en "Niveau N · N competenties · officieel nummer BK-…"`, (await kaarten.evaluateAll((l) => l.map((a) => `${a.querySelector('h3')?.textContent.trim() ?? ''}|${a.querySelector('.bk-meta')?.textContent.trim() ?? ''}`))).every((t) => /^.+\|(Niveau \d · )?\d+ competenties? · officieel nummer BK-\d+-\d+/.test(t)));
+    const toon = await kaarten.first().locator('summary', { hasText: /^Toon de (\d+ competenties|competentie)$/ }).count();
+    check(`${wie}: de eerste kaart heeft "Toon de N competenties"`, toon === 1);
+    check(`${wie}: geen ODS_, ADV-, bkc-code of groepnummer buiten de bronregel`, await rtBkGeenIds(p));
+    check(`${wie}: de pagina scrollt niet horizontaal op 1360 px en op 390 px`, (await rtSmal(p)) && await (async () => {
+      await p.setViewportSize({ width: 390, height: 844 });
+      await sleep(300);
+      const smal = await rtSmal(p);
+      await p.setViewportSize({ width: 1360, height: 900 });
+      return smal;
+    })());
+    check('20h: geen console- of paginafouten in deze sectie', fouten.length === 0);
+    check('Terug zoals het was: localStorage is weer zoals na het zaaien', await rtTerugZetten(p, voor));
+    await ctx.close();
+  }
+}
+
 // ── 21. Importeren (zonder AI) ──────────────────────────────────────────────
 console.log('21. Importeren');
 await go('/#/importeren');
