@@ -39,7 +39,7 @@ import {
   MoveUpIcon, PreviewIcon, RetryIcon, TipIcon, WarningIcon,
 } from '../components/icons';
 import { DEEL_HINT, effectieveStatus, isOfficieel, isSamengesteld, nagekekenTekst, uitOfficieleBron } from '../lib/leerplanStatus';
-import { ControleLabel, OfficieelLabel } from '../components/curriculum/ControleLabel';
+import { ControleLabel, OfficieelLabel, officieelSoort } from '../components/curriculum/ControleLabel';
 import { LeerplanOpSlot } from '../components/curriculum/LeerplanOpSlot';
 import { LeerplanWegwijzer } from '../components/curriculum/LeerplanWegwijzer';
 import { MinimumdoelKiezer } from '../components/curriculum/MinimumdoelKiezer';
@@ -303,7 +303,7 @@ export function CurriculaPage() {
                       <div className="lp-labels">
                         {cur.example && <span className="badge">voorbeeld</span>}
                         <ControleLabel status={status} />
-                        {uitOfficieleBron(cur) && <OfficieelLabel eigenKopie={cur.kind === 'eigen'} samengesteld={isSamengesteld(cur)} />}
+                        {uitOfficieleBron(cur) && <OfficieelLabel eigenKopie={cur.kind === 'eigen'} soort={officieelSoort(cur)} />}
                       </div>
                     </div>
                   </div>
@@ -426,7 +426,8 @@ function NetSelect({ value, onChange }: { value: CurriculumNet; onChange: (v: Cu
   return (
     <Field label="Net / uitgever" hint={hint}>
       <select className="select" value={value} onChange={(e) => onChange(e.target.value as CurriculumNet)}>
-        {CURRICULUM_NETS.map((n) => (
+        {/* Beroepskwalificaties zijn geen net om uit te kiezen: ze staan er alleen als het leerplan er al een is. */}
+        {CURRICULUM_NETS.filter((n) => n.id !== 'beroepskwalificaties' || n.id === value).map((n) => (
           <option key={n.id} value={n.id}>{n.label}</option>
         ))}
       </select>
@@ -449,10 +450,11 @@ function CurriculumEditor({
 }) {
   const toast = useToast();
   const goals = curriculum.goals;
-  // Een hele officiële set, of een lijst die de leerkracht zelf samenstelde uit officiële sets: beide komen letterlijk uit de bron.
+  // Een hele officiële set, een lijst die de leerkracht zelf samenstelde uit officiële sets, of de competenties van
+  // beroepskwalificaties: alle drie komen letterlijk uit de bron.
   const officieel = isOfficieel(curriculum);
   const samengesteld = isSamengesteld(curriculum);
-  const uitBron = officieel || samengesteld;
+  const uitBron = uitOfficieleBron(curriculum);
   // Een samengestelde lijst pas je aan door de keuze te wijzigen; een eigen kopie ervan pas je hier aan.
   const keuzeAanpassen = samengesteld && curriculum.kind !== 'eigen';
   const bronSet = curriculum.herkomst?.bronNaam;
@@ -508,7 +510,7 @@ function CurriculumEditor({
           </p>
           <div className="lp-labels">
             <ControleLabel status={status} />
-            {uitBron && <OfficieelLabel eigenKopie={curriculum.kind === 'eigen'} samengesteld={samengesteld} />}
+            {uitBron && <OfficieelLabel eigenKopie={curriculum.kind === 'eigen'} soort={officieelSoort(curriculum)} />}
           </div>
           {status === 'niet-gecontroleerd' && (
             <p className="hint lp-labeluitleg">

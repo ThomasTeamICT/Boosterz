@@ -25,7 +25,8 @@ import {
   type BronGegevens, type Gevonden, type LeerplanKeuze, type Ontbrekend,
 } from '../lib/leerplanInlezen';
 import { AI_VOORINVULLING_SLEUTEL } from '../lib/leerplanAiOverdracht';
-import { isSamengesteld, uitOfficieleBron } from '../lib/leerplanStatus';
+import { bkInleesTekst } from '../lib/bkWeergave';
+import { isBkLeerplan, isSamengesteld, uitOfficieleBron } from '../lib/leerplanStatus';
 import type { RichtingInfo, RichtingKader } from '../lib/richtingKader';
 import {
   doelgroepBijRichting, genegeerdZinnen, invulVoorInlezen, kaderStand, leesRichtingParams, richtingTekst,
@@ -98,9 +99,14 @@ function Wizard({ curriculumId, richting }: { curriculumId?: string; richting: R
       </div>
     );
   }
-  // Een hele officiële set en een zelf samengestelde lijst komen letterlijk uit de officiële bron: daar is niets in te lezen.
+  // Een hele officiële set, een zelf samengestelde lijst en de competenties van beroepskwalificaties komen letterlijk uit de
+  // officiële bron: daar is niets in te lezen.
   if (bestaand && uitOfficieleBron(bestaand)) {
     const aanpasbaar = isSamengesteld(bestaand) && bestaand.kind !== 'eigen';
+    // Bij een beroepskwalificatie staat de zin in bkWeergave.ts; de titel blijft vet, zoals bij de minimumdoelen.
+    const bkTitel = bestaand.title.trim();
+    const bkZin = isBkLeerplan(bestaand) ? bkInleesTekst(bestaand.title) : '';
+    const bkTitelVet = bkTitel !== '' && bkZin.startsWith(bkTitel);
     return (
       <div className="page mat-page il-page">
         <div className="page-head"><div><h1>Leerplan nakijken</h1></div></div>
@@ -108,8 +114,14 @@ function Wizard({ curriculumId, richting }: { curriculumId?: string; richting: R
           <InfoIcon size={20} className="il-callout-icoon" />
           <div className="il-callout-tekst">
             <p>
-              <strong>{bestaand.title}</strong> komt rechtstreeks uit de officiële minimumdoelen. Er valt niets in te lezen: de doelen staan letterlijk
-              zoals in de officiële bron.
+              {bkZin !== '' ? (
+                bkTitelVet ? <><strong>{bkTitel}</strong>{bkZin.slice(bkTitel.length)}</> : bkZin
+              ) : (
+                <>
+                  <strong>{bestaand.title}</strong> komt rechtstreeks uit de officiële minimumdoelen. Er valt niets in te lezen: de doelen staan letterlijk
+                  zoals in de officiële bron.
+                </>
+              )}
               {aanpasbaar && ' Wil je andere doelen kiezen? Pas de keuze aan: de lijst wordt dan opnieuw nagekeken.'}
             </p>
             <div className="lp-acties">

@@ -22,6 +22,7 @@ import {
   zelfdeNummerZin,
   type Toon,
 } from '../../lib/dekkingWeergave';
+import { BK_DEKKING_TITEL, BK_LADEN, BK_MD_REDEN_BK_CURSUS, BK_MD_TITEL } from '../../lib/bkWeergave';
 import { jaarTekst } from '../../lib/doelgroep';
 import { openVerplichteDoelen } from '../../lib/gatenDichten';
 import { FOUT_LADEN_GATEN, GEEN_OPEN_TEKST, planKnopTekst } from '../../lib/gatenWeergave';
@@ -31,6 +32,7 @@ import '../../styles/gaten.css';
 
 // De berekening staat in useRichtingDekking.ts; de types gaan van daar ook naar de andere secties.
 import type { DekkingGegevens, DekkingStand, TelMee } from './useRichtingDekking';
+import { bksVan, useLuiDeel } from './useRichtingBk';
 import type { BkDekkingInvoer } from './bk/BkDekking';
 export type { CursusUitkomst, DekkingGegevens, DekkingStand, TelMee } from './useRichtingDekking';
 
@@ -39,6 +41,34 @@ export type { CursusUitkomst, DekkingGegevens, DekkingStand, TelMee } from './us
 // melding bij de knop, in plaats van dat de pagina met een fout vervangen wordt.
 const laadVenster = () => import('./GatenVenster');
 const GatenVenster = lazy(() => laadVenster().then((m) => ({ default: m.GatenVenster })));
+
+// Het tweede blok, de competenties van de beroepskwalificaties (§ 23.7.4), zit in het luie chunk `bk` en wordt pas geladen als de
+// richting beroepskwalificaties heeft. Lukt het laden niet, dan blijft de rest van de sectie staan, met een melding.
+const laadBkDekking = () => import('./bk/BkDekking');
+const FOUT_BK_DEKKING_DEEL = 'De competenties van de beroepskwalificaties konden niet getoond worden. Controleer je verbinding en herlaad de pagina.';
+
+/**
+ * De plaats van het tweede blok zolang het luie deel er nog niet is (`fout` onwaar) of niet geladen kon worden (`fout`). De kop
+ * staat er in beide gevallen al: het blok "Minimumdoelen" en de lijst "Cursussen voor deze richting" zeggen bij een cursus met
+ * competenties "zie ‘Competenties van de beroepskwalificaties’", en die verwijzing moet ergens heen wijzen. Dezelfde kop en
+ * hetzelfde omhulsel als in `BkDekking`, dat ze overneemt zodra het geladen is.
+ */
+export function BkDekkingPlaats({ fout }: { fout: boolean }) {
+  const kopId = useId();
+  return (
+    <div className="dk-bk" aria-labelledby={kopId} role="group">
+      <h3 id={kopId} className="dk-blokkop">{BK_DEKKING_TITEL}</h3>
+      {fout ? (
+        <div className="callout err dk-melding" role="alert">
+          <WarningIcon size={18} aria-hidden="true" />
+          <p>{FOUT_BK_DEKKING_DEEL}</p>
+        </div>
+      ) : (
+        <LaadBericht tekst={BK_LADEN} />
+      )}
+    </div>
+  );
+}
 
 // ── De sectie ───────────────────────────────────────────────────────────────
 
@@ -108,9 +138,11 @@ function PlanBlok({ gegevens, laadt, fout, onPlan, knopRef }: {
   );
 }
 
-function DekkingInhoud({ info, gegevens, laadt, fout, onPlan, knopRef }: {
+function DekkingInhoud({ info, gegevens, metBk, laadt, fout, onPlan, knopRef }: {
   info: RichtingInfo;
   gegevens: DekkingGegevens;
+  /** De richting toont ook het blok met de competenties van de beroepskwalificaties: dan krijgt een BK-cursus daar haar uitleg. */
+  metBk: boolean;
   laadt: boolean;
   fout: boolean;
   onPlan: (gegevens: DekkingGegevens) => void;
@@ -120,6 +152,8 @@ function DekkingInhoud({ info, gegevens, laadt, fout, onPlan, knopRef }: {
   const { dekking, cursussen, namen, telJaar } = gegevens;
   const extra = [optioneelZin(dekking.optioneel), zelfdeNummerZin(dekking.zelfdeNummerAndereSet)].filter(Boolean);
   const nietMee = [...cursussen.values()].filter((c) => !c.telt);
+  // Onder de kop "Minimumdoelen" is dit een tussenkop van een blok, dus een niveau lager (§ 23.7.7).
+  const Kop = metBk ? 'h4' : 'h3';
   return (
     <>
       {info.graad === 1 && telJaar === undefined && <p className="dk-uitleg dk-uitleg-blok">{EERSTE_GRAAD_ZIN}</p>}
@@ -132,12 +166,13 @@ function DekkingInhoud({ info, gegevens, laadt, fout, onPlan, knopRef }: {
       <DekkingPerSet dekking={dekking} toon={toon} namen={namen} />
       {nietMee.length > 0 && (
         <div className="dk-cursussen">
-          <h3>Cursussen die niet meetellen</h3>
+          <Kop>Cursussen die niet meetellen</Kop>
           <ul className="dk-cursuslijst">
             {nietMee.map((c) => (
               <li key={c.courseId} className="dk-cursus">
                 <Link className="dk-cursus-titel" to={`/cursus/bewerk/${encodeURIComponent(c.courseId)}`}>{c.titel}</Link>
-                <span className="dk-cursus-reden">{cursusRegel(c).hoofd}</span>
+                {/* Een cursus met competenties telt hier niet mee omdat ze een ander leerplan volgt: alleen de uitleg verandert. */}
+                <span className="dk-cursus-reden">{metBk && c.volgtBk === true && c.reden === 'geen-verwijzingen' ? BK_MD_REDEN_BK_CURSUS : cursusRegel(c).hoofd}</span>
               </li>
             ))}
           </ul>
@@ -147,7 +182,7 @@ function DekkingInhoud({ info, gegevens, laadt, fout, onPlan, knopRef }: {
   );
 }
 
-export function RichtingDekking({ info, keuze, stand, telMee, onTelMee }: {
+export function RichtingDekking({ info, keuze, stand, telMee, onTelMee, bk }: {
   info: RichtingInfo;
   keuze: RichtingKeuze;
   stand: DekkingStand;
@@ -156,6 +191,9 @@ export function RichtingDekking({ info, keuze, stand, telMee, onTelMee }: {
   /** Voor het tweede blok, de competenties van de beroepskwalificaties (§ 23.7.4, S3): het BK-kader en wat `BkDekking` nodig heeft. */
   bk?: BkDekkingInvoer;
 }) {
+  // Het tweede blok staat er als het BK-kader klaar is en minstens één beroepskwalificatie heeft. Zonder is de sectie zoals ze was.
+  const bkKader = bk?.stand.status === 'klaar' && bksVan(bk.stand).length > 0 ? bk.stand.waarde : undefined;
+  const bkDeel = useLuiDeel(laadBkDekking, bkKader !== undefined);
   /** De dekking zoals ze stond toen de leerkracht op de knop klikte: het venster werkt met die momentopname. */
   const [venster, setVenster] = useState<DekkingGegevens | null>(null);
   const [laadt, setLaadt] = useState(false);
@@ -194,18 +232,28 @@ export function RichtingDekking({ info, keuze, stand, telMee, onTelMee }: {
   return (
     <section className="ri-sectie dk" aria-labelledby="ri-dekking-kop">
       <h2 id="ri-dekking-kop" tabIndex={-1}>Wat je cursussen samen dekken</h2>
+      {/* "Tel mee" geldt voor beide blokken: bovenaan, zodra een van de twee getoond wordt. */}
+      {(bkKader !== undefined || stand.status !== 'geen') && <TelMeeKeuze info={info} keuze={keuze} telMee={telMee} onTelMee={onTelMee} />}
+      {bkKader !== undefined && <h3 className="dk-blokkop">{BK_MD_TITEL}</h3>}
       {stand.status === 'geen' ? (
         <p>{geenDekkingTekst(stand.herkomst)}</p>
       ) : (
         <>
-          <TelMeeKeuze info={info} keuze={keuze} telMee={telMee} onTelMee={onTelMee} />
           {stand.status === 'laden' && <LaadBericht tekst={LADEN_SETS_DEKKING} />}
           {stand.status === 'fout' && <FoutBericht fout={FOUT_SETS_DEKKING} onOpnieuw={stand.opnieuw} />}
           {stand.status === 'klaar' && (
-            <DekkingInhoud info={info} gegevens={stand.waarde} laadt={laadt} fout={laadFout} onPlan={plan} knopRef={knopRef} />
+            <DekkingInhoud info={info} gegevens={stand.waarde} metBk={bkKader !== undefined} laadt={laadt} fout={laadFout} onPlan={plan} knopRef={knopRef} />
           )}
         </>
       )}
+      {bk && bkKader !== undefined && (bkDeel === undefined || bkDeel === 'fout' ? (
+        <BkDekkingPlaats fout={bkDeel === 'fout'} />
+      ) : (
+        <bkDeel.BkDekking
+          info={info} keuze={keuze} bk={bkKader} courses={bk.courses} curricula={bk.curricula} matrix={bk.matrix} vandaag={bk.vandaag}
+          telMee={telMee}
+        />
+      ))}
       {venster && (
         <Suspense fallback={null}>
           <GatenVenster

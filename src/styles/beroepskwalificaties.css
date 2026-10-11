@@ -1,0 +1,121 @@
+/* ── Beroepskwalificaties bij een studierichting ──────────────────────────── */
+/*
+ * De kopregel onder de titel van een richting en de sectie "Beroepskwalificaties" met een kaart per beroepskwalificatie
+ * (docs/STUDIERICHTINGEN.md § 23.7). Voorvoegsel bk-. Alleen tokens uit global.css; nooit witte tekst op --brand (gebruik
+ * --brand-fill). Werkt op 390 px zonder horizontaal scrollen: alles staat in één kolom en lange titels, competenties en
+ * kennisteksten breken overal af. Knoppen en inklapbare koppen zijn minstens 44 px hoog.
+ */
+
+/* ── Kopregel onder de titel ───────────────────────────────────────────── */
+
+.bk-kopregel { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; margin: 6px 0 0; overflow-wrap: anywhere; }
+.bk-naar { min-height: 44px; }
+.bk-kop-melding { flex: 1 1 100%; color: var(--text-soft); font-size: 0.9rem; }
+/*
+ * Zolang er geen melding is, is de regel onzichtbaar maar blijft hij in de toegankelijkheidsboom (geen display:none): een
+ * live-regio die niet in de boom staat, wordt niet voorgelezen als er tekst in komt. Zonder plaats in de rij (absolute).
+ */
+.bk-kop-melding:empty {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
+
+/* ── De sectie ─────────────────────────────────────────────────────────── */
+
+/* De knop "Naar de beroepskwalificaties" zet de focus op de kop; de vaste balk bovenaan mag hem niet bedekken. */
+.bk-sectie > h2 { scroll-margin-top: 80px; }
+.bk-sectie p { overflow-wrap: break-word; }
+.bk-uitleg { max-width: 72ch; }
+.bk-leeg { margin: 6px 0 0; color: var(--text-soft); font-size: 0.92rem; }
+
+/* ── Inklapbare delen ──────────────────────────────────────────────────── */
+
+.bk-details { margin: 10px 0 0; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--bg); min-width: 0; }
+.bk-details > summary {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px; cursor: pointer; list-style: none;
+  font-weight: 700; border-radius: var(--radius-s); overflow-wrap: anywhere;
+}
+.bk-details > summary::-webkit-details-marker { display: none; }
+/* Een eigen pijltje, getekend met een rand (geen extra icoon nodig). */
+.bk-details > summary::after {
+  content: ''; flex: none; margin-left: auto; margin-right: 4px; width: 9px; height: 9px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg);
+}
+.bk-details[open] > summary::after { transform: rotate(-135deg); }
+.bk-details-body { padding: 0 14px 12px; min-width: 0; }
+.bk-details-body > p:last-child { margin-bottom: 0; }
+.bk-details-body h4 { margin: 12px 0 4px; font-size: 0.95rem; color: var(--text-soft); }
+.bk-details-body h4:first-child { margin-top: 2px; }
+
+/* ── Kaarten ───────────────────────────────────────────────────────────── */
+
+.bk-kaarten { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 14px; }
+.bk-kaarten > li { min-width: 0; }
+.bk-kaart { min-width: 0; padding: 14px 16px 16px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised); }
+.bk-kaart-kop { display: flex; align-items: flex-start; gap: 12px; }
+.bk-icoon {
+  flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: var(--radius-s);
+  background: var(--brand-soft); color: var(--brand-strong);
+}
+.bk-kaart-titel { flex: 1 1 auto; min-width: 0; }
+.bk-kaart-titel h3 { margin: 0 0 2px; overflow-wrap: anywhere; }
+.bk-meta { margin: 0; color: var(--text-soft); font-size: 0.9rem; overflow-wrap: anywhere; }
+
+/* ── De lijst competenties ─────────────────────────────────────────────── */
+
+.bk-competenties { margin: 4px 0 0; padding: 0 0 0 1.7em; }
+.bk-competentie { margin: 0 0 12px; padding-left: 2px; min-width: 0; }
+.bk-competentie:last-child { margin-bottom: 0; }
+.bk-comp-tekst { margin: 0 0 4px; white-space: pre-line; overflow-wrap: anywhere; }
+.bk-soort { margin: 12px 0 2px; }
+.bk-kv { margin-top: 6px; }
+.bk-kv .bk-details-body ul { margin: 0 0 6px; padding-left: 1.3em; }
+.bk-kv .bk-details-body li { margin: 0 0 4px; overflow-wrap: anywhere; }
+.bk-definitie { white-space: pre-line; overflow-wrap: anywhere; }
+
+/* ── Knoppen ───────────────────────────────────────────────────────────── */
+
+.bk-knoppen { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 14px 0 0; }
+.bk-knop { min-height: 44px; }
+/*
+ * Een knop die nog niet kan blijft klikbaar (aria-disabled), zodat hij zegt wat er ontbreekt. Hij ziet er ook anders uit,
+ * zonder te vervagen: een gestippelde rand en een zachte achtergrond met leesbare tekst (geen opacity).
+ */
+.bk-knop[aria-disabled='true'],
+.bk-knop[aria-disabled='true']:hover {
+  background: var(--bg-sunken); color: var(--text-soft); border: 2px dashed var(--text-soft); padding: 8px 15px; cursor: not-allowed;
+}
+.bk-knop[aria-disabled='true']:active { transform: none; }
+.bk-nodig { margin: 6px 0 0; color: var(--text-soft); font-size: 0.92rem; }
+
+/* ── Meldingen ─────────────────────────────────────────────────────────── */
+
+.bk-meldingen { display: grid; gap: 10px; margin: 12px 0 0; }
+.bk-meldingen:empty { display: none; }
+.bk-melding { align-items: flex-start; margin: 10px 0 0; }
+.bk-meldingen > .bk-melding { margin: 0; }
+.bk-melding p { margin: 0 0 8px; }
+.bk-melding p:last-child { margin-bottom: 0; }
+.bk-melding-icoon { flex: none; margin-top: 2px; color: var(--text-soft); }
+.callout.warn > .bk-melding-icoon { color: var(--warn-text); }
+.callout.err > .bk-melding-icoon { color: var(--err-text); }
+.bk-melding-tekst { flex: 1 1 220px; min-width: 0; }
+.bk-melding-tekst .btn { margin-top: 2px; }
+.bk-onder { margin: 14px 0 0; }
+
+/* ── Onderaan de sectie ────────────────────────────────────────────────── */
+
+.bk-toekomst { margin: 14px 0 0; }
+.bk-behaalbaar { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.bk-behaalbaar li { overflow-wrap: anywhere; }
+.bk-bron { margin: 16px 0 0; color: var(--text-faint); font-size: 0.85rem; }
+
+/* ── Smalle schermen ───────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .bk-kaart { padding: 12px 12px 14px; }
+  .bk-details > summary { padding: 8px 10px; }
+  .bk-details-body { padding: 0 10px 10px; }
+  .bk-knoppen .btn { flex: 1 1 auto; }
+  .bk-competenties { padding-left: 1.5em; }
+}

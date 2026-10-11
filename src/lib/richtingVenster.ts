@@ -2,7 +2,9 @@
 // (docs/STUDIERICHTINGEN.md § 12.3, § 14.4 en § 14.5). Zonder scherm en zonder netwerk, zodat ze getest kunnen worden:
 // teksten die iets met een waarschuwing of een melding doen, de status in de voet, en wat de richtingkiezer teruggeeft.
 
-import type { Doelgroep } from './doelgroep';
+import { BK_VENSTER_FOUT, BK_VENSTER_LADEN, bkNogNodig } from './bkWeergave';
+import type { BkBestand } from './beroepskwalificaties';
+import { MAX_DOELGROEP_VAK, type Doelgroep } from './doelgroep';
 import {
   doelgroepVan,
   filterRichtingen,
@@ -164,20 +166,129 @@ export function voetTekst(ontbreekt: readonly Ontbreekt[], laden: number, misluk
   ].filter(Boolean).join(' ');
 }
 
+// ── De competenties van een beroepskwalificatie (§ 23.7.3) ──────────────────
+
+/** Het vak in het titelvoorstel als er meer dan één beroepskwalificatie gekozen is (gelijk aan het vak van het leerplan). */
+export const BK_VAK_MEER = 'Beroepsgerichte vorming';
+
+/**
+ * De melding als het deel van het venster dat de keuze van de competenties toont, niet geladen kon worden (bv. omdat de
+ * verbinding wegviel). Het venster laat dan niets maken dat de leerkracht niet zag. Het venster sluiten en heropenen helpt
+ * niet: de browser onthoudt een mislukt deel tot de pagina herladen wordt. Daarom wijst de melding naar de pagina zelf.
+ */
+export const FOUT_BK_KEUZE = 'De keuze van de competenties kon niet getoond worden. Controleer je verbinding en laad de pagina opnieuw.';
+
+/** De knop bij `FOUT_BK_KEUZE`. */
+export const BK_PAGINA_HERLADEN = 'Pagina herladen';
+
+/**
+ * Het vak voor het titelvoorstel bij de competenties van een beroepskwalificatie: de titel van de beroepskwalificatie als er
+ * competenties van precies één titel gekozen zijn, "Beroepsgerichte vorming" bij meer titels, en niets zonder keuze. Een
+ * titel die twee keer voorkomt (twee versies van dezelfde beroepskwalificatie) telt één keer, een lege titel niet.
+ */
+export function bkVakVoorstel(titels: readonly string[]): string {
+  const uniek = uniekeNamen((Array.isArray(titels) ? titels : []).filter((t): t is string => typeof t === 'string' && t.trim() !== '').map((t) => t.trim()));
+  return uniek.length === 0 ? '' : uniek.length === 1 ? uniek[0] : BK_VAK_MEER;
+}
+
+/**
+ * Het vak dat het venster vooraf invult als het geopend werd vanaf de kaart van een beroepskwalificatie (`startTitel`): de
+ * titel van die beroepskwalificatie, tot er competenties van een andere gekozen zijn. Dan volgt het vak de gekozen
+ * beroepskwalificaties (`gekozenTitels`, "Beroepsgerichte vorming" bij meer), zoals bij het titelvoorstel van § 23.7.3. Het is een
+ * voorstel: typt de leerkracht zelf in het vak, dan wint haar tekst. Zonder `startTitel` is er niets vooraf ingevuld.
+ */
+export function bkVoorgevuldVak(startTitel: string | undefined, gekozenTitels: readonly string[]): string {
+  if (startTitel === undefined) return '';
+  return (bkVakVoorstel(gekozenTitels) || startTitel.trim()).slice(0, MAX_DOELGROEP_VAK);
+}
+
+/**
+ * De competenties die het venster als gekozen toont, per BK-versie als lijst codes in de volgorde van het bestand.
+ * `alle`: per versie de codes van al haar competenties, alleen van versies waarvan het bestand al binnen is. `eigen`: wat de
+ * leerkracht per versie zelf aan- of uitvinkte (ook een lege lijst: alles uit). Een versie die ze niet aanraakte, krijgt de
+ * standaard (`standaard`: de versies die vooraf helemaal aangevinkt staan), ook als haar bestand pas binnenkomt nadat ze in een
+ * andere versie klikte. Een versie zonder gekozen competenties staat er niet in.
+ */
+export function bkGekozen(
+  alle: ReadonlyMap<string, readonly string[]>,
+  eigen: ReadonlyMap<string, readonly string[]> | null,
+  standaard: readonly string[],
+): Map<string, string[]> {
+  const uit = new Map<string, string[]>();
+  for (const [versie, ids] of alle) {
+    const aangeraakt = eigen?.get(versie);
+    const gewenst = new Set<string>(aangeraakt ?? (standaard.includes(versie) ? ids : []));
+    const lijst = ids.filter((id) => gewenst.has(id));
+    if (lijst.length > 0) uit.set(versie, lijst);
+  }
+  return uit;
+}
+
+/** Hoe het met het bestand van een BK-versie staat in het venster. */
+export type BkBestandStand = 'laden' | 'klaar' | 'ontbreekt' | 'fout';
+
+/** De uitkomst van het laden van één BK-versie. */
+export interface BkBestandUitkomst {
+  /** Bij welke poging deze uitkomst hoort ("Opnieuw proberen" start een nieuwe poging). */
+  poging: number;
+  stand: Exclude<BkBestandStand, 'laden'>;
+  bestand?: BkBestand;
+}
+
+/**
+ * Per BK-versie van `versies` de stand en de geladen bestanden. Een bestand dat binnen is (of dat er niet is) blijft gelden bij
+ * een nieuwe poging: alleen een fout hoort bij de poging waarin ze viel en staat daarna weer op 'laden'. Zo blijven de
+ * competenties die al getoond worden, en wat de leerkracht daarin aanvinkte, staan terwijl een andere versie opnieuw laadt.
+ */
+export function bkBestandStanden(
+  versies: readonly string[],
+  uitkomsten: ReadonlyMap<string, BkBestandUitkomst>,
+  poging: number,
+): { stand: Map<string, BkBestandStand>; bestanden: Map<string, BkBestand> } {
+  const stand = new Map<string, BkBestandStand>();
+  const bestanden = new Map<string, BkBestand>();
+  for (const v of versies) {
+    const u = uitkomsten.get(v);
+    const geldt = u !== undefined && (u.stand !== 'fout' || u.poging === poging);
+    stand.set(v, geldt ? u.stand : 'laden');
+    if (geldt && u.stand === 'klaar' && u.bestand) bestanden.set(v, u.bestand);
+  }
+  return { stand, bestanden };
+}
+
+/**
+ * De tekst in de voet bij de competenties van een beroepskwalificatie: wat er nog nodig is ("Nog nodig: een titel, minstens
+ * één competentie."), dat de beroepskwalificaties nog laden, en dat er een niet geladen kon worden. Net als bij `voetTekst`
+ * noemt "Nog nodig:" alleen zaken; laden en fouten zijn een eigen status. `keuzeFout`: het deel met de vakjes zelf kon niet
+ * geladen worden. Leeg als alles er is.
+ */
+export function voetTekstBk(o: { titel: boolean; competenties: boolean; laden: boolean; mislukt: boolean; keuzeFout?: boolean }): string {
+  return [
+    bkNogNodig({ titel: o.titel, competenties: o.competenties }),
+    o.laden ? BK_VENSTER_LADEN : '',
+    o.mislukt ? BK_VENSTER_FOUT : '',
+    o.keuzeFout ? FOUT_BK_KEUZE : '',
+  ].filter(Boolean).join(' ');
+}
+
 /**
  * De melding bovenaan het venster als de richting geen sets heeft om uit te kiezen. Ze zegt wat er mis is en verwijst
- * naar wat er echt in het venster staat: een leerplan dat al op dit toestel staat (`heeftLeerplan`), of anders de
- * links om er een in te lezen of een doelenlijst samen te stellen.
+ * naar wat er echt in het venster staat: een leerplan dat al op dit toestel staat (`heeftLeerplan`), de competenties van
+ * een beroepskwalificatie (`metBk`), of anders de links om er een in te lezen of een doelenlijst samen te stellen.
  */
-export function kaderLeegTekst(herkomst: KaderHerkomst, heeftLeerplan: boolean): string {
+export function kaderLeegTekst(herkomst: KaderHerkomst, heeftLeerplan: boolean, metBk = false): string {
   const situatie = herkomst === 'geen'
     ? 'Voor deze richting geeft de officiële bron geen minimumdoelen.'
     : herkomst === 'nog-niet-opgehaald'
       ? 'De doelen van deze richting zijn nog niet opgehaald.'
       : 'Voor deze richting staan er geen sets om uit te kiezen.';
-  const verder = heeftLeerplan
-    ? 'Kies hieronder een leerplan dat al op dit toestel staat.'
-    : 'Lees het leerplan van je net in of stel zelf een doelenlijst samen.';
+  const verder = metBk
+    ? heeftLeerplan
+      ? 'Kies hieronder de competenties van een beroepskwalificatie, of een leerplan dat al op dit toestel staat.'
+      : 'Kies hieronder de competenties van een beroepskwalificatie, lees het leerplan van je net in of stel zelf een doelenlijst samen.'
+    : heeftLeerplan
+      ? 'Kies hieronder een leerplan dat al op dit toestel staat.'
+      : 'Lees het leerplan van je net in of stel zelf een doelenlijst samen.';
   return `${situatie} ${verder}`;
 }
 

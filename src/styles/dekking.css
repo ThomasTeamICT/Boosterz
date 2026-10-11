@@ -89,11 +89,20 @@
 /* ── Cursussen die niet meetellen ──────────────────────────────────────── */
 
 .dk-cursussen { margin: 20px 0 0; }
-.dk-cursussen h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.dk-cursussen h3, .dk-cursussen h4 { margin: 0 0 6px; font-size: 1.05rem; }
 .dk-cursuslijst { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
 .dk-cursus { min-width: 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised); }
 .dk-cursus-titel { font-family: var(--font-display); font-weight: 700; }
 .dk-cursus-reden { display: block; margin-top: 2px; color: var(--text-soft); font-size: 0.9rem; }
+
+/* ── Twee blokken: minimumdoelen en competenties van de beroepskwalificaties (§ 23.7.4) ── */
+
+/* De kop van een blok (alleen bij een richting met beroepskwalificaties). Het tweede blok staat onder een lijn, als eigen groep. */
+.dk-blokkop { margin: 18px 0 4px; font-size: 1.15rem; }
+.dk-bk { min-width: 0; margin: 28px 0 0; padding: 18px 0 0; border-top: 1px solid var(--line); }
+.dk-bk .dk-blokkop { margin-top: 0; }
+.dk-bk p, .dk-bk li, .dk-bk summary { overflow-wrap: anywhere; }
+.dk-bk .dk-samenvatting { margin-top: 8px; }
 
 /* ── Smalle schermen ───────────────────────────────────────────────────── */
 

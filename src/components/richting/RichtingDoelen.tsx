@@ -10,7 +10,8 @@ import { AddIcon, GoalIcon, InfoIcon, WarningIcon } from '../icons';
 import { useToast } from '../ui';
 import { useSetBestanden } from '../curriculum/samenstellen/useSetBestanden';
 import { NieuweRichtingCursus } from './NieuweRichtingCursus';
-import type { BkStand } from './useRichtingBk';
+import { bksVan, type BkStand } from './useRichtingBk';
+import { BK_ZIN_RICHTING } from '../../lib/bkWeergave';
 import { allSections, type Course } from '../../lib/courseTypes';
 import { getCurricula, normalizeGoalCode, normalizeGoalCodes, saveCurriculum } from '../../lib/curriculum';
 import type { Curriculum } from '../../lib/curriculumTypes';
@@ -365,7 +366,10 @@ export function RichtingDoelen({
         </p>
       )}
       {info.groep.finaliteit === 'A' && kader.herkomst === 'api' && kader.sets.length > 0 && geenDeelsets && (
-        <p className="hint">Voor deze richting koppelt de officiële bron alleen hele sets. De beroepsgerichte doelen staan in het leerplan van je net.</p>
+        <p className="hint">
+          Voor deze richting koppelt de officiële bron alleen hele sets.{' '}
+          {bksVan(bk).length > 0 ? BK_ZIN_RICHTING : 'De beroepsgerichte doelen staan in het leerplan van je net.'}
+        </p>
       )}
       {kader.teGroot && (
         <div className="callout warn ri-melding" role="note">

@@ -17,19 +17,67 @@ import {
   type CursusInDekking,
   type MdDekking,
 } from '../../lib/dekkingMinimumdoelen';
+import type { Curriculum } from '../../lib/curriculumTypes';
 import type { MinimumdoelenSetBestand } from '../../lib/minimumdoelen';
+import { isBkLeerplan } from '../../lib/leerplanStatus';
 import { kaderGroepSleutel, type KaderHerkomst, type RichtingKader } from '../../lib/richtingKader';
 import { bijdragenVoorKader, kortVan } from '../../lib/richtingOverzicht';
 import { setNamenVan } from '../../lib/setNamen';
 import type { MatrixBestand } from '../../lib/studierichtingen';
 import { getWidgets, onStorageChange } from '../../lib/storage';
+import type { Widget } from '../../lib/types';
 
 /** Welke cursussen meetellen: alle jaren van de graad, of alleen het gekozen jaar. */
 export type TelMee = 'alle' | 'jaar';
 
-/** Een cursus in de berekening, met de titel van haar leerplan erbij (voor de reden "het leerplan verwijst niet naar minimumdoelen"). */
+/**
+ * Bestaat dit leerplan uit de competenties van beroepskwalificaties, zodat het blok "Competenties van de beroepskwalificaties"
+ * (BkDekking) het meetelt? Dat is zo bij de methode `beroepskwalificatie` én minstens één doel met een bruikbare `bkRef`
+ * (`bk` en `id` niet leeg): dezelfde test als `dekkingBk` (`bkVerwijzingen` in lib/dekkingBk.ts). Een BK-leerplan zonder
+ * `bkRefs` (bewaard door een oudere app of geïmporteerd, § 23.6.7 N7) telt daar niet mee, dus de zinnen bij de minimumdoelen en
+ * in de cursuslijst mogen er ook niet naar verwijzen. De test staat hier en niet in `dekkingBk.ts`, omdat dat bestand in het
+ * luie deel `bk` zit en deze module op de richtingenpagina zelf; `useRichtingDekking.test.ts` houdt de twee gelijk.
+ */
+export function volgtBkCompetenties(leerplan: Curriculum | undefined): boolean {
+  if (!leerplan || !isBkLeerplan(leerplan)) return false;
+  const goals: unknown = leerplan.goals;
+  return Array.isArray(goals) && goals.some((g: unknown) => {
+    const refs: unknown = g && typeof g === 'object' ? (g as { bkRefs?: unknown }).bkRefs : undefined;
+    return Array.isArray(refs) && refs.some((r: unknown) => {
+      if (!r || typeof r !== 'object' || Array.isArray(r)) return false;
+      const { bk, id } = r as { bk?: unknown; id?: unknown };
+      return typeof bk === 'string' && bk.trim() !== '' && typeof id === 'string' && id.trim() !== '';
+    });
+  });
+}
+
+/**
+ * Een cursus in de berekening, met de titel van haar leerplan erbij (voor de reden "het leerplan verwijst niet naar
+ * minimumdoelen"). `volgtBk`: haar leerplan bestaat uit de competenties van beroepskwalificaties (`volgtBkCompetenties`,
+ * § 23.7.4). Dat verandert niets aan de getallen van de minimumdoelen, alleen aan de tekst die erbij staat.
+ */
 export interface CursusUitkomst extends CursusInDekking {
   leerplanTitel?: string;
+  volgtBk?: boolean;
+}
+
+/**
+ * Per cursus-id wat de berekening van haar zegt, met de titel van haar leerplan en of dat leerplan de competenties van
+ * beroepskwalificaties volgt (`volgtBkCompetenties`). Een cursus zonder van beide staat er zoals de berekening ze gaf.
+ */
+export function cursussenUitkomst(dekking: MdDekking, bijdragen: readonly CursusBijdrage[]): Map<string, CursusUitkomst> {
+  const leerplannen = new Map(bijdragen.map((b) => [b.course.id, b.leerplan]));
+  const cursussen = new Map<string, CursusUitkomst>();
+  for (const c of dekking.cursussen) {
+    const leerplan = leerplannen.get(c.courseId);
+    const titel = leerplan?.title;
+    const volgtBk = volgtBkCompetenties(leerplan);
+    cursussen.set(
+      c.courseId,
+      titel !== undefined || volgtBk ? { ...c, ...(titel !== undefined ? { leerplanTitel: titel } : {}), ...(volgtBk ? { volgtBk: true } : {}) } : c,
+    );
+  }
+  return cursussen;
 }
 
 export interface DekkingGegevens {
@@ -56,6 +104,16 @@ export type DekkingStand =
   | { status: 'klaar'; waarde: DekkingGegevens };
 
 /**
+ * De oefeningen van dit toestel: ze tellen mee voor wat een cursus behandelt en lezen opnieuw als er elders (ook in een ander
+ * tabblad) iets bewaard wordt. Gedeeld door de dekking op minimumdoelen en die op competenties.
+ */
+export function useToestelWidgets(): Widget[] {
+  const [widgets, setWidgets] = useState(getWidgets);
+  useEffect(() => onStorageChange(() => setWidgets(getWidgets())), []);
+  return widgets;
+}
+
+/**
  * De dekking van de cursussen van een richting. De setbestanden van het kader worden geladen met `useSetBestanden`; zolang er
  * één laadt of mislukt, is er geen dekking (een ontbrekende set zou de dekking te klein maken). Een cursus telt mee als haar
  * doelgroep dezelfde `kaderGroepSleutel` heeft als de richting: in de 1ste graad horen het 1ste en het 2de jaar van een stroom
@@ -74,9 +132,8 @@ export function useRichtingDekking(
   const laden = ids.some((id) => stand(id).status === 'laden');
   const klaar = ids.length > 0 && !laden && mislukt.length === 0;
 
-  // De oefeningen van dit toestel tellen mee voor wat een cursus behandelt; ze lezen opnieuw als er elders iets bewaard wordt.
-  const [widgets, setWidgets] = useState(getWidgets);
-  useEffect(() => onStorageChange(() => setWidgets(getWidgets())), []);
+  // De oefeningen van dit toestel tellen mee voor wat een cursus behandelt.
+  const widgets = useToestelWidgets();
 
   const telJaar = telMee === 'jaar' ? keuze.jaar : undefined;
   const soort = kader.keuze.soort;
@@ -101,15 +158,9 @@ export function useRichtingDekking(
 
   const gegevens = useMemo<DekkingGegevens | undefined>(() => {
     if (!dekking) return undefined;
-    const leerplanTitels = new Map(bijdragen.map((b) => [b.course.id, b.leerplan?.title]));
-    const cursussen = new Map<string, CursusUitkomst>();
-    for (const c of dekking.cursussen) {
-      const titel = leerplanTitels.get(c.courseId);
-      cursussen.set(c.courseId, titel !== undefined ? { ...c, leerplanTitel: titel } : c);
-    }
     return {
       dekking,
-      cursussen,
+      cursussen: cursussenUitkomst(dekking, bijdragen),
       namen: setNamenVan(dekking, bestanden),
       ...(telJaar !== undefined ? { telJaar } : {}),
       bijdragen,

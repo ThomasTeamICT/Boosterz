@@ -66,6 +66,42 @@
 .rc-stem p { margin: 0 0 6px; }
 .rc-stem p:last-child { margin-bottom: 0; }
 
+/* De competenties van een beroepskwalificatie (§ 23.7.3): per beroepskwalificatie een fieldset met "Alle n competenties" en
+   "Kies zelf de competenties (n van m)". Rijen van minstens 44 px; lange teksten breken af. */
+.rc-bk { display: grid; gap: 10px; min-width: 0; }
+/* Het blok met de keuze krijgt de focus na "Opnieuw proberen": de knop is dan weg. */
+.rc-bk-blok:focus { outline: none; }
+.rc-bk-blok:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: var(--radius-s); }
+.rc-bk-groep {
+  min-width: 0; margin: 0; padding: 8px 12px 6px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.rc-bk-groep > legend { padding: 0 6px; font-family: var(--font-display); font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+.rc-bk-zin { margin: 2px 0 6px; color: var(--text-soft); font-size: 0.92rem; max-width: 72ch; overflow-wrap: break-word; }
+.rc-bk-rij {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 10px 8px; cursor: pointer; border-radius: var(--radius-s);
+  line-height: 1.4; min-width: 0;
+}
+.rc-bk-rij:hover { background: var(--bg-sunken); }
+.rc-bk-rij:has(input:checked) { background: var(--brand-soft); }
+.rc-bk-rij:focus-within { outline: 3px solid var(--brand); outline-offset: -2px; }
+.rc-bk-rij input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--brand-fill); cursor: pointer; }
+.rc-bk-rij > span { min-width: 0; overflow-wrap: anywhere; }
+.rc-bk-alle > span { font-weight: 700; }
+.rc-bk-details { min-width: 0; margin-top: 2px; }
+.rc-bk-details > summary {
+  display: flex; align-items: center; min-height: 44px; padding: 0 8px; cursor: pointer; font-weight: 600; color: var(--text-soft);
+  list-style: none; overflow-wrap: anywhere;
+}
+.rc-bk-details > summary::-webkit-details-marker { display: none; }
+.rc-bk-details > summary::before {
+  content: ''; flex: none; width: 8px; height: 8px; margin-right: 10px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform 0.15s;
+}
+.rc-bk-details[open] > summary::before { transform: rotate(45deg); }
+.rc-bk-details > summary:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: var(--radius-s); }
+.rc-bk-lijst { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 2px; }
+.rc-bk-lijst > li { min-width: 0; }
+
 /* Link naar de samenstelwizard en de teller */
 .rc-link { margin: 4px 0 6px; }
 .rc-link a, .rc-stem a { display: inline-flex; align-items: center; min-height: 32px; }
@@ -147,6 +183,7 @@
   .rc-keuze-zin a { display: inline-flex; align-items: center; min-height: 44px; }
   .rc .select { min-height: 44px; }
   .rc-instelling-knoppen .btn { min-height: 44px; }
+  .rc-bk-groep { padding-left: 8px; padding-right: 8px; }
   .rc-richtingen { max-height: min(46vh, 22rem); }
   .rc-meer .btn { min-height: 44px; }
 }

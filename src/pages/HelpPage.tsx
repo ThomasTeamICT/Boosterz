@@ -171,6 +171,14 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
     a: 'Open je studierichting bij Cursussen, ‘Voor een studierichting’. Onderaan, bij ‘Wat je cursussen samen dekken’, kies je ‘Plan de … doelen die nog nergens aan bod komen’. Je zet ze in een nieuwe cursus of in een cursus die je al hebt. Ze komen er als lege secties met de doelcodes op; daarna werk je ze zelf uit. Een AI-sleutel heb je daarvoor niet nodig.',
   },
   {
+    q: 'Hoe maak ik een cursus voor een beroepskwalificatie?',
+    a: 'Open je studierichting bij Cursussen, ‘Voor een studierichting’. Bij een richting met beroepskwalificaties zie je per beroepskwalificatie de competenties, met de kennis en vaardigheden. Kies ‘Maak een cursus met deze competenties’: Boosterz maakt een nagekeken leerplan en een cursus met een sectie per competentie. Een AI-sleutel heb je daarvoor niet nodig.',
+  },
+  {
+    q: 'Waar komen de beroepskwalificaties vandaan?',
+    a: 'Uit de Vlaamse kwalificatiestructuur van de Vlaamse overheid. Boosterz haalt ze elke maand op en verzint geen koppelingen: welke beroepskwalificaties bij een richting horen, staat zo in de officiële bron.',
+  },
+  {
     q: 'Kan ik een klas aan een studierichting koppelen?',
     a: 'Ja. Open de klas en kies bij ‘Studierichting’ de richting en het jaar. Je ziet dan de cursussen van die richting, en bij ‘Opdracht toevoegen’ staan die cursussen bovenaan.',
   },

@@ -217,7 +217,7 @@ function KaderSecties({ context, courses, matrix, vandaag, telMee, onTelMee, opn
       <RichtingDoelen {...context} bestaandLeerplan={bestaandLeerplan} onLeerplanGevonden={setGevondenId} />
       <BkSectieLui context={context} courses={courses} vandaag={vandaag} opnieuw={opnieuwBk} />
       <RichtingLeerplannen {...context} bestaandLeerplan={bestaandLeerplan} />
-      <RichtingCursussen {...context} courses={courses} dekking={dekking.status === 'klaar' ? dekking.waarde : undefined} />
+      <RichtingCursussen {...context} courses={courses} dekking={dekking.status === 'klaar' ? dekking.waarde : undefined} telMee={telMee} />
       <RichtingKlassen info={context.info} soort={context.kader.keuze.soort} courses={courses} curricula={context.curricula} />
       <RichtingDekking
         info={context.info} keuze={context.keuze} stand={dekking} telMee={telMee} onTelMee={onTelMee}
@@ -284,7 +284,8 @@ function RichtingInhoud({ info, matrix, bron, indexSets, vandaag, lijstZoek }: {
         <div className="ri-intro">
           <h1>{info.groep.titel}</h1>
           <p className="sub">{kenmerkenVan(info)}</p>
-          <BkKopRegelLui stand={bk.stand} />
+          {/* Pas met het kader: de sectie waar de knop naartoe gaat, staat in de secties die het kader nodig hebben. */}
+          {context && <BkKopRegelLui stand={bk.stand} />}
         </div>
       </div>
 

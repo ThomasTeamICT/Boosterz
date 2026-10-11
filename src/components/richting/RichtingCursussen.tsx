@@ -13,11 +13,13 @@ import { CursusKoppelen, bewaarFout } from './CursusKoppelen';
 import { saveCourseGuarded, type GuardedSaveResult } from '../../lib/courses';
 import type { Course } from '../../lib/courseTypes';
 import { deleteCurriculum, saveCurriculum } from '../../lib/curriculum';
+import { BK_CURSUS_VOLGT_BK } from '../../lib/bkWeergave';
 import { buitenJaarTekst, cursusRegel } from '../../lib/dekkingWeergave';
 import { jaarTekst } from '../../lib/doelgroep';
 import { passendeCodes } from '../../lib/richtingCursus';
 import { cursusBijRichting } from '../../lib/richtingWeergave';
-import type { DekkingGegevens } from './useRichtingDekking';
+import { volgtBkCompetenties, type DekkingGegevens, type TelMee } from './useRichtingDekking';
+import { bksVan } from './useRichtingBk';
 import {
   doelgroepVanCursus,
   leerplanVanHeleRichting,
@@ -36,10 +38,16 @@ interface Vraag {
   totaal: number;
 }
 
-export function RichtingCursussen({ info, keuze, kader, indexSets, curricula, courses, dekking }: RichtingContext & {
+export function RichtingCursussen({ info, keuze, kader, indexSets, curricula, courses, dekking, telMee, bk }: RichtingContext & {
   courses: readonly Course[];
   /** De dekking van de richting (dezelfde berekening als de sectie "Wat je cursussen samen dekken"); leeg zolang ze niet klaar is. */
   dekking?: DekkingGegevens;
+  /**
+   * "Tel mee" van de sectie "Wat je cursussen samen dekken". De dekking op minimumdoelen geeft het jaar ook door (`dekking.telJaar`),
+   * maar die is er niet als de richting geen minimumdoelen heeft of ze nog laden; het blok met competenties telt dan wel al per
+   * jaar. Zonder deze prop (of met 'alle') wordt niet naar het jaar gefilterd.
+   */
+  telMee?: TelMee;
 }) {
   const toast = useToast();
   const [koppelOpen, setKoppelOpen] = useState(false);
@@ -50,6 +58,12 @@ export function RichtingCursussen({ info, keuze, kader, indexSets, curricula, co
   const kop = useRef<HTMLHeadingElement>(null);
 
   const soort = kader.keuze.soort;
+  // Heeft de richting beroepskwalificaties, dan zegt een cursus met competenties waar ze meetelt (§ 23.7.4).
+  const metBk = bksVan(bk).length > 0;
+  // Het jaar waartoe "Tel mee" de telling beperkt: dat van de dekking, of anders dat van de keuze als die niet klaar is.
+  const telJaar = dekking?.telJaar ?? (telMee === 'jaar' ? keuze.jaar : undefined);
+  /** Valt een cursus van dit jaar (of zonder jaar: `undefined`) buiten "Alleen het <jaar>"? Zoals `cursussenVoorRichting`. */
+  const buitenTelJaar = (jaar: number | undefined) => telJaar !== undefined && jaar !== undefined && jaar !== telJaar;
   const rijen = useMemo(
     () => courses
       .map((course) => {
@@ -135,7 +149,15 @@ export function RichtingCursussen({ info, keuze, kader, indexSets, curricula, co
             // "Telt mee voor <n> doelen" of de reden, uit de berekening van de dekking. Een cursus van een ander jaar dan het
             // jaar dat "Tel mee" kiest, zit er niet in.
             const uitkomst = dekking?.cursussen.get(course.id);
-            const telt: { hoofd: string; extra?: string } | undefined = uitkomst ? cursusRegel(uitkomst) : dekking?.telJaar !== undefined ? { hoofd: buitenJaarTekst(dekking.telJaar) } : undefined;
+            const buitenJaar = uitkomst === undefined && dekking?.telJaar !== undefined;
+            // Een cursus met de competenties van beroepskwalificaties telt bij de minimumdoelen niet mee (die tekst vervangt de reden);
+            // ze telt wel mee in "Competenties van de beroepskwalificaties", verderop op de pagina. Dat blok telt dezelfde cursussen
+            // als de minimumdoelen (ook per jaar) en alleen leerplannen met competenties (`volgtBkCompetenties`): de zin verwijst dus
+            // alleen naar het blok voor een cursus die er ook staat.
+            const volgtBk = metBk && !buitenJaar && !buitenTelJaar(doelgroep?.jaar) && volgtBkCompetenties(leerplan) && uitkomst?.telt !== true;
+            const telt: { hoofd: string; extra?: string } | undefined = volgtBk
+              ? { hoofd: BK_CURSUS_VOLGT_BK }
+              : uitkomst ? cursusRegel(uitkomst) : dekking?.telJaar !== undefined ? { hoofd: buitenJaarTekst(dekking.telJaar) } : undefined;
             return (
               <li key={course.id} className="ri-item">
                 <div className="ri-item-rij">

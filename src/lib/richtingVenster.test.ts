@@ -1,10 +1,24 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import type { BkBestand, BkIndex } from './beroepskwalificaties';
+import { BK_VENSTER_FOUT, BK_VENSTER_LADEN } from './bkWeergave';
+import { leerplanUitBk } from './bkLeerplan';
 import type { Doelgroep } from './doelgroep';
 import { doelgroepVan, richtingInfo, type RichtingInfo } from './richtingKader';
+import { MAX_DOELGROEP_VAK } from './doelgroep';
 import {
   aantalOntbrekend,
+  BK_PAGINA_HERLADEN,
+  BK_VAK_MEER,
   beginFilter,
   bevestigRichting,
+  bkBestandStanden,
+  bkGekozen,
+  bkVakVoorstel,
+  bkVoorgevuldVak,
+  FOUT_BK_KEUZE,
   huidigeEerst,
   inlezenLink,
   isOngewijzigd,
@@ -15,8 +29,10 @@ import {
   uniekeNamen,
   vakHint,
   voetTekst,
+  voetTekstBk,
   voorstelZin,
   zonderSetId,
+  type BkBestandUitkomst,
 } from './richtingVenster';
 import type { MatrixBestand, StudierichtingGroep, Structuuronderdeel } from './studierichtingen';
 
@@ -297,6 +313,219 @@ describe('kaderLeegTekst', () => {
     for (const h of ['api', 'graad-en-stroom', 'geen', 'nog-niet-opgehaald'] as const) {
       for (const b of [true, false]) expect(kaderLeegTekst(h, b)).not.toMatch(/G-\d|ODS_|structuuronderdeel/i);
     }
+  });
+
+  it('zonder derde argument, of met false, blijft de tekst zoals voor de beroepskwalificaties', () => {
+    for (const h of ['api', 'graad-en-stroom', 'geen', 'nog-niet-opgehaald'] as const) {
+      for (const b of [true, false]) {
+        expect(kaderLeegTekst(h, b, false)).toBe(kaderLeegTekst(h, b));
+        expect(kaderLeegTekst(h, b)).not.toMatch(/beroepskwalificatie/i);
+      }
+    }
+  });
+
+  it('met beroepskwalificaties noemt ze die keuze, naast wat er al stond', () => {
+    expect(kaderLeegTekst('geen', false, true)).toBe(
+      'Voor deze richting geeft de officiële bron geen minimumdoelen. Kies hieronder de competenties van een beroepskwalificatie, lees het leerplan van je net in of stel zelf een doelenlijst samen.',
+    );
+    expect(kaderLeegTekst('geen', true, true)).toBe(
+      'Voor deze richting geeft de officiële bron geen minimumdoelen. Kies hieronder de competenties van een beroepskwalificatie, of een leerplan dat al op dit toestel staat.',
+    );
+    expect(kaderLeegTekst('nog-niet-opgehaald', false, true)).toMatch(/^De doelen van deze richting zijn nog niet opgehaald\. Kies hieronder de competenties/);
+  });
+
+  it('met beroepskwalificaties noemt ze nooit een groepnummer, set-id of competentiecode', () => {
+    for (const h of ['api', 'graad-en-stroom', 'geen', 'nog-niet-opgehaald'] as const) {
+      for (const b of [true, false]) expect(kaderLeegTekst(h, b, true)).not.toMatch(/G-\d|ODS_|structuuronderdeel|bkc\d|BK-\d/i);
+    }
+  });
+});
+
+describe('voetTekstBk', () => {
+  const alles = { titel: false, competenties: false, laden: false, mislukt: false };
+
+  it('is leeg als er niets ontbreekt en alles geladen is', () => {
+    expect(voetTekstBk(alles)).toBe('');
+  });
+
+  it('"Nog nodig:" noemt alleen zaken, zoals in het ontwerp', () => {
+    expect(voetTekstBk({ ...alles, titel: true, competenties: true })).toBe('Nog nodig: een titel, minstens één competentie.');
+    expect(voetTekstBk({ ...alles, titel: true })).toBe('Nog nodig: een titel.');
+    expect(voetTekstBk({ ...alles, competenties: true })).toBe('Nog nodig: minstens één competentie.');
+  });
+
+  it('laden en fouten zijn een eigen status, met de zinnen van het ontwerp', () => {
+    expect(voetTekstBk({ ...alles, laden: true })).toBe('De beroepskwalificaties worden geladen…');
+    expect(voetTekstBk({ ...alles, mislukt: true })).toBe('Een beroepskwalificatie kon niet geladen worden. Probeer opnieuw.');
+    expect(voetTekstBk({ ...alles, laden: true })).toBe(BK_VENSTER_LADEN);
+    expect(voetTekstBk({ ...alles, mislukt: true })).toBe(BK_VENSTER_FOUT);
+    expect(voetTekstBk({ ...alles, titel: true, laden: true })).toBe('Nog nodig: een titel. De beroepskwalificaties worden geladen…');
+    expect(voetTekstBk({ ...alles, laden: true, mislukt: true })).toBe(`${BK_VENSTER_LADEN} ${BK_VENSTER_FOUT}`);
+  });
+
+  it('een keuze die zelf niet getoond kon worden heeft een eigen zin', () => {
+    expect(voetTekstBk({ ...alles, keuzeFout: true })).toBe(FOUT_BK_KEUZE);
+  });
+
+  it('de melding bij een deel dat niet laadde wijst naar de pagina, niet naar het venster (een heropend venster helpt niet)', () => {
+    // De browser onthoudt een mislukt deel tot de pagina herladen wordt: "sluit dit venster en open het opnieuw" bleef falen.
+    expect(FOUT_BK_KEUZE).toMatch(/laad de pagina opnieuw/);
+    expect(FOUT_BK_KEUZE).not.toMatch(/venster/);
+    expect(BK_PAGINA_HERLADEN).toBe('Pagina herladen');
+  });
+
+  it('noemt nooit een competentiecode, groepnummer of set-id', () => {
+    const alle = [true, false].flatMap((titel) => [true, false].flatMap((competenties) => [true, false].flatMap((laden) => [true, false].map((mislukt) => ({ titel, competenties, laden, mislukt })))));
+    for (const o of alle) expect(voetTekstBk({ ...o, keuzeFout: true })).not.toMatch(/bkc\d|BK-\d|G-\d|ODS_/i);
+  });
+});
+
+describe('bkVakVoorstel en BK_VAK_MEER', () => {
+  it('geen titels: geen vak', () => {
+    expect(bkVakVoorstel([])).toBe('');
+    expect(bkVakVoorstel(['', '  '])).toBe('');
+  });
+
+  it('één titel: die titel (getrimd)', () => {
+    expect(bkVakVoorstel(['Onthaalmedewerker'])).toBe('Onthaalmedewerker');
+    expect(bkVakVoorstel(['  Onthaalmedewerker '])).toBe('Onthaalmedewerker');
+  });
+
+  it('dezelfde titel twee keer (twee versies) telt één keer, ook met andere hoofdletters', () => {
+    expect(bkVakVoorstel(['Onthaalmedewerker', 'Onthaalmedewerker'])).toBe('Onthaalmedewerker');
+    expect(bkVakVoorstel(['Onthaalmedewerker', ' onthaalmedewerker'])).toBe('Onthaalmedewerker');
+  });
+
+  it('meer titels: "Beroepsgerichte vorming"', () => {
+    expect(bkVakVoorstel(['Onthaalmedewerker', 'Recreatief medewerker'])).toBe('Beroepsgerichte vorming');
+    expect(bkVakVoorstel(['A', 'B', 'C'])).toBe(BK_VAK_MEER);
+  });
+
+  it('is hetzelfde vak als dat van een leerplan met meer beroepskwalificaties', () => {
+    const lees = (pad: string): unknown => JSON.parse(readFileSync(join(fileURLToPath(new URL('.', import.meta.url)), '../../tests/fixtures', pad), 'utf8'));
+    const index = lees('kwalificaties/uit/index.json') as BkIndex;
+    const onthaal = lees('kwalificaties/uit/bk/BK-0390-2.json') as BkBestand;
+    const recreatief = lees('kwalificaties/uit/bk/BK-0464-1.json') as BkBestand;
+    const merken = new Map(index.bks.filter((r) => r.sha256).map((r) => [r.bk, (r.sha256 as string).slice(0, 16)] as const));
+    const doelgroep: Doelgroep = { groep: 'G-0008', titel: 'Assistent dierlijke productie', soort: 'so' };
+    const u = leerplanUitBk(
+      [{ bestand: onthaal, competenties: onthaal.competenties.map((c) => c.id) }, { bestand: recreatief, competenties: recreatief.competenties.map((c) => c.id) }],
+      { doelgroep, merken },
+    );
+    expect(u.bevestigd, u.waarschuwingen.join(' | ')).toBe(true);
+    expect(u.leerplan.subject).toBe(BK_VAK_MEER);
+  });
+});
+
+describe('bkVoorgevuldVak', () => {
+  it('zonder startkaart is er niets vooraf ingevuld, ook niet bij een keuze', () => {
+    expect(bkVoorgevuldVak(undefined, [])).toBe('');
+    expect(bkVoorgevuldVak(undefined, ['Onthaalmedewerker'])).toBe('');
+  });
+
+  it('met een startkaart en nog geen keuze is het vak de titel van die kaart (getrimd)', () => {
+    expect(bkVoorgevuldVak('Onthaalmedewerker', [])).toBe('Onthaalmedewerker');
+    expect(bkVoorgevuldVak('  Onthaalmedewerker ', [])).toBe('Onthaalmedewerker');
+  });
+
+  it('met alleen de startkaart gekozen blijft het die titel', () => {
+    expect(bkVoorgevuldVak('Onthaalmedewerker', ['Onthaalmedewerker'])).toBe('Onthaalmedewerker');
+  });
+
+  it('beweegt mee: kiest de leerkracht er een tweede bij, dan wordt het "Beroepsgerichte vorming"', () => {
+    expect(bkVoorgevuldVak('Onthaalmedewerker', ['Onthaalmedewerker', 'Recreatief medewerker'])).toBe(BK_VAK_MEER);
+  });
+
+  it('beweegt mee: kiest ze alleen een andere kaart, dan is dat haar titel', () => {
+    expect(bkVoorgevuldVak('Onthaalmedewerker', ['Recreatief medewerker'])).toBe('Recreatief medewerker');
+  });
+
+  it('past in het veld voor het vak', () => {
+    const lang = 'A'.repeat(MAX_DOELGROEP_VAK + 20);
+    expect(bkVoorgevuldVak(lang, [])).toHaveLength(MAX_DOELGROEP_VAK);
+    expect(bkVoorgevuldVak('Onthaalmedewerker', [lang, 'B'])).toBe(BK_VAK_MEER);
+  });
+});
+
+describe('bkGekozen', () => {
+  const A = ['a1', 'a2', 'a3'];
+  const B = ['b1', 'b2'];
+  const alleenB = new Map([['BK-2-1', B]]);
+  const beide = new Map([['BK-1-1', A], ['BK-2-1', B]]);
+
+  it('zonder aangeraakte keuze en zonder standaard is er niets gekozen', () => {
+    expect(bkGekozen(beide, null, [])).toEqual(new Map());
+  });
+
+  it('de standaard vinkt die beroepskwalificatie helemaal aan, in de volgorde van het bestand', () => {
+    expect(bkGekozen(beide, null, ['BK-1-1'])).toEqual(new Map([['BK-1-1', A]]));
+    expect(bkGekozen(beide, null, ['BK-1-1', 'BK-2-1'])).toEqual(beide);
+  });
+
+  it('een aangeraakte beroepskwalificatie wint van de standaard, ook als alles uit staat', () => {
+    expect(bkGekozen(beide, new Map([['BK-1-1', ['a2']]]), ['BK-1-1'])).toEqual(new Map([['BK-1-1', ['a2']]]));
+    expect(bkGekozen(beide, new Map([['BK-1-1', []]]), ['BK-1-1'])).toEqual(new Map());
+  });
+
+  it('wat niet aangeraakt is, houdt de standaard', () => {
+    const uit = bkGekozen(beide, new Map([['BK-2-1', ['b2']]]), ['BK-1-1']);
+    expect(uit).toEqual(new Map([['BK-1-1', A], ['BK-2-1', ['b2']]]));
+    expect([...uit.keys()]).toEqual(['BK-1-1', 'BK-2-1']);
+  });
+
+  it('de proef van de fout: klikt de leerkracht in een andere beroepskwalificatie terwijl het bestand van de startkaart nog laadt, dan blijft haar standaard', () => {
+    // Het bestand van BK-1-1 (de startkaart) is er nog niet; het venster onthoudt alleen wat de leerkracht in BK-2-1 aanraakte.
+    const eigen = new Map([['BK-2-1', ['b1']]]);
+    expect(bkGekozen(alleenB, eigen, ['BK-1-1'])).toEqual(new Map([['BK-2-1', ['b1']]]));
+    // Het bestand komt binnen: de startkaart staat helemaal aan, naast wat de leerkracht koos.
+    expect(bkGekozen(beide, eigen, ['BK-1-1'])).toEqual(new Map([['BK-1-1', A], ['BK-2-1', ['b1']]]));
+  });
+
+  it('negeert codes die niet (meer) in het bestand staan en houdt de volgorde van het bestand', () => {
+    expect(bkGekozen(beide, new Map([['BK-1-1', ['a3', 'weg', 'a1']]]), [])).toEqual(new Map([['BK-1-1', ['a1', 'a3']]]));
+  });
+
+  it('een versie waarvan het bestand er niet is, staat er niet in', () => {
+    expect(bkGekozen(alleenB, new Map([['BK-1-1', ['a1']]]), ['BK-1-1'])).toEqual(new Map());
+  });
+});
+
+describe('bkBestandStanden', () => {
+  const bestand = (naam: string) => ({ naam }) as unknown as BkBestand;
+  const A = bestand('A');
+  const klaar = (poging: number, b: BkBestand): BkBestandUitkomst => ({ poging, stand: 'klaar', bestand: b });
+  const fout = (poging: number): BkBestandUitkomst => ({ poging, stand: 'fout' });
+
+  it('zonder uitkomst laadt elke versie', () => {
+    const { stand, bestanden } = bkBestandStanden(['BK-1-1', 'BK-2-1'], new Map(), 0);
+    expect([...stand]).toEqual([['BK-1-1', 'laden'], ['BK-2-1', 'laden']]);
+    expect(bestanden.size).toBe(0);
+  });
+
+  it('een uitkomst van de huidige poging geldt', () => {
+    const uitkomsten = new Map<string, BkBestandUitkomst>([['BK-1-1', klaar(0, A)], ['BK-2-1', fout(0)], ['BK-3-1', { poging: 0, stand: 'ontbreekt' }]]);
+    const { stand, bestanden } = bkBestandStanden(['BK-1-1', 'BK-2-1', 'BK-3-1'], uitkomsten, 0);
+    expect([...stand]).toEqual([['BK-1-1', 'klaar'], ['BK-2-1', 'fout'], ['BK-3-1', 'ontbreekt']]);
+    expect([...bestanden]).toEqual([['BK-1-1', A]]);
+  });
+
+  it('de proef van de fout: bij "Opnieuw proberen" blijft een versie die klaar was klaar, alleen de mislukte laadt opnieuw', () => {
+    const uitkomsten = new Map<string, BkBestandUitkomst>([['BK-1-1', klaar(0, A)], ['BK-2-1', fout(0)], ['BK-3-1', { poging: 0, stand: 'ontbreekt' }]]);
+    const { stand, bestanden } = bkBestandStanden(['BK-1-1', 'BK-2-1', 'BK-3-1'], uitkomsten, 1);
+    expect([...stand]).toEqual([['BK-1-1', 'klaar'], ['BK-2-1', 'laden'], ['BK-3-1', 'ontbreekt']]);
+    expect(bestanden.get('BK-1-1')).toBe(A);
+  });
+
+  it('een fout van de nieuwe poging geldt weer', () => {
+    const uitkomsten = new Map<string, BkBestandUitkomst>([['BK-2-1', fout(1)]]);
+    expect(bkBestandStanden(['BK-2-1'], uitkomsten, 1).stand.get('BK-2-1')).toBe('fout');
+  });
+
+  it('telt alleen de gevraagde versies', () => {
+    const uitkomsten = new Map<string, BkBestandUitkomst>([['BK-1-1', klaar(0, A)], ['BK-9-9', klaar(0, A)]]);
+    const { stand, bestanden } = bkBestandStanden(['BK-1-1'], uitkomsten, 0);
+    expect([...stand.keys()]).toEqual(['BK-1-1']);
+    expect([...bestanden.keys()]).toEqual(['BK-1-1']);
   });
 });
 

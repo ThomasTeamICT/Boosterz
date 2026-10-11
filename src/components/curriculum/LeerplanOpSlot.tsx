@@ -11,7 +11,7 @@ import { veiligeLink } from '../../lib/minimumdoelenBron';
 import { formatDateShort } from '../../lib/utils';
 import { BackIcon, DuplicateIcon, EditIcon, ExportIcon, TipIcon } from '../icons';
 import { DEEL_HINT, isSamengesteld, nagekekenTekst, uitOfficieleBron } from '../../lib/leerplanStatus';
-import { ControleLabel, OfficieelLabel } from './ControleLabel';
+import { ControleLabel, OfficieelLabel, officieelSoort } from './ControleLabel';
 import { DoelenPerRubriek, type DoelRij } from './DoelenPerRubriek';
 import { VerwijzingLabels } from './VerwijzingLabels';
 import '../../styles/leerplan.css';
@@ -104,7 +104,7 @@ export function LeerplanOpSlot({
           </p>
           <div className="lp-labels">
             <ControleLabel status="gecontroleerd" />
-            {officieel && <OfficieelLabel eigenKopie={curriculum.kind === 'eigen'} samengesteld={isSamengesteld(curriculum)} />}
+            {officieel && <OfficieelLabel eigenKopie={curriculum.kind === 'eigen'} soort={officieelSoort(curriculum)} />}
           </div>
         </div>
         <div className="page-head-actions">
