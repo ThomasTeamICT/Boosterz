@@ -10,6 +10,7 @@ import { AddIcon, GoalIcon, InfoIcon, WarningIcon } from '../icons';
 import { useToast } from '../ui';
 import { useSetBestanden } from '../curriculum/samenstellen/useSetBestanden';
 import { NieuweRichtingCursus } from './NieuweRichtingCursus';
+import type { BkStand } from './useRichtingBk';
 import { allSections, type Course } from '../../lib/courseTypes';
 import { getCurricula, normalizeGoalCode, normalizeGoalCodes, saveCurriculum } from '../../lib/curriculum';
 import type { Curriculum } from '../../lib/curriculumTypes';
@@ -45,6 +46,8 @@ export interface RichtingContext {
   kader: RichtingKader;
   indexSets: readonly MinimumdoelenIndexSet[];
   curricula: readonly Curriculum[];
+  /** De beroepskwalificaties van de richting (§ 23.7, `useRichtingBk`); ontbreekt het, dan is het als 'niet-van-toepassing'. */
+  bk?: BkStand;
 }
 
 /** "G-0193|so"-achtig: alle doelen van het kader als "set|vast nummer" (zoals `leerplannenBijRichting` ze vraagt). */
@@ -256,7 +259,7 @@ function Herkomst({ kader, info }: { kader: RichtingKader; info: RichtingInfo })
 // ── De sectie ───────────────────────────────────────────────────────────────
 
 export function RichtingDoelen({
-  info, keuze, kader, indexSets, bestaandLeerplan, onLeerplanGevonden,
+  info, keuze, kader, indexSets, bk, bestaandLeerplan, onLeerplanGevonden,
 }: RichtingContext & {
   /** Het leerplan van de hele richting dat al op dit toestel staat (zie `useBestaandLeerplan`). */
   bestaandLeerplan: Curriculum | undefined;
@@ -445,7 +448,7 @@ export function RichtingDoelen({
         </div>
       )}
 
-      {cursusOpen && <NieuweRichtingCursus info={info} kader={kader} keuze={keuze} onClose={() => setCursusOpen(false)} />}
+      {cursusOpen && <NieuweRichtingCursus info={info} kader={kader} keuze={keuze} {...(bk ? { bk } : {})} onClose={() => setCursusOpen(false)} />}
     </section>
   );
 }

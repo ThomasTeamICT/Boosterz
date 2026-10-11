@@ -59,6 +59,7 @@ import { FoutBericht, LaadBericht } from '../curriculum/LaadStatus';
 import { useSetBestanden } from '../curriculum/samenstellen/useSetBestanden';
 import { InfoIcon, WarningIcon } from '../icons';
 import { Field, Modal, useToast } from '../ui';
+import type { BkStand } from './useRichtingBk';
 import '../../styles/richtingcursus.css';
 
 /**
@@ -69,6 +70,10 @@ export interface NieuweRichtingCursusProps {
   kader: RichtingKader;
   keuze: RichtingKeuze;
   onClose: () => void;
+  /** De beroepskwalificaties van de richting (§ 23.7.3). Zonder, of zonder BK's, is het venster zoals voor fase 3. */
+  bk?: BkStand;
+  /** Geopend vanaf de kaart van een beroepskwalificatie: deze BK-versie staat dan als enige aangevinkt (S2). */
+  startBk?: string;
 }
 
 type Doelen = 'sets' | 'alle' | 'bestaand';

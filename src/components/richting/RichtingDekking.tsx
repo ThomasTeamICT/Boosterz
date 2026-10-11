@@ -31,6 +31,7 @@ import '../../styles/gaten.css';
 
 // De berekening staat in useRichtingDekking.ts; de types gaan van daar ook naar de andere secties.
 import type { DekkingGegevens, DekkingStand, TelMee } from './useRichtingDekking';
+import type { BkDekkingInvoer } from './bk/BkDekking';
 export type { CursusUitkomst, DekkingGegevens, DekkingStand, TelMee } from './useRichtingDekking';
 
 // Het venster om gaten te dichten (en wat het zwaar maakt: gatenCursus) wordt pas geladen als de leerkracht op de knop klikt.
@@ -152,6 +153,8 @@ export function RichtingDekking({ info, keuze, stand, telMee, onTelMee }: {
   stand: DekkingStand;
   telMee: TelMee;
   onTelMee: (t: TelMee) => void;
+  /** Voor het tweede blok, de competenties van de beroepskwalificaties (§ 23.7.4, S3): het BK-kader en wat `BkDekking` nodig heeft. */
+  bk?: BkDekkingInvoer;
 }) {
   /** De dekking zoals ze stond toen de leerkracht op de knop klikte: het venster werkt met die momentopname. */
   const [venster, setVenster] = useState<DekkingGegevens | null>(null);

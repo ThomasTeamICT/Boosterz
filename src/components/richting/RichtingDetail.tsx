@@ -18,6 +18,8 @@ import { RichtingDoelen, useBestaandLeerplan, type RichtingContext } from './Ric
 import { RichtingLeerplannen } from './RichtingLeerplannen';
 import { GegevensStand, LIJST_ROUTE, bronTekst, type RichtingPaginaProps } from './RichtingLijst';
 import { useRichtingKader } from './useRichtingGegevens';
+import { bksVan, useLuiDeel, useRichtingBk, type BkStand } from './useRichtingBk';
+import type { BkSectieProps } from './bk/BkSectie';
 import type { Course } from '../../lib/courseTypes';
 import { getCourses } from '../../lib/courses';
 import { getCurricula } from '../../lib/curriculum';
@@ -108,6 +110,42 @@ function ZelfdeNaam({ info, matrix, vandaag }: { info: RichtingInfo; matrix: Mat
   );
 }
 
+// ── Beroepskwalificaties (§ 23.7): lui, alleen als de richting er kan hebben ──
+// De kopregel en de sectie zitten samen in een lui chunk. Het wordt pas geladen als `useRichtingBk` iets te tonen heeft;
+// lukt het laden niet, dan blijft de rest van de pagina staan.
+
+const laadBkSectie = () => import('./bk/BkSectie');
+const FOUT_BK_DEEL = 'De beroepskwalificaties konden niet getoond worden. Controleer je verbinding en herlaad de pagina.';
+
+/** De kopregel onder de titel: alleen met minstens één beroepskwalificatie. */
+function BkKopRegelLui({ stand }: { stand: BkStand }) {
+  const heeft = bksVan(stand).length > 0;
+  const deel = useLuiDeel(laadBkSectie, heeft);
+  if (stand.status !== 'klaar' || !heeft || deel === undefined || deel === 'fout') return null;
+  return <deel.BkKopRegel bk={stand.waarde} />;
+}
+
+/** De sectie "Beroepskwalificaties", voor elke richting die er kan hebben (wat ze toont, beslist de sectie zelf). */
+function BkSectieLui(props: BkSectieProps) {
+  const stand = props.context.bk;
+  const nodig = stand !== undefined && stand.status !== 'niet-van-toepassing';
+  const deel = useLuiDeel(laadBkSectie, nodig);
+  if (!nodig || deel === undefined) return null;
+  if (deel === 'fout') {
+    if (bksVan(stand).length === 0) return null;
+    return (
+      <section className="ri-sectie" aria-labelledby="ri-bk-kop">
+        <h2 id="ri-bk-kop" tabIndex={-1}>Beroepskwalificaties</h2>
+        <div className="callout err ri-melding" role="alert">
+          <WarningIcon size={20} className="ri-melding-icoon" />
+          <div className="ri-melding-tekst"><p>{FOUT_BK_DEEL}</p></div>
+        </div>
+      </section>
+    );
+  }
+  return <deel.BkSectie {...props} />;
+}
+
 // ── Het detail ──────────────────────────────────────────────────────────────
 
 function Terug({ lijstZoek }: { lijstZoek: string }) {
@@ -161,13 +199,15 @@ export function RichtingDetail({ groep, stand, opnieuw, vandaag }: RichtingPagin
  * voor de dekking: ze wordt hier één keer berekend, en de lijst met cursussen en de sectie "Wat je cursussen samen dekken"
  * tonen allebei die berekening.
  */
-function KaderSecties({ context, courses, matrix, vandaag, telMee, onTelMee }: {
+function KaderSecties({ context, courses, matrix, vandaag, telMee, onTelMee, opnieuwBk }: {
   context: RichtingContext;
   courses: readonly Course[];
   matrix: MatrixBestand;
   vandaag: string;
   telMee: TelMee;
   onTelMee: (t: TelMee) => void;
+  /** Het BK-kader opnieuw laden na een fout. */
+  opnieuwBk: () => void;
 }) {
   const [gevondenId, setGevondenId] = useState<string | null>(null);
   const bestaandLeerplan = useBestaandLeerplan(context, gevondenId);
@@ -175,10 +215,14 @@ function KaderSecties({ context, courses, matrix, vandaag, telMee, onTelMee }: {
   return (
     <>
       <RichtingDoelen {...context} bestaandLeerplan={bestaandLeerplan} onLeerplanGevonden={setGevondenId} />
+      <BkSectieLui context={context} courses={courses} vandaag={vandaag} opnieuw={opnieuwBk} />
       <RichtingLeerplannen {...context} bestaandLeerplan={bestaandLeerplan} />
       <RichtingCursussen {...context} courses={courses} dekking={dekking.status === 'klaar' ? dekking.waarde : undefined} />
       <RichtingKlassen info={context.info} soort={context.kader.keuze.soort} courses={courses} curricula={context.curricula} />
-      <RichtingDekking info={context.info} keuze={context.keuze} stand={dekking} telMee={telMee} onTelMee={onTelMee} />
+      <RichtingDekking
+        info={context.info} keuze={context.keuze} stand={dekking} telMee={telMee} onTelMee={onTelMee}
+        bk={{ stand: context.bk ?? { status: 'niet-van-toepassing' }, courses, curricula: context.curricula, matrix, vandaag }}
+      />
     </>
   );
 }
@@ -211,6 +255,8 @@ function RichtingInhoud({ info, matrix, bron, indexSets, vandaag, lijstZoek }: {
     [keuze.groep, keuze.soort, keuze.onderdeel],
   );
   const kaderStand = useRichtingKader(info, kaderKeuze);
+  // De beroepskwalificaties hangen alleen van de richting en de variant af (§ 23.6.9); ze laden naast het kader.
+  const bk = useRichtingBk(info, kaderKeuze, vandaag);
   // Welke cursussen de dekking telt (de keuze blijft staan als het kader opnieuw laadt, bv. bij een ander soort onderwijs).
   const [telMee, setTelMee] = useState<TelMee>('alle');
 
@@ -229,7 +275,7 @@ function RichtingInhoud({ info, matrix, bron, indexSets, vandaag, lijstZoek }: {
   const kiesSoort = info.kanBuso && info.soort !== 'buso';
 
   const kader = kaderStand.stand.status === 'klaar' ? kaderStand.stand.waarde.kader : undefined;
-  const context: RichtingContext | undefined = kader ? { info, keuze, kader, indexSets, curricula } : undefined;
+  const context: RichtingContext | undefined = kader ? { info, keuze, kader, indexSets, curricula, bk: bk.stand } : undefined;
 
   return (
     <>
@@ -238,6 +284,7 @@ function RichtingInhoud({ info, matrix, bron, indexSets, vandaag, lijstZoek }: {
         <div className="ri-intro">
           <h1>{info.groep.titel}</h1>
           <p className="sub">{kenmerkenVan(info)}</p>
+          <BkKopRegelLui stand={bk.stand} />
         </div>
       </div>
 
@@ -322,7 +369,7 @@ function RichtingInhoud({ info, matrix, bron, indexSets, vandaag, lijstZoek }: {
       )}
 
       {context && (
-        <KaderSecties context={context} courses={courses} matrix={matrix} vandaag={vandaag} telMee={telMee} onTelMee={setTelMee} />
+        <KaderSecties context={context} courses={courses} matrix={matrix} vandaag={vandaag} telMee={telMee} onTelMee={setTelMee} opnieuwBk={bk.opnieuw} />
       )}
 
       <p className="ri-bron">{bron}</p>
