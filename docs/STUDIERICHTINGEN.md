@@ -2858,10 +2858,10 @@ De opdracht (W14): "de BK-dekking ook in de cursuseditor, in 'Mijn richtingen' e
 | 3b-L3 Overzicht, cache, pijplijn en lichte hulpen | **Klaar** (14 oktober 2026): `bkOverzicht.ts`, `dekkingBkVanRichting`, `bkKaderVanVersies`, BK-ingang in de cache naast de MD-ingang, `kanBkHebben` in `richtingOverzicht.ts`; controle: tests met een echt ingebedde oefening en een test voor de leeskant van de cache erbij | bouwer, reviewer |
 | 3b-L4 Teksten (bkWeergave, klasRichtingWeergave) | **Klaar** (14 oktober 2026): de zinnen van § 24.6 met enkelvoud en meervoud; controle: `bkWeergave.ts` haalt geen waarde meer uit `gatenWeergave.ts` (anders een extra chunk en +0,1 kB op het kritieke pad), met een bronbewaker | bouwer, reviewer |
 | 3b-I1 Integratie van de logica, BkLijst, stubs | **Klaar** (14 oktober 2026): L1 tot L4 samengevoegd zonder conflict; de tijdelijke adapter in `bkGatenHulp.ts` vervangen door `bkKaderVanVersies`; `BK_PLAN_TEKSTEN` (`satisfies PlanTeksten`, getest); `bk/BkLijst.tsx` (verhuisd uit `BkDekking.tsx`, dat ze verder uitvoert); geraamtes `course/BkCursusDekking.tsx` en `bk/BkGatenVenster.tsx`. Poort groen (5.593 tests, rooktest twee keer), kritiek pad 334,1 kB, RichtingenPage 76,8 kB, CourseEditorPage 75,2 kB; de klas laadt RichtingenPage niet | hoofdsessie |
-| 3b-S1 Cursuseditor | Wacht | bouwer, worktree A |
-| 3b-S2 Richtingpagina en venster | Wacht | bouwer, worktree B |
-| 3b-S3 Mijn richtingen en klas | Wacht | bouwer, worktree C |
-| 3b-I2 Integratie van de schermen, hulp, budget | Wacht | hoofdsessie |
+| 3b-S1 Cursuseditor | **Klaar** (14 oktober 2026): schakelaar "Leerplan / Beroepskwalificatie", `BkCursusDekking` lui, "Plan ze in deze cursus"; nooit een verzoek naar de koppeling; CourseEditorPage 75,6 kB, laadkost 74 kB gzip bij de eerste klik. Controle: drie kleine punten (de naam bij meer BK's blijft, zie § 24.6.1; de laatste keuze wint als een chunk traag laadt, ook bij de minimumdoelen) | bouwer, reviewer |
+| 3b-S2 Richtingpagina en venster | **Klaar** (14 oktober 2026): de planknop in het blok met de competenties en `BkGatenVenster`, weg (a) en (b); controle: waarschuwingen zoals "niet meer in de bron" worden getoond vóór de cursus opent, focus na "Opnieuw proberen"; de sluitknop van de gedeelde Modal (36 px op een telefoon) blijft buiten 3b | bouwer, reviewer |
+| 3b-S3 Mijn richtingen en klas | **Klaar** (14 oktober 2026): de tweede regel met de competenties, pas na de regel van de minimumdoelen (ook in de klas), `cursusMeta` in de klas; controle: een richting zonder BK onthoudt dat in de cache, "Herlaad de pagina" per rij met de naam erbij voor schermlezers | bouwer, reviewer |
+| 3b-I2 Integratie van de schermen, hulp, budget | **Klaar** (14 oktober 2026): S1 tot S3 zonder conflicten samengevoegd; twee vragen in de hulp (§ 24.6.5); kritiek pad 334,2 kB (budget 334,6 kB, `vite.config.ts` ongewijzigd); RichtingenPage 76,8 kB, CourseEditorPage 75,2 kB; de klas laadt het chunk van de richtingenpagina niet; volledige poort en rooktest twee keer groen | hoofdsessie |
 | 3b-R1 Rooktest 20i en regex in 20h | Wacht | bouwer (een andere agent dan S1 tot S3) |
 | 3b-I3 Review, rechter, herstel, uitrol (K8 is klaar en samengevoegd op 14 oktober 2026) | Wacht | hoofdsessie, reviewers, rechter |
 | Open vragen X1 tot X11 (§ 24.11) | Wacht: de werkkeuze geldt tot de eigenaar beslist | eigenaar |
@@ -3155,6 +3155,8 @@ De schakelaar staat er alleen bij `leerplanHeeftBkVerwijzingen(curriculum)`:
 | Link (met een doelgroep: die van de cursus, anders die van haar leerplan) | `richtingLinkTekst`: "Bekijk wat al je cursussen voor Onthaal en recreatie samen dekken" |
 
 Na "Zet ze in deze cursus" gaat de focus naar de knop, of naar de samenvatting als de knop verdwijnt. Het mechanisme is `focusNa`, gedeeld met de minimumdoelen.
+
+**Bij meer dan één beroepskwalificatie** (3b-S1, keuze bij de integratie): de melding `bkNietMeerInBron(…)` krijgt de naam van de beroepskwalificatie vet ervoor, zodat de leerkracht ziet welke versie het is. Bij één beroepskwalificatie staat de zin letterlijk zonder naam.
 
 #### 24.6.2 Richtingpagina: de knop (`bk/BkDekking.tsx`)
 
@@ -3819,9 +3821,3 @@ L1 tot L4 raken nooit hetzelfde bestand, en S1 tot S3 ook niet.
 - `GatenVenster.tsx`, `RichtingDekking.tsx`, `RichtingDetail.tsx`, `MijnRichtingen.tsx`, `BkSectie.tsx`, `BkKeuze.tsx`, `NieuweRichtingCursus.tsx`, `CourseEditorPage.tsx`;
 - `tests/fixtures/**` en de bestaande checks in `tests/smoke.mjs`;
 - `vite.config.ts` (alleen de hoofdsessie).
-
----
-
-Notes for the caller (not part of the paragraph):
-- Bijlage F, row 3b-L1 has a typo in the path: `src/components/course/MinimumdoelenDekking.tsx` must be `src/components/course/MinimumdoelenDekking.tsx`.
-- The K8 work tree (`/home/user/Bookwidgetzzz/.claude/worktrees/wf_f499aa36-3b5-1`) also changes `docs/STUDIERICHTINGEN.md`. 3b-Q0 has to merge with it.

@@ -1,11 +1,14 @@
-import { lazy, Suspense, useMemo, useState, type CSSProperties } from 'react';
+import { lazy, Suspense, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import type { Course, CourseChapter, CourseSection } from '../../lib/courseTypes';
 import type { Curriculum } from '../../lib/curriculumTypes';
 import type { Widget } from '../../lib/types';
 import { computeCoverage, geplandeRijen, type CoverageRow } from '../../lib/coverage';
 import { getCurriculum } from '../../lib/curriculum';
-import { FOUT_LADEN_DEKKING, geplandeRegel, leerplanHeeftVerwijzingen } from '../../lib/dekkingWeergave';
+import {
+  BK_DEKKING_LADEN, FOUT_LADEN_BK_DEKKING, FOUT_LADEN_DEKKING, bkWeergaveLabel, geplandeRegel, leerplanHeeftBkVerwijzingen,
+  leerplanHeeftVerwijzingen,
+} from '../../lib/dekkingWeergave';
 import { EmptyState } from '../ui';
 import {
   AIIcon, CheckIcon, CloseIcon, GoalIcon, PlannedIcon, RetryIcon, SettingsIcon, TipIcon, WarningIcon,
@@ -20,6 +23,10 @@ import '../../styles/dekking.css';
 // automatisch en vraagt bevestiging bij niet-bewaarde wijzigingen).
 const laadDekking = () => import('./MinimumdoelenDekking');
 const MinimumdoelenDekking = lazy(() => laadDekking().then((m) => ({ default: m.MinimumdoelenDekking })));
+// Hetzelfde voor de weergave "Beroepskwalificatie" (de competenties van een BK-leerplan, docs/STUDIERICHTINGEN.md § 24.6.1): een
+// eigen lui chunk met dezelfde melding bij een fout. Er komt hoogstens één van de twee knoppen op het scherm.
+const laadBkDekking = () => import('./BkCursusDekking');
+const BkCursusDekking = lazy(() => laadBkDekking().then((m) => ({ default: m.BkCursusDekking })));
 
 // ── Doelendekking ───────────────────────────────────────────────────────────
 //
@@ -91,12 +98,22 @@ function CurriculumCoverage({
   const result = useMemo(() => computeCoverage(course, curriculum, widgets), [course, curriculum, widgets]);
   // Doelen die alleen op nog lege secties staan: gepland, nog niet uitgewerkt (§ 14.5).
   const aantalGepland = useMemo(() => geplandeRijen(result, course, widgets).length, [result, course, widgets]);
-  const metVerwijzingen = useMemo(() => leerplanHeeftVerwijzingen(curriculum), [curriculum]);
-  const [weergave, setWeergave] = useState<'leerplan' | 'minimumdoelen'>('leerplan');
+  // Bij een BK-leerplan gaat "Beroepskwalificatie" voor op "Minimumdoelen": een cursus volgt één leerplan en meet zich aan één bron.
+  const extra = useMemo<'beroepskwalificatie' | 'minimumdoelen' | undefined>(() => {
+    if (leerplanHeeftBkVerwijzingen(curriculum)) return 'beroepskwalificatie';
+    return leerplanHeeftVerwijzingen(curriculum) ? 'minimumdoelen' : undefined;
+  }, [curriculum]);
+  const [weergave, setWeergave] = useState<'leerplan' | 'extra'>('leerplan');
+  // De laatste keuze van de leerkracht. Het laden duurt even: kiest ze intussen "Leerplan", dan mag het chunk dat daarna binnenkomt
+  // de weergave niet alsnog omzetten, en een mislukt laden geeft haar geen melding over een weergave die ze niet meer wil.
+  const gewenst = useRef<'leerplan' | 'extra'>('leerplan');
   const [laadt, setLaadt] = useState(false);
   const [laadFout, setLaadFout] = useState(false);
+  const bk = extra === 'beroepskwalificatie';
+  const laadtekst = bk ? BK_DEKKING_LADEN : 'De dekking op de minimumdoelen wordt geladen…';
 
-  const kies = (volgende: 'leerplan' | 'minimumdoelen') => {
+  const kies = (volgende: 'leerplan' | 'extra') => {
+    gewenst.current = volgende;
     setLaadFout(false);
     if (volgende === 'leerplan') {
       setWeergave('leerplan');
@@ -104,9 +121,9 @@ function CurriculumCoverage({
     }
     if (laadt) return;
     setLaadt(true);
-    laadDekking().then(
-      () => { setLaadt(false); setWeergave('minimumdoelen'); },
-      () => { setLaadt(false); setLaadFout(true); },
+    (bk ? laadBkDekking : laadDekking)().then(
+      () => { setLaadt(false); if (gewenst.current === 'extra') setWeergave('extra'); },
+      () => { setLaadt(false); if (gewenst.current === 'extra') setLaadFout(true); },
     );
   };
 
@@ -128,29 +145,30 @@ function CurriculumCoverage({
     );
   }
 
-  // De schakelaar staat er alleen als het leerplan doelen met verwijzingen naar minimumdoelen heeft: zonder is er niets om te meten.
-  const schakelaar = metVerwijzingen && (
+  // De schakelaar staat er alleen als het leerplan doelen met verwijzingen heeft (naar minimumdoelen of naar competenties): zonder is er niets om te meten.
+  const toonExtra = extra !== undefined && weergave === 'extra';
+  const schakelaar = extra !== undefined && (
     <>
       <div className="dk-schakelaar" role="group" aria-label="Weergave van de dekking">
         <button
-          type="button" className={`btn btn-sm ${weergave === 'leerplan' ? 'btn-primary' : 'btn-ghost'}`}
-          aria-pressed={weergave === 'leerplan'} onClick={() => kies('leerplan')}
+          type="button" className={`btn btn-sm ${!toonExtra ? 'btn-primary' : 'btn-ghost'}`}
+          aria-pressed={!toonExtra} onClick={() => kies('leerplan')}
         >
-          {weergave === 'leerplan' && <CheckIcon size={16} aria-hidden />} Leerplan
+          {!toonExtra && <CheckIcon size={16} aria-hidden />} Leerplan
         </button>
         <button
-          type="button" className={`btn btn-sm ${weergave === 'minimumdoelen' ? 'btn-primary' : 'btn-ghost'}`}
-          aria-pressed={weergave === 'minimumdoelen'} aria-busy={laadt || undefined} onClick={() => kies('minimumdoelen')}
+          type="button" className={`btn btn-sm ${toonExtra ? 'btn-primary' : 'btn-ghost'}`}
+          aria-pressed={toonExtra} aria-busy={laadt || undefined} onClick={() => kies('extra')}
         >
-          {weergave === 'minimumdoelen' && <CheckIcon size={16} aria-hidden />} Minimumdoelen
+          {toonExtra && <CheckIcon size={16} aria-hidden />} {bk ? bkWeergaveLabel(curriculum.bkVersies?.length ?? 1) : 'Minimumdoelen'}
         </button>
       </div>
-      {laadt && <p className="dk-schakel-bezig" role="status">De dekking op de minimumdoelen wordt geladen…</p>}
+      {laadt && <p className="dk-schakel-bezig" role="status">{laadtekst}</p>}
       {laadFout && (
         <div className="callout err dk-melding" role="alert">
           <WarningIcon size={16} aria-hidden />
           <div className="dk-melding-tekst">
-            <p>{FOUT_LADEN_DEKKING}</p>
+            <p>{bk ? FOUT_LADEN_BK_DEKKING : FOUT_LADEN_DEKKING}</p>
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => window.location.reload()}>
               <RetryIcon size={16} aria-hidden /> Herlaad de pagina
             </button>
@@ -160,12 +178,14 @@ function CurriculumCoverage({
     </>
   );
 
-  if (metVerwijzingen && weergave === 'minimumdoelen') {
+  if (toonExtra) {
     return (
       <div>
         {schakelaar}
-        <Suspense fallback={<p className="dk-laden" role="status">De dekking op de minimumdoelen wordt geladen…</p>}>
-          <MinimumdoelenDekking course={course} curriculum={curriculum} widgets={widgets} onEdit={onEdit} />
+        <Suspense fallback={<p className="dk-laden" role="status">{laadtekst}</p>}>
+          {bk
+            ? <BkCursusDekking course={course} curriculum={curriculum} widgets={widgets} onEdit={onEdit} />
+            : <MinimumdoelenDekking course={course} curriculum={curriculum} widgets={widgets} onEdit={onEdit} />}
         </Suspense>
       </div>
     );

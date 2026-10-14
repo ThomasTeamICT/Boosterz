@@ -175,6 +175,14 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
     a: 'Open je studierichting bij Cursussen, ‘Voor een studierichting’. Bij een richting met beroepskwalificaties zie je per beroepskwalificatie de competenties, met de kennis en vaardigheden. Kies ‘Maak een cursus met deze competenties’: Boosterz maakt een nagekeken leerplan en een cursus met een sectie per competentie. Een AI-sleutel heb je daarvoor niet nodig.',
   },
   {
+    q: 'Hoe plan ik de competenties die nog nergens aan bod komen?',
+    a: 'Open je studierichting bij Cursussen, ‘Voor een studierichting’. Bij ‘Competenties van de beroepskwalificaties’ kies je ‘Plan de … competenties die nog nergens aan bod komen’. Je zet ze in een nieuwe cursus, of in een cursus die ze al in haar leerplan heeft. Ze komen er als lege secties bij, met de doelcode en de kennis en vaardigheden erop. Een AI-sleutel heb je daarvoor niet nodig.',
+  },
+  {
+    q: 'Zie ik in mijn cursus welke competenties ze dekt?',
+    a: 'Ja. Open de cursus, kies ‘Doelendekking’ en dan ‘Beroepskwalificatie’. Je ziet per competentie of ze gedekt, gepland of nog open is. Met ‘Plan ze in deze cursus’ zet je de competenties uit het leerplan die nog op geen enkele sectie staan als lege secties in je cursus. Bij ‘Mijn richtingen’ en in de klas zie je wat al je cursussen samen dekken.',
+  },
+  {
     q: 'Waar komen de beroepskwalificaties vandaan?',
     a: 'Uit de Vlaamse kwalificatiestructuur van de Vlaamse overheid. Boosterz haalt ze elke maand op en verzint geen koppelingen: welke beroepskwalificaties bij een richting horen, staat zo in de officiële bron.',
   },

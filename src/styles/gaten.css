@@ -1,7 +1,9 @@
 /* ── Gaten dichten ─────────────────────────────────────────────────────────── */
 /*
  * De knop "Plan de … doelen die nog nergens aan bod komen" op de richtingpagina, het venster "Plan wat nog nergens aan bod
- * komt" en het paneel "Plan in deze cursus" in de cursuseditor (docs/STUDIERICHTINGEN.md § 22.4.7). Voorvoegsel gt-. Alleen
+ * komt" en het paneel "Plan in deze cursus" in de cursuseditor (docs/STUDIERICHTINGEN.md § 22.4.7). Voorvoegsel gt-. Het blok
+ * met de competenties (bk/BkDekking.tsx: dezelfde knop) en het venster voor de competenties (bk/BkGatenVenster.tsx, § 24.6.2 en
+ * § 24.6.3) gebruiken dezelfde klassen: het zijn dezelfde schermdelen met andere woorden. Alleen
  * tokens uit global.css; nooit witte tekst op --brand (gebruik --brand-fill). Het venster rendert via een portal buiten de
  * pagina, dus niets hier hangt aan .ri-page. Op 390 px staat alles in één kolom, breekt lange woorden af en scrolt niets
  * horizontaal; tikdoelen zijn vanaf 640 px en smaller 44 px hoog.
@@ -17,6 +19,7 @@
 .gt-melding > svg { flex: none; margin-top: 2px; }
 .gt-melding > div { min-width: 0; }
 .gt-melding p { margin: 0; min-width: 0; overflow-wrap: break-word; }
+.gt-melding p + p { margin-top: 6px; }
 .gt-melding-tekst { display: grid; gap: 8px; justify-items: start; min-width: 0; }
 .gt-melding:focus { outline: none; }
 .gt-melding:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }

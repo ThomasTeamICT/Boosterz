@@ -7,12 +7,16 @@
 //
 // Het getal van de dekking en de zin eronder komen uit `DekkingKort` (plaats 'klas'). De link "Bekijk per doel wat ze dekken"
 // staat hier, want alleen de klas kent het jaar waarmee de richtingpagina moet openen.
+//
+// Fase 3b (§ 24.6.4): bij een cursus die de competenties van een beroepskwalificatie volgt, staat die erbij: "5de jaar ·
+// beroepskwalificatie Onthaalmedewerker" (`cursusMeta`). De namen komen uit het leerplan van de cursus (`bkTitelsVanLeerplan`),
+// zonder netwerk. Plannen kan in de klas niet; dat gebeurt bij de studierichting.
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Course } from '../../lib/courseTypes';
 import type { Curriculum } from '../../lib/curriculumTypes';
-import { FOUT_LADEN_DEKKING, richtingLinkNaar } from '../../lib/dekkingWeergave';
+import { bkTitelsVanLeerplan, FOUT_LADEN_DEKKING, richtingLinkNaar } from '../../lib/dekkingWeergave';
 import type { Doelgroep } from '../../lib/doelgroep';
 import { cursussenVoorToewijzen, doelgroepVanCursus } from '../../lib/doelgroepGebruik';
 import {
@@ -23,7 +27,7 @@ import {
   GEEN_CURSUS_LINK,
   GEEN_CURSUS_ZIN,
   STAAT_IN_KLAS,
-  cursusJaarMeta,
+  cursusMeta,
 } from '../../lib/klasRichtingWeergave';
 import { AssignIcon, CheckIcon, WarningIcon } from '../icons';
 import '../../styles/klasrichting.css';
@@ -59,6 +63,14 @@ export function KlasRichting({ doelgroep, courses, curricula, inKlas, onToewijze
   // Wat past bij deze klas: dezelfde richting, en het jaar van de klas of een cursus zonder jaar (zie `pastBijKlas`).
   const passend = useMemo(() => cursussenVoorToewijzen(courses, curricula, doelgroep).passend, [courses, curricula, doelgroep]);
   const richtingPad = richtingLinkNaar(doelgroep);
+  // Per cursus de meta: haar jaar en de beroepskwalificaties van haar leerplan.
+  const metas = useMemo(() => {
+    const leerplannen = new Map(curricula.map((l) => [l.id, l]));
+    return new Map(passend.map((course) => {
+      const leerplan = course.curriculumId ? leerplannen.get(course.curriculumId) : undefined;
+      return [course.id, cursusMeta(doelgroepVanCursus(course, curricula), bkTitelsVanLeerplan(leerplan))] as const;
+    }));
+  }, [passend, curricula]);
 
   useEffect(() => {
     if (focusCursus) lijst.current?.querySelector<HTMLElement>(`a[data-cursus="${CSS.escape(focusCursus.id)}"]`)?.focus();
@@ -81,7 +93,7 @@ export function KlasRichting({ doelgroep, courses, curricula, inKlas, onToewijze
       ) : (
         <ul className="kr-lijst" ref={lijst}>
           {passend.map((course) => {
-            const meta = cursusJaarMeta(doelgroepVanCursus(course, curricula));
+            const meta = metas.get(course.id) ?? '';
             return (
               <li key={course.id} className="kr-rij">
                 <div className="kr-rij-tekst">

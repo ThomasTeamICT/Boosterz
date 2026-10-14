@@ -10,6 +10,9 @@
 .dk { min-width: 0; }
 .dk p, .dk li { overflow-wrap: break-word; }
 .dk a { overflow-wrap: anywhere; }
+/* Het blok met de competenties in de editor krijgt de focus na "Opnieuw proberen" (de knop verdwijnt): zichtbaar bij het toetsenbord. */
+.dk[tabindex='-1']:focus { outline: none; }
+.dk[tabindex='-1']:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: var(--radius-s); }
 
 /* ── Schakelaar "Leerplan" / "Minimumdoelen" ───────────────────────────── */
 
