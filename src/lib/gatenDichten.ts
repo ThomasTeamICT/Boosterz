@@ -17,8 +17,18 @@
 
 import type { Course } from './courseTypes';
 import { normalizeGoalCode } from './curriculum';
-import type { Curriculum } from './curriculumTypes';
+import type { Curriculum, CurriculumGoal } from './curriculumTypes';
 import type { CursusBijdrage, KaderDoel, MdDekking, MdRij } from './dekkingMinimumdoelen';
+
+// ── Wat een leerplandoel verwijst ───────────────────────────────────────────
+
+/**
+ * De verwijzingen van een leerplandoel naar de doelen van het kader waartegen de dekking rekent, als set + vast nummer.
+ * Zonder deze functie zijn het de `refs` naar minimumdoelen; de dekking op competenties van een beroepskwalificatie geeft
+ * `bkVerwijzingen` mee (docs/STUDIERICHTINGEN.md § 24.4). De uitkomst gaat nog door dezelfde controle als `refs` (tolerant
+ * voor kapotte opslag): een verwijzing zonder set of nummer telt niet.
+ */
+export type Verwijzingen = (goal: CurriculumGoal) => readonly { set: string; id: string }[];
 
 // ── Kleine hulpmiddelen ─────────────────────────────────────────────────────
 
@@ -150,10 +160,15 @@ function verwijzingenVan(refs: unknown): { set: string; id: string }[] {
  * - `inLeerplan` en `nietInLeerplan` houden de volgorde van `doelen`; een doel dat er twee keer in staat, telt één keer.
  *
  * Het leerplan wordt nooit aangepast: wat er niet in staat, komt niet op de cursus (F2-B8, § 22.4.4).
+ *
+ * `verwijzingen` zegt waar een leerplandoel naar verwijst (§ 24.4). Zonder is dat `goal.refs`, zoals hierboven; met
+ * (bv. `bkVerwijzingen` voor competenties) gaat de uitkomst nog door dezelfde controle als `refs`, en geldt al het andere
+ * hierboven gelijk. Een leerplandoel zonder bruikbare code wordt overgeslagen vóórdat `verwijzingen` het te zien krijgt.
  */
 export function codesVoorDoelen<T extends { set: string; id: string }>(
   leerplan: Curriculum,
   doelen: readonly T[],
+  verwijzingen?: Verwijzingen,
 ): { codes: string[]; inLeerplan: T[]; nietInLeerplan: T[] } {
   const goals = Array.isArray(leerplan?.goals) ? leerplan.goals : [];
   /** Per minimumdoel de plaats in het leerplan van het eerste leerplandoel met een bruikbare code dat ernaar verwijst. */
@@ -161,7 +176,7 @@ export function codesVoorDoelen<T extends { set: string; id: string }>(
   const codeVan: string[] = goals.map((goal) => normalizeGoalCode(typeof goal?.code === 'string' ? goal.code : ''));
   goals.forEach((goal, plaats) => {
     if (!heeftInhoud(codeVan[plaats])) return;
-    for (const ref of verwijzingenVan(goal?.refs)) {
+    for (const ref of verwijzingenVan(verwijzingen ? verwijzingen(goal) : goal?.refs)) {
       const sleutel = sleutelVan(ref.set, ref.id);
       if (!eerste.has(sleutel)) eerste.set(sleutel, plaats);
     }
@@ -206,10 +221,15 @@ export interface Doelcursus {
  * doelen eerst, daarna op titel (nl) en id. `zonderPassend` telt de cursussen met een leerplan waarin geen enkel gekozen
  * doel staat: ze staan niet als keuze in de lijst, het venster telt ze wel. Een cursus zonder leerplan (of waarvan het
  * leerplan niet het leerplan van de cursus is) valt weg en telt nergens mee. Elke cursus één keer.
+ *
+ * `verwijzingen` gaat ongewijzigd door naar `codesVoorDoelen` (§ 24.4): met `bkVerwijzingen` is een cursus pas kandidaat als
+ * haar leerplan naar competenties verwijst, en een cursus met een leerplan van minimumdoelen telt dan bij `zonderPassend`,
+ * zoals een BK-cursus dat zonder `verwijzingen` doet (I6).
  */
 export function cursussenVoorGaten(
   doelen: readonly { set: string; id: string }[],
   bijdragen: readonly CursusBijdrage[],
+  verwijzingen?: Verwijzingen,
 ): { kandidaten: Doelcursus[]; zonderPassend: number } {
   const kandidaten: Doelcursus[] = [];
   let zonderPassend = 0;
@@ -221,7 +241,7 @@ export function cursussenVoorGaten(
     const cid = typeof course.curriculumId === 'string' ? course.curriculumId : '';
     if (cid === '' || leerplan.id !== cid) continue;
     gezien.add(course.id);
-    const passend = codesVoorDoelen(leerplan, doelen).inLeerplan.length;
+    const passend = codesVoorDoelen(leerplan, doelen, verwijzingen).inLeerplan.length;
     if (passend > 0) kandidaten.push({ course, leerplan, passend });
     else zonderPassend++;
   }

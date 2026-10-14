@@ -2,11 +2,15 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { doelcodesVanBestand, type BkBestand } from './beroepskwalificaties';
+import { bkGeraamte } from './bkCursus';
+import { leerplanUitBk } from './bkLeerplan';
 import { deleteCurriculum, maakEigenKopie, saveCurriculum } from './curriculum';
 import { getCourse, sanitizeCourse, saveCourse, saveCourseGuarded, type GuardedSaveResult } from './courses';
 import type { Course, CourseSection } from './courseTypes';
 import { allSections } from './courseTypes';
 import type { Curriculum } from './curriculumTypes';
+import { bkKaderDoelen, bkVerwijzingen, dekkingBk } from './dekkingBk';
 import { dekkingMinimumdoelen, kaderDoelen, type CursusBijdrage, type MdDekking } from './dekkingMinimumdoelen';
 import { leerplanUitSelectie } from './doelenSamenstellen';
 import type { Doelgroep } from './doelgroep';
@@ -16,6 +20,7 @@ import {
   leerplanVoorGaten,
   titelsVoorGaten,
   voegGeplandeSectiesToe,
+  type Geraamte,
   type GatenLeerplan,
   type GatenOpslag,
 } from './gatenCursus';
@@ -28,6 +33,7 @@ import {
 } from './gatenDichten';
 import { effectieveStatus } from './leerplanStatus';
 import type { Minimumdoel, MinimumdoelenIndex, MinimumdoelenIndexSet, MinimumdoelenSetBestand } from './minimumdoelen';
+import type { RichtingBk } from './richtingBk';
 import { cursusVoorRichting, geraamteHoofdstukken } from './richtingCursus';
 import {
   afdrukkenPerSet,
@@ -1104,3 +1110,1085 @@ function perSetTelling(doelen: readonly { set: string }[]): Record<string, numbe
   for (const d of doelen) uit[d.set] = (uit[d.set] ?? 0) + 1;
   return uit;
 }
+
+// ── Vastgelegd vóór pakket 3b-L1: zonder de nieuwe parameter is de uitkomst byte voor byte gelijk (I3) ──────────────
+
+// De gouden uitkomsten zijn gemaakt met `voegGeplandeSectiesToe` en `bewaarGatenOpCursus` zoals ze vóór het algemeen maken
+// waren (docs/STUDIERICHTINGEN.md § 24.4, 3b-L1) en daarna niet meer aangepast. Elke uitkomst is JSON in regels
+// (`opmaak`): ook de volgorde van de velden telt mee. Alleen de ids die `voegGeplandeSectiesToe` zelf maakt (`uid()`, per run
+// anders) en het id van het leerplan staan als `#1`, `#2` … (in volgorde van voorkomen) en `LEERPLAN`.
+
+// @@GOUD-BEGIN@@
+const GOUD: Record<string, readonly string[]> = {
+  bewaar_gelukt: [
+    '{',
+    ' "resultaat": {',
+    '  "ok": true,',
+    '  "course": {',
+    '   "id": "k1",',
+    '   "title": "Wiskunde 4de jaar",',
+    '   "author": "",',
+    '   "coverEmoji": "📘",',
+    '   "code": "ABC123",',
+    '   "chapters": [',
+    '    {',
+    '     "id": "h1",',
+    '     "title": "Wiskunde",',
+    '     "sections": [',
+    '      {',
+    '       "id": "s1",',
+    '       "title": "Getallen",',
+    '       "blocks": [',
+    '        {',
+    '         "id": "b1",',
+    '         "type": "text",',
+    '         "markdown": "Uitleg bij Getallen."',
+    '        }',
+    '       ],',
+    '       "goalCodes": [',
+    '        "W01",',
+    '        "W02",',
+    '        "W03",',
+    '        "W04",',
+    '        "W05",',
+    '        "W06",',
+    '        "W07",',
+    '        "W08"',
+    '       ]',
+    '      },',
+    '      {',
+    '       "id": "s2",',
+    '       "title": "Meetkunde (basis)",',
+    '       "blocks": [',
+    '        {',
+    '         "id": "b2",',
+    '         "type": "text",',
+    '         "markdown": "Uitleg bij Meetkunde (basis)."',
+    '        }',
+    '       ],',
+    '       "goalCodes": ["W09","W10","W11","W12","W13"]',
+    '      },',
+    '      {',
+    '       "id": "#1",',
+    '       "title": "Meetkunde",',
+    '       "blocks": [',
+    '        {',
+    '         "id": "#2",',
+    '         "type": "callout",',
+    '         "kind": "goal",',
+    '         "title": "Doelen in deze sectie",',
+    '         "text": "W14 — Doel 14 van W.\\nW15 — Doel 15 van W.\\nW16 — Doel 16 van W."',
+    '        }',
+    '       ],',
+    '       "goalCodes": ["W14","W15","W16"]',
+    '      }',
+    '     ]',
+    '    }',
+    '   ],',
+    '   "settings": {',
+    '    "accentColor": "#4f46e5",',
+    '    "requireName": false,',
+    '    "showProgressToStudent": true',
+    '   },',
+    '   "createdAt": 1,',
+    '   "updatedAt": 501,',
+    '   "curriculumId": "LEERPLAN"',
+    '  },',
+    '  "toegevoegd": 3',
+    ' },',
+    ' "bewaard": {',
+    '  "id": "k1",',
+    '  "title": "Wiskunde 4de jaar",',
+    '  "author": "",',
+    '  "coverEmoji": "📘",',
+    '  "code": "ABC123",',
+    '  "chapters": [',
+    '   {',
+    '    "id": "h1",',
+    '    "title": "Wiskunde",',
+    '    "sections": [',
+    '     {',
+    '      "id": "s1",',
+    '      "title": "Getallen",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "b1",',
+    '        "type": "text",',
+    '        "markdown": "Uitleg bij Getallen."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["W01","W02","W03","W04","W05","W06","W07","W08"]',
+    '     },',
+    '     {',
+    '      "id": "s2",',
+    '      "title": "Meetkunde (basis)",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "b2",',
+    '        "type": "text",',
+    '        "markdown": "Uitleg bij Meetkunde (basis)."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["W09","W10","W11","W12","W13"]',
+    '     },',
+    '     {',
+    '      "id": "#1",',
+    '      "title": "Meetkunde",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "#2",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "W14 — Doel 14 van W.\\nW15 — Doel 15 van W.\\nW16 — Doel 16 van W."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["W14","W15","W16"]',
+    '     }',
+    '    ]',
+    '   }',
+    '  ],',
+    '  "settings": {"accentColor":"#4f46e5","requireName":false,"showProgressToStudent":true},',
+    '  "createdAt": 1,',
+    '  "updatedAt": 501,',
+    '  "curriculumId": "LEERPLAN"',
+    ' },',
+    ' "log": ["guarded:k1:500"]',
+    '}',
+  ],
+  bewaar_geweigerd: [
+    '{',
+    ' "verwijderd": [{"ok":false,"reden":"verwijderd"},[]],',
+    ' "ander_leerplan": [{"ok":false,"reden":"ander-leerplan"},[]],',
+    ' "niets_te_doen": [',
+    '  {"ok":false,"reden":"niets-te-doen"},',
+    '  {"ok":false,"reden":"niets-te-doen"},',
+    '  {"ok":false,"reden":"niets-te-doen"},',
+    '  []',
+    ' ],',
+    ' "gewijzigd": [{"ok":false,"reden":"gewijzigd"},["guarded:k1:500"]],',
+    ' "verwijderd_tussendoor": [{"ok":false,"reden":"verwijderd"},["guarded:k1:500"]],',
+    ' "mislukt": [{"ok":false,"reden":"mislukt"},["guarded:k1:500"],500]',
+    '}',
+  ],
+  voeg_groot: [
+    '{',
+    ' "toegevoegd": 402,',
+    ' "eerste": "X1",',
+    ' "laatste": "X402",',
+    ' "hoofdstukken": 2,',
+    ' "titels": [',
+    '  ["Wiskunde",[["Getallen",2],["Meetkunde (basis)",1]]],',
+    '  ["Verdieping",[["Voor wie meer wil",1]]],',
+    '  ["Eerste",[["Doelen",200]]],',
+    '  ["Tweede",[["Doelen",202]]]',
+    ' ]',
+    '}',
+  ],
+  voeg_hoofdletters: [
+    '{',
+    ' "zelfde_cursus": false,',
+    ' "course": {',
+    '  "id": "k1",',
+    '  "title": "Wiskunde 4de jaar",',
+    '  "subtitle": "Testrichting",',
+    '  "author": "A. Leerkracht",',
+    '  "coverEmoji": "📘",',
+    '  "code": "ABC123",',
+    '  "curriculumId": "LEERPLAN",',
+    '  "doelgroep": {"groep":"G-0100","titel":"Testrichting","graad":2,"jaar":4,"soort":"so"},',
+    '  "chapters": [',
+    '   {',
+    '    "id": "h1",',
+    '    "title": "  WISKUNDE ",',
+    '    "emoji": "📖",',
+    '    "sections": [',
+    '     {',
+    '      "id": "s1",',
+    '      "title": "Getallen",',
+    '      "goalCodes": ["W01","W02"],',
+    '      "goals": ["Vrije tekst"],',
+    '      "blocks": [',
+    '       {"id":"b1","type":"heading","text":"Kop","level":2},',
+    '       {"id":"b2","type":"text","markdown":"Uitleg met **vet**."},',
+    '       {',
+    '        "id": "b3",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "W01 — Doel"',
+    '       }',
+    '      ]',
+    '     },',
+    '     {',
+    '      "id": "s2",',
+    '      "title": "Meetkunde (basis)",',
+    '      "blocks": [{"id":"b5","type":"text","markdown":"Meetkunde."}],',
+    '      "goalCodes": ["W09"]',
+    '     },',
+    '     {',
+    '      "id": "#1",',
+    '      "title": "Meetkunde",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "#2",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "W11 — Doel 11 van W."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["W11"]',
+    '     }',
+    '    ]',
+    '   },',
+    '   {',
+    '    "id": "h2",',
+    '    "title": "Verdieping",',
+    '    "sections": [',
+    '     {',
+    '      "id": "s3",',
+    '      "title": "Voor wie meer wil",',
+    '      "optional": true,',
+    '      "goalCodes": ["W16"],',
+    '      "blocks": [{"id":"b6","type":"divider"}]',
+    '     }',
+    '    ]',
+    '   }',
+    '  ],',
+    '  "settings": {"accentColor":"#112233","requireName":true,"showProgressToStudent":false},',
+    '  "createdAt": 7,',
+    '  "updatedAt": 500',
+    ' },',
+    ' "toegevoegd": ["W11"],',
+    ' "alOpCursus": [],',
+    ' "hoofdstukken": 1',
+    '}',
+  ],
+  voeg_kleine_letters: [
+    '{',
+    ' "zelfde_cursus": false,',
+    ' "course": {',
+    '  "id": "k1",',
+    '  "title": "Wiskunde 4de jaar",',
+    '  "subtitle": "Testrichting",',
+    '  "author": "A. Leerkracht",',
+    '  "coverEmoji": "📘",',
+    '  "code": "ABC123",',
+    '  "curriculumId": "LEERPLAN",',
+    '  "doelgroep": {"groep":"G-0100","titel":"Testrichting","graad":2,"jaar":4,"soort":"so"},',
+    '  "chapters": [',
+    '   {',
+    '    "id": "h1",',
+    '    "title": "Wiskunde",',
+    '    "emoji": "📖",',
+    '    "sections": [',
+    '     {',
+    '      "id": "s1",',
+    '      "title": "Getallen",',
+    '      "goalCodes": ["W01","W02"],',
+    '      "goals": ["Vrije tekst"],',
+    '      "blocks": [',
+    '       {"id":"b1","type":"heading","text":"Kop","level":2},',
+    '       {"id":"b2","type":"text","markdown":"Uitleg met **vet**."},',
+    '       {',
+    '        "id": "b3",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "W01 — Doel"',
+    '       }',
+    '      ]',
+    '     },',
+    '     {',
+    '      "id": "s2",',
+    '      "title": "Meetkunde (basis)",',
+    '      "blocks": [{"id":"b5","type":"text","markdown":"Meetkunde."}],',
+    '      "goalCodes": ["W09"]',
+    '     },',
+    '     {',
+    '      "id": "#1",',
+    '      "title": "Meetkunde",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "#2",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "W11 — Doel 11 van W.\\nW12 — Doel 12 van W."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["W11","W12"]',
+    '     }',
+    '    ]',
+    '   },',
+    '   {',
+    '    "id": "h2",',
+    '    "title": "Verdieping",',
+    '    "sections": [',
+    '     {',
+    '      "id": "s3",',
+    '      "title": "Voor wie meer wil",',
+    '      "optional": true,',
+    '      "goalCodes": ["W16"],',
+    '      "blocks": [{"id":"b6","type":"divider"}]',
+    '     }',
+    '    ]',
+    '   }',
+    '  ],',
+    '  "settings": {"accentColor":"#112233","requireName":true,"showProgressToStudent":false},',
+    '  "createdAt": 7,',
+    '  "updatedAt": 500',
+    ' },',
+    ' "toegevoegd": ["W11","W12"],',
+    ' "alOpCursus": ["W01"],',
+    ' "hoofdstukken": 1',
+    '}',
+  ],
+  voeg_meer_rubrieken: [
+    '{',
+    ' "zelfde_cursus": false,',
+    ' "course": {',
+    '  "id": "k1",',
+    '  "title": "Wiskunde 4de jaar",',
+    '  "subtitle": "Testrichting",',
+    '  "author": "A. Leerkracht",',
+    '  "coverEmoji": "📘",',
+    '  "code": "ABC123",',
+    '  "curriculumId": "LEERPLAN",',
+    '  "doelgroep": {"groep":"G-0100","titel":"Testrichting","graad":2,"jaar":4,"soort":"so"},',
+    '  "chapters": [',
+    '   {',
+    '    "id": "h1",',
+    '    "title": "Wiskunde",',
+    '    "emoji": "📖",',
+    '    "sections": [',
+    '     {',
+    '      "id": "s1",',
+    '      "title": "Getallen",',
+    '      "goalCodes": ["W01","W02"],',
+    '      "goals": ["Vrije tekst"],',
+    '      "blocks": [',
+    '       {"id":"b1","type":"heading","text":"Kop","level":2},',
+    '       {"id":"b2","type":"text","markdown":"Uitleg met **vet**."},',
+    '       {',
+    '        "id": "b3",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "W01 — Doel"',
+    '       }',
+    '      ]',
+    '     },',
+    '     {',
+    '      "id": "s2",',
+    '      "title": "Meetkunde (basis)",',
+    '      "blocks": [{"id":"b5","type":"text","markdown":"Meetkunde."}],',
+    '      "goalCodes": ["W09"]',
+    '     },',
+    '     {',
+    '      "id": "#1",',
+    '      "title": "Getallen",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "#2",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "W03 — Doel 3 van W.\\nW05 — Doel 5 van W.\\nW06 — Doel 6 van W."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["W03","W05","W06"]',
+    '     },',
+    '     {',
+    '      "id": "#3",',
+    '      "title": "Meetkunde",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "#4",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "W10 — Doel 10 van W.\\nW14 — Doel 14 van W."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["W10","W14"]',
+    '     }',
+    '    ]',
+    '   },',
+    '   {',
+    '    "id": "h2",',
+    '    "title": "Verdieping",',
+    '    "sections": [',
+    '     {',
+    '      "id": "s3",',
+    '      "title": "Voor wie meer wil",',
+    '      "optional": true,',
+    '      "goalCodes": ["W16"],',
+    '      "blocks": [{"id":"b6","type":"divider"}]',
+    '     }',
+    '    ]',
+    '   },',
+    '   {',
+    '    "id": "#5",',
+    '    "title": "Biologie",',
+    '    "sections": [',
+    '     {',
+    '      "id": "#6",',
+    '      "title": "Cel",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "#7",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "B02 — Doel 2 van B.\\nB05 — Doel 5 van B."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["B02","B05"]',
+    '     },',
+    '     {',
+    '      "id": "#8",',
+    '      "title": "Organisme",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "#9",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "B11 — Doel 11 van B."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["B11"]',
+    '     }',
+    '    ]',
+    '   }',
+    '  ],',
+    '  "settings": {"accentColor":"#112233","requireName":true,"showProgressToStudent":false},',
+    '  "createdAt": 7,',
+    '  "updatedAt": 500',
+    ' },',
+    ' "toegevoegd": ["W03","W05","W06","W10","W14","B02","B05","B11"],',
+    ' "alOpCursus": [],',
+    ' "hoofdstukken": 2',
+    '}',
+  ],
+  voeg_niets: [
+    '{',
+    ' "alles_staat_er": {',
+    '  "zelfde_cursus": true,',
+    '  "course": "(de gegeven cursus zelf)",',
+    '  "toegevoegd": [],',
+    '  "alOpCursus": ["W01","W09","W16"],',
+    '  "hoofdstukken": 0',
+    ' },',
+    ' "niet_in_het_leerplan": {',
+    '  "zelfde_cursus": true,',
+    '  "course": "(de gegeven cursus zelf)",',
+    '  "toegevoegd": [],',
+    '  "alOpCursus": [],',
+    '  "hoofdstukken": 0',
+    ' },',
+    ' "geen_codes": {',
+    '  "zelfde_cursus": true,',
+    '  "course": "(de gegeven cursus zelf)",',
+    '  "toegevoegd": [],',
+    '  "alOpCursus": [],',
+    '  "hoofdstukken": 0',
+    ' }',
+    '}',
+  ],
+  voeg_nieuw_hoofdstuk: [
+    '{',
+    ' "zelfde_cursus": false,',
+    ' "course": {',
+    '  "id": "k1",',
+    '  "title": "Wiskunde 4de jaar",',
+    '  "subtitle": "Testrichting",',
+    '  "author": "A. Leerkracht",',
+    '  "coverEmoji": "📘",',
+    '  "code": "ABC123",',
+    '  "curriculumId": "LEERPLAN",',
+    '  "doelgroep": {"groep":"G-0100","titel":"Testrichting","graad":2,"jaar":4,"soort":"so"},',
+    '  "chapters": [',
+    '   {',
+    '    "id": "h1",',
+    '    "title": "Algebra",',
+    '    "emoji": "📖",',
+    '    "sections": [',
+    '     {',
+    '      "id": "s1",',
+    '      "title": "Getallen",',
+    '      "goalCodes": ["W01","W02"],',
+    '      "goals": ["Vrije tekst"],',
+    '      "blocks": [',
+    '       {"id":"b1","type":"heading","text":"Kop","level":2},',
+    '       {"id":"b2","type":"text","markdown":"Uitleg met **vet**."},',
+    '       {',
+    '        "id": "b3",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "W01 — Doel"',
+    '       }',
+    '      ]',
+    '     },',
+    '     {',
+    '      "id": "s2",',
+    '      "title": "Meetkunde (basis)",',
+    '      "blocks": [{"id":"b5","type":"text","markdown":"Meetkunde."}],',
+    '      "goalCodes": ["W09"]',
+    '     }',
+    '    ]',
+    '   },',
+    '   {',
+    '    "id": "h2",',
+    '    "title": "Verdieping",',
+    '    "sections": [',
+    '     {',
+    '      "id": "s3",',
+    '      "title": "Voor wie meer wil",',
+    '      "optional": true,',
+    '      "goalCodes": ["W16"],',
+    '      "blocks": [{"id":"b6","type":"divider"}]',
+    '     }',
+    '    ]',
+    '   },',
+    '   {',
+    '    "id": "#1",',
+    '    "title": "Wiskunde",',
+    '    "sections": [',
+    '     {',
+    '      "id": "#2",',
+    '      "title": "Getallen",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "#3",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "W03 — Doel 3 van W."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["W03"]',
+    '     },',
+    '     {',
+    '      "id": "#4",',
+    '      "title": "Meetkunde",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "#5",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "W11 — Doel 11 van W."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["W11"]',
+    '     }',
+    '    ]',
+    '   },',
+    '   {',
+    '    "id": "#6",',
+    '    "title": "Biologie",',
+    '    "sections": [',
+    '     {',
+    '      "id": "#7",',
+    '      "title": "Cel",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "#8",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "B05 — Doel 5 van B."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["B05"]',
+    '     },',
+    '     {',
+    '      "id": "#9",',
+    '      "title": "Organisme",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "#10",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "B07 — Doel 7 van B."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["B07"]',
+    '     }',
+    '    ]',
+    '   }',
+    '  ],',
+    '  "settings": {"accentColor":"#112233","requireName":true,"showProgressToStudent":false},',
+    '  "createdAt": 7,',
+    '  "updatedAt": 500',
+    ' },',
+    ' "toegevoegd": ["W03","W11","B05","B07"],',
+    ' "alOpCursus": [],',
+    ' "hoofdstukken": 2',
+    '}',
+  ],
+  voeg_samenvoegen: [
+    '{',
+    ' "zelfde_cursus": false,',
+    ' "course": {',
+    '  "id": "k1",',
+    '  "title": "Wiskunde 4de jaar",',
+    '  "subtitle": "Testrichting",',
+    '  "author": "A. Leerkracht",',
+    '  "coverEmoji": "📘",',
+    '  "code": "ABC123",',
+    '  "curriculumId": "LEERPLAN",',
+    '  "doelgroep": {"groep":"G-0100","titel":"Testrichting","graad":2,"jaar":4,"soort":"so"},',
+    '  "chapters": [',
+    '   {',
+    '    "id": "h1",',
+    '    "title": "Wiskunde",',
+    '    "emoji": "📖",',
+    '    "sections": [',
+    '     {',
+    '      "id": "s1",',
+    '      "title": "Getallen",',
+    '      "goalCodes": ["W01","W02"],',
+    '      "goals": ["Vrije tekst"],',
+    '      "blocks": [',
+    '       {"id":"b1","type":"heading","text":"Kop","level":2},',
+    '       {"id":"b2","type":"text","markdown":"Uitleg met **vet**."},',
+    '       {',
+    '        "id": "b3",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "W01 — Doel"',
+    '       }',
+    '      ]',
+    '     },',
+    '     {',
+    '      "id": "s2",',
+    '      "title": "Meetkunde (basis)",',
+    '      "blocks": [{"id":"b5","type":"text","markdown":"Meetkunde."}],',
+    '      "goalCodes": ["W09"]',
+    '     },',
+    '     {',
+    '      "id": "#1",',
+    '      "title": "Meetkunde",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "#2",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "W11 — Doel 11 van W.\\nW12 — Doel 12 van W."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["W11","W12"]',
+    '     }',
+    '    ]',
+    '   },',
+    '   {',
+    '    "id": "h2",',
+    '    "title": "Verdieping",',
+    '    "sections": [',
+    '     {',
+    '      "id": "s3",',
+    '      "title": "Voor wie meer wil",',
+    '      "optional": true,',
+    '      "goalCodes": ["W16"],',
+    '      "blocks": [{"id":"b6","type":"divider"}]',
+    '     }',
+    '    ]',
+    '   },',
+    '   {',
+    '    "id": "#3",',
+    '    "title": "Biologie",',
+    '    "sections": [',
+    '     {',
+    '      "id": "#4",',
+    '      "title": "Cel",',
+    '      "blocks": [',
+    '       {',
+    '        "id": "#5",',
+    '        "type": "callout",',
+    '        "kind": "goal",',
+    '        "title": "Doelen in deze sectie",',
+    '        "text": "B02 — Doel 2 van B."',
+    '       }',
+    '      ],',
+    '      "goalCodes": ["B02"]',
+    '     }',
+    '    ]',
+    '   }',
+    '  ],',
+    '  "settings": {"accentColor":"#112233","requireName":true,"showProgressToStudent":false},',
+    '  "createdAt": 7,',
+    '  "updatedAt": 500',
+    ' },',
+    ' "toegevoegd": ["W11","W12","B02"],',
+    ' "alOpCursus": ["W01","W16"],',
+    ' "hoofdstukken": 2',
+    '}',
+  ],
+};
+// @@GOUD-END@@
+
+/** Alle ids die een cursus al heeft (hoofdstukken, secties, blokken): die blijven staan zoals ze zijn. */
+function bekendeIds(c: Course): Set<string> {
+  return new Set([c.id, ...c.chapters.flatMap((h) => [h.id, ...h.sections.flatMap((s) => [s.id, ...s.blocks.map((b) => b.id)])])]);
+}
+
+/** De uitkomst met de nieuwe ids genummerd en het id van het leerplan vervangen: de rest blijft gelijk, ook de volgorde van de velden. */
+function metGenummerdeIds(uitkomst: unknown, bekend: ReadonlySet<string>, leerplanId: string): unknown {
+  const nummers = new Map<string, string>();
+  const loop = (waarde: unknown): unknown => {
+    if (Array.isArray(waarde)) return waarde.map(loop);
+    if (waarde === null || typeof waarde !== 'object') return waarde;
+    const uit: Record<string, unknown> = {};
+    for (const [sleutel, inhoud] of Object.entries(waarde)) {
+      if (sleutel === 'curriculumId' && inhoud === leerplanId) uit[sleutel] = 'LEERPLAN';
+      else if (sleutel === 'id' && typeof inhoud === 'string' && !bekend.has(inhoud)) {
+        if (!nummers.has(inhoud)) nummers.set(inhoud, `#${nummers.size + 1}`);
+        uit[sleutel] = nummers.get(inhoud);
+      } else uit[sleutel] = loop(inhoud);
+    }
+    return uit;
+  };
+  return loop(uitkomst);
+}
+
+/** JSON in regels: wat in `breedte` tekens past, blijft op één regel, de rest staat onder elkaar (zoals Prettier het zou doen). */
+function opmaak(waarde: unknown, breedte = 110): string[] {
+  const compact = JSON.stringify(waarde);
+  if (waarde === null || typeof waarde !== 'object' || compact.length <= breedte) return [compact];
+  const lijst = Array.isArray(waarde);
+  const kinderen = lijst
+    ? waarde.map((w) => opmaak(w, breedte - 1))
+    : Object.entries(waarde)
+      .filter(([, w]) => w !== undefined)
+      .map(([k, w]) => {
+        const r = opmaak(w, breedte - k.length - 5);
+        r[0] = `${JSON.stringify(k)}: ${r[0]}`;
+        return r;
+      });
+  const regels = [lijst ? '[' : '{'];
+  kinderen.forEach((r, i) => r.forEach((regel, j) => regels.push(` ${regel}${j === r.length - 1 && i < kinderen.length - 1 ? ',' : ''}`)));
+  regels.push(lijst ? ']' : '}');
+  return regels;
+}
+
+function controleerGoud(naam: string, uitkomst: unknown): void {
+  expect(opmaak(uitkomst)).toEqual(GOUD[naam]);
+}
+
+describe('vastgelegd vóór 3b-L1: voegGeplandeSectiesToe en bewaarGatenOpCursus zonder de nieuwe parameter', () => {
+  const leerplan = leerplanVan({ bestand: WIS, doelen: 'alle' }, { bestand: BIO, doelen: BIO_KOPPELING });
+  const code = (setId: string, id: string) => leerplan.goals.find((g) => g.refs?.[0].set === setId && g.refs[0].id === id)!.code;
+  const W = (n: number) => code('ODS_9102', `w${n}`);
+  const B = (n: number) => code('ODS_9101', `b${n}`);
+
+  /** Een cursus met twee hoofdstukken en verschillende soorten inhoud; `titelHoofdstuk` bepaalt waar nieuwe secties bij kunnen aansluiten. */
+  function cursusVoorGoud(titelHoofdstuk = 'Wiskunde'): Course {
+    return {
+      id: 'k1', title: 'Wiskunde 4de jaar', subtitle: 'Testrichting', author: 'A. Leerkracht', coverEmoji: '📘', code: 'ABC123',
+      curriculumId: leerplan.id,
+      doelgroep: { groep: 'G-0100', titel: 'Testrichting', graad: 2, jaar: 4, soort: 'so' },
+      chapters: [
+        {
+          id: 'h1', title: titelHoofdstuk, emoji: '📖',
+          sections: [
+            {
+              id: 's1', title: 'Getallen', goalCodes: [W(1), W(2)], goals: ['Vrije tekst'],
+              blocks: [
+                { id: 'b1', type: 'heading', text: 'Kop', level: 2 },
+                { id: 'b2', type: 'text', markdown: 'Uitleg met **vet**.' },
+                { id: 'b3', type: 'callout', kind: 'goal', title: 'Doelen in deze sectie', text: `${W(1)} — Doel` },
+              ],
+            },
+            { id: 's2', title: 'Meetkunde (basis)', blocks: [{ id: 'b5', type: 'text', markdown: 'Meetkunde.' }], goalCodes: [W(9)] },
+          ],
+        },
+        {
+          id: 'h2', title: 'Verdieping',
+          sections: [{ id: 's3', title: 'Voor wie meer wil', optional: true, goalCodes: [W(16)], blocks: [{ id: 'b6', type: 'divider' }] }],
+        },
+      ],
+      settings: { accentColor: '#112233', requireName: true, showProgressToStudent: false },
+      createdAt: 7, updatedAt: 500,
+    };
+  }
+
+  /** Het resultaat van `voegGeplandeSectiesToe` met genummerde ids, plus of de cursus zelf teruggegeven werd. */
+  function voeg(cursus: Course, codes: readonly string[]) {
+    const voor = JSON.stringify(cursus);
+    const r = voegGeplandeSectiesToe(cursus, leerplan, codes);
+    expect(JSON.stringify(cursus)).toBe(voor);
+    const zelfde = r.course === cursus;
+    const uit = metGenummerdeIds(r, bekendeIds(cursus), leerplan.id) as { course: unknown };
+    return { zelfde_cursus: zelfde, ...uit, course: zelfde ? '(de gegeven cursus zelf)' : uit.course };
+  }
+
+  it('voegGeplandeSectiesToe: bestaande hoofdstukken, samenvoegen op de titel, een nieuw hoofdstuk, codes die er al staan', () => {
+    controleerGoud('voeg_samenvoegen', voeg(cursusVoorGoud(), [W(1), W(11), W(12), W(16), B(2), 'BESTAAT NIET']));
+    controleerGoud('voeg_hoofdletters', voeg(cursusVoorGoud('  WISKUNDE '), [W(11)]));
+    controleerGoud('voeg_nieuw_hoofdstuk', voeg(cursusVoorGoud('Algebra'), [W(11), W(3), B(7), B(5)]));
+    controleerGoud('voeg_kleine_letters', voeg(cursusVoorGoud(), [`  ${W(1).toLowerCase()} `, W(11).toLowerCase(), W(11), W(12)]));
+    controleerGoud('voeg_meer_rubrieken', voeg(cursusVoorGoud(), [W(3), W(5), W(6), W(10), W(14), B(11), B(2), B(5)]));
+  });
+
+  it('voegGeplandeSectiesToe: niets toe te voegen geeft de cursus zelf terug', () => {
+    controleerGoud('voeg_niets', {
+      alles_staat_er: voeg(cursusVoorGoud(), [W(1), W(9), W(16)]),
+      niet_in_het_leerplan: voeg(cursusVoorGoud(), ['NIET IN HET LEERPLAN']),
+      geen_codes: voeg(cursusVoorGoud(), []),
+    });
+  });
+
+  it('voegGeplandeSectiesToe: een leerplan met meer dan 400 doelen krijgt één sectie per hoofdstuk', () => {
+    const groot = {
+      ...leerplan,
+      goals: Array.from({ length: 402 }, (_, i) => ({ id: `gg${i}`, code: `X${i + 1}`, text: `Doel ${i + 1}`, theme: i < 200 ? 'Eerste › Deel' : 'Tweede › Deel' })),
+    } as Curriculum;
+    const r = voegGeplandeSectiesToe(cursusVoorGoud(), groot, groot.goals.map((g) => g.code));
+    controleerGoud('voeg_groot', {
+      toegevoegd: r.toegevoegd.length,
+      eerste: r.toegevoegd[0],
+      laatste: r.toegevoegd[r.toegevoegd.length - 1],
+      hoofdstukken: r.hoofdstukken,
+      titels: r.course.chapters.map((h) => [h.title, h.sections.map((s) => [s.title, s.goalCodes?.length])]),
+    });
+  });
+
+  /** Een opslag met de cursus van het wiskundescenario (updatedAt 500) en de codes van de drie open doelen. */
+  function begin() {
+    const { leerplan: lp, cursus, codes } = wiskundeScenario();
+    const opslag = new NepOpslag();
+    opslag.cursussen.set(cursus.id, cursus);
+    return { lp, cursus, opslag, codes, open: codes.slice(13), bekend: bekendeIds(cursus) };
+  }
+
+  it('bewaarGatenOpCursus: de bewaarde cursus, het resultaat en wat er naar de opslag ging', () => {
+    const { lp, cursus, opslag, open, bekend } = begin();
+    const r = bewaarGatenOpCursus({ courseId: cursus.id, leerplan: lp, codes: open }, opslag);
+    controleerGoud('bewaar_gelukt', metGenummerdeIds({ resultaat: r, bewaard: opslag.cursussen.get('k1'), log: opslag.log }, bekend, lp.id));
+  });
+
+  it('bewaarGatenOpCursus: elke reden om niets te schrijven', () => {
+    const uit: Record<string, unknown> = {};
+    {
+      const { lp, opslag, open } = begin();
+      uit.verwijderd = [bewaarGatenOpCursus({ courseId: 'weg', leerplan: lp, codes: open }, opslag), opslag.log];
+    }
+    {
+      const { lp, cursus, opslag, open } = begin();
+      opslag.cursussen.set(cursus.id, { ...cursus, curriculumId: 'iets-anders' });
+      uit.ander_leerplan = [bewaarGatenOpCursus({ courseId: cursus.id, leerplan: lp, codes: open }, opslag), opslag.log];
+    }
+    {
+      const { lp, cursus, opslag, codes } = begin();
+      uit.niets_te_doen = [
+        bewaarGatenOpCursus({ courseId: cursus.id, leerplan: lp, codes: codes.slice(0, 13) }, opslag),
+        bewaarGatenOpCursus({ courseId: cursus.id, leerplan: lp, codes: ['BESTAAT NIET'] }, opslag),
+        bewaarGatenOpCursus({ courseId: cursus.id, leerplan: lp, codes: [] }, opslag),
+        opslag.log,
+      ];
+    }
+    {
+      const { lp, cursus, opslag, open } = begin();
+      opslag.guardedAntwoord = { ok: false, reason: 'gewijzigd', stored: { ...cursus, updatedAt: 777 } };
+      uit.gewijzigd = [bewaarGatenOpCursus({ courseId: cursus.id, leerplan: lp, codes: open }, opslag), opslag.log];
+    }
+    {
+      const { lp, cursus, opslag, open } = begin();
+      opslag.guardedAntwoord = { ok: false, reason: 'verwijderd' };
+      uit.verwijderd_tussendoor = [bewaarGatenOpCursus({ courseId: cursus.id, leerplan: lp, codes: open }, opslag), opslag.log];
+    }
+    {
+      const { lp, cursus, opslag, open } = begin();
+      opslag.cursusVol = true;
+      uit.mislukt = [bewaarGatenOpCursus({ courseId: cursus.id, leerplan: lp, codes: open }, opslag), opslag.log, opslag.cursussen.get('k1')?.updatedAt];
+    }
+    controleerGoud('bewaar_geweigerd', uit);
+  });
+});
+
+// ── De nieuwe parameter `geraamte` (pakket 3b-L1) ───────────────────────────
+
+describe('voegGeplandeSectiesToe en bewaarGatenOpCursus met een eigen geraamte: de competenties van een beroepskwalificatie', () => {
+  const MATRIX_8 = leesJson<MatrixBestand>(join(FIXTURES, 'studierichtingen.json'));
+  const ONTHAAL = leesJson<BkBestand>(join(WORTEL, 'tests', 'fixtures', 'kwalificaties', 'uit', 'bk', 'BK-0390-2.json'));
+  const BK_BESTANDEN: ReadonlyMap<string, BkBestand> = new Map([[ONTHAAL.bk, ONTHAAL]]);
+  const KADER_BK = { bks: [{ bk: ONTHAAL.bk }] } as unknown as RichtingBk;
+  const INFO_8 = richtingInfo(MATRIX_8, 'G-0008', VANDAAG) as RichtingInfo;
+  const DG = doelgroepVan(INFO_8, { groep: 'G-0008', soort: 'so', jaar: 3 });
+  const CODES = doelcodesVanBestand(ONTHAAL);
+  const code = (nr: number) => `BK-0390-2.${String(nr).padStart(2, '0')}`;
+
+  /** Het leerplan van Ine: 8 van de 12 competenties van Onthaalmedewerker (nr. 1 tot en met 8). */
+  const leerplan: Curriculum = (() => {
+    const gekozen = ONTHAAL.competenties.slice(0, 8).map((c) => c.id);
+    const merken = new Map([[ONTHAAL.bk, ONTHAAL.sha256.slice(0, 16)]]);
+    const u = leerplanUitBk([{ bestand: ONTHAAL, competenties: gekozen }], { doelgroep: DG, merken });
+    expect(u.bevestigd, u.waarschuwingen.join(' | ')).toBe(true);
+    return u.leerplan;
+  })();
+  const geraamteBk: Geraamte = (lp, codes) => bkGeraamte(lp, BK_BESTANDEN, codes);
+
+  /** Een cursus op dat leerplan met competentie 1 en 2 uitgewerkt, in een hoofdstuk met de titel van de beroepskwalificatie. */
+  function cursusIne(titelHoofdstuk = 'Onthaalmedewerker'): Course {
+    return {
+      id: 'k1', title: 'Onthaal 5de jaar', author: 'Ine', coverEmoji: '📘', code: 'ABC123', curriculumId: leerplan.id,
+      chapters: [
+        {
+          id: 'h1', title: titelHoofdstuk,
+          sections: [
+            { id: 's1', title: 'Werkt in teamverband', goalCodes: [code(1)], blocks: [{ id: 'b1', type: 'text', markdown: 'Uitleg bij de eerste competentie.' }] },
+            { id: 's2', title: 'Tweede competentie', goalCodes: [code(2)], blocks: [{ id: 'b2', type: 'text', markdown: 'Uitleg bij de tweede.' }] },
+          ],
+        },
+        { id: 'h2', title: 'Praktijk', sections: [{ id: 's3', title: 'Stage', blocks: [{ id: 'b3', type: 'divider' }] }] },
+      ],
+      settings: { accentColor: '#4f46e5', requireName: false, showProgressToStudent: true },
+      createdAt: 1, updatedAt: 500,
+    };
+  }
+  const dekking = (c: Course) => dekkingBk(bkKaderDoelen(KADER_BK, BK_BESTANDEN), [{ course: c, leerplan }], []);
+
+  /** De open competenties van de cursus van Ine die in haar leerplan staan: nr. 3 tot en met 8. */
+  function gaten(c: Course) {
+    return codesVoorDoelen(leerplan, openVerplichteDoelen(dekking(c)), bkVerwijzingen);
+  }
+
+  it('de vooraf berekende gaten: 6 open competenties staan in haar leerplan, 4 niet', () => {
+    const voor = dekking(cursusIne());
+    expect(voor).toMatchObject({ totaal: 12, gedekt: 2, gepland: 0, open: 10 });
+    const g = gaten(cursusIne());
+    expect(g.codes).toEqual([3, 4, 5, 6, 7, 8].map(code));
+    expect(g.inLeerplan).toHaveLength(6);
+    expect(g.nietInLeerplan.map((d) => d.code)).toEqual([9, 10, 11, 12].map(code));
+    // De codes in de tests zijn die van het bestand.
+    expect(ONTHAAL.competenties.slice(0, 3).map((c) => CODES.get(c.id))).toEqual([1, 2, 3].map(code));
+  });
+
+  it('zet een sectie per competentie achteraan in het hoofdstuk van de beroepskwalificatie, met de kennis en vaardigheden erbij', () => {
+    const cursus = cursusIne();
+    const voor = structuredClone(cursus);
+    const r = voegGeplandeSectiesToe(cursus, leerplan, gaten(cursus).codes, geraamteBk);
+
+    expect(cursus).toEqual(voor);
+    expect(r.course.chapters).toHaveLength(2);
+    // De bestaande secties, het andere hoofdstuk en de rest van de cursus blijven diep gelijk.
+    expect(r.course.chapters[0].sections.slice(0, 2)).toEqual(voor.chapters[0].sections);
+    expect(r.course.chapters[1]).toEqual(voor.chapters[1]);
+    expect({ ...r.course.chapters[0], sections: [] }).toEqual({ ...voor.chapters[0], sections: [] });
+    // Zes nieuwe secties, elk met één doelcode, in de volgorde van het leerplan.
+    const nieuw = r.course.chapters[0].sections.slice(2);
+    expect(nieuw.map((s) => s.goalCodes)).toEqual([3, 4, 5, 6, 7, 8].map((n) => [code(n)]));
+    expect(r.toegevoegd).toEqual([3, 4, 5, 6, 7, 8].map(code));
+    expect(r.alOpCursus).toEqual([]);
+    expect(r.hoofdstukken).toBe(1);
+    for (const s of nieuw) {
+      expect(s.optional).not.toBe(true);
+      expect(s.blocks).toHaveLength(2);
+      expect(s.blocks[0]).toMatchObject({ type: 'callout', kind: 'goal', title: 'Doel in deze sectie' });
+      expect(s.blocks[1]).toMatchObject({ type: 'callout', kind: 'goal', title: 'Kennis en vaardigheden uit de beroepskwalificatie' });
+    }
+    const bestaand = new Set([...bekendeIds(cursus)]);
+    for (const s of nieuw) expect([s.id, ...s.blocks.map((b) => b.id)].some((id) => bestaand.has(id))).toBe(false);
+  });
+
+  it('daarna staan die competenties op "gepland" in de dekking en blijven alleen de vier buiten het leerplan open', () => {
+    const cursus = cursusIne();
+    const r = voegGeplandeSectiesToe(cursus, leerplan, gaten(cursus).codes, geraamteBk);
+    const na = dekking(r.course);
+    expect(na).toMatchObject({ totaal: 12, gedekt: 2, gepland: 6, open: 4 });
+    expect(openVerplichteDoelen(na).map((d) => d.code)).toEqual([9, 10, 11, 12].map(code));
+    // Er is niets meer te plannen in dit leerplan.
+    expect(gaten(r.course).codes).toEqual([]);
+  });
+
+  it('een cursus zonder hoofdstuk met de titel van de beroepskwalificatie krijgt een nieuw hoofdstuk achteraan', () => {
+    const cursus = cursusIne('Algemeen');
+    const r = voegGeplandeSectiesToe(cursus, leerplan, [code(3), code(5)], geraamteBk);
+    expect(r.course.chapters.map((h) => h.title)).toEqual(['Algemeen', 'Praktijk', 'Onthaalmedewerker']);
+    expect(r.course.chapters.slice(0, 2)).toEqual(cursus.chapters);
+    expect(r.course.chapters[2].sections.map((s) => s.goalCodes)).toEqual([[code(3)], [code(5)]]);
+    expect(r.hoofdstukken).toBe(1);
+  });
+
+  it('een competentie die al op een sectie staat komt in alOpCursus; het geraamte krijgt alleen de rest', () => {
+    const cursus = cursusIne();
+    const aanroepen: { codes: string[] }[] = [];
+    const r = voegGeplandeSectiesToe(cursus, leerplan, [code(1), ` ${code(4).toLowerCase()} `, code(2), code(4)], (lp, codes) => {
+      aanroepen.push({ codes: [...codes] });
+      return geraamteBk(lp, codes);
+    });
+    expect(aanroepen).toEqual([{ codes: [code(4)] }]);
+    expect(r.alOpCursus).toEqual([code(1), code(2)]);
+    expect(r.toegevoegd).toEqual([code(4)]);
+  });
+
+  it('het geraamte wordt niet gevraagd als er niets te doen is, en dan is de cursus de gegeven cursus zelf', () => {
+    const cursus = cursusIne();
+    let aangeroepen = 0;
+    const telt: Geraamte = (lp, codes) => { aangeroepen++; return geraamteBk(lp, codes); };
+    const r = voegGeplandeSectiesToe(cursus, leerplan, [code(1), code(2)], telt);
+    expect(r.course).toBe(cursus);
+    expect(aangeroepen).toBe(0);
+    // Een geraamte dat niets teruggeeft, voegt ook niets toe.
+    const leeg = voegGeplandeSectiesToe(cursus, leerplan, [code(3)], () => []);
+    expect(leeg).toMatchObject({ toegevoegd: [], hoofdstukken: 0 });
+    expect(leeg.course).toBe(cursus);
+  });
+
+  it('zonder geraamte is het `geraamteHoofdstukken`, ook als je het uitdrukkelijk meegeeft', () => {
+    const lp = leerplanVan({ bestand: WIS, doelen: 'alle' }, { bestand: BIO, doelen: BIO_KOPPELING });
+    const cursus = cursusMet([{ titel: 'Getallen', codes: [lp.goals[0].code] }], { curriculumId: lp.id });
+    const codes = [lp.goals[3].code, lp.goals[11].code, lp.goals[17].code];
+    const standaard = voegGeplandeSectiesToe(cursus, lp, codes);
+    const uitdrukkelijk = voegGeplandeSectiesToe(cursus, lp, codes, geraamteHoofdstukken);
+    const bekend = bekendeIds(cursus);
+    expect(metGenummerdeIds(uitdrukkelijk, bekend, lp.id)).toEqual(metGenummerdeIds(standaard, bekend, lp.id));
+    expect(standaard.toegevoegd).toEqual(codes);
+  });
+
+  it('bewaarGatenOpCursus geeft het geraamte door: de bewaarde cursus heeft een sectie per competentie', () => {
+    const cursus = cursusIne();
+    const opslag = new NepOpslag();
+    opslag.cursussen.set(cursus.id, cursus);
+    const codes = gaten(cursus).codes;
+    const r = bewaarGatenOpCursus({ courseId: cursus.id, leerplan, codes, geraamte: geraamteBk }, opslag);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.toegevoegd).toBe(6);
+    expect(opslag.log).toEqual(['guarded:k1:500']);
+    const bewaard = opslag.cursussen.get('k1')!;
+    expect(bewaard.updatedAt).toBe(501);
+    expect(bewaard.chapters[0].sections.slice(2).map((s) => s.goalCodes)).toEqual([3, 4, 5, 6, 7, 8].map((n) => [code(n)]));
+    expect(bewaard.chapters[0].sections.slice(0, 2)).toEqual(cursus.chapters[0].sections);
+    expect(opslag.log.some((regel) => regel.startsWith('saveCurriculum'))).toBe(false);
+    expect(dekking(bewaard)).toMatchObject({ gedekt: 2, gepland: 6, open: 4 });
+  });
+
+  it('bewaarGatenOpCursus leest de cursus opnieuw en de gewone fouten blijven gelden, ook met een geraamte', () => {
+    const cursus = cursusIne();
+    const opslag = new NepOpslag();
+    opslag.cursussen.set(cursus.id, { ...cursus, updatedAt: 900, chapters: [...cursus.chapters, { id: 'extra', title: 'Elders toegevoegd', sections: [] }] });
+    const r = bewaarGatenOpCursus({ courseId: cursus.id, leerplan, codes: [code(3)], geraamte: geraamteBk }, opslag);
+    expect(r.ok).toBe(true);
+    expect(opslag.log).toEqual(['guarded:k1:900']);
+    expect(opslag.cursussen.get('k1')!.chapters.map((h) => h.id)).toContain('extra');
+
+    const weg = new NepOpslag();
+    expect(bewaarGatenOpCursus({ courseId: 'weg', leerplan, codes: [code(3)], geraamte: geraamteBk }, weg)).toEqual({ ok: false, reden: 'verwijderd' });
+    const ander = new NepOpslag();
+    ander.cursussen.set(cursus.id, { ...cursus, curriculumId: 'iets-anders' });
+    expect(bewaarGatenOpCursus({ courseId: cursus.id, leerplan, codes: [code(3)], geraamte: geraamteBk }, ander)).toEqual({ ok: false, reden: 'ander-leerplan' });
+    const klaar = new NepOpslag();
+    klaar.cursussen.set(cursus.id, cursus);
+    expect(bewaarGatenOpCursus({ courseId: cursus.id, leerplan, codes: [code(1), code(2)], geraamte: geraamteBk }, klaar)).toEqual({ ok: false, reden: 'niets-te-doen' });
+    expect(klaar.log).toEqual([]);
+  });
+});

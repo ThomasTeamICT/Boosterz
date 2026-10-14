@@ -3,24 +3,17 @@
 // en de logica (beroepskwalificatiesBron.ts, richtingBk.ts) komen pas met een dynamische import binnen, en alleen voor een
 // richting die er kan hebben. Een richting met doorstroomfinaliteit of van de 1ste graad vraagt zo nooit iets op in
 // public/leerplannen/kwalificaties/ (een 404 daar zou een consolefout geven, § 23.15 R11).
+//
+// `kanBkHebben` woont sinds fase 3b in lib/richtingOverzicht.ts (F3b-B10): dat zit in het gedeelde chunk van de lijstpagina
+// en de klas, zodat die er niet het chunk van de richtingenpagina voor nodig hebben. Hier wordt ze verder uitgevoerd.
 
 import { useEffect, useState } from 'react';
 import type { RichtingBk } from '../../lib/richtingBk';
 import type { RichtingInfo, RichtingKeuze } from '../../lib/richtingKader';
+import { kanBkHebben } from '../../lib/richtingOverzicht';
 import { useLaadstand, type Laadstand } from '../../lib/useLaadstand';
 
-/**
- * Kan deze richting beroepskwalificaties hebben? Ja bij finaliteit A of DU, bij een 7de jaar, een aanloopjaar, het
- * buitengewoon onderwijs en de andere opleidingen (basisverpleegkunde heeft er een, G1 stap 3), zolang de richting niet
- * afgebouwd is. Nee bij doorstroomfinaliteit en in de 1ste graad: daar koppelt de officiële bron er geen (G1 stap 3:
- * 0 van de 59 en 0 van de 22 onderdelen).
- */
-export function kanBkHebben(info: RichtingInfo): boolean {
-  if (info.afgebouwd) return false;
-  const finaliteit = info.groep.finaliteit;
-  if (finaliteit === 'A' || finaliteit === 'DU') return true;
-  return info.soort === 'zevende' || info.soort === 'aanloop' || info.soort === 'buso' || info.soort === 'ander';
-}
+export { kanBkHebben };
 
 /** Het BK-kader van een richting: niet van toepassing (geen verzoek), of laden, fout of klaar. */
 export type BkStand = { status: 'niet-van-toepassing' } | Laadstand<RichtingBk>;

@@ -13,14 +13,20 @@ import {
   type MdDekking,
 } from './dekkingMinimumdoelen';
 import { sanitizeDoelgroep, type Doelgroep } from './doelgroep';
+import { kanBkHebben as kanBkHebbenOpDeOudePlaats } from '../components/richting/useRichtingBk';
 import {
   bijdragenVoorKader,
+  bkKortVan,
+  bkKortZonderCursus,
+  bkRijZin,
   dekkingRijZin,
+  kanBkHebben,
   klasDekkingZin,
   kortVan,
   linkVoorRij,
   mijnRichtingMeta,
   mijnRichtingen,
+  type BkKort,
   type DekkingKortGetallen,
   type MijnRichting,
 } from './richtingOverzicht';
@@ -529,5 +535,188 @@ describe('klasDekkingZin', () => {
       'Je cursussen voor Zorg (2de graad) dekken 1 van het enige minimumdoel (100 %).',
     );
     expect(klasDekkingZin('Zorg (2de graad)', getallen({ totaal: 0 }))).toBe('Er zijn geen verplichte minimumdoelen om te dekken.');
+  });
+});
+
+// ── Fase 3b: kanBkHebben en de korte regel over de competenties ─────────────
+
+describe('kanBkHebben (verhuisd naar dit bestand)', () => {
+  const info = (groep: string): RichtingInfo => {
+    const i = richtingInfo(matrix, groep, VANDAAG);
+    if (!i) throw new Error(`${groep} ontbreekt in de structuurfixtures`);
+    return i;
+  };
+
+  it('ja bij arbeidsmarktfinaliteit (G-0008, G-0009) en bij een 7de jaar (Animator, G-0429)', () => {
+    expect(kanBkHebben(info('G-0008'))).toBe(true);
+    expect(kanBkHebben(info('G-0009'))).toBe(true);
+    expect(info('G-0429').soort).toBe('zevende');
+    expect(kanBkHebben(info('G-0429'))).toBe(true);
+  });
+
+  it('nee bij doorstroomfinaliteit (G-0193, G-0327, G-0117) en in de 1ste graad (G-0307, G-0311)', () => {
+    for (const g of ['G-0193', 'G-0327', 'G-0117', 'G-0307', 'G-0311']) expect(kanBkHebben(info(g)), g).toBe(false);
+  });
+
+  it('nooit bij een afgebouwde richting, ook niet met arbeidsmarktfinaliteit', () => {
+    expect(kanBkHebben({ ...info('G-0008'), afgebouwd: true })).toBe(false);
+  });
+
+  it('op de oude plaats (useRichtingBk.ts) is het dezelfde functie met dezelfde uitkomst', () => {
+    expect(kanBkHebbenOpDeOudePlaats).toBe(kanBkHebben);
+    for (const g of matrix.groepen) {
+      const i = info(g.nummer);
+      expect(kanBkHebbenOpDeOudePlaats(i)).toBe(kanBkHebben(i));
+    }
+  });
+});
+
+describe('BkKort: zonder cursus, met getallen en de zin', () => {
+  const regel = (bk: string, titel: string, extra: object = {}) => ({
+    bk, nummer: bk.slice(0, 7), versie: Number(bk.slice(-1)), titel, onderdelen: [8], alleOnderdelen: true, ...extra,
+  });
+  const EEN = { bks: [regel('BK-0390-2', 'Onthaalmedewerker')] };
+  const TWEE = { bks: [regel('BK-0390-2', 'Onthaalmedewerker'), regel('BK-0464-1', 'Recreatief medewerker')] };
+
+  /** Een dekking met precies de velden die `bkKortVan` leest. */
+  function dekking(p: {
+    telt?: boolean[]; sets?: { set: string; setNaam: string }[]; totaal?: number; gedekt?: number; gepland?: number; percent?: number;
+  }): MdDekking {
+    return {
+      cursussen: (p.telt ?? [true]).map((telt, i) => ({ courseId: `c${i}`, titel: `Cursus ${i}`, telt, draagtBij: 0, buitenKader: 0 })),
+      perSet: (p.sets ?? [{ set: 'BK-0390-2', setNaam: 'Onthaalmedewerker' }]).map((s) => ({ ...s, totaal: 0, gedekt: 0, gepland: 0, verdieping: 0 })),
+      totaal: p.totaal ?? 12, gedekt: p.gedekt ?? 5, gepland: p.gepland ?? 3, percent: p.percent ?? 42,
+    } as unknown as MdDekking;
+  }
+
+  describe('bkKortZonderCursus', () => {
+    it('één BK: het aantal en haar titel', () => {
+      expect(bkKortZonderCursus(EEN)).toEqual({ soort: 'zonder-cursus', bks: 1, titel: 'Onthaalmedewerker' });
+    });
+
+    it('meer BK’s: alleen het aantal, geen titel', () => {
+      expect(bkKortZonderCursus(TWEE)).toEqual({ soort: 'zonder-cursus', bks: 2 });
+    });
+
+    it('telt een BK-versie één keer, ook als het kader haar dubbel noemt', () => {
+      expect(bkKortZonderCursus({ bks: [...EEN.bks, ...EEN.bks] })).toEqual({ soort: 'zonder-cursus', bks: 1, titel: 'Onthaalmedewerker' });
+    });
+
+    it('tolerant: zonder BK’s, zonder titel of met kapotte regels geen fout', () => {
+      expect(bkKortZonderCursus({ bks: [] })).toEqual({ soort: 'zonder-cursus', bks: 0 });
+      expect(bkKortZonderCursus({ bks: [regel('BK-0390-2', '   ')] })).toEqual({ soort: 'zonder-cursus', bks: 1 });
+      expect(bkKortZonderCursus({ bks: [null, 7, { bk: 3 }, regel('BK-0390-2', 'Onthaalmedewerker')] } as never))
+        .toEqual({ soort: 'zonder-cursus', bks: 1, titel: 'Onthaalmedewerker' });
+      expect(bkKortZonderCursus({} as never)).toEqual({ soort: 'zonder-cursus', bks: 0 });
+    });
+  });
+
+  describe('bkKortVan', () => {
+    const bestanden = new Map<string, unknown>([['BK-0390-2', {}], ['BK-0464-1', {}]]);
+
+    it('geen enkele cursus telt mee: bkKortZonderCursus, ook als er cursussen zijn die niet meetellen', () => {
+      expect(bkKortVan(dekking({ telt: [] }), EEN, bestanden)).toEqual(bkKortZonderCursus(EEN));
+      expect(bkKortVan(dekking({ telt: [false, false] }), TWEE, bestanden)).toEqual(bkKortZonderCursus(TWEE));
+    });
+
+    it('één BK: de getallen, haar titel en haar percentage', () => {
+      expect(bkKortVan(dekking({ telt: [false, true] }), EEN, bestanden)).toEqual({
+        soort: 'getallen', bks: 1, titel: 'Onthaalmedewerker', totaal: 12, gedekt: 5, gepland: 3, percent: 42, zonderBestand: 0,
+      });
+    });
+
+    it('meer BK’s: geen titel en nooit een samengeteld percentage', () => {
+      const d = dekking({
+        sets: [{ set: 'BK-0390-2', setNaam: 'Onthaalmedewerker' }, { set: 'BK-0464-1', setNaam: 'Recreatief medewerker' }],
+        totaal: 25, gedekt: 9, gepland: 4, percent: 36,
+      });
+      const k = bkKortVan(d, TWEE, bestanden);
+      expect(k).toEqual({ soort: 'getallen', bks: 2, totaal: 25, gedekt: 9, gepland: 4, zonderBestand: 0 });
+      expect(k).not.toHaveProperty('percent');
+      expect(k).not.toHaveProperty('titel');
+    });
+
+    it('telt de BK’s van het kader zonder bestand in `bestanden`', () => {
+      const alleenOnthaal = new Map<string, unknown>([['BK-0390-2', {}]]);
+      expect(bkKortVan(dekking({}), TWEE, alleenOnthaal)).toMatchObject({ bks: 1, titel: 'Onthaalmedewerker', zonderBestand: 1 });
+      expect(bkKortVan(dekking({ sets: [], totaal: 0, gedekt: 0, gepland: 0, percent: 0 }), TWEE, new Map())).toMatchObject({ bks: 0, totaal: 0, zonderBestand: 2 });
+    });
+
+    it('tolerant voor een dekking zonder lijsten', () => {
+      expect(bkKortVan({} as MdDekking, EEN, bestanden)).toEqual(bkKortZonderCursus(EEN));
+    });
+  });
+
+  describe('bkRijZin', () => {
+    type Getallen = Extract<BkKort, { soort: 'getallen' }>;
+    const getallen = (extra: Partial<Getallen> = {}): BkKort => ({
+      soort: 'getallen', bks: 1, titel: 'Onthaalmedewerker', totaal: 12, gedekt: 5, gepland: 3, percent: 42, zonderBestand: 0, ...extra,
+    });
+
+    it('één BK: met titel en percentage, en de geplande competenties erachter', () => {
+      expect(bkRijZin(getallen())).toBe('Je cursussen dekken 5 van de 12 competenties van Onthaalmedewerker (42 %). 3 staan gepland.');
+    });
+
+    it('enkelvoud van "gepland" en niets bij nul', () => {
+      expect(bkRijZin(getallen({ gepland: 1 }))).toBe('Je cursussen dekken 5 van de 12 competenties van Onthaalmedewerker (42 %). 1 staat gepland.');
+      expect(bkRijZin(getallen({ gepland: 0 }))).toBe('Je cursussen dekken 5 van de 12 competenties van Onthaalmedewerker (42 %).');
+    });
+
+    it('meer BK’s: "van 2 beroepskwalificaties", zonder percentage', () => {
+      const k: BkKort = { soort: 'getallen', bks: 2, totaal: 25, gedekt: 9, gepland: 0, zonderBestand: 0 };
+      expect(bkRijZin(k)).toBe('Je cursussen dekken 9 van de 25 competenties van 2 beroepskwalificaties.');
+      expect(bkRijZin({ ...k, gepland: 4 })).toBe('Je cursussen dekken 9 van de 25 competenties van 2 beroepskwalificaties. 4 staan gepland.');
+    });
+
+    it('een percentage bij meer dan één BK wordt genegeerd, ook als iemand het meegaf (W8)', () => {
+      expect(bkRijZin({ soort: 'getallen', bks: 2, totaal: 25, gedekt: 9, gepland: 0, percent: 36, zonderBestand: 0 }))
+        .toBe('Je cursussen dekken 9 van de 25 competenties van 2 beroepskwalificaties.');
+    });
+
+    it('zonder titel en met één BK: "van 1 beroepskwalificatie"', () => {
+      const { titel: _titel, ...zonderTitel } = getallen() as Getallen;
+      expect(bkRijZin(zonderTitel)).toBe('Je cursussen dekken 5 van de 12 competenties van 1 beroepskwalificatie (42 %). 3 staan gepland.');
+    });
+
+    it('beroepskwalificaties zonder bestand: erachter, na de geplande competenties', () => {
+      expect(bkRijZin(getallen({ zonderBestand: 1 }))).toBe(
+        'Je cursussen dekken 5 van de 12 competenties van Onthaalmedewerker (42 %). 3 staan gepland. Van 1 beroepskwalificatie staan de competenties nog niet in Boosterz.',
+      );
+      expect(bkRijZin(getallen({ gepland: 0, zonderBestand: 2 }))).toBe(
+        'Je cursussen dekken 5 van de 12 competenties van Onthaalmedewerker (42 %). Van 2 beroepskwalificaties staan de competenties nog niet in Boosterz.',
+      );
+    });
+
+    it('één competentie is "de enige competentie"', () => {
+      expect(bkRijZin(getallen({ totaal: 1, gedekt: 0, gepland: 0, percent: 0 }))).toBe('Je cursussen dekken 0 van de enige competentie van Onthaalmedewerker (0 %).');
+    });
+
+    it('leeg bij getallen met totaal 0: er valt niets te zeggen', () => {
+      expect(bkRijZin(getallen({ totaal: 0, gedekt: 0, gepland: 0, percent: 0, zonderBestand: 1 }))).toBe('');
+    });
+
+    it('geen cursus telt mee: de titel bij één BK, "de 2 beroepskwalificaties" bij meer', () => {
+      expect(bkRijZin({ soort: 'zonder-cursus', bks: 1, titel: 'Onthaalmedewerker' })).toBe('Nog geen cursus met de competenties van Onthaalmedewerker.');
+      expect(bkRijZin({ soort: 'zonder-cursus', bks: 2 })).toBe('Nog geen cursus met de competenties van de 2 beroepskwalificaties.');
+      expect(bkRijZin({ soort: 'zonder-cursus', bks: 1 })).toBe('Nog geen cursus met de competenties van de beroepskwalificatie.');
+      expect(bkRijZin({ soort: 'zonder-cursus', bks: 0 })).toBe('');
+    });
+
+    it('een titel met een punt of spaties achteraan geeft geen dubbele punt', () => {
+      expect(bkRijZin({ soort: 'zonder-cursus', bks: 1, titel: 'Medewerker horeca. ' })).toBe('Nog geen cursus met de competenties van Medewerker horeca.');
+      expect(bkRijZin(getallen({ titel: 'Medewerker horeca.' }))).toBe('Je cursussen dekken 5 van de 12 competenties van Medewerker horeca (42 %). 3 staan gepland.');
+    });
+
+    it('een titel bij meer dan één BK komt nooit in de zin', () => {
+      expect(bkRijZin({ soort: 'zonder-cursus', bks: 2, titel: 'Onthaalmedewerker' })).toBe('Nog geen cursus met de competenties van de 2 beroepskwalificaties.');
+    });
+
+    it('nooit een competentiecode, ADV-nummer, groepnummer of set-id (I7)', () => {
+      const zinnen = [
+        bkRijZin(getallen()), bkRijZin(getallen({ zonderBestand: 2 })), bkRijZin(getallen({ bks: 3, percent: undefined })),
+        bkRijZin({ soort: 'zonder-cursus', bks: 1, titel: 'Onthaalmedewerker' }), bkRijZin({ soort: 'zonder-cursus', bks: 3 }),
+      ];
+      for (const z of zinnen) expect(z).not.toMatch(/bkc\d|ADV-|G-\d|ODS_/);
+    });
   });
 });

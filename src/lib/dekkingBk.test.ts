@@ -9,7 +9,15 @@ import { bkKaartMeta, bkLegende, bkSamenvatting, bkSetSamenvatting, bkToonCompet
 import { createCourse } from './courses';
 import type { Course, CourseSection } from './courseTypes';
 import type { Curriculum } from './curriculumTypes';
-import { aantalCompetentiesMetTekst, bkKaderDoelen, bkVerwijzingen, dekkingBk } from './dekkingBk';
+import {
+  aantalCompetentiesMetTekst,
+  bkKaderDoelen,
+  bkKaderVanVersies,
+  bkVerwijzingen,
+  bkVersiesOmTeLaden,
+  dekkingBk,
+  dekkingBkVanRichting,
+} from './dekkingBk';
 import { dekkingMinimumdoelen, type CursusBijdrage, type KaderDoel, type MdDekking } from './dekkingMinimumdoelen';
 import type { Doelgroep } from './doelgroep';
 import { bkKader, type RichtingBk } from './richtingBk';
@@ -89,6 +97,13 @@ function sectieMet(c: Course, code: string): CourseSection {
 /** De sectie krijgt echte inhoud: ze is dan uitgewerkt (gedekt) in plaats van gepland. */
 function werkUit(c: Course, code: string): void {
   sectieMet(c, code).blocks.push(tekstBlok(`t-${c.id}-${code}`));
+}
+/**
+ * Bedt een oefening in de sectie met deze doelcode in. Alleen een ingebedde oefening telt mee (`computeCoverage`): een
+ * oefening die enkel in `widgets` zit, maar in geen enkele sectie staat, verandert de dekking niet.
+ */
+function bedIn(c: Course, code: string, widgetId: string): void {
+  sectieMet(c, code).blocks.push({ id: `w-${c.id}-${widgetId}`, type: 'widget', widgetId } as CourseSection['blocks'][number]);
 }
 /** Een keuzesectie: alleen verdieping. */
 function maakKeuze(c: Course, code: string): void {
@@ -536,5 +551,118 @@ describe('dekkingBk en de dekking op minimumdoelen raken elkaar niet', () => {
     const bk = dekkingBk(bkKaderDoelen(bkKader(KOPPELING, INDEX, INFO_8, { groep: 'G-0008', soort: 'so' }, VANDAAG), BESTANDEN), [{ course: c, leerplan: gemengd }], []);
     expect(bk.gepland).toBe(12);
     expect(bk.cursussen[0]).toMatchObject({ telt: true, draagtBij: 12 });
+  });
+});
+
+// ── Fase 3b: dezelfde pijplijn voor het detail, de rij en de klas (§ 24.4) ──
+
+describe('bkVersiesOmTeLaden', () => {
+  const kader8 = bkKader(KOPPELING, INDEX, INFO_8, { groep: 'G-0008', soort: 'so' }, VANDAAG);
+  const kader9 = bkKader(KOPPELING, INDEX, richting('G-0009'), { groep: 'G-0009', soort: 'so' }, VANDAAG);
+
+  it('elke BK-versie van het kader één keer, in zijn volgorde (G-0008: Onthaalmedewerker en Recreatief medewerker)', () => {
+    expect(bkVersiesOmTeLaden(kader8)).toEqual(kader8.bks.map((b) => b.bk));
+    expect(bkVersiesOmTeLaden(kader8)).toEqual(['BK-0390-2', 'BK-0464-1']);
+  });
+
+  it('nooit een versie die de index zonder bestand noemt (G-0009: BK-9999-3 heeft er geen)', () => {
+    expect(kader9.bks.map((b) => [b.bk, b.zonderBestand === true])).toEqual([['BK-9999-1', false], ['BK-9999-3', true]]);
+    expect(bkVersiesOmTeLaden(kader9)).toEqual(['BK-9999-1']);
+  });
+
+  it('een dubbele versie komt één keer voor, en rare invoer geeft een lege lijst zonder fout', () => {
+    expect(bkVersiesOmTeLaden({ bks: [...kader8.bks, ...kader8.bks] })).toEqual(['BK-0390-2', 'BK-0464-1']);
+    expect(bkVersiesOmTeLaden({ bks: [] })).toEqual([]);
+    expect(bkVersiesOmTeLaden({} as never)).toEqual([]);
+    expect(bkVersiesOmTeLaden(null as never)).toEqual([]);
+    expect(bkVersiesOmTeLaden({ bks: [null, 7, { bk: 3 }, ...kader8.bks] } as never)).toEqual(['BK-0390-2', 'BK-0464-1']);
+  });
+});
+
+describe('bkKaderVanVersies', () => {
+  const kader8 = bkKader(KOPPELING, INDEX, INFO_8, { groep: 'G-0008', soort: 'so' }, VANDAAG);
+
+  it('geeft voor de versies van een kader precies dezelfde lijst als bkKaderDoelen', () => {
+    expect(bkKaderVanVersies(kader8.bks.map((b) => b.bk), BESTANDEN)).toEqual(bkKaderDoelen(kader8, BESTANDEN));
+    expect(bkKaderVanVersies(bkVersiesOmTeLaden(kader8), BESTANDEN)).toHaveLength(25);
+  });
+
+  it('volgt de volgorde van de versies die je geeft, en één versie levert haar eigen competenties', () => {
+    expect(bkKaderVanVersies(['BK-0464-1', 'BK-0390-2'], BESTANDEN).map((d) => d.set)).toEqual([...Array(13).fill('BK-0464-1'), ...Array(12).fill('BK-0390-2')]);
+    const alleenOnthaal = bkKaderVanVersies(['BK-0390-2'], BESTANDEN);
+    expect(alleenOnthaal).toHaveLength(12);
+    expect(alleenOnthaal.every((d) => d.set === 'BK-0390-2' && d.verplichteSet && !d.optioneel)).toBe(true);
+  });
+
+  it('een dubbele versie telt één keer', () => {
+    expect(bkKaderVanVersies(['BK-0390-2', 'BK-0390-2'], BESTANDEN)).toHaveLength(12);
+  });
+
+  it('een versie zonder bruikbaar bestand levert niets: ontbreekt, van een andere versie, of kapot', () => {
+    expect(bkKaderVanVersies(['BK-0390-2', 'BK-0464-1'], new Map())).toEqual([]);
+    expect(bkKaderVanVersies(['BK-0390-2'], new Map([['BK-0390-2', RECREATIEF]]))).toEqual([]);
+    expect(bkKaderVanVersies(['BK-0390-2', 'BK-0464-1'], new Map([['BK-0390-2', { ...ONTHAAL, aantal: 99 }], ['BK-0464-1', RECREATIEF]]))).toHaveLength(13);
+    expect(bkKaderVanVersies(['BK-9999-3'], BESTANDEN)).toEqual([]);
+  });
+
+  it('rare invoer geeft een lege lijst, nooit een fout', () => {
+    expect(bkKaderVanVersies([], BESTANDEN)).toEqual([]);
+    expect(bkKaderVanVersies(undefined as never, BESTANDEN)).toEqual([]);
+    expect(bkKaderVanVersies(['BK-0390-2'], undefined as never)).toEqual([]);
+    expect(bkKaderVanVersies([null, 7, 'BK-0390-2'] as never, BESTANDEN)).toHaveLength(12);
+  });
+
+  it('verandert de bestanden niet', () => {
+    const voor = JSON.stringify([...BESTANDEN.values()]);
+    bkKaderVanVersies(['BK-0390-2', 'BK-0464-1'], BESTANDEN);
+    expect(JSON.stringify([...BESTANDEN.values()])).toBe(voor);
+  });
+});
+
+describe('dekkingBkVanRichting: dekkingBk over het kader van de richting', () => {
+  const kader8 = bkKader(KOPPELING, INDEX, INFO_8, { groep: 'G-0008', soort: 'so' }, VANDAAG);
+  const lp = leerplanMet([deelVan(ONTHAAL, 0, 8)]);
+  const cursus = nieuweCursus('c-onthaal', 'Onthaal', lp);
+  werkUit(cursus, 'BK-0390-2.01');
+  // De oefening staat echt in een sectie van de cursus (bedIn), anders telt ze niet mee en bewijst de test niets (I4).
+  bedIn(cursus, 'BK-0390-2.01', 'w1');
+  const bijdragen: CursusBijdrage[] = [{ course: cursus, leerplan: lp }];
+  const widgets = [widgetMet('w1', ['BK-0390-2.02'], lp.id)];
+
+  it('is gelijk aan dekkingBk(bkKaderDoelen(kader, bestanden), bijdragen, widgets)', () => {
+    const van = dekkingBkVanRichting({ kader: kader8, bestanden: BESTANDEN, bijdragen, widgets });
+    expect(van).toEqual(dekkingBk(bkKaderDoelen(kader8, BESTANDEN), bijdragen, widgets));
+    expect(tellers(van)).toMatchObject({ totaal: 25, gedekt: 2, gepland: 6 });
+    expect(van.perSet.map((s) => [s.set, s.totaal])).toEqual([['BK-0390-2', 12], ['BK-0464-1', 13]]);
+  });
+
+  it('geeft de oefeningen door: met de ingebedde oefening één competentie meer gedekt dan zonder', () => {
+    const met = dekkingBkVanRichting({ kader: kader8, bestanden: BESTANDEN, bijdragen, widgets });
+    const zonder = dekkingBkVanRichting({ kader: kader8, bestanden: BESTANDEN, bijdragen, widgets: [] });
+    expect(tellers(zonder)).toMatchObject({ totaal: 25, gedekt: 1, gepland: 7 });
+    expect(met.gedekt).toBe(zonder.gedekt + 1);
+    expect(met.gepland).toBe(zonder.gepland - 1);
+    expect(statussen(met)['BK-0390-2.02']).toBe('gedekt');
+    expect(statussen(zonder)['BK-0390-2.02']).toBe('gepland');
+  });
+
+  it('een oefening die in geen enkele sectie staat, verandert niets (alleen ingebedde oefeningen tellen)', () => {
+    const los = [widgetMet('w-los', ['BK-0390-2.03'], lp.id)];
+    const metLos = dekkingBkVanRichting({ kader: kader8, bestanden: BESTANDEN, bijdragen, widgets: los });
+    const zonder = dekkingBkVanRichting({ kader: kader8, bestanden: BESTANDEN, bijdragen, widgets: [] });
+    expect(tellers(metLos)).toEqual(tellers(zonder));
+  });
+
+  it('een versie zonder bestand telt niet mee in het kader', () => {
+    const alleenOnthaal = new Map([['BK-0390-2', ONTHAAL]]);
+    const van = dekkingBkVanRichting({ kader: kader8, bestanden: alleenOnthaal, bijdragen, widgets: [] });
+    expect(van.totaal).toBe(12);
+    expect(van.perSet.map((s) => s.set)).toEqual(['BK-0390-2']);
+  });
+
+  it('zonder cursussen: alles open', () => {
+    const van = dekkingBkVanRichting({ kader: kader8, bestanden: BESTANDEN, bijdragen: [], widgets: [] });
+    expect(tellers(van)).toEqual({ totaal: 25, gedekt: 0, gepland: 0, verdieping: 0, open: 25, percent: 0 });
+    expect(van.cursussen).toEqual([]);
   });
 });

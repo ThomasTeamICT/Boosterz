@@ -11,6 +11,10 @@
 // gaat nooit door de samenstelwizard. Een deelset van 4 van 13 doelen geeft dus 4 doelen in het leerplan, en een volledige
 // set waarvan 3 van de 16 doelen open staan, geeft er 3.
 //
+// De competenties van een beroepskwalificatie gaan langs dezelfde weg (docs/STUDIERICHTINGEN.md § 24.4): de aanroeper geeft
+// dan een eigen `geraamte` mee (`bkGeraamte`, één sectie per competentie). Dit bestand importeert daarvoor niets uit
+// `bkCursus.ts`; zonder `geraamte` is alles zoals hierboven.
+//
 // Puur: geen React, geen DOM, geen netwerk, en geen opslag behalve de `GatenOpslag` die de aanroeper meegeeft. Dit bestand
 // importeert dus niets uit `courses.ts` of `curriculum.ts` om te bewaren. Het is zwaar (richtingCursus, doelenSamenstellen)
 // en wordt alleen lui geladen, bij de klik.
@@ -173,6 +177,13 @@ export function titelsVoorGaten(
 
 // ── Secties toevoegen aan een bestaande cursus (b) ──────────────────────────
 
+/**
+ * Maakt de hoofdstukken met lege secties voor deze doelcodes van het leerplan (`codes` zijn al genormaliseerd en staan niet op
+ * de cursus). `geraamteHoofdstukken` doet dat voor de minimumdoelen; `bkGeraamte` voor de competenties van een
+ * beroepskwalificatie, met een sectie per competentie (F3b-B3).
+ */
+export type Geraamte = (leerplan: Curriculum, codes: readonly string[]) => CourseChapter[];
+
 /** Een hoofdstuktitel om te vergelijken: getrimd en zonder hoofdletters. */
 function titelSleutel(titel: string): string {
   return titel.trim().toLocaleLowerCase('nl');
@@ -185,9 +196,9 @@ function titelSleutel(titel: string): string {
  * - Een code die al op een sectie van de cursus staat (ook op een keuzesectie) komt in `alOpCursus` en wordt niet opnieuw
  *   gezet. Een code die niet in het leerplan staat (of zonder bruikbare code), komt nergens: de aanroeper kiest `codes`
  *   met `codesVoorDoelen`.
- * - De rest gaat door `geraamteHoofdstukken(leerplan, rest)`. Een nieuw hoofdstuk met dezelfde titel als een hoofdstuk
- *   van de cursus (getrimd, zonder hoofdletters) zet zijn secties achteraan in dat hoofdstuk; anders komt er achteraan
- *   in de cursus een nieuw hoofdstuk.
+ * - De rest gaat door `geraamte(leerplan, rest)`, standaard `geraamteHoofdstukken`. Een nieuw hoofdstuk met dezelfde titel
+ *   als een hoofdstuk van de cursus (getrimd, zonder hoofdletters) zet zijn secties achteraan in dat hoofdstuk; anders komt
+ *   er achteraan in de cursus een nieuw hoofdstuk.
  * - Invariant: elk bestaand hoofdstuk, elke sectie en elk blok blijft diep gelijk en in dezelfde volgorde; de gegeven cursus
  *   wordt niet aangepast. De nieuwe hoofdstukken en secties hebben nieuwe ids. Er komen nooit keuzesecties bij.
  * - `toegevoegd` zijn de codes die echt op een nieuwe sectie kwamen, in de volgorde van de nieuwe secties. `hoofdstukken`
@@ -198,6 +209,7 @@ export function voegGeplandeSectiesToe(
   course: Course,
   leerplan: Curriculum,
   codes: readonly string[],
+  geraamte: Geraamte = geraamteHoofdstukken,
 ): { course: Course; toegevoegd: string[]; alOpCursus: string[]; hoofdstukken: number } {
   const gewenst = normalizeGoalCodes(codes);
   const opCursus = new Set<string>();
@@ -205,7 +217,7 @@ export function voegGeplandeSectiesToe(
   const alOpCursus = gewenst.filter((code) => opCursus.has(code));
   const rest = gewenst.filter((code) => !opCursus.has(code));
 
-  const nieuw = rest.length > 0 ? geraamteHoofdstukken(leerplan, rest) : [];
+  const nieuw = rest.length > 0 ? geraamte(leerplan, rest) : [];
   if (nieuw.length === 0) return { course, toegevoegd: [], alOpCursus, hoofdstukken: 0 };
 
   const hoofdstukken: CourseChapter[] = [...course.chapters];
@@ -288,9 +300,10 @@ export function bewaarNieuweGatenCursus(
  * - `mislukt`: schrijven mislukte (volle of geblokkeerde opslag); de opslaglaag meldt dat zelf.
  *
  * `course` in het resultaat is de bewaarde cursus, met de nieuwe versie (`updatedAt`); `toegevoegd` is het aantal doelcodes.
+ * `geraamte` (optioneel) maakt de secties in plaats van `geraamteHoofdstukken` (zie `voegGeplandeSectiesToe`).
  */
 export function bewaarGatenOpCursus(
-  o: { courseId: string; leerplan: Curriculum; codes: readonly string[] },
+  o: { courseId: string; leerplan: Curriculum; codes: readonly string[]; geraamte?: Geraamte },
   opslag: GatenOpslag,
 ):
   | { ok: true; course: Course; toegevoegd: number }
@@ -298,7 +311,7 @@ export function bewaarGatenOpCursus(
   const vers = opslag.getCourse(o.courseId);
   if (!vers) return { ok: false, reden: 'verwijderd' };
   if (vers.curriculumId !== o.leerplan.id) return { ok: false, reden: 'ander-leerplan' };
-  const { course, toegevoegd } = voegGeplandeSectiesToe(vers, o.leerplan, o.codes);
+  const { course, toegevoegd } = voegGeplandeSectiesToe(vers, o.leerplan, o.codes, o.geraamte);
   if (toegevoegd.length === 0) return { ok: false, reden: 'niets-te-doen' };
   const r = opslag.saveCourseGuarded(course, vers.updatedAt);
   if (!r.ok) return { ok: false, reden: r.reason };

@@ -7,6 +7,7 @@ import {
   FOUT_KLAS_BESTAAT_NIET_MEER,
   FOUT_RICHTING_NIET_BEWAARD,
   cursusJaarMeta,
+  cursusMeta,
   cursussenInKlasZin,
   cursussenVanRichting,
   cursussenVoorLabel,
@@ -75,6 +76,65 @@ describe('cursusJaarMeta', () => {
   it('laat niets staan bij een richting zonder graad of zonder doelgroep', () => {
     expect(cursusJaarMeta({ groep: 'G-0100', titel: 'Buitengewoon', soort: 'buso' })).toBe('');
     expect(cursusJaarMeta(undefined)).toBe('');
+  });
+});
+
+describe('cursusMeta (het jaar en de beroepskwalificaties van de cursus)', () => {
+  const GEEN_CODE = /bkc\d|ADV-|G-\d|ODS_|BK-\d/;
+
+  it('zonder beroepskwalificaties is het gelijk aan cursusJaarMeta', () => {
+    expect(cursusMeta(NW4, [])).toBe(cursusJaarMeta(NW4));
+    expect(cursusMeta(NW_GRAAD, [])).toBe(cursusJaarMeta(NW_GRAAD));
+    expect(cursusMeta(undefined, [])).toBe('');
+    expect(cursusMeta({ groep: 'G-0100', titel: 'Buitengewoon', soort: 'buso' }, [])).toBe('');
+  });
+
+  it('één beroepskwalificatie: enkelvoud, met het jaar ervoor', () => {
+    expect(cursusMeta(NW4, ['Onthaalmedewerker'])).toBe('4de jaar · beroepskwalificatie Onthaalmedewerker');
+    expect(cursusMeta({ ...NW4, jaar: 5 }, ['Onthaalmedewerker'])).toBe('5de jaar · beroepskwalificatie Onthaalmedewerker');
+  });
+
+  it('twee beroepskwalificaties: meervoud, met "en"', () => {
+    expect(cursusMeta(NW4, ['Onthaalmedewerker', 'Recreatief medewerker'])).toBe(
+      '4de jaar · beroepskwalificaties Onthaalmedewerker en Recreatief medewerker',
+    );
+  });
+
+  it('drie of meer: de eerste twee en het aantal andere', () => {
+    expect(cursusMeta(NW4, ['Onthaalmedewerker', 'Recreatief medewerker', 'Baliemedewerker'])).toBe(
+      '4de jaar · beroepskwalificaties Onthaalmedewerker, Recreatief medewerker en 1 andere',
+    );
+    expect(cursusMeta(NW4, ['A', 'B', 'C', 'D'])).toBe('4de jaar · beroepskwalificaties A, B en 2 andere');
+    expect(cursusMeta(NW4, ['A', 'B', 'C', 'D', 'E'])).toBe('4de jaar · beroepskwalificaties A, B en 3 andere');
+  });
+
+  it('een cursus zonder jaar: "hele graad", of alleen het BK-deel zonder jaar en zonder graad', () => {
+    expect(cursusMeta(NW_GRAAD, ['Onthaalmedewerker'])).toBe('hele graad · beroepskwalificatie Onthaalmedewerker');
+    const zonderGraad: Doelgroep = { groep: 'G-0100', titel: 'Buitengewoon', soort: 'buso' };
+    expect(cursusMeta(zonderGraad, ['Onthaalmedewerker'])).toBe('beroepskwalificatie Onthaalmedewerker');
+    expect(cursusMeta(zonderGraad, ['A', 'B'])).toBe('beroepskwalificaties A en B');
+    expect(cursusMeta(undefined, ['Onthaalmedewerker'])).toBe('beroepskwalificatie Onthaalmedewerker');
+    expect(cursusMeta(undefined, ['A', 'B', 'C'])).toBe('beroepskwalificaties A, B en 1 andere');
+  });
+
+  it('lege titels en dubbels tellen niet mee, ook niet voor het aantal andere', () => {
+    expect(cursusMeta(NW4, ['', '  '])).toBe('4de jaar');
+    expect(cursusMeta(NW4, ['Onthaalmedewerker', ' Onthaalmedewerker ', ''])).toBe('4de jaar · beroepskwalificatie Onthaalmedewerker');
+    expect(cursusMeta(NW4, ['A', 'A', 'B', 'B', 'C'])).toBe('4de jaar · beroepskwalificaties A, B en 1 andere');
+    expect(cursusMeta(NW4, undefined as unknown as string[])).toBe('4de jaar');
+  });
+
+  it('geen code of nummer in de meta (I7)', () => {
+    const metas = [
+      cursusMeta(NW4, []), cursusMeta(NW4, ['Onthaalmedewerker']), cursusMeta(NW4, ['A', 'B']), cursusMeta(NW4, ['A', 'B', 'C']),
+      cursusMeta(NW_GRAAD, ['Onthaalmedewerker']), cursusMeta(undefined, ['Onthaalmedewerker']),
+    ];
+    for (const m of metas) expect(m, m).not.toMatch(GEEN_CODE);
+  });
+
+  it('cursusJaarMeta blijft zoals ze was', () => {
+    expect(cursusJaarMeta(NW4)).toBe('4de jaar');
+    expect(cursusJaarMeta(NW_GRAAD)).toBe('hele graad');
   });
 });
 

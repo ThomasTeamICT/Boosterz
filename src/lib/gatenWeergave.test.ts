@@ -14,6 +14,7 @@ import {
   GEEN_KANDIDAAT_HINT,
   GEEN_OPEN_TEKST,
   MAAK_CURSUS_TEKST,
+  MD_PLAN_TEKSTEN,
   OF_KIES_NIEUW_TEKST,
   OPEN_LEERPLAN_TEKST,
   PANEEL_TITEL,
@@ -307,6 +308,62 @@ describe('geen set-id, groepnummer of structuuronderdeel op het scherm', () => {
   it('geen enkele tekst bevat een leeg getal of "undefined"', () => {
     for (const tekst of [planKnopTekst(2), tellerTekst(2, 2), passendTekst(2, 3), voorbeeldZin('X', 2, 3).tekst, zetKnopTekst(2, 3)]) {
       expect(tekst).not.toMatch(/undefined|NaN|\[object/);
+    }
+  });
+});
+
+// ── MD_PLAN_TEKSTEN (pakket 3b-L1, docs/STUDIERICHTINGEN.md § 24.4) ──────────
+
+describe('MD_PLAN_TEKSTEN: precies de huidige zinnen van het paneel en de keuze van de sets', () => {
+  it('de vaste zinnen staan er letterlijk in', () => {
+    expect(MD_PLAN_TEKSTEN.legend).toBe('Welke doelen?');
+    expect(MD_PLAN_TEKSTEN.hint).toBe('Vink uit wat in een andere cursus thuishoort.');
+    expect(MD_PLAN_TEKSTEN.toon).toBe('Toon de doelen');
+    expect(MD_PLAN_TEKSTEN.uitleg).toBe(
+      'Boosterz zet ze als lege secties met de doelcodes erop achteraan in je cursus, of achteraan in een hoofdstuk met dezelfde naam. Wat al in de cursus staat, blijft zoals het is.',
+    );
+    expect(MD_PLAN_TEKSTEN.nodig).toBe('minstens één doel');
+    expect(MD_PLAN_TEKSTEN.nietsTeDoen).toBe('Deze doelen staan al op een sectie van deze cursus. Er is niets veranderd.');
+  });
+
+  it('de zinnen met een getal, in enkelvoud en meervoud', () => {
+    expect(MD_PLAN_TEKSTEN.vakje('Chemie', 1)).toBe('Chemie · 1 doel');
+    expect(MD_PLAN_TEKSTEN.vakje('Chemie', 9)).toBe('Chemie · 9 doelen');
+    expect(MD_PLAN_TEKSTEN.teller(0, 0)).toBe('Je koos nog geen doelen.');
+    expect(MD_PLAN_TEKSTEN.teller(1, 1)).toBe('Je koos 1 doel uit 1 set.');
+    expect(MD_PLAN_TEKSTEN.teller(21, 3)).toBe('Je koos 21 doelen uit 3 sets.');
+    expect(MD_PLAN_TEKSTEN.regel(1)).toBe('1 doel uit het leerplan van deze cursus staat nog op geen enkele sectie.');
+    expect(MD_PLAN_TEKSTEN.regel(3)).toBe('3 doelen uit het leerplan van deze cursus staan nog op geen enkele sectie.');
+    expect(MD_PLAN_TEKSTEN.knop(1)).toBe('Plan het in deze cursus');
+    expect(MD_PLAN_TEKSTEN.knop(3)).toBe('Plan ze in deze cursus');
+    expect(MD_PLAN_TEKSTEN.zet(1)).toBe('Zet het in deze cursus');
+    expect(MD_PLAN_TEKSTEN.zet(3)).toBe('Zet ze in deze cursus');
+    expect(MD_PLAN_TEKSTEN.toast(1)).toBe('1 doel staat nu gepland in deze cursus.');
+    expect(MD_PLAN_TEKSTEN.toast(3)).toBe('3 doelen staan nu gepland in deze cursus.');
+  });
+
+  it('is gelijk aan de bestaande functies en constanten, voor elk aantal', () => {
+    expect(MD_PLAN_TEKSTEN.legend).toBe(DOELEN_LEGEND);
+    expect(MD_PLAN_TEKSTEN.hint).toBe(DOELEN_HINT);
+    expect(MD_PLAN_TEKSTEN.toon).toBe(TOON_DOELEN);
+    expect(MD_PLAN_TEKSTEN.uitleg).toBe(PANEEL_UITLEG);
+    expect(MD_PLAN_TEKSTEN.nietsTeDoen).toBe(FOUT_NIETS_TE_DOEN);
+    for (const n of [0, 1, 2, 3, 10, 400]) {
+      expect(MD_PLAN_TEKSTEN.vakje('Naam', n)).toBe(setVakjeTekst('Naam', n));
+      expect(MD_PLAN_TEKSTEN.teller(n, n)).toBe(tellerTekst(n, n));
+      expect(MD_PLAN_TEKSTEN.teller(n, 2)).toBe(tellerTekst(n, 2));
+      expect(MD_PLAN_TEKSTEN.regel(n)).toBe(editorRegel(n));
+      expect(MD_PLAN_TEKSTEN.knop(n)).toBe(editorKnopTekst(n));
+      expect(MD_PLAN_TEKSTEN.zet(n)).toBe(paneelZetTekst(n));
+      expect(MD_PLAN_TEKSTEN.toast(n)).toBe(geplandInDezeCursusToast(n));
+    }
+  });
+
+  it('"Nog nodig: …" met `nodig` is de voet die het paneel al toonde, en geen zin bevat een set-id', () => {
+    expect(nogNodigTekst([MD_PLAN_TEKSTEN.nodig])).toBe('Nog nodig: minstens één doel.');
+    expect(nogNodigTekst([MD_PLAN_TEKSTEN.nodig])).toBe(voetNodigTekst({ doelen: 0, waar: 'bestaand', titel: '', cursusGekozen: true }));
+    for (const n of [1, 3]) {
+      for (const tekst of [MD_PLAN_TEKSTEN.regel(n), MD_PLAN_TEKSTEN.knop(n), MD_PLAN_TEKSTEN.zet(n), MD_PLAN_TEKSTEN.toast(n), MD_PLAN_TEKSTEN.teller(n, n)]) nooitIds(tekst);
     }
   });
 });

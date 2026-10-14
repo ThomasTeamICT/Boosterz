@@ -107,3 +107,51 @@ export function bkVerwijzingen(goal: CurriculumGoal): { set: string; id: string 
 export function dekkingBk(kader: readonly KaderDoel[], bijdragen: readonly CursusBijdrage[], widgets: readonly Widget[]): MdDekking {
   return dekkingMinimumdoelen(kader, bijdragen, widgets, { verwijzingen: bkVerwijzingen });
 }
+
+// ── Fase 3b: dezelfde pijplijn voor het detail, de rij en de klas (§ 24.4) ──
+
+/**
+ * De BK-versies waarvan het bestand geladen moet worden om de dekking van een richting te rekenen: elke versie van het
+ * kader één keer, in zijn volgorde, zonder de versies die de index zonder bestand noemt (`zonderBestand`): een verzoek
+ * daarvoor geeft een 404, en dat is een consolefout (§ 23.15 R11). Eén bron voor het detail, de rij en de klas.
+ */
+export function bkVersiesOmTeLaden(kader: Pick<RichtingBk, 'bks'>): string[] {
+  const uit = new Set<string>();
+  for (const regel of Array.isArray(kader?.bks) ? kader.bks : []) {
+    if (regel && typeof regel.bk === 'string' && regel.zonderBestand !== true) uit.add(regel.bk);
+  }
+  return [...uit];
+}
+
+/**
+ * Het kader van competenties voor een lijst BK-versies (in die volgorde, elke versie één keer): voor elke versie met een
+ * bruikbaar bestand in `bestanden` alle competenties met een tekst, precies zoals `bkKaderDoelen`. Een versie zonder
+ * bruikbaar bestand levert niets. Voor de editor, waar het kader de BK-versies van het eigen leerplan zijn (F3b-B6) en
+ * geen `RichtingBk` bestaat.
+ */
+export function bkKaderVanVersies(versies: readonly string[], bestanden: ReadonlyMap<string, BkBestand>): KaderDoel[] {
+  const uit: KaderDoel[] = [];
+  const gezien = new Set<string>();
+  for (const versie of Array.isArray(versies) ? versies : []) {
+    if (typeof versie !== 'string' || gezien.has(versie)) continue;
+    gezien.add(versie);
+    const bestand = bestanden && typeof bestanden.get === 'function' ? bestanden.get(versie) : undefined;
+    if (!bestand || valideerBkBestand(bestand, versie).length > 0) continue;
+    uit.push(...doelenVanBestand(versie, bestand));
+  }
+  return uit;
+}
+
+/**
+ * De dekking op competenties van de cursussen van een richting: `dekkingBk` over het kader van `bkKaderDoelen`. Dit is de
+ * ene berekening die het detail van de richting, de rij van "Mijn richtingen" en de klas allemaal doen (F3b-B1, I4): het
+ * getal waarop je klikt, is het getal dat je daarna ziet. `bijdragen` komt van `bijdragenVoorKader`.
+ */
+export function dekkingBkVanRichting(o: {
+  kader: RichtingBk;
+  bestanden: ReadonlyMap<string, BkBestand>;
+  bijdragen: readonly CursusBijdrage[];
+  widgets: readonly Widget[];
+}): MdDekking {
+  return dekkingBk(bkKaderDoelen(o.kader, o.bestanden), o.bijdragen, o.widgets);
+}

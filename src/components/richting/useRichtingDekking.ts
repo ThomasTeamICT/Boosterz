@@ -19,7 +19,7 @@ import {
 } from '../../lib/dekkingMinimumdoelen';
 import type { Curriculum } from '../../lib/curriculumTypes';
 import type { MinimumdoelenSetBestand } from '../../lib/minimumdoelen';
-import { isBkLeerplan } from '../../lib/leerplanStatus';
+import { leerplanHeeftBkVerwijzingen } from '../../lib/dekkingWeergave';
 import { kaderGroepSleutel, type KaderHerkomst, type RichtingKader } from '../../lib/richtingKader';
 import { bijdragenVoorKader, kortVan } from '../../lib/richtingOverzicht';
 import { setNamenVan } from '../../lib/setNamen';
@@ -35,20 +35,12 @@ export type TelMee = 'alle' | 'jaar';
  * (BkDekking) het meetelt? Dat is zo bij de methode `beroepskwalificatie` én minstens één doel met een bruikbare `bkRef`
  * (`bk` en `id` niet leeg): dezelfde test als `dekkingBk` (`bkVerwijzingen` in lib/dekkingBk.ts). Een BK-leerplan zonder
  * `bkRefs` (bewaard door een oudere app of geïmporteerd, § 23.6.7 N7) telt daar niet mee, dus de zinnen bij de minimumdoelen en
- * in de cursuslijst mogen er ook niet naar verwijzen. De test staat hier en niet in `dekkingBk.ts`, omdat dat bestand in het
- * luie deel `bk` zit en deze module op de richtingenpagina zelf; `useRichtingDekking.test.ts` houdt de twee gelijk.
+ * in de cursuslijst mogen er ook niet naar verwijzen. De test zelf staat sinds fase 3b in `leerplanHeeftBkVerwijzingen`
+ * (lib/dekkingWeergave.ts, F3b-B10), zodat de cursuseditor ze kan gebruiken zonder dit chunk binnen te halen; hier delegeert
+ * ze ernaar. `useRichtingDekking.test.ts` houdt ze gelijk aan het blok met competenties.
  */
 export function volgtBkCompetenties(leerplan: Curriculum | undefined): boolean {
-  if (!leerplan || !isBkLeerplan(leerplan)) return false;
-  const goals: unknown = leerplan.goals;
-  return Array.isArray(goals) && goals.some((g: unknown) => {
-    const refs: unknown = g && typeof g === 'object' ? (g as { bkRefs?: unknown }).bkRefs : undefined;
-    return Array.isArray(refs) && refs.some((r: unknown) => {
-      if (!r || typeof r !== 'object' || Array.isArray(r)) return false;
-      const { bk, id } = r as { bk?: unknown; id?: unknown };
-      return typeof bk === 'string' && bk.trim() !== '' && typeof id === 'string' && id.trim() !== '';
-    });
-  });
+  return leerplanHeeftBkVerwijzingen(leerplan);
 }
 
 /**

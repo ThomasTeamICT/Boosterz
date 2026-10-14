@@ -79,6 +79,35 @@ export function cursusJaarMeta(d: Doelgroep | undefined): string {
   return d.graad !== undefined ? 'hele graad' : '';
 }
 
+/**
+ * Het BK-deel van de meta van een cursus (§ 24.6.4). De titels komen van het leerplan van de cursus (`bkTitelsVanLeerplan`),
+ * zonder netwerk; lege titels en dubbels tellen niet mee.
+ * - één: "beroepskwalificatie Onthaalmedewerker";
+ * - twee: "beroepskwalificaties Onthaalmedewerker en Recreatief medewerker";
+ * - meer: "beroepskwalificaties Onthaalmedewerker, Recreatief medewerker en 1 andere".
+ * Leeg zonder titels.
+ */
+function bkMetaDeel(bkTitels: readonly string[]): string {
+  const lijst: string[] = [];
+  for (const t of Array.isArray(bkTitels) ? bkTitels : []) {
+    const naam = typeof t === 'string' ? t.trim() : '';
+    if (naam !== '' && !lijst.includes(naam)) lijst.push(naam);
+  }
+  if (lijst.length === 0) return '';
+  if (lijst.length === 1) return `beroepskwalificatie ${lijst[0]}`;
+  if (lijst.length === 2) return `beroepskwalificaties ${lijst[0]} en ${lijst[1]}`;
+  return `beroepskwalificaties ${lijst[0]}, ${lijst[1]} en ${lijst.length - 2} andere`;
+}
+
+/**
+ * Wat achter de titel van een cursus staat in de lijst "Cursussen voor deze richting" van de klas: het jaar (`cursusJaarMeta`)
+ * en de beroepskwalificaties die haar leerplan volgt: "5de jaar · beroepskwalificatie Onthaalmedewerker". Zonder jaar en zonder
+ * graad staat alleen het BK-deel, en zonder beroepskwalificaties blijft het zoals `cursusJaarMeta`.
+ */
+export function cursusMeta(d: Doelgroep | undefined, bkTitels: readonly string[]): string {
+  return [cursusJaarMeta(d), bkMetaDeel(bkTitels)].filter((deel) => deel !== '').join(' · ');
+}
+
 // ── "Opdracht toevoegen" en "Toewijzen vanuit een cursus" ───────────────────
 
 export const ANDERE_CURSUSSEN = 'Andere cursussen';

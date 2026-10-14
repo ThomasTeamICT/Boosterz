@@ -1,6 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import type { BkBestand } from './beroepskwalificaties';
+import { bkGeraamte } from './bkCursus';
+import { leerplanUitBk, type BkKeuze } from './bkLeerplan';
 import type { Course, CourseSection } from './courseTypes';
-import type { Curriculum } from './curriculumTypes';
+import type { Curriculum, CurriculumGoal, CurriculumMethode } from './curriculumTypes';
+import { bkVerwijzingen } from './dekkingBk';
 import {
   dekkingMinimumdoelen,
   setsAlsKader,
@@ -10,7 +17,9 @@ import {
   type MdStatus,
 } from './dekkingMinimumdoelen';
 import {
+  BK_DEKKING_LADEN,
   EERSTE_GRAAD_ZIN,
+  FOUT_LADEN_BK_DEKKING,
   FOUT_LADEN_DEKKING,
   FOUT_SETS_DEKKING,
   GEEN_SETS_TEKST,
@@ -18,6 +27,8 @@ import {
   KADER_NOG_NIET_NOOT,
   KIES_JAAR_HINT,
   RICHTING_ONBEKEND_NOOT,
+  bkTitelsVanLeerplan,
+  bkWeergaveLabel,
   buitenJaarTekst,
   buitenKaderTekst,
   cursusRegel,
@@ -28,6 +39,7 @@ import {
   isNogNietGedekt,
   kortTekst,
   legeSetTekst,
+  leerplanHeeftBkVerwijzingen,
   leerplanHeeftVerwijzingen,
   nogNietGedektZin,
   optioneelZin,
@@ -47,6 +59,7 @@ import {
   zichtbareSets,
   type DekkingTelling,
 } from './dekkingWeergave';
+import { isBkLeerplan } from './leerplanStatus';
 import type { MinimumdoelenSetBestand } from './minimumdoelen';
 
 // ── Hulpen ──────────────────────────────────────────────────────────────────
@@ -481,5 +494,150 @@ describe('geen ids in de teksten', () => {
       geplandeRegel(3), buitenJaarTekst(4), richtingLinkTekst('Latijn'), legeSetTekst('open'),
     ];
     for (const t of teksten) nooitIds(t);
+  });
+});
+
+// ── Fase 3b: de editor en de competenties van beroepskwalificaties (§ 24.4) ─
+
+const HIER = fileURLToPath(new URL('.', import.meta.url));
+const leesBk = (bk: string): BkBestand => JSON.parse(readFileSync(join(HIER, '../../tests/fixtures/kwalificaties/uit/bk', `${bk}.json`), 'utf8')) as BkBestand;
+const ONTHAAL = leesBk('BK-0390-2');
+const RECREATIEF = leesBk('BK-0464-1');
+
+function bkDoel(i: number, extra: Partial<CurriculumGoal> = {}): CurriculumGoal {
+  return { id: `g${i}`, code: `BK-0390-2.${String(i).padStart(2, '0')}`, text: `Competentie ${i}`, ...extra };
+}
+
+function bkLeerplan(methode: CurriculumMethode | undefined, goals: unknown): Pick<Curriculum, 'goals' | 'herkomst'> {
+  return { goals, ...(methode ? { herkomst: { methode } } : {}) } as unknown as Pick<Curriculum, 'goals' | 'herkomst'>;
+}
+
+const bkMetRef = (i: number, bk = 'BK-0390-2') => bkDoel(i, { bkRefs: [{ bk, id: `bkc00450${i}` }] });
+
+describe('leerplanHeeftBkVerwijzingen', () => {
+  const gevallen: [string, Pick<Curriculum, 'goals' | 'herkomst'>, boolean][] = [
+    ['een BK-leerplan met competenties', bkLeerplan('beroepskwalificatie', [bkMetRef(1), bkMetRef(2)]), true],
+    ['een BK-leerplan waarvan maar één doel een verwijzing heeft', bkLeerplan('beroepskwalificatie', [bkDoel(1), bkMetRef(2), bkDoel(3)]), true],
+    ['een BK-leerplan met twee verwijzingen op één doel, één kapot', bkLeerplan('beroepskwalificatie', [bkDoel(1, { bkRefs: [{ bk: '', id: 'x' }, { bk: 'BK-0390-2', id: 'bkc1' }] })]), true],
+    ['een BK-leerplan zonder enige verwijzing (N7)', bkLeerplan('beroepskwalificatie', [bkDoel(1), bkDoel(2)]), false],
+    ['een BK-leerplan zonder doelen', bkLeerplan('beroepskwalificatie', []), false],
+    ['een BK-leerplan met een lege lijst verwijzingen', bkLeerplan('beroepskwalificatie', [bkDoel(1, { bkRefs: [] })]), false],
+    ['een BK-leerplan met een verwijzing zonder bk', bkLeerplan('beroepskwalificatie', [bkDoel(1, { bkRefs: [{ bk: '', id: 'bkc1' }] })]), false],
+    ['een BK-leerplan met een verwijzing met alleen spaties als id', bkLeerplan('beroepskwalificatie', [bkDoel(1, { bkRefs: [{ bk: 'BK-0390-2', id: '  ' }] })]), false],
+    ['een BK-leerplan met een verwijzing zonder id', bkLeerplan('beroepskwalificatie', [bkDoel(1, { bkRefs: [{ bk: 'BK-0390-2' } as never] })]), false],
+    ['een BK-leerplan met een getal als id', bkLeerplan('beroepskwalificatie', [bkDoel(1, { bkRefs: [{ bk: 'BK-0390-2', id: 45062 } as never] })]), false],
+    ['een BK-leerplan met `bkRefs` die geen lijst is', bkLeerplan('beroepskwalificatie', [bkDoel(1, { bkRefs: { bk: 'BK-0390-2', id: 'bkc1' } as never })]), false],
+    ['een BK-leerplan met rare elementen in `bkRefs`', bkLeerplan('beroepskwalificatie', [bkDoel(1, { bkRefs: [null, 7, 'tekst', [], ['BK-0390-2', 'bkc1']] as never })]), false],
+    ['een BK-leerplan met rare doelen', bkLeerplan('beroepskwalificatie', [null, 7, 'tekst', bkMetRef(2)]), true],
+    ['een BK-leerplan waarvan de doelen geen lijst zijn', bkLeerplan('beroepskwalificatie', 'kapot'), false],
+    ['een leerplan met verwijzingen maar zonder herkomst', bkLeerplan(undefined, [bkMetRef(1)]), false],
+    ['een leerplan van een net met verwijzingen', bkLeerplan('pdf', [bkMetRef(1)]), false],
+    ['een officiële set', bkLeerplan('officieel', [bkDoel(1, { refs: [{ set: 'ODS_1', id: '1', code: '01' }] })]), false],
+    ['een samengestelde lijst', bkLeerplan('samengesteld', [bkDoel(1, { refs: [{ set: 'ODS_1', id: '1', code: '01' }] })]), false],
+  ];
+
+  it.each(gevallen)('%s', (_naam, lp, verwacht) => {
+    expect(leerplanHeeftBkVerwijzingen(lp)).toBe(verwacht);
+  });
+
+  it('is precies isBkLeerplan plus bkVerwijzingen, voor elk geval', () => {
+    for (const [naam, lp] of gevallen) {
+      const goals: unknown = lp.goals;
+      const metRef = Array.isArray(goals) && goals.some((g) => !!g && typeof g === 'object' && bkVerwijzingen(g as CurriculumGoal).length > 0);
+      expect(leerplanHeeftBkVerwijzingen(lp), naam).toBe(isBkLeerplan(lp as Curriculum) && metRef);
+    }
+  });
+
+  it('de methode wordt inline getest: dezelfde uitkomst als isBkLeerplan voor elke methode, ook zonder herkomst', () => {
+    const methodes: (CurriculumMethode | undefined)[] = [undefined, 'beroepskwalificatie', 'pdf', 'officieel', 'samengesteld'];
+    for (const m of methodes) {
+      const lp = bkLeerplan(m, [bkMetRef(1)]);
+      expect(leerplanHeeftBkVerwijzingen(lp), String(m)).toBe(isBkLeerplan(lp as Curriculum));
+    }
+    expect(isBkLeerplan({ goals: [bkMetRef(1)], herkomst: null } as unknown as Curriculum)).toBe(false);
+    expect(leerplanHeeftBkVerwijzingen({ goals: [bkMetRef(1)], herkomst: null } as unknown as Curriculum)).toBe(false);
+  });
+
+  it('zonder leerplan of met rare invoer geen fout', () => {
+    expect(leerplanHeeftBkVerwijzingen(undefined)).toBe(false);
+    expect(leerplanHeeftBkVerwijzingen(null as unknown as Curriculum)).toBe(false);
+    expect(leerplanHeeftBkVerwijzingen({} as unknown as Curriculum)).toBe(false);
+  });
+});
+
+describe('bkTitelsVanLeerplan', () => {
+  const goalMet = (thema: unknown, i: number, bk = 'BK-0390-2'): CurriculumGoal => ({ ...bkMetRef(i, bk), ...(thema !== undefined ? { theme: thema as string } : {}) });
+
+  it('het eerste deel van het thema, elke titel één keer, in de volgorde van de doelen', () => {
+    const lp = bkLeerplan('beroepskwalificatie', [
+      goalMet('Onthaalmedewerker › Vakspecifieke competentie', 1),
+      goalMet('Onthaalmedewerker › Generieke competentie', 2),
+      goalMet('Recreatief medewerker › Vakspecifieke competentie', 3, 'BK-0464-1'),
+      goalMet('Onthaalmedewerker › Vakspecifieke competentie', 4),
+    ]);
+    expect(bkTitelsVanLeerplan(lp)).toEqual(['Onthaalmedewerker', 'Recreatief medewerker']);
+  });
+
+  it('een thema zonder soort, of dat op " ›" eindigt, is gewoon de titel', () => {
+    expect(bkTitelsVanLeerplan(bkLeerplan('beroepskwalificatie', [goalMet('Onthaalmedewerker', 1)]))).toEqual(['Onthaalmedewerker']);
+    expect(bkTitelsVanLeerplan(bkLeerplan('beroepskwalificatie', [goalMet('Onthaalmedewerker ›', 1)]))).toEqual(['Onthaalmedewerker']);
+    expect(bkTitelsVanLeerplan(bkLeerplan('beroepskwalificatie', [goalMet('  Onthaalmedewerker  › x', 1)]))).toEqual(['Onthaalmedewerker']);
+  });
+
+  it('alleen doelen met een bruikbare bkRef, en niets zonder thema of zonder doelen', () => {
+    const lp = bkLeerplan('beroepskwalificatie', [
+      bkDoel(1, { theme: 'Zonder verwijzing › x' }),
+      bkDoel(2, { theme: 'Lege verwijzing › x', bkRefs: [{ bk: '', id: 'bkc1' }] }),
+      goalMet(undefined, 3),
+      goalMet('', 4),
+      goalMet('Met verwijzing › x', 5),
+    ]);
+    expect(bkTitelsVanLeerplan(lp)).toEqual(['Met verwijzing']);
+    expect(bkTitelsVanLeerplan(bkLeerplan('beroepskwalificatie', []))).toEqual([]);
+  });
+
+  it('zonder leerplan of met rare invoer een lege lijst, zonder fout', () => {
+    expect(bkTitelsVanLeerplan(undefined)).toEqual([]);
+    expect(bkTitelsVanLeerplan({} as never)).toEqual([]);
+    expect(bkTitelsVanLeerplan(bkLeerplan('beroepskwalificatie', 'kapot'))).toEqual([]);
+    expect(bkTitelsVanLeerplan(bkLeerplan('beroepskwalificatie', [null, 7, 'tekst', goalMet({ nee: 1 }, 1)]))).toEqual([]);
+  });
+
+  it('geeft de titels van een echt BK-leerplan: dezelfde als de hoofdstukken van het geraamte (bkGeraamte)', () => {
+    const keuzes: BkKeuze[] = [ONTHAAL, RECREATIEF].map((b) => ({ bestand: b, competenties: b.competenties.map((c) => c.id) }));
+    const merken = new Map([ONTHAAL, RECREATIEF].map((b) => [b.bk, b.sha256.slice(0, 16)] as const));
+    const doelgroep = { groep: 'G-0008', titel: 'Assistent dierlijke productie', soort: 'so' as const, graad: 2 as const };
+    const u = leerplanUitBk(keuzes, { doelgroep, merken });
+    expect(u.bevestigd, u.waarschuwingen.join(' | ')).toBe(true);
+    const titels = bkTitelsVanLeerplan(u.leerplan);
+    expect(titels).toEqual(['Onthaalmedewerker', 'Recreatief medewerker']);
+    const hoofdstukken = bkGeraamte(u.leerplan, new Map([[ONTHAAL.bk, ONTHAAL], [RECREATIEF.bk, RECREATIEF]])).map((h) => h.title);
+    expect(titels).toEqual(hoofdstukken);
+    // Een deel van het leerplan: alleen de BK's die erin blijven.
+    const deel = leerplanUitBk([{ bestand: RECREATIEF, competenties: RECREATIEF.competenties.slice(0, 2).map((c) => c.id) }], { doelgroep, merken });
+    expect(bkTitelsVanLeerplan(deel.leerplan)).toEqual(['Recreatief medewerker']);
+  });
+});
+
+describe('bkWeergaveLabel, BK_DEKKING_LADEN en FOUT_LADEN_BK_DEKKING', () => {
+  it('"Beroepskwalificatie" bij één BK-versie (of geen), "Beroepskwalificaties" bij meer', () => {
+    expect(bkWeergaveLabel(0)).toBe('Beroepskwalificatie');
+    expect(bkWeergaveLabel(1)).toBe('Beroepskwalificatie');
+    expect(bkWeergaveLabel(2)).toBe('Beroepskwalificaties');
+    expect(bkWeergaveLabel(9)).toBe('Beroepskwalificaties');
+  });
+
+  it('de letterlijke zinnen van § 24.6.1', () => {
+    expect(BK_DEKKING_LADEN).toBe('De dekking op de competenties wordt geladen…');
+    expect(FOUT_LADEN_BK_DEKKING).toBe('De dekking op de competenties kon niet geladen worden. Controleer je verbinding en herlaad de pagina.');
+  });
+
+  it('de fout vraagt om te herladen, niet om opnieuw te klikken, en lijkt op die van de minimumdoelen', () => {
+    expect(FOUT_LADEN_BK_DEKKING).not.toMatch(/probeer opnieuw/);
+    expect(FOUT_LADEN_BK_DEKKING.replace('op de competenties', 'op de minimumdoelen')).toBe(FOUT_LADEN_DEKKING);
+  });
+
+  it('nooit een competentiecode, ADV-nummer, groepnummer of set-id (I7)', () => {
+    for (const t of [BK_DEKKING_LADEN, FOUT_LADEN_BK_DEKKING, bkWeergaveLabel(1), bkWeergaveLabel(2)]) expect(t).not.toMatch(/bkc\d|ADV-|G-\d|ODS_/);
   });
 });

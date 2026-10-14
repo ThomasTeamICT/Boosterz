@@ -6,6 +6,9 @@
 //   de klassen van dit toestel.
 // - De zinnen met getallen (meta van een rij, dekking van een rij of een klas) staan hier, met enkelvoud en meervoud,
 //   zodat de schermen geen eigen zinnen bouwen.
+// - De korte regel over de competenties van de beroepskwalificaties (fase 3b, § 24.4): `kanBkHebben`, `BkKort` en de
+//   zin ervoor. Dit bestand zit in het gedeelde chunk van "Mijn richtingen" en de klas: het blijft licht, de zware logica
+//   (`bkOverzicht.ts`) komt pas op vraag.
 //
 // Puur: geen React, geen opslag, geen netwerk, geen klok (`vandaag` komt van de aanroeper). Nooit een groepnummer in een
 // tekst voor het scherm.
@@ -17,6 +20,7 @@ import { cursussenVoorRichting, type CursusBijdrage, type MdDekking } from './de
 import { enkelOfMeer, richtingLinkNaar, somLijst } from './dekkingWeergave';
 import { doelgroepVoorKlas, graadTekst, jaarTekst, type Doelgroep } from './doelgroep';
 import { doelgroepVanCursus } from './doelgroepGebruik';
+import type { RichtingBk } from './richtingBk';
 import { kaderGroepSleutel, richtingInfo, type RichtingInfo, type SoortKeuze } from './richtingKader';
 import { vergelijkGroepnummer, type MatrixBestand } from './studierichtingen';
 
@@ -278,4 +282,122 @@ export function dekkingRijZin(d: DekkingKortGetallen): string {
 export function klasDekkingZin(richtingMetGraad: string, d: DekkingKortGetallen): string {
   if (d.totaal <= 0) return GEEN_VERPLICHTE_DOELEN;
   return `Je cursussen voor ${richtingMetGraad} dekken ${d.gedekt} van ${minimumdoelen(d.totaal)} (${d.percent} %).${staart(d)}`;
+}
+
+// ── Beroepskwalificaties in de rij en de klas (§ 24.4 en § 24.6.4) ──────────
+
+/**
+ * Kan deze richting beroepskwalificaties hebben? Ja bij finaliteit A of DU, bij een 7de jaar, een aanloopjaar, het
+ * buitengewoon onderwijs en de andere opleidingen (basisverpleegkunde heeft er een, G1 stap 3), zolang de richting niet
+ * afgebouwd is. Nee bij doorstroomfinaliteit en in de 1ste graad: daar koppelt de officiële bron er geen (G1 stap 3:
+ * 0 van de 59 en 0 van de 22 onderdelen).
+ *
+ * De poort van elk verzoek naar `public/leerplannen/kwalificaties/` (een 404 daar is een consolefout, § 23.15 R11, en
+ * F3b-B10): wie dit niet eerst vraagt, haalt niets op. Ze stond in `useRichtingBk.ts`, dat ze verder uitvoert.
+ */
+export function kanBkHebben(info: RichtingInfo): boolean {
+  if (info.afgebouwd) return false;
+  const finaliteit = info.groep.finaliteit;
+  if (finaliteit === 'A' || finaliteit === 'DU') return true;
+  return info.soort === 'zevende' || info.soort === 'aanloop' || info.soort === 'buso' || info.soort === 'ander';
+}
+
+/**
+ * Wat de rij en de klas kort zeggen over de competenties van de beroepskwalificaties van een richting. Alleen aantallen
+ * en een titel, nooit een code (I7), en nooit een samengeteld percentage (W8, F3b-B9): `percent` staat er alleen bij
+ * één beroepskwalificatie en is dan het percentage van die ene.
+ *
+ * - `zonder-cursus`: geen enkele cursus van de richting telt mee voor de competenties (er zijn geen bestanden geladen).
+ *   `bks` is het aantal beroepskwalificaties (BK-versies) van de richting, `titel` hun titel als het er één is.
+ * - `getallen`: er telt minstens één cursus mee. `bks` is het aantal beroepskwalificaties waarvan de competenties in de
+ *   dekking zitten, `zonderBestand` het aantal van de richting waarvan de competenties nog niet in Boosterz staan.
+ */
+export type BkKort =
+  | { soort: 'zonder-cursus'; bks: number; titel?: string }
+  | {
+    soort: 'getallen'; bks: number; titel?: string; totaal: number; gedekt: number; gepland: number;
+    percent?: number; zonderBestand: number;
+  };
+
+/** De BK-versies van een kader, elk één keer, in de volgorde van het kader (tolerant voor kapotte invoer). */
+function versiesVanKader(kader: Pick<RichtingBk, 'bks'>): RichtingBk['bks'] {
+  const gezien = new Set<string>();
+  const uit: RichtingBk['bks'] = [];
+  for (const regel of Array.isArray(kader?.bks) ? kader.bks : []) {
+    if (!regel || typeof regel.bk !== 'string' || gezien.has(regel.bk)) continue;
+    gezien.add(regel.bk);
+    uit.push(regel);
+  }
+  return uit;
+}
+
+function schoneTitel(titel: unknown): string {
+  return typeof titel === 'string' ? titel.trim() : '';
+}
+
+/** Er telt geen enkele cursus mee: het aantal beroepskwalificaties en, bij één, haar titel uit het kader. */
+export function bkKortZonderCursus(kader: Pick<RichtingBk, 'bks'>): BkKort {
+  const regels = versiesVanKader(kader);
+  const titel = regels.length === 1 ? schoneTitel(regels[0].titel) : '';
+  return { soort: 'zonder-cursus', bks: regels.length, ...(titel !== '' ? { titel } : {}) };
+}
+
+/**
+ * De getallen van een BK-dekking voor de rij en de klas. Telt geen enkele cursus mee, dan is het `bkKortZonderCursus`.
+ * Anders komen `bks` en `titel` uit `d.perSet` (de beroepskwalificaties met competenties in de dekking), `percent` van `d`
+ * alleen bij één beroepskwalificatie, en is `zonderBestand` het aantal beroepskwalificaties van het kader waarvan
+ * `bestanden` het bestand niet heeft. Dezelfde getallen als het detail (I4): dat bewaart ze met deze functie.
+ */
+export function bkKortVan(d: MdDekking, kader: Pick<RichtingBk, 'bks'>, bestanden: ReadonlyMap<string, unknown>): BkKort {
+  const cursussen = Array.isArray(d.cursussen) ? d.cursussen : [];
+  if (!cursussen.some((c) => c && c.telt)) return bkKortZonderCursus(kader);
+  const perSet = Array.isArray(d.perSet) ? d.perSet : [];
+  const titel = perSet.length === 1 ? schoneTitel(perSet[0].setNaam) : '';
+  const zonderBestand = versiesVanKader(kader).filter((r) => !bestanden.has(r.bk)).length;
+  return {
+    soort: 'getallen',
+    bks: perSet.length,
+    ...(titel !== '' ? { titel } : {}),
+    totaal: d.totaal,
+    gedekt: d.gedekt,
+    gepland: d.gepland,
+    ...(perSet.length === 1 ? { percent: d.percent } : {}),
+    zonderBestand,
+  };
+}
+
+/** Een titel op het einde van een zin: zonder punten of spaties achteraan, want de zin zet zelf een punt. */
+function titelInZin(titel: string): string {
+  return titel.replace(/[.\s]+$/, '');
+}
+
+/**
+ * De korte regel over de competenties, voor de rij én de klas (§ 24.6.4):
+ * - "Je cursussen dekken 5 van de 12 competenties van Onthaalmedewerker (42 %)." met erachter " 3 staan gepland."
+ *   (" 1 staat gepland.");
+ * - bij meer beroepskwalificaties "Je cursussen dekken 9 van de 25 competenties van 2 beroepskwalificaties.", zonder
+ *   percentage;
+ * - zijn er beroepskwalificaties zonder bestand: erachter " Van 1 beroepskwalificatie staan de competenties nog niet in
+ *   Boosterz.";
+ * - telt geen enkele cursus mee: "Nog geen cursus met de competenties van Onthaalmedewerker." (bij meer: "… van de 2
+ *   beroepskwalificaties.").
+ * Leeg bij getallen met totaal 0 en bij een kort zonder beroepskwalificaties: dan valt er niets te zeggen.
+ */
+export function bkRijZin(k: BkKort): string {
+  const titel = k.bks === 1 && typeof k.titel === 'string' ? titelInZin(k.titel.trim()) : '';
+  if (k.soort === 'zonder-cursus') {
+    if (k.bks <= 0) return '';
+    const van = titel !== '' ? titel : k.bks === 1 ? 'de beroepskwalificatie' : `de ${k.bks} beroepskwalificaties`;
+    return `Nog geen cursus met de competenties van ${van}.`;
+  }
+  if (k.totaal <= 0) return '';
+  const van = titel !== '' ? titel : enkelOfMeer(k.bks, 'beroepskwalificatie', 'beroepskwalificaties');
+  // Een percentage alleen bij één beroepskwalificatie: samengeteld zegt het niets (W8).
+  const percent = k.bks === 1 && typeof k.percent === 'number' && Number.isFinite(k.percent) ? ` (${k.percent} %)` : '';
+  const competenties = k.totaal === 1 ? 'de enige competentie' : `de ${k.totaal} competenties`;
+  const gepland = k.gepland > 0 ? (k.gepland === 1 ? ' 1 staat gepland.' : ` ${k.gepland} staan gepland.`) : '';
+  const zonderBestand = k.zonderBestand > 0
+    ? ` Van ${enkelOfMeer(k.zonderBestand, 'beroepskwalificatie', 'beroepskwalificaties')} staan de competenties nog niet in Boosterz.`
+    : '';
+  return `Je cursussen dekken ${k.gedekt} van ${competenties} van ${van}${percent}.${gepland}${zonderBestand}`;
 }

@@ -317,6 +317,72 @@ export function leerplanHeeftVerwijzingen(leerplan: Pick<Curriculum, 'goals'> | 
   });
 }
 
+// ── De editor en de competenties van beroepskwalificaties (fase 3b, § 24.4) ──
+
+/** Een verwijzing naar een competentie (`bkRef`) met een niet-lege BK-versie (`bk`) én competentiecode (`id`). */
+function bruikbareBkRef(r: unknown): boolean {
+  if (!r || typeof r !== 'object' || Array.isArray(r)) return false;
+  const { bk, id } = r as { bk?: unknown; id?: unknown };
+  return typeof bk === 'string' && bk.trim() !== '' && typeof id === 'string' && id.trim() !== '';
+}
+
+/**
+ * Bestaat dit leerplan uit de competenties van beroepskwalificaties, zodat de dekking op competenties het meetelt? Dat is zo
+ * bij de methode `beroepskwalificatie` én minstens één doel met een bruikbare `bkRef` (`bk` en `id` niet leeg): dezelfde
+ * test als `dekkingBk` (`bkVerwijzingen` in dekkingBk.ts). Een BK-leerplan zonder `bkRefs` (bewaard door een oudere app of
+ * geïmporteerd, § 23.6.7 N7) telt daar niet mee. De methode wordt hier inline getest (zoals `isBkLeerplan` in
+ * leerplanStatus.ts) en niet geïmporteerd: de cursuseditor laadt dit bestand statisch, en `dekkingBk` en `leerplanStatus`
+ * zijn te zwaar voor het chunk van de editor. De test van dit bestand houdt de twee gelijk.
+ */
+export function leerplanHeeftBkVerwijzingen(leerplan: Pick<Curriculum, 'goals' | 'herkomst'> | undefined): boolean {
+  if (leerplan?.herkomst?.methode !== 'beroepskwalificatie') return false;
+  const goals: unknown = leerplan.goals;
+  return Array.isArray(goals) && goals.some((g: unknown) => {
+    const refs: unknown = g && typeof g === 'object' ? (g as { bkRefs?: unknown }).bkRefs : undefined;
+    return Array.isArray(refs) && refs.some(bruikbareBkRef);
+  });
+}
+
+/** De scheiding in het thema van een doel van een BK-leerplan: "Onthaalmedewerker › Vakspecifieke competentie". */
+const SCHEIDER_THEMA = ' › ';
+
+/** Het eerste deel van een thema (vóór " › "); een thema dat op " ›" eindigt is gewoon het deel ervoor. Leeg zonder thema. */
+function eersteDeelThema(thema: unknown): string {
+  const t = (typeof thema === 'string' ? thema : '').trim().replace(/\s*›$/, '');
+  const i = t.indexOf(SCHEIDER_THEMA);
+  return (i < 0 ? t : t.slice(0, i)).trim();
+}
+
+/**
+ * De titels van de beroepskwalificaties in een leerplan, zonder netwerk: het eerste deel van het thema van de doelen met
+ * een bruikbare `bkRef`, elk één keer, in de volgorde van de doelen. Dat is ook de titel van het hoofdstuk dat `bkGeraamte`
+ * (bkCursus.ts) voor die beroepskwalificatie maakt. Een doel zonder thema levert niets op. Voor de meta van een cursus in de
+ * klas (`cursusMeta` in klasRichtingWeergave.ts).
+ */
+export function bkTitelsVanLeerplan(leerplan: Pick<Curriculum, 'goals'> | undefined): string[] {
+  const goals: unknown = leerplan?.goals;
+  if (!Array.isArray(goals)) return [];
+  const uit: string[] = [];
+  for (const g of goals as unknown[]) {
+    if (!g || typeof g !== 'object') continue;
+    const { bkRefs, theme } = g as { bkRefs?: unknown; theme?: unknown };
+    if (!Array.isArray(bkRefs) || !bkRefs.some(bruikbareBkRef)) continue;
+    const titel = eersteDeelThema(theme);
+    if (titel !== '' && !uit.includes(titel)) uit.push(titel);
+  }
+  return uit;
+}
+
+/** Het label van de schakelaar in de editor: "Beroepskwalificatie", en bij meer dan één BK-versie in het leerplan "Beroepskwalificaties". */
+export function bkWeergaveLabel(aantalVersies: number): string {
+  return aantalVersies > 1 ? 'Beroepskwalificaties' : 'Beroepskwalificatie';
+}
+
+/** In de editor: het onderdeel met de dekking op de competenties wordt geladen. */
+export const BK_DEKKING_LADEN = 'De dekking op de competenties wordt geladen…';
+/** In de editor: het onderdeel met de dekking op de competenties laadde niet. Opnieuw klikken helpt niet, herladen wel. */
+export const FOUT_LADEN_BK_DEKKING = 'De dekking op de competenties kon niet geladen worden. Controleer je verbinding en herlaad de pagina.';
+
 /** De tekst van de link naar de dekking van de hele richting. */
 export function richtingLinkTekst(titel: string): string {
   return `Bekijk wat al je cursussen voor ${titel} samen dekken`;

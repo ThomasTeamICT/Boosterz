@@ -6,11 +6,18 @@ import type { BkIndex, KoppelingBestand } from './beroepskwalificaties';
 import * as W from './bkWeergave';
 import {
   bkAlleCompetenties,
+  bkAndereOpenTekst,
   bkAndereVersieTekst,
   bkBehaalbaarSamenvatting,
   bkBekrachtigingTekst,
   bkBronregel,
+  bkBuitenKaderTekst,
   bkCompetentieRegel,
+  bkCursusSamenvatting,
+  bkEditorRegel,
+  bkFoutBijBestaandeCursus,
+  bkGeplandInCursusToast,
+  bkGeplandInDezeCursusToast,
   bkInleesTekst,
   bkIntroAantal,
   bkKaartFout,
@@ -26,21 +33,30 @@ import {
   bkNietMeetellendeTekst,
   bkNietNagekeken,
   bkNogNodig,
+  bkPassendTekst,
+  bkPlanKnopTekst,
+  bkPlanZonderBestandTekst,
   bkRedenTekst,
   bkSamenvatting,
   bkSetSamenvatting,
   bkSoortVoorvoegsel,
+  bkStaartTekst,
   bkStatusTekst,
   bkTeller,
   bkToastCursus,
   bkToekomstTekst,
   bkToonCompetenties,
+  bkVoetNodigTekst,
+  bkVoorbeeldZin,
+  bkZetKnopTekst,
+  bkZonderPassendTekst,
   datumTekst,
 } from './bkWeergave';
 import * as L from './bkLabels';
 import type { BkMelding } from './bkLeerplan';
 import { dekkingBk } from './dekkingBk';
 import { statusTekst } from './dekkingWeergave';
+import { FOUT_ANDER_LEERPLAN, FOUT_CURSUS_GEWIJZIGD, FOUT_CURSUS_VERWIJDERD, FOUT_OPSLAG_VOL, foutBijBestaandeCursus, nogNodigTekst } from './gatenWeergave';
 import { bkKader } from './richtingBk';
 import { richtingInfo } from './richtingKader';
 import type { MatrixBestand } from './studierichtingen';
@@ -444,6 +460,367 @@ describe('de dekking', () => {
   });
 });
 
+// ── Plannen (§ 24): elke zin van § 24.6, enkelvoud en meervoud ──────────────
+
+describe('plannen (§ 24.6)', () => {
+  /** De regex van invariant I7 (§ 24.5): nooit een competentiecode, ADV-nummer, groepnummer of set-id op het scherm. */
+  const I7 = /bkc\d|ADV-|G-\d|ODS_/;
+  const stand = (o: Partial<Parameters<typeof bkCursusSamenvatting>[0]> = {}) => ({ totaal: 12, gedekt: 5, gepland: 3, verdieping: 1, open: 4, ...o });
+
+  describe('bkCursusSamenvatting (de editor)', () => {
+    it('één beroepskwalificatie: met een percentage en de staart van bkSamenvatting', () => {
+      expect(bkCursusSamenvatting(stand(), { aantal: 1, titel: 'Onthaalmedewerker' })).toBe(
+        'Deze cursus dekt 5 van de 12 competenties van Onthaalmedewerker (42 %). 3 competenties staan al gepland op een sectie die nog leeg is, 1 komt alleen in verdieping aan bod, 4 nog niet.',
+      );
+    });
+
+    it('het scenario: 0 van de 12 (0 %)', () => {
+      expect(bkCursusSamenvatting(stand({ gedekt: 0, gepland: 0, verdieping: 0, open: 12 }), { aantal: 1, titel: 'Onthaalmedewerker' })).toMatch(
+        /^Deze cursus dekt 0 van de 12 competenties van Onthaalmedewerker \(0 %\)\./,
+      );
+    });
+
+    it('meer beroepskwalificaties: een aantal en geen percentage (F3b-B9)', () => {
+      const zin = bkCursusSamenvatting(stand({ totaal: 25, gedekt: 9, gepland: 4, verdieping: 1, open: 11 }), { aantal: 2 });
+      expect(zin).toBe(
+        'Deze cursus dekt 9 van de 25 competenties van 2 beroepskwalificaties. 4 competenties staan al gepland op een sectie die nog leeg is, 1 komt alleen in verdieping aan bod, 11 nog niet.',
+      );
+      expect(zin).not.toMatch(/%/);
+      expect(bkCursusSamenvatting(stand({ totaal: 25, gedekt: 9 }), { aantal: 3, titel: 'Wordt genegeerd' })).toMatch(/^Deze cursus dekt 9 van de 25 competenties van 3 beroepskwalificaties\. /);
+      expect(bkCursusSamenvatting(stand({ totaal: 25, gedekt: 9 }), { aantal: 3, titel: 'Wordt genegeerd' })).not.toMatch(/Wordt genegeerd|%/);
+    });
+
+    it('alles gedekt: één zin, zonder staart', () => {
+      expect(bkCursusSamenvatting(stand({ gedekt: 12, gepland: 0, verdieping: 0, open: 0 }), { aantal: 1, titel: 'Onthaalmedewerker' })).toBe(
+        'Deze cursus dekt 12 van de 12 competenties van Onthaalmedewerker (100 %).',
+      );
+      expect(bkCursusSamenvatting(stand({ totaal: 25, gedekt: 25, gepland: 0, verdieping: 0, open: 0 }), { aantal: 2 })).toBe(
+        'Deze cursus dekt 25 van de 25 competenties van 2 beroepskwalificaties.',
+      );
+    });
+
+    it('het percentage is 99 en niet 100 zolang er een competentie niet gedekt is', () => {
+      expect(bkCursusSamenvatting(stand({ totaal: 200, gedekt: 199, gepland: 0, verdieping: 0, open: 1 }), { aantal: 1, titel: 'Groot' })).toMatch(/\(99 %\)\./);
+    });
+
+    it('de staart: enkelvoud en meervoud van gepland en verdieping (0, 1 en 2)', () => {
+      const s = (gepland: number, verdieping: number) => bkCursusSamenvatting(stand({ gedekt: 5, gepland, verdieping, open: 0 }), { aantal: 1, titel: 'X' });
+      expect(s(1, 2)).toMatch(/ 1 competentie staat al gepland op een sectie die nog leeg is, 2 komen alleen in verdieping aan bod, 0 nog niet\.$/);
+      expect(s(2, 1)).toMatch(/ 2 competenties staan al gepland op een sectie die nog leeg is, 1 komt alleen in verdieping aan bod, 0 nog niet\.$/);
+      expect(s(0, 0)).toMatch(/ 0 competenties staan al gepland op een sectie die nog leeg is, 0 komen alleen in verdieping aan bod, 0 nog niet\.$/);
+    });
+
+    it('de staart is gelijk aan die van bkSamenvatting (één gedeelde hulp)', () => {
+      for (const [gepland, verdieping, open] of [[4, 1, 11], [1, 2, 0], [2, 1, 0], [0, 0, 3]] as const) {
+        const d = { totaal: 25, gedekt: 22, gepland, verdieping, open, cursussen: [{ telt: true }] };
+        const staart = bkStaartTekst(d);
+        expect(bkSamenvatting(d).endsWith(` ${staart}`)).toBe(true);
+        expect(bkCursusSamenvatting(d, { aantal: 2 }).endsWith(` ${staart}`)).toBe(true);
+      }
+    });
+
+    it('één competentie in het kader', () => {
+      expect(bkCursusSamenvatting(stand({ totaal: 1, gedekt: 1, gepland: 0, verdieping: 0, open: 0 }), { aantal: 1, titel: 'Klein' })).toBe('Deze cursus dekt de enige competentie van Klein (100 %).');
+      expect(bkCursusSamenvatting(stand({ totaal: 1, gedekt: 0, gepland: 1, verdieping: 0, open: 0 }), { aantal: 1, titel: 'Klein' })).toBe(
+        'Deze cursus dekt de enige competentie van Klein nog niet (0 %). 1 competentie staat al gepland op een sectie die nog leeg is, 0 komen alleen in verdieping aan bod, 0 nog niet.',
+      );
+    });
+
+    it('zonder competenties, zonder naam en met rare aantallen', () => {
+      expect(bkCursusSamenvatting(stand({ totaal: 0, gedekt: 0, gepland: 0, verdieping: 0, open: 0 }), { aantal: 1, titel: 'X' })).toBe('Er zijn geen competenties om te dekken.');
+      expect(bkCursusSamenvatting(stand({ totaal: Number.NaN }), { aantal: 1, titel: 'X' })).toBe('Er zijn geen competenties om te dekken.');
+      expect(bkCursusSamenvatting(stand(), { aantal: 1 })).toMatch(/^Deze cursus dekt 5 van de 12 competenties van deze beroepskwalificatie \(42 %\)\./);
+      expect(bkCursusSamenvatting(stand(), { aantal: 0, titel: '  ' })).toMatch(/van deze beroepskwalificatie \(42 %\)\./);
+      expect(bkCursusSamenvatting(stand({ gedekt: 20 }), { aantal: 1, titel: 'X' })).toMatch(/^Deze cursus dekt 12 van de 12 competenties/);
+      expect(bkCursusSamenvatting(stand({ gedekt: -3 }), { aantal: 1, titel: 'X' })).toMatch(/^Deze cursus dekt 0 van de 12 competenties/);
+    });
+
+    it('bkSamenvatting zelf is niet veranderd (de bestaande tests staan ongewijzigd hierboven)', () => {
+      expect(bkSamenvatting({ totaal: 25, gedekt: 9, gepland: 4, verdieping: 1, open: 11, cursussen: [{ telt: true }] })).toBe(
+        'Je cursussen dekken 9 van de 25 competenties. 4 competenties staan al gepland op een sectie die nog leeg is, 1 komt alleen in verdieping aan bod, 11 nog niet.',
+      );
+    });
+  });
+
+  describe('de editor: regel, tekst en toast', () => {
+    it('bkBuitenKaderTekst: 0, 1 en 2 (haar en hun)', () => {
+      expect(bkBuitenKaderTekst(0)).toBe('');
+      expect(bkBuitenKaderTekst(-1)).toBe('');
+      expect(bkBuitenKaderTekst(Number.NaN)).toBe('');
+      expect(bkBuitenKaderTekst(1)).toBe(
+        '1 competentie uit het leerplan van deze cursus staat niet meer in de officiële lijst van haar beroepskwalificatie. Bij de studierichting zie je wat er veranderde.',
+      );
+      expect(bkBuitenKaderTekst(2)).toBe(
+        '2 competenties uit het leerplan van deze cursus staan niet meer in de officiële lijst van hun beroepskwalificatie. Bij de studierichting zie je wat er veranderde.',
+      );
+    });
+
+    it('bkEditorRegel: 0, 1 en 2', () => {
+      expect(bkEditorRegel(8)).toBe('8 competenties uit het leerplan van deze cursus staan nog op geen enkele sectie.');
+      expect(bkEditorRegel(2)).toBe('2 competenties uit het leerplan van deze cursus staan nog op geen enkele sectie.');
+      expect(bkEditorRegel(1)).toBe('1 competentie uit het leerplan van deze cursus staat nog op geen enkele sectie.');
+      expect(bkEditorRegel(0)).toBe('0 competenties uit het leerplan van deze cursus staan nog op geen enkele sectie.');
+      expect(bkEditorRegel(-4)).toBe('0 competenties uit het leerplan van deze cursus staan nog op geen enkele sectie.');
+    });
+
+    it('de knop en het paneel: "ze", ook bij één', () => {
+      expect(W.BK_EDITOR_KNOP).toBe('Plan ze in deze cursus');
+      expect(W.BK_PANEEL_UITLEG).toBe(
+        'Boosterz zet ze als lege secties met de doelcode en de kennis en vaardigheden erop achteraan in je cursus, of achteraan in het hoofdstuk van hun beroepskwalificatie. Wat al in de cursus staat, blijft zoals het is.',
+      );
+      expect(W.BK_PLAN_LEGEND).toBe('Welke competenties?');
+      expect(W.BK_PLAN_HINT).toBe('Vink uit wat in een andere cursus thuishoort.');
+      expect(W.BK_PLAN_TOON).toBe('Toon de competenties');
+      expect(W.BK_PLAN_NODIG).toBe('minstens één competentie');
+      expect(bkZetKnopTekst(1, 1)).toBe('Zet ze in deze cursus');
+      expect(bkZetKnopTekst(8, 8)).toBe('Zet ze in deze cursus');
+    });
+
+    it('het vakje, de teller en de regel van een competentie komen van de bestaande hulpen', () => {
+      expect(bkLegende('Onthaalmedewerker', 8)).toBe('Onthaalmedewerker · 8 competenties');
+      expect(bkLegende('Onthaalmedewerker', 1)).toBe('Onthaalmedewerker · 1 competentie');
+      expect(bkTeller(4, 1)).toBe('Je koos 4 competenties uit 1 beroepskwalificatie.');
+      expect(bkCompetentieRegel('BK-0390-2.03', 'Werkt in teamverband')).toBe('BK-0390-2.03 — Werkt in teamverband');
+    });
+
+    it('bkAndereOpenTekst: 0, 1 en 2', () => {
+      expect(bkAndereOpenTekst(0)).toBe('');
+      expect(bkAndereOpenTekst(Number.NaN)).toBe('');
+      expect(bkAndereOpenTekst(1)).toBe('1 andere competentie die deze cursus niet dekt, staat niet in haar leerplan.');
+      expect(bkAndereOpenTekst(2)).toBe('2 andere competenties die deze cursus niet dekt, staan niet in haar leerplan.');
+      expect(bkAndereOpenTekst(4)).toBe('4 andere competenties die deze cursus niet dekt, staan niet in haar leerplan.');
+    });
+
+    it('bkGeplandInDezeCursusToast: 0, 1 en 2', () => {
+      expect(bkGeplandInDezeCursusToast(8)).toBe('8 competenties staan nu gepland in deze cursus.');
+      expect(bkGeplandInDezeCursusToast(2)).toBe('2 competenties staan nu gepland in deze cursus.');
+      expect(bkGeplandInDezeCursusToast(1)).toBe('1 competentie staat nu gepland in deze cursus.');
+      expect(bkGeplandInDezeCursusToast(0)).toBe('0 competenties staan nu gepland in deze cursus.');
+    });
+
+    it('bkVoetNodigTekst: "Nog nodig: minstens één competentie en een titel." en de rest', () => {
+      const basis = { competenties: 0, waar: 'nieuw' as const, titel: '', cursusGekozen: false };
+      expect(bkVoetNodigTekst(basis)).toBe('Nog nodig: minstens één competentie en een titel.');
+      expect(bkVoetNodigTekst({ ...basis, waar: 'bestaand' })).toBe('Nog nodig: minstens één competentie en een cursus.');
+      expect(bkVoetNodigTekst({ ...basis, competenties: 1, titel: '  ' })).toBe('Nog nodig: een titel.');
+      expect(bkVoetNodigTekst({ ...basis, waar: 'bestaand', competenties: 3 })).toBe('Nog nodig: een cursus.');
+      expect(bkVoetNodigTekst({ ...basis, competenties: 2, titel: 'Mijn cursus' })).toBe('');
+      expect(bkVoetNodigTekst({ ...basis, waar: 'bestaand', competenties: 2, cursusGekozen: true })).toBe('');
+      expect(bkVoetNodigTekst({ ...basis, waar: 'bestaand', titel: 'telt niet mee', cursusGekozen: true })).toBe('Nog nodig: minstens één competentie.');
+    });
+
+    it('bkVoetNodigTekst: de opmaak is die van nogNodigTekst (gatenWeergave), voor elke combinatie van 0, 1 en 2 ontbrekende delen', () => {
+      for (const competenties of [0, 1, 5]) {
+        for (const waar of ['nieuw', 'bestaand'] as const) {
+          for (const titel of ['', '   ', 'Mijn cursus']) {
+            for (const cursusGekozen of [false, true]) {
+              const delen: string[] = [];
+              if (competenties < 1) delen.push('minstens één competentie');
+              if (waar === 'nieuw' && titel.trim() === '') delen.push('een titel');
+              if (waar === 'bestaand' && !cursusGekozen) delen.push('een cursus');
+              expect(bkVoetNodigTekst({ competenties, waar, titel, cursusGekozen }), `${competenties} ${waar} "${titel}" ${cursusGekozen}`).toBe(nogNodigTekst(delen));
+            }
+          }
+        }
+      }
+    });
+  });
+
+  describe('de richtingpagina: de knop', () => {
+    it('bkPlanKnopTekst: 0, 1 en 2', () => {
+      expect(bkPlanKnopTekst(17)).toBe('Plan de 17 competenties die nog nergens aan bod komen');
+      expect(bkPlanKnopTekst(2)).toBe('Plan de 2 competenties die nog nergens aan bod komen');
+      expect(bkPlanKnopTekst(1)).toBe('Plan de competentie die nog nergens aan bod komt');
+      expect(bkPlanKnopTekst(0)).toBe('Plan de 0 competenties die nog nergens aan bod komen');
+      expect(bkPlanKnopTekst(-2)).toBe('Plan de 0 competenties die nog nergens aan bod komen');
+    });
+
+    it('als er niets meer te plannen valt', () => {
+      expect(W.BK_GEEN_OPEN).toBe('Er zijn geen competenties meer die nergens aan bod komen.');
+    });
+  });
+
+  describe('het venster', () => {
+    it('de vaste zinnen staan letterlijk zoals in het ontwerp', () => {
+      expect(W.BK_PLAN_VENSTER_TITEL).toBe('Plan de competenties die nog nergens aan bod komen');
+      expect(W.BK_PLAN_VENSTER_INTRO).toBe(
+        'Boosterz zet de gekozen competenties als lege secties in een cursus, met de doelcode en de kennis en vaardigheden erop. Zo staan ze gepland; daarna werk je ze zelf uit. Een AI-sleutel heb je niet nodig.',
+      );
+      expect(W.BK_PLAN_VENSTER_HINT).toBe('Competenties die al gepland staan of alleen in verdieping aan bod komen, blijven waar ze staan.');
+      expect(W.BK_GEEN_KANDIDAAT_HINT).toBe('Geen cursus van deze richting heeft een van de gekozen competenties in haar leerplan. Maak er een nieuwe cursus voor.');
+      expect(W.BK_PLAN_TITEL_HINT).toBe('Boosterz maakt er een nagekeken leerplan bij met precies deze competenties, of gebruikt het leerplan dat er al is.');
+      expect(W.BK_FOUT_NIETS_TE_DOEN).toBe('Deze competenties staan al op een sectie van deze cursus. Er is niets veranderd.');
+      expect(W.BK_FOUT_VERANDERD).toBe('De beroepskwalificaties zijn intussen veranderd. Sluit dit venster en probeer opnieuw. Er is niets bewaard.');
+    });
+
+    it('bkPlanZonderBestandTekst: 0, 1 en 2', () => {
+      expect(bkPlanZonderBestandTekst(0)).toBe('');
+      expect(bkPlanZonderBestandTekst(Number.NaN)).toBe('');
+      expect(bkPlanZonderBestandTekst(1)).toBe('Van 1 beroepskwalificatie staan de competenties nog niet in Boosterz: die kan je nog niet plannen.');
+      expect(bkPlanZonderBestandTekst(2)).toBe('Van 2 beroepskwalificaties staan de competenties nog niet in Boosterz: die kan je nog niet plannen.');
+    });
+
+    it('bkPassendTekst: meervoud, enkelvoud, één gekozen en de grenzen', () => {
+      expect(bkPassendTekst(3, 4)).toBe('3 van de 4 gekozen competenties staan in haar leerplan');
+      expect(bkPassendTekst(2, 4)).toBe('2 van de 4 gekozen competenties staan in haar leerplan');
+      expect(bkPassendTekst(4, 4)).toBe('4 van de 4 gekozen competenties staan in haar leerplan');
+      expect(bkPassendTekst(1, 4)).toBe('1 van de 4 gekozen competenties staat in haar leerplan');
+      expect(bkPassendTekst(1, 2)).toBe('1 van de 2 gekozen competenties staat in haar leerplan');
+      expect(bkPassendTekst(1, 1)).toBe('De gekozen competentie staat in haar leerplan');
+      expect(bkPassendTekst(0, 1)).toBe('De gekozen competentie staat niet in haar leerplan');
+      expect(bkPassendTekst(0, 4)).toBe('0 van de 4 gekozen competenties staan in haar leerplan');
+      expect(bkPassendTekst(9, 4)).toBe('4 van de 4 gekozen competenties staan in haar leerplan');
+      expect(bkPassendTekst(-1, 4)).toBe('0 van de 4 gekozen competenties staan in haar leerplan');
+      expect(bkPassendTekst(0, 0)).toBe('');
+      expect(bkPassendTekst(1, Number.NaN)).toBe('');
+    });
+
+    it('bkZonderPassendTekst: 0, 1, 2 en 3', () => {
+      expect(bkZonderPassendTekst(0)).toBe('');
+      expect(bkZonderPassendTekst(-1)).toBe('');
+      expect(bkZonderPassendTekst(1)).toBe('1 andere cursus van deze richting volgt geen beroepskwalificatie of heeft geen van deze competenties in haar leerplan.');
+      expect(bkZonderPassendTekst(2)).toBe('2 andere cursussen van deze richting volgen geen beroepskwalificatie of hebben geen van deze competenties in hun leerplan.');
+      expect(bkZonderPassendTekst(3)).toBe('3 andere cursussen van deze richting volgen geen beroepskwalificatie of hebben geen van deze competenties in hun leerplan.');
+    });
+
+    it('bkVoorbeeldZin: alle gekozen competenties staan in het leerplan (k = n)', () => {
+      const titel = 'Onthaalmedewerker · 5de jaar';
+      expect(bkVoorbeeldZin(titel, 4, 4)).toBe(
+        'Alle 4 gekozen competenties staan in het leerplan van ‘Onthaalmedewerker · 5de jaar’. Ze komen er als lege secties bij, met de kennis en vaardigheden; wat al in de cursus staat, blijft zoals het is.',
+      );
+      expect(bkVoorbeeldZin(titel, 2, 2)).toMatch(/^Alle 2 gekozen competenties staan in het leerplan van ‘/);
+      expect(bkVoorbeeldZin(titel, 13, 13)).toMatch(/^Alle 13 gekozen competenties staan/);
+      expect(bkVoorbeeldZin(titel, 1, 1)).toBe(
+        'De gekozen competentie staat in het leerplan van ‘Onthaalmedewerker · 5de jaar’. Ze komt er als lege sectie bij, met de kennis en vaardigheden; wat al in de cursus staat, blijft zoals het is.',
+      );
+    });
+
+    it('bkVoorbeeldZin: niet alle (k < n), zonder link, met "Zet ze"', () => {
+      const titel = 'Onthaalmedewerker · 5de jaar';
+      expect(bkVoorbeeldZin(titel, 1, 4)).toBe(
+        '3 gekozen competenties staan niet in het leerplan van ‘Onthaalmedewerker · 5de jaar’ en komen er niet bij: Boosterz past een leerplan nooit zelf aan. Zet ze in een nieuwe cursus.',
+      );
+      expect(bkVoorbeeldZin(titel, 3, 4)).toBe(
+        '1 gekozen competentie staat niet in het leerplan van ‘Onthaalmedewerker · 5de jaar’ en komt er niet bij: Boosterz past een leerplan nooit zelf aan. Zet ze in een nieuwe cursus.',
+      );
+      expect(bkVoorbeeldZin(titel, 2, 4)).toMatch(/^2 gekozen competenties staan niet in het leerplan van/);
+      expect(bkVoorbeeldZin(titel, 0, 2)).toMatch(/^2 gekozen competenties staan niet in het leerplan van/);
+      expect(bkVoorbeeldZin(titel, 3, 4)).not.toMatch(/Open het leerplan|Leerplannen/);
+    });
+
+    it('bkVoorbeeldZin: de grenzen', () => {
+      expect(bkVoorbeeldZin('X', 1, 0)).toBe('');
+      expect(bkVoorbeeldZin('X', 1, Number.NaN)).toBe('');
+      expect(bkVoorbeeldZin('X', 9, 4)).toMatch(/^Alle 4 gekozen competenties/);
+      expect(bkVoorbeeldZin('X', -2, 4)).toMatch(/^4 gekozen competenties staan niet/);
+    });
+
+    it('bkZetKnopTekst: "Zet ze" bij alle, anders het aantal (0, 1 en 3)', () => {
+      expect(bkZetKnopTekst(4, 4)).toBe('Zet ze in deze cursus');
+      expect(bkZetKnopTekst(1, 1)).toBe('Zet ze in deze cursus');
+      expect(bkZetKnopTekst(3, 4)).toBe('Zet de 3 competenties in deze cursus');
+      expect(bkZetKnopTekst(2, 4)).toBe('Zet de 2 competenties in deze cursus');
+      expect(bkZetKnopTekst(1, 4)).toBe('Zet de competentie in deze cursus');
+      expect(bkZetKnopTekst(0, 4)).toBe('Zet ze in deze cursus');
+      expect(bkZetKnopTekst(0, 0)).toBe('Zet ze in deze cursus');
+    });
+
+    it('bkGeplandInCursusToast: 0, 1 en 2', () => {
+      expect(bkGeplandInCursusToast(4, 'Onthaalmedewerker · 5de jaar')).toBe('4 competenties staan nu gepland in ‘Onthaalmedewerker · 5de jaar’.');
+      expect(bkGeplandInCursusToast(2, 'X')).toBe('2 competenties staan nu gepland in ‘X’.');
+      expect(bkGeplandInCursusToast(1, 'X')).toBe('1 competentie staat nu gepland in ‘X’.');
+      expect(bkGeplandInCursusToast(0, 'X')).toBe('0 competenties staan nu gepland in ‘X’.');
+    });
+
+    it('bkFoutBijBestaandeCursus: dezelfde meldingen als bij de minimumdoelen, behalve "niets te doen"', () => {
+      for (const reden of ['gewijzigd', 'verwijderd', 'mislukt', 'ander-leerplan'] as const) expect(bkFoutBijBestaandeCursus(reden)).toBe(foutBijBestaandeCursus(reden));
+      expect(bkFoutBijBestaandeCursus('niets-te-doen')).toBe(W.BK_FOUT_NIETS_TE_DOEN);
+      expect(bkFoutBijBestaandeCursus('niets-te-doen')).not.toBe(foutBijBestaandeCursus('niets-te-doen'));
+      expect(bkFoutBijBestaandeCursus('mislukt')).toBe('Er is niets bewaard: de opslag van dit toestel is vol of geblokkeerd.');
+    });
+
+    it('bkFoutBijBestaandeCursus: elke reden geeft letterlijk de zin van gatenWeergave (de zinnen staan hier los van die module)', () => {
+      type Reden = Parameters<typeof foutBijBestaandeCursus>[0];
+      // Komt er in `foutBijBestaandeCursus` een reden bij, dan compileert deze lijst niet meer: dan hoort er hier een regel bij.
+      const verwacht: Record<Reden, string> = {
+        gewijzigd: FOUT_CURSUS_GEWIJZIGD,
+        verwijderd: FOUT_CURSUS_VERWIJDERD,
+        mislukt: FOUT_OPSLAG_VOL,
+        'ander-leerplan': FOUT_ANDER_LEERPLAN,
+        'niets-te-doen': W.BK_FOUT_NIETS_TE_DOEN,
+      };
+      for (const reden of Object.keys(verwacht) as Reden[]) expect(bkFoutBijBestaandeCursus(reden), reden).toBe(verwacht[reden]);
+    });
+  });
+
+  describe('de taal en de veiligheid', () => {
+    const titel = 'Onthaalmedewerker · 5de jaar';
+
+    /** Elke zin van § 24.6 met een getal, bij 0, 1, 2, 3 en grotere aantallen, met namen als invoer. */
+    function alleZinnen(): string[] {
+      const zinnen: string[] = [];
+      for (const n of [0, 1, 2, 3, 12, 25]) {
+        zinnen.push(
+          bkCursusSamenvatting({ totaal: n, gedekt: Math.floor(n / 2), gepland: n, verdieping: 1, open: n }, { aantal: 1, titel: 'Onthaalmedewerker' }),
+          bkCursusSamenvatting({ totaal: n, gedekt: Math.floor(n / 2), gepland: n, verdieping: 1, open: n }, { aantal: 2 }),
+          bkBuitenKaderTekst(n), bkEditorRegel(n), bkAndereOpenTekst(n), bkGeplandInDezeCursusToast(n), bkPlanKnopTekst(n),
+          bkPlanZonderBestandTekst(n), bkZonderPassendTekst(n), bkGeplandInCursusToast(n, titel), bkStaartTekst({ gepland: n, verdieping: n, open: n }),
+        );
+        for (const k of [0, 1, 2, n]) zinnen.push(bkPassendTekst(k, n), bkVoorbeeldZin(titel, k, n), bkZetKnopTekst(k, n));
+        for (const waar of ['nieuw', 'bestaand'] as const) zinnen.push(bkVoetNodigTekst({ competenties: n, waar, titel: n > 1 ? 'Titel' : '', cursusGekozen: n > 1 }));
+      }
+      for (const reden of ['gewijzigd', 'verwijderd', 'mislukt', 'ander-leerplan', 'niets-te-doen'] as const) zinnen.push(bkFoutBijBestaandeCursus(reden));
+      return zinnen;
+    }
+
+    it('geen competentiecode, ADV-nummer, onderdeelnummer, groepnummer of set-id, en geen BK-nummer (I7)', () => {
+      const zinnen = alleZinnen();
+      expect(zinnen.length).toBeGreaterThan(100);
+      for (const z of zinnen) {
+        expect(z, z).not.toMatch(I7);
+        schermVeilig(z);
+      }
+    });
+
+    it('een competentie is een de-woord: nooit "Plan het" of "Zet het"', () => {
+      for (const z of alleZinnen()) expect(z, z).not.toMatch(/\b[Pp]lan (?:ze )?het\b|\b[Zz]et het\b/);
+      for (const n of [0, 1, 2, 3]) for (const k of [0, 1, 2, 3]) expect(bkZetKnopTekst(k, n), `${k} van ${n}`).not.toMatch(/\bhet\b/);
+    });
+
+    it('een percentage staat alleen in de samenvatting van één beroepskwalificatie (F3b-B9)', () => {
+      const metPercent = alleZinnen().filter((z) => z.includes('%'));
+      expect(metPercent.length).toBeGreaterThan(0);
+      for (const z of metPercent) {
+        expect(z, z).toMatch(/^Deze cursus dekt /);
+        expect(z.split('%')[0], z).not.toMatch(/\d+ beroepskwalificaties/);
+        expect(z.match(/%/g), z).toHaveLength(1);
+      }
+      expect(bkCursusSamenvatting({ totaal: 25, gedekt: 9, gepland: 4, verdieping: 1, open: 11 }, { aantal: 2 })).not.toContain('%');
+    });
+
+    it('de vaste teksten van dit onderdeel bestaan als tekst, zonder verboden aanduiding of dubbele spaties', () => {
+      const namen = [
+        'BK_EDITOR_KNOP', 'BK_FOUT_NIETS_TE_DOEN', 'BK_FOUT_VERANDERD', 'BK_GEEN_KANDIDAAT_HINT', 'BK_GEEN_OPEN', 'BK_PANEEL_UITLEG', 'BK_PLAN_HINT',
+        'BK_PLAN_LEGEND', 'BK_PLAN_NODIG', 'BK_PLAN_TITEL_HINT', 'BK_PLAN_TOON', 'BK_PLAN_VENSTER_HINT', 'BK_PLAN_VENSTER_INTRO', 'BK_PLAN_VENSTER_TITEL',
+      ];
+      for (const naam of namen) {
+        const tekst = (W as Record<string, unknown>)[naam];
+        expect(typeof tekst, naam).toBe('string');
+        expect(tekst as string, naam).not.toMatch(I7);
+        schermVeilig(tekst as string);
+        expect(tekst as string, naam).not.toMatch(/\.\.|\s{2,}|\s$|^\s/);
+      }
+    });
+
+    it('geen dubbele punten, dubbele spaties of spatie voor een leesteken', () => {
+      for (const z of alleZinnen()) {
+        if (z === '') continue;
+        expect(z, z).not.toMatch(/\.\.|\s{2,}|\s$|^\s|\s[.,;:]/);
+      }
+    });
+  });
+});
+
 // ── Leerplanpagina en inleespagina ──────────────────────────────────────────
 
 describe('de leerplanpagina', () => {
@@ -502,6 +879,37 @@ describe('bkLabels: wat de leerplanpagina en de inleespagina nodig hebben, zonde
       expect(tekst, pad).toMatch(/from '(\.\.\/)+lib\/bkLabels'/);
       expect(tekst, pad).not.toMatch(/from '(\.\.\/)+lib\/bkWeergave'/);
     }
+  });
+});
+
+describe('bkWeergave blijft los van gatenWeergave (bundel, § 24.8 en F3b-B10)', () => {
+  const HIER = fileURLToPath(new URL('.', import.meta.url));
+
+  /**
+   * De importregels (`import … from '…'`, ook over meer regels, en `export … from '…'`) van een bron die iets als waarde uit
+   * `module` halen. Een `import type` telt niet: die verdwijnt bij het bouwen en trekt niets mee.
+   */
+  function waardeImportsUit(tekst: string, module: string): string[] {
+    const regels = tekst.match(/^(?:import|export)\s[^;]*?\sfrom\s+'[^']+';/gm) ?? [];
+    return regels.filter((r) => r.includes(`'${module}'`) && !/^(?:import|export)\s+type\b/.test(r));
+  }
+
+  it('de hulp om te controleren werkt: een waarde-import wordt gevonden, een type-import niet', () => {
+    const m = './gatenWeergave';
+    expect(waardeImportsUit(`import { a } from '${m}';`, m)).toHaveLength(1);
+    expect(waardeImportsUit(`import {\n  a,\n  b,\n} from '${m}';`, m)).toHaveLength(1);
+    expect(waardeImportsUit(`import { type A, b } from '${m}';`, m)).toHaveLength(1);
+    expect(waardeImportsUit(`export { a } from '${m}';`, m)).toHaveLength(1);
+    expect(waardeImportsUit(`import type { a } from '${m}';`, m)).toHaveLength(0);
+    expect(waardeImportsUit(`import { a } from './andere';`, m)).toHaveLength(0);
+    expect(waardeImportsUit(`// import { a } from '${m}';`, m)).toHaveLength(0);
+  });
+
+  it('bkWeergave.ts haalt niets als waarde uit gatenWeergave.ts: anders krijgt richtingVenster een extra chunk van 5,7 kB', () => {
+    // De klas en de cursuseditor laden `richtingVenster` zonder `MinimumdoelenDekking`, het chunk waar `gatenWeergave.ts` nu in zit.
+    // Een waarde-import splitst het eruit: één aanvraag extra, en de preloadlijst in de hoofdbundel groeit.
+    const bron = readFileSync(join(HIER, 'bkWeergave.ts'), 'utf8');
+    expect(waardeImportsUit(bron, './gatenWeergave')).toEqual([]);
   });
 });
 
@@ -646,5 +1054,38 @@ describe('geen competentiecode, ADV-nummer, onderdeelnummer, groepnummer of set-
     expect(() => schermVeilig('Richting G-0393')).toThrow();
     expect(() => schermVeilig('Set ODS_3142')).toThrow();
     expect(() => schermVeilig('onderdeel 565')).toThrow();
+  });
+});
+
+describe('BK_PLAN_TEKSTEN: de teksten van de gedeelde schermdelen voor competenties (3b-I1)', () => {
+  it('vult elk veld van PlanTeksten met de zinnen van § 24.6, in het enkelvoud en het meervoud', () => {
+    const t = W.BK_PLAN_TEKSTEN;
+    expect(t.legend).toBe('Welke competenties?');
+    expect(t.hint).toBe('Vink uit wat in een andere cursus thuishoort.');
+    expect(t.toon).toBe('Toon de competenties');
+    expect(t.vakje('Onthaalmedewerker', 12)).toBe('Onthaalmedewerker · 12 competenties');
+    expect(t.vakje('Onthaalmedewerker', 1)).toBe('Onthaalmedewerker · 1 competentie');
+    expect(t.teller(12, 1)).toBe('Je koos 12 competenties uit 1 beroepskwalificatie.');
+    expect(t.teller(0, 0)).toBe('Je koos nog geen competenties.');
+    expect(t.regel(1)).toBe(W.bkEditorRegel(1));
+    expect(t.regel(8)).toBe(W.bkEditorRegel(8));
+    // Een de-woord: ook bij één competentie "Plan ze" en "Zet ze".
+    expect(t.knop(1)).toBe('Plan ze in deze cursus');
+    expect(t.knop(8)).toBe('Plan ze in deze cursus');
+    expect(t.zet(1)).toBe('Zet ze in deze cursus');
+    expect(t.zet(8)).toBe('Zet ze in deze cursus');
+    expect(t.toast(1)).toBe(W.bkGeplandInDezeCursusToast(1));
+    expect(t.toast(3)).toBe(W.bkGeplandInDezeCursusToast(3));
+    expect(t.uitleg).toBe(W.BK_PANEEL_UITLEG);
+    expect(t.nodig).toBe('minstens één competentie');
+    expect(t.nietsTeDoen).toBe('Deze competenties staan al op een sectie van deze cursus. Er is niets veranderd.');
+  });
+
+  it('heeft dezelfde velden als MD_PLAN_TEKSTEN, en geen interne sleutels in de teksten', async () => {
+    const { MD_PLAN_TEKSTEN } = await import('./gatenWeergave');
+    expect(Object.keys(W.BK_PLAN_TEKSTEN).sort()).toEqual(Object.keys(MD_PLAN_TEKSTEN).sort());
+    const t = W.BK_PLAN_TEKSTEN;
+    const zinnen = [t.legend, t.hint, t.toon, t.uitleg, t.nodig, t.nietsTeDoen, t.vakje('X', 2), t.teller(2, 1), t.regel(2), t.knop(2), t.zet(2), t.toast(2)];
+    for (const z of zinnen) expect(z).not.toMatch(/bkc\d|ADV-\d|ODS_|G-\d{3,4}|widget|structuuronderdeel|\bdoel(en)?\b/i);
   });
 });

@@ -2853,11 +2853,11 @@ De opdracht (W14): "de BK-dekking ook in de cursuseditor, in 'Mijn richtingen' e
 |---|---|---|
 | Ontwerp fase 3b (deze § 24 en bijlage F) | **Klaar** (14 oktober 2026): drie voorstellen, één jurylid, nagekeken in de code | hoofdsessie |
 | 3b-Q0 Docs: rij in de stand bovenaan, Hervatten rij 5, W14 en § 23.13 verwijzen naar § 24 | **Klaar** (14 oktober 2026) | hoofdsessie |
-| 3b-L1 Gaten algemeen maken (parameters, tekstobject, gedeelde schermdelen) | Wacht | bouwer |
-| 3b-L2 BK-gaten: leerplan en titels | Wacht | kernbouwer |
-| 3b-L3 Overzicht, cache, pijplijn en lichte hulpen | Wacht | bouwer |
-| 3b-L4 Teksten (bkWeergave, klasRichtingWeergave) | Wacht | bouwer |
-| 3b-I1 Integratie van de logica, BkLijst, stubs | Wacht | hoofdsessie |
+| 3b-L1 Gaten algemeen maken (parameters, tekstobject, gedeelde schermdelen) | **Klaar** (14 oktober 2026): `verwijzingen` en `geraamte` als optionele parameters, `PlanTeksten` met `MD_PLAN_TEKSTEN`; gouden render en gouden uitkomsten eerst vastgelegd, byte voor byte gelijk; controle met 31 mutaties, alle gevangen | bouwer, reviewer |
+| 3b-L2 BK-gaten: leerplan en titels | **Klaar** (14 oktober 2026): `bkGatenHulp.ts` (67 tests), strikt (`veranderd`, nooit iets stil weg); controle: twee kleine punten hersteld (het merk van het bestand moet bij de index horen vóór hergebruik; waarschuwingen zoals "niet meer in de bron" gaan mee) | kernbouwer, reviewer |
+| 3b-L3 Overzicht, cache, pijplijn en lichte hulpen | **Klaar** (14 oktober 2026): `bkOverzicht.ts`, `dekkingBkVanRichting`, `bkKaderVanVersies`, BK-ingang in de cache naast de MD-ingang, `kanBkHebben` in `richtingOverzicht.ts`; controle: tests met een echt ingebedde oefening en een test voor de leeskant van de cache erbij | bouwer, reviewer |
+| 3b-L4 Teksten (bkWeergave, klasRichtingWeergave) | **Klaar** (14 oktober 2026): de zinnen van § 24.6 met enkelvoud en meervoud; controle: `bkWeergave.ts` haalt geen waarde meer uit `gatenWeergave.ts` (anders een extra chunk en +0,1 kB op het kritieke pad), met een bronbewaker | bouwer, reviewer |
+| 3b-I1 Integratie van de logica, BkLijst, stubs | **Klaar** (14 oktober 2026): L1 tot L4 samengevoegd zonder conflict; de tijdelijke adapter in `bkGatenHulp.ts` vervangen door `bkKaderVanVersies`; `BK_PLAN_TEKSTEN` (`satisfies PlanTeksten`, getest); `bk/BkLijst.tsx` (verhuisd uit `BkDekking.tsx`, dat ze verder uitvoert); geraamtes `course/BkCursusDekking.tsx` en `bk/BkGatenVenster.tsx`. Poort groen (5.593 tests, rooktest twee keer), kritiek pad 334,1 kB, RichtingenPage 76,8 kB, CourseEditorPage 75,2 kB; de klas laadt RichtingenPage niet | hoofdsessie |
 | 3b-S1 Cursuseditor | Wacht | bouwer, worktree A |
 | 3b-S2 Richtingpagina en venster | Wacht | bouwer, worktree B |
 | 3b-S3 Mijn richtingen en klas | Wacht | bouwer, worktree C |

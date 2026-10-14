@@ -9,28 +9,21 @@
 
 import { useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { DoelStatus } from '../../course/MinimumdoelenDekking';
 import { FoutBericht, LaadBericht } from '../../curriculum/LaadStatus';
 import type { BkBestand } from '../../../lib/beroepskwalificaties';
 import { laadBk } from '../../../lib/beroepskwalificatiesBron';
 import {
   BK_DEKKING_TITEL,
   BK_LADEN,
-  BK_TOON_ALLE,
-  BK_TOON_OPEN,
-  BK_ZONDER_BESTAND,
   bkAndereVersieTekst,
-  bkCompetentieRegel,
   bkNietMeetellendeTekst,
   bkRedenTekst,
   bkSamenvatting,
-  bkSetSamenvatting,
 } from '../../../lib/bkWeergave';
 import type { Course } from '../../../lib/courseTypes';
 import type { Curriculum } from '../../../lib/curriculumTypes';
 import { bkKaderDoelen, dekkingBk } from '../../../lib/dekkingBk';
-import type { MdDekking, MdRij } from '../../../lib/dekkingMinimumdoelen';
-import { enkelOfMeer, groepeerPerSet, uniekeSetNamen, zichtbareSets, type SetGroep, type Toon } from '../../../lib/dekkingWeergave';
+import { uniekeSetNamen, type Toon } from '../../../lib/dekkingWeergave';
 import type { RichtingBk } from '../../../lib/richtingBk';
 import type { RichtingInfo, RichtingKeuze } from '../../../lib/richtingKader';
 import { bijdragenVoorKader } from '../../../lib/richtingOverzicht';
@@ -81,97 +74,12 @@ async function laadAlle(versies: readonly string[]): Promise<Map<string, BkBesta
   return uit;
 }
 
-// ── Kleine stukken ──────────────────────────────────────────────────────────
+// ── De lijst ────────────────────────────────────────────────────────────────
+// De uitklappers, "Toon" en de zinnen staan in BkLijst.tsx (ook voor de cursuseditor); ze blijven hier ook uitgevoerd.
 
-/**
- * De zin boven de beroepskwalificaties bij "Nog niet gedekt": ze staan dicht, dus de zin zegt ook wat er te doen valt.
- * Enkelvoud en meervoud. Geëxporteerd voor de test; de zin hoort bij de andere zinnen in `lib/bkWeergave.ts` (I3).
- */
-export function nogNietGedektZin(competenties: number, beroepskwalificaties: number): string {
-  if (competenties <= 0) return 'Alle competenties zijn gedekt.';
-  const inBks = enkelOfMeer(beroepskwalificaties, 'beroepskwalificatie', 'beroepskwalificaties');
-  const open = beroepskwalificaties === 1 ? 'de beroepskwalificatie' : 'een beroepskwalificatie';
-  return competenties === 1
-    ? `1 competentie in ${inBks} is nog niet gedekt. Open ${open} om ze te zien.`
-    : `${competenties} competenties in ${inBks} zijn nog niet gedekt. Open ${open} om ze te zien.`;
-}
+import { BkToonKeuze, PerBk, ZonderBestandRegel } from './BkLijst';
 
-/**
- * De regel voor een beroepskwalificatie waarvan het bestand ontbreekt: de titel in het vet, een punt en de uitleg. Een punt of
- * spaties achteraan de titel vallen weg (de regel zet zelf een punt), een lege titel valt weg met haar punt. Geëxporteerd voor
- * de test; de zin hoort bij de andere zinnen in `lib/bkWeergave.ts` (I3).
- */
-export function ZonderBestandRegel({ titel }: { titel: string }) {
-  const naam = typeof titel === 'string' ? titel.trim().replace(/[.\s]+$/, '') : '';
-  return (
-    <p className="dk-uitleg">
-      {naam !== '' && <><strong>{naam}</strong>. </>}
-      {BK_ZONDER_BESTAND}
-    </p>
-  );
-}
-
-/** De radio "Toon": alle competenties, of alleen wat nog niet gedekt is. */
-function ToonKeuze({ toon, onToon }: { toon: Toon; onToon: (t: Toon) => void }) {
-  const naam = useId();
-  return (
-    <fieldset className="dk-fieldset">
-      <legend>Toon</legend>
-      <div className="dk-radios">
-        <label className="dk-keuze">
-          <input type="radio" name={naam} checked={toon === 'alle'} onChange={() => onToon('alle')} />
-          <span>{BK_TOON_ALLE}</span>
-        </label>
-        <label className="dk-keuze">
-          <input type="radio" name={naam} checked={toon === 'open'} onChange={() => onToon('open')} />
-          <span>{BK_TOON_OPEN}</span>
-        </label>
-      </div>
-    </fieldset>
-  );
-}
-
-function RijStatus({ rij }: { rij: MdRij }) {
-  return (
-    <li className="dk-doel">
-      <p className="dk-doel-tekst">{bkCompetentieRegel(rij.doel.code, rij.doel.tekst)}</p>
-      <DoelStatus rij={rij} />
-    </li>
-  );
-}
-
-/** Eén beroepskwalificatie: een uitklapper met haar competenties. Ze staan pas in de pagina als ze openstaat. */
-function BkUitklapper({ groep, naam }: { groep: SetGroep; naam: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <details className="dk-set" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-      <summary>{bkSetSamenvatting(naam, groep.gedekt, groep.totaal)}</summary>
-      {/* Bij "Nog niet gedekt" staan alleen de beroepskwalificaties met iets dat open is (zichtbareSets): een lege lijst komt dus niet voor. */}
-      {open && groep.rijen.length > 0 && (
-        <ul className="dk-doelen">
-          {groep.rijen.map((rij) => <RijStatus key={`${rij.doel.set}|${rij.doel.id}`} rij={rij} />)}
-        </ul>
-      )}
-    </details>
-  );
-}
-
-function PerBk({ dekking, toon, namen }: { dekking: MdDekking; toon: Toon; namen: ReadonlyMap<string, string> }) {
-  const groepen = useMemo(() => zichtbareSets(groepeerPerSet(dekking, toon), toon), [dekking, toon]);
-  // De beroepskwalificaties staan dicht: zonder deze zin zou "Nog niet gedekt" niets zichtbaar of hoorbaar veranderen. De regel
-  // staat er altijd (ook leeg), want een live-gebied moet er al staan voor de tekst verandert.
-  const zin = toon === 'open' && dekking.rijen.length > 0
-    ? nogNietGedektZin(groepen.reduce((n, g) => n + g.rijen.length, 0), groepen.length)
-    : '';
-  return (
-    <>
-      <p className="dk-toon-zin" aria-live="polite">{zin}</p>
-      <div className="dk-sets">
-        {groepen.map((g) => <BkUitklapper key={g.set} groep={g} naam={namen.get(g.set) ?? g.setNaam} />)}
-      </div>
-    </>
-  );
-}
+export { nogNietGedektZin, ZonderBestandRegel } from './BkLijst';
 
 // ── Het blok ────────────────────────────────────────────────────────────────
 
@@ -222,7 +130,7 @@ export function BkDekking({ info, keuze, bk, courses, curricula, matrix, vandaag
           )}
           {dekking.rijen.length > 0 && (
             <>
-              <ToonKeuze toon={toon} onToon={setToon} />
+              <BkToonKeuze toon={toon} onToon={setToon} />
               <PerBk dekking={dekking} toon={toon} namen={namen} />
             </>
           )}

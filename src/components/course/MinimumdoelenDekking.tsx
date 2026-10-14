@@ -50,26 +50,17 @@ import {
   type Toon,
 } from '../../lib/dekkingWeergave';
 import { doelgroepVoorLeerplan, sanitizeDoelgroep, type Doelgroep } from '../../lib/doelgroep';
-import { codesVoorDoelen, openPerSet, openVerplichteDoelen, type OpenSet } from '../../lib/gatenDichten';
+import { codesVoorDoelen, openPerSet, openVerplichteDoelen, type OpenSet, type Verwijzingen } from '../../lib/gatenDichten';
 import {
   ANNULEREN_TEKST,
-  DOELEN_HINT,
-  DOELEN_LEGEND,
   FOUT_LADEN_GATEN,
-  FOUT_NIETS_TE_DOEN,
+  MD_PLAN_TEKSTEN,
   PANEEL_TITEL,
-  PANEEL_UITLEG,
   PLAN_BIJ_RICHTING_TEKST,
-  TOON_DOELEN,
   andereOpenTekst,
   doelRegelTekst,
-  editorKnopTekst,
-  editorRegel,
-  geplandInDezeCursusToast,
   nogNodigTekst,
-  paneelZetTekst,
-  setVakjeTekst,
-  tellerTekst,
+  type PlanTeksten,
 } from '../../lib/gatenWeergave';
 import { setNamenVan } from '../../lib/setNamen';
 import { richtingInfo, type RichtingKader, type RichtingKeuze } from '../../lib/richtingKader';
@@ -183,12 +174,12 @@ export function gekozenOpenDoelen(sets: readonly OpenSet[], uit: ReadonlySet<str
   return gekozenOpenSets(sets, uit).flatMap((s) => s.doelen);
 }
 
-function DoelenUitklapper({ set, naam }: { set: OpenSet; naam: string }) {
+function DoelenUitklapper({ set, naam, toon }: { set: OpenSet; naam: string; toon: string }) {
   // De doelen staan pas in de pagina als de set openstaat: een set met honderden doelen blijft zo snel.
   const [open, setOpen] = useState(false);
   return (
     <details className="gt-details" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-      <summary>{TOON_DOELEN}<span className="sr-only">{` van ‘${naam}’`}</span></summary>
+      <summary>{toon}<span className="sr-only">{` van ‘${naam}’`}</span></summary>
       {open && (
         <ul className="gt-doelen">
           {set.doelen.map((doel) => (
@@ -204,8 +195,10 @@ function DoelenUitklapper({ set, naam }: { set: OpenSet; naam: string }) {
  * "Welke doelen?": per set een vakje ("Chemie · 9 doelen") met een uitklapper om de doelen te zien, en de teller. De
  * leerkracht kiest per set, niet per doel; per doel bijsturen kan daarna in de cursus. `uit` zijn de sets die ze uitvinkte.
  * Met `alsTekstBijEenSet` staat een enkele set als gewone regel, want er valt niets af te vinken (het paneel in de editor).
+ * De zinnen komen uit `teksten`; zonder zijn het die van de minimumdoelen (`MD_PLAN_TEKSTEN`), en dan is de uitvoer
+ * letterlijk wat ze altijd was (docs/STUDIERICHTINGEN.md § 24.4, I3). Voor de competenties geeft de aanroeper `BK_PLAN_TEKSTEN` mee.
  */
-export function GatenSetsKeuze({ sets, namen, uit, onZet, eersteId, alsTekstBijEenSet }: {
+export function GatenSetsKeuze({ sets, namen, uit, onZet, eersteId, alsTekstBijEenSet, teksten = MD_PLAN_TEKSTEN }: {
   sets: readonly OpenSet[];
   /** De namen van de sets voor het scherm (zie `setNamenVan`); een set zonder naam in die lijst krijgt zijn korte naam. */
   namen: ReadonlyMap<string, string>;
@@ -214,17 +207,18 @@ export function GatenSetsKeuze({ sets, namen, uit, onZet, eersteId, alsTekstBijE
   /** Het id van het eerste vakje, voor de focus als er nog iets ontbreekt. */
   eersteId?: string;
   alsTekstBijEenSet?: boolean;
+  teksten?: Pick<PlanTeksten, 'legend' | 'hint' | 'toon' | 'vakje' | 'teller'>;
 }) {
   const naamVan = (s: OpenSet) => namen.get(s.set) ?? veiligeSetNaam(s.setNaam);
   if (alsTekstBijEenSet && sets.length === 1) {
-    return <p className="gt-eenset">{setVakjeTekst(naamVan(sets[0]), sets[0].doelen.length)}</p>;
+    return <p className="gt-eenset">{teksten.vakje(naamVan(sets[0]), sets[0].doelen.length)}</p>;
   }
   const gekozen = gekozenOpenSets(sets, uit);
   const doelen = gekozen.reduce((som, s) => som + s.doelen.length, 0);
   return (
     <fieldset className="gt-groep">
-      <legend>{DOELEN_LEGEND}</legend>
-      <p className="gt-uitleg">{DOELEN_HINT}</p>
+      <legend>{teksten.legend}</legend>
+      <p className="gt-uitleg">{teksten.hint}</p>
       <ul className="gt-setlijst">
         {sets.map((s, i) => {
           const naam = naamVan(s);
@@ -235,14 +229,14 @@ export function GatenSetsKeuze({ sets, namen, uit, onZet, eersteId, alsTekstBijE
                   type="checkbox" id={i === 0 ? eersteId : undefined} checked={!uit.has(s.set)}
                   onChange={(e) => onZet(s.set, e.target.checked)}
                 />
-                <span>{setVakjeTekst(naam, s.doelen.length)}</span>
+                <span>{teksten.vakje(naam, s.doelen.length)}</span>
               </label>
-              <DoelenUitklapper set={s} naam={naam} />
+              <DoelenUitklapper set={s} naam={naam} toon={teksten.toon} />
             </li>
           );
         })}
       </ul>
-      <p className="gt-teller" aria-live="polite" aria-atomic="true">{tellerTekst(doelen, gekozen.length)}</p>
+      <p className="gt-teller" aria-live="polite" aria-atomic="true">{teksten.teller(doelen, gekozen.length)}</p>
     </fieldset>
   );
 }
@@ -271,7 +265,7 @@ function vandaagLokaal(): string {
 const GEEN_SETS_UIT: ReadonlySet<string> = new Set();
 
 /** Wat de editor kan plannen: de open doelen die in het leerplan van deze cursus staan, en het aantal dat er niet in staat. */
-interface Plan {
+export interface Plan {
   /** De open doelen met een doelcode in het leerplan van de cursus, per set. */
   perSet: OpenSet[];
   aantal: number;
@@ -279,25 +273,55 @@ interface Plan {
   buitenLeerplan: number;
 }
 
-function planVan(dekking: MdDekking, curriculum: Curriculum): Plan {
-  const { inLeerplan, nietInLeerplan } = codesVoorDoelen(curriculum, openVerplichteDoelen(dekking));
+/**
+ * Wat de editor kan plannen voor deze dekking. `verwijzingen` zegt waar een leerplandoel naar verwijst; zonder zijn dat de
+ * `refs` naar minimumdoelen, voor de competenties van een beroepskwalificatie is het `bkVerwijzingen`.
+ */
+export function planVan(dekking: MdDekking, curriculum: Curriculum, verwijzingen?: Verwijzingen): Plan {
+  const { inLeerplan, nietInLeerplan } = codesVoorDoelen(curriculum, openVerplichteDoelen(dekking), verwijzingen);
   return { perSet: openPerSet(inLeerplan), aantal: inLeerplan.length, buitenLeerplan: nietInLeerplan.length };
 }
+
+/** Zet doelcodes als lege secties in een cursus; `voegGeplandeSectiesToe` uit gatenCursus.ts, voor een beroepskwalificatie met een eigen geraamte. */
+export type VoegToe = (c: Course, l: Curriculum, codes: readonly string[]) => { course: Course; toegevoegd: readonly string[] };
+
+/**
+ * Waarin "Plan ze in deze cursus" verschilt tussen de minimumdoelen en de competenties van een beroepskwalificatie
+ * (docs/STUDIERICHTINGEN.md § 24.4): de zinnen, waar een leerplandoel naar verwijst, en hoe de secties gemaakt worden. De
+ * laatste wordt pas bij de klik geladen: `gatenCursus` is zwaar.
+ */
+export interface PlanSmaak {
+  teksten: PlanTeksten;
+  /** Waar een leerplandoel naar verwijst; zonder zijn dat de `refs` naar minimumdoelen. */
+  verwijzingen?: Verwijzingen;
+  laadVoegToe(): Promise<VoegToe>;
+}
+
+/** De smaak van de minimumdoelen: haar zinnen, de `refs` van het leerplan en `voegGeplandeSectiesToe` met `geraamteHoofdstukken`. */
+export const MD_PLAN: PlanSmaak = {
+  teksten: MD_PLAN_TEKSTEN,
+  laadVoegToe: () => import('../../lib/gatenCursus').then((m) => m.voegGeplandeSectiesToe),
+};
 
 /**
  * "Plan ze in deze cursus" (§ 22.4.5): de open doelen uit het leerplan van deze cursus die nog op geen enkele sectie staan,
  * als lege secties met doelcodes achteraan in de cursus. Een inline paneel in dezelfde weergave, geen tweede venster. Bij de
  * klik laadt de editor `gatenCursus` lui en vraagt `onEdit` de wijziging op de laatste stand van de cursus; de bewaarmotor van de
  * editor bewaart met zijn eigen bewaking en meldingen. Het leerplan blijft zoals het is.
+ *
+ * `smaak` bepaalt de zinnen, waar een leerplandoel naar verwijst en hoe de secties gemaakt worden; zonder is het `MD_PLAN`, en
+ * dan is alles zoals het altijd was (§ 24.4, I3).
  */
-function PlanInCursus({ plan, dekking, curriculum, namen, onEdit, samenvattingRef }: {
+export function PlanInCursus({ plan, dekking, curriculum, namen, onEdit, samenvattingRef, smaak = MD_PLAN }: {
   plan: Plan;
   dekking: MdDekking;
   curriculum: Curriculum;
   namen: ReadonlyMap<string, string>;
   onEdit: (next: (c: Course) => Course) => void;
   samenvattingRef: RefObject<HTMLParagraphElement>;
+  smaak?: PlanSmaak;
 }) {
+  const t = smaak.teksten;
   const toast = useToast();
   const id = useId();
   const paneelId = `${id}-paneel`;
@@ -349,23 +373,23 @@ function PlanInCursus({ plan, dekking, curriculum, namen, onEdit, samenvattingRe
       document.getElementById(eersteId)?.focus();
       return;
     }
-    const codes = codesVoorDoelen(curriculum, gekozen).codes;
+    const codes = codesVoorDoelen(curriculum, gekozen, smaak.verwijzingen).codes;
     bezig.current = true;
-    void import('../../lib/gatenCursus').then(
-      ({ voegGeplandeSectiesToe }) => {
+    void smaak.laadVoegToe().then(
+      (voegToe) => {
         let toegevoegd = 0;
         onEdit((c) => {
-          const r = voegGeplandeSectiesToe(c, curriculum, codes);
+          const r = voegToe(c, curriculum, codes);
           toegevoegd = r.toegevoegd.length;
           return r.course;
         });
         bezig.current = false;
         if (toegevoegd > 0) {
-          toast(geplandInDezeCursusToast(gekozen.length), 'ok');
+          toast(t.toast(gekozen.length), 'ok');
           setOpen(false);
           setFocusNa(dekking);
         } else {
-          toast(FOUT_NIETS_TE_DOEN);
+          toast(t.nietsTeDoen);
         }
       },
       () => {
@@ -376,10 +400,10 @@ function PlanInCursus({ plan, dekking, curriculum, namen, onEdit, samenvattingRe
   };
 
   if (plan.aantal === 0) return null;
-  const nodig = gekozen.length === 0 ? nogNodigTekst(['minstens één doel']) : '';
+  const nodig = gekozen.length === 0 ? nogNodigTekst([t.nodig]) : '';
   return (
     <div className="gt-editor">
-      <p className="gt-editor-regel">{editorRegel(plan.aantal)}</p>
+      <p className="gt-editor-regel">{t.regel(plan.aantal)}</p>
       <button
         ref={knopRef} type="button" className="btn btn-sm btn-primary gt-editor-knop"
         aria-expanded={toonPaneel} aria-controls={toonPaneel ? paneelId : undefined}
@@ -393,20 +417,20 @@ function PlanInCursus({ plan, dekking, curriculum, namen, onEdit, samenvattingRe
           setOpen(true);
         }}
       >
-        <PlannedIcon size={16} aria-hidden="true" /> {editorKnopTekst(plan.aantal)}
+        <PlannedIcon size={16} aria-hidden="true" /> {t.knop(plan.aantal)}
       </button>
       {toonPaneel && (
         <div ref={paneelRef} id={paneelId} role="group" aria-labelledby={kopId} tabIndex={-1} className="gt-paneel">
           <h3 id={kopId}>{PANEEL_TITEL}</h3>
-          <p className="gt-uitleg">{PANEEL_UITLEG}</p>
-          <GatenSetsKeuze sets={plan.perSet} namen={namen} uit={effectiefUit} onZet={zetSet} eersteId={eersteId} alsTekstBijEenSet />
+          <p className="gt-uitleg">{t.uitleg}</p>
+          <GatenSetsKeuze sets={plan.perSet} namen={namen} uit={effectiefUit} onZet={zetSet} eersteId={eersteId} alsTekstBijEenSet teksten={t} />
           {nodig && <p id={nodigId} className="gt-paneel-nodig">{nodig}</p>}
           <div className="gt-paneel-knoppen">
             <button
               type="button" className="btn btn-sm btn-primary gt-knop" aria-disabled={nodig ? 'true' : undefined}
               aria-describedby={nodig ? nodigId : undefined} onClick={zet}
             >
-              {paneelZetTekst(gekozen.length)}
+              {t.zet(gekozen.length)}
             </button>
             <button type="button" className="btn btn-sm btn-ghost" onClick={annuleer}>{ANNULEREN_TEKST}</button>
           </div>

@@ -233,3 +233,53 @@ export const PLAN_BIJ_RICHTING_TEKST = 'Wat geen enkele cursus behandelt, plan j
 export function geplandInDezeCursusToast(n: number): string {
   return `${n === 1 ? '1 doel staat' : `${n} doelen staan`} nu gepland in deze cursus.`;
 }
+
+// ── De zinnen van het paneel en de sets-keuze, als één object (docs/STUDIERICHTINGEN.md § 24.4) ──────────────────────
+
+/**
+ * Alle zinnen van `GatenSetsKeuze` en van het paneel "Plan in deze cursus" die verschillen tussen de minimumdoelen en de
+ * competenties van een beroepskwalificatie. De schermdelen werken met dit object, zodat dezelfde delen voor beide dienen:
+ * `MD_PLAN_TEKSTEN` hieronder voor de minimumdoelen, `BK_PLAN_TEKSTEN` (bkWeergave.ts) voor de competenties.
+ */
+export interface PlanTeksten {
+  /** De legend boven de vakjes: "Welke doelen?". */
+  legend: string;
+  /** De hint onder de legend: "Vink uit wat in een andere cursus thuishoort.". */
+  hint: string;
+  /** De uitklapper van een set: "Toon de doelen". */
+  toon: string;
+  /** Het vakje van een set: "Chemie · 9 doelen" / "Chemie · 1 doel". */
+  vakje(naam: string, n: number): string;
+  /** De teller onder de vakjes: "Je koos 21 doelen uit 3 sets.". */
+  teller(n: number, groepen: number): string;
+  /** De regel boven de knop in de editor: "3 doelen uit het leerplan van deze cursus staan nog op geen enkele sectie.". */
+  regel(n: number): string;
+  /** De knop die het paneel opent: "Plan ze in deze cursus". */
+  knop(n: number): string;
+  /** De uitleg in het paneel. */
+  uitleg: string;
+  /** De knop in het paneel: "Zet ze in deze cursus". */
+  zet(n: number): string;
+  /** De toast na het zetten: "3 doelen staan nu gepland in deze cursus.". */
+  toast(n: number): string;
+  /** Wat er in "Nog nodig: …" staat zolang er niets gekozen is: "minstens één doel". */
+  nodig: string;
+  /** De melding als er niets te zetten was: "Deze doelen staan al op een sectie van deze cursus. Er is niets veranderd.". */
+  nietsTeDoen: string;
+}
+
+/** De zinnen voor de minimumdoelen: letterlijk de bestaande functies en constanten van dit bestand. */
+export const MD_PLAN_TEKSTEN: PlanTeksten = {
+  legend: DOELEN_LEGEND,
+  hint: DOELEN_HINT,
+  toon: TOON_DOELEN,
+  vakje: setVakjeTekst,
+  teller: tellerTekst,
+  regel: editorRegel,
+  knop: editorKnopTekst,
+  uitleg: PANEEL_UITLEG,
+  zet: paneelZetTekst,
+  toast: geplandInDezeCursusToast,
+  nodig: 'minstens één doel',
+  nietsTeDoen: FOUT_NIETS_TE_DOEN,
+};
