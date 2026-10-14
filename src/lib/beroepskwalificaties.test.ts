@@ -25,6 +25,7 @@ import {
   BK_BRON,
   LICENTIE,
   MAX_EXTRA_VELD,
+  afgelopenVoor,
   bevatHtml,
   bkApiVan,
   bkBestandVan,
@@ -37,6 +38,7 @@ import {
   normaliseerBkDetail,
   normaliseerBkLijstItem,
   normaliseerOnderdeelDetail,
+  slankRecord,
   splitsBk,
   valideerBkBestand,
   valideerBkIndex,
@@ -47,6 +49,7 @@ import {
   vergelijkErkenning,
   type BkBestand,
   type Erkenning,
+  type OnderdeelKwalificaties,
 } from './beroepskwalificaties';
 import { normalizeGoalCode } from './curriculum';
 import { GROEP_NUMMER } from './studierichtingen';
@@ -269,6 +272,21 @@ function geldigeKoppeling(): Rec {
       { onderdeel: 931, groep: 'G-0009', status: 'niet-gevonden', nietMeerInBron: '2026-10-10' },
     ]),
   };
+}
+
+/**
+ * De koppeling in de oude vorm (vóór K8, zoals de eerste echte run ze schreef): `extra` bij elke BK-verwijzing en
+ * studiebekrachtiging (de velden van ronde 6 en 7), en de afgelopen erkenning ADV-1193 van onderdeel 1.
+ */
+function oudeKoppeling(): Rec {
+  const k = geldigeKoppeling();
+  for (const r of k.onderdelen) {
+    for (const e of r.erkenningen ?? []) {
+      for (const b of e.bks) b.extra = { volledigheid: 'Volledig' };
+      for (const b of e.bekrachtigingen) b.extra = { categorie: 'Bewijs', led_bewijstype: 'Bewijs', maximale_studiebekrachtiging: false };
+    }
+  }
+  return k;
 }
 
 function geldigBkBestand(): Rec {
@@ -509,9 +527,10 @@ describe('normaliseerOnderdeelDetail', () => {
     expect(e).toMatchObject({ adv: 'ADV-0842', versie: 'S-504-V1', status: 'ERKEND', begindatum: '2023-09-01' });
     expect(e.einddatum).toBeUndefined();
     expect(e.geenLijst).toBeUndefined();
+    // K8: zonder `extra` (volledigheid); de veldinventaris telt het veld wel.
     expect(e.bks).toEqual([
-      { bk: 'BK-0390-2', titel: 'Onthaalmedewerker', extra: { volledigheid: 'Volledig' } },
-      { bk: 'BK-0464-1', titel: 'Recreatief medewerker', extra: { volledigheid: 'Volledig' } },
+      { bk: 'BK-0390-2', titel: 'Onthaalmedewerker' },
+      { bk: 'BK-0464-1', titel: 'Recreatief medewerker' },
     ]);
     expect(e.bekrachtigingen.map((b) => b.naam)).toEqual([
       'Bewijs van beroepskwalificatie Recreatief medewerker (BK-0464-1)',
@@ -519,11 +538,12 @@ describe('normaliseerOnderdeelDetail', () => {
       'Diploma van secundair onderwijs, onderwijskwalificatie niveau 3',
     ]);
     const [bewijsBk, basis, diploma] = e.bekrachtigingen;
-    expect(bewijsBk).toEqual({ naam: bewijsBk.naam, bk: 'BK-0464-1', extra: { categorie: 'Bewijs', naam: 'Bewijs van beroepskwalificatie' } });
-    expect(basis.onderwijskwalificatie).toBeUndefined();
-    expect(basis.extra).toMatchObject({ naam: 'Bewijs van slagen voor de basisvorming', maximale_studiebekrachtiging: false });
-    expect(diploma).toMatchObject({ onderwijskwalificatie: true, extra: { vks_niveau: 'OK3', categorie: 'Diploma' } });
-    expect(diploma.extra).not.toHaveProperty('naam');
+    // K8: alleen naam, onderwijskwalificatie, bk en dbk; categorie, bewijstype, VKS-niveau … vallen weg.
+    expect(bewijsBk).toEqual({ naam: bewijsBk.naam, bk: 'BK-0464-1' });
+    expect(basis).toEqual({ naam: 'Bewijs van slagen voor de basisvorming Onthaal en recreatie' });
+    expect(diploma).toEqual({ naam: diploma.naam, onderwijskwalificatie: true });
+    expect(r.velden).toContain('structuuronderdeel_details[].studiebekrachtigingen[].categorie');
+    expect(r.velden).toContain('structuuronderdeel_details[].beroepskwalificaties[].volledigheid');
     // Wat nooit in de koppeling komt: adressen en wat al in de matrix staat.
     const tekst = JSON.stringify(r.erkenningen);
     for (const weg of ['api_url', 'curriculumdossier', 'omschrijving', 'doorstroomprofiel', 'leerjaren', 'onderwijs.api.vlaanderen.be']) expect(tekst).not.toContain(weg);
@@ -544,7 +564,6 @@ describe('normaliseerOnderdeelDetail', () => {
     expect(dbk).toEqual({
       naam: 'Bewijs van deelkwalificatie Plaatser buitenbepleistering (BK-0130-5-DBK-01)',
       dbk: 'BK-0130-5-DBK-01',
-      extra: { deelkwalificatie: { titel: 'Plaatser buitenbepleistering' } },
     });
     expect(nieuw.bekrachtigingen.find((b) => b.bk === 'BK-0130-5')).toMatchObject({ onderwijskwalificatie: true });
   });
@@ -574,7 +593,7 @@ describe('normaliseerOnderdeelDetail', () => {
     expect(e.bks.map((k) => k.bk)).toEqual(['BK-0390-2', 'BK-0464-1', 'BK-0500-1']);
     expect(e.bekrachtigingen).toEqual([
       { naam: 'Bewijs A', onderwijskwalificatie: true, bk: 'BK-0464-1' },
-      { naam: 'Bewijs B', bk: 'BK-0390-2', extra: { beroepskwalificatie: { soort: 'BK' } } },
+      { naam: 'Bewijs B', bk: 'BK-0390-2' },
       { naam: 'Bewijs C', dbk: 'BK-0130-5-DBK-02' },
       { naam: 'Bewijs D' },
     ]);
@@ -674,14 +693,14 @@ describe('normaliseerOnderdeelDetail', () => {
     expect(r.waarschuwingen.filter((w) => /deelkwalificatie BK-0130-5-DBK-0[13] staat in de lijst/.test(w))).toHaveLength(2);
   });
 
-  it('negatief: studiebekrachtigingen in een onbekende vorm worden geteld (T3) en blijven in extra', () => {
+  it('negatief: studiebekrachtigingen in een onbekende vorm worden geteld (T3); met een naam blijven ze bij naam', () => {
     const d = detail504();
     d.structuuronderdeel_details[0].studiebekrachtigingen.push(42, { uitgebreide_naam: 'Raar', beroepskwalificatie: { soort: 'BK' } }, { categorie: 'zonder naam' });
     const r = normaliseerOnderdeelDetail(d, 504);
     expect(r.problemen).toEqual([]);
     expect(r.vormOnbekend).toBe(3);
     const raar = r.erkenningen[0].bekrachtigingen.find((b) => b.naam === 'Raar');
-    expect(raar).toEqual({ naam: 'Raar', extra: { beroepskwalificatie: { soort: 'BK' } } });
+    expect(raar).toEqual({ naam: 'Raar' });
   });
 
   it('negatief: __proto__ in het detail wordt een gewoon veld en vervuilt niets', () => {
@@ -728,18 +747,17 @@ describe('normaliseerOnderdeelDetail', () => {
     expect(r.waarschuwingen.join(' ')).toMatch(/geen erkenningen/);
   });
 
-  it('negatief: een onleesbare BK in een studiebekrachtiging is "vorm onbekend" (T3, F3-B14): naam blijft, ruwe waarde in extra, geen probleem', () => {
+  it('negatief: een onleesbare BK in een studiebekrachtiging is "vorm onbekend" (T3, F3-B14): naam blijft, geen probleem', () => {
     // P4 geldt voor de lijst `beroepskwalificaties` (die maakt de koppeling); een studiebekrachtiging telt alleen bij naam.
-    const gevallen: [string, unknown, unknown][] = [
-      ['een BK zonder versie', { beroepskwalificatie_nr: 'BK-0130', titel: 'Stukadoor' }, { beroepskwalificatie_nr: 'BK-0130', titel: 'Stukadoor' }],
+    const gevallen: [string, unknown][] = [
+      ['een BK zonder versie', { beroepskwalificatie_nr: 'BK-0130', titel: 'Stukadoor' }],
       [
         'een versie die niet met haar nummer begint (met api_url)',
         { beroepskwalificatie_nr: 'BK-0464', versie_nr_kort: 1, versie_nr_lang: 'BK-0465-1', titel: 'Recreatief medewerker', api_url: `${API}/beroepskwalificatie/v1/BK-0465-1` },
-        { beroepskwalificatie_nr: 'BK-0464', titel: 'Recreatief medewerker', versie_nr_kort: 1, versie_nr_lang: 'BK-0465-1' },
       ],
-      ['twee verwijzingen waar er één hoort', ['BK-0464-1', 'BK-0390-2'], ['BK-0464-1', 'BK-0390-2']],
+      ['twee verwijzingen waar er één hoort', ['BK-0464-1', 'BK-0390-2']],
     ];
-    for (const [naam, ruw, inExtra] of gevallen) {
+    for (const [naam, ruw] of gevallen) {
       const d = detail504();
       d.structuuronderdeel_details[0].studiebekrachtigingen[2].beroepskwalificatie = ruw;
       const r = normaliseerOnderdeelDetail(d, 504);
@@ -749,10 +767,7 @@ describe('normaliseerOnderdeelDetail', () => {
       const e = r.erkenningen[0];
       expect(e.bks.map((k) => k.bk), naam).toEqual(['BK-0390-2', 'BK-0464-1']);
       const b = e.bekrachtigingen.find((x) => x.naam.startsWith('Bewijs van beroepskwalificatie'));
-      expect(b, naam).toEqual({
-        naam: 'Bewijs van beroepskwalificatie Recreatief medewerker (BK-0464-1)',
-        extra: { beroepskwalificatie: inExtra, categorie: 'Bewijs', naam: 'Bewijs van beroepskwalificatie' },
-      });
+      expect(b, naam).toEqual({ naam: 'Bewijs van beroepskwalificatie Recreatief medewerker (BK-0464-1)' });
       expect(JSON.stringify(e), naam).not.toMatch(/api_url|onderwijs\.api/);
       const k = { ...geldigeKoppeling(), aantalOnderdelen: 1, onderdelen: [{ onderdeel: 504, groep: 'G-0393', status: 'opgehaald', opgehaald: NU, erkenningen: r.erkenningen }] };
       expect(valideerKoppelingBestand(k), naam).toEqual([]);
@@ -771,7 +786,7 @@ describe('normaliseerOnderdeelDetail', () => {
     expect(r.velden).toContain('structuuronderdeel_details[].bijkomende_toelatingsvoorwaarden[].omschrijving');
   });
 
-  it('positief: dezelfde BK twee keer met andere gegevens: de kleinste titel en de kleinste extra winnen, in elke volgorde, met een waarschuwing', () => {
+  it('positief: dezelfde BK twee keer met een andere titel: de kleinste titel wint, in elke volgorde, met een waarschuwing', () => {
     const a = { ...bkVerwijzing('BK-0390', 2, 'Onthaalmedewerker'), volledigheid: 'Gedeeltelijk' };
     const b = { ...bkVerwijzing('BK-0390', 2, 'Baliemedewerker'), volledigheid: 'Volledig' };
     const c = { beroepskwalificatie_nr: 'BK-0390', versie_nr_lang: 'BK-0390-2' }; // zonder titel en zonder extra: verliest nooit iets
@@ -780,9 +795,9 @@ describe('normaliseerOnderdeelDetail', () => {
       d.structuuronderdeel_details[0].beroepskwalificaties = kopie(lijst);
       const r = normaliseerOnderdeelDetail(d, 504);
       expect(r.problemen).toEqual([]);
-      // Titel en extra worden elk apart gekozen (de kleinste in tekenvolgorde), los van de volgorde in de API.
-      expect(r.erkenningen[0].bks).toEqual([{ bk: 'BK-0390-2', titel: 'Baliemedewerker', extra: { volledigheid: 'Gedeeltelijk' } }]);
-      expect(r.waarschuwingen.join(' ')).toMatch(/ADV-0842: BK-0390-2 staat er meer dan één keer, met andere gegevens/);
+      // De kleinste titel in tekenvolgorde, los van de volgorde in de API; `volledigheid` komt niet in de koppeling (K8).
+      expect(r.erkenningen[0].bks).toEqual([{ bk: 'BK-0390-2', titel: 'Baliemedewerker' }]);
+      expect(r.waarschuwingen.join(' ')).toMatch(/ADV-0842: BK-0390-2 staat er meer dan één keer, met een andere titel/);
     }
   });
 
@@ -795,16 +810,16 @@ describe('normaliseerOnderdeelDetail', () => {
     expect(r.erkenningen[0].bks.map((k) => k.bk)).toEqual(['BK-0390-2', 'BK-0464-1']);
   });
 
-  it('positief: dezelfde studiebekrachtiging twee keer telt één keer, met een waarschuwing; een variant blijft apart', () => {
+  it('positief: dezelfde studiebekrachtiging twee keer telt één keer, met een waarschuwing; een variant die alleen in een weggelaten veld verschilt ook (K8)', () => {
     const d = detail504();
     const sb = d.structuuronderdeel_details[0].studiebekrachtigingen;
     sb.push(kopie(sb[1]), { ...kopie(sb[1]), categorie: 'Ander' });
     const r = normaliseerOnderdeelDetail(d, 504);
     expect(r.problemen).toEqual([]);
     const lijst = r.erkenningen[0].bekrachtigingen;
-    expect(lijst).toHaveLength(4);
-    expect(lijst.filter((b) => b.naam === 'Bewijs van slagen voor de basisvorming Onthaal en recreatie').map((b) => b.extra?.categorie)).toEqual(['Ander', 'Bewijs']);
-    expect(r.waarschuwingen.join(' ')).toMatch(/studiebekrachtiging "Bewijs van slagen.* staat er twee keer in/);
+    expect(lijst).toHaveLength(3);
+    expect(lijst.filter((b) => b.naam === 'Bewijs van slagen voor de basisvorming Onthaal en recreatie')).toEqual([{ naam: 'Bewijs van slagen voor de basisvorming Onthaal en recreatie' }]);
+    expect(r.waarschuwingen.filter((w) => /studiebekrachtiging "Bewijs van slagen.* staat er twee keer in/.test(w))).toHaveLength(2);
     // Zonder ontdubbeling zou de validator de koppeling weigeren (een dubbel element).
     const k = { ...geldigeKoppeling(), aantalOnderdelen: 1, onderdelen: [{ onderdeel: 504, groep: 'G-0393', status: 'opgehaald', opgehaald: NU, erkenningen: r.erkenningen }] };
     expect(valideerKoppelingBestand(k)).toEqual([]);
@@ -1490,6 +1505,139 @@ describe('volgorde van de API (T6) en gelijkZonderVolgorde', () => {
 
 // ── valideerKoppelingBestand ────────────────────────────────────────────────
 
+// ── De slanke vorm van de koppeling (K8) ────────────────────────────────────
+
+describe('afgelopenVoor en slankRecord (K8)', () => {
+  const AFGELOPEN: [string, Rec, string | undefined, boolean][] = [
+    ['einde ruim vóór de dag', { einddatum: '2024-08-31' }, '2026-10-10', true],
+    ['einde de dag ervoor', { einddatum: '2026-10-09' }, '2026-10-10', true],
+    ['einde als tijdstip, de dag ervoor', { einddatum: '2026-10-09T23:59:59Z' }, '2026-10-10', true],
+    ['einde op de dag zelf (geldt nog die dag)', { einddatum: '2026-10-10' }, '2026-10-10', false],
+    ['einde na de dag', { einddatum: '2027-08-31' }, '2026-10-10', false],
+    ['zonder einde', {}, '2026-10-10', false],
+    ['een lege einddatum', { einddatum: '' }, '2026-10-10', false],
+    ['een onleesbare einddatum (bij twijfel blijft ze)', { einddatum: '2024-02-30' }, '2026-10-10', false],
+    ['zonder dag', { einddatum: '2024-08-31' }, undefined, false],
+    ['een ongeldige dag', { einddatum: '2024-08-31' }, '2026-13-01', false],
+  ];
+  it.each(AFGELOPEN)('afgelopenVoor: %s', (_naam, e, dag, verwacht) => {
+    expect(afgelopenVoor(e as Erkenning, dag)).toBe(verwacht);
+  });
+
+  it('afgelopenVoor gooit niet op rare invoer', () => {
+    for (const raar of [null, undefined, 5, 'x', [], { einddatum: 5 }, { einddatum: {} }]) expect(afgelopenVoor(raar as never, '2026-10-10')).toBe(false);
+  });
+
+  /** Onderdeel 1 in de oude vorm: ADV-1193 (2017-09-01 tot 2024-08-31) en ADV-1608 (vanaf 2023-09-01). */
+  const oud1 = (): OnderdeelKwalificaties => oudeKoppeling().onderdelen[0] as OnderdeelKwalificaties;
+
+  it('laat de erkenning weg die al afgelopen was bij het ophalen, en extra bij BK-verwijzingen en studiebekrachtigingen', () => {
+    const s = slankRecord(oud1());
+    expect(s.erkenningen?.map((e) => e.adv)).toEqual(['ADV-1608']);
+    const e = (s.erkenningen as Erkenning[])[0];
+    expect(e.bks).toEqual([{ bk: 'BK-0130-5', titel: 'Stukadoor' }, { bk: 'BK-0168-3', titel: 'Dekvloerlegger' }, { bk: 'BK-0169-3', titel: 'Plaatser soepele vloerbekleding' }]);
+    expect(e.bekrachtigingen.every((b) => !('extra' in b))).toBe(true);
+    expect(e.bekrachtigingen.map((b) => b.naam)).toHaveLength(2);
+    // De rest van het record blijft.
+    expect({ ...s, erkenningen: undefined }).toEqual({ ...oud1(), erkenningen: undefined });
+  });
+
+  it('is gelijk aan de nieuwe normalisatie: slank(oude vorm) = wat normaliseerOnderdeelDetail nu geeft (zonder de afgelopen erkenning)', () => {
+    const nieuw = normaliseerOnderdeelDetail(detail1(), 1).erkenningen.filter((e) => e.adv !== 'ADV-1193');
+    expect(JSON.stringify(slankRecord(oud1()).erkenningen)).toBe(JSON.stringify(nieuw));
+    const nieuw504 = normaliseerOnderdeelDetail(detail504(), 504).erkenningen;
+    expect(JSON.stringify(slankRecord(oudeKoppeling().onderdelen[2]).erkenningen)).toBe(JSON.stringify(nieuw504));
+  });
+
+  it('extra van de erkenning zelf blijft (alleen BK-verwijzingen en studiebekrachtigingen worden slank)', () => {
+    const r = oud1();
+    (r.erkenningen as Erkenning[])[1].extra = { trajecten: ['duaal'] };
+    expect((slankRecord(r).erkenningen as Erkenning[])[0].extra).toEqual({ trajecten: ['duaal'] });
+  });
+
+  it('rekent met de dag van het eigen "opgehaald" van het record, ook bij "niet-gevonden"', () => {
+    const vroeg = { ...oud1(), status: 'niet-gevonden', nietMeerInBron: '2026-11-03', opgehaald: '2024-08-31T23:00:00Z' } as OnderdeelKwalificaties;
+    // Op 2024-08-31 gold ADV-1193 nog: ze blijft.
+    expect(slankRecord(vroeg).erkenningen?.map((e) => e.adv)).toEqual(['ADV-1193', 'ADV-1608']);
+    const later = { ...vroeg, opgehaald: '2024-09-01T00:00:00Z' };
+    expect(slankRecord(later).erkenningen?.map((e) => e.adv)).toEqual(['ADV-1608']);
+    // Zonder (geldige) opgehaald valt geen erkenning weg, wel extra.
+    for (const opgehaald of [undefined, '2026-10-10', 'gisteren']) {
+      const zonder = slankRecord({ ...oud1(), opgehaald } as OnderdeelKwalificaties);
+      expect(zonder.erkenningen?.map((e) => e.adv), String(opgehaald)).toEqual(['ADV-1193', 'ADV-1608']);
+      expect(JSON.stringify(zonder), String(opgehaald)).not.toContain('"extra"');
+    }
+  });
+
+  it('een record dat zo geen erkenningen overhoudt, blijft met een lege lijst; een record zonder erkenningen blijft zoals het is', () => {
+    const r = { ...oud1(), erkenningen: [(oud1().erkenningen as Erkenning[])[0]] };
+    expect(slankRecord(r)).toEqual({ onderdeel: 1, groep: 'G-0001', status: 'opgehaald', opgehaald: NU, erkenningen: [] });
+    for (const zonder of [
+      { onderdeel: 2, groep: 'G-0002', status: 'nog-niet-opgehaald' },
+      { onderdeel: 931, groep: 'G-0009', status: 'niet-gevonden', nietMeerInBron: '2026-10-10' },
+    ] as OnderdeelKwalificaties[]) {
+      expect(slankRecord(zonder)).toBe(zonder);
+    }
+  });
+
+  it('twee studiebekrachtigingen die alleen in extra verschilden, worden één; de volgorde blijft geldig', () => {
+    const k = oudeKoppeling();
+    const e = k.onderdelen[2].erkenningen[0];
+    // Dezelfde naam, maar een andere categorie: in de oude vorm twee elementen (extra beslist de volgorde).
+    const variant = { ...kopie(e.bekrachtigingen[1]), extra: { categorie: 'Ander' } };
+    e.bekrachtigingen.splice(1, 0, variant);
+    e.bekrachtigingen.sort(vergelijkBekrachtiging);
+    expect(valideerKoppelingBestand(k)).toEqual([]);
+    const s = slankRecord(k.onderdelen[2]);
+    expect((s.erkenningen as Erkenning[])[0].bekrachtigingen).toHaveLength(3);
+    expect(valideerKoppelingBestand({ ...k, onderdelen: k.onderdelen.map((r: OnderdeelKwalificaties) => slankRecord(r)) })).toEqual([]);
+  });
+
+  it('puur en idempotent: de invoer verandert niet, twee keer slank = één keer', () => {
+    const r = oud1();
+    const voor = JSON.stringify(r);
+    const een = slankRecord(r);
+    expect(JSON.stringify(r)).toBe(voor);
+    expect(JSON.stringify(slankRecord(een))).toBe(JSON.stringify(een));
+    // Een slank record krijgt geen nieuwe objecten voor de BK-verwijzingen zonder extra.
+    const tweede = slankRecord(een);
+    expect((tweede.erkenningen as Erkenning[])[0].bks[0]).toBe((een.erkenningen as Erkenning[])[0].bks[0]);
+  });
+
+  it('__proto__ als eigen veld blijft een gewoon veld en vervuilt niets', () => {
+    const r = oud1();
+    const e = (r.erkenningen as Erkenning[])[1];
+    (e as unknown as Rec).extra = metProto('{"__proto__": {"x": 1}}');
+    const s = slankRecord(r);
+    const n = (s.erkenningen as Erkenning[])[0];
+    expect(Object.getPrototypeOf(n)).toBe(Object.prototype);
+    expect(Object.prototype.hasOwnProperty.call(n.extra, '__proto__')).toBe(true);
+    expect(({} as Rec).x).toBeUndefined();
+  });
+
+  it('de erkenningen van nu en later blijven dezelfde op elke dag vanaf de ophaaldag (dus ook het BK-kader)', () => {
+    const r = oud1();
+    (r.erkenningen as Erkenning[]).push({ adv: 'ADV-2000', status: 'ERKEND', begindatum: '2027-09-01', einddatum: '2029-08-31', bks: [{ bk: 'BK-0130-6' }], bekrachtigingen: [] });
+    const s = slankRecord(r);
+    const ids = (lijst: Erkenning[]) => lijst.map((e) => e.adv);
+    for (const dag of ['2026-10-10', '2026-10-11', '2026-10-14', '2027-08-31', '2027-09-01', '2028-09-01', '2029-09-01', '2035-01-01']) {
+      const a = erkenningenOp(r.erkenningen as Erkenning[], dag);
+      const b = erkenningenOp(s.erkenningen as Erkenning[], dag);
+      expect([ids(b.nu), ids(b.toekomst)], dag).toEqual([ids(a.nu), ids(a.toekomst)]);
+    }
+    // Vóór de ophaaldag mag het verschillen: dat is de prijs (de app rekent altijd met vandaag).
+    expect(ids(erkenningenOp(s.erkenningen as Erkenning[], '2024-01-01').nu)).toEqual(['ADV-1608']);
+    expect(ids(erkenningenOp(r.erkenningen as Erkenning[], '2024-01-01').nu)).toEqual(['ADV-1193', 'ADV-1608']);
+  });
+
+  it('gooit niet op een record met rare erkenningen (de validator vangt die op)', () => {
+    const raar = { onderdeel: 1, groep: 'G-0001', status: 'opgehaald', opgehaald: NU, erkenningen: [null, 5, { adv: 'ADV-1', bks: 'x', bekrachtigingen: null }] } as unknown as OnderdeelKwalificaties;
+    expect(() => slankRecord(raar)).not.toThrow();
+    expect(slankRecord(raar).erkenningen).toEqual([null, 5, { adv: 'ADV-1', bks: 'x', bekrachtigingen: null }]);
+    expect(slankRecord(null as never)).toBeNull();
+  });
+});
+
 describe('valideerKoppelingBestand', () => {
   const POSITIEF: [string, () => Rec][] = [
     ['de koppeling uit de normalisatie (504, 1, nog niet opgehaald, niet gevonden)', geldigeKoppeling],
@@ -1514,6 +1662,20 @@ describe('valideerKoppelingBestand', () => {
     ['een eigen veld __proto__ in extra', () => {
       const k = geldigeKoppeling();
       k.onderdelen[2].erkenningen[0].extra = metProto('{"__proto__": {"x": 1}}');
+      return k;
+    }],
+    // K8: de app moet een koppeling in de oude vorm blijven lezen (de validator is tolerant voor beide vormen).
+    ['de oude vorm (vóór K8): extra bij BK-verwijzingen en studiebekrachtigingen, en een afgelopen erkenning', oudeKoppeling],
+    ['de slanke vorm (K8): elk record door slankRecord', () => {
+      const k = oudeKoppeling();
+      k.onderdelen = k.onderdelen.map((r: OnderdeelKwalificaties) => slankRecord(r));
+      return k;
+    }],
+    ['een opgehaald record dat na het slank maken geen erkenningen meer heeft (lege lijst)', () => {
+      const k = geldigeKoppeling();
+      // Alleen ADV-1193 (afgelopen op 2024-08-31, opgehaald op 2026-10-10).
+      k.onderdelen[0] = slankRecord({ ...k.onderdelen[0], erkenningen: [k.onderdelen[0].erkenningen[0]] });
+      expect(k.onderdelen[0].erkenningen).toEqual([]);
       return k;
     }],
   ];

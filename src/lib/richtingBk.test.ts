@@ -126,7 +126,11 @@ describe('bkKader op de fixtures: G-0008 (2de graad A, duaal en aanloop)', () =>
   });
 
   it('een vroegere dag: de afgelopen erkenning geldt dan nog, met haar einde en zonder bestand', () => {
-    const k = kader('G-0008', {}, '2024-01-01');
+    // Sinds K8 bewaart de koppeling geen erkenning die al afgelopen was bij het ophalen. Een koppeling in de oude vorm
+    // (de app leest die nog) heeft ze wel: ADV-0917 van onderdeel 8, met BK-0390-1, tot 2024-08-31.
+    const adv0917 = erkenning('ADV-0917', [], { begindatum: '2021-09-01', einddatum: '2024-08-31', bks: [{ bk: 'BK-0390-1', titel: 'Onthaalmedewerker' }] });
+    const records = KOPPELING.onderdelen.map((r) => (r.onderdeel === 8 ? { ...r, erkenningen: [adv0917, ...(r.erkenningen ?? [])] } : r));
+    const k = bkKader(geldig(koppelingMet(records)), INDEX, info('G-0008', '2024-01-01'), keuze('G-0008'), '2024-01-01');
     const oud = k.bks.find((b) => b.bk === 'BK-0390-1');
     expect(oud).toMatchObject({ titel: 'Onthaalmedewerker', zonderBestand: true, totDatum: '2024-08-31', onderdelen: [8] });
     expect(oud?.vks).toBeUndefined();
@@ -206,8 +210,8 @@ describe('bkKader zonder BK', () => {
 
 // ── Wat de eerste echte run toonde (G1 stap 3, 10 oktober 2026) ──────────────
 //
-// De echte koppeling houdt afgelopen erkenningen bij (bv. onderdeel 1: ADV-1193 tot 2024-08-31 en ADV-1608 vanaf
-// 2023-09-01), met studiebekrachtigingen en hun extra velden; 128 onderdelen (allemaal niet meer geldig) staan op
+// De echte koppeling van vóór K8 hield afgelopen erkenningen bij (bv. onderdeel 1: ADV-1193 tot 2024-08-31 en ADV-1608 vanaf
+// 2023-09-01), met studiebekrachtigingen en hun extra velden (de app leest die oude vorm nog); 128 onderdelen (allemaal niet meer geldig) staan op
 // "nog-niet-opgehaald"; en een richting kan alleen een deelkwalificatie in haar bekrachtigingen hebben (bv. onderdeel
 // 69, BK-0500-1-DBK-01). De records hieronder volgen die vorm en gaan eerst door de validator van K1.
 

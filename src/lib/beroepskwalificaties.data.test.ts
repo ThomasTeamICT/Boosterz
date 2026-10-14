@@ -40,7 +40,7 @@ vi.mock('./beroepskwalificaties', async (importOriginal) => {
 // (public/leerplannen/kwalificaties/): de koppeling, de index van de BK-versies en één bestand per BK-versie.
 // Het is bewust onafhankelijk van het script geschreven, alleen uit de invarianten:
 //
-//   KP1 tot KP7  de koppeling      BX1 tot BX4  de index      BB1 tot BB5  de BK-bestanden      (BC1 komt in G1)
+//   KP1 tot KP8  de koppeling      BX1 tot BX4  de index      BB1 tot BB5  de BK-bestanden      (BC1 komt in G1)
 //
 // Elke melding begint met de code van de invariant ("KP5: BK-0464-1 hoort bij …"). De kern is
 // `controleerKwalificatieMap(uit, structuur, opties)`. Ze draait op:
@@ -159,7 +159,7 @@ function vandaagUtc(): string {
 const HTML_TAG = /<\/?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?\/?>/;
 
 const CODE_VOLGORDE = [
-  'KP1', 'KP2', 'KP3', 'KP4', 'KP5', 'KP6', 'KP7', 'BX1', 'BX2', 'BX3', 'BX4', 'BB1', 'BB2', 'BB3', 'BB4', 'BB5', 'BC1',
+  'KP1', 'KP2', 'KP3', 'KP4', 'KP5', 'KP6', 'KP7', 'KP8', 'BX1', 'BX2', 'BX3', 'BX4', 'BB1', 'BB2', 'BB3', 'BB4', 'BB5', 'BC1',
 ];
 /** Zoveel meldingen per code blijven staan; een kapot bestand geeft anders duizend regels. */
 const MAX_PER_CODE = 12;
@@ -244,8 +244,8 @@ interface Uitkomst {
 interface MatrixOnderdeel {
   groep: string;
   aanloop: boolean;
-  /** Voor KP7: de ADV-nummers van de erkenningen in de matrix. */
-  advs: string[];
+  /** Voor KP7: de ADV-nummers van de erkenningen in de matrix, met hun einddatum (JJJJ-MM-DD) als de matrix er een noemt. */
+  advs: { nummer: string; einddatum?: string }[];
 }
 
 interface MatrixInfo {
@@ -270,7 +270,8 @@ function leesMatrix(structuur: string, f: Meldingen, i: Meldingen): MatrixInfo |
   const onderdelen = new Map<number, MatrixOnderdeel>();
   for (const o of m.onderdelen) {
     if (!isObj(o) || !isGeheel(o.nummer) || typeof o.groep !== 'string') continue;
-    const advs = lijstVan(o.erkenningen).flatMap((e) => (isObj(e) && typeof e.nummer === 'string' ? [e.nummer] : []));
+    const advs = lijstVan(o.erkenningen).flatMap((e) =>
+      isObj(e) && typeof e.nummer === 'string' ? [{ nummer: e.nummer, ...(isEchteDatum(e.einddatum) ? { einddatum: e.einddatum as string } : {}) }] : []);
     onderdelen.set(o.nummer, { groep: o.groep, aanloop: o.aanloop === true, advs });
   }
   const info: MatrixInfo = { sha256: m.sha256, onderdelen };
@@ -354,6 +355,38 @@ function controleerRecord(r: Json, f: Meldingen): void {
   }
 }
 
+/** De dag (JJJJ-MM-DD) van het "opgehaald" van een record, als dat een geldig tijdstip is. */
+function ophaaldagVan(r: Json): string | undefined {
+  return isTijdstip(r.opgehaald) ? (r.opgehaald as string).slice(0, 10) : undefined;
+}
+
+/**
+ * KP8 (K8, streng): de koppeling is slank. Geen `extra` bij een BK-verwijzing of een studiebekrachtiging (de app gebruikt
+ * het niet; de veldinventaris van het rapport telt de velden), en geen erkenning met een einddatum vóór de ophaaldatum
+ * van haar record (`opgehaald` als dag): die was al afgelopen toen het onderdeel opgehaald werd. De validator van de app
+ * aanvaardt de oude vorm nog; de datatest eist de vorm die het script schrijft.
+ */
+function controleerSlank(records: Json[], f: Meldingen): void {
+  for (const r of records) {
+    if (!Array.isArray(r.erkenningen)) continue;
+    const plaats = `onderdeel ${toon(r.onderdeel)}`;
+    const dag = ophaaldagVan(r);
+    for (const e of r.erkenningen) {
+      if (!isObj(e)) continue;
+      const waar = `${plaats}, ${typeof e.adv === 'string' ? e.adv : 'een erkenning zonder ADV-nummer'}`;
+      if (dag !== undefined && isEchteDatum(e.einddatum) && (e.einddatum as string) < dag) {
+        f.voeg('KP8', `${waar}: de erkenning liep af op ${e.einddatum as string}, vóór de ophaaldatum ${dag}; ze hoort niet in de koppeling.`);
+      }
+      for (const k of lijstVan(e.bks)) {
+        if (isObj(k) && Object.prototype.hasOwnProperty.call(k, 'extra')) f.voeg('KP8', `${waar}: de beroepskwalificatie ${toon(k.bk)} heeft "extra"; dat hoort niet in de koppeling.`);
+      }
+      for (const b of lijstVan(e.bekrachtigingen)) {
+        if (isObj(b) && Object.prototype.hasOwnProperty.call(b, 'extra')) f.voeg('KP8', `${waar}: de studiebekrachtiging ${toon(b.naam)} heeft "extra"; dat hoort niet in de koppeling.`);
+      }
+    }
+  }
+}
+
 /** De erkenningen van een record, voor `erkenningenOp`. */
 function erkenningenVan(r: Json): Erkenning[] {
   return lijstVan(r.erkenningen).filter(isObj) as unknown as Erkenning[];
@@ -414,8 +447,9 @@ function controleerKoppeling(uit: string, matrix: MatrixInfo | undefined, f: Mel
     }
   }
 
-  // KP4: de vorm van elk record.
+  // KP4: de vorm van elk record. KP8: de slanke vorm (K8).
   for (const r of records) controleerRecord(r, f);
+  controleerSlank(records, f);
 
   // Een overzicht, ook als alles klopt.
   const perStatus = (s: string) => records.filter((r) => r.status === s).length;
@@ -455,7 +489,24 @@ function controleerDerdeGraadA(records: Json[], matrix: MatrixInfo | undefined, 
   i.voeg('KP6', `geldige gewone onderdelen van de 3de graad A (geen aanloop, opgehaald) zonder beroepskwalificatie in een erkenning van nu: ${zonder.n} van de ${totaal}${zonder.tekst()}.`);
 }
 
-/** KP7: de ADV-nummers van een opgehaald record tegenover de matrix, in beide richtingen. Mild tot G1. */
+/**
+ * KP7: waar de oorzaak te vinden is als een ADV-nummer van de matrix in de koppeling ontbreekt. De datatest ziet het
+ * detail van de API niet, het rapport van het script wel: het detail noemt de erkenning niet, of (sinds K8) het detail
+ * sloot ze al af vóór de ophaaldatum terwijl de matrix ze nog open laat. Dat laatste gebeurt vooral bij een run met
+ * alleen de beroepskwalificaties: die gebruikt de matrix uit de repo, en die kan een maand oud zijn (T2).
+ */
+function oorzaakOntbrekend(dag: string | undefined): string {
+  const wanneer = dag === undefined ? 'het ophalen' : `de ophaaldatum ${dag}`;
+  return `Zie het rapport van het script: noemt het detail ze niet (onderdelen.advVerschilMetMatrix), of liep ze volgens het detail al af vóór ${wanneer} terwijl de matrix een latere of geen einddatum noemt (onderdelen.erkenningVerschilMetMatrix; K8 laat ze dan weg)? Is de matrix verouderd (een run met alleen de beroepskwalificaties), haal ze dan eerst opnieuw op: onderdelen = alles.`;
+}
+
+/**
+ * KP7: de ADV-nummers van een opgehaald record tegenover de matrix, in beide richtingen. Mild tot G1. Sinds K8 bewaart de
+ * koppeling geen erkenning die al afgelopen was bij het ophalen: een erkenning die volgens de matrix vóór de ophaaldatum
+ * van het record afliep, hoeft er dus niet in te staan. Noemt de matrix een latere of geen einddatum, dan blijft het een
+ * fout (zoals een ADV-nummer dat de matrix nog niet kent): de matrix en het detail verschillen dan, en een run `alles`
+ * ververst de matrix. De melding zegt waar de oorzaak staat (`oorzaakOntbrekend`).
+ */
 function controleerErkenningenTegenMatrix(records: Json[], matrix: MatrixInfo | undefined, f: Meldingen, i: Meldingen, o: Required<Opties>): void {
   if (matrix === undefined) return;
   let totaal = 0;
@@ -466,14 +517,16 @@ function controleerErkenningenTegenMatrix(records: Json[], matrix: MatrixInfo | 
     if (m === undefined) continue;
     totaal++;
     const inKoppeling = new Set(erkenningenVan(r).flatMap((e) => (typeof e.adv === 'string' ? [e.adv] : [])));
-    const inMatrix = new Set(m.advs);
+    const inMatrix = new Set(m.advs.map((a) => a.nummer));
+    const dag = ophaaldagVan(r);
+    const verwachtInKoppeling = m.advs.filter((a) => !(dag !== undefined && a.einddatum !== undefined && a.einddatum < dag)).map((a) => a.nummer);
     const alleenKoppeling = [...inKoppeling].filter((a) => !inMatrix.has(a)).sort();
-    const alleenMatrix = [...inMatrix].filter((a) => !inKoppeling.has(a)).sort();
+    const alleenMatrix = [...new Set(verwachtInKoppeling)].filter((a) => !inKoppeling.has(a)).sort();
     if (alleenKoppeling.length === 0 && alleenMatrix.length === 0) continue;
     verschil.tel(`onderdeel ${r.onderdeel}`);
     if (!o.kruisStreng) continue;
     for (const a of alleenKoppeling) f.voeg('KP7', `onderdeel ${r.onderdeel}: ${a} staat in de koppeling, maar niet in de matrix.`);
-    for (const a of alleenMatrix) f.voeg('KP7', `onderdeel ${r.onderdeel}: ${a} staat in de matrix, maar niet in de koppeling.`);
+    for (const a of alleenMatrix) f.voeg('KP7', `onderdeel ${r.onderdeel}: ${a} staat in de matrix, maar niet in de koppeling. ${oorzaakOntbrekend(dag)}`);
   }
   i.voeg('KP7', `opgehaalde onderdelen met andere ADV-nummers dan de matrix: ${verschil.n} van de ${totaal}${verschil.tekst()}.`);
 }
@@ -874,9 +927,10 @@ describe('tests/fixtures/kwalificaties/uit (positief geval)', () => {
     const regels = index.bks as Json[];
     expect(regels.some((r) => r.nietGevonden === true && r.bestand === undefined)).toBe(true);
     expect(regels.filter((r) => r.bestand !== undefined).length).toBeGreaterThanOrEqual(3);
-    // Een BK die alleen in een afgelopen erkenning staat (BK-0390-1), hoeft niet in de index.
+    // K8: de afgelopen erkenningen van 8 (ADV-0917, met BK-0390-1) en 565 (ADV-0960) liepen af vóór het ophalen: ze
+    // staan niet in de koppeling, en BK-0390-1 niet in de index. De zelftest maakt zo'n erkenning zelf waar nodig.
     expect(regels.some((r) => r.bk === 'BK-0390-1')).toBe(false);
-    expect(JSON.stringify(koppeling)).toContain('BK-0390-1');
+    expect(JSON.stringify(koppeling)).not.toMatch(/BK-0390-1|ADV-0917|ADV-0960|"extra"/);
   });
 
   it('zonder datum rekent de controle met vandaag (UTC)', () => {
@@ -937,6 +991,17 @@ const recordVan = (kop: Json, nr: number): Json => {
   return r;
 };
 const erkenningenVanRecord = (kop: Json, nr: number): Json[] => recordVan(kop, nr).erkenningen as Json[];
+/** Eén erkenning van een record, op haar ADV-nummer (de plaats hangt af van welke erkenningen de koppeling bewaart). */
+const erkenningVan = (kop: Json, nr: number, adv: string): Json => {
+  const e = erkenningenVanRecord(kop, nr).find((x) => x.adv === adv);
+  if (e === undefined) throw new Error(`De fixtures hebben geen erkenning ${adv} bij onderdeel ${nr}.`);
+  return e;
+};
+
+/** ADV-0917 van onderdeel 8 zoals de koppeling vóór K8 ze bewaarde (begin 2021-09-01, met BK-0390-1), met dit einde. */
+const afgelopenErkenning = (einddatum: string): Json => ({
+  adv: 'ADV-0917', versie: 'S-8-V1', status: 'ERKEND', begindatum: '2021-09-01', einddatum, bks: [{ bk: 'BK-0390-1', titel: 'Onthaalmedewerker' }], bekrachtigingen: [],
+});
 
 /** Schrijft de koppeling en werkt `aantalOnderdelen` en de sha256 bij. */
 function herstelKoppeling(k: Kopie, kop: Json): void {
@@ -986,7 +1051,7 @@ const AANTAL_0390_2 = competentiesVan(lees(FIXTURE_UIT, 'bk', 'BK-0390-2.json'))
  * staan. De sorteer-cases wisselen ze om en verwachten dan een melding met precies die twee. Staat er later
  * een versie bij (BK-0390-10 komt tussen BK-0390-2 en BK-0464-1), dan lopen de namen vanzelf mee.
  */
-const [ADV_1612_EERSTE, ADV_1612_TWEEDE] = (erkenningenVanRecord(lees(FIXTURE_UIT, 'koppeling.json'), 8)[1].bks as Json[]).map((x) => String(x.bk));
+const [ADV_1612_EERSTE, ADV_1612_TWEEDE] = (erkenningVan(lees(FIXTURE_UIT, 'koppeling.json'), 8, 'ADV-1612').bks as Json[]).map((x) => String(x.bk));
 const [INDEX_EERSTE, INDEX_TWEEDE] = regelsVan(lees(FIXTURE_UIT, 'index.json')).map((x) => String(x.bk));
 
 /**
@@ -1222,10 +1287,10 @@ const CASES: Case[] = [
   {
     naam: 'ongeldige datum in een erkenning',
     code: 'KP4',
-    verwacht: /ADV-0917: "begindatum" "2021-02-30" is geen geldige datum/,
+    verwacht: /ADV-1062: "begindatum" "2023-02-30" is geen geldige datum/,
     breek: (k) => {
       const kop = leesKoppeling(k);
-      erkenningenVanRecord(kop, 8)[0].begindatum = '2021-02-30';
+      erkenningVan(kop, 10, 'ADV-1062').begindatum = '2023-02-30';
       herstelKoppeling(k, kop);
     },
   },
@@ -1255,7 +1320,7 @@ const CASES: Case[] = [
     verwacht: /de beroepskwalificatie "BK-12" past niet op BK-0000-0/,
     breek: (k) => {
       const kop = leesKoppeling(k);
-      ((erkenningenVanRecord(kop, 8)[1].bks as Json[])[0]).bk = 'BK-12';
+      ((erkenningVan(kop, 8, 'ADV-1612').bks as Json[])[0]).bk = 'BK-12';
       herstelKoppeling(k, kop);
     },
   },
@@ -1265,7 +1330,7 @@ const CASES: Case[] = [
     verwacht: /de deelkwalificatie "DBK-1" past niet op BK-0000-0-DBK-00/,
     breek: (k) => {
       const kop = leesKoppeling(k);
-      const b = (erkenningenVanRecord(kop, 8)[1].bekrachtigingen as Json[]).find((x) => x.dbk !== undefined);
+      const b = (erkenningVan(kop, 8, 'ADV-1612').bekrachtigingen as Json[]).find((x) => x.dbk !== undefined);
       if (b === undefined) throw new Error('De fixtures hebben geen deelkwalificatie bij onderdeel 8.');
       b.dbk = 'DBK-1';
       herstelKoppeling(k, kop);
@@ -1274,10 +1339,10 @@ const CASES: Case[] = [
   {
     naam: 'erkenningen niet gesorteerd',
     code: 'KP4',
-    verwacht: /onderdeel 8: de erkenningen ADV-1612 en ADV-0917 staan niet gesorteerd/,
+    verwacht: /onderdeel 10: de erkenningen ADV-1999 en ADV-1062 staan niet gesorteerd/,
     breek: (k) => {
       const kop = leesKoppeling(k);
-      recordVan(kop, 8).erkenningen = [...erkenningenVanRecord(kop, 8)].reverse();
+      recordVan(kop, 10).erkenningen = [...erkenningenVanRecord(kop, 10)].reverse();
       herstelKoppeling(k, kop);
     },
   },
@@ -1287,7 +1352,7 @@ const CASES: Case[] = [
     verwacht: new RegExp(`ADV-1612: de beroepskwalificaties ${ADV_1612_TWEEDE} en ${ADV_1612_EERSTE} staan niet gesorteerd`),
     breek: (k) => {
       const kop = leesKoppeling(k);
-      const e = erkenningenVanRecord(kop, 8)[1];
+      const e = erkenningVan(kop, 8, 'ADV-1612');
       const [eerste, tweede, ...rest] = e.bks as Json[];
       e.bks = [tweede, eerste, ...rest];
       herstelKoppeling(k, kop);
@@ -1299,7 +1364,7 @@ const CASES: Case[] = [
     verwacht: /ADV-1612: de studiebekrachtigingen .* staan niet gesorteerd/,
     breek: (k) => {
       const kop = leesKoppeling(k);
-      const e = erkenningenVanRecord(kop, 8)[1];
+      const e = erkenningVan(kop, 8, 'ADV-1612');
       e.bekrachtigingen = [...(e.bekrachtigingen as Json[])].reverse();
       herstelKoppeling(k, kop);
     },
@@ -1340,7 +1405,7 @@ const CASES: Case[] = [
     verwacht: /ADV-1612: een studiebekrachtiging is geen object/,
     breek: (k) => {
       const kop = leesKoppeling(k);
-      const e = erkenningenVanRecord(kop, 8)[1];
+      const e = erkenningVan(kop, 8, 'ADV-1612');
       e.bekrachtigingen = [...(e.bekrachtigingen as Json[]), 5];
       herstelKoppeling(k, kop);
     },
@@ -1351,7 +1416,7 @@ const CASES: Case[] = [
     verwacht: /de beroepskwalificatie "BK-1" van een studiebekrachtiging past niet op BK-0000-0/,
     breek: (k) => {
       const kop = leesKoppeling(k);
-      const b = (erkenningenVanRecord(kop, 8)[1].bekrachtigingen as Json[]).find((x) => x.bk !== undefined);
+      const b = (erkenningVan(kop, 8, 'ADV-1612').bekrachtigingen as Json[]).find((x) => x.bk !== undefined);
       if (b === undefined) throw new Error('De fixtures hebben geen studiebekrachtiging met een bk bij onderdeel 8.');
       b.bk = 'BK-1';
       herstelKoppeling(k, kop);
@@ -1365,7 +1430,7 @@ const CASES: Case[] = [
     breek: (k) => {
       const kop = leesKoppeling(k);
       const lijst = erkenningenVanRecord(kop, 8);
-      lijst.push({ ...lijst[1], begindatum: '2024-09-01' });
+      lijst.push({ ...erkenningVan(kop, 8, 'ADV-1612'), begindatum: '2024-09-01' });
       herstelKoppeling(k, kop);
     },
   },
@@ -1435,9 +1500,11 @@ const CASES: Case[] = [
     verwacht: /BK-9999-1 heeft "nietMeerGekoppeld" \("2026-10-01"\) in de index, maar een erkenning noemt de versie nog \(onderdeel 10, ADV-1062\)/,
     alleen: true,
     breek: (k) => {
-      // ADV-1062 is afgelopen en noemt de versie nog: "geen enkele erkenning, afgelopen of niet" is dan niet waar.
+      // ADV-1062 is afgelopen en noemt de versie nog: "geen enkele erkenning, afgelopen of niet" is dan niet waar. Ze
+      // liep af na de ophaaldatum van haar record (een record van een vroegere run), dus ze staat er terecht (KP8).
       const kop = leesKoppeling(k);
-      erkenningenVanRecord(kop, 10)[0].einddatum = '2025-08-31';
+      recordVan(kop, 10).opgehaald = '2025-08-01T00:00:00Z';
+      erkenningVan(kop, 10, 'ADV-1062').einddatum = '2025-08-31';
       herstelKoppeling(k, kop);
       const index = leesIndex(k);
       regelVan(index, 'BK-9999-1').nietMeerGekoppeld = '2026-10-01';
@@ -1470,7 +1537,7 @@ const CASES: Case[] = [
     breek: (k) => {
       maakDerdeGraadA(k);
       const kop = leesKoppeling(k);
-      erkenningenVanRecord(kop, 8)[1].bks = [];
+      erkenningVan(kop, 8, 'ADV-1612').bks = [];
       herstelKoppeling(k, kop);
     },
   },
@@ -1489,12 +1556,62 @@ const CASES: Case[] = [
   {
     naam: 'KP7 streng: een ADV-nummer van de matrix dat in de koppeling ontbreekt',
     code: 'KP7',
+    verwacht: /onderdeel 8: ADV-1612 staat in de matrix, maar niet in de koppeling/,
+    opties: { kruisStreng: true },
+    info: /onderdeel 8[;)]/,
+    breek: (k) => {
+      // ADV-0917 (in de matrix tot 2024-08-31) ontbreekt ook, maar die was al afgelopen bij het ophalen (K8): geen melding.
+      const kop = leesKoppeling(k);
+      recordVan(kop, 8).erkenningen = erkenningenVanRecord(kop, 8).filter((e) => e.adv !== 'ADV-1612');
+      herstelKoppeling(k, kop);
+    },
+  },
+  {
+    naam: 'KP7 streng: een erkenning die volgens de matrix pas na de ophaaldatum afliep, hoort er nog in',
+    code: 'KP7',
     verwacht: /onderdeel 8: ADV-0917 staat in de matrix, maar niet in de koppeling/,
     opties: { kruisStreng: true },
     info: /onderdeel 8[;)]/,
     breek: (k) => {
+      // Het record van 8 komt van een run op 2024-08-01: ADV-0917 (tot 2024-08-31) gold toen nog en had erin moeten staan.
       const kop = leesKoppeling(k);
-      recordVan(kop, 8).erkenningen = erkenningenVanRecord(kop, 8).slice(1);
+      recordVan(kop, 8).opgehaald = '2024-08-01T00:00:00Z';
+      herstelKoppeling(k, kop);
+    },
+  },
+
+  // ── De slanke vorm (K8) ──
+  {
+    naam: 'KP8: een erkenning die al afgelopen was bij het ophalen',
+    code: 'KP8',
+    verwacht: /onderdeel 8, ADV-0917: de erkenning liep af op 2024-08-31, vóór de ophaaldatum 2026-10-10; ze hoort niet in de koppeling/,
+    alleen: true,
+    breek: (k) => {
+      // Zoals de koppeling vóór K8: ADV-0917 (met BK-0390-1) liep af op 2024-08-31.
+      const kop = leesKoppeling(k);
+      erkenningenVanRecord(kop, 8).unshift(afgelopenErkenning('2024-08-31'));
+      herstelKoppeling(k, kop);
+    },
+  },
+  {
+    naam: 'KP8: extra bij een BK-verwijzing',
+    code: 'KP8',
+    verwacht: new RegExp(`onderdeel 8, ADV-1612: de beroepskwalificatie "${ADV_1612_EERSTE}" heeft "extra"; dat hoort niet in de koppeling`),
+    alleen: true,
+    breek: (k) => {
+      const kop = leesKoppeling(k);
+      (erkenningVan(kop, 8, 'ADV-1612').bks as Json[])[0].extra = { volledigheid: 'Volledig' };
+      herstelKoppeling(k, kop);
+    },
+  },
+  {
+    naam: 'KP8: extra bij een studiebekrachtiging',
+    code: 'KP8',
+    verwacht: /onderdeel 8, ADV-1612: de studiebekrachtiging ".+ heeft "extra"; dat hoort niet in de koppeling/,
+    alleen: true,
+    breek: (k) => {
+      const kop = leesKoppeling(k);
+      (erkenningVan(kop, 8, 'ADV-1612').bekrachtigingen as Json[])[0].extra = { categorie: 'Bewijs', led_bewijstype: 'Bewijs van beroepskwalificatie' };
       herstelKoppeling(k, kop);
     },
   },
@@ -1911,9 +2028,54 @@ describe('zelftest: wat geen fout mag zijn', () => {
   it('een BK die alleen in een afgelopen erkenning staat, hoeft niet in de index (KP5)', () => {
     const k = maakKopie();
     const kop = leesKoppeling(k);
-    expect(JSON.stringify(erkenningenVanRecord(kop, 8)[0])).toContain('BK-0390-1');
+    // ADV-0917 loopt af op de ophaaldag zelf: ze staat terecht in de koppeling (KP8), en BK-0390-1 staat niet in de index.
+    erkenningenVanRecord(kop, 8).unshift(afgelopenErkenning('2026-10-10'));
+    herstelKoppeling(k, kop);
     expect(regelsVan(leesIndex(k)).some((r) => r.bk === 'BK-0390-1')).toBe(false);
+    // Een dag later is ze afgelopen: geen fout.
+    expect(controleerKwalificatieMap(k.uit, k.structuur, { vandaag: '2026-10-11' }).fouten).toEqual([]);
+    // Op de ophaaldag gold ze nog: dan hoort BK-0390-1 wel in de index.
+    expect(controleerKwalificatieMap(k.uit, k.structuur, FIXTURE_OPTIES).fouten).toEqual([
+      'KP5: BK-0390-1 hoort bij een erkenning van nu of later (onderdeel 8, ADV-0917), maar staat niet in de index.',
+    ]);
+  });
+
+  it('KP8: een erkenning die op de ophaaldag zelf of later afloopt, is in orde; de dag is die van het eigen record', () => {
+    const k = maakKopie();
+    const kop = leesKoppeling(k);
+    erkenningenVanRecord(kop, 8).unshift(afgelopenErkenning('2026-10-10'));
+    herstelKoppeling(k, kop);
+    expect(controleerKwalificatieMap(k.uit, k.structuur, { vandaag: '2026-10-11' }).fouten).toEqual([]);
+    // Met een einde in 2024 is ze in orde voor een record van een run uit 2024, niet voor een record van 2026.
+    const kop2 = leesKoppeling(k);
+    erkenningVan(kop2, 8, 'ADV-0917').einddatum = '2024-08-31';
+    recordVan(kop2, 8).opgehaald = '2024-08-31T23:59:59Z';
+    herstelKoppeling(k, kop2);
     expect(controleerKwalificatieMap(k.uit, k.structuur, FIXTURE_OPTIES).fouten).toEqual([]);
+    recordVan(kop2, 8).opgehaald = '2024-09-01T00:00:00Z';
+    herstelKoppeling(k, kop2);
+    expect(controleerKwalificatieMap(k.uit, k.structuur, FIXTURE_OPTIES).fouten).toEqual([
+      'KP8: onderdeel 8, ADV-0917: de erkenning liep af op 2024-08-31, vóór de ophaaldatum 2024-09-01; ze hoort niet in de koppeling.',
+    ]);
+  });
+
+  it('KP8: de oude vorm (vóór K8) haalt de validator van de app (KP1), maar de datatest eist de slanke vorm', () => {
+    const k = maakKopie();
+    const kop = leesKoppeling(k);
+    for (const r of recordsVan(kop)) {
+      for (const e of lijstVan(r.erkenningen) as Json[]) {
+        for (const b of e.bks as Json[]) b.extra = { volledigheid: 'Volledig' };
+        for (const b of e.bekrachtigingen as Json[]) b.extra = { categorie: 'Bewijs' };
+      }
+    }
+    erkenningenVanRecord(kop, 8).unshift(afgelopenErkenning('2024-08-31'));
+    herstelKoppeling(k, kop);
+    expect(valideerKoppelingBestand(kop)).toEqual([]);
+    const { fouten } = controleerKwalificatieMap(k.uit, k.structuur, FIXTURE_OPTIES);
+    expect(fouten.length).toBeGreaterThan(0);
+    expect(fouten.filter((t) => !t.startsWith('KP8: '))).toEqual([]);
+    expect(fouten).toContain('KP8: onderdeel 8, ADV-0917: de erkenning liep af op 2024-08-31, vóór de ophaaldatum 2026-10-10; ze hoort niet in de koppeling.');
+    expect(fouten.some((t) => /heeft "extra"/.test(t))).toBe(true);
   });
 
   it('KP5 rekent met de datum: een erkenning van later vraagt haar BK, een erkenning die afgelopen is niet meer', () => {
@@ -1994,6 +2156,7 @@ describe('zelftest: wat geen fout mag zijn', () => {
       'KP6 streng: een gewoon onderdeel van de 3de graad A zonder BK',
       'KP7 streng: een ADV-nummer dat de matrix niet kent',
       'KP7 streng: een ADV-nummer van de matrix dat in de koppeling ontbreekt',
+      'KP7 streng: een erkenning die volgens de matrix pas na de ophaaldatum afliep, hoort er nog in',
       'BB4 streng: een competentie zonder nr',
       'BB4 streng: een nr dat twee keer voorkomt',
       'BB5 streng: een HTML-tag in een tekst',
@@ -2018,7 +2181,7 @@ describe('zelftest: wat geen fout mag zijn', () => {
     expect(basis.info.find((t) => t.startsWith('KP6:'))).toMatch(/^KP6: .*: 0 van de 1\.$/);
     // Zonder BK bij het aanloopjaar 565: telt niet mee.
     const kop = leesKoppeling(k);
-    erkenningenVanRecord(kop, 565)[1].bks = [];
+    erkenningVan(kop, 565, 'ADV-1609').bks = [];
     herstelKoppeling(k, kop);
     expect(controleerKwalificatieMap(k.uit, k.structuur, { ...FIXTURE_OPTIES, a3Streng: true }).fouten).toEqual([]);
     // Niet opgehaald: telt niet mee.
@@ -2031,7 +2194,7 @@ describe('zelftest: wat geen fout mag zijn', () => {
     expect(controleerKwalificatieMap(k.uit, k.structuur, { ...FIXTURE_OPTIES, a3Streng: true }).fouten.filter((t) => t.startsWith('KP6:'))).toEqual([]);
     // Terug, maar met een BK-loze erkenning van nu: nu telt het wel, op de datum van vandaag.
     Object.assign(r8, bewaard);
-    (r8.erkenningen as Json[])[1].bks = [];
+    ((r8.erkenningen as Json[]).find((e) => e.adv === 'ADV-1612') as Json).bks = [];
     herstelKoppeling(k, kop2);
     expect(controleerKwalificatieMap(k.uit, k.structuur, { ...FIXTURE_OPTIES, a3Streng: true }).fouten.filter((t) => t.startsWith('KP6:'))).toHaveLength(1);
     // Afgebouwd (einddatum in het verleden): telt niet meer mee.
@@ -2067,6 +2230,58 @@ describe('zelftest: wat geen fout mag zijn', () => {
     expect(fouten.some((t) => t.startsWith('KP6:'))).toBe(false);
     expect(info.some((t) => /^KP2: studierichtingen\.json is zelf niet in orde .*KP6 is overgeslagen/.test(t))).toBe(true);
     expect(info.some((t) => t.startsWith('KP6:'))).toBe(false);
+  });
+});
+
+describe('KP7 en een verouderde matrix (K8)', () => {
+  /** Een kopie waarin de matrix ADV-0917 van onderdeel 8 open laat (of tot `einde`); de koppeling hoort bij die matrix. */
+  function metMatrixEinde(einde: string | undefined): Kopie {
+    const k = maakKopie();
+    const m = leesMatrixKopie(k);
+    const o = (m.onderdelen as Json[]).find((x) => x.nummer === 8);
+    const e = lijstVan(o?.erkenningen).find((x) => isObj(x) && x.nummer === 'ADV-0917');
+    if (!isObj(e)) throw new Error('De matrix van de fixtures heeft geen ADV-0917 bij onderdeel 8.');
+    if (einde === undefined) delete e.einddatum;
+    else e.einddatum = einde;
+    herstelMatrix(k, m);
+    return k;
+  }
+  const ADV_1999 = 'KP7: onderdeel 10: ADV-1999 staat in de koppeling, maar niet in de matrix.';
+
+  it('het detail sloot ADV-0917 af vóór het ophalen (K8 liet ze weg), de verouderde matrix noemt ze open: streng een fout die de oorzaak noemt, mild alleen info', () => {
+    // Zoals een run met alleen de beroepskwalificaties met een matrix van een maand oud (T2): de koppeling is juist.
+    const k = metMatrixEinde(undefined);
+    expect(erkenningenVanRecord(leesKoppeling(k), 8).map((e) => e.adv)).not.toContain('ADV-0917');
+    const streng = controleerKwalificatieMap(k.uit, k.structuur, { ...FIXTURE_OPTIES, kruisStreng: true });
+    expect(streng.fouten).toEqual([
+      'KP7: onderdeel 8: ADV-0917 staat in de matrix, maar niet in de koppeling. Zie het rapport van het script: noemt het detail ze niet (onderdelen.advVerschilMetMatrix), of liep ze volgens het detail al af vóór de ophaaldatum 2026-10-10 terwijl de matrix een latere of geen einddatum noemt (onderdelen.erkenningVerschilMetMatrix; K8 laat ze dan weg)? Is de matrix verouderd (een run met alleen de beroepskwalificaties), haal ze dan eerst opnieuw op: onderdelen = alles.',
+      ADV_1999,
+    ]);
+    const mild = controleerKwalificatieMap(k.uit, k.structuur, FIXTURE_OPTIES);
+    expect(mild.fouten).toEqual([]);
+    expect(mild.info.find((t) => t.startsWith('KP7:'))).toMatch(/: 2 van de \d+ \(bv\. onderdeel 8.*onderdeel 10\)\.$/);
+  });
+
+  it('met een ververste matrix die de einddatum kent (vóór de ophaaldatum), is er niets meer aan de hand; op of na de ophaaldatum wel', () => {
+    for (const einde of ['2024-08-31', '2026-10-09']) {
+      const k = metMatrixEinde(einde);
+      expect(controleerKwalificatieMap(k.uit, k.structuur, { ...FIXTURE_OPTIES, kruisStreng: true }).fouten, einde).toEqual([ADV_1999]);
+    }
+    // Liep ze volgens de matrix pas op de ophaaldag af, dan gold ze bij het ophalen nog en hoort ze in de koppeling.
+    const k = metMatrixEinde('2026-10-10');
+    const fouten = controleerKwalificatieMap(k.uit, k.structuur, { ...FIXTURE_OPTIES, kruisStreng: true }).fouten;
+    expect(fouten).toHaveLength(2);
+    expect(fouten[0]).toMatch(/^KP7: onderdeel 8: ADV-0917 staat in de matrix, maar niet in de koppeling\. Zie het rapport van het script: .*vóór de ophaaldatum 2026-10-10 /);
+  });
+
+  it('zonder geldige ophaaldatum noemt de melding "het ophalen"', () => {
+    const k = maakKopie();
+    const kop = leesKoppeling(k);
+    delete recordVan(kop, 8).opgehaald;
+    herstelKoppeling(k, kop);
+    const fouten = controleerKwalificatieMap(k.uit, k.structuur, { ...FIXTURE_OPTIES, kruisStreng: true }).fouten.filter((t) => t.startsWith('KP7: onderdeel 8:'));
+    expect(fouten).toHaveLength(1);
+    expect(fouten[0]).toMatch(/^KP7: onderdeel 8: ADV-0917 staat in de matrix, maar niet in de koppeling\. .*af vóór het ophalen terwijl/);
   });
 });
 

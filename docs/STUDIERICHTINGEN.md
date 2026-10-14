@@ -10,15 +10,15 @@ De eigenaar pauzeerde het werk op 11 oktober 2026 (tokens nodig voor een ander p
 
 **Besluit van de eigenaar (11 oktober 2026), licentie en bronvermelding:** de eigenaar stelt de vraag van § 23.10 zelf aan TechLoket Onderwijs en verwacht niet snel een antwoord; hij vindt het niet problematisch. Werkkeuze: **een algemene bronvermelding zonder naam van een agentschap**, waar er een nodig is: "Bron: Vlaamse overheid, Onderwijs en Vorming" (met de API of site tussen haakjes, en de ophaaldatum). `licentie: "nog te bevestigen"` blijft staan tot er een antwoord is.
 
-**Wat er volgende keer kan gebeuren, in deze volgorde (klein naar groot; 1 en 2 gedaan op 14 oktober 2026):**
+**Wat er volgende keer kan gebeuren, in deze volgorde (klein naar groot; 1, 2 en 4 gedaan op 14 oktober 2026, 5 bezig):**
 
 | # | Wat | Waar | Grootte |
 |---|---|---|---|
 | 1 | ~~De bronvermelding algemeen maken~~ **Klaar** (14 oktober 2026): overal "Bron: Vlaamse overheid, Onderwijs en Vorming" (onderwijsdoelen.be, API Structuuronderdelen) en "Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)". De constanten in `minimumdoelen.ts`, `studierichtingen.ts` en `beroepskwalificaties.ts`, de bronregel in `bkWeergave.ts`, en ook de kop van de bestanden in `public/leerplannen/` en `tests/fixtures/` (de ophaalscripts laten een ongewijzigd bestand staan, dus de nieuwe vermelding zou er anders nooit in komen; de sha256 van een bestand telt alleen de inhoud). Bewaarde leerplannen houden hun oude bronregel (niets verandert stil); de vingerafdruk telt alleen de doelen. | | |
 | 2 | ~~De hint bij een kopie van een BK-leerplan in de leerplaneditor~~ **Klaar** (14 oktober 2026): bij een BK-leerplan dat niet nagekeken is (een eigen kopie) de zin "Dit leerplan volgt de competenties van een beroepskwalificatie, maar telt niet als nagekeken. Maak het leerplan opnieuw bij ‘Beroepskwalificaties’ bij de studierichting: het wordt dan meteen nagekeken bewaard." met de knop "Studierichting openen"; bij een gewijzigd BK-leerplan dezelfde uitleg in de waarschuwing, met "Studierichting openen" en "Eigen kopie maken". Teksten in `bkLabels.ts` (licht, getest); in de browser nagekeken op 390 px. | | |
 | 3 | Na de tweede maandelijkse run (3 november 2026): T7 en W2 nakijken in het rapport (`versieOverlap`: blijft `competentie_code` gelijk over versies?), de data-PR nakijken zoals § 23.5.13 en samenvoegen op teken van de eigenaar | rapport van de workflow, § 23.3 en § 23.12 | klein, hoofdsessie |
-| 4 | Eventueel de koppeling slanker maken: ze weegt 1,58 MB (75 kB gzip), vooral door de extra velden van de studiebekrachtigingen (0,59 MB) en afgelopen erkenningen (0,40 MB) | `tools/leerplannen/haal-beroepskwalificaties.mjs`, `src/lib/beroepskwalificaties.ts` | middel, kernbouwer |
-| 5 | Fase 3b (W14, later): de BK-dekking ook in de cursuseditor, in "Mijn richtingen" en in de klas, en "Plan de competenties die nog nergens aan bod komen" | nieuw ontwerp nodig | groot |
+| 4 | ~~De koppeling slanker maken~~ **Klaar** (14 oktober 2026, pakket K8; nagekeken door een controleur, geïntegreerd door de hoofdsessie): geen `extra` meer bij studiebekrachtigingen en BK-verwijzingen, geen erkenningen die al afgelopen waren bij het ophalen (§ 23.5.2). De echte koppeling is met `--herschrijf-koppeling` omgezet: 1.584.423 → 691.117 bytes (gzip -9: 75 kB → 55 kB), 961 records, 1.030 → 834 erkenningen. `bkKader` geeft voor elke groep en variant op 128 dagen (2026-10-10 tot 2031) exact hetzelfde. De index en de BK-bestanden veranderden niet | `tools/leerplannen/haal-beroepskwalificaties.mjs`, `src/lib/beroepskwalificaties.ts` | middel, kernbouwer |
+| 5 | Fase 3b (W14): **bezig** sinds 14 oktober 2026, ontwerp in § 24 en bijlage F | | |
 | 6 | Een licentie voor de repo zelf, vóór een brede uitrol (LEERPLANNEN.md § 12, punt 3) | eigenaar | beslissing |
 
 **Bij de eigenaar:** het antwoord van TechLoket (dan § 23.10 en `licentie` bijwerken); de takken van de gesloten proef-PR's #7, #8 en #9 verwijderen (deze sessie mocht dat niet); de open werkkeuzes W1 tot W15 (§ 23.12) en V1 tot V10 (§ 22). Het niveaumodel (`docs/NIVEAUS.md`) start pas op teken van de eigenaar.
@@ -52,6 +52,7 @@ De eigenaar pauzeerde het werk op 11 oktober 2026 (tokens nodig voor een ander p
 | I4 Herstel van vier punten uit de eindreview (logica) | **Klaar** (10 oktober 2026): drie rondes, telkens door een andere agent nagekeken, en samengevoegd. (1) Een onderdeel met `nietMeerInBron` telt niet meer als geldig (`geldigeOnderdelen`, § 9.2). (2) Een volledige set die groeit of krimpt, valt nu op: tweede afdruk `kaderVolledig`, één regel `veranderdSindsLeerplan` (§ 11.2); leerplannen van daarvoor werken zoals vroeger. (3) Na "Keuze aanpassen" met een andere keuze valt `volgtKader` weg (§ 10.2). (4) Botsende doelcodes krijgen de korte naam van de set in plaats van het set-id (§ 14.9). Tweede ronde: een cursus draagt nooit `kaderVolledig` (`doelgroepVoorCursus`), en de bekende beperking bij een andere lijst sets staat in § 11.2 | kernbouwer en een onafhankelijke controleur; integratie: hoofdsessie |
 | Fase 2 (§ 22): vingerafdruk per set, gaten dichten, mijn richtingen, klas en richting | **Klaar en live** (10 oktober 2026): alle pakketten A1 tot I-C, met review en rechter; de tabel "Stand van zaken fase 2" staat in § 22, de pakketten in bijlage D. | hoofdsessie, bouwers |
 | Fase 3 (§ 23): beroepskwalificaties per richting (import, leerplan met competenties, sectie op de richtingpagina, dekking) | **Klaar en live** (11 oktober 2026). Alle pakketten klaar (Q0, K1 tot K7, I1 tot I4, S1 tot S3, R1, G1 stap 1 tot 4); eindreview met rechter en herstel gedaan; data-PR #10 samengevoegd op teken van de eigenaar (commit 83acd3d), deploy groen, rooktest 20h groen op de echte data in de repo. Open: T7 en W2 na een tweede maandelijkse run, de hint "Kijk ze na" bij een kopie van een BK-leerplan, licentie via TechLoket (§ 23.10). Eigen tabel "Stand van zaken fase 3" in § 23, pakketten in bijlage E. | eigenaar (licentie), hoofdsessie |
+| Fase 3b (§ 24): de dekking op competenties in de cursuseditor, in Mijn richtingen en in de klas, en competenties plannen | **Bezig** sinds 14 oktober 2026: ontwerp klaar (drie voorstellen, één jurylid, nagekeken in de code); eigen tabel "Stand van zaken fase 3b" in § 24, pakketten in bijlage F | hoofdsessie, bouwers |
 | Verkenning beroepskwalificaties (O11) | **Ronde 6 klaar** (run 38044584119): een richting verwijst in het detail van haar structuuronderdeel naar haar beroepskwalificaties; de competenties staan in het detail per BK-versie. Bevindingen in `docs/ONDERWIJS-API.md` § 4. Ronde 7 klaar (run 38047507450): het curriculumdossier is een Word-document; de competenties van een beroepskwalificatie zijn gestructureerd. Volgende: ontwerp voor de import (fase 3). | hoofdsessie |
 | Licentie en naamsvermelding API Structuuronderdelen | Te bevestigen via TechLoket, zoals bij laag 1 | eigenaar |
 
@@ -1974,7 +1975,7 @@ Fase 3 start pas na fase 2 (na I-C, zie § 22). Tot dan wacht alles.
 |---|---|---|---|
 | T1 | Geeft `versie_nr_lang` letterlijk "BK-0390-2"? | `bkVersieVan`: `versie_nr_lang` als het op `BK_VERSIE` past, anders `beroepskwalificatie_nr` + "-" + `versie_nr_kort`, anders een probleem (exit 3) | G1 stap 1 |
 | T2 | Heeft het detail per erkenning status en datums? | Zo niet, dan uit de matrix (zelfde ADV-nummer), met een telling in het rapport | G1 stap 1 |
-| T3 | Is de BK of DBK in een studiebekrachtiging tekst of een object? | Beide: een tekst, of een object met een veld dat op `BK_VERSIE` of `DBK_NUMMER` past; de rest naar `extra`, geteld als "vorm onbekend" | G1 stap 1 |
+| T3 | Is de BK of DBK in een studiebekrachtiging tekst of een object? | Beide: een tekst, of een object met een veld dat op `BK_VERSIE` of `DBK_NUMMER` past. Anders blijft de studiebekrachtiging bij naam, zonder `bk` of `dbk` en zonder `extra` (K8, § 23.5.2), met een waarschuwing (de waarde ingekort) en geteld als "vorm onbekend" | G1 stap 1 |
 | T4 | Staat er HTML in `waarde`? Staat `nr` er altijd, en is het uniek? Welke waarden hebben `kennis_type` en `vaardigheid_type`? | Teksten letterlijk bewaard; de app zet ze om met `htmlNaarTekst`. Zonder bruikbaar `nr` valt de doelcode terug op de plaats. Alles geteld, mild tot na G1 | G1 stap 1 en 2 |
 | T5 | Paginering en paginagrootte van de BK-lijst | Bladeren met `volgendeLink` (zoals de matrix): alleen dezelfde origin en hetzelfde pad, hoogstens 100 pagina's, een adres dat al gezien is, is een fout | G1 stap 1 |
 | T6 | Is de volgorde van kennis en vaardigheden stabiel over twee runs? | Zijn de elementen gelijk zonder op de volgorde te letten, dan blijft de oude volgorde (en het oude bestand) | G1 stap 2 |
@@ -2063,7 +2064,7 @@ Voor elk bestand gelden de regels van § 3.1: kop met 2 spaties inspringing, é�
   "aantalOnderdelen": 961,
   "sha256": "<sha256(canoniek(onderdelen))>",
   "onderdelen": [
-{"onderdeel":1,"groep":"G-0001","status":"opgehaald","opgehaald":"…","erkenningen":[{"adv":"ADV-1193","versie":"S-1-V1","status":"ERKEND","begindatum":"2017-09-01","einddatum":"2024-08-31","bks":[{"bk":"BK-…","titel":"…"}]},{"adv":"ADV-1608","versie":"S-1-V2","status":"ERKEND","begindatum":"2023-09-01","bks":[…],"bekrachtigingen":[{"naam":"…","dbk":"BK-0130-5-DBK-01"}]}]},
+{"onderdeel":1,"groep":"G-0001","status":"opgehaald","opgehaald":"…","erkenningen":[{"adv":"ADV-1608","versie":"S-1-V2","status":"ERKEND","begindatum":"2023-09-01","bks":[…],"bekrachtigingen":[{"naam":"…","dbk":"BK-0130-5-DBK-01"}]}]},
 {"onderdeel":2,"groep":"G-0002","status":"nog-niet-opgehaald"},
 {"onderdeel":504,"groep":"G-0393","status":"opgehaald","opgehaald":"…","erkenningen":[{"adv":"ADV-0842","versie":"S-504-V1","status":"ERKEND","begindatum":"2023-09-01","bks":[{"bk":"BK-0390-2","titel":"Onthaalmedewerker"},{"bk":"BK-0464-1","titel":"Recreatief medewerker"}],"bekrachtigingen":[{"naam":"…","onderwijskwalificatie":true},{"naam":"…","bk":"BK-0390-2"}]}]}
   ]
@@ -2074,10 +2075,11 @@ Voor elk bestand gelden de regels van § 3.1: kop met 2 spaties inspringing, é�
   - `opgehaald`: het detail gaf 200;
   - `niet-gevonden`: twee keer 404. Een vroeger record houdt zijn erkenningen, met `nietMeerInBron` (JJJJ-MM-DD, blijft gelijk bij volgende runs);
   - `nog-niet-opgehaald`: niet gevraagd in deze run (proefrun, nieuw, afgebouwd of niet meer in de bron) en nooit eerder opgehaald. Een vroeger record blijft zoals het was.
-- `erkenningen`: **alle** erkenningen uit het detail, ook afgelopen, gesorteerd op begindatum en dan ADV. Status en datums uit het detail; ontbreken ze daar, dan uit de matrix (zelfde ADV).
-- `bks`: uniek en gesorteerd met `vergelijkBkVersie`. `titel` is een momentopname; de app gebruikt ze alleen als er geen BK-bestand is. Heeft een erkenning geen veld `beroepskwalificaties`, dan staat er `"geenLijst": true` (niet hetzelfde als een lege lijst; geteld voor de vormpoort).
-- `bekrachtigingen`: `naam` (`uitgebreide_naam`), `onderwijskwalificatie` (alleen `true`), `bk` (op `BK_VERSIE`) of `dbk` (op `DBK_NUMMER`), de rest in `extra`. Gesorteerd op naam (nl), dan bk, dan dbk.
-- `api_url` en `curriculumdossier` vallen altijd weg. Elk veld in `extra` is hoogstens 20 kB; een langer veld valt weg met een waarschuwing, zodat er nooit een base64-blob in de repo komt.
+- `erkenningen`: de erkenningen uit het detail, ook een die later afloopt, maar geen die al afgelopen was toen het onderdeel opgehaald werd (K8, zie hieronder), gesorteerd op begindatum en dan ADV. Status en datums uit het detail; ontbreken ze daar, dan uit de matrix (zelfde ADV). Een record dat zo geen erkenningen overhoudt, heeft een lege lijst.
+- `bks`: `bk` en `titel`, zonder `extra` (K8); uniek en gesorteerd met `vergelijkBkVersie`. `titel` is een momentopname; de app gebruikt ze alleen als er geen BK-bestand is. Heeft een erkenning geen veld `beroepskwalificaties`, dan staat er `"geenLijst": true` (niet hetzelfde als een lege lijst; geteld voor de vormpoort).
+- `bekrachtigingen`: `naam` (`uitgebreide_naam`), `onderwijskwalificatie` (alleen `true`), `bk` (op `BK_VERSIE`) of `dbk` (op `DBK_NUMMER`); de rest valt weg (K8). Gesorteerd op naam (nl), dan bk, dan dbk; twee die alleen in een weggevallen veld verschillen, worden één (met een waarschuwing).
+- `api_url` en `curriculumdossier` vallen altijd weg. Elk veld in `extra` (van een erkenning) is hoogstens 20 kB; een langer veld valt weg met een waarschuwing, zodat er nooit een base64-blob in de repo komt.
+- **Slanke vorm (K8, 14 oktober 2026).** De app gebruikt van een erkenning alleen status, datums, `bks` (met `titel`) en de studiebekrachtigingen op naam en soort, en altijd met `vandaag`. Daarom bewaart de koppeling (1) geen `extra` bij een BK-verwijzing (`volledigheid`) of een studiebekrachtiging (categorie, bewijstype, VKS-niveau, maximale studiebekrachtiging, naam): de veldinventaris van het rapport telt die velden wel, zodat een nieuwe vorm van de API opvalt; en (2) geen erkenning met een einddatum vóór de dag van het `opgehaald` van haar record (`slankRecord`, ook voor een record `niet-gevonden`, op zijn eigen ophaaldatum). Een erkenning die pas ná het ophalen afloopt, blijft tot het record opnieuw geschreven wordt. Voor elke dag vanaf de ophaaldatum geeft `bkKader` zo hetzelfde (bewezen op de echte data: elke groep en variant, 128 dagen tot 2031); voor een dag vóór het ophalen niet meer (de app vraagt dat nooit). Een bestaande koppeling in de oude vorm maakt het script eerst slank en vergelijkt dan: een run zonder wijziging in de bron raakt niets aan, en elk record houdt zijn `opgehaald`. `valideerKoppelingBestand` aanvaardt beide vormen (de app leest ook een oude koppeling); de datatest eist de slanke vorm (KP8, streng), en KP7 eist een ADV-nummer van de matrix niet meer als het daar vóór de ophaaldatum van het record afliep. Noemt de matrix een latere of geen einddatum terwijl het detail de erkenning al vóór de ophaaldatum afsloot, dan blijft KP7 streng een fout, net als bij een ADV-nummer dat de matrix nog niet kent. Dat kan vooral bij een run met alleen de beroepskwalificaties, die de matrix uit de repo gebruikt (T2): de koppeling is dan juist, maar de matrix verouderd. De melding verwijst naar `onderdelen.erkenningVerschilMetMatrix` en `onderdelen.advVerschilMetMatrix` in het rapport; een run `alles` ververst de matrix. `--herschrijf-koppeling` zet een bestaande koppeling offline (geen sleutel, geen verzoek) om, met precies het resultaat van een gewone run met dezelfde antwoorden; de kop houdt `opgehaald` en `matrixSha256`, alleen `koppeling.json` wordt geschreven, en als een versie in de index daardoor `nietMeerGekoppeld` zou moeten krijgen, stopt het (exit 3) en is een gewone run nodig.
 
 **`kwalificaties/index.json`**: één regel per BK-versie die ooit gekoppeld was.
 
@@ -2098,7 +2100,7 @@ Voor elk bestand gelden de regels van § 3.1: kop met 2 spaties inspringing, é�
 
 - Gesorteerd met `vergelijkBkVersie` (nummer, dan versie, numeriek: BK-0390-2 < BK-0390-10 < BK-0391-1).
 - `laatstErkend` komt uit de lijst (`laatst_erkende_versie.versie_nr_lang`). Is de lijst onvolledig of niet opgehaald, dan blijft de oude waarde, en ook `lijstTotaal`.
-- `nietMeerGekoppeld` (JJJJ-MM-DD): geen enkele erkenning in de koppeling, afgelopen of niet, noemt de versie nog. Het veld valt weg als de versie terugkomt.
+- `nietMeerGekoppeld` (JJJJ-MM-DD): geen enkele erkenning in de koppeling, afgelopen of niet, noemt de versie nog. Het veld valt weg als de versie terugkomt. Sinds K8 staat een erkenning die al afgelopen was bij het ophalen niet meer in de koppeling: een versie die alleen zo'n erkenning nog noemt, krijgt de datum bij de eerste run die dat record opnieuw schrijft. De PR-tekst "Niet meer gekoppeld" en "Andere versie gekoppeld" rekenen met de erkenningen van nu en veranderen niet.
 - `nietMeerInBron`: het detail gaf twee keer 404, maar er is een laatst bekend bestand.
 - `nietGevonden: true` (twee keer 404) of `onbruikbaar: true` (een probleem in de competenties): er was nooit een bestand. Zo'n regel heeft geen `bestand`.
 
@@ -2221,9 +2223,9 @@ Uitgangscodes: 0 in orde (ook "niets veranderd") · 1 fout of onvolledig · 2 ni
 1. **Matrix lezen.** `studierichtingen.json` moet bestaan en `valideerMatrixBestand` moet [] geven, anders fout 1. Te vragen: elk onderdeel zonder `nietMeerInBron` en zonder einddatum vóór vandaag (nu 833), of de proeflijst.
 2. **BK-lijst** (behalve met `--zonder-lijst`). Per `beroepskwalificatie_nr` de laatst erkende versie. Is het aantal niet `meta.total_elements`, of ontbreekt dat, dan is de lijst onvolledig: een waarschuwing, en de lijst dient dan niet (F3-B6).
 3. **Detail per onderdeel**, oplopend. 200 → `normaliseerOnderdeelDetail` en een zachte kruiscontrole van de ADV-nummers met de matrix. 404 → een tweede ronde na alle andere; een tweede 404 → `niet-gevonden`. Elke andere status → fout 1.
-4. **BK-versies verzamelen**: de `bks` van alle erkenningen die vandaag gelden of later beginnen, van de records die in deze run opgehaald zijn; uniek, gesorteerd. Van afgelopen erkenningen bewaren we alleen de verwijzing.
+4. **BK-versies verzamelen**: de `bks` van alle erkenningen die vandaag gelden of later beginnen, van de records die in deze run opgehaald zijn; uniek, gesorteerd. Een afgelopen erkenning geeft geen verzoek. Was ze al afgelopen bij het ophalen (einddatum vóór vandaag), dan valt ze ook uit de koppeling, met haar verwijzingen (K8, § 23.5.2).
 5. **Detail per BK-versie.** 200 → `normaliseerBkDetail`. Een versie met een probleem in haar competenties is **onbruikbaar**: haar laatst bekende bestand blijft ongewijzigd, of ze krijgt `onbruikbaar: true`. 404 → tweede ronde; twee keer 404 → `nietMeerInBron` (bestand blijft) of `nietGevonden`.
-6. **Samenvoegen** met het bestaande (niets wissen): records die niet gevraagd werden, blijven; `nietMeerGekoppeld` wordt over alle records berekend.
+6. **Samenvoegen** met het bestaande (niets wissen): de bestaande records eerst in de slanke vorm (`slankRecord`, elk op zijn eigen ophaaldatum, K8); records die niet gevraagd werden, blijven; `nietMeerGekoppeld` wordt over alle records berekend.
 7. **Bouwen**: eerst de BK-bestanden, dan de index, dan de koppeling. Zijn kennis en vaardigheden gelijk zonder op de volgorde te letten, dan blijft de oude volgorde (T6). De uitvoer hangt niet af van de volgorde van de invoer. Elk gebouwd bestand gaat door zijn validator.
 8. **Poorten** (§ 23.5.5), dan de sleutelcontrole op elk bestand en het rapport, dan schrijven (eerst `bk/`, de index en de koppeling als laatste), tot slot het rapport.
 
@@ -2811,14 +2813,14 @@ Tot het antwoord er is: `licentie: "nog te bevestigen"` blijft staan, de bron bl
 - **W11.** De data-PR van de eerste volledige BK-run: wie voegt samen? **Werkkeuze: de hoofdsessie na de checklist van § 23.5.13, op teken van de eigenaar.**
 - **W12.** Mag de taak "Leerplangegevens bijwerken" tot 90 minuten duren? **Werkkeuze: ja**, bijgesteld na G1.
 - **W13.** Mag het dataspoor (K1 tot K4 en G1) al naast fase 2 lopen? Het raakt geen bestand van fase 2. **Werkkeuze: nee, na fase 2 zoals afgesproken; op teken van de eigenaar mag het eerder.**
-- **W14.** De BK-dekking ook in de cursuseditor, in "Mijn richtingen" en in de klas, en "Plan de competenties die nog nergens aan bod komen"? **Werkkeuze: later (fase 3b).**
+- **W14** (uitgewerkt in § 24, fase 3b). De BK-dekking ook in de cursuseditor, in "Mijn richtingen" en in de klas, en "Plan de competenties die nog nergens aan bod komen"? **Werkkeuze: later (fase 3b).**
 - **W15.** De sectie ook bij 7de jaren en BuSO OV3? **Werkkeuze: ja, als de data er zijn.**
 
 ### 23.13 Bewust niet in fase 3
 
 - Het curriculumdossier ophalen, ontleden, tonen of linken.
 - De competenties van een deelkwalificatie raden, of een eigen koppeling richting → beroepskwalificatie maken. Zoeken van een beroepskwalificatie naar haar richtingen (de API heeft dat niet).
-- Gemengde leerplannen (W1); doelcodes automatisch omzetten naar een nieuwe versie (W2); gaten dichten voor competenties en de BK-dekking buiten de richtingpagina (W14).
+- Gemengde leerplannen (W1); doelcodes automatisch omzetten naar een nieuwe versie (W2); gaten dichten voor competenties en de BK-dekking buiten de richtingpagina (W14; nu fase 3b, § 24).
 - "Keuze aanpassen" voor een BK-leerplan in de samenstelwizard: wie anders kiest, maakt een nieuw leerplan vanaf de richting.
 - AI die BK-verwijzingen zet. Context, autonomie en verantwoordelijkheid op het scherm.
 - Onderwijskwalificaties en opleidingsprofielen (404), opleidingstrajecten, het aanbod per school.
@@ -2838,6 +2840,568 @@ Tot het antwoord er is: `licentie: "nog te bevestigen"` blijft staan, de bron bl
 10. **`maakEigenKopie`**: beide schreven "na A1 van fase 2"; `zonderKaderVelden` staat er al (commit 7635d62).
 11. **BK-leerplannen in "Leerplannen van deze richting"** ("data eerst" wilde ze uitsluiten): ze komen er vanzelf in via `uitOfficieleBron` en de doelgroep (RichtingLeerplannen r. 70), met status en aantal. Dat klopt; er is geen tweede lijst nodig.
 12. Juist nagekeken in beide ontwerpen: de tellingen (347, 510, 833; één erkenning nu per geldig onderdeel; geen toekomstige), `sanitizeRefs` met `SET_ID` (r. 202, 239), `doelenVingerafdruk` (r. 549), `METHODES` (r. 226), `haalJson` (r. 270 tot 337), de zinnen in RichtingDoelen.tsx r. 370 en NieuweRichtingCursus.tsx r. 570, de bronregel met het groepnummer.
+
+## 24. Fase 3b: de dekking op competenties overal, en competenties plannen
+
+*Ontwerp van 14 oktober 2026. Een jurylid heeft drie voorstellen samengevoegd: "leerkracht eerst", "data en logica eerst" en "risico eerst". Elke bewering over bestaande code is in de code nagekeken, op commit 69ae2c7. De groottes van de chunks komen uit `dist/` van die commit. Waar een voorstel de code verkeerd las, staat de juiste lezing hier en in § 24.13. Fase 3b gebruikt geen nieuwe API-gegevens en geen nieuw veld in de opslag. Alles rekent op de koppeling, de index, de BK-bestanden en de opslag die er al zijn. K8 maakt de koppeling slanker en loopt parallel; de vorm blijft dezelfde.*
+
+De opdracht (W14): "de BK-dekking ook in de cursuseditor, in 'Mijn richtingen' en in de klas, en 'Plan de competenties die nog nergens aan bod komen'".
+
+### Stand van zaken fase 3b
+
+| Wat | Stand | Op wie |
+|---|---|---|
+| Ontwerp fase 3b (deze § 24 en bijlage F) | **Klaar** (14 oktober 2026): drie voorstellen, één jurylid, nagekeken in de code | hoofdsessie |
+| 3b-Q0 Docs: rij in de stand bovenaan, Hervatten rij 5, W14 en § 23.13 verwijzen naar § 24 | **Klaar** (14 oktober 2026) | hoofdsessie |
+| 3b-L1 Gaten algemeen maken (parameters, tekstobject, gedeelde schermdelen) | Wacht | bouwer |
+| 3b-L2 BK-gaten: leerplan en titels | Wacht | kernbouwer |
+| 3b-L3 Overzicht, cache, pijplijn en lichte hulpen | Wacht | bouwer |
+| 3b-L4 Teksten (bkWeergave, klasRichtingWeergave) | Wacht | bouwer |
+| 3b-I1 Integratie van de logica, BkLijst, stubs | Wacht | hoofdsessie |
+| 3b-S1 Cursuseditor | Wacht | bouwer, worktree A |
+| 3b-S2 Richtingpagina en venster | Wacht | bouwer, worktree B |
+| 3b-S3 Mijn richtingen en klas | Wacht | bouwer, worktree C |
+| 3b-I2 Integratie van de schermen, hulp, budget | Wacht | hoofdsessie |
+| 3b-R1 Rooktest 20i en regex in 20h | Wacht | bouwer (een andere agent dan S1 tot S3) |
+| 3b-I3 Review, rechter, herstel, uitrol (K8 is klaar en samengevoegd op 14 oktober 2026) | Wacht | hoofdsessie, reviewers, rechter |
+| Open vragen X1 tot X11 (§ 24.11) | Wacht: de werkkeuze geldt tot de eigenaar beslist | eigenaar |
+
+### 24.1 In het kort
+
+**Het principe.** Elke BK-plek is een spiegel van de plek voor de minimumdoelen:
+- dezelfde plaats op het scherm;
+- dezelfde regels (F2-B5 tot F2-B10);
+- dezelfde schermdelen met andere woorden;
+- dezelfde rekenkern: `dekkingMinimumdoelen`, via `dekkingBk`.
+
+De minimumdoelen komen overal eerst, de competenties daarna, zoals nu op het detail.
+
+| Plaats | Nu | Fase 3b |
+|---|---|---|
+| **Cursuseditor**, "Doelendekking" | Bij een BK-leerplan is er alleen "Leerplan" (§ 23.6.5): geen schakelaar, geen plannen | De schakelaar "Leerplan / Beroepskwalificatie" en een luie weergave `BkCursusDekking`. Je ziet een percentage per BK en per competentie gedekt, gepland of open. "Plan ze in deze cursus" zet secties met kennis en vaardigheden. Er staat een link naar de richting |
+| **Richtingpagina**, blok "Competenties van de beroepskwalificaties" | Dekking zonder planknop | "Plan de 17 competenties die nog nergens aan bod komen" en een lui venster `BkGatenVenster`, met een nieuwe cursus of een cursus die je al hebt |
+| **Mijn richtingen** | Eén regel met de minimumdoelen | Een tweede regel: "Je cursussen dekken 9 van de 25 competenties van 2 beroepskwalificaties. 4 staan gepland." |
+| **Klas** | De dekking op vraag (`details`) | Dezelfde tweede regel. In de cursuslijst: "3de jaar · beroepskwalificatie Onthaalmedewerker" |
+
+**Het scenario.** Ine geeft praktijk in Onthaal en recreatie (G-0393, 3de graad, A, 5de jaar). De richting heeft twee beroepskwalificaties: Onthaalmedewerker (12 competenties) en Recreatief medewerker (13). Vorige week maakte ze via de kaart een cursus met 8 van de 12 competenties van Onthaalmedewerker, "Met een lege cursus".
+
+1. **Editor.** Ze kiest "Doelendekking" en dan "Beroepskwalificatie". Ze leest "Deze cursus dekt 0 van de 12 competenties van Onthaalmedewerker (0 %)." en "8 competenties uit het leerplan van deze cursus staan nog op geen enkele sectie."
+   - Ze kiest "Plan ze in deze cursus" en dan "Zet ze in deze cursus". Er komen 8 secties bij, elk met de doelcode en de kennis en vaardigheden, in een hoofdstuk "Onthaalmedewerker".
+   - Daaronder: "4 andere competenties die deze cursus niet dekt, staan niet in haar leerplan. Wat geen enkele cursus behandelt, plan je bij de studierichting." met de link naar de richting.
+2. **Richtingpagina.** In het blok met de competenties kiest ze "Plan de 17 competenties die nog nergens aan bod komen". Ze vinkt "Recreatief medewerker · 13 competenties" uit, want daarvoor maakt een collega een cursus. Ze kiest "In een nieuwe cursus" en dan "Maak de cursus".
+   - Ze krijgt een nagekeken leerplan "Aanvulling · Onthaalmedewerker (4 van 12 competenties) · Onthaal en recreatie · 3de graad", met precies 4 doelen.
+   - Ze krijgt ook een cursus met 4 secties, en komt in de editor terecht.
+3. **Mijn richtingen.** Onder de regel van de minimumdoelen staat: "Je cursussen dekken 0 van de 25 competenties van 2 beroepskwalificaties. 12 staan gepland."
+4. **Klas 5OR.** Bij haar cursus staat "5de jaar · beroepskwalificatie Onthaalmedewerker". In "Toon wat je cursussen voor deze richting dekken" staat dezelfde tweede regel.
+
+Ze ziet nergens een competentiecode, ADV-nummer of groepnummer, en heeft geen AI-sleutel nodig.
+
+**Updatebaar via de API.** De maandelijkse workflow werkt de koppeling, de index en de BK-bestanden bij. Fase 3b rekent daarna vanzelf opnieuw, en wat bewaard is, verandert niet (N2). De samenvatting staat alleen in het geheugen.
+
+### 24.2 Beslissingen
+
+| # | Beslissing | Waarom |
+|---|---|---|
+| F3b-B1 | **Eén rekenkern en één pijplijn.** Alle BK-getallen komen uit `dekkingBk`. Voor een richting doen het detail, de rij en de klas allemaal hetzelfde: `bijdragenVoorKader`, dan `dekkingBkVanRichting` (§ 24.4) | F2-B10: het getal waarop je klikt, is het getal dat je daarna ziet |
+| F3b-B2 | **Gaten dichten volgt F2-B5 tot F2-B8 letterlijk.** Alleen status `open`, de selectie is altijd een lijst ids, (a) maakt altijd een geraamte, en (b) past een leerplan nooit aan. Daarvoor komen er twee optionele parameters: `verwijzingen` in `gatenDichten.ts` en `geraamte` in `gatenCursus.ts`. Zonder die parameters is de uitkomst byte voor byte gelijk | `openVerplichteDoelen`, `openPerSet` en `selectieVanOpen` werken al op een BK-dekking: elk BK-kaderdoel is `verplichteSet: true` en `optioneel: false` (`doelenVanBestand`, dekkingBk.ts r. 42) |
+| F3b-B3 | **Competenties komen altijd via `bkGeraamte`**: een sectie per competentie, met kennis en vaardigheden. Ook in een bestaande cursus. Nooit via `geraamteHoofdstukken` | `voegGeplandeSectiesToe` bouwt vast met `geraamteHoofdstukken` (gatenCursus.ts r. 208). Dat zet alle competenties samen in één sectie (§ 23.7.3) |
+| F3b-B4 | **Een eigen venster `bk/BkGatenVenster.tsx`.** `GatenVenster.tsx` blijft onaangeroerd. Gedeeld worden alleen `GatenSetsKeuze` en `PlanInCursus`, met een tekstobject (`PlanTeksten`) | Weg (a) is anders: versiemerken, `vindBkLeerplan` en `cursusVoorBk`. Een live venster ombouwen dat rooktest 20f bewaakt, is riskanter dan ±250 regels nieuw scherm op bestaande logica |
+| F3b-B5 | **Het leerplan voor de gaten is strikt.** Het geeft `veranderd` als een gekozen BK geen bestand of geen versiemerk heeft, of als een gekozen id niet (meer) met tekst in het bestand staat. Er valt nooit iets stil weg | `leerplanVoorKeuze` filtert stil (BkKeuze.tsx r. 149 tot 151). Zonder merk herkent `vindBkLeerplan` niets, en dan komt er een dubbel leerplan (BkSectie.tsx r. 320) |
+| F3b-B6 | **In de editor is het kader de BK-versies van het eigen leerplan**: alle competenties met tekst (`selectieVanBkLeerplan`, bkLeerplan.ts r. 259). Eerst de index, dan alleen de versies met een bestand. Nooit de koppeling. Geen versiemeldingen | Een cursus volgt één leerplan (F3-B8). De versiemeldingen staan al bij de richting (`vergelijkMetBk`). Geen 404 (R11 van fase 3) |
+| F3b-B7 | **Rij en klas rekenen zoals het detail bij "Alle jaren" en zonder variant**: `bkKader(…, { groep, soort }, vandaag)`. Het detail vult de BK-cache alleen bij `telMee === 'alle'` én `bk.onderdeel === undefined` | Met een variant maakt `bkKader` een ander kader (richtingBk.ts r. 182 tot 185). Het detail geeft de variant mee (RichtingDetail.tsx r. 252 tot 258) |
+| F3b-B8 | **In een rij vraagt de BK-regel een eigen beurt pas als de MD-regel van die rij er is.** Zonder BK-cursus worden er geen BK-bestanden geladen | Eerst wat er al was. Nooit twee berekeningen tegelijk. Hoogstens 9 BK-versies per groep (§ 24.3), dus de cache van 20 (`MAX_BK_IN_CACHE`) wisselt niet binnen één beurt |
+| F3b-B9 | **Alleen aantallen.** Een percentage staat er alleen bij één beroepskwalificatie: dan is het het percentage van die BK | W8 en R13 van fase 3: nooit een samengeteld percentage |
+| F3b-B10 | **Geen verzoek naar `kwalificaties/` zonder `kanBkHebben`.** `kanBkHebben` verhuist naar `richtingOverzicht.ts`. `volgtBkCompetenties` steunt voortaan op `leerplanHeeftBkVerwijzingen` in `dekkingWeergave.ts`. Op de oude plaats blijven ze bestaan | `kanBkHebben` zit nu in het chunk van RichtingenPage. `richtingOverzicht.ts` zit in het gedeelde chunk dat RichtingenPage en DekkingKortKlas al statisch laden. `dekkingWeergave.ts` laadt CourseEditorPage al statisch (§ 24.3) |
+| F3b-B11 | **Geen nieuw veld, geen nieuwe route, geen nieuwe data of API-vorm.** Uitrollen pas na K8 | De lijstpagina en de klas laden de koppeling: 1,58 MB nu, 0,69 MB na K8 |
+| F3b-B12 | **Taal.** "Competentie" is een de-woord, dus ook in het enkelvoud "Plan ze in deze cursus", "Zet ze in deze cursus" en "Ze komt er …". Nooit een competentiecode, ADV-nummer, onderdeelnummer, groepnummer of set-id | § 23.7. Bij de minimumdoelen staat "het" (`zetKnopTekst`, gatenWeergave.ts r. 147) |
+| F3b-B13 | N6 van § 23.6.7 wordt: "Een bestaande cursus verandert alleen na een klik, en alleen doordat er secties bijkomen." | Dat is het gedrag van F2.2 (b) en van de editor |
+
+### 24.3 Wat er nu is (nagekeken)
+
+1. **BkDekking** (`bk/BkDekking.tsx` r. 178):
+   - het laadt de bestanden met `laadAlle` (r. 74), alleen voor versies met een bestand (r. 183);
+   - het rekent met `bijdragenVoorKader` (r. 192), dan `bkKaderDoelen` en `dekkingBk` (r. 197 tot 198);
+   - het heeft geen planknop en schrijft geen cache;
+   - `PerBk`, `BkUitklapper` en `ToonKeuze` zijn niet geëxporteerd;
+   - de kop heeft al een ref `kop` met `tabIndex={-1}` (r. 181).
+2. **Gaten** (`gatenDichten.ts`):
+   - `codesVoorDoelen` leest alleen `goal.refs` (r. 164);
+   - `cursussenVoorGaten` roept het aan (r. 224), dus een BK-cursus belandt altijd bij `zonderPassend`;
+   - `bijdragen` bevat ook de MD-cursussen van de richting; die tellen daar ook mee.
+3. **Gaten** (`gatenCursus.ts`):
+   - `voegGeplandeSectiesToe` (r. 197) bouwt met `geraamteHoofdstukken` (r. 208) en voegt samen op de titel van een hoofdstuk (r. 214);
+   - `bewaarNieuweGatenCursus` (r. 258) en `bewaarGatenOpCursus` (r. 292) werken voor elk leerplan;
+   - `voorbeeldZin` en `GEEN_KANDIDAAT_HINT` (gatenWeergave.ts) verwijzen naar "Open het leerplan" en Leerplannen; daar kan je een BK-leerplan niet aanpassen.
+4. **BK-geraamte** (`bkCursus.ts`): `bkGeraamte(leerplan, bestanden, codes?)` (r. 144) beperkt zich al tot `codes`. De titel van het hoofdstuk is het eerste deel van het thema (r. 170), dus de titel van de BK.
+5. **BK-leerplan** (`bkLeerplan.ts`):
+   - `leerplanUitBk` (r. 604) zet `alle` alleen als alle competenties met tekst gekozen zijn (r. 541, r. 664);
+   - verder bestaan `vindBkLeerplan` (r. 763), `selectieVanBkLeerplan` (r. 259) en `titelVoorBkLeerplan` (r. 242).
+6. **BkKeuze** (`bk/BkKeuze.tsx`): `laadBkGegevens` (r. 92) geeft bestanden en merken. Het merkt een sha af met `length >= 16` (r. 105); BkSectie.tsx (r. 310) doet dat met een regex.
+7. **Editor** (`MinimumdoelenDekking.tsx`):
+   - `GatenSetsKeuze` is geëxporteerd, met vaste MD-teksten;
+   - `PlanInCursus` en `planVan` zijn niet geëxporteerd;
+   - na een wijziging gaat de focus via `focusNa` naar de knop of de samenvatting.
+8. **Editor** (`GoalCoverage.tsx`): de schakelaar verschijnt alleen bij `leerplanHeeftVerwijzingen` (alleen `refs`). De MD-weergave laadt lui via `laadDekking`. CourseEditorPage geeft `onEdit={edit}` al mee (r. 511).
+9. **DekkingKort** (`DekkingKort.tsx`):
+   - de berekening gaat via `useRichtingKader`, `MetKader` en `useRichtingDekking(…, 'alle')` (r. 98);
+   - de sleutel is `kaderGroepSleutel(info, effectiefSoort)` (r. 180 tot 181);
+   - er is één beurt (`useBeurt`, r. 185);
+   - de rij schrijft de MD-cache via `useRichtingDekking` (r. 154 tot 157).
+10. **Cache** (`dekkingCache.ts`): alleen `DekkingKortGetallen`, een generatie die bij elke `onStorageChange` stijgt, en hoogstens 400 ingangen.
+11. **KlasRichting** (`klas/KlasRichting.tsx`): de meta per cursus is `cursusJaarMeta` (r. 84). De dekking is `DekkingKort` via `DekkingKortKlas`.
+12. **Chunks** (dist van 69ae2c7):
+    - `kanBkHebben` staat in het chunk van RichtingenPage (77,0 kB);
+    - `useRichtingDekking.ts`, `richtingOverzicht.ts` en `dekkingCache.ts` zitten in het gedeelde chunk `mijnrichtingen-*` (5,5 kB). RichtingenPage, DekkingKortKlas en BkDekking laden het statisch;
+    - `bkWeergave.ts` zit in `richtingVenster-*` (15,7 kB) en `gatenWeergave.ts` in `MinimumdoelenDekking-*` (18,8 kB). Beide laadt RichtingenPage statisch;
+    - `dekkingWeergave-*` (7,0 kB) laadt CourseEditorPage statisch, `leerplanStatus-*` niet;
+    - DekkingKortKlas en KlasRichting laden RichtingenPage niet;
+    - `dekkingBk-*` trekt `bkLeerplan` en via `htmlNaarTekst` ook `minimumdoelenLeerplan-*` mee (22,6 kB gzip).
+13. **Data:**
+    - koppeling 1.584.423 B (78,8 kB gzip); in de werkboom van K8 691 kB (56 kB gzip);
+    - index 80,7 kB (20,2 kB gzip);
+    - 274 BK-bestanden van gemiddeld 7,2 kB gzip;
+    - in de erkenningen van vandaag: 374 groepen met een BK, hoogstens 9 BK-versies per groep (279 groepen met 1, 54 met 2, 19 met 3, 22 met 4 of meer).
+
+### 24.4 Logica
+
+```ts
+// ── 3b-L1: algemeen maken, zonder gedragswijziging ──────────────────────────
+// src/lib/gatenDichten.ts (blijft licht: alleen een type erbij)
+export type Verwijzingen = (goal: CurriculumGoal) => readonly { set: string; id: string }[];
+export function codesVoorDoelen<T extends { set: string; id: string }>(leerplan: Curriculum, doelen: readonly T[],
+  verwijzingen?: Verwijzingen): { codes: string[]; inLeerplan: T[]; nietInLeerplan: T[] };
+//   zonder: verwijzingenVan(goal.refs) zoals nu; mét: de uitkomst gaat nog door verwijzingenVan (tolerant)
+export function cursussenVoorGaten(doelen: readonly { set: string; id: string }[], bijdragen: readonly CursusBijdrage[],
+  verwijzingen?: Verwijzingen): { kandidaten: Doelcursus[]; zonderPassend: number };   // geeft het door
+
+// src/lib/gatenCursus.ts (geen import van bkCursus: de BK-aanroeper geeft het geraamte mee)
+export type Geraamte = (leerplan: Curriculum, codes: readonly string[]) => CourseChapter[];
+export function voegGeplandeSectiesToe(course: Course, leerplan: Curriculum, codes: readonly string[], geraamte?: Geraamte):
+  { course: Course; toegevoegd: string[]; alOpCursus: string[]; hoofdstukken: number };   // standaard geraamteHoofdstukken
+export function bewaarGatenOpCursus(o: { courseId: string; leerplan: Curriculum; codes: readonly string[]; geraamte?: Geraamte },
+  opslag: GatenOpslag): /* ongewijzigd */;
+
+// src/lib/gatenWeergave.ts
+export interface PlanTeksten {
+  legend: string; hint: string; toon: string;                    // "Welke doelen?", "Vink uit …", "Toon de doelen"
+  vakje(naam: string, n: number): string; teller(n: number, groepen: number): string;
+  regel(n: number): string; knop(n: number): string; uitleg: string; zet(n: number): string; toast(n: number): string;
+  nodig: string;                                                  // "minstens één doel"
+  nietsTeDoen: string;
+}
+export const MD_PLAN_TEKSTEN: PlanTeksten;   // verwijst naar de bestaande functies en constanten, letterlijk
+
+// src/components/course/MinimumdoelenDekking.tsx
+export type VoegToe = (c: Course, l: Curriculum, codes: readonly string[]) => { course: Course; toegevoegd: readonly string[] };
+export interface PlanSmaak { teksten: PlanTeksten; verwijzingen?: Verwijzingen; laadVoegToe(): Promise<VoegToe> }
+export const MD_PLAN: PlanSmaak;             // MD_PLAN_TEKSTEN, refs, import('../../lib/gatenCursus')
+export interface Plan { perSet: OpenSet[]; aantal: number; buitenLeerplan: number }
+export function planVan(dekking: MdDekking, curriculum: Curriculum, verwijzingen?: Verwijzingen): Plan;   // nu geëxporteerd
+export function PlanInCursus(p: { plan: Plan; dekking: MdDekking; curriculum: Curriculum; namen: ReadonlyMap<string, string>;
+  onEdit: (next: (c: Course) => Course) => void; samenvattingRef: RefObject<HTMLParagraphElement>; smaak?: PlanSmaak }): JSX.Element | null;
+export function GatenSetsKeuze(p: { /* bestaand */; teksten?: Pick<PlanTeksten, 'legend' | 'hint' | 'toon' | 'vakje' | 'teller'> });
+
+// ── 3b-L2: BK-gaten (zwaar, alleen lui) ─────────────────────────────────────
+// src/components/richting/bk/bkGatenHulp.ts (puur, naast bkSectieHulp.ts)
+export type BkGatenLeerplan =
+  | { soort: 'hergebruik' | 'nieuw'; leerplan: Curriculum }
+  | { soort: 'niet-nagekeken'; waarschuwing: string }      // eerste waarschuwing, zonder punt aan het eind
+  | { soort: 'veranderd' };
+export function leerplanVoorBkGaten(o: { info: RichtingInfo; keuze: RichtingKeuze;
+  selectie: ReadonlyMap<string, readonly string[]>;          // selectieVanOpen(…): altijd lijsten
+  gegevens: { bestanden: ReadonlyMap<string, BkBestand>; merken: ReadonlyMap<string, string> };
+  curricula: readonly Curriculum[]; vandaag: string }): BkGatenLeerplan;
+export function titelsVoorBkGaten(info: RichtingInfo, keuze: RichtingKeuze, titels: readonly string[],
+  deel?: { gekozen: number; totaal: number }): { cursus: string; leerplan: string };
+
+// ── 3b-L3: overzicht, cache, pijplijn, lichte hulpen ────────────────────────
+// src/lib/richtingOverzicht.ts (gedeeld chunk)
+export function kanBkHebben(info: RichtingInfo): boolean;       // verhuisd uit useRichtingBk.ts r. 18; daar verder geëxporteerd
+export type BkKort =
+  | { soort: 'zonder-cursus'; bks: number; titel?: string }      // titel alleen bij één BK
+  | { soort: 'getallen'; bks: number; titel?: string; totaal: number; gedekt: number; gepland: number;
+      percent?: number; zonderBestand: number };                 // percent alleen bij één BK (d.percent)
+export function bkKortZonderCursus(kader: Pick<RichtingBk, 'bks'>): BkKort;   // bks en titel uit kader.bks
+export function bkKortVan(d: MdDekking, kader: Pick<RichtingBk, 'bks'>, bestanden: ReadonlyMap<string, unknown>): BkKort;
+//   geen enkele cursus telt mee → bkKortZonderCursus(kader); anders bks en titel uit d.perSet,
+//   zonderBestand = BK's van het kader zonder bestand in `bestanden`
+export function bkRijZin(k: BkKort): string;                     // rij én klas (§ 24.6.4); '' bij getallen met totaal 0
+
+// src/lib/dekkingCache.ts (een tweede Map, dezelfde generatie, hoogstens 400; onStorageChange maakt beide leeg)
+export function leesBkKort(sleutel: string): Readonly<BkKort> | undefined;
+export function bewaarBkKort(sleutel: string, k: BkKort, uitGeneratie?: number): void;   // sleutel: kaderGroepSleutel(info, soort)
+
+// src/lib/dekkingWeergave.ts (licht, statisch in CourseEditorPage; geen nieuwe imports)
+export function leerplanHeeftBkVerwijzingen(l: Pick<Curriculum, 'goals' | 'herkomst'> | undefined): boolean;
+//   methode 'beroepskwalificatie' (inline, test tegen isBkLeerplan) en minstens één bkRef met bk en id;
+//   volgtBkCompetenties (useRichtingDekking.ts r. 41) delegeert hierheen, de bestaande test blijft ongewijzigd
+export function bkTitelsVanLeerplan(l: Pick<Curriculum, 'goals'> | undefined): string[];
+//   het eerste deel van het thema van de doelen met een bkRef (zoals bkGeraamte, bkCursus.ts r. 170), uniek, in volgorde
+export function bkWeergaveLabel(aantalVersies: number): string;  // "Beroepskwalificatie" / "Beroepskwalificaties"
+export const BK_DEKKING_LADEN: string; export const FOUT_LADEN_BK_DEKKING: string;
+
+// src/lib/dekkingBk.ts (alleen erbij)
+export function bkVersiesOmTeLaden(kader: Pick<RichtingBk, 'bks'>): string[];   // uniek, zonder zonderBestand (nu BkDekking r. 183)
+export function bkKaderVanVersies(versies: readonly string[], bestanden: ReadonlyMap<string, BkBestand>): KaderDoel[];
+export function dekkingBkVanRichting(o: { kader: RichtingBk; bestanden: ReadonlyMap<string, BkBestand>;
+  bijdragen: readonly CursusBijdrage[]; widgets: readonly Widget[] }): MdDekking;   // = dekkingBk(bkKaderDoelen(kader, bestanden), …)
+
+// src/lib/bkOverzicht.ts (nieuw, alleen lui vanuit DekkingKort)
+export interface BkLaders { koppeling(): Promise<KoppelingBestand | null>; index(): Promise<BkIndex | null>;
+  bk(versie: string): Promise<BkBestand | null> }                 // standaard beroepskwalificatiesBron.ts
+export function heeftBkCursus(bijdragen: readonly CursusBijdrage[]): boolean;   // = dekkingBk([], bijdragen, []).cursussen.some(c => c.telt)
+export async function bkKortVoorRichting(o: { info: RichtingInfo; soort: SoortKeuze; courses: readonly Course[];
+  curricula: readonly Curriculum[]; matrix: MatrixBestand; vandaag: string; widgets: readonly Widget[] },
+  laders?: BkLaders): Promise<{ soort: 'kort'; kort: BkKort } | { soort: 'geen' }>;   // gooit bij een laadfout
+
+// ── 3b-L4: teksten ─────────────────────────────────────────────────────────
+// src/lib/bkWeergave.ts: een sectie "Plannen (§ 24)" met elke zin van § 24.6, enkelvoud en meervoud. 3b-I1 zet er
+//   BK_PLAN_TEKSTEN bij (satisfies PlanTeksten), uit de functies van L4 en de bestaande bkLegende en bkTeller.
+//   bkSamenvatting blijft letterlijk gelijk: zijn staart ("… gepland …, … verdieping …, … nog niet.") wordt een gedeelde hulp.
+// src/lib/klasRichtingWeergave.ts
+export function cursusMeta(d: Doelgroep | undefined, bkTitels: readonly string[]): string;   // cursusJaarMeta blijft
+
+// ── Vaste props van de nieuwe schermdelen (stubs in 3b-I1) ───────────────────
+// src/components/course/BkCursusDekking.tsx: { course: Course; curriculum: Curriculum; widgets: Widget[];
+//   onEdit?: (next: (c: Course) => Course) => void }
+// src/components/richting/bk/BkGatenVenster.tsx: { info: RichtingInfo; keuze: RichtingKeuze; gegevens: { kader: RichtingBk;
+//   dekking: MdDekking; bijdragen: readonly CursusBijdrage[]; bestanden: ReadonlyMap<string, BkBestand>;
+//   namen: ReadonlyMap<string, string>; telJaar?: number }; onClose(): void; onGepland(): void }
+// src/components/richting/bk/BkLijst.tsx: BkToonKeuze, PerBk, ZonderBestandRegel, nogNietGedektZin (verhuisd uit BkDekking.tsx,
+//   dat ze verder exporteert; zo trekt de editor het chunk van BkDekking en het gedeelde chunk van Mijn richtingen niet mee)
+```
+
+**Hoe `leerplanVoorBkGaten` werkt:**
+1. Per gekozen versie moeten er een bestand, een merk en een tekst voor elk gekozen id zijn (`bkKaderVanVersies`). Anders geeft het `veranderd`.
+2. Daarna `vindBkLeerplan(curricula, selectie, doelgroep, merken, bestanden)`, met `doelgroep = doelgroepVoorLeerplan(doelgroepVan(info, keuze))`. Vindt die een leerplan, dan `hergebruik`.
+3. Anders `leerplanUitBk(keuzes, { doelgroep, merken, titel })`. De titel is `uniekeTitel(titels.leerplan, …, titelToevoeging('kaart', vandaag))`, met "Aanvulling · " vooraan. Het deel "(4 van 12 competenties)" blijft staan, en de titel heeft hoogstens 120 tekens.
+4. Is het leerplan niet bevestigd, of is `selectieVanBkLeerplan(leerplan)` niet precies de selectie, dan `niet-nagekeken`.
+
+**De twee titels (`titelsVoorBkGaten`):**
+- de cursus: bij één BK `voorstelCursusTitel({ ...doelgroepVan(info, keuze), vak: <BK-titel> })`, bij meer met vak "Aanvulling";
+- het leerplan: "Aanvulling · " + `titelVoorBkLeerplan(info, titels, deel)`.
+
+**De beurt in een rij** (`DekkingKort`, plaats `rij`). `nodigBk` is waar als:
+- `kanBkHebben(info)` waar is;
+- `leesBkKort(sleutel)` niets geeft;
+- er nog geen BK-uitkomst is.
+
+De BK-regel vraagt `useBeurt` pas als de MD-regel een uitkomst of een getal in de cache heeft. Aan de beurt doet hij:
+1. `import('../../lib/bkOverzicht')`;
+2. `bkKortVoorRichting` met de opslag van `leesOpslag()` (dezelfde generatie) en `effectiefSoort`;
+3. `bewaarBkKort(sleutel, kort, gen)`;
+4. de beurt teruggeven, ook na een fout.
+
+**Wat `bkKortVoorRichting` doet:**
+1. Is `kanBkHebben` onwaar: `geen`, zonder enig verzoek.
+2. De koppeling en de index laden (gedeelde beloftes), dan `bkKader(…, { groep, soort }, vandaag)`. Is de herkomst niet `api` of zijn er geen BK's: `geen`.
+3. `bijdragenVoorKader` zonder jaar.
+4. Telt er geen enkele cursus mee (`heeftBkCursus` onwaar): `bkKortZonderCursus(kader)`, zonder BK-bestanden.
+5. Anders `bkVersiesOmTeLaden`, dan `dekkingBkVanRichting` en `bkKortVan`.
+
+In de klas (plaats `klas`) rekent de BK-regel meteen, zonder beurt.
+
+**Het detail.** `BkDekking` rekent via `bkVersiesOmTeLaden` en `dekkingBkVanRichting`. Het onthoudt `dekkingGeneratie()` in dezelfde `useMemo`. Bij `telMee === 'alle'` en `bk.onderdeel === undefined` schrijft het `bewaarBkKort(kaderGroepSleutel(info, keuze.soort), bkKortVan(…), generatie)`.
+
+**De editor** (`BkCursusDekking`):
+1. `versies = [...selectieVanBkLeerplan(curriculum).keys()]`.
+2. `laadBkIndex()`. Alleen de versies waarvan de index een bestand noemt, laden met `laadBk`. De rest staat bij "zonder bestand", en zonder index staan ze er allemaal.
+3. `dekkingBk(bkKaderVanVersies(…), [{ course, leerplan: curriculum }], widgets)`.
+4. `planVan(dekking, curriculum, bkVerwijzingen)`.
+5. `PlanInCursus` met als smaak:
+   - `BK_PLAN_TEKSTEN`;
+   - `bkVerwijzingen`;
+   - `laadVoegToe: () => Promise.all([import(gatenCursus), import(bkCursus)])`, met als uitkomst `(c, l, codes) => voegGeplandeSectiesToe(c, l, codes, (lp, cs) => bkGeraamte(lp, bestanden, cs))`.
+
+### 24.5 Invarianten (elk met een test)
+
+| # | Belofte | Bewaakt door |
+|---|---|---|
+| I1 | **Niets verandert stil.** Er wordt alleen na een klik geschreven, via `bewaarNieuweGatenCursus`, `bewaarGatenOpCursus` (leest opnieuw, `saveCourseGuarded`) of `onEdit`. Een BK-leerplan wordt nooit aangepast. Een nieuw leerplan wordt gewist als de cursus niet bewaard kan worden | geen ander schrijfpad; tests in L2; review I3 |
+| I2 | **Een deel blijft een deel.** 4 open van 12 geeft precies 4 doelen, zonder `alle`. 12 van 12 geeft `alle` en dus het leerplan van "Bewaar als leerplan" (hergebruik) | valkuiltest in L2; rooktest 20i stap 3 |
+| I3 | **De minimumdoelen veranderen niet.** Zonder de nieuwe parameters zijn `codesVoorDoelen`, `cursussenVoorGaten`, `voegGeplandeSectiesToe` en `bewaarGatenOpCursus` byte voor byte gelijk. `GatenSetsKeuze` en `PlanInCursus` renderen zonder `teksten` of `smaak` letterlijk zoals nu. `bkSamenvatting` blijft gelijk. Een BK-ingang in de cache raakt geen MD-ingang | de bestaande tests ongewijzigd; een gouden server-render die vóór L1 wordt vastgelegd; mutatieproef; rooktest 20d tot 20h |
+| I4 | **Het BK-getal van een rij en een klas is het BK-getal van het detail** bij "Alle jaren" zonder variant | één pijplijn; een regressietest op de fixtures; 20i stap 6 |
+| I5 | **Geen BK-verzoek zonder `kanBkHebben`.** De editor vraagt de koppeling nooit. Een versie zonder bestand in de index wordt nooit gevraagd | unit met nagebootste laders; 20i stap 2 en 7 |
+| I6 | **Een BK-cursus is nooit kandidaat voor de MD-gaten, een MD-cursus nooit voor de BK-gaten** | strikt per `verwijzingen`; test in L1 |
+| I7 | **Nooit op het scherm:** een competentiecode, ADV-nummer, onderdeelnummer, groepnummer of set-id | regex `/bkc\d\|ADV-\|G-\d\|ODS_/` in de tekstentests en in 20i |
+| I8 | `heeftBkCursus(b)` is gelijk aan `dekkingBk(kader, b, w).cursussen.some(c => c.telt)`, voor elk kader | eigenschapstest in L3: daarom mag een rij zonder BK-cursus de bestanden overslaan |
+
+### 24.6 Schermen en letterlijke teksten
+
+Alle zinnen met een getal staan in `bkWeergave.ts`, in `richtingOverzicht.ts` (de korte regel) of in `klasRichtingWeergave.ts`, met enkelvoud en meervoud en getest.
+
+#### 24.6.1 Cursuseditor (`GoalCoverage.tsx` en het luie `course/BkCursusDekking.tsx`)
+
+De schakelaar staat er alleen bij `leerplanHeeftBkVerwijzingen(curriculum)`:
+- er komt hoogstens één knop bij; bij een BK-leerplan gaat "Beroepskwalificatie" voor op "Minimumdoelen";
+- het laden gaat zoals `laadDekking`: eerst los laden, en bij een fout een melding;
+- de weergave "Leerplan" verandert niet.
+
+| Waar | Tekst |
+|---|---|
+| Schakelaar (bestaande `role="group"`, `aria-pressed`) | "Leerplan" · "Beroepskwalificatie" (`bkWeergaveLabel`; met meer dan één versie in `bkVersies`: "Beroepskwalificaties") |
+| Het chunk laadt (`role="status"`) | "De dekking op de competenties wordt geladen…" |
+| Het chunk laadt niet (`callout err`, `role="alert"`) | "De dekking op de competenties kon niet geladen worden. Controleer je verbinding en herlaad de pagina." met de knop "Herlaad de pagina" |
+| Bestanden | `LaadBericht` met `BK_LADEN` · `FoutBericht` met de fout van de lader en "Opnieuw proberen" · per versie zonder bestand `ZonderBestandRegel` · per bestand met `nietMeerInBron` de bestaande `bkNietMeerInBron(…)` |
+| Samenvatting (`aria-live="polite"`, `tabIndex={-1}`) | één BK: "Deze cursus dekt 5 van de 12 competenties van Onthaalmedewerker (42 %)." · meer: "Deze cursus dekt 9 van de 25 competenties van 2 beroepskwalificaties." · zolang niet alles gedekt is, erachter de staart van `bkSamenvatting`: "3 competenties staan al gepland op een sectie die nog leeg is, 1 komt alleen in verdieping aan bod, 4 nog niet." |
+| Niet meer in de lijst (alleen als elke versie een bestand heeft en `cursussen[0].buitenKader > 0`) | "2 competenties uit het leerplan van deze cursus staan niet meer in de officiële lijst van hun beroepskwalificatie. Bij de studierichting zie je wat er veranderde." · "1 competentie uit het leerplan van deze cursus staat niet meer in de officiële lijst van haar beroepskwalificatie. Bij de studierichting zie je wat er veranderde." |
+| Regel (alleen met `onEdit`) | "8 competenties uit het leerplan van deze cursus staan nog op geen enkele sectie." · "1 competentie uit het leerplan van deze cursus staat nog op geen enkele sectie." |
+| Knop | "Plan ze in deze cursus" (ook bij één) |
+| Paneel (`role="group"`, h3, focus erheen) | h3 "Plan in deze cursus" · "Boosterz zet ze als lege secties met de doelcode en de kennis en vaardigheden erop achteraan in je cursus, of achteraan in het hoofdstuk van hun beroepskwalificatie. Wat al in de cursus staat, blijft zoals het is." · bij één BK de regel "Onthaalmedewerker · 8 competenties"; bij meer een fieldset met legend "Welke competenties?", de hint "Vink uit wat in een andere cursus thuishoort.", per BK het vakje "Onthaalmedewerker · 8 competenties" / "· 1 competentie", de summary "Toon de competenties" (sr-only " van ‘Onthaalmedewerker’") en de teller `bkTeller` · de knoppen "Zet ze in deze cursus" en "Annuleren" · voet "Nog nodig: minstens één competentie." |
+| Toast | "8 competenties staan nu gepland in deze cursus." · "1 competentie staat nu gepland in deze cursus." · niets veranderd: "Deze competenties staan al op een sectie van deze cursus. Er is niets veranderd." · laadfout: `FOUT_LADEN_GATEN` |
+| Toon | radio "Alle competenties" / "Nog niet gedekt" (`BK_TOON_ALLE`, `BK_TOON_OPEN`) |
+| Per BK (`details`) | `bkSetSamenvatting`: "Onthaalmedewerker: 5 van 12 gedekt (42 %)"; per competentie `bkCompetentieRegel` en `DoelStatus` |
+| Andere open competenties (alleen met `onEdit`) | "4 andere competenties die deze cursus niet dekt, staan niet in haar leerplan." · "1 andere competentie die deze cursus niet dekt, staat niet in haar leerplan." Met een doelgroep volgt `PLAN_BIJ_RICHTING_TEKST` |
+| Link (met een doelgroep: die van de cursus, anders die van haar leerplan) | `richtingLinkTekst`: "Bekijk wat al je cursussen voor Onthaal en recreatie samen dekken" |
+
+Na "Zet ze in deze cursus" gaat de focus naar de knop, of naar de samenvatting als de knop verdwijnt. Het mechanisme is `focusNa`, gedeeld met de minimumdoelen.
+
+#### 24.6.2 Richtingpagina: de knop (`bk/BkDekking.tsx`)
+
+De knop staat onder de samenvatting, alleen bij een klare dekking met `dekking.rijen.length > 0`. Het venster laadt pas bij de klik, zoals `PlanBlok` in RichtingDekking.tsx.
+
+| Toestand | Tekst |
+|---|---|
+| Minstens één open competentie | primaire knop met `PlannedIcon`: "Plan de 17 competenties die nog nergens aan bod komen" · enkelvoud: "Plan de competentie die nog nergens aan bod komt" |
+| Geen | "Er zijn geen competenties meer die nergens aan bod komen." |
+| Het venster laadt niet (`callout err`) | `FOUT_LADEN_GATEN` met "Herlaad de pagina" |
+
+#### 24.6.3 Venster `bk/BkGatenVenster.tsx` (Modal, titel als h2)
+
+Het venster werkt met de momentopname van het blok. Het laadt `laadBkGegevens(versies)` (bestanden en index zitten al in het geheugen). Zolang dat bezig is, staat de primaire knop op `aria-disabled` met de bestaande `BK_NOG_NODIG_GEGEVENS`. Mislukt het laden, dan staat er `FoutBericht` met `FOUT_BK`.
+
+| Waar | Tekst |
+|---|---|
+| Titel | "Plan de competenties die nog nergens aan bod komen" |
+| Intro | "Boosterz zet de gekozen competenties als lege secties in een cursus, met de doelcode en de kennis en vaardigheden erop. Zo staan ze gepland; daarna werk je ze zelf uit. Een AI-sleutel heb je niet nodig." |
+| Hint | "Competenties die al gepland staan of alleen in verdieping aan bod komen, blijven waar ze staan." |
+| Als `dekking.zelfdeNummerAndereSet > 0` | de bestaande `bkAndereVersieTekst(n)`: "3 competenties zouden meetellen als je cursus de versie van nu volgde. Maak een leerplan met de versie van nu bij ‘Beroepskwalificaties’." |
+| BK's zonder bestand | "Van 1 beroepskwalificatie staan de competenties nog niet in Boosterz: die kan je nog niet plannen." · "Van 2 beroepskwalificaties staan …" |
+| Bij "Tel mee: alleen het jaar" | de bestaande `telJaarTekst`: "Je telt nu alleen de cursussen van het 5de jaar." |
+| fieldset (`GatenSetsKeuze` met `BK_PLAN_TEKSTEN`) | legend "Welke competenties?" · "Vink uit wat in een andere cursus thuishoort." · "Onthaalmedewerker · 4 competenties" / "· 1 competentie" (namen via `uniekeSetNamen`, zoals in het blok) · "Toon de competenties" · per competentie "<doelcode> — <korte tekst>" · teller `bkTeller` |
+| fieldset | legend "Waar komen ze?" · "In een nieuwe cursus" (standaard) · "In een cursus die je al hebt" |
+| Geen kandidaat (`aria-disabled`, `aria-describedby`) | "Geen cursus van deze richting heeft een van de gekozen competenties in haar leerplan. Maak er een nieuwe cursus voor." |
+| Nieuwe cursus | Field "Titel van de cursus" (voorstel `titelsVoorBkGaten`) · hint "Boosterz maakt er een nagekeken leerplan bij met precies deze competenties, of gebruikt het leerplan dat er al is." |
+| Bestaande cursus | legend "Welke cursus?" · meta "5de jaar" of "hele graad" (`cursusJaarTekst`) en "3 van de 4 gekozen competenties staan in haar leerplan" / "1 van de 4 gekozen competenties staat in haar leerplan" / bij één gekozen: "De gekozen competentie staat in haar leerplan" |
+| Onder de lijst (`zonderPassend > 0`) | "3 andere cursussen van deze richting volgen geen beroepskwalificatie of hebben geen van deze competenties in hun leerplan." · "1 andere cursus van deze richting volgt geen beroepskwalificatie of heeft geen van deze competenties in haar leerplan." |
+| Voorbeeldzin (`aria-live`), k = n | "Alle 4 gekozen competenties staan in het leerplan van ‘Onthaalmedewerker · 5de jaar’. Ze komen er als lege secties bij, met de kennis en vaardigheden; wat al in de cursus staat, blijft zoals het is." · n = 1: "De gekozen competentie staat in het leerplan van ‘…’. Ze komt er als lege sectie bij, met de kennis en vaardigheden; wat al in de cursus staat, blijft zoals het is." |
+| Voorbeeldzin, k < n (zonder link: een BK-leerplan pas je niet aan) | "1 gekozen competentie staat niet in het leerplan van ‘…’ en komt er niet bij: Boosterz past een leerplan nooit zelf aan. Zet ze in een nieuwe cursus." · "3 gekozen competenties staan niet in het leerplan van ‘…’ en komen er niet bij: Boosterz past een leerplan nooit zelf aan. Zet ze in een nieuwe cursus." |
+| Knoppen | "Annuleren" · "Maak de cursus" · "Zet ze in deze cursus" (ook bij één) · bij k < n: "Zet de 3 competenties in deze cursus", enkelvoud "Zet de competentie in deze cursus" |
+| Voet (`aria-disabled`, nooit `disabled`) | "Nog nodig: minstens één competentie en een titel." · "Nog nodig: minstens één competentie en een cursus." |
+| Fouten (`callout err`, focus erheen) | "Deze competenties staan al op een sectie van deze cursus. Er is niets veranderd." · `bkNietNagekeken(w)` · "De beroepskwalificaties zijn intussen veranderd. Sluit dit venster en probeer opnieuw. Er is niets bewaard." · de bestaande `FOUT_OPSLAG_VOL`, `FOUT_CURSUS_GEWIJZIGD`, `FOUT_CURSUS_VERWIJDERD` en `FOUT_ANDER_LEERPLAN` (via `bkFoutBijBestaandeCursus`) |
+| Gelukt (a) | `bkToastCursus({ start: 'geraamte', … })`: "Cursus gemaakt: 1 hoofdstuk, 4 competenties klaar op de secties.", bij hergebruik met `BK_TOAST_HERGEBRUIK`. Daarna de editor (dubbel klikken telt niet) |
+| Gelukt (b) | "4 competenties staan nu gepland in ‘Onthaalmedewerker · 5de jaar’." · "1 competentie staat nu gepland in ‘…’." Het venster sluit en de focus gaat naar de h3 van het blok (ref `kop`) |
+
+**Weg (a): een nieuwe cursus.**
+1. `selectieVanOpen` en dan `leerplanVoorBkGaten`.
+2. `cursusVoorBk({ titel, auteur, doelgroep: doelgroepVan(info, keuze), leerplan, bestanden, start: 'geraamte' })`.
+3. `bewaarNieuweGatenCursus`.
+
+**Weg (b): een cursus die je al hebt.**
+1. `cursussenVoorGaten(gekozen, bijdragen, bkVerwijzingen)` voor de kandidaten.
+2. `codesVoorDoelen(kandidaat.leerplan, gekozen, bkVerwijzingen).codes`.
+3. `bewaarGatenOpCursus({ …, geraamte: (l, c) => bkGeraamte(l, bestanden, c) })`.
+
+#### 24.6.4 Mijn richtingen en klas (`DekkingKort.tsx`, een tweede `<p class="mr-tekst">`)
+
+De regel staat er alleen bij `kanBkHebben(info)`, en pas als de MD-regel er is. Rij en klas tonen dezelfde zin (`bkRijZin`): de MD-zin erboven noemt in de klas de richting al.
+
+| Toestand | Tekst |
+|---|---|
+| Bezig | "De dekking op de competenties wordt berekend…" |
+| Getallen, één BK | "Je cursussen dekken 5 van de 12 competenties van Onthaalmedewerker (42 %)." met erachter " 3 staan gepland." / " 1 staat gepland." |
+| Getallen, meer BK's | "Je cursussen dekken 9 van de 25 competenties van 2 beroepskwalificaties." met dezelfde staart |
+| BK zonder bestand (bij getallen) | erachter: " Van 1 beroepskwalificatie staan de competenties nog niet in Boosterz." / " Van 2 beroepskwalificaties staan …" |
+| Geen cursus telt mee | "Nog geen cursus met de competenties van Onthaalmedewerker." · "Nog geen cursus met de competenties van de 2 beroepskwalificaties." |
+| Fout bij het rekenen | "De dekking op de competenties kon niet berekend worden." met "Opnieuw proberen" (sr-only " (competenties van <titel>)", 44 px) |
+| Het chunk laadt niet | dezelfde zin met "Herlaad de pagina" |
+| `kanBkHebben` onwaar, of herkomst `geen` of `nog-niet-opgehaald`, of geen koppeling | geen regel en geen verzoek |
+
+Er komt geen `aria-live` per rij (§ 22.5.2). In de klas valt de regel onder de bestaande `aria-live` van de kaart. De props van `DekkingKort`, de hint van Mijn richtingen en hun meta blijven gelijk.
+
+**Klas, de meta per cursus** (`KlasRichting.tsx`, `cursusMeta`):
+- één BK: "5de jaar · beroepskwalificatie Onthaalmedewerker";
+- twee: "· beroepskwalificaties Onthaalmedewerker en Recreatief medewerker";
+- meer: "…, Recreatief medewerker en 1 andere";
+- zonder jaar en zonder graad staat alleen het BK-deel.
+
+De namen komen van `bkTitelsVanLeerplan`, zonder netwerk. Plannen kan in de klas niet; de link "Bekijk per doel wat ze dekken" blijft.
+
+#### 24.6.5 Hulp (`HelpPage.tsx`, 3b-I2)
+
+- **"Hoe plan ik de competenties die nog nergens aan bod komen?"** "Open je studierichting bij Cursussen, ‘Voor een studierichting’. Bij ‘Competenties van de beroepskwalificaties’ kies je ‘Plan de … competenties die nog nergens aan bod komen’. Je zet ze in een nieuwe cursus, of in een cursus die ze al in haar leerplan heeft. Ze komen er als lege secties bij, met de doelcode en de kennis en vaardigheden erop. Een AI-sleutel heb je daarvoor niet nodig."
+- **"Zie ik in mijn cursus welke competenties ze dekt?"** "Ja. Open de cursus, kies ‘Doelendekking’ en dan ‘Beroepskwalificatie’. Je ziet per competentie of ze gedekt, gepland of nog open is. Met ‘Plan ze in deze cursus’ zet je de competenties uit het leerplan die nog op geen enkele sectie staan als lege secties in je cursus. Bij ‘Mijn richtingen’ en in de klas zie je wat al je cursussen samen dekken."
+
+### 24.7 Toegankelijkheid en 390 px
+
+Zoals § 22.8 en § 23.7.7:
+- **Koppen.** Geen eigen `main`. h2 in een venster, h3 in een paneel of blok.
+- **Formulieren.** Vakjes en radio's staan in een fieldset met een legend. Tellers, samenvattingen en voorbeeldzinnen staan in `aria-live="polite"`. Een status heeft altijd een icoon én tekst.
+- **Knoppen die nog niet kunnen.** `aria-disabled` met "Nog nodig: …", nooit `disabled`.
+- **Focus.** Na elke actie waarbij een knop verdwijnt, gaat de focus naar de plek die bij dat scherm beschreven staat.
+- **Tikdoelen.** Knoppen, vakjes, summaries en de schakelaar zijn minstens 44 px op ≤ 640 px.
+- **390 px.**
+  - Op 390 px staat alles in één kolom, met `overflow-wrap: anywhere`, en scrolt niets horizontaal.
+  - De schakelaar met "Beroepskwalificaties" loopt door op een tweede regel (`.dk-schakelaar` heeft al `flex-wrap`).
+- **Kleuren.** Alleen tokens, nooit witte tekst op `--brand`.
+- **Css.** Css hoort in de bestaande bestanden: `dekking.css` (S1), `gaten.css` (S2), `mijnrichtingen.css` en `klasrichting.css` (S3).
+
+### 24.8 Bundel en laadtijd
+
+Gemeten op `dist` van 69ae2c7 (kB = 1000 bytes, ongecomprimeerd). De hoofdsessie meet opnieuw na I1 en I2. Elk S-pakket meldt het budget en de chunklijst vóór en na.
+
+| Chunk | Nu | Verwacht | Grens | Hoe |
+|---|---|---|---|---|
+| Kritiek pad (index + vendor) | 334,1 | 334,1 (tot 334,3) | 334,6 | Geen module van het leerlingpad verandert. Alles wat nieuw is, zit achter een dynamische import vanuit een lui chunk; die staat in de eigen `__vite__mapDeps` van dat chunk. Groei kan alleen als Rollup een gedeelde module naar een nieuw chunk verhuist dat een route statisch laadt: daarom staan de nieuwe hulpen in bestaande gedeelde modules |
+| RichtingenPage | 77,0 | ≤ 77,0 | 80 | `kanBkHebben` gaat eruit; er komt niets nieuws inline |
+| CourseEditorPage | 75,2 | ≤ 75,8 | 80 | de knop, één luie import en twee constanten uit `dekkingWeergave` |
+| ClassDashboardPage | 28,0 | 28,0 | 80 | niets (de meta zit in het luie KlasRichting) |
+| gedeeld `mijnrichtingen-*` | 5,5 | ±7 | 80 | `kanBkHebben`, `bkKortVan`, `bkRijZin`, de BK-cache |
+| `dekkingWeergave-*` (statisch in de editor) | 7,0 | ±7,6 | 80 | drie kleine hulpen |
+| `richtingVenster-*` (bkWeergave) | 15,7 | ±18 | 80 | de zinnen van § 24.6 |
+| `MinimumdoelenDekking-*` | 18,8 | ±19,6 | 80 | tekstobject en exports |
+| `klasRichtingWeergave-*` | 3,6 | ±3,9 | 80 | `cursusMeta` |
+| BkDekking (lui) | 5,5 | ±5 | 80 | planblok en cache erbij, lijst eruit |
+| BkLijst, BkCursusDekking, BkGatenVenster met bkGatenHulp, bkOverzicht (lui, nieuw) | – | ±2, ±5, ±10, ±2 | 80 | pas bij gebruik |
+| DekkingKortKlas · KlasRichting · dekkingBk (lui) | 4,5 · 3,3 · 17,7 | ±6 · ±3,6 · ±18,3 | 80 | BK-regel, meta, drie functies |
+
+**Laadkost (gzip, de eerste keer, daarna uit de service worker):**
+- **Editor, "Beroepskwalificatie":** ±70 kB JavaScript. Dat zijn MinimumdoelenDekking 7,1, dekkingBk 6,4, beroepskwalificaties 5,8, minimumdoelenLeerplan 22,6 (via `bkLeerplan` en `htmlNaarTekst`), richtingCursus 8,0, richtingVenster 5,8, studierichtingenBron 9,3 en het nieuwe chunk. Daarbij komen de index (20,2) en 1 tot 3 BK-bestanden van ±7,2. Geen koppeling.
+- **Richtingpagina:** niets extra tot de klik. Het venster laadt ±12 kB en BkKeuze (3,2).
+- **Mijn richtingen:** één keer de koppeling (78,8 nu, 56 na K8) en de index (20,2). Daarbij ±16 kB JavaScript (dekkingBk, beroepskwalificaties, richtingBk, de lader, bkOverzicht); minimumdoelenLeerplan en richtingCursus laadt de pagina al. Per BK-rij met een BK-cursus komen er 1 tot 9 bestanden bij.
+- **Klas:** hetzelfde, maar pas bij het openklappen, plus ±31 kB (minimumdoelenLeerplan, richtingCursus).
+
+Wordt het budget toch overschreden, dan verplaatst de hoofdsessie eerst code. Pas daarna verhoogt ze het bewust, met een geschiedenisregel in `vite.config.ts` (X9). Alleen de hoofdsessie raakt `vite.config.ts` aan.
+
+### 24.9 Tests
+
+**Vitest:**
+
+| Pakket | Wat er getest wordt |
+|---|---|
+| L1 | Eerst vastleggen: de server-render van `GatenSetsKeuze` en `PlanInCursus` (MD) als gouden string, vóór de wijziging. Daarna blijft die gelijk. De bestaande tests van `gatenDichten`, `gatenCursus` en `gatenWeergave` blijven **ongewijzigd** groen. Nieuw: een gelijkheidstest met willekeurige leerplannen (zonder parameter tegenover `(g) => g.refs`); `bkVerwijzingen` op een MD- en een BK-leerplan (I6); `voegGeplandeSectiesToe` met `bkGeraamte` op de fixtures (bestaande hoofdstukken diep gelijk, samenvoegen op de BK-titel, een sectie per competentie met blok 2, daarna "gepland" in `dekkingBk`); `MD_PLAN_TEKSTEN` geeft precies de huidige zinnen |
+| L2 | Met de hand nagerekend op G-0008: 4 van 12 geeft 4 doelen zonder `alle`; 12 van 12 geeft `alle` en hergebruik van "Bewaar als leerplan"; dezelfde selectie twee keer geeft hergebruik, nooit over een andere groep; `veranderd` bij een ontbrekend bestand, een ontbrekend merk of een onbekend id; `niet-nagekeken` bij een merk dat niet past; titels ≤ 120 tekens, met "Aanvulling · " en "(4 van 12 competenties)", zonder `/bkc\d\|ADV-\|G-\d/`. Mutatieproef door de reviewer |
+| L3 | `kanBkHebben` en `volgtBkCompetenties` geven op de oude plaats dezelfde uitkomst (de bestaande tests ongewijzigd). `leerplanHeeftBkVerwijzingen` geeft hetzelfde als `isBkLeerplan` plus `bkVerwijzingen`. `bkKortVoorRichting` op G-0008 is gelijk aan `bkKortVan` van de oude berekening van BkDekking (een letterlijke kopie als referentie). Geen enkele lader wordt aangeroepen bij `kanBkHebben` onwaar; zonder BK-cursus geen `bk()`; nooit een versie met `zonderBestand`. Verder: I8 als eigenschapstest; cache lezen, bewaren, leeg na een opslagwijziging, een oude generatie wordt niet bewaard, BK raakt MD niet; `bkRijZin` in elke toestand, enkelvoud en meervoud, met een percentage alleen bij één BK |
+| L4 | Elke zin van § 24.6 in enkelvoud en meervoud. `bkSamenvatting` blijft gelijk. Geen code of nummer (I7). `cursusMeta` met 0, 1, 2 en 3 BK's, met en zonder jaar |
+| S1 | `BkCursusDekking` op de server gerenderd met een nagebootste lader: samenvatting, paneel, zonder bestand, zonder index, en geen verzoek naar `koppeling.json` |
+| S3 | `DekkingKort.test.ts`: de tweede regel in elke toestand (cache, bezig, getallen, zonder cursus, fout), geen regel bij G-0193, en de props blijven gelijk |
+
+**Rooktest 20i.** Op de fixtures, na 20h en vóór "21. Importeren":
+- de aanroep is `rtOpen('20i', { fixtures: true })`, met `page.route('**/leerplannen/kwalificaties/**')` zoals 20g;
+- het begint met een verse opslag en eindigt met "Terug zoals het was";
+- de richting is G-0008 "Assistent dierlijke productie" (2de graad, A). BK-0390-2 heeft 12 competenties en staat alleen in onderdeel 8; BK-0464-1 heeft er 13.
+
+1. **Cursus A.** Detail `?jaar=3`, kaart Onthaalmedewerker, "Maak een cursus met deze competenties". Via "Kies zelf de competenties" vink je er 4 uit (8 van 12), dan "Met een lege cursus".
+2. **Editor van A.** Doelendekking, "Beroepskwalificatie". Verwacht:
+   - /Deze cursus dekt 0 van de 12 competenties van Onthaalmedewerker \(0 %\)\./;
+   - /8 competenties uit het leerplan van deze cursus staan nog op geen enkele sectie/;
+   - /4 andere competenties die deze cursus niet dekt, staan niet in haar leerplan/.
+
+   Dan "Plan ze in deze cursus" en "Zet ze in deze cursus", met de toast /8 competenties staan nu gepland in deze cursus/. In localStorage:
+   - 8 nieuwe secties, elk met één `goalCode` op /^BK-0390-2\.\d{2}$/ en de callout "Kennis en vaardigheden uit de beroepskwalificatie";
+   - het leerplan is gelijk gebleven (zelfde id en `updatedAt`).
+
+   Tijdens deze stap gaat er geen verzoek naar `koppeling.json`.
+3. **Detail, "Alle jaren".** Verwacht /Je cursussen dekken 0 van de 25 competenties\./, /8 competenties staan al gepland/ en de knop /Plan de 17 competenties die nog nergens aan bod komen/.
+   - Het venster heeft als h2 "Plan de competenties die nog nergens aan bod komen".
+   - Vink Recreatief medewerker uit: /Je koos 4 competenties uit 1 beroepskwalificatie\./.
+   - "In een cursus die je al hebt" staat op `aria-disabled` met /Geen cursus van deze richting heeft een van de gekozen competenties/.
+   - "Maak de cursus" leidt naar `/cursus/bewerk/`.
+
+   In localStorage: een nieuw leerplan met:
+   - methode `beroepskwalificatie` en status `gecontroleerd`;
+   - een titel op /^Aanvulling · /;
+   - precies 4 doelen, elk met één `bkRefs` naar BK-0390-2;
+   - geen `refs` en geen `alle`.
+
+   Terug op het detail: /12 competenties staan al gepland/.
+4. **Cursus B.** Kaart Recreatief medewerker, alle 13, "Met een lege cursus". In het venster: "In een cursus die je al hebt", cursus B. Verwacht /Alle 13 gekozen competenties staan in het leerplan van/ en, na "Zet ze in deze cursus", de toast /13 competenties staan nu gepland in ‘/. In localStorage:
+   - het eerste hoofdstuk van B is diep gelijk;
+   - het leerplan van B is gelijk (id en `updatedAt`).
+
+   Op het detail: "Er zijn geen competenties meer die nergens aan bod komen.", met de focus op de h3 van het blok.
+5. **Lijst (cache).** Na het detail naar `/cursussen/richtingen`: /Je cursussen dekken 0 van de 25 competenties van 2 beroepskwalificaties\. 25 staan gepland\./ staat er meteen, zonder verzoek naar `kwalificaties/bk/`.
+6. **Lijst (zelf rekenen).** In een nieuwe context, na herladen, met dezelfde opslag: dezelfde zin binnen 15 s. Die is gelijk aan de getallen van het detail.
+7. **Geen BK.** Een context met alleen een MD-cursus en een klas van G-0193 doet in Mijn richtingen, de klas en de editor **0 verzoeken** naar `leerplannen/kwalificaties/`.
+8. **Klas.** "Proefklas 3AD" bij G-0008, 3de jaar. De meta /3de jaar · beroepskwalificatie Onthaalmedewerker/. In de `details` dezelfde BK-zin als in stap 5. Geen verzoek naar `RichtingenPage-*.js`.
+9. **Mislukte chunks.**
+   - `route.abort` op `BkGatenVenster-*.js`: de melding met "Herlaad de pagina"; de h1 en het blok blijven staan.
+   - `route.abort` op `bkOverzicht-*.js`: de MD-regel blijft; de BK-regel toont de foutzin met "Herlaad de pagina".
+10. **390 px.** De editorweergave, het venster, de rij en de klas: niets scrolt horizontaal, alles is minstens 44 px, en er zijn 1 main en 1 h1. Geen console- of paginafouten. Twee keer na elkaar groen.
+
+**20h (echte data, G-0393):** alleen regex. Na één cursus via de kaart: /Plan de \d+ competenties die nog nergens aan bod komen/ en een BK-regel in Mijn richtingen.
+
+### 24.10 Risico's
+
+| # | Risico | Opvang |
+|---|---|---|
+| R1 | Het kritieke pad groeit (0,5 kB marge) | F3b-B10: de hulpen in bestaande gedeelde modules; het chunkoverzicht na elk pakket; X9 |
+| R2 | RichtingenPage gaat over 80 kB | niets nieuws inline; `kanBkHebben` gaat eruit; meting na I1 en I2 |
+| R3 | De klas laadt RichtingenPage mee | DekkingKort importeert alleen `richtingOverzicht`; controle in de build (I1) en 20i stap 8 |
+| R4 | De koppeling op de lijstpagina (parsen, valideren, 833 records) | alleen bij `kanBkHebben`, zichtbare rijen met een cursus, na de MD-regel, één tegelijk, gedeelde beloftes; uitrol na K8 (X8). R1 meet met 4× CPU-vertraging en "Slow 4G" de tijd tot de BK-regel (een log, geen poort). Boven 10 s: alleen rijen met een BK-cursus (X2) |
+| R5 | De laadkost van de BK-weergave in de editor (±70 kB gzip) | lui, pas bij de klik, daarna uit de cache. S1 meet. Boven 80 kB gzip: `PlanInCursus`, `GatenSetsKeuze` en `DoelStatus` naar een eigen module, zodat `studierichtingenBron` niet mee hoeft |
+| R6 | Rij, klas en detail tonen een ander getal | één pijplijn, dezelfde `soort` en opslagstand, de cache zonder variant, een regressietest, 20i stap 5 en 6 |
+| R7 | Stil "alle" (§ 9.5) | altijd lijsten; `alle` alleen als de lijst alles bevat; valkuiltest |
+| R8 | Een dubbel leerplan | `vindBkLeerplan` met de bestanden; zonder merk `veranderd` (F3b-B5); `uniekeTitel` |
+| R9 | De minimumdoelen veranderen door het algemeen maken | standaardparameters, gouden render, bestaande tests en 20f ongewijzigd, mutatieproef |
+| R10 | Een competentie die een cursus via een vorige versie behandelt, wordt opnieuw gepland | de bestaande zin over de versie van nu in het venster; strikt per versie (W9); X5 |
+| R11 | Een 404 als consolefout | geen verzoek zonder `kanBkHebben`; de editor vraagt eerst de index; nooit `zonderBestand` |
+| R12 | De editor heeft geen "ongedaan maken" | eerst kiezen in het paneel; er komen alleen secties bij |
+| R13 | Een mislukt chunk | een melding met "Herlaad de pagina"; de rest van het scherm blijft (`useLuiDeel`, `laadDekking`) |
+| R14 | Een praktijkleerkracht met het leerplan van haar net ziet "Nog geen cursus met de competenties …" | de zin zegt eerlijk "met de competenties"; koppelen aan een netleerplan is X10 |
+| R15 | Blok 2 met kennis maakt cursussen groter in localStorage (R14 van fase 3) | alleen open competenties, nooit dubbel (`alOpCursus`); een volle opslag wordt gemeld en er wordt niets bewaard |
+| R16 | De wachtrij blijft hangen na een BK-fout | `klaar()` ook na een fout en bij het verdwijnen van de rij (bestaand gedrag) |
+| R17 | Een hoofdstuk met dezelfde naam als de BK | de secties komen in dat hoofdstuk; dat is zichtbaar en gewenst (§ 22.11 R13) |
+| R18 | K8 loopt uit | bouwen kan parallel (zelfde vorm); alleen de uitrol wacht |
+
+### 24.11 Open vragen voor de eigenaar (met werkkeuze)
+
+- **X1.** Meet de editor tegen de BK-versies van het eigen leerplan, en niet tegen de hele richting? **Werkkeuze: ja** (F3b-B6).
+- **X2.** Een BK-regel in Mijn richtingen ook zonder BK-cursus? Dat kost de koppeling en de index, maar geen bestanden. **Werkkeuze: ja**: dat is net het signaal om te plannen.
+- **X3.** Een percentage in de korte regel alleen bij één beroepskwalificatie? **Werkkeuze: ja**; nooit samengeteld (W8).
+- **X4.** Mag "In een cursus die je al hebt" een BK-leerplan uitbreiden? **Werkkeuze: nee** (F2-B8, V2).
+- **X5.** Gaan competenties die een cursus via een vorige versie behandelt, mee in "Plan"? **Werkkeuze: ja, met de zin over de versie van nu.**
+- **X6.** Volgt de planknop op het detail de gekozen variant? **Werkkeuze: ja** ("wat je ziet, plan je"); de cache wordt dan niet gevuld.
+- **X7.** Versiemeldingen in de editor? **Werkkeuze: nee**, die staan bij de richting.
+- **X8.** Uitrollen pas na K8? **Werkkeuze: ja**; bouwen kan nu al.
+- **X9.** Mag het kritieke pad bewust groeien als de preloadlijst toch langer wordt? **Werkkeuze: eerst code verplaatsen, daarna hoogstens +0,3 kB** met een geschiedenisregel.
+- **X10.** Een netleerplan laten meetellen voor competenties, met een koppeling met de hand? **Werkkeuze: niet in 3b.**
+- **X11.** Minimumdoelen en competenties in één venster plannen? **Werkkeuze: nee**: twee knoppen, gedeelde schermdelen.
+
+### 24.12 Bewust niet in fase 3b
+
+- Een BK-leerplan uitbreiden, of "Keuze aanpassen" voor een BK-leerplan (X4).
+- Een gemengd leerplan of een cursus met twee leerplannen (W1). Een netleerplan koppelen aan competenties (X10).
+- AI in het venster (V8). Dekking per klas (V4). Plannen vanuit de klas of vanuit Mijn richtingen.
+- Versiemeldingen in de editor (X7). Een samengeteld BK-percentage (W8). Deelkwalificaties (W4).
+- "Gepland" in `computeCoverage` (O1); het percentage op de cursuskaart blijft dat van het leerplan.
+- Een BK-regel per cursus in "Cursussen voor deze richting" (budget van RichtingenPage).
+- De cache in localStorage. Nieuwe API-gegevens of een wijziging aan de workflow.
+- De twee manieren om merken te lezen gelijkmaken (BkSectie.tsx r. 310, BkKeuze.tsx r. 105). Dat is een opruimtaak na K8; richtingBk.test.ts zit nu in de werkboom van K8.
+
+### 24.13 Nagekeken: wat de voorstellen verkeerd lazen of misten
+
+1. **`volgtBkCompetenties` verhuizen** ("leerkracht eerst"): de reden is niet de klas. `useRichtingDekking.ts` zit in het gedeelde chunk `mijnrichtingen-*`, niet in RichtingenPage. De reden is de editor: GoalCoverage zou anders dat chunk, met `studierichtingenBron` (28 kB), statisch in CourseEditorPage trekken. Het doel is daarom `dekkingWeergave.ts` en niet `leerplanStatus.ts`; dat chunk laadt de editor nu niet. `kanBkHebben` zit wél in RichtingenPage.
+2. **`alInVorigeVersie`** ("leerkracht eerst"): dat is overbodig. `dekking.zelfdeNummerAndereSet` en de bestaande `bkAndereVersieTekst` zeggen hetzelfde, met het getal van het blok.
+3. **`merkenVanIndex` in `richtingBk.ts`** ("leerkracht eerst"): `richtingBk.test.ts` zit in de werkboom van K8, en `laadBkGegevens` geeft de merken al.
+4. **Een lichte module voor `bkVerwijzingen`** ("data en logica eerst"): die is niet nodig. `gatenDichten` krijgt de functie als parameter, en de editor laadt `dekkingBk` toch lui.
+5. **Eén `GatenVenster` met een union-prop** ("data en logica eerst"): dat raakt een live venster dat 20f bewaakt. Hier komt een eigen venster met gedeelde delen (F3b-B4).
+6. **Versiemeldingen in de editor** ("data en logica eerst"): de editor zou de merken moeten laden en zou de richtingpagina herhalen (X7).
+7. **Enkelvoud** ("data en logica eerst", "risico eerst"): "Plan ze het in deze cursus" en "Zet het in deze cursus" kloppen niet voor een de-woord. Het wordt "Plan ze" en "Zet ze".
+8. **"Nooit tegelijk `refs` en `bkRefs`"** ("risico eerst"): de sanering haalt alleen `bkRefs` weg bij een ander leerplan. `refs` op een BK-leerplan houdt alleen de nakijkpoort tegen. Hier gaat BK voor, en er komt hoogstens één extra knop.
+9. **Cijfers** ("risico eerst"):
+   - de koppeling na K8 is niet ±30 kB gzip maar 56 kB (691 kB, gemeten in de werkboom van K8);
+   - het maximum per groep is niet 10 maar 9 (erkenningen van vandaag).
+10. **"Open het leerplan" bij k < n** ("risico eerst"): aan een BK-leerplan valt daar niets aan te passen. Hier staat er geen link.
+11. **De zin onder de lijst met cursussen** ("leerkracht eerst"): `bijdragen` bevat ook MD-cursussen, en die tellen in `zonderPassend`. De zin van "risico eerst" ("volgen geen beroepskwalificatie of hebben …") klopt, en is overgenomen.
+12. **Laadkost** (alle drie): de luie BK-chunks zijn niet ±7 kB. Ze trekken `dekkingBk` → `bkLeerplan` → `minimumdoelenLeerplan` (22,6 kB gzip) mee: ±70 kB gzip in de editor en ±47 kB in de klas, de eerste keer (§ 24.8, R5).
+13. Juist nagekeken in de voorstellen:
+    - de regelnummers van `codesVoorDoelen`, `voegGeplandeSectiesToe`, `bkGeraamte`, `bkKader`, `leerplanVoorKeuze` en `laadBkGegevens`;
+    - de valkuil van `alle` (r. 541 en r. 664);
+    - `onEdit={edit}` (r. 511);
+    - dat de MD-cache alleen door `useRichtingDekking` geschreven wordt;
+    - dat `DekkingKortKlas` en `KlasRichting` RichtingenPage niet laden;
+    - de fixture G-0008 met 12 en 13 competenties.
 
 ## Bijlage A. Pakketten
 
@@ -3213,3 +3777,51 @@ Voor elk pakket: het levert pas op als `npm run lint` (0 fouten, geen extra waar
 | **I4** Review en uitrol | hoofdsessie, vier reviewers, rechter | R1, en de data-PR van G1 stap 3 samengevoegd | herstel in de bestanden van K1 tot R1; de stand van zaken | vier invalshoeken: (1) datastroom, script, workflow en sleutel; (2) datamodel: N1 tot N7, nakijkpoort, codes, dekking; (3) toegankelijkheid, taal en 390 px; (4) bundel, opslag en omvang. Daarna de rechter; alleen bevestigde punten worden hersteld. Volledige poort met `tests/ai/mock-studio.mjs`; commit en push; deploy groen |
 
 **Wat niemand aanraakt** (behalve waar het hierboven staat): `tools/leerplannen/haal-minimumdoelen.mjs` en `haal-studierichtingen.mjs`; `public/leerplannen/**` (alleen de workflow-PR); `tests/fixtures/structuur/**`; `computeCoverage`, `curriculumCheck.ts`, `doelgroep.ts`, `richtingKader.ts`, `doelenSamenstellen.ts`, `courses.ts`, `classes.ts`, `classPack.ts`; `refs`, `sanitizeRefs`, `SET_ID`; de formaten van `kaderVingerafdruk`, `volledigeSetsVingerafdruk` en `setAfdruk`; de bestaande checks in `tests/smoke.mjs`; `vite.config.ts` (alleen de hoofdsessie).
+
+## Bijlage F. Pakketten fase 3b
+
+```
+3b-Q0 ─┬─ 3b-L1 bouwer (gaten algemeen, worktree A) ─────┐
+       ├─ 3b-L2 kernbouwer (BK-gaten, worktree B) ───────┤
+       ├─ 3b-L3 bouwer (overzicht en cache, worktree C) ─┼─ 3b-I1 ─┬─ 3b-S1 bouwer (editor, worktree A) ─────────┐
+       └─ 3b-L4 bouwer (teksten, worktree D) ────────────┘         ├─ 3b-S2 bouwer (richtingpagina, worktree B) ─┼─ 3b-I2 ─ 3b-R1 ─ 3b-I3 (na K8)
+                                                                    └─ 3b-S3 bouwer (lijst en klas, worktree C) ──┘
+```
+
+**Regels voor elke bouwagent.** Geef ze telkens opnieuw mee, want ze stonden in een verdwenen scratchpad:
+- een eigen worktree met een symlink naar `node_modules`;
+- geen git stash, checkout, reset of commit;
+- alleen de genoemde bestanden;
+- opleveren pas als `npm run lint` (0 fouten, geen extra waarschuwingen), `npm run typecheck` en `npx vitest run` groen zijn;
+- voor S1 tot S3 ook `npm run build` (budget en chunklijst vóór en na) en de bestaande rooktest op `vite preview`;
+- een verslag in het Nederlands.
+
+L1 tot L4 raken nooit hetzelfde bestand, en S1 tot S3 ook niet.
+
+| Pakket | Wie | Na | Bestanden (alleen deze) | Acceptatie |
+|---|---|---|---|---|
+| **3b-Q0** Docs | hoofdsessie | – | `docs/STUDIERICHTINGEN.md` (§ 24, bijlage F, rij in de stand bovenaan, Hervatten rij 5, W14 en § 23.13 verwijzen naar § 24), CLAUDE.md (één regel, buiten het werkwijzeblok) | het ontwerp staat in de repo |
+| **3b-L1** Gaten algemeen maken | bouwer; mutatieproef door een reviewer | Q0 | `src/lib/gatenDichten.ts`, `gatenCursus.ts`, `gatenWeergave.ts`, `src/components/course/MinimumdoelenDekking.tsx`, hun tests, nieuw `MinimumdoelenDekking.test.ts` (gouden render, eerst vastgelegd) | § 24.4 (L1) en I3, I6; de bestaande tests ongewijzigd groen; zonder de standaardtak faalt de gelijkheidstest |
+| **3b-L2** BK-gaten | kernbouwer | Q0 | nieuw `src/components/richting/bk/bkGatenHulp.ts` en de test | § 24.4 (L2), I1 en I2; met de hand nagerekend; `bkSectieHulp.test.ts` en `BkKeuze.test.ts` ongewijzigd groen |
+| **3b-L3** Overzicht, cache, pijplijn | bouwer | Q0 | `src/lib/richtingOverzicht.ts`, `dekkingCache.ts`, `dekkingWeergave.ts`, `dekkingBk.ts` (alleen erbij), nieuw `bkOverzicht.ts`, `src/components/richting/useRichtingBk.ts` (verder exporteren), `useRichtingDekking.ts` (`volgtBkCompetenties` delegeert), hun tests | § 24.4 (L3), I4, I5, I8; `useRichtingBk.test.ts` en `useRichtingDekking.test.ts` ongewijzigd groen; de regressie op G-0008 |
+| **3b-L4** Teksten | bouwer | Q0 | `src/lib/bkWeergave.ts`, `klasRichtingWeergave.ts`, hun tests | § 24.6 letterlijk, enkelvoud en meervoud; `bkSamenvatting` gelijk; I7 |
+| **3b-I1** Integratie en stubs | hoofdsessie | L1 tot L4 | `BK_PLAN_TEKSTEN` in `bkWeergave.ts` (`satisfies PlanTeksten`); nieuw `bk/BkLijst.tsx` (verhuisd uit `BkDekking.tsx`, dat ze verder exporteert); stubs `course/BkCursusDekking.tsx` en `bk/BkGatenVenster.tsx` met de vaste props van § 24.4 | volledige poort; rooktest 20d tot 20h twee keer ongewijzigd groen; in de build importeren `DekkingKortKlas-*` en `KlasRichting-*` geen `RichtingenPage-*`; budget en chunklijst gemeten; commit |
+| **3b-S1** Cursuseditor | bouwer, worktree A | I1 | `src/components/course/GoalCoverage.tsx`, `course/BkCursusDekking.tsx` en de test, `src/styles/dekking.css` | § 24.6.1 letterlijk; bewaren alleen via `onEdit`; geen verzoek naar `koppeling.json`; CourseEditorPage ≤ 75,8 kB; laadkost gemeten (R5); 44 px en 390 px |
+| **3b-S2** Richtingpagina en venster | bouwer, worktree B | I1 | `bk/BkDekking.tsx` (planblok, pijplijn, cache), `bk/BkGatenVenster.tsx`, `src/styles/gaten.css` | § 24.6.2 en 24.6.3 letterlijk; bewaren alleen via `bewaarNieuweGatenCursus` en `bewaarGatenOpCursus`; cache alleen bij "Alle jaren" en zonder variant; focus zoals beschreven; RichtingenPage ≤ 77,0 kB |
+| **3b-S3** Mijn richtingen en klas | bouwer, worktree C | I1 | `src/components/richting/DekkingKort.tsx` en `DekkingKort.test.ts`, `klas/KlasRichting.tsx`, `src/styles/mijnrichtingen.css`, `klasrichting.css` | § 24.6.4 letterlijk; een eigen BK-beurt na de MD-regel (F3b-B8); niets in localStorage; de props van `DekkingKort` ongewijzigd; geen verzoek zonder `kanBkHebben` |
+| **3b-I2** Integratie van de schermen | hoofdsessie | S1 tot S3 | samenvoegen; `src/pages/HelpPage.tsx` (§ 24.6.5); docs; `vite.config.ts` alleen als X9 nodig is | volledige poort; rooktest twee keer groen; kritiek pad gemeten en gemeld |
+| **3b-R1** Rooktest | bouwer (een andere agent dan S1 tot S3) | I2 | `tests/smoke.mjs` (alleen de nieuwe sectie 20i vóór "21. Importeren" en de regex in 20h) | § 24.9; twee keer na elkaar groen; bestaande checks ongewijzigd |
+| **3b-I3** Review en uitrol | hoofdsessie, vier reviewers (sonnet), rechter (opus) | R1, en K8 samengevoegd | herstel in de bestanden van L1 tot R1; de stand van zaken | vier invalshoeken: (1) juistheid van de getallen (I2 tot I4, I8, de standaardparameters); (2) schrijfpaden en opslag (I1, terugrollen, bewaakt bewaren, generatie van de cache); (3) toegankelijkheid, taal en 390 px; (4) bundel, laadkost en verzoeken (I5, R1 tot R5). Daarna de rechter; alleen bevestigde punten worden hersteld. Volledige poort met `tests/ai/mock-studio.mjs`; commit en push; deploy groen |
+
+**Wat niemand aanraakt** (behalve waar het hierboven staat):
+- `beroepskwalificaties.ts`, `richtingBk.ts` en hun tests, en `tools/leerplannen/**` en `public/leerplannen/**` (K8 loopt daar);
+- `beroepskwalificatiesBron.ts`, `bkLeerplan.ts`, `bkCursus.ts`, `dekkingMinimumdoelen.ts`, `coverage.ts`, `curriculum.ts`, `courses.ts`, `classes.ts`;
+- `GatenVenster.tsx`, `RichtingDekking.tsx`, `RichtingDetail.tsx`, `MijnRichtingen.tsx`, `BkSectie.tsx`, `BkKeuze.tsx`, `NieuweRichtingCursus.tsx`, `CourseEditorPage.tsx`;
+- `tests/fixtures/**` en de bestaande checks in `tests/smoke.mjs`;
+- `vite.config.ts` (alleen de hoofdsessie).
+
+---
+
+Notes for the caller (not part of the paragraph):
+- Bijlage F, row 3b-L1 has a typo in the path: `src/components/course/MinimumdoelenDekking.tsx` must be `src/components/course/MinimumdoelenDekking.tsx`.
+- The K8 work tree (`/home/user/Bookwidgetzzz/.claude/worktrees/wf_f499aa36-3b5-1`) also changes `docs/STUDIERICHTINGEN.md`. 3b-Q0 has to merge with it.

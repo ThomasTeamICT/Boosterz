@@ -12,10 +12,10 @@ het uittreksel ingekort was, eindigt hier op "…". De koppeling hangt aan onder
   BK-9999 heeft als laatst erkende versie BK-9999-2, zodat BK-9999-1 een "nieuwere versie" krijgt.
 - `onderdelen.json`: `{"<nummer>": <detail> | {"status": 404}, "nagebootst": "…"}` voor elk onderdeel dat op
   2026-10-10 gevraagd wordt (14), plus onderdeel 11 (afgebouwd, wordt niet gevraagd):
-  - 8 (G-0008, 2de graad A, duaal): een afgelopen erkenning (BK-0390-1, alleen als verwijzing) en een geldende met
-    BK-0390-2 en BK-0464-1 en vijf studiebekrachtigingen (één met `onderwijskwalificatie: true`, één DBK);
-  - 565 (G-0008, aanloop): alleen BK-0464-1; de afgelopen erkenning heeft geen status of datums (die komen uit de
-    matrix, T2);
+  - 8 (G-0008, 2de graad A, duaal): een afgelopen erkenning (ADV-0917, tot 2024-08-31, met BK-0390-1) en een
+    geldende met BK-0390-2 en BK-0464-1 en vijf studiebekrachtigingen (één met `onderwijskwalificatie: true`, één DBK);
+  - 565 (G-0008, aanloop): alleen BK-0464-1; de afgelopen erkenning (ADV-0960) heeft geen status of datums (die komen
+    uit de matrix, T2);
   - 9, 10, 12, 931 (G-0009, BuSO A): 9 een erkenning zonder lijst, 10 BK-9999-1 en een toekomstige erkenning
     (ADV-1999, vanaf 2027-09-01) met BK-9999-2, 12 BK-9999-3, 931 een 404;
   - 247 (G-0193, DO): een lege lijst; 129, 417 (DO), 379, 908, 915 (1ste graad) en 679, 680 (7de jaar): een erkenning
@@ -42,6 +42,13 @@ node tools/leerplannen/haal-beroepskwalificaties.mjs \
 Verander je `api/` of het script, maak `uit/` dan opnieuw zo (eerst de oude `uit/` weg). De scripttest
 (`src/lib/beroepskwalificaties.script.test.ts`) controleert dat deze run byte voor byte `uit/` geeft. De datatest, de
 app-tests en de rooktest gebruiken `uit/`.
+
+De koppeling in `uit/` is slank (pakket K8, 14 oktober 2026; `docs/STUDIERICHTINGEN.md` § 23.5.2): geen `extra` bij de
+BK-verwijzingen en de studiebekrachtigingen, en geen erkenning die al afgelopen was toen het onderdeel opgehaald werd.
+ADV-0917 (onderdeel 8, met BK-0390-1) en ADV-0960 (565) staan dus wel in `api/`, niet in `uit/`. Een `uit/` in de oude
+vorm zet je zonder `api/` om met `node tools/leerplannen/haal-beroepskwalificaties.mjs --herschrijf-koppeling --uit
+tests/fixtures/kwalificaties/uit --structuur tests/fixtures/structuur/uit --rapport /tmp/rapport-herschrijven.json`;
+dat geeft hetzelfde als de run hierboven.
 
 De kennis van BK-9999-1 staat in `api/` in dezelfde volgorde als in `uit/` (anders kan een run in een lege map nooit
 `uit/` geven). Dat de oude volgorde blijft als de API ze verandert (T6), test de scripttest met een omgekeerde kopie.

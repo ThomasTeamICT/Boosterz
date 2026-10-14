@@ -370,17 +370,20 @@ describe('haal-beroepskwalificaties.mjs met opgeslagen antwoorden', () => {
       379: 'opgehaald', 417: 'opgehaald', 565: 'opgehaald', 679: 'opgehaald', 680: 'opgehaald', 908: 'opgehaald', 915: 'opgehaald', 931: 'niet-gevonden',
     });
     const r8 = recordVan(o, 8);
+    // K8: ADV-0917 (tot 2024-08-31, met BK-0390-1) was al afgelopen bij het ophalen: ze staat niet in de koppeling.
     expect(r8.erkenningen.map((e: Rec) => [e.adv, e.begindatum, e.einddatum ?? null, e.bks.map((b: Rec) => b.bk)])).toEqual([
-      ['ADV-0917', '2021-09-01', '2024-08-31', ['BK-0390-1']],
       ['ADV-1612', '2023-09-01', null, ['BK-0390-2', 'BK-0464-1']],
     ]);
-    const bekr = r8.erkenningen[1].bekrachtigingen as Rec[];
+    const bekr = r8.erkenningen[0].bekrachtigingen as Rec[];
     expect(bekr).toHaveLength(5);
     expect(bekr.filter((b) => b.onderwijskwalificatie === true)).toHaveLength(1);
     expect(bekr.filter((b) => b.dbk === 'BK-0390-2-DBK-01')).toHaveLength(1);
     expect(bekr.map((b) => b.bk ?? null)).toEqual(['BK-0390-2', 'BK-0464-1', null, null, null]);
-    // T2: de afgelopen erkenning van 565 heeft in het detail geen status of datums: die komen uit de matrix.
-    expect(recordVan(o, 565).erkenningen[0]).toMatchObject({ adv: 'ADV-0960', status: 'ERKEND', begindatum: '2021-09-01', einddatum: '2024-08-31', bks: [] });
+    // T2: de afgelopen erkenning ADV-0960 van 565 heeft in het detail geen status of datums: die komen uit de matrix
+    // (zie aanvullingenUitMatrix hieronder). Ze liep tot 2024-08-31, dus ze staat niet in de koppeling (K8).
+    expect(recordVan(o, 565).erkenningen.map((e: Rec) => e.adv)).toEqual(['ADV-1609']);
+    // K8: geen extra bij BK-verwijzingen en studiebekrachtigingen; de veldinventaris van het rapport telt de velden wel.
+    expect(readFileSync(join(o.uit, 'koppeling.json'), 'utf8')).not.toMatch(/"extra"|volledigheid|led_bewijstype|ADV-0917|ADV-0960|BK-0390-1/);
     expect(recordVan(o, 9).erkenningen[0]).toMatchObject({ adv: 'ADV-1100', bks: [], geenLijst: true });
     expect(recordVan(o, 247).erkenningen[0].geenLijst).toBeUndefined();
     expect(recordVan(o, 10).erkenningen.map((e: Rec) => e.bks.map((b: Rec) => b.bk))).toEqual([['BK-9999-1'], ['BK-9999-2']]);
@@ -428,6 +431,9 @@ describe('haal-beroepskwalificaties.mjs met opgeslagen antwoorden', () => {
       versieOverlap: [{ nummer: 'BK-9999', van: 'BK-9999-1', naar: 'BK-9999-2', codes: [3, 2], gedeeld: 1, aandeel: 0.33, tekstenGelijk: false }],
     });
     expect(r.bekrachtigingen).toMatchObject({ totaal: 6, onderwijskwalificatie: 1, dbk: 1, vormOnbekend: 0 });
+    for (const veld of ['structuuronderdeel_details[].beroepskwalificaties[].volledigheid', 'structuuronderdeel_details[].studiebekrachtigingen[].categorie', 'structuuronderdeel_details[].studiebekrachtigingen[].led_bewijstype']) {
+      expect(r.onderdelen.veldInventaris[veld], veld).toBeGreaterThan(0);
+    }
     expect(r.omvang).toEqual({ bestanden: 6, bytes: Object.values(inhoud(o.uit)).reduce((s, t) => s + Buffer.byteLength(t), 0) });
     expect(r.waarschuwingen.join('\n')).toMatch(/HTML in de tekst/);
     expect(r.waarschuwingen.join('\n')).toMatch(/De bron van de onderdelen zegt: geen officiële koppeling/);
@@ -462,7 +468,7 @@ describe('haal-beroepskwalificaties.mjs met opgeslagen antwoorden', () => {
       erkenning8(d).talen = lijst;
     });
     expect(draaiBron(o, { onderdelen: met(['nl', 'fr', 'en']) }).status).toBe(0);
-    expect(recordVan(o, 8).erkenningen[1].extra).toEqual({ talen: ['nl', 'fr', 'en'] });
+    expect(recordVan(o, 8).erkenningen[0].extra).toEqual({ talen: ['nl', 'fr', 'en'] });
     const voor = momentopname(o.uit);
     const run = draaiBron(o, { onderdelen: met(['en', 'nl', 'fr']), nu: '2026-11-03T06:00:00Z', vandaag: '2026-11-03' });
     expect(run.status, run.stderr).toBe(0);
@@ -568,7 +574,7 @@ describe('haal-beroepskwalificaties.mjs met opgeslagen antwoorden', () => {
       expect(r, `onderdeel ${r.onderdeel}`).toEqual(voor.onderdelen.find((x) => x.onderdeel === r.onderdeel));
     }
     expect(recordVan(o, 8).opgehaald).toBe('2026-11-03T06:00:00Z');
-    expect(recordVan(o, 8).erkenningen[1].bekrachtigingen).toHaveLength(4);
+    expect(recordVan(o, 8).erkenningen[0].bekrachtigingen).toHaveLength(4);
     expect(indexVan(o).bks).toEqual(indexVoor.bks);
     expect(indexVan(o).lijstTotaal).toBe(3);
     expect(rapportVan(o)).toMatchObject({ proef: [8], zonderLijst: true, onderdelen: { gevraagd: 1 }, bks: { gevraagd: 2 }, lijst: { overgeslagen: true, paginas: 0 } });
@@ -688,7 +694,7 @@ describe('haal-beroepskwalificaties.mjs met opgeslagen antwoorden', () => {
     });
     const run = draaiBron(o, { structuur: map });
     expect(run.status, run.stderr).toBe(0);
-    const e = recordVan(o, 8).erkenningen[1] as Rec;
+    const e = recordVan(o, 8).erkenningen[0] as Rec;
     expect(e).toMatchObject({ adv: 'ADV-1612', status: 'ERKEND', begindatum: '2023-09-01' });
     expect(e.einddatum).toBeUndefined();
     expect(erkenningenOp(recordVan(o, 8).erkenningen, VANDAAG).nu.map((x) => x.adv)).toEqual(['ADV-1612']);
@@ -709,6 +715,34 @@ describe('haal-beroepskwalificaties.mjs met opgeslagen antwoorden', () => {
     expect(rapportVan(o2).onderdelen).toMatchObject({ verschilMetMatrix: 0, erkenningVerschilMetMatrix: [] });
   });
 
+  it('K8 en een verouderde matrix: het detail sloot een erkenning af vóór het ophalen, de matrix laat ze open; ze valt weg en het verschil staat in het rapport (waar KP7 naar verwijst)', () => {
+    const o = opstelling('k8-verouderde-matrix');
+    // Een run met alleen de beroepskwalificaties gebruikt de matrix uit de repo (T2: tot een maand oud). Daar staat
+    // ADV-0917 nog open; het detail zegt: afgelopen op 2024-08-31.
+    const map = maakMatrix(o, (m) => {
+      const e = (m.onderdelen.find((x) => x.nummer === 8)?.erkenningen ?? []).find((x) => x.nummer === 'ADV-0917') as Rec;
+      expect(e.einddatum).toBe('2024-08-31');
+      delete e.einddatum;
+    });
+    const run = draaiBron(o, { structuur: map });
+    expect(run.status, run.stderr).toBe(0);
+    // Het detail telt: de erkenning was al afgelopen bij het ophalen, dus ze staat niet in de koppeling (K8).
+    expect(recordVan(o, 8).erkenningen.map((e: Rec) => e.adv)).toEqual(['ADV-1612']);
+    const r = rapportVan(o);
+    expect(r.onderdelen).toMatchObject({
+      verschilMetMatrix: 1,
+      erkenningVerschilMetMatrix: [{ onderdeel: 8, adv: 'ADV-0917', veld: 'einddatum', detail: '2024-08-31', matrix: null }],
+    });
+    // Het detail noemt ADV-0917 wel: geen verschil in de ADV-nummers bij onderdeel 8 (10 heeft bewust ADV-1999).
+    expect((r.onderdelen.advVerschilMetMatrix as Rec[]).map((x) => x.onderdeel)).toEqual([10]);
+    expect(r.waarschuwingen.join('\n')).toMatch(/verschillen 1 keer in de status of de datums van een erkenning; het detail telt \(onderdeel 8, ADV-0917: einddatum in het detail 2024-08-31, in de matrix open\)/);
+    // Met de gewone matrix: dezelfde onderdelen in de koppeling, en geen verschil.
+    const o2 = opstelling('k8-verouderde-matrix-gewoon');
+    expect(draaiBron(o2).status).toBe(0);
+    expect(koppelingVan(o).onderdelen).toEqual(koppelingVan(o2).onderdelen);
+    expect(rapportVan(o2).onderdelen).toMatchObject({ verschilMetMatrix: 0, erkenningVerschilMetMatrix: [] });
+  });
+
   it('T2 per veld: status en begindatum uit de matrix als het detail ze niet noemt; de einddatum alleen als het detail geen enkele datum geeft', () => {
     const o = opstelling('t2-per-veld');
     const map = maakMatrix(o, (m) => {
@@ -724,8 +758,8 @@ describe('haal-beroepskwalificaties.mjs met opgeslagen antwoorden', () => {
     });
     const run = draaiBron(o, { structuur: map, onderdelen });
     expect(run.status, run.stderr).toBe(0);
+    // ADV-0917 krijgt haar datums uit de matrix (tot 2024-08-31): afgelopen bij het ophalen, dus niet in de koppeling (K8).
     expect(recordVan(o, 8).erkenningen.map((e: Rec) => [e.adv, e.status, e.begindatum, e.einddatum ?? null])).toEqual([
-      ['ADV-0917', 'ERKEND', '2021-09-01', '2024-08-31'],
       ['ADV-1612', 'ERKEND', '2023-09-01', null],
     ]);
     // ADV-0917 blijft afgelopen: BK-0390-1 wordt niet gevraagd (anders: "geen antwoord voor BK-0390-1", exit 1).
@@ -742,32 +776,63 @@ describe('haal-beroepskwalificaties.mjs met opgeslagen antwoorden', () => {
     expect(rapportVan(o).waarschuwingen.join('\n')).toMatch(/T2: bij 3 erkenningen komen een veld uit de matrix/);
   });
 
-  it('een versie die alleen nog in een afgelopen erkenning staat, blijft gekoppeld (geen nietMeerGekoppeld)', () => {
-    const o = opstelling('genoemd-afgelopen');
-    expect(draaiBron(o).status).toBe(0);
-    // ADV-1612 loopt af op 2026-09-30; een nieuwe erkenning ADV-2000 vanaf 2026-10-01 noemt BK-0390-3 en BK-0464-1.
-    const onderdelen = metOnderdeel(8, (d) => {
+  /** Onderdeel 8 met ADV-1612 tot `einde` en een nieuwe erkenning ADV-2000 vanaf `begin` met BK-0390-3 en BK-0464-1. */
+  function metOpvolger(einde: string, begin: string, bron: Rec = ONDERDELEN): Rec {
+    return metOnderdeel(8, (d) => {
       const e = erkenning8(d);
-      e.einddatum = '2026-09-30';
-      const nieuw: Rec = { ...kopie(e), structuuronderdeel_detail_nummer: 'ADV-2000', structuuronderdeel_detail_versie: 'S-8-V3', begindatum: '2026-10-01', studiebekrachtigingen: [] };
+      e.einddatum = einde;
+      const nieuw: Rec = { ...kopie(e), structuuronderdeel_detail_nummer: 'ADV-2000', structuuronderdeel_detail_versie: 'S-8-V3', begindatum: begin, studiebekrachtigingen: [] };
       delete nieuw.einddatum;
       nieuw.beroepskwalificaties = [bkRef('BK-0390', 3, 'Onthaalmedewerker'), bkRef('BK-0464', 1, 'Recreatief medewerker')];
       (d.structuuronderdeel_details as Rec[]).push(nieuw);
-    });
-    const bks = metBk('BK-0390-3', () => bkDetail('BK-0390-3', 'BK-0390-2'));
-    const run = draaiBron(o, { onderdelen, bks, nu: '2026-11-03T06:00:00Z', vandaag: '2026-11-03' });
+    }, bron);
+  }
+  const bks0390v3 = () => metBk('BK-0390-3', () => bkDetail('BK-0390-3', 'BK-0390-2'));
+
+  it('K8: een erkenning die al afgelopen was bij het ophalen, staat niet in de koppeling; een versie die alleen zij noemde, is niet meer gekoppeld (het bestand blijft)', () => {
+    const o = opstelling('genoemd-afgelopen');
+    expect(draaiBron(o).status).toBe(0);
+    const bestandVoor = momentopname(o.uit)['bk/BK-0390-2.json'];
+    // ADV-1612 liep af op 2026-09-30; de nieuwe erkenning ADV-2000 geldt vanaf 2026-10-01. Opgehaald op 2026-11-03.
+    const run = draaiBron(o, { onderdelen: metOpvolger('2026-09-30', '2026-10-01'), bks: bks0390v3(), nu: '2026-11-03T06:00:00Z', vandaag: '2026-11-03' });
     expect(run.status, run.stderr).toBe(0);
-    expect(recordVan(o, 8).erkenningen.map((e: Rec) => [e.adv, e.bks.map((b: Rec) => b.bk)])).toEqual([
-      ['ADV-0917', ['BK-0390-1']],
-      ['ADV-1612', ['BK-0390-2', 'BK-0464-1']],
-      ['ADV-2000', ['BK-0390-3', 'BK-0464-1']],
-    ]);
-    expect(regelVan(o, 'BK-0390-2')).toMatchObject({ bestand: 'bk/BK-0390-2.json', opgehaald: NU });
-    expect(regelVan(o, 'BK-0390-2').nietMeerGekoppeld).toBeUndefined();
+    expect(recordVan(o, 8)).toMatchObject({ opgehaald: '2026-11-03T06:00:00Z' });
+    expect(recordVan(o, 8).erkenningen.map((e: Rec) => [e.adv, e.bks.map((b: Rec) => b.bk)])).toEqual([['ADV-2000', ['BK-0390-3', 'BK-0464-1']]]);
+    expect(regelVan(o, 'BK-0390-2')).toMatchObject({ bestand: 'bk/BK-0390-2.json', opgehaald: NU, nietMeerGekoppeld: '2026-11-03' });
+    expect(momentopname(o.uit)['bk/BK-0390-2.json']).toEqual(bestandVoor);
     const r = rapportVan(o);
-    expect(r.bks.nietMeerGekoppeld).toEqual([]);
+    expect(r.bks.nietMeerGekoppeld).toEqual(['BK-0390-2']);
+    // De PR-tekst ("Andere versie gekoppeld") rekent met de erkenningen van nu: die verandert niet.
     expect(r.onderdelen.andereVersie).toEqual([{ onderdeel: 8, van: 'BK-0390-2', naar: 'BK-0390-3' }]);
     controleerUitvoer(o.uit, '2026-11-03');
+  });
+
+  it('K8: een erkenning die pas na het ophalen afloopt, blijft (en haar versie blijft gekoppeld) tot het record opnieuw verandert; een run zonder wijziging raakt niets aan', () => {
+    const o = opstelling('genoemd-later-afgelopen');
+    expect(draaiBron(o).status).toBe(0);
+    // ADV-1612 loopt af op 2026-11-30, ADV-2000 begint op 2026-12-01. Opgehaald op 2026-11-03: beide blijven.
+    const onderdelen = metOpvolger('2026-11-30', '2026-12-01');
+    const run = draaiBron(o, { onderdelen, bks: bks0390v3(), nu: '2026-11-03T06:00:00Z', vandaag: '2026-11-03' });
+    expect(run.status, run.stderr).toBe(0);
+    expect(recordVan(o, 8).erkenningen.map((e: Rec) => e.adv)).toEqual(['ADV-1612', 'ADV-2000']);
+    expect(regelVan(o, 'BK-0390-2').nietMeerGekoppeld).toBeUndefined();
+    // Een maand na het einde van ADV-1612, met dezelfde antwoorden: niets verandert (ook het "opgehaald" van 8 niet).
+    const voor = momentopname(o.uit);
+    const run2 = draaiBron(o, { onderdelen, bks: bks0390v3(), nu: '2027-01-05T06:00:00Z', vandaag: '2027-01-05' });
+    expect(run2.status, run2.stderr).toBe(0);
+    expect(run2.stdout).toMatch(/Geschreven: 0 bestanden/);
+    expect(momentopname(o.uit)).toEqual(voor);
+    // Verandert het record (een nieuwe studiebekrachtiging), dan krijgt het een nieuw "opgehaald" en valt ADV-1612 weg.
+    const veranderd = metOnderdeel(8, (d) => {
+      const e = (d.structuuronderdeel_details as Rec[]).find((x) => x.structuuronderdeel_detail_nummer === 'ADV-2000') as Rec;
+      e.studiebekrachtigingen = [{ uitgebreide_naam: 'Bewijs van beroepskwalificatie Onthaalmedewerker (BK-0390-3)', categorie: 'Bewijs' }];
+    }, onderdelen);
+    const run3 = draaiBron(o, { onderdelen: veranderd, bks: bks0390v3(), nu: '2027-02-01T06:00:00Z', vandaag: '2027-02-01' });
+    expect(run3.status, run3.stderr).toBe(0);
+    expect(recordVan(o, 8)).toMatchObject({ opgehaald: '2027-02-01T06:00:00Z' });
+    expect(recordVan(o, 8).erkenningen.map((e: Rec) => e.adv)).toEqual(['ADV-2000']);
+    expect(regelVan(o, 'BK-0390-2').nietMeerGekoppeld).toBe('2027-02-01');
+    controleerUitvoer(o.uit, '2027-02-01');
   });
 
   it('versie 10 en hoger: numeriek gesorteerd (BK-0390-2 vóór BK-0390-10); een dubbel nummer in de lijst: de hoogste versie telt, in elke volgorde', () => {
@@ -789,7 +854,7 @@ describe('haal-beroepskwalificaties.mjs met opgeslagen antwoorden', () => {
     expect(inhoud(b.uit)).toEqual(inhoud(a.uit));
     controleerUitvoer(a.uit);
     expect(indexVan(a).bks.map((r) => r.bk)).toEqual(['BK-0390-2', 'BK-0390-10', 'BK-0464-1', 'BK-9999-1', 'BK-9999-2', 'BK-9999-3']);
-    expect(recordVan(a, 8).erkenningen[1].bks.map((x: Rec) => x.bk)).toEqual(['BK-0390-2', 'BK-0390-10', 'BK-0464-1']);
+    expect(recordVan(a, 8).erkenningen[0].bks.map((x: Rec) => x.bk)).toEqual(['BK-0390-2', 'BK-0390-10', 'BK-0464-1']);
     expect(regelVan(a, 'BK-0390-2').laatstErkend).toBe('BK-0390-10');
     expect(regelVan(a, 'BK-0390-10')).toMatchObject({ nummer: 'BK-0390', versie: 10, bestand: 'bk/BK-0390-10.json', laatstErkend: 'BK-0390-10' });
     expect(doelcodesVanBestand(bkVan(a, 'BK-0390-10')).get('bkc0045062')).toBe('BK-0390-10.01');
@@ -1201,6 +1266,160 @@ describe('haal-beroepskwalificaties.mjs met opgeslagen antwoorden', () => {
 });
 
 // ── Met een nagebootste http-API ────────────────────────────────────────────
+
+// ── K8: de slanke koppeling en --herschrijf-koppeling ───────────────────────
+
+/** Een afgelopen erkenning in de oude vorm, zoals de eerste echte run ze bewaarde. */
+const afgelopen = (adv: string, versie: string, bks: Rec[] = []): Rec => ({ adv, versie, status: 'ERKEND', begindatum: '2021-09-01', einddatum: '2024-08-31', bks, bekrachtigingen: [] });
+
+/**
+ * Zet de koppeling in een uitvoermap om naar de oude vorm (vóór K8), zoals de eerste echte run ze schreef: `extra` bij
+ * elke BK-verwijzing en studiebekrachtiging, en de afgelopen erkenningen ADV-0917 (onderdeel 8, met BK-0390-1) en
+ * ADV-0960 (565) terug. `pas` kan de koppeling daarna nog aanpassen. De sha256 klopt en de validator aanvaardt ze.
+ */
+function maakOudeVorm(uit: string, pas: (k: Rec) => void = () => {}) {
+  const pad = join(uit, 'koppeling.json');
+  const k = leesJson(pad);
+  for (const r of k.onderdelen as Rec[]) {
+    for (const e of r.erkenningen ?? []) {
+      for (const b of e.bks) b.extra = { volledigheid: 'Volledig' };
+      for (const b of e.bekrachtigingen) b.extra = { categorie: 'Bewijs', led_bewijstype: 'Bewijs van beroepskwalificatie', maximale_studiebekrachtiging: false };
+    }
+  }
+  const record = (nr: number) => (k.onderdelen as Rec[]).find((r) => r.onderdeel === nr) as Rec;
+  record(8).erkenningen.unshift(afgelopen('ADV-0917', 'S-8-V1', [{ bk: 'BK-0390-1', titel: 'Onthaalmedewerker', extra: { volledigheid: 'Volledig' } }]));
+  record(565).erkenningen.unshift(afgelopen('ADV-0960', 'S-565-V1'));
+  pas(k);
+  k.sha256 = sha256Van(k.onderdelen);
+  expect(valideerKoppelingBestand(k)).toEqual([]);
+  writeFileSync(pad, `${JSON.stringify(k, null, 2)}\n`);
+}
+
+/** De argumenten van --herschrijf-koppeling voor een opstelling. */
+const herschrijfArgs = (o: Opstelling, ...meer: string[]) => ['--herschrijf-koppeling', '--uit', o.uit, '--rapport', o.rapport, '--structuur', STRUCTUUR, ...meer];
+
+describe('K8: de slanke koppeling en --herschrijf-koppeling', () => {
+  /** De uitvoer van een gewone run op de fixtures: de slanke vorm. */
+  let slank: Opstelling;
+  beforeAll(() => {
+    slank = opstelling('k8-slank');
+    expect(draaiBron(slank).status).toBe(0);
+  });
+  /** Een kopie van de slanke uitvoer in een nieuwe opstelling, eventueel in de oude vorm. */
+  function kopieVan(naam: string, oud = true, pas?: (k: Rec) => void): Opstelling {
+    const o = opstelling(naam);
+    cpSync(slank.uit, o.uit, { recursive: true });
+    if (oud) maakOudeVorm(o.uit, pas);
+    return o;
+  }
+
+  it('--herschrijf-koppeling zet de oude vorm om naar precies wat een gewone run schrijft (bytes), zonder sleutel en zonder verzoek; de index en de BK-bestanden blijven onaangeroerd', () => {
+    const h = kopieVan('k8-herschrijf');
+    const oudeTekst = readFileSync(join(h.uit, 'koppeling.json'), 'utf8');
+    const voor = momentopname(h.uit);
+    // Geen sleutel (maakEnv haalt ze weg) en een basis die niet bestaat: het herschrijven vraagt niets.
+    const run = draai(herschrijfArgs(h), { ONDERWIJSDOELEN_API_BASE: 'http://127.0.0.1:9' });
+    expect(run.status, run.stderr).toBe(0);
+    const na = momentopname(h.uit);
+    expect(Object.keys(na).filter((f) => na[f].tekst !== voor[f].tekst || na[f].mtime !== voor[f].mtime)).toEqual(['koppeling.json']);
+    expect(inhoud(h.uit)).toEqual(inhoud(slank.uit));
+    controleerUitvoer(h.uit);
+    expect(run.stdout).toMatch(/Koppeling herschreven \(gewijzigd\): \d+ → \d+ bytes/);
+    const r = rapportVan(h);
+    expect(r).toMatchObject({
+      bron: 'herschrijving', verzoeken: 0, fout: null, problemen: [], bestanden: { koppeling: 'gewijzigd' },
+      herschrijving: { veranderd: true, voor: { onderdelen: 16, erkenningen: 16, bytes: Buffer.byteLength(oudeTekst) }, na: { onderdelen: 16, erkenningen: 14, metExtra: 0 } },
+    });
+    expect(r.herschrijving.voor.metExtra).toBeGreaterThan(0);
+    expect(r.herschrijving.na.bytes).toBe(Buffer.byteLength(readFileSync(join(h.uit, 'koppeling.json'), 'utf8')));
+    expect(r.herschrijving.na.gzip9).toBeLessThan(r.herschrijving.voor.gzip9);
+  });
+
+  it('een gewone run op de oude vorm, met dezelfde antwoorden: elk record houdt zijn "opgehaald", en de uitkomst is die van --herschrijf-koppeling', () => {
+    // Op hetzelfde moment: byte voor byte de slanke uitvoer.
+    const g = kopieVan('k8-gewoon-zelfde-moment');
+    expect(draaiBron(g).status).toBe(0);
+    expect(inhoud(g.uit)).toEqual(inhoud(slank.uit));
+    // Een maand later: dezelfde records (met hun oude "opgehaald"); alleen de kop krijgt het nieuwe tijdstip.
+    const g2 = kopieVan('k8-gewoon-later');
+    const voor = momentopname(g2.uit);
+    const run = draaiBron(g2, { nu: '2026-11-03T06:00:00Z', vandaag: '2026-11-03' });
+    expect(run.status, run.stderr).toBe(0);
+    expect(koppelingVan(g2).onderdelen).toEqual(koppelingVan(slank).onderdelen);
+    expect(koppelingVan(g2).opgehaald).toBe('2026-11-03T06:00:00Z');
+    const na = momentopname(g2.uit);
+    expect(Object.keys(na).filter((f) => na[f].tekst !== voor[f].tekst || na[f].mtime !== voor[f].mtime)).toEqual(['koppeling.json']);
+    expect(rapportVan(g2).onderdelen).toMatchObject({ nieuw: [], nietMeerGekoppeld: [], andereVersie: [] });
+    expect(rapportVan(g2).bks).toMatchObject({ nietMeerGekoppeld: [], inhoudVeranderd: [] });
+    // Daarna is de koppeling slank: herschrijven raakt niets meer aan.
+    const tussen = momentopname(g2.uit);
+    expect(draai(herschrijfArgs(g2)).status).toBe(0);
+    expect(momentopname(g2.uit)).toEqual(tussen);
+  });
+
+  it('--herschrijf-koppeling is idempotent: twee keer herschrijven = één keer (bytes en wijzigingstijd); een slanke koppeling blijft onaangeroerd', () => {
+    const h = kopieVan('k8-twee-keer');
+    expect(draai(herschrijfArgs(h)).status).toBe(0);
+    const een = momentopname(h.uit);
+    const run = draai(herschrijfArgs(h));
+    expect(run.status, run.stderr).toBe(0);
+    expect(momentopname(h.uit)).toEqual(een);
+    expect(run.stdout).toMatch(/Koppeling herschreven \(ongewijzigd, al slank\)/);
+    expect(rapportVan(h)).toMatchObject({ herschrijving: { veranderd: false }, bestanden: { koppeling: 'ongewijzigd' } });
+    // De uitvoer van een gewone run is al slank.
+    const s = kopieVan('k8-al-slank', false);
+    const voor = momentopname(s.uit);
+    expect(draai(herschrijfArgs(s)).status).toBe(0);
+    expect(momentopname(s.uit)).toEqual(voor);
+  });
+
+  it('een record "niet-gevonden" volgt dezelfde regel op zijn eigen ophaaldatum, bij een gewone run en bij het herschrijven', () => {
+    const verwacht = { ...(recordVan(slank, 8) as Rec), status: 'niet-gevonden', nietMeerInBron: '2026-11-03' };
+    // Gewone run: onderdeel 8 geeft 404; het laatst bekende record (oude vorm) blijft, slank, met zijn "opgehaald".
+    const g = kopieVan('k8-niet-gevonden-gewoon');
+    const run = draaiBron(g, { onderdelen: metOnderdeel(8, () => ({ status: 404 })), nu: '2026-11-03T06:00:00Z', vandaag: '2026-11-03' });
+    expect(run.status, run.stderr).toBe(0);
+    expect(recordVan(g, 8)).toEqual(verwacht);
+    expect(recordVan(g, 8).opgehaald).toBe(NU);
+    // Herschrijven van hetzelfde record in de oude vorm geeft hetzelfde.
+    const h = kopieVan('k8-niet-gevonden-herschrijf', true, (k) => {
+      const r = (k.onderdelen as Rec[]).find((x) => x.onderdeel === 8) as Rec;
+      Object.assign(r, { status: 'niet-gevonden', nietMeerInBron: '2026-11-03' });
+    });
+    expect(recordVan(h, 8).erkenningen.map((e: Rec) => e.adv)).toEqual(['ADV-0917', 'ADV-1612']);
+    expect(draai(herschrijfArgs(h)).status).toBe(0);
+    expect(recordVan(h, 8)).toEqual(verwacht);
+  });
+
+  it('--herschrijf-koppeling stopt (3) en schrijft niets als ook de index zou moeten veranderen (een versie die dan door geen erkenning meer genoemd wordt)', () => {
+    // BK-9999-2 staat alleen in een afgelopen erkenning van onderdeel 10, niet meer in de toekomstige ADV-1999.
+    const h = kopieVan('k8-index-zou-veranderen', true, (k) => {
+      const r = (k.onderdelen as Rec[]).find((x) => x.onderdeel === 10) as Rec;
+      ((r.erkenningen as Rec[]).find((e) => e.adv === 'ADV-1999') as Rec).bks = [];
+      r.erkenningen.unshift(afgelopen('ADV-0999', 'S-10-V0', [{ bk: 'BK-9999-2', titel: 'Nagebootste beroepskwalificatie' }]));
+    });
+    const voor = momentopname(h.uit);
+    eisStop(h, draai(herschrijfArgs(h)), 3, /BK-9999-2: na het herschrijven noemt geen enkele erkenning deze versie nog; een gewone run zou ook de index aanpassen/, voor);
+  });
+
+  it('--herschrijf-koppeling: opties die over ophalen gaan → 1; zonder koppeling → 1; een koppeling die niet klopt → 1; telkens niets geschreven', () => {
+    const o = kopieVan('k8-opties');
+    const voor = momentopname(o.uit);
+    const bron = join(FIXTURES, 'api', 'onderdelen.json');
+    for (const meer of [['--nu', NU], ['--vandaag', VANDAAG], ['--onderdelen', '8'], ['--zonder-lijst'], ['--bron-onderdelen', bron], ['--bron-lijst', bron], ['--bron-bks', bron]]) {
+      eisStop(o, draai(herschrijfArgs(o, ...meer)), 1, /--herschrijf-koppeling past niet bij --(nu|vandaag|onderdelen|zonder-lijst|bron-onderdelen|bron-lijst|bron-bks): het herschrijven haalt niets op/, voor);
+    }
+    const leeg = opstelling('k8-leeg');
+    eisStop(leeg, draai(herschrijfArgs(leeg)), 1, /Er is geen koppeling om te herschrijven/);
+    // Een record aangepast zonder de sha256 bij te werken.
+    const kapot = kopieVan('k8-kapot');
+    const k = leesJson(join(kapot.uit, 'koppeling.json'));
+    (k.onderdelen as Rec[])[1].opgehaald = '2026-10-11T00:00:00Z';
+    writeFileSync(join(kapot.uit, 'koppeling.json'), JSON.stringify(k));
+    const kapotVoor = momentopname(kapot.uit);
+    eisStop(kapot, draai(herschrijfArgs(kapot)), 1, /koppeling\.json: de sha256 klopt niet/, kapotVoor);
+  });
+});
 
 describe('haal-beroepskwalificaties.mjs met een nagebootste http-API', () => {
   interface Verzoek { url: string; methode: string; headers: IncomingHttpHeaders }

@@ -24,6 +24,10 @@
 //   --vandaag JJJJ-MM-DD          standaard vandaag (UTC): welke erkenningen gelden, en de datum van
 //                                 "nietMeerInBron" en "nietMeerGekoppeld"
 //   --nu <JJJJ-MM-DDTUU:MM:SSZ>   het tijdstip "opgehaald"; alleen als niets via de API gaat (met --bron-*)
+//   --herschrijf-koppeling        offline, zonder sleutel en zonder verzoek: zet de bestaande koppeling in --uit om
+//                                 naar de slanke vorm (K8) met een nieuwe sha256, precies zoals een gewone run met
+//                                 dezelfde antwoorden ze zou schrijven; de kop houdt haar "opgehaald" (er is niets
+//                                 opgehaald). Alleen met --uit, --structuur en --rapport. Schrijft alleen koppeling.json
 //
 // Omgeving
 //   ONDERWIJSDOELEN_API_KEY         verplicht als iets via de API gaat; komt nooit in een log, bestand of rapport
@@ -38,6 +42,11 @@
 // (na de nieuwe pogingen), een andere status of geen JSON maakt ze onvolledig (een waarschuwing, exit 0);
 // 401 of 403, een doorverwijzing, een andere origin of pad en een lus in de paginering blijven fout 1.
 //
+// De koppeling is slank (K8, § 23.5.2): geen `extra` bij BK-verwijzingen en studiebekrachtigingen (dat doet de
+// normalisatie) en geen erkenning die al afgelopen was toen het onderdeel opgehaald werd (`B.slankRecord`, op de dag
+// van het "opgehaald" van het record). Een bestaande koppeling in de oude vorm wordt eerst slank gemaakt en dan pas
+// vergeleken: zo geeft een run zonder wijziging in de bron geen enkel nieuw "opgehaald".
+//
 // Een bestand (of een record van de koppeling) dat opnieuw gebouwd wordt met zijn oude "opgehaald" en dan
 // byte voor byte gelijk is, wordt niet aangeraakt. Is de nieuwe inhoud gelijk aan de oude zonder op de
 // volgorde van lijsten te letten (T6), dan blijft de oude. Niets wordt gewist: een BK-bestand en een record
@@ -45,6 +54,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { Fout, adres, bevatSleutel, kort, maakOnderwijsApi, schoon, veilig } from './onderwijsApi.mjs';
 
 const root = path.resolve(import.meta.dirname, '..', '..');
@@ -124,7 +134,7 @@ const OPTIE_NAMEN = {
   '--vandaag': 'vandaag',
   '--nu': 'nu',
 };
-const VLAGGEN = { '--zonder-lijst': 'zonderLijst' };
+const VLAGGEN = { '--zonder-lijst': 'zonderLijst', '--herschrijf-koppeling': 'herschrijf' };
 
 function leesOpties(argv) {
   const opties = {};
@@ -163,6 +173,8 @@ function leesOpties(argv) {
 const HULP = `Gebruik: node tools/leerplannen/haal-beroepskwalificaties.mjs [--onderdelen 504,1] [--zonder-lijst]
   [--bron-lijst <bestand>] [--bron-onderdelen <bestand>] [--bron-bks <bestand>]
   [--structuur <map>] [--uit <map>] [--rapport <bestand>] [--vandaag JJJJ-MM-DD] [--nu <tijdstip>]
+of, offline (zonder sleutel en zonder verzoek), de bestaande koppeling naar de slanke vorm omzetten:
+  node tools/leerplannen/haal-beroepskwalificaties.mjs --herschrijf-koppeling [--uit <map>] [--structuur <map>] [--rapport <bestand>]
 
 Als iets via de API gaat, is de omgevingsvariabele ONDERWIJSDOELEN_API_KEY verplicht.
 Uitgangscodes: 0 in orde, 1 fout of onvolledig, 2 niets te vragen of niets ontvangen, 3 gegevens niet betrouwbaar genoeg om te schrijven.`;
@@ -234,7 +246,24 @@ function isTijdstip(v) {
   return !Number.isNaN(d.getTime()) && d.toISOString().replace(/\.\d{3}Z$/, 'Z') === v;
 }
 
+/** De opties die bij --herschrijf-koppeling niet passen: die gaan over ophalen. */
+const NIET_BIJ_HERSCHRIJVEN = [
+  ['onderdelen', '--onderdelen'], ['zonderLijst', '--zonder-lijst'], ['bronLijst', '--bron-lijst'], ['bronOnderdelen', '--bron-onderdelen'],
+  ['bronBks', '--bron-bks'], ['vandaag', '--vandaag'], ['nu', '--nu'],
+];
+
 function controleerOpties(opties) {
+  if (opties.herschrijf === true) {
+    const fout = NIET_BIJ_HERSCHRIJVEN.filter(([naam]) => opties[naam] !== undefined).map(([, optie]) => optie);
+    if (fout.length > 0) throw new Fout(`--herschrijf-koppeling past niet bij ${fout.join(', ')}: het herschrijven haalt niets op.`);
+    return {
+      herschrijf: true,
+      structuur: path.resolve(opties.structuur ?? STANDAARD_STRUCTUUR),
+      uit: path.resolve(opties.uit ?? STANDAARD_UIT),
+      nu: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+      viaApi: false,
+    };
+  }
   let onderdelen;
   if (opties.onderdelen !== undefined) {
     const delen = opties.onderdelen.split(',').map((d) => d.trim());
@@ -614,9 +643,9 @@ function werkTellersBij() {
   if (!rapport) return;
   const perSoort = api?.teller.perSoort ?? {};
   rapport.verzoeken = api?.teller.verzoeken ?? 0;
-  rapport.lijst.verzoeken = perSoort.lijst ?? 0;
-  rapport.onderdelen.verzoeken = perSoort.onderdeel ?? 0;
-  rapport.bks.verzoeken = perSoort.bk ?? 0;
+  if (rapport.lijst) rapport.lijst.verzoeken = perSoort.lijst ?? 0;
+  if (rapport.onderdelen) rapport.onderdelen.verzoeken = perSoort.onderdeel ?? 0;
+  if (rapport.bks) rapport.bks.verzoeken = perSoort.bk ?? 0;
   rapport.duurSeconden = Math.round((Date.now() - begin) / 100) / 10;
   if (teveelMeldingen > 0 && !rapport.waarschuwingen.at(-1)?.startsWith('…')) rapport.waarschuwingen.push(`… en nog ${teveelMeldingen} waarschuwingen.`);
 }
@@ -680,6 +709,15 @@ function bksOp(erkenningen, vandaag) {
   const { nu, toekomst } = B.erkenningenOp(erkenningen ?? [], vandaag);
   const versies = (lijst) => [...new Set(lijst.flatMap((e) => (e.bks ?? []).map((k) => k.bk)))].sort(B.vergelijkBkVersie);
   return { nu: versies(nu), toekomst: versies(toekomst), erkenningenNu: nu, erkenningenToekomst: toekomst };
+}
+
+/**
+ * De BK-versies die een erkenning in de koppeling noemt (nu, later of al afgelopen). Een versie die er niet in staat,
+ * krijgt "nietMeerGekoppeld" in de index. Sinds K8 bewaart de koppeling geen erkenning die al afgelopen was bij het
+ * ophalen: een versie die alleen zo'n erkenning nog noemt, is dus niet meer gekoppeld.
+ */
+function genoemdeVersies(records) {
+  return new Set(records.flatMap((r) => (r.erkenningen ?? []).flatMap((e) => (e.bks ?? []).map((k) => k.bk))));
 }
 
 /** Telt over alle records: onderdelen met minstens één BK nu, en unieke BK-versies nu (P6 a en b). */
@@ -753,6 +791,7 @@ async function main() {
     return 0;
   }
   const cfg = controleerOpties(opties);
+  if (cfg.herschrijf) return herschrijfKoppeling(cfg);
   rapport = nieuwRapport(cfg);
   if (cfg.viaApi) {
     api = maakOnderwijsApi({
@@ -789,7 +828,8 @@ async function main() {
   rapport.onderdelen.gevraagd = teVragen.length;
   if (teVragen.length === 0) throw new Fout('Er is geen enkel onderdeel te vragen (elk onderdeel van de matrix is afgebouwd of staat niet meer in de bron). Er is niets geschreven.', 2);
   const bestaand = leesBestaand(cfg.uit, matrix);
-  const oudeRecords = new Map((bestaand.koppeling?.onderdelen ?? []).map((r) => [r.onderdeel, r]));
+  // De bestaande records eerst in de slanke vorm (K8): een koppeling in de oude vorm geeft zo geen valse verschillen.
+  const oudeRecords = new Map((bestaand.koppeling?.onderdelen ?? []).map((r) => [r.onderdeel, B.slankRecord(r)]));
   log(`Matrix: ${matrix.onderdelen.length} onderdelen; te vragen: ${teVragen.length}${cfg.onderdelen ? ' (proefrun)' : ''}.`);
 
   // 2. De BK-lijst (zacht, F3-B6): alleen een volledige lijst wordt gebruikt.
@@ -1043,13 +1083,18 @@ async function main() {
       records.push(ordenRecord(rec));
       continue;
     }
-    // T6: gelijk zonder op de volgorde te letten → de oude erkenningen (en hun volgorde) blijven.
-    const erkenningen = Array.isArray(oud?.erkenningen) && B.gelijkZonderVolgorde(oud.erkenningen, r.erkenningen) ? oud.erkenningen : r.erkenningen;
-    const kandidaat = (opgehaald) => ordenRecord({ onderdeel: nr, groep: o.groep, status: 'opgehaald', opgehaald, erkenningen });
+    // Het record in de slanke vorm op de dag van zijn "opgehaald" (K8). T6: gelijk zonder op de volgorde te letten →
+    // de oude erkenningen (en hun volgorde) blijven. Eerst met het oude "opgehaald": is het record dan gelijk aan het
+    // oude, dan blijft het; anders met `nu`.
+    const kandidaat = (opgehaald) => {
+      const slank = B.slankRecord({ onderdeel: nr, groep: o.groep, status: 'opgehaald', opgehaald, erkenningen: r.erkenningen });
+      const zelfde = Array.isArray(oud?.erkenningen) && B.gelijkZonderVolgorde(oud.erkenningen, slank.erkenningen);
+      return ordenRecord(zelfde ? { ...slank, erkenningen: oud.erkenningen } : slank);
+    };
     const metOud = oud?.opgehaald !== undefined ? kandidaat(oud.opgehaald) : undefined;
     records.push(metOud !== undefined && JSON.stringify(metOud) === JSON.stringify(ordenRecord(oud)) ? metOud : kandidaat(cfg.nu));
-    // Wat veranderde voor dit onderdeel (alleen voor het rapport).
-    vergelijkBks(nr, oud, erkenningen, cfg.vandaag);
+    // Wat veranderde voor dit onderdeel (alleen voor het rapport): de erkenningen van nu, volgens de bron.
+    vergelijkBks(nr, oud, r.erkenningen, cfg.vandaag);
   }
   for (const nr of nietGevonden) {
     const oud = oudeRecords.get(nr);
@@ -1058,7 +1103,7 @@ async function main() {
 
   // P6 (a) en (b): massaverlies tegenover het bestaande bestand.
   if (bestaand.koppeling) {
-    const voor = telKoppeling(bestaand.koppeling.onderdelen, cfg.vandaag);
+    const voor = telKoppeling([...oudeRecords.values()], cfg.vandaag);
     const na = telKoppeling(records, cfg.vandaag);
     const verlies = [];
     if (voor.onderdelen > 0 && na.onderdelen < voor.onderdelen * (1 - MAX_DALING)) {
@@ -1073,7 +1118,7 @@ async function main() {
   // 7. Bouwen: eerst de BK-bestanden, dan de index, dan de koppeling.
   const teSchrijven = []; // { pad, tekst, soort }
   const oudeRegels = new Map((bestaand.index?.bks ?? []).map((r) => [r.bk, r]));
-  const genoemd = new Set(records.flatMap((r) => (r.erkenningen ?? []).flatMap((e) => (e.bks ?? []).map((k) => k.bk))));
+  const genoemd = genoemdeVersies(records);
   const alleBks = [...new Set([...oudeRegels.keys(), ...bkUitkomsten.keys()])].sort(B.vergelijkBkVersie);
   const regels = [];
   const rb = rapport.bks;
@@ -1186,6 +1231,62 @@ async function main() {
   log(`Index: ${regels.length} BK-versies (${rapport.bestanden.index}); nieuw ${rb.nieuw.length}, inhoud veranderd ${rb.inhoudVeranderd.length}${rb.inhoudVeranderd.length > 0 ? ` (${rb.inhoudVeranderd.join(', ')})` : ''}, niet meer in de bron ${rb.nietMeerInBron.length}, niet gevonden ${rb.nietGevonden.length}, onbruikbaar ${rb.onbruikbaar.length}.`);
   if (rapport.waarschuwingen.length > 0) log(`Waarschuwingen: ${rapport.waarschuwingen.length} (zie het rapport).`);
   log(`Verzoeken: ${rapport.verzoeken}, duur: ${rapport.duurSeconden} s. Geschreven: ${teSchrijven.length} ${teSchrijven.length === 1 ? 'bestand' : 'bestanden'}. Rapport: ${rapportPad}`);
+  return 0;
+}
+
+// ── --herschrijf-koppeling (K8) ─────────────────────────────────────────────
+
+/** Omvang en vorm van een koppeling, voor het rapport van het herschrijven. */
+function vormVanKoppeling(tekst, json) {
+  let erkenningen = 0;
+  let metExtra = 0;
+  for (const r of json.onderdelen) {
+    for (const e of r.erkenningen ?? []) {
+      erkenningen++;
+      for (const x of [...(e.bks ?? []), ...(e.bekrachtigingen ?? [])]) if (isObject(x) && heeft(x, 'extra')) metExtra++;
+    }
+  }
+  const bytes = Buffer.from(tekst, 'utf8');
+  return { bytes: bytes.length, gzip9: zlib.gzipSync(bytes, { level: 9 }).length, onderdelen: json.onderdelen.length, erkenningen, metExtra };
+}
+
+/**
+ * --herschrijf-koppeling: zet de bestaande koppeling offline om naar de slanke vorm. Elk record gaat door
+ * `B.slankRecord` op de dag van zijn eigen "opgehaald": precies wat een gewone run met dezelfde antwoorden van dat
+ * record maakt (het record houdt dan zijn "opgehaald", zie de samenvoeging in `main`). De kop houdt "opgehaald" en
+ * "matrixSha256": er is niets opgehaald, en de records horen nog bij dezelfde matrix. De bestaande bestanden moeten
+ * kloppen, zoals bij een gewone run. Zou een gewone run ook de index aanpassen (een versie zonder "nietMeerGekoppeld"
+ * die na het herschrijven door geen enkele erkenning meer genoemd wordt), dan stopt het (3) en schrijft het niets: dan
+ * is alleen een gewone run juist. Is de koppeling al slank, dan blijft ze onaangeroerd (exit 0).
+ */
+function herschrijfKoppeling(cfg) {
+  rapport = { tijdstip: cfg.nu, bron: 'herschrijving', verzoeken: 0, duurSeconden: 0, herschrijving: null, problemen: [], waarschuwingen: [], fout: null };
+  const matrix = leesMatrix(cfg.structuur);
+  const bestaand = leesBestaand(cfg.uit, matrix);
+  if (!bestaand.koppeling) throw new Fout(`Er is geen koppeling om te herschrijven: ${path.join(cfg.uit, KOPPELING_BESTAND)} ontbreekt. Er is niets geschreven.`);
+  const oud = bestaand.koppeling;
+  const records = oud.onderdelen.map((r) => ordenRecord(B.slankRecord(r)));
+  if (bestaand.index) {
+    const genoemd = genoemdeVersies(records);
+    const weg = bestaand.index.bks.filter((r) => r.nietMeerGekoppeld === undefined && !genoemd.has(r.bk)).map((r) => r.bk);
+    stopBijProblemen(
+      weg.map((bk) => `${bk}: na het herschrijven noemt geen enkele erkenning deze versie nog; een gewone run zou ook de index aanpassen ("nietMeerGekoppeld").`),
+      'Alleen de koppeling herschrijven kan niet; draai een gewone run',
+    );
+  }
+  const tekst = bouwKoppelingTekst(records, oud.opgehaald, oud.matrixSha256);
+  const json = JSON.parse(tekst);
+  controleerGebouwd(B.valideerKoppelingBestand(json), KOPPELING_BESTAND);
+  if (bevatSleutel(tekst)) throw new Fout('De koppeling bevat de API-sleutel. Er is niets geschreven.');
+  const veranderd = tekst !== bestaand.koppelingTekst;
+  const voor = vormVanKoppeling(bestaand.koppelingTekst, oud);
+  const na = vormVanKoppeling(tekst, json);
+  rapport.herschrijving = { veranderd, voor, na };
+  rapport.bestanden = { koppeling: veranderd ? 'gewijzigd' : 'ongewijzigd' };
+  werkTellersBij();
+  schrijfRapport(rapportPad, rapport);
+  if (veranderd) fs.writeFileSync(path.join(cfg.uit, KOPPELING_BESTAND), tekst, 'utf8');
+  log(`Koppeling herschreven (${veranderd ? 'gewijzigd' : 'ongewijzigd, al slank'}): ${voor.bytes} → ${na.bytes} bytes (gzip -9: ${voor.gzip9} → ${na.gzip9}); ${voor.onderdelen} → ${na.onderdelen} onderdelen; ${voor.erkenningen} → ${na.erkenningen} erkenningen; met extra ${voor.metExtra} → ${na.metExtra}. Rapport: ${rapportPad}`);
   return 0;
 }
 

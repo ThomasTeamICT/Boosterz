@@ -28,6 +28,9 @@
 //   API geen "inhoud veranderd".
 // - Diepte: elke recursie is begrensd, zodat absurd diep geneste invoer (JSON.parse maakt er ook van
 //   100.000 niveaus) nooit een RangeError geeft, maar een probleem of een waarschuwing.
+// - K8 (slank): BK-verwijzingen en studiebekrachtigingen in een erkenning krijgen geen `extra` (de app gebruikt het
+//   niet; de veldinventaris van het rapport telt de velden wel), en het script bewaart geen erkenning die al afgelopen
+//   was toen het onderdeel opgehaald werd (`slankRecord`). De validator aanvaardt de oude vorm nog.
 // - Uitzondering op "lege velden vallen weg": de verplichte lijsten staan er altijd, ook leeg: `bks` en
 //   `bekrachtigingen` van een erkenning, `kennis` en `vaardigheden` van een competentie. Zo kloppen de
 //   types in de app zonder terugval, en is "geen lijst" (`geenLijst: true`, `bks: []`) iets anders dan
@@ -82,7 +85,10 @@ export interface KoppelingBk {
   bk: string;
   /** Momentopname van de titel; de app gebruikt ze alleen als er geen BK-bestand is. */
   titel?: string;
-  /** Wat het element verder meegaf (bv. `volledigheid`, gezien in ronde 7), zonder `api_url`. */
+  /**
+   * Alleen in een koppeling van vóór K8 (14 oktober 2026): wat het element verder meegaf (bv. `volledigheid`). Het
+   * script schrijft het niet meer en de app leest het niet; de validator aanvaardt het nog.
+   */
   extra?: Record<string, unknown>;
 }
 
@@ -93,6 +99,7 @@ export interface Bekrachtiging {
   onderwijskwalificatie?: true;
   bk?: string;
   dbk?: string;
+  /** Alleen in een koppeling van vóór K8 (zoals bij `KoppelingBk`): het script schrijft het niet meer. */
   extra?: Record<string, unknown>;
 }
 
@@ -941,13 +948,10 @@ function leesKoppelingBk(item: unknown, c: Context): KoppelingBk | undefined {
     return undefined;
   }
   const uit: KoppelingBk = { bk: r.bk };
-  const l = lezer(r.rest);
   const titelRuw = eigen(r.rest, 'titel');
   const titel = typeof titelRuw === 'string' || typeof titelRuw === 'number' ? eenvoudigeTekst(titelRuw) : undefined;
-  if (titel !== undefined || isLeeg(titelRuw)) l.gelezen.add('titel');
   if (titel !== undefined) uit.titel = titel;
-  const extra = rest(l, [], `${c.plaats}, ${r.bk}`, c.waarschuwingen);
-  if (extra !== undefined) uit.extra = extra;
+  // K8: de andere velden (bv. `volledigheid`) komen niet in de koppeling; de veldinventaris van het rapport telt ze wel.
   return uit;
 }
 
@@ -967,7 +971,8 @@ function vlag(v: unknown): boolean | undefined {
 /**
  * Een studiebekrachtiging (T3, F3-B14: alleen bij naam). Zonder naam of in een onbekende vorm: een
  * waarschuwing, en ze valt weg. Een BK- of DBK-verwijzing die niet te lezen is: een waarschuwing en
- * "vorm onbekend"; de studiebekrachtiging blijft bij naam, de ruwe verwijzing in `extra`. Nooit een probleem.
+ * "vorm onbekend"; de studiebekrachtiging blijft bij naam. Nooit een probleem. K8: de andere velden
+ * (categorie, bewijstype, VKS-niveau, …) komen niet in de koppeling; de veldinventaris van het rapport telt ze wel.
  */
 function leesBekrachtiging(item: unknown, c: Context): Bekrachtiging | undefined {
   if (typeof item === 'string') {
@@ -979,16 +984,8 @@ function leesBekrachtiging(item: unknown, c: Context): Bekrachtiging | undefined
     c.waarschuwingen.push(`${c.plaats}: een studiebekrachtiging heeft een onbekende vorm (${toon(item)}).`);
     return undefined;
   }
-  const l = lezer(item);
-  // De naam: `uitgebreide_naam`, anders `naam`. Een onleesbaar naamveld blijft in extra; `naam` ook als
-  // het verschilt van de uitgebreide naam.
-  const langRuw = eigen(item, 'uitgebreide_naam');
-  const uitgebreid = tekstUit(langRuw, []);
-  if (uitgebreid !== undefined || isLeeg(langRuw)) l.gelezen.add('uitgebreide_naam');
-  const kortRuw = eigen(item, 'naam');
-  const kort = tekstUit(kortRuw, []);
-  if (isLeeg(kortRuw) || (kort !== undefined && (uitgebreid === undefined || kort === uitgebreid))) l.gelezen.add('naam');
-  const naam = uitgebreid ?? kort;
+  // De naam: `uitgebreide_naam`, anders `naam`.
+  const naam = tekstUit(eigen(item, 'uitgebreide_naam'), []) ?? tekstUit(eigen(item, 'naam'), []);
   if (naam === undefined) {
     c.vormOnbekend++;
     c.waarschuwingen.push(`${c.plaats}: een studiebekrachtiging zonder naam valt weg (${toon(item)}).`);
@@ -996,30 +993,20 @@ function leesBekrachtiging(item: unknown, c: Context): Bekrachtiging | undefined
   }
   const b: Bekrachtiging = { naam };
   const plaats = `${c.plaats}, studiebekrachtiging ${toon(naam)}`;
-  const extra: Record<string, unknown> = {};
 
   const ok = eigen(item, 'onderwijskwalificatie');
   const okVlag = vlag(ok);
-  if (isLeeg(ok) || okVlag !== undefined) l.gelezen.add('onderwijskwalificatie');
-  else c.waarschuwingen.push(`${plaats}: "onderwijskwalificatie" is geen ja/nee-waarde (${toon(ok)}).`);
+  if (!isLeeg(ok) && okVlag === undefined) c.waarschuwingen.push(`${plaats}: "onderwijskwalificatie" is geen ja/nee-waarde (${toon(ok)}).`);
   if (okVlag === true) b.onderwijskwalificatie = true;
 
   // Een studiebekrachtiging telt alleen bij naam (F3-B14): een BK-verwijzing die niet te lezen is of
-  // zichzelf tegenspreekt, is hier "vorm onbekend" (T3) met een waarschuwing, geen probleem. De ruwe
-  // waarde blijft in `extra` (zonder adressen) en de naam blijft. Poort P4 geldt voor de lijst
-  // `beroepskwalificaties` van de erkenning: die maakt de koppeling.
+  // zichzelf tegenspreekt, is hier "vorm onbekend" (T3) met een waarschuwing, geen probleem; de naam
+  // blijft. Poort P4 geldt voor de lijst `beroepskwalificaties` van de erkenning: die maakt de koppeling.
   const bkRuw = eigen(item, 'beroepskwalificatie');
   const bk = leesVerwijzing(bkRuw);
-  if (bk.soort === 'leeg') {
-    l.gelezen.add('beroepskwalificatie');
-  } else if (bk.soort === 'bk' || bk.soort === 'dbk') {
-    l.gelezen.add('beroepskwalificatie');
-    if (bk.soort === 'bk') b.bk = bk.bk;
-    else b.dbk = bk.dbk;
-    // De titel van een BK staat al in de koppeling en het BK-bestand; die van een DBK niet.
-    const overschot = bk.soort === 'bk' ? restVan(bk.rest, ['titel']) : bk.rest;
-    zetExtra(extra, 'beroepskwalificatie', overschot, plaats, c.waarschuwingen);
-  } else {
+  if (bk.soort === 'bk') b.bk = bk.bk;
+  else if (bk.soort === 'dbk') b.dbk = bk.dbk;
+  else if (bk.soort !== 'leeg') {
     c.vormOnbekend++;
     const waarom = bk.soort === 'fout' ? `is niet te lezen: ${bk.reden}` : `heeft een onbekende vorm (${toon(bkRuw)})`;
     c.waarschuwingen.push(`${plaats}: de beroepskwalificatie ${waarom}; de studiebekrachtiging blijft bij naam.`);
@@ -1027,23 +1014,11 @@ function leesBekrachtiging(item: unknown, c: Context): Bekrachtiging | undefined
 
   const dbkRuw = eigen(item, 'deelkwalificatie');
   const dbk = leesVerwijzing(dbkRuw);
-  if (dbk.soort === 'leeg') {
-    l.gelezen.add('deelkwalificatie');
-  } else if (dbk.soort === 'dbk' && (b.dbk === undefined || b.dbk === dbk.dbk)) {
-    l.gelezen.add('deelkwalificatie');
+  if (dbk.soort === 'dbk' && (b.dbk === undefined || b.dbk === dbk.dbk)) {
     b.dbk = dbk.dbk;
-    zetExtra(extra, 'deelkwalificatie', dbk.rest, plaats, c.waarschuwingen);
-  } else {
+  } else if (dbk.soort !== 'leeg') {
     c.vormOnbekend++;
     c.waarschuwingen.push(`${plaats}: de deelkwalificatie heeft een onbekende vorm (${toon(dbkRuw)}).`);
-  }
-
-  const overig = rest(l, [], plaats, c.waarschuwingen);
-  if (overig !== undefined) for (const k of Object.keys(overig)) zet(extra, k, overig[k]);
-  if (Object.keys(extra).length > 0) {
-    const gesorteerd: Record<string, unknown> = {};
-    for (const k of Object.keys(extra).sort()) zet(gesorteerd, k, extra[k]);
-    b.extra = gesorteerd;
   }
   return b;
 }
@@ -1122,14 +1097,11 @@ function leesErkenning(x: unknown, plaats: string, c: Omit<Context, 'plaats'>): 
       else lijst.push(k);
     }
     for (const [bk, lijst] of perBk) {
-      // Dubbel: de kleinste titel en de kleinste rest winnen, zodat de volgorde in de API niets uitmaakt.
+      // Dubbel: de kleinste titel wint, zodat de volgorde in de API niets uitmaakt.
       const titels = [...new Set(lijst.map((k) => k.titel).filter((t): t is string => t !== undefined))].sort();
-      const resten = [...new Set(lijst.map((k) => (k.extra === undefined ? '' : vast(k.extra))))].sort();
-      if (titels.length > 1 || resten.length > 1) c.waarschuwingen.push(`${waar}: ${bk} staat er meer dan één keer, met andere gegevens.`);
+      if (titels.length > 1) c.waarschuwingen.push(`${waar}: ${bk} staat er meer dan één keer, met een andere titel.`);
       const gekozen: KoppelingBk = { bk };
       if (titels.length > 0) gekozen.titel = titels[0];
-      const metExtra = lijst.find((k) => k.extra !== undefined && vast(k.extra) === resten.find((r) => r !== ''));
-      if (metExtra?.extra !== undefined) gekozen.extra = metExtra.extra;
       e.bks.push(gekozen);
     }
     e.bks.sort((a, b) => vergelijkBkVersie(a.bk, b.bk));
@@ -1170,6 +1142,51 @@ function leesErkenning(x: unknown, plaats: string, c: Omit<Context, 'plaats'>): 
  */
 export function vergelijkErkenning(a: Erkenning, b: Erkenning): number {
   return vergelijkOptioneel(a.begindatum, b.begindatum) || vergelijkNatuurlijk(a.adv, b.adv);
+}
+
+// ── De slanke vorm van de koppeling (K8) ────────────────────────────────────
+
+/**
+ * Was de erkenning al afgelopen op `dag` (JJJJ-MM-DD): een einddatum vóór die dag? Zonder dag, zonder einddatum of met
+ * een onleesbare einddatum: `false` (bij twijfel blijft ze).
+ */
+export function afgelopenVoor(e: Pick<Erkenning, 'einddatum'>, dag: string | undefined): boolean {
+  if (!isObject(e) || !isDatum(dag)) return false;
+  const einde = datumUit(e.einddatum);
+  return einde !== undefined && einde < dag;
+}
+
+/** Een kopie zonder het veld `extra` (een element zonder `extra` blijft hetzelfde object). */
+function zonderExtra<T>(x: T): T {
+  if (!isObject(x) || !heeft(x, 'extra')) return x;
+  const kopie: Record<string, unknown> = { ...x };
+  delete kopie.extra;
+  return kopie as T;
+}
+
+/**
+ * De slanke vorm van één record van de koppeling (K8, § 23.5.2): geen `extra` bij de BK-verwijzingen en de
+ * studiebekrachtigingen, en geen erkenning die al afgelopen was toen het onderdeel opgehaald werd (einddatum vóór de
+ * dag van `opgehaald`; `afgelopenVoor`). Een record dat zo geen erkenningen overhoudt, houdt een lege lijst; zonder
+ * geldige `opgehaald` valt geen erkenning weg. Twee studiebekrachtigingen die alleen in `extra` verschilden, worden
+ * één: ze stonden naast elkaar (`vergelijkBekrachtiging` kijkt pas op het laatst naar `extra`), dus de volgorde blijft.
+ * Puur (de invoer verandert niet) en idempotent. Voor gevalideerde records: de erkenningen van nu en later blijven
+ * dezelfde zolang `vandaag` niet vóór de dag van `opgehaald` ligt, dus `bkKader` geeft dan hetzelfde.
+ */
+export function slankRecord(r: OnderdeelKwalificaties): OnderdeelKwalificaties {
+  if (!isObject(r) || !Array.isArray(r.erkenningen)) return r;
+  const dag = isTijdstip(r.opgehaald) ? r.opgehaald.slice(0, 10) : undefined;
+  const erkenningen = r.erkenningen.filter((e) => !afgelopenVoor(e, dag)).map((e) => {
+    if (!isObject(e)) return e;
+    const uit: Erkenning = { ...e };
+    if (Array.isArray(e.bks)) uit.bks = e.bks.map(zonderExtra);
+    if (Array.isArray(e.bekrachtigingen)) {
+      const lijst = e.bekrachtigingen.map(zonderExtra);
+      uit.bekrachtigingen = lijst.filter((b, i) => i === 0 || vast(b) !== vast(lijst[i - 1]));
+    }
+    return uit;
+  });
+  return { ...r, erkenningen };
 }
 
 /** De naam van een onverwachte fout, voor een melding (nooit de tekst: daar kan van alles in staan). */
