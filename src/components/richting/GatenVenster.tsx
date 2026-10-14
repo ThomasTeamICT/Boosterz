@@ -33,6 +33,8 @@ import { bewaarGatenOpCursus, bewaarNieuweGatenCursus, leerplanVoorGaten, titels
 import {
   ANNULEREN_TEKST,
   CURSUS_LEGEND,
+  FOUT_LEERPLAN_WEG,
+  FOUT_NIET_MEER_IN_LEERPLAN,
   FOUT_OPSLAG_VOL,
   FOUT_SETS_VERANDERD,
   GEEN_KANDIDAAT_HINT,
@@ -197,10 +199,14 @@ export function GatenVenster({ info, keuze, gegevens, onClose, onGepland }: Gate
     // (de cursus leest `bewaarGatenOpCursus` zelf opnieuw).
     const leerplan = getCurriculum(kandidaat.leerplan.id);
     if (!leerplan) {
-      setProbleem({ tekst: foutBijBestaandeCursus('ander-leerplan') });
+      setProbleem({ tekst: FOUT_LEERPLAN_WEG });
       return;
     }
     const vers = codesVoorDoelen(leerplan, gekozenDoelen);
+    if (vers.inLeerplan.length === 0) {
+      setProbleem({ tekst: FOUT_NIET_MEER_IN_LEERPLAN });
+      return;
+    }
     const r = bewaarGatenOpCursus({ courseId: kandidaat.course.id, leerplan, codes: vers.codes }, OPSLAG);
     if (!r.ok) {
       setProbleem({ tekst: foutBijBestaandeCursus(r.reden) });

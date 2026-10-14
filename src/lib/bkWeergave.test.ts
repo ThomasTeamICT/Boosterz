@@ -56,7 +56,10 @@ import * as L from './bkLabels';
 import type { BkMelding } from './bkLeerplan';
 import { dekkingBk } from './dekkingBk';
 import { statusTekst } from './dekkingWeergave';
-import { FOUT_ANDER_LEERPLAN, FOUT_CURSUS_GEWIJZIGD, FOUT_CURSUS_VERWIJDERD, FOUT_OPSLAG_VOL, foutBijBestaandeCursus, nogNodigTekst } from './gatenWeergave';
+import {
+  FOUT_ANDER_LEERPLAN, FOUT_CURSUS_GEWIJZIGD, FOUT_CURSUS_VERWIJDERD, FOUT_LEERPLAN_WEG, FOUT_NIET_MEER_IN_LEERPLAN, FOUT_OPSLAG_VOL,
+  foutBijBestaandeCursus, nogNodigTekst,
+} from './gatenWeergave';
 import { bkKader } from './richtingBk';
 import { richtingInfo } from './richtingKader';
 import type { MatrixBestand } from './studierichtingen';
@@ -750,6 +753,18 @@ describe('plannen (§ 24.6)', () => {
         'niets-te-doen': W.BK_FOUT_NIETS_TE_DOEN,
       };
       for (const reden of Object.keys(verwacht) as Reden[]) expect(bkFoutBijBestaandeCursus(reden), reden).toBe(verwacht[reden]);
+    });
+
+    it('een leerplan dat intussen verdween of geen gekozen competentie meer heeft: eigen meldingen, naast die van de minimumdoelen', () => {
+      expect(W.BK_FOUT_LEERPLAN_WEG).toBe(FOUT_LEERPLAN_WEG);
+      expect(W.BK_FOUT_LEERPLAN_WEG).toBe('Het leerplan van deze cursus bestaat niet meer. Er is niets veranderd.');
+      expect(W.BK_FOUT_NIET_MEER_IN_LEERPLAN).toBe('De gekozen competenties staan intussen niet meer in het leerplan van deze cursus. Er is niets veranderd.');
+      expect(FOUT_NIET_MEER_IN_LEERPLAN).toBe('De gekozen doelen staan intussen niet meer in het leerplan van deze cursus. Er is niets veranderd.');
+      // Niet de oude, verkeerde zinnen: de cursus hangt nog aan hetzelfde leerplan, en er staat nog niets op een sectie.
+      for (const zin of [W.BK_FOUT_LEERPLAN_WEG, W.BK_FOUT_NIET_MEER_IN_LEERPLAN, FOUT_LEERPLAN_WEG, FOUT_NIET_MEER_IN_LEERPLAN]) {
+        expect(zin).not.toBe(FOUT_ANDER_LEERPLAN);
+        expect(zin).not.toMatch(/ander leerplan|al op een sectie/);
+      }
     });
   });
 

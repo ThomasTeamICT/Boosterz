@@ -172,6 +172,10 @@ export const FOUT_CURSUS_GEWIJZIGD = 'Deze cursus werd intussen elders aangepast
 export const FOUT_CURSUS_VERWIJDERD = 'Deze cursus bestaat niet meer. Er is niets veranderd.';
 export const FOUT_ANDER_LEERPLAN = 'Deze cursus hangt intussen aan een ander leerplan. Er is niets veranderd. Probeer opnieuw.';
 export const FOUT_NIETS_TE_DOEN = 'Deze doelen staan al op een sectie van deze cursus. Er is niets veranderd.';
+/** Het leerplan van de cursus werd intussen verwijderd (een ander tabblad); de cursus hangt nog aan hetzelfde id. */
+export const FOUT_LEERPLAN_WEG = 'Het leerplan van deze cursus bestaat niet meer. Er is niets veranderd.';
+/** Het leerplan van de cursus werd intussen aangepast en bevat geen enkel gekozen doel meer. */
+export const FOUT_NIET_MEER_IN_LEERPLAN = 'De gekozen doelen staan intussen niet meer in het leerplan van deze cursus. Er is niets veranderd.';
 
 /** De fout bij het zetten van doelen in een bestaande cursus (`bewaarGatenOpCursus`). */
 export function foutBijBestaandeCursus(reden: 'gewijzigd' | 'verwijderd' | 'mislukt' | 'ander-leerplan' | 'niets-te-doen'): string {

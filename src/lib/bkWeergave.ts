@@ -536,6 +536,10 @@ export function bkGeplandInDezeCursusToast(n: number): string {
 
 /** Er is niets te doen: alles staat al op een sectie van de cursus. */
 export const BK_FOUT_NIETS_TE_DOEN = 'Deze competenties staan al op een sectie van deze cursus. Er is niets veranderd.';
+/** Het leerplan van de cursus werd intussen verwijderd: dezelfde zin als `FOUT_LEERPLAN_WEG` bij de minimumdoelen (hier los van die module). */
+export const BK_FOUT_LEERPLAN_WEG = 'Het leerplan van deze cursus bestaat niet meer. Er is niets veranderd.';
+/** Het leerplan van de cursus werd intussen aangepast en bevat geen enkele gekozen competentie meer. */
+export const BK_FOUT_NIET_MEER_IN_LEERPLAN = 'De gekozen competenties staan intussen niet meer in het leerplan van deze cursus. Er is niets veranderd.';
 
 // De richtingpagina: de knop (§ 24.6.2)
 

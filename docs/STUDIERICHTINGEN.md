@@ -1515,7 +1515,7 @@ Wat de leerkracht dan doet: de doelen in een nieuwe cursus zetten (één klik in
 
 - Alleen in de weergave Minimumdoelen (`MinimumdoelenDekking.tsx`), alleen als `GoalCoverage` de nieuwe prop `onEdit` meekrijgt (CourseEditorPage geeft `onEdit={edit}`, met `edit = draft.edit`, dat een functie aanvaardt: r. 256 en 320).
 - "Open" betekent in de editor: deze cursus dekt het niet. De editor plant dus alleen doelen die in het leerplan van de cursus staan en nog op geen enkele sectie staan. Een nieuwe cursus maken kan in de editor niet: dat zou dubbels geven met de andere cursussen van de richting. Daarvoor staat er een zin bij de bestaande link naar de richting.
-- Een inline paneel in dezelfde weergave (geen genest venster): sets kiezen, dan "Zet ze in deze cursus". Bij de klik laadt de editor `gatenCursus` lui en roept `onEdit((c) => voegGeplandeSectiesToe(c, curriculum, codes).course)` aan. De functie draait op de laatste stand van de cursus; de bewaarmotor bewaart met zijn eigen bewaking en meldingen.
+- Een inline paneel in dezelfde weergave (geen genest venster): sets kiezen, dan "Zet ze in deze cursus". Bij de klik laadt de editor `gatenCursus` lui en roept `onEdit((c) => voegGeplandeSectiesToe(c, curriculum, codes).course)` aan. De functie draait op de laatste stand van de cursus; de bewaarmotor bewaart met zijn eigen bewaking en meldingen. Sinds 3b-I3 (14 oktober 2026) leest de editor het leerplan bij de klik opnieuw (`getCurriculum(curriculum.id) ?? curriculum`) en berekent de codes daarop, en volgt de editor het leerplan in de opslag zolang de Doelendekking open staat (alleen bij een andere `updatedAt`): wat de dekking toont en wat er geschreven wordt, komt uit hetzelfde leerplan.
 
 #### 22.4.6 Logica
 
@@ -3201,8 +3201,8 @@ Het venster werkt met de momentopname van het blok. Het laadt `laadBkGegevens(ve
 
 **Weg (b): een cursus die je al hebt.**
 1. `cursussenVoorGaten(gekozen, bijdragen, bkVerwijzingen)` voor de kandidaten.
-2. `codesVoorDoelen(kandidaat.leerplan, gekozen, bkVerwijzingen).codes`.
-3. `bewaarGatenOpCursus({ …, geraamte: (l, c) => bkGeraamte(l, bestanden, c) })`.
+2. Bij de klik het leerplan opnieuw lezen (`getCurriculum(kandidaat.leerplan.id)`; het kan intussen in een ander tabblad veranderd zijn, 3b-I3) en dan `codesVoorDoelen(leerplan, gekozen, bkVerwijzingen)`. Is het leerplan weg: "Het leerplan van deze cursus bestaat niet meer. Er is niets veranderd." Staat er geen gekozen competentie meer in: "De gekozen competenties staan intussen niet meer in het leerplan van deze cursus. Er is niets veranderd." (bij de minimumdoelen "doelen"). De toast noemt het aantal van het verse leerplan.
+3. `bewaarGatenOpCursus({ …, leerplan, geraamte: (l, c) => bkGeraamte(l, bestanden, c) })`.
 
 #### 24.6.4 Mijn richtingen en klas (`DekkingKort.tsx`, een tweede `<p class="mr-tekst">`)
 
@@ -3330,6 +3330,7 @@ Wordt het budget toch overschreden, dan verplaatst de hoofdsessie eerst code. Pa
    - `route.abort` op `BkGatenVenster-*.js`: de melding met "Herlaad de pagina"; de h1 en het blok blijven staan.
    - `route.abort` op `bkOverzicht-*.js`: de MD-regel blijft; de BK-regel toont de foutzin met "Herlaad de pagina".
 10. **390 px.** De editorweergave, het venster, de rij en de klas: niets scrolt horizontaal, alles is minstens 44 px, en er zijn 1 main en 1 h1. Geen console- of paginafouten. Twee keer na elkaar groen.
+11. **Leerplan intussen veranderd** (3b-I3). Een ander tabblad haalt een doel uit het leerplan terwijl het venster (weg b) of het paneel in de editor open staat. Na "Zet ze in deze cursus" komen er alleen secties voor de codes van het verse leerplan, de toast noemt het verse aantal, en het leerplan blijft zoals het andere tabblad het bewaarde.
 
 **20h (echte data, G-0393):** alleen regex. Na één cursus via de kaart: /Plan de \d+ competenties die nog nergens aan bod komen/ en een BK-regel in Mijn richtingen.
 

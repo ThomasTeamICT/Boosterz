@@ -32,6 +32,8 @@ import { GatenSetsKeuze, gekozenOpenDoelen, gekozenOpenSets } from '../../course
 import { FOUT_BK, FOUT_BK_BESCHADIGD } from '../../../lib/beroepskwalificatiesBron';
 import { bkGeraamte, cursusVoorBk } from '../../../lib/bkCursus';
 import {
+  BK_FOUT_LEERPLAN_WEG,
+  BK_FOUT_NIET_MEER_IN_LEERPLAN,
   BK_FOUT_VERANDERD,
   BK_GEEN_KANDIDAAT_HINT,
   BK_PLAN_TEKSTEN,
@@ -286,10 +288,14 @@ export function BkGatenVenster({ info, keuze, gegevens, onClose, onGepland }: Bk
     // (de cursus leest `bewaarGatenOpCursus` zelf opnieuw).
     const leerplan = getCurriculum(kandidaat.leerplan.id);
     if (!leerplan) {
-      setProbleem({ tekst: bkFoutBijBestaandeCursus('ander-leerplan') });
+      setProbleem({ tekst: BK_FOUT_LEERPLAN_WEG });
       return;
     }
     const vers = codesVoorDoelen(leerplan, gekozenDoelen, bkVerwijzingen);
+    if (vers.inLeerplan.length === 0) {
+      setProbleem({ tekst: BK_FOUT_NIET_MEER_IN_LEERPLAN });
+      return;
+    }
     // Een competentie komt altijd via `bkGeraamte`: een sectie per competentie, met kennis en vaardigheden (F3b-B3).
     const r = bewaarGatenOpCursus({
       courseId: kandidaat.course.id,

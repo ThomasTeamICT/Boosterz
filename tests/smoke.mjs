@@ -2872,10 +2872,11 @@ console.log('20h. Beroepskwalificaties op de echte data');
 // (1) en (2) een cursus met 8 van de 12 competenties en de weergave "Beroepskwalificatie" in de editor, met "Plan ze in deze cursus";
 // (3) en (4) het venster "Plan de competenties die nog nergens aan bod komen" op het detail, in een nieuwe cursus en in een cursus die
 // je al hebt; (5) en (6) de regel in "Mijn richtingen" uit de cache en zelf berekend; (7) een richting zonder beroepskwalificaties doet
-// geen enkel verzoek naar de map; (8) de klas; (9) twee chunks die niet laden; (10) 390 px. Wat de app moet bewaren, wordt in
-// localStorage nagegaan. Eigen context zonder service worker (zoals 20d); de sectie zet zelf terug wat ze veranderde ("Terug zoals het
-// was"). Wat in het geheugen onthouden wordt (de lader, de cache van de lijst), telt alleen in een nieuw document niet mee: daarom
-// opent de sectie waar het ertoe doet eerst about:blank (`vers`).
+// geen enkel verzoek naar de map; (8) de klas; (9) twee chunks die niet laden; (10) 390 px; (11) het leerplan dat intussen in een
+// ander tabblad veranderde (3b-I3b). Wat de app moet bewaren, wordt in localStorage nagegaan. Eigen context zonder service worker
+// (zoals 20d); de sectie zet zelf terug wat ze veranderde ("Terug zoals het was"). Wat in het geheugen onthouden wordt (de lader,
+// de cache van de lijst), telt alleen in een nieuw document niet mee: daarom opent de sectie waar het ertoe doet eerst about:blank
+// (`vers`).
 console.log('20i. Fase 3b: de dekking op competenties overal, en competenties plannen');
 
 /** Alle verzoeken naar de map met beroepskwalificaties van een pagina, als pad binnen die map (`koppeling.json`, `bk/BK-0390-2.json`). */
@@ -3346,6 +3347,115 @@ const rtBkRegel = (p, titel) => p.evaluate((t) => {
     check('(9) bkOverzicht-*.js afgebroken: de chunk werd echt afgebroken en er is geen andere console- of paginafout', c9b.afgebroken.length >= 1 && c9b.fouten.length === 0);
     await c9b.ctx.close();
   }
+
+  // (11) Het leerplan is intussen veranderd (3b-I3b, herstelling 2 van 3b-I3): het venster en de editor werken met een momentopname van
+  // het leerplan; bij het zetten lezen ze het opnieuw. Een eigen kopie van een BK-leerplan is bewerkbaar, dus een ander tabblad kan er
+  // een doel uit halen terwijl dit tabblad nog de oude stand toont. Dat doet `anderTabblad` na: één doel weg, `updatedAt` hoger en de
+  // controle op "gewijzigd" (zoals `saveCurriculum` het bewaart), rechtstreeks in localStorage. Zo krijgt deze pagina geen opslaggebeurtenis
+  // en blijft haar momentopname oud. Begint met een verse opslag (zoals na het zaaien) en een nieuw document; de cursussen en
+  // leerplannen van deze stap verdwijnen weer in "Terug zoals het was" hieronder.
+  check('(11) verse opslag: localStorage is weer zoals na het zaaien, voor een stap met een eigen cursus en leerplan', await rtTerugZetten(p, voor));
+  /** Wat een ander tabblad zou doen: het doel op `plaats` uit het leerplan halen en het leerplan opnieuw bewaren. Geeft de nieuwe stand terug. */
+  const anderTabblad = (leerplanId, plaats) => p.evaluate(([lid, i]) => {
+    const sleutel = 'wf.curricula.v1';
+    const lijst = JSON.parse(localStorage.getItem(sleutel) || '[]');
+    const lp = lijst.find((l) => l.id === lid);
+    if (!lp || !Array.isArray(lp.goals) || !lp.goals[i]) return null;
+    const [weg] = lp.goals.splice(i, 1);
+    lp.updatedAt = (lp.updatedAt ?? 0) + 60000;
+    if (lp.controle?.status === 'gecontroleerd') lp.controle = { ...lp.controle, status: 'gewijzigd' };
+    localStorage.setItem(sleutel, JSON.stringify(lijst));
+    return { code: weg.code, aantal: lp.goals.length, updatedAt: lp.updatedAt };
+  }, [leerplanId, plaats]);
+  const metCode = (c, code) => gedekteSecties(c).some((s) => s.goalCodes.some((x) => norm(x) === norm(code)));
+  const escRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // (11a) BK-venster, weg b: "In een cursus die je al hebt". Cursus L1 heeft een eigen BK-leerplan van alle 12 competenties van
+  // Onthaalmedewerker, die nog op geen enkele sectie staan. Het venster staat open en kent het leerplan met 12 doelen; dan haalt een
+  // ander tabblad er één uit.
+  await vers('/#/cursussen/richtingen/G-0008?jaar=3');
+  await rtBkWachtOpKaarten(p);
+  const idL1 = await maakLegeCursus('Onthaalmedewerker');
+  const naL1 = await lees();
+  const cursusL1 = naL1.cursussen.find((c) => c.id === idL1);
+  const leerplanL1 = naL1.leerplannen.find((l) => l.id === cursusL1?.curriculumId);
+  check('(11a) opgeslagen: cursus L1 is een lege cursus zonder doelcodes op de secties, met een eigen BK-leerplan van 12 competenties van BK-0390-2', !!cursusL1 && gedekteSecties(cursusL1).length === 0 && leerplanL1?.herkomst?.methode === 'beroepskwalificatie' && leerplanL1.goals.length === 12 && leerplanL1.goals.every((g) => g.bkRefs?.[0]?.bk === 'BK-0390-2'));
+  await go('/#/cursussen/richtingen/G-0008?jaar=3');
+  await wachtOpDetail();
+  const knop11a = p.locator('.dk-bk').getByRole('button', { name: /^Plan de \d+ competenties die nog nergens aan bod komen/ });
+  check('(11a) detail: de knop "Plan de 25 competenties die nog nergens aan bod komen" (12 van Onthaalmedewerker en 13 van Recreatief medewerker)', (await knop11a.count()) === 1 && /^Plan de 25 competenties/.test(((await knop11a.innerText().catch(() => '')) ?? '').trim()));
+  await knop11a.click();
+  venster = p.getByRole('dialog');
+  await venster.waitFor({ timeout: 10000 });
+  await wachtOpMaakKnop();
+  await sleep(300);
+  await venster.locator('label.gt-vak', { hasText: 'Recreatief medewerker' }).locator('input').uncheck();
+  await sleep(300);
+  await venster.getByRole('radio', { name: 'In een cursus die je al hebt' }).check();
+  await sleep(300);
+  const titelL1 = cursusL1.title;
+  await venster.getByRole('radio', { name: new RegExp(escRe(titelL1)) }).check();
+  await sleep(300);
+  const tekstL1 = await venster.innerText();
+  check('(11a) venster: "Je koos 12 competenties uit 1 beroepskwalificatie." en "Alle 12 gekozen competenties staan in het leerplan van" (de momentopname met 12 doelen)', /Je koos 12 competenties uit 1 beroepskwalificatie\./.test(tekstL1) && /Alle 12 gekozen competenties staan in het leerplan van/.test(tekstL1));
+  const weg11a = await anderTabblad(leerplanL1.id, 2);
+  check('(11a) een ander tabblad haalt het derde doel uit het leerplan van L1 (11 doelen over, updatedAt hoger), zonder dat het open venster het merkt', !!weg11a && /^BK-0390-2\.\d{2}$/.test(weg11a.code) && weg11a.aantal === 11 && weg11a.updatedAt > leerplanL1.updatedAt && /Alle 12 gekozen competenties staan in het leerplan van/.test(await venster.innerText()));
+  await venster.getByRole('button', { name: 'Zet ze in deze cursus' }).click();
+  await venster.waitFor({ state: 'detached', timeout: 10000 });
+  await sleep(600);
+  const toast11a = await toasts();
+  check('(11a) de melding noemt het verse aantal: "11 competenties staan nu gepland in ‘…’." (niet 12)', /11 competenties staan nu gepland in ‘/.test(toast11a) && toast11a.includes(`in ‘${titelL1}’.`) && !/12 competenties staan nu gepland/.test(toast11a));
+  const na11a = await lees();
+  const cursusL1b = na11a.cursussen.find((c) => c.id === idL1);
+  const leerplanL1b = na11a.leerplannen.find((l) => l.id === leerplanL1.id);
+  const secties11a = gedekteSecties(cursusL1b);
+  const verseCodes11a = leerplanL1b.goals.map((g) => norm(g.code)).sort();
+  check(`(11a) opgeslagen: 11 nieuwe secties met elk één goalCode, en niet één voor het weggehaalde doel (${weg11a.code})`, secties11a.length === 11 && secties11a.every((s) => s.goalCodes.length === 1 && /^BK-0390-2\.\d{2}$/.test(s.goalCodes[0])) && !metCode(cursusL1b, weg11a.code));
+  check('(11a) opgeslagen: de codes van de nieuwe secties zijn precies die van het verse leerplan (11 stuks, elk één keer)', canon(secties11a.map((s) => norm(s.goalCodes[0])).sort()) === canon(verseCodes11a) && verseCodes11a.length === 11 && !verseCodes11a.includes(norm(weg11a.code)));
+  check('(11a) opgeslagen: het eerste hoofdstuk van L1 is diep gelijk gebleven en de secties staan achteraan in het hoofdstuk "Onthaalmedewerker"', canon(cursusL1b.chapters[0]) === canon(cursusL1.chapters[0]) && cursusL1b.chapters.at(-1).title === 'Onthaalmedewerker');
+  check('(11a) opgeslagen: het venster paste het leerplan niet aan (11 doelen, id en updatedAt zoals het andere tabblad ze bewaarde)', leerplanL1b.goals.length === 11 && leerplanL1b.updatedAt === weg11a.updatedAt && leerplanL1b.id === leerplanL1.id);
+
+  // (11b) De editor: Doelendekking, "Beroepskwalificatie", "Plan ze in deze cursus". Cursus L2 heeft een eigen BK-leerplan van alle 13
+  // competenties van Recreatief medewerker. Het paneel staat open; dan haalt een ander tabblad er één doel uit het leerplan.
+  await vers('/#/cursussen/richtingen/G-0008?jaar=3');
+  await rtBkWachtOpKaarten(p);
+  const idL2 = await maakLegeCursus('Recreatief medewerker');
+  const naL2 = await lees();
+  const cursusL2 = naL2.cursussen.find((c) => c.id === idL2);
+  const leerplanL2 = naL2.leerplannen.find((l) => l.id === cursusL2?.curriculumId);
+  check('(11b) opgeslagen: cursus L2 is een lege cursus zonder doelcodes op de secties, met een eigen BK-leerplan van 13 competenties van BK-0464-1', !!cursusL2 && idL2 !== idL1 && gedekteSecties(cursusL2).length === 0 && leerplanL2?.herkomst?.methode === 'beroepskwalificatie' && leerplanL2.goals.length === 13 && leerplanL2.goals.every((g) => g.bkRefs?.[0]?.bk === 'BK-0464-1'));
+  await vers(`/#/cursus/bewerk/${idL2}`);
+  await p.getByRole('button', { name: /Doelendekking/ }).click();
+  const schakelaar11 = p.locator('.dk-schakelaar');
+  await schakelaar11.waitFor({ timeout: 15000 });
+  await schakelaar11.getByRole('button', { name: 'Beroepskwalificatie' }).click();
+  await p.waitForSelector('.dk .dk-samenvatting', { timeout: 30000 });
+  const dek11 = p.getByRole('dialog');
+  await dek11.getByRole('button', { name: 'Plan ze in deze cursus' }).click();
+  const paneel11 = dek11.getByRole('group', { name: 'Plan in deze cursus' });
+  await paneel11.waitFor({ timeout: 5000 });
+  await sleep(300);
+  check('(11b) editor van L2: het paneel "Plan in deze cursus" toont "Recreatief medewerker · 13 competenties" (de momentopname met 13 doelen)', /Recreatief medewerker · 13 competenties/.test(await paneel11.innerText()));
+  const weg11b = await anderTabblad(leerplanL2.id, 4);
+  check('(11b) een ander tabblad haalt het vijfde doel uit het leerplan van L2 (12 doelen over, updatedAt hoger), zonder dat het open paneel het merkt', !!weg11b && /^BK-0464-1\.\d{2}$/.test(weg11b.code) && weg11b.aantal === 12 && weg11b.updatedAt > leerplanL2.updatedAt && /Recreatief medewerker · 13 competenties/.test(await paneel11.innerText()));
+  await paneel11.getByRole('button', { name: 'Zet ze in deze cursus' }).click();
+  await p.waitForFunction(() => /\d+ competenties staan nu gepland in deze cursus/.test(document.querySelector('.toast-stack')?.textContent ?? ''), null, { timeout: 8000 }).catch(() => {});
+  const toast11b = await toasts();
+  await p.waitForFunction((id) => {
+    const c = JSON.parse(localStorage.getItem('wf.courses.v1') || '[]').find((x) => x.id === id);
+    return (c?.chapters ?? []).flatMap((h) => h.sections).filter((s) => (s.goalCodes ?? []).length > 0).length >= 12;
+  }, idL2, { timeout: 10000 }).catch(() => {});
+  await sleep(600);
+  check('(11b) de melding noemt het verse aantal: "12 competenties staan nu gepland in deze cursus." (niet 13)', /12 competenties staan nu gepland in deze cursus\./.test(toast11b) && !/13 competenties staan nu gepland/.test(toast11b));
+  const na11b = await lees();
+  const cursusL2b = na11b.cursussen.find((c) => c.id === idL2);
+  const leerplanL2b = na11b.leerplannen.find((l) => l.id === leerplanL2.id);
+  const secties11b = gedekteSecties(cursusL2b);
+  const verseCodes11b = leerplanL2b.goals.map((g) => norm(g.code)).sort();
+  check(`(11b) opgeslagen: 12 nieuwe secties met elk één goalCode, en niet één voor het weggehaalde doel (${weg11b.code})`, secties11b.length === 12 && secties11b.every((s) => s.goalCodes.length === 1 && /^BK-0464-1\.\d{2}$/.test(s.goalCodes[0])) && !metCode(cursusL2b, weg11b.code));
+  check('(11b) opgeslagen: de codes van de nieuwe secties zijn precies die van het verse leerplan (12 stuks, elk één keer)', canon(secties11b.map((s) => norm(s.goalCodes[0])).sort()) === canon(verseCodes11b) && verseCodes11b.length === 12 && !verseCodes11b.includes(norm(weg11b.code)));
+  check('(11b) opgeslagen: het eerste hoofdstuk van L2 is diep gelijk gebleven en de secties staan achteraan in het hoofdstuk "Recreatief medewerker"', canon(cursusL2b.chapters[0]) === canon(cursusL2.chapters[0]) && cursusL2b.chapters.at(-1).title === 'Recreatief medewerker');
+  check('(11b) opgeslagen: de editor paste het leerplan niet aan (12 doelen, id en updatedAt zoals het andere tabblad ze bewaarde) en cursus L1 veranderde niet', leerplanL2b.goals.length === 12 && leerplanL2b.updatedAt === weg11b.updatedAt && leerplanL2b.id === leerplanL2.id && canon(na11b.cursussen.find((c) => c.id === idL1)) === canon(cursusL1b));
 
   // (10) Geen console- of paginafouten; terug zoals het was
   check('(10) geen console- of paginafouten in deze sectie', fouten.length === 0);

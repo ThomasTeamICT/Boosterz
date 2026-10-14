@@ -23,7 +23,7 @@ import { deletePdf } from '../lib/pdfStore';
 import { onStorageNotice } from '../lib/storageHealth';
 import { getCurricula, getCurriculum } from '../lib/curriculum';
 import { doelgroepTekst, sanitizeDoelgroep } from '../lib/doelgroep';
-import { getWidgets } from '../lib/storage';
+import { getWidgets, onStorageChange } from '../lib/storage';
 import { downloadFile, makeCode, uid } from '../lib/utils';
 import { CheckRow, ConfirmModal, EmptyState, Field, Modal, useToast } from '../components/ui';
 import { BLOCK_META, BlockEditor, PALETTE_ORDER, blockIcon, duplicateBlock } from '../components/course/blockEditors';
@@ -234,10 +234,23 @@ export function CourseEditorPage() {
   // Leerplan van de cursus (voor de doelcodes en de dekking). De widgets halen
   // we pas op als het dekkingspaneel echt opengaat — dat scheelt werk bij elke
   // toetsaanslag in de editor.
+  // Staat de Doelendekking open, dan volgt het leerplan de opslag: een ander tabblad kan het intussen aanpassen, en wat de
+  // dekking toont, moet hetzelfde leerplan zijn als wat "Plan ze in deze cursus" schrijft. Alleen een andere `updatedAt` leest
+  // het opnieuw, zodat het bewaren van de cursus zelf niets opnieuw laat rekenen. Het openen van het paneel leest het ook vers.
+  const [leerplanStand, setLeerplanStand] = useState(0);
   const curriculum: Curriculum | undefined = useMemo(
     () => (course?.curriculumId ? getCurriculum(course.curriculumId) : undefined),
-    [course?.curriculumId]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `leerplanStand` en `goalsOpen` lezen het leerplan opnieuw
+    [course?.curriculumId, leerplanStand, goalsOpen]
   );
+  const leerplanStempel = curriculum?.updatedAt;
+  useEffect(() => {
+    const id = course?.curriculumId;
+    if (!goalsOpen || !id) return undefined;
+    return onStorageChange(() => {
+      if (getCurriculum(id)?.updatedAt !== leerplanStempel) setLeerplanStand((n) => n + 1);
+    });
+  }, [goalsOpen, course?.curriculumId, leerplanStempel]);
   const widgets = useMemo(() => (goalsOpen ? getWidgets() : []), [goalsOpen]);
 
   if (!course) {
