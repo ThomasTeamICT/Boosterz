@@ -270,6 +270,10 @@ export interface PlanTeksten {
   nodig: string;
   /** De melding als er niets te zetten was: "Deze doelen staan al op een sectie van deze cursus. Er is niets veranderd.". */
   nietsTeDoen: string;
+  /** Het leerplan van de cursus verdween intussen (een ander tabblad): "Het leerplan van deze cursus bestaat niet meer. …". */
+  leerplanWeg: string;
+  /** Het leerplan bevat intussen geen gekozen doel meer: "De gekozen doelen staan intussen niet meer in het leerplan …". */
+  nietMeerInLeerplan: string;
 }
 
 /** De zinnen voor de minimumdoelen: letterlijk de bestaande functies en constanten van dit bestand. */
@@ -286,4 +290,6 @@ export const MD_PLAN_TEKSTEN: PlanTeksten = {
   toast: geplandInDezeCursusToast,
   nodig: 'minstens één doel',
   nietsTeDoen: FOUT_NIETS_TE_DOEN,
+  leerplanWeg: FOUT_LEERPLAN_WEG,
+  nietMeerInLeerplan: FOUT_NIET_MEER_IN_LEERPLAN,
 };

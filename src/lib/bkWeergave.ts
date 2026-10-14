@@ -711,4 +711,6 @@ export const BK_PLAN_TEKSTEN = {
   toast: bkGeplandInDezeCursusToast,
   nodig: BK_PLAN_NODIG,
   nietsTeDoen: BK_FOUT_NIETS_TE_DOEN,
+  leerplanWeg: BK_FOUT_LEERPLAN_WEG,
+  nietMeerInLeerplan: BK_FOUT_NIET_MEER_IN_LEERPLAN,
 } satisfies PlanTeksten;

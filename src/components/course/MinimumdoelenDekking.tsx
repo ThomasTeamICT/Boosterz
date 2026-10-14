@@ -377,9 +377,20 @@ export function PlanInCursus({ plan, dekking, curriculum, namen, onEdit, samenva
     bezig.current = true;
     void smaak.laadVoegToe().then(
       (voegToe) => {
-        // De editor kent het leerplan van toen ze opende: lees het opnieuw, het kan intussen in een ander tabblad veranderd zijn.
-        const leerplan = getCurriculum(curriculum.id) ?? curriculum;
+        // De editor kent het leerplan van toen het paneel opende: lees het opnieuw, het kan intussen in een ander tabblad veranderd
+        // of verdwenen zijn (het laden hierboven duurt even). Is het weg of bevat het geen gekozen doel meer, dan verandert er niets.
+        const leerplan = getCurriculum(curriculum.id);
+        if (!leerplan) {
+          bezig.current = false;
+          toast(t.leerplanWeg, 'err');
+          return;
+        }
         const vers = codesVoorDoelen(leerplan, gekozen, smaak.verwijzingen);
+        if (vers.inLeerplan.length === 0) {
+          bezig.current = false;
+          toast(t.nietMeerInLeerplan, 'err');
+          return;
+        }
         let toegevoegd = 0;
         onEdit((c) => {
           const r = voegToe(c, leerplan, vers.codes);

@@ -2873,7 +2873,8 @@ console.log('20h. Beroepskwalificaties op de echte data');
 // (3) en (4) het venster "Plan de competenties die nog nergens aan bod komen" op het detail, in een nieuwe cursus en in een cursus die
 // je al hebt; (5) en (6) de regel in "Mijn richtingen" uit de cache en zelf berekend; (7) een richting zonder beroepskwalificaties doet
 // geen enkel verzoek naar de map; (8) de klas; (9) twee chunks die niet laden; (10) 390 px; (11) het leerplan dat intussen in een
-// ander tabblad veranderde (3b-I3b). Wat de app moet bewaren, wordt in localStorage nagegaan. Eigen context zonder service worker
+// ander tabblad veranderde (3b-I3b, en in 3b-I3c het leerplan dat weg is of geen gekozen doel meer heeft, en de editor die het
+// leerplan volgt). Wat de app moet bewaren, wordt in localStorage nagegaan. Eigen context zonder service worker
 // (zoals 20d); de sectie zet zelf terug wat ze veranderde ("Terug zoals het was"). Wat in het geheugen onthouden wordt (de lader,
 // de cache van de lijst), telt alleen in een nieuw document niet mee: daarom opent de sectie waar het ertoe doet eerst about:blank
 // (`vers`).
@@ -3456,6 +3457,222 @@ const rtBkRegel = (p, titel) => p.evaluate((t) => {
   check('(11b) opgeslagen: de codes van de nieuwe secties zijn precies die van het verse leerplan (12 stuks, elk één keer)', canon(secties11b.map((s) => norm(s.goalCodes[0])).sort()) === canon(verseCodes11b) && verseCodes11b.length === 12 && !verseCodes11b.includes(norm(weg11b.code)));
   check('(11b) opgeslagen: het eerste hoofdstuk van L2 is diep gelijk gebleven en de secties staan achteraan in het hoofdstuk "Recreatief medewerker"', canon(cursusL2b.chapters[0]) === canon(cursusL2.chapters[0]) && cursusL2b.chapters.at(-1).title === 'Recreatief medewerker');
   check('(11b) opgeslagen: de editor paste het leerplan niet aan (12 doelen, id en updatedAt zoals het andere tabblad ze bewaarde) en cursus L1 veranderde niet', leerplanL2b.goals.length === 12 && leerplanL2b.updatedAt === weg11b.updatedAt && leerplanL2b.id === leerplanL2.id && canon(na11b.cursussen.find((c) => c.id === idL1)) === canon(cursusL1b));
+
+  // (11e) De editor volgt het leerplan (3b-I3c, herstelling A). Hoort bij (11b) en staat er daarom meteen na: het scherm van (11b) is
+  // nog open, en de Doelendekking staat nog open. De klik op "Zet ze in deze cursus" bewaarde de cursus; dat meldt de opslag aan de
+  // editor, die het leerplan opnieuw las (de `updatedAt` was hoger) en de dekking nu op de verse 12 doelen rekent. De leerkracht hoeft
+  // niet nog eens te klikken: er staat geen regel of knop meer die naar het weggehaalde doel verwijst. De 13de competentie staat nog
+  // in de officiële lijst van de beroepskwalificatie, dus ze telt als "nog niet", maar ze zit niet meer in het leerplan van de cursus.
+  await sleep(600);
+  const tekst11e = await dek11.innerText();
+  check('(11e) editor van L2 na de klik: de Doelendekking staat nog open en zegt "12 competenties staan al gepland op een sectie die nog leeg is, 0 komen alleen in verdieping aan bod, 1 nog niet." (die zin hangt aan de secties en de officiële lijst, dus ze klopt ook zonder de herstelling; de twee checks hieronder zijn de gevoelige)', await dek11.isVisible() && /Deze cursus dekt 0 van de 13 competenties van Recreatief medewerker \(0 %\)\. 12 competenties staan al gepland op een sectie die nog leeg is, 0 komen alleen in verdieping aan bod, 1 nog niet\./.test(tekst11e));
+  check('(11e) editor van L2 na de klik: geen regel "… staat nog op geen enkele sectie", geen knop "Plan ze in deze cursus" en geen paneel "Plan in deze cursus" meer (er valt niets meer te plannen, zonder tweede klik)', !/staa?n? nog op geen enkele sectie/.test(tekst11e) && (await dek11.getByRole('button', { name: 'Plan ze in deze cursus' }).count()) === 0 && (await dek11.getByRole('group', { name: 'Plan in deze cursus' }).count()) === 0);
+  check('(11e) editor van L2 na de klik: het weggehaalde doel staat nu onder "1 andere competentie die deze cursus niet dekt, staat niet in haar leerplan."', /1 andere competentie die deze cursus niet dekt, staat niet in haar leerplan\./.test(tekst11e));
+
+  // Hulp voor (11c), (11d), (11e) en (11f): wat een ander tabblad met een leerplan doet, rechtstreeks in localStorage (zoals `anderTabblad`,
+  // maar op elke pagina). `verwijder` haalt het leerplan uit de lijst; anders: `plaats` haalt het doel op die plaats weg,
+  // `zonderVerwijzing` ("bkRefs" of "refs") alle doelen met zo'n verwijzing, `eigenDoel` voegt een doel toe. Dan een hogere `updatedAt`
+  // en de controle op "gewijzigd". Geeft het aantal leerplannen, het aantal doelen over en de nieuwe `updatedAt`, of null zonder dat leerplan.
+  const leerplanDoor = (pagina, leerplanId, opdracht) => pagina.evaluate(([lid, o]) => {
+    const sleutel = 'wf.curricula.v1';
+    const lijst = JSON.parse(localStorage.getItem(sleutel) || '[]');
+    const i = lijst.findIndex((l) => l.id === lid);
+    if (i < 0) return null;
+    const lp = lijst[i];
+    if (o.verwijder) {
+      lijst.splice(i, 1);
+    } else {
+      if (o.plaats !== undefined) lp.goals.splice(o.plaats, 1);
+      if (o.zonderVerwijzing) lp.goals = lp.goals.filter((g) => !(Array.isArray(g[o.zonderVerwijzing]) && g[o.zonderVerwijzing].length > 0));
+      if (o.eigenDoel) lp.goals.push(o.eigenDoel);
+      lp.updatedAt = (lp.updatedAt ?? 0) + 60000;
+      if (lp.controle?.status === 'gecontroleerd') lp.controle = { ...lp.controle, status: 'gewijzigd' };
+    }
+    localStorage.setItem(sleutel, JSON.stringify(lijst));
+    return { leerplannen: lijst.length, doelen: o.verwijder ? null : lp.goals.length, updatedAt: o.verwijder ? null : lp.updatedAt };
+  }, [leerplanId, opdracht]);
+  /** Een doel dat de leerkracht zelf aan een leerplan toevoegde: zonder verwijzing naar een competentie of een minimumdoel. */
+  const eigenDoel = { id: 'smoke-eigen-doel', code: 'EIGEN 1', text: 'Een doel dat de leerkracht zelf aan het leerplan toevoegde.' };
+  /** Naar de lijst en dan een verse opslag: de editor van de vorige stap is dan weg en kan niets meer terugschrijven. */
+  const verseOpslag = async () => { await go('/#/cursussen'); await sleep(500); return rtTerugZetten(p, voor); };
+  /**
+   * Het BK-venster "Plan de competenties die nog nergens aan bod komen" op het detail van G-0008 (3de jaar), weg b: "In een cursus die
+   * je al hebt". Maakt eerst een lege cursus met een eigen BK-leerplan van alle 12 competenties van Onthaalmedewerker (met `metEigenDoel`
+   * komt er een eigen doel bij, dat geen competentie is), dan staat het venster open met alleen die 12 gekozen en die cursus
+   * aangeduid. Geeft het venster, de cursus en het leerplan van vóór het venster.
+   */
+  const openBkBestaand = async (metEigenDoel) => {
+    await vers('/#/cursussen/richtingen/G-0008?jaar=3');
+    await rtBkWachtOpKaarten(p);
+    const id = await maakLegeCursus('Onthaalmedewerker');
+    const stand = await lees();
+    const cursus = stand.cursussen.find((c) => c.id === id);
+    const leerplan = stand.leerplannen.find((l) => l.id === cursus?.curriculumId);
+    if (metEigenDoel) await leerplanDoor(p, leerplan.id, { eigenDoel });
+    await vers('/#/cursussen/richtingen/G-0008?jaar=3');
+    await wachtOpDetail();
+    await p.locator('.dk-bk').getByRole('button', { name: /^Plan de \d+ competenties die nog nergens aan bod komen/ }).click();
+    const dlg = p.getByRole('dialog');
+    await dlg.waitFor({ timeout: 10000 });
+    await wachtOpMaakKnop();
+    await sleep(300);
+    await dlg.locator('label.gt-vak', { hasText: 'Recreatief medewerker' }).locator('input').uncheck();
+    await sleep(300);
+    await dlg.getByRole('radio', { name: 'In een cursus die je al hebt' }).check();
+    await sleep(300);
+    await dlg.getByRole('radio', { name: new RegExp(escRe(cursus.title)) }).check();
+    await sleep(300);
+    return { dlg, cursus, leerplan };
+  };
+  /** De melding van een venster dat bij het zetten niets deed: de tekst van de rol alert, en of die de focus heeft. */
+  const melding = async (dlg) => {
+    await sleep(400);
+    const alert = dlg.locator('[role="alert"]');
+    return {
+      aantal: await alert.count(),
+      tekst: zonderRuimte(await alert.first().innerText().catch(() => '')),
+      focus: await p.evaluate(() => document.activeElement?.getAttribute('role') === 'alert'),
+    };
+  };
+
+  // (11c) BK-venster, weg b: het leerplan van de gekozen cursus is intussen weg (3b-I3c, herstelling B). Een ander tabblad haalt het uit
+  // de lijst terwijl het venster open staat; bij "Zet ze in deze cursus" leest het venster het leerplan opnieuw en vindt het niet meer.
+  // Dat is niet "een ander leerplan" (de cursus hangt nog aan hetzelfde id) maar "bestaat niet meer", en er verandert niets.
+  check('(11c) verse opslag: localStorage is weer zoals na het zaaien, voor een stap met een eigen cursus en leerplan', await verseOpslag());
+  const v11c = await openBkBestaand(false);
+  check('(11c) venster: "Je koos 12 competenties uit 1 beroepskwalificatie." en "Alle 12 gekozen competenties staan in het leerplan van" (cursus L3, eigen BK-leerplan van 12 competenties)', v11c.leerplan?.goals.length === 12 && /Je koos 12 competenties uit 1 beroepskwalificatie\./.test(await v11c.dlg.innerText()) && /Alle 12 gekozen competenties staan in het leerplan van/.test(await v11c.dlg.innerText()));
+  const weg11c = await leerplanDoor(p, v11c.leerplan.id, { verwijder: true });
+  const voorKlik11c = await lees();
+  check('(11c) een ander tabblad haalt het leerplan van L3 uit de lijst (geen leerplan van de cursus over), zonder dat het open venster het merkt', !!weg11c && voorKlik11c.leerplannen.every((l) => l.id !== v11c.leerplan.id) && voorKlik11c.cursussen.some((c) => c.id === v11c.cursus.id && c.curriculumId === v11c.leerplan.id) && /Alle 12 gekozen competenties staan in het leerplan van/.test(await v11c.dlg.innerText()));
+  await v11c.dlg.getByRole('button', { name: 'Zet ze in deze cursus' }).click();
+  const m11c = await melding(v11c.dlg);
+  check('(11c) na "Zet ze in deze cursus" staat de melding "Het leerplan van deze cursus bestaat niet meer. Er is niets veranderd." in het venster (één melding, met de focus), en niet "… ander leerplan"', await v11c.dlg.isVisible() && m11c.aantal === 1 && m11c.tekst === 'Het leerplan van deze cursus bestaat niet meer. Er is niets veranderd.' && m11c.focus);
+  const na11c = await lees();
+  check('(11c) opgeslagen: niets veranderd (de cursussen en de leerplannen zijn diep gelijk aan vlak na de wijziging van het andere tabblad; het leerplan kwam niet terug en L3 kreeg geen secties met een doelcode)', canon(na11c.cursussen) === canon(voorKlik11c.cursussen) && canon(na11c.leerplannen) === canon(voorKlik11c.leerplannen) && na11c.leerplannen.every((l) => l.id !== v11c.leerplan.id) && gedekteSecties(na11c.cursussen.find((c) => c.id === v11c.cursus.id)).length === 0);
+  check('(11c) er is geen melding "… staan nu gepland …" (het venster blijft open met de fout)', !/staa?n? nu gepland/.test(await toasts()));
+
+  // (11d) BK-venster, weg b: het leerplan houdt geen enkele gekozen competentie meer. Cursus L4 heeft een eigen BK-leerplan van de 12
+  // competenties van Onthaalmedewerker plus één eigen doel van de leerkracht. Een ander tabblad haalt alle 12 competenties weg; het
+  // eigen doel blijft, dus het leerplan bestaat nog, maar geen enkele gekozen competentie staat er nog in.
+  check('(11d) verse opslag: localStorage is weer zoals na het zaaien, voor een stap met een eigen cursus en leerplan', await verseOpslag());
+  const v11d = await openBkBestaand(true);
+  const stand11d = await lees();
+  const start11d = stand11d.leerplannen.find((l) => l.id === v11d.leerplan.id);
+  check('(11d) opgeslagen: het leerplan van cursus L4 heeft 13 doelen: 12 competenties van BK-0390-2 en het eigen doel zonder verwijzing', v11d.leerplan?.goals.length === 12 && start11d?.goals.length === 13 && start11d.goals.filter((g) => (g.bkRefs ?? []).length > 0).length === 12 && start11d.goals.filter((g) => !(g.bkRefs ?? []).length).length === 1);
+  check('(11d) venster: "Je koos 12 competenties uit 1 beroepskwalificatie." en "Alle 12 gekozen competenties staan in het leerplan van" (het eigen doel is geen competentie en telt niet mee)', /Je koos 12 competenties uit 1 beroepskwalificatie\./.test(await v11d.dlg.innerText()) && /Alle 12 gekozen competenties staan in het leerplan van/.test(await v11d.dlg.innerText()));
+  const weg11d = await leerplanDoor(p, v11d.leerplan.id, { zonderVerwijzing: 'bkRefs' });
+  const voorKlik11d = await lees();
+  check('(11d) een ander tabblad haalt alle 12 competenties uit het leerplan van L4 (alleen het eigen doel blijft, updatedAt hoger), zonder dat het open venster het merkt', !!weg11d && weg11d.doelen === 1 && weg11d.leerplannen === stand11d.leerplannen.length && weg11d.updatedAt > v11d.leerplan.updatedAt && voorKlik11d.leerplannen.find((l) => l.id === v11d.leerplan.id)?.goals.every((g) => g.code === eigenDoel.code) && /Alle 12 gekozen competenties staan in het leerplan van/.test(await v11d.dlg.innerText()));
+  await v11d.dlg.getByRole('button', { name: 'Zet ze in deze cursus' }).click();
+  const m11d = await melding(v11d.dlg);
+  check('(11d) na "Zet ze in deze cursus" staat de melding "De gekozen competenties staan intussen niet meer in het leerplan van deze cursus. Er is niets veranderd." in het venster (één melding, met de focus)', await v11d.dlg.isVisible() && m11d.aantal === 1 && m11d.tekst === 'De gekozen competenties staan intussen niet meer in het leerplan van deze cursus. Er is niets veranderd.' && m11d.focus);
+  const na11d = await lees();
+  check('(11d) opgeslagen: niets veranderd (de cursussen en de leerplannen zijn diep gelijk aan vlak na de wijziging van het andere tabblad; L4 kreeg geen secties met een doelcode)', canon(na11d.cursussen) === canon(voorKlik11d.cursussen) && canon(na11d.leerplannen) === canon(voorKlik11d.leerplannen) && gedekteSecties(na11d.cursussen.find((c) => c.id === v11d.cursus.id)).length === 0);
+  check('(11d) er is geen melding "… staan nu gepland …" (het venster blijft open met de fout)', !/staa?n? nu gepland/.test(await toasts()));
+
+  // (11e) Een echt tweede tabblad (3b-I3c, herstelling A): een JSON-bestand van dezelfde site in een tweede pagina van dezelfde context deelt
+  // localStorage met de editor, en wat daar gebeurt, komt als `storage`-gebeurtenis binnen. De editor staat met de Doelendekking open
+  // en leest het leerplan opnieuw zonder dat de leerkracht iets doet. Zonder de herstelling blijft de regel op 13 staan tot ze herlaadt.
+  check('(11e) verse opslag: localStorage is weer zoals na het zaaien, voor een stap met een eigen cursus en leerplan', await verseOpslag());
+  await vers('/#/cursussen/richtingen/G-0008?jaar=3');
+  await rtBkWachtOpKaarten(p);
+  const idL5 = await maakLegeCursus('Recreatief medewerker');
+  const naL5 = await lees();
+  const cursusL5 = naL5.cursussen.find((c) => c.id === idL5);
+  const leerplanL5 = naL5.leerplannen.find((l) => l.id === cursusL5?.curriculumId);
+  await vers(`/#/cursus/bewerk/${idL5}`);
+  await p.getByRole('button', { name: /Doelendekking/ }).click();
+  await p.locator('.dk-schakelaar').waitFor({ timeout: 15000 });
+  await p.locator('.dk-schakelaar').getByRole('button', { name: 'Beroepskwalificatie' }).click();
+  await p.waitForSelector('.dk .dk-samenvatting', { timeout: 30000 });
+  const dek5 = p.getByRole('dialog');
+  await sleep(300);
+  check('(11e) editor van L5 (Recreatief medewerker, eigen BK-leerplan van 13 competenties): de regel zegt "13 competenties uit het leerplan van deze cursus staan nog op geen enkele sectie." en de knop "Plan ze in deze cursus" staat er', leerplanL5?.goals.length === 13 && /13 competenties uit het leerplan van deze cursus staan nog op geen enkele sectie\./.test(await dek5.innerText()) && (await dek5.getByRole('button', { name: 'Plan ze in deze cursus' }).count()) === 1);
+  const tab2 = await ctx.newPage();
+  await tab2.goto(`${BASE}/leerplannen/minimumdoelen/index.json`);
+  const weg11e = await leerplanDoor(tab2, leerplanL5.id, { plaats: 4 });
+  await p.waitForFunction(() => /12 competenties uit het leerplan van deze cursus staan nog op geen enkele sectie\./.test(document.querySelector('[role="dialog"]')?.textContent ?? ''), null, { timeout: 8000 }).catch(() => {});
+  const tekst11t = await dek5.innerText();
+  check('(11e) een tweede tabblad haalt het vijfde doel uit het leerplan van L5 (12 doelen over, updatedAt hoger); de open Doelendekking zegt zonder klik of herladen "12 competenties uit het leerplan van deze cursus staan nog op geen enkele sectie."', !!weg11e && weg11e.doelen === 12 && weg11e.updatedAt > leerplanL5.updatedAt && /12 competenties uit het leerplan van deze cursus staan nog op geen enkele sectie\./.test(tekst11t) && !/13 competenties uit het leerplan van deze cursus staan nog op geen enkele sectie/.test(tekst11t));
+  check('(11e) dezelfde Doelendekking: de knop is "Plan ze in deze cursus" gebleven en onder de lijst staat "1 andere competentie die deze cursus niet dekt, staat niet in haar leerplan."', (await dek5.getByRole('button', { name: 'Plan ze in deze cursus' }).count()) === 1 && /1 andere competentie die deze cursus niet dekt, staat niet in haar leerplan\./.test(tekst11t));
+  // Daarna loopt het zoals het hoort, zonder dat de leerkracht iets moet bijsturen: het paneel toont het verse aantal, "Zet ze in deze
+  // cursus" schrijft precies dat, en omdat de knop dan weg is, gaat de focus naar de samenvatting (zoals in (2)).
+  await dek5.getByRole('button', { name: 'Plan ze in deze cursus' }).click();
+  const paneel5 = dek5.getByRole('group', { name: 'Plan in deze cursus' });
+  await paneel5.waitFor({ timeout: 5000 });
+  await sleep(300);
+  check('(11e) het paneel "Plan in deze cursus" toont meteen het verse aantal: "Recreatief medewerker · 12 competenties" (niet 13)', /Recreatief medewerker · 12 competenties/.test(await paneel5.innerText()) && !/13 competenties/.test(await paneel5.innerText()));
+  await paneel5.getByRole('button', { name: 'Zet ze in deze cursus' }).click();
+  await p.waitForFunction(() => /\d+ competenties staan nu gepland in deze cursus/.test(document.querySelector('.toast-stack')?.textContent ?? ''), null, { timeout: 8000 }).catch(() => {});
+  const toast5 = await toasts();
+  await p.waitForFunction((id) => {
+    const c = JSON.parse(localStorage.getItem('wf.courses.v1') || '[]').find((x) => x.id === id);
+    return (c?.chapters ?? []).flatMap((h) => h.sections).filter((s) => (s.goalCodes ?? []).length > 0).length >= 12;
+  }, idL5, { timeout: 10000 }).catch(() => {});
+  await sleep(1200);
+  const na5 = await lees();
+  const secties5 = gedekteSecties(na5.cursussen.find((c) => c.id === idL5));
+  const codes5 = na5.leerplannen.find((l) => l.id === leerplanL5.id).goals.map((g) => norm(g.code)).sort();
+  check('(11e) de melding "12 competenties staan nu gepland in deze cursus." (niet 13), en opgeslagen: 12 secties met precies de codes van het verse leerplan', /12 competenties staan nu gepland in deze cursus\./.test(toast5) && !/13 competenties staan nu gepland/.test(toast5) && secties5.length === 12 && canon(secties5.map((s) => norm(s.goalCodes[0])).sort()) === canon(codes5) && codes5.length === 12);
+  check('(11e) na het zetten is de knop weg en staat de focus op de samenvatting (de focus valt niet op de pagina terug)', (await dek5.getByRole('button', { name: 'Plan ze in deze cursus' }).count()) === 0 && (await p.evaluate(() => document.activeElement?.classList.contains('dk-samenvatting') ?? false)));
+  await tab2.close();
+
+  // (11f) Hetzelfde voor het venster van de minimumdoelen (GatenVenster, richting G-0193, 4de jaar), op de opstelling van 20f (4): een
+  // cursus met het leerplan van de hele richting, nog zonder secties, en één eigen doel erbij. Een ander tabblad haalt alle doelen met
+  // een verwijzing naar een minimumdoel weg; het eigen doel blijft. Eigen context, zoals (7): de rest van deze sectie merkt er niets van.
+  {
+    const c11 = await rtOpen('20i-11f', { fixtures: true });
+    const p11 = c11.p;
+    const lees11 = () => p11.evaluate(() => ({
+      cursussen: JSON.parse(localStorage.getItem('wf.courses.v1') || '[]'),
+      leerplannen: JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]'),
+    }));
+    await c11.go('/#/cursussen');
+    await c11.go('/#/cursussen/richtingen/G-0193?jaar=4');
+    await p11.waitForSelector('.dk-samenvatting', { timeout: 30000 });
+    await p11.getByRole('button', { name: 'Maak een cursus voor deze richting' }).click();
+    const venster0 = p11.getByRole('dialog');
+    await venster0.waitFor({ timeout: 10000 });
+    await venster0.getByRole('radio', { name: /^Alle minimumdoelen van de richting/ }).check();
+    await venster0.getByRole('radio', { name: 'Met een lege cursus' }).check();
+    await sleep(500);
+    await p11.waitForFunction(() => {
+      const knop = [...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === 'Maak de cursus');
+      return !!knop && knop.getAttribute('aria-disabled') !== 'true';
+    }, null, { timeout: 30000 });
+    await venster0.getByRole('button', { name: 'Maak de cursus' }).click();
+    await p11.waitForURL(/#\/cursus\/bewerk\//, { timeout: 15000 });
+    await sleep(600);
+    const id11 = (/#\/cursus\/bewerk\/([^/?#]+)/.exec(p11.url()) ?? [])[1];
+    const start11 = await lees11();
+    const cursus11 = start11.cursussen.find((c) => c.id === id11);
+    const leerplan11 = start11.leerplannen.find((l) => l.id === cursus11?.curriculumId);
+    check('(11f) opgeslagen: een lege cursus voor G-0193 zonder doelcodes op de secties, met een leerplan van de hele richting (alle doelen verwijzen naar een minimumdoel)', !!cursus11 && gedekteSecties(cursus11).length === 0 && !!leerplan11 && leerplan11.goals.length > 1 && leerplan11.goals.every((g) => (g.refs ?? []).length > 0));
+    await leerplanDoor(p11, leerplan11.id, { eigenDoel });
+    await c11.go('/#/cursussen');
+    await c11.go('/#/cursussen/richtingen/G-0193?jaar=4');
+    await p11.waitForSelector('.dk-samenvatting', { timeout: 30000 });
+    await p11.getByRole('button', { name: /^Plan de \d+ doelen die nog nergens aan bod komen$/ }).click();
+    const venster11 = p11.getByRole('dialog');
+    await venster11.waitFor({ timeout: 10000 });
+    await sleep(500);
+    await venster11.getByRole('radio', { name: 'In een cursus die je al hebt' }).check();
+    const kandidaten11 = venster11.locator('.gt-cursus');
+    await kandidaten11.first().locator('input[type=radio]').check();
+    await sleep(300);
+    check('(11f) venster van de minimumdoelen: precies één cursus past, en de voorbeeldzin zegt "Alle N gekozen doelen staan in het leerplan van ‘…’." (het eigen doel is geen minimumdoel en telt niet mee)', (await kandidaten11.count()) === 1 && /^Alle \d+ gekozen doelen staan in het leerplan van ‘.+’\./.test((await venster11.locator('.gt-voorbeeld').innerText()).trim()));
+    const weg11f = await leerplanDoor(p11, leerplan11.id, { zonderVerwijzing: 'refs' });
+    const voorKlik11f = await lees11();
+    check('(11f) een ander tabblad haalt alle doelen met een verwijzing naar een minimumdoel uit het leerplan (alleen het eigen doel blijft), zonder dat het open venster het merkt', !!weg11f && weg11f.doelen === 1 && /^Alle \d+ gekozen doelen staan in het leerplan van ‘.+’\./.test((await venster11.locator('.gt-voorbeeld').innerText()).trim()));
+    await venster11.getByRole('button', { name: /^Zet ze in deze cursus$/ }).click();
+    await sleep(400);
+    const alert11 = venster11.locator('[role="alert"]');
+    check('(11f) na "Zet ze in deze cursus" staat de melding "De gekozen doelen staan intussen niet meer in het leerplan van deze cursus. Er is niets veranderd." in het venster (één melding, met de focus)', await venster11.isVisible() && (await alert11.count()) === 1 && zonderRuimte(await alert11.innerText()) === 'De gekozen doelen staan intussen niet meer in het leerplan van deze cursus. Er is niets veranderd.' && (await p11.evaluate(() => document.activeElement?.getAttribute('role'))) === 'alert');
+    const na11f = await lees11();
+    check('(11f) opgeslagen: niets veranderd (de cursussen en de leerplannen zijn diep gelijk aan vlak na de wijziging van het andere tabblad)', canon(na11f.cursussen) === canon(voorKlik11f.cursussen) && canon(na11f.leerplannen) === canon(voorKlik11f.leerplannen) && gedekteSecties(na11f.cursussen.find((c) => c.id === id11)).length === 0);
+    check('(11f) geen console- of paginafouten in deze context', c11.fouten.length === 0);
+    await c11.ctx.close();
+  }
 
   // (10) Geen console- of paginafouten; terug zoals het was
   check('(10) geen console- of paginafouten in deze sectie', fouten.length === 0);

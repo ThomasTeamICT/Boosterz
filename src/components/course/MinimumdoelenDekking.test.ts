@@ -36,6 +36,13 @@ const mock = vi.hoisted(() => ({
   bestanden: new Map<string, unknown>(),
   /** De meldingen die `useToast` kreeg: tekst en soort. */
   toasts: [] as [string, string | undefined][],
+  /** De leerplannen in de opslag, zoals `getCurriculum` ze bij de klik leest (een ander tabblad kan ze intussen veranderen). */
+  leerplannen: new Map<string, unknown>(),
+}));
+
+vi.mock('../../lib/curriculum', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/curriculum')>()),
+  getCurriculum: (id: string) => mock.leerplannen.get(id),
 }));
 
 vi.mock('react', async (importOriginal) => {
@@ -511,6 +518,8 @@ const EIGEN_TEKSTEN: PlanTeksten = {
   toast: (n) => `${n} vaardigheden staan nu klaar.`,
   nodig: 'minstens één vaardigheid',
   nietsTeDoen: 'Alle vaardigheden stonden al klaar.',
+  leerplanWeg: 'Het leerplan met de vaardigheden is weg.',
+  nietMeerInLeerplan: 'Geen gekozen vaardigheid staat nog in het leerplan.',
 };
 
 describe('smaak en teksten: GatenSetsKeuze en PlanInCursus met eigen zinnen', () => {
@@ -649,8 +658,13 @@ async function wacht(klaar: () => boolean): Promise<void> {
  */
 async function klikOpZet(o: {
   plan: Plan; dekking: MdDekking; curriculum: Curriculum; course: Course; smaak?: PlanSmaak; uit?: ReadonlySet<string>;
+  /** Het leerplan in de opslag bij de klik; zonder deze optie is dat `curriculum`, met `null` is het weg. */
+  inOpslag?: Curriculum | null;
 }): Promise<Klik> {
   mock.toasts = [];
+  mock.leerplannen = new Map();
+  const inOpslag = o.inOpslag === undefined ? o.curriculum : o.inOpslag;
+  if (inOpslag) mock.leerplannen.set(o.curriculum.id, inOpslag);
   const uit: Klik = { toasts: mock.toasts, bewerkt: undefined };
   let boom: unknown;
   // De aanroep gebeurt binnen de render van `Houder`: de hooks van `PlanInCursus` horen dan bij die render.
@@ -709,8 +723,37 @@ describe('de klik op "Zet ze in deze cursus"', () => {
       laadVoegToe: async () => (c, _l, codes) => { aanroepen.push(codes); return { course: c, toegevoegd: [] }; },
     };
     const plan = planVan(BK_DEKKING, BK_LEERPLAN, bkVerwijzingen);
-    await klikOpZet({ plan, dekking: BK_DEKKING, curriculum: BK_LEERPLAN, course: BK_CURSUS, smaak });
-    expect(aanroepen).toEqual([[]]);
+    const klik = await klikOpZet({ plan, dekking: BK_DEKKING, curriculum: BK_LEERPLAN, course: BK_CURSUS, smaak });
+    // Zonder codes wordt er niets gezet: de melding zegt dat geen gekozen doel in het leerplan staat.
+    expect(aanroepen).toEqual([]);
+    expect(klik.toasts).toEqual([['Geen gekozen vaardigheid staat nog in het leerplan.', 'err']]);
+    expect(klik.bewerkt).toBeUndefined();
+  });
+
+  it('leest het leerplan bij de klik opnieuw: een doel dat een ander tabblad weghaalde, komt er niet bij', async () => {
+    // Open zijn B04, C01 en C02; het andere tabblad haalt B04 uit het leerplan.
+    const vers: Curriculum = { ...LEERPLAN, goals: LEERPLAN.goals.filter((g) => g.code !== 'B04'), updatedAt: LEERPLAN.updatedAt + 1 };
+    const klik = await klikOpZet({ plan: PLAN_TWEE, dekking: DEKKING, curriculum: LEERPLAN, course: CURSUS, inOpslag: vers });
+    const codes = klik.bewerkt!.chapters.flatMap((h) => h.sections.flatMap((s) => s.goalCodes ?? []));
+    expect(codes).toEqual(['B01', 'B02', 'B03', 'C01', 'C02']);
+    expect(klik.toasts).toEqual([['2 doelen staan nu gepland in deze cursus.', 'ok']]);
+  });
+
+  it('is het leerplan intussen weg, dan verandert er niets en zegt de melding dat', async () => {
+    const md = await klikOpZet({ plan: PLAN_TWEE, dekking: DEKKING, curriculum: LEERPLAN, course: CURSUS, inOpslag: null });
+    expect(md.toasts).toEqual([['Het leerplan van deze cursus bestaat niet meer. Er is niets veranderd.', 'err']]);
+    expect(md.bewerkt).toBeUndefined();
+    const smaak: PlanSmaak = { teksten: EIGEN_TEKSTEN, laadVoegToe: async () => (c) => ({ course: c, toegevoegd: ['X'] }) };
+    const eigen = await klikOpZet({ plan: PLAN_TWEE, dekking: DEKKING, curriculum: LEERPLAN, course: CURSUS, smaak, inOpslag: null });
+    expect(eigen.toasts).toEqual([['Het leerplan met de vaardigheden is weg.', 'err']]);
+    expect(eigen.bewerkt).toBeUndefined();
+  });
+
+  it('bevat het leerplan intussen geen gekozen doel meer, dan verandert er niets en zegt de melding dat', async () => {
+    const leeg: Curriculum = { ...LEERPLAN, goals: LEERPLAN.goals.filter((g) => !(g.refs ?? []).length), updatedAt: LEERPLAN.updatedAt + 1 };
+    const klik = await klikOpZet({ plan: PLAN_TWEE, dekking: DEKKING, curriculum: LEERPLAN, course: CURSUS, inOpslag: leeg });
+    expect(klik.toasts).toEqual([['De gekozen doelen staan intussen niet meer in het leerplan van deze cursus. Er is niets veranderd.', 'err']]);
+    expect(klik.bewerkt).toBeUndefined();
   });
 
   it('is er niets toegevoegd, dan zegt de smaak dat zonder "gepland" te melden', async () => {
