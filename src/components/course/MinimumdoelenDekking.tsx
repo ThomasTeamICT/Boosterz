@@ -15,6 +15,7 @@ import { useSetBestanden } from '../curriculum/samenstellen/useSetBestanden';
 import { useRichtingGegevens, useRichtingKader } from '../richting/useRichtingGegevens';
 import type { Course } from '../../lib/courseTypes';
 import type { Curriculum } from '../../lib/curriculumTypes';
+import { getCurriculum } from '../../lib/curriculum';
 import {
   dekkingMinimumdoelen,
   kaderDoelen,
@@ -373,19 +374,21 @@ export function PlanInCursus({ plan, dekking, curriculum, namen, onEdit, samenva
       document.getElementById(eersteId)?.focus();
       return;
     }
-    const codes = codesVoorDoelen(curriculum, gekozen, smaak.verwijzingen).codes;
     bezig.current = true;
     void smaak.laadVoegToe().then(
       (voegToe) => {
+        // De editor kent het leerplan van toen ze opende: lees het opnieuw, het kan intussen in een ander tabblad veranderd zijn.
+        const leerplan = getCurriculum(curriculum.id) ?? curriculum;
+        const vers = codesVoorDoelen(leerplan, gekozen, smaak.verwijzingen);
         let toegevoegd = 0;
         onEdit((c) => {
-          const r = voegToe(c, curriculum, codes);
+          const r = voegToe(c, leerplan, vers.codes);
           toegevoegd = r.toegevoegd.length;
           return r.course;
         });
         bezig.current = false;
         if (toegevoegd > 0) {
-          toast(t.toast(gekozen.length), 'ok');
+          toast(t.toast(vers.inLeerplan.length), 'ok');
           setOpen(false);
           setFocusNa(dekking);
         } else {

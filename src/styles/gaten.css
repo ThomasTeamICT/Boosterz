@@ -77,6 +77,8 @@
 .gt-keuze-zin { margin: -6px 14px 12px 46px; color: var(--text-soft); font-size: 0.88rem; max-width: 72ch; overflow-wrap: break-word; }
 .gt-keuze-inhoud { padding: 0 14px 12px 46px; min-width: 0; }
 .gt-keuze-inhoud .field { margin-bottom: 4px; }
+/* De hint onder het titelveld staat op --brand-soft als de keuze aan staat: --text-faint haalt daar in het donkere thema geen 4,5 : 1. */
+.gt-keuze-inhoud .field .hint { color: var(--text-soft); }
 /* Een keuze die nog niet kan (aria-disabled): zichtbaar anders, met de uitleg eronder. */
 .gt-keuze-rij:has(input[aria-disabled='true']) { cursor: not-allowed; color: var(--text-soft); }
 .gt-keuze-rij input[aria-disabled='true'] { cursor: not-allowed; }

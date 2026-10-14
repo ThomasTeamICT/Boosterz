@@ -70,6 +70,8 @@ describe('kleurtokens', () => {
     ['text-faint', 'bg-sunken', 4.5],
     ['brand', 'bg-raised', 4.5],
     ['brand', 'brand-soft', 4.5],
+    // De hint in een gekozen keuze van de vensters om te plannen (gaten.css, .gt-keuze-inhoud).
+    ['text-soft', 'brand-soft', 4.5],
     // ok, warn en err dienen op veel plaatsen als tekstkleur
     ['ok', 'bg-raised', 4.5],
     ['warn', 'bg-raised', 4.5],

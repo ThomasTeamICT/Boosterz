@@ -386,7 +386,7 @@ describe('BkCursusDekking: zonder bestand, zonder index en wat niet meer in de b
     const korter = (n: number): BkBestand => ({ ...ONTHAAL, competenties: ONTHAAL.competenties.slice(0, n), aantal: n });
     expect(valideerBkBestand(korter(10), ONTHAAL.bk)).toEqual([]);
     const lijst = (b: BkBestand): BkEditorGegevens => ({ bestanden: new Map([[b.bk, b]]), titels: new Map() });
-    // Alleen wat de cursus al behandelt telt mee: dit is de cursus met het geraamte (elke competentie op een lege sectie).
+    // De cursus met het geraamte (elke competentie op een lege sectie); de lege cursus staat in de test hieronder.
     const metGeraamte = (lp: Curriculum) => cursusVoorBk({ titel: 'X', auteur: 'Y', doelgroep: DG, leerplan: lp, bestanden: BESTANDEN, start: 'geraamte' });
     expect(tekstVan(toon(LP_ONTHAAL_12, lijst(korter(10)), { course: metGeraamte(LP_ONTHAAL_12) }))).toContain(
       '2 competenties uit het leerplan van deze cursus staan niet meer in de officiële lijst van hun beroepskwalificatie. Bij de studierichting zie je wat er veranderde.',
@@ -397,6 +397,26 @@ describe('BkCursusDekking: zonder bestand, zonder index en wat niet meer in de b
     expect(tekstVan(toon(LP_ONTHAAL_12, GEGEVENS_ONTHAAL, { course: metGeraamte(LP_ONTHAAL_12) }))).not.toContain('niet meer in de officiële lijst');
     // Zonder alle bestanden is het kader onvolledig: dan zegt de editor hier niets over.
     expect(tekstVan(toon(LP_TWEE, lijst(korter(10)), { course: metGeraamte(LP_TWEE) }))).not.toContain('niet meer in de officiële lijst');
+  });
+
+  it('competenties die niet meer in de officiële lijst staan, tellen ook mee als ze op geen enkele sectie staan', () => {
+    const zonder = (...weg: number[]): BkBestand => {
+      const competenties = ONTHAAL.competenties.filter((_, i) => !weg.includes(i));
+      return { ...ONTHAAL, competenties, aantal: competenties.length };
+    };
+    const lijst = (b: BkBestand): BkEditorGegevens => ({ bestanden: new Map([[b.bk, b]]), titels: new Map() });
+    expect(valideerBkBestand(zonder(4, 5, 6), ONTHAAL.bk)).toEqual([]);
+    // Een lege cursus: geen enkele competentie staat op een sectie, toch staan er 3 van de 12 niet meer in de lijst.
+    expect(tekstVan(toon(LP_ONTHAAL_12, lijst(zonder(4, 5, 6)), { course: leegMet(LP_ONTHAAL_12) }))).toContain(
+      '3 competenties uit het leerplan van deze cursus staan niet meer in de officiële lijst van hun beroepskwalificatie.',
+    );
+    // 6 van de 8 op een sectie; weg zijn er twee op een sectie (4 en 5) en één zonder sectie (6): samen 3.
+    const codes = LP_ONTHAAL_8.goals.slice(0, 6).map((g) => g.code);
+    const zes = cursusVoorBk({ titel: 'X', auteur: 'Y', doelgroep: DG, leerplan: LP_ONTHAAL_8, bestanden: BESTANDEN, codes, start: 'geraamte' });
+    const tekst = tekstVan(toon(LP_ONTHAAL_8, lijst(zonder(4, 5, 6)), { course: zes }));
+    expect(tekst).toContain('3 competenties uit het leerplan van deze cursus staan niet meer in de officiële lijst van hun beroepskwalificatie.');
+    // Een competentie die niet in de lijst staat, komt niet nog eens in "staan nog op geen enkele sectie": alleen 7 blijft over.
+    expect(tekst).toContain('1 competentie uit het leerplan van deze cursus staat nog op geen enkele sectie');
   });
 
   it('nooit een competentiecode, ADV-nummer, groepnummer of BK-nummer in de tekst van het scherm', () => {

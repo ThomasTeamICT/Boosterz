@@ -7,7 +7,8 @@
 //
 // De gegevens (de bijdragen van de cursussen, de setbestanden en het kader) komen uit de dekking die op het scherm stond toen
 // de leerkracht klikte (`DekkingGegevens`): een momentopname, geen tweede berekening en geen nieuwe verzoeken. Bewaren gaat
-// alleen via `bewaarNieuweGatenCursus` en `bewaarGatenOpCursus`, die vlak voor het schrijven de opslag opnieuw lezen.
+// alleen via `bewaarNieuweGatenCursus` en `bewaarGatenOpCursus`, die vlak voor het schrijven de opslag opnieuw lezen; bij een
+// bestaande cursus leest het venster ook het leerplan opnieuw.
 //
 // Dit bestand wordt lui geladen, pas bij de klik op "Plan de … doelen die nog nergens aan bod komen".
 
@@ -19,7 +20,7 @@ import { GatenSetsKeuze, gekozenOpenDoelen, gekozenOpenSets } from '../course/Mi
 import type { DekkingGegevens } from './useRichtingDekking';
 import type { Course } from '../../lib/courseTypes';
 import { getCourse, saveCourse, saveCourseGuarded } from '../../lib/courses';
-import { deleteCurriculum, getCurricula, saveCurriculum } from '../../lib/curriculum';
+import { deleteCurriculum, getCurricula, getCurriculum, saveCurriculum } from '../../lib/curriculum';
 import {
   codesVoorDoelen,
   cursussenVoorGaten,
@@ -192,13 +193,21 @@ export function GatenVenster({ info, keuze, gegevens, onClose, onGepland }: Gate
   // ── (b) Een cursus die ze al heeft ──
   const zetInBestaandeCursus = () => {
     if (!kandidaat || !passend) return;
-    const r = bewaarGatenOpCursus({ courseId: kandidaat.course.id, leerplan: kandidaat.leerplan, codes: passend.codes }, OPSLAG);
+    // Het leerplan komt uit de momentopname van het blok: lees het opnieuw, het kan intussen in een ander tabblad veranderd zijn
+    // (de cursus leest `bewaarGatenOpCursus` zelf opnieuw).
+    const leerplan = getCurriculum(kandidaat.leerplan.id);
+    if (!leerplan) {
+      setProbleem({ tekst: foutBijBestaandeCursus('ander-leerplan') });
+      return;
+    }
+    const vers = codesVoorDoelen(leerplan, gekozenDoelen);
+    const r = bewaarGatenOpCursus({ courseId: kandidaat.course.id, leerplan, codes: vers.codes }, OPSLAG);
     if (!r.ok) {
       setProbleem({ tekst: foutBijBestaandeCursus(r.reden) });
       return;
     }
     bezig.current = true;
-    toast(geplandInCursusToast(passend.inLeerplan.length, r.course.title), 'ok');
+    toast(geplandInCursusToast(vers.inLeerplan.length, r.course.title), 'ok');
     onGepland();
   };
 

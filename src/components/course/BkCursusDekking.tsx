@@ -133,8 +133,16 @@ function Inhoud({ course, curriculum, widgets, onEdit, versies, gegevens }: BkCu
 
   // Een beroepskwalificatie zonder bestand telt niet mee: dat zeggen we erbij, anders lijkt de dekking kleiner dan ze is.
   const zonderBestand = versies.filter((v) => !bestanden.has(v));
-  // Zonder alle bestanden is het kader onvolledig en zou "niet meer in de lijst" te veel tellen.
-  const buitenKader = zonderBestand.length === 0 ? (dekking.cursussen[0]?.buitenKader ?? 0) : 0;
+  // De competenties van het leerplan die niet (meer) in het bestand van hun beroepskwalificatie staan, ook die op geen enkele
+  // sectie: `cursussen[0].buitenKader` telt alleen wat de cursus al behandelt. Zonder alle bestanden is het kader onvolledig en
+  // zou "niet meer in de lijst" te veel tellen.
+  const buitenKader = useMemo(() => {
+    if (versies.some((v) => !bestanden.has(v))) return 0;
+    const inKader = new Set(kader.map((d) => `${d.set}\u0000${d.id}`));
+    let n = 0;
+    for (const [bk, ids] of selectieVanBkLeerplan(curriculum)) for (const id of ids) if (!inKader.has(`${bk}\u0000${id}`)) n++;
+    return n;
+  }, [versies, bestanden, kader, curriculum]);
   const meerdere = versies.length > 1;
   const enige = dekking.perSet.length === 1 ? dekking.perSet[0] : undefined;
   const naamVan = (versie: string) => namen.get(versie) ?? bestanden.get(versie)?.titel.trim() ?? '';

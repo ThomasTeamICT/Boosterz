@@ -13,7 +13,7 @@
 // in het geheugen, dus dat kost geen nieuw verzoek. Zolang dat bezig is of mislukt, kan de primaire knop niet.
 //
 // Bewaren gaat uitsluitend via `bewaarNieuweGatenCursus` en `bewaarGatenOpCursus`, die vlak voor het schrijven de opslag opnieuw
-// lezen. Een beroepskwalificatie-leerplan wordt hier nooit aangepast (I1): een nieuw leerplan wordt bewaard, een bestaand
+// lezen; bij een bestaande cursus leest het venster ook het leerplan opnieuw. Een beroepskwalificatie-leerplan wordt hier nooit aangepast (I1): een nieuw leerplan wordt bewaard, een bestaand
 // hergebruikt, en bij een bestaande cursus komen er alleen secties bij.
 //
 // Twee aanvullingen op § 24.6.3, die de paragraaf niet beschrijft:
@@ -54,7 +54,7 @@ import {
 import type { BkBestand } from '../../../lib/beroepskwalificaties';
 import type { Course } from '../../../lib/courseTypes';
 import { getCourse, saveCourse, saveCourseGuarded } from '../../../lib/courses';
-import { deleteCurriculum, getCurricula, saveCurriculum } from '../../../lib/curriculum';
+import { deleteCurriculum, getCurricula, getCurriculum, saveCurriculum } from '../../../lib/curriculum';
 import { bkVerwijzingen, bkVersiesOmTeLaden } from '../../../lib/dekkingBk';
 import type { CursusBijdrage, MdDekking } from '../../../lib/dekkingMinimumdoelen';
 import { bewaarGatenOpCursus, bewaarNieuweGatenCursus, type GatenOpslag } from '../../../lib/gatenCursus';
@@ -282,19 +282,27 @@ export function BkGatenVenster({ info, keuze, gegevens, onClose, onGepland }: Bk
   // ── (b) Een cursus die ze al heeft ──
   const zetInBestaandeCursus = (g: BkGegevens) => {
     if (!kandidaat || !passend) return;
+    // Het leerplan komt uit de momentopname van het blok: lees het opnieuw, het kan intussen in een ander tabblad veranderd zijn
+    // (de cursus leest `bewaarGatenOpCursus` zelf opnieuw).
+    const leerplan = getCurriculum(kandidaat.leerplan.id);
+    if (!leerplan) {
+      setProbleem({ tekst: bkFoutBijBestaandeCursus('ander-leerplan') });
+      return;
+    }
+    const vers = codesVoorDoelen(leerplan, gekozenDoelen, bkVerwijzingen);
     // Een competentie komt altijd via `bkGeraamte`: een sectie per competentie, met kennis en vaardigheden (F3b-B3).
     const r = bewaarGatenOpCursus({
       courseId: kandidaat.course.id,
-      leerplan: kandidaat.leerplan,
-      codes: passend.codes,
-      geraamte: (leerplan, codes) => bkGeraamte(leerplan, g.bestanden, codes),
+      leerplan,
+      codes: vers.codes,
+      geraamte: (lp, codes) => bkGeraamte(lp, g.bestanden, codes),
     }, OPSLAG);
     if (!r.ok) {
       setProbleem({ tekst: bkFoutBijBestaandeCursus(r.reden) });
       return;
     }
     bezig.current = true;
-    toast(bkGeplandInCursusToast(passend.inLeerplan.length, r.course.title), 'ok');
+    toast(bkGeplandInCursusToast(vers.inLeerplan.length, r.course.title), 'ok');
     onGepland();
   };
 
