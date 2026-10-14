@@ -121,7 +121,7 @@ gelijk; een sleutel uit de naam viel in de eerste echte run samen voor verschill
     "sleutelcompetenties": [{ "nr": "…", "naam": "…" }],
     "bron": "https://www.onderwijsdoelen.be/",
     "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
-    "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+    "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)",
     "licentie": "nog te bevestigen", "opgehaald": "2026-10-05T10:00:00Z",
     "aantal": 0, "sha256": "…"
   },

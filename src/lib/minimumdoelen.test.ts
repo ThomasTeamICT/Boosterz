@@ -778,7 +778,7 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
       sleutelcompetenties: [{ nr: '1', naam: 'Competenties in verband met Nederlands' }],
       bron: 'https://www.onderwijsdoelen.be/',
       api: 'https://onderwijs.api.vlaanderen.be/onderwijsdoelen',
-      naamsvermelding: 'Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)',
+      naamsvermelding: 'Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)',
       licentie: 'nog te bevestigen',
     });
     expect(bestand.set.opgehaald).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
@@ -806,7 +806,7 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
       app: 'boosterz',
       kind: 'minimumdoelen-index',
       v: 1,
-      naamsvermelding: 'Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)',
+      naamsvermelding: 'Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)',
       licentie: 'nog te bevestigen',
       sets: [
         {

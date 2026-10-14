@@ -38,7 +38,8 @@ import {
   AddIcon, AIIcon, BackIcon, CheckIcon, DeleteIcon, EditIcon, ExportIcon, GoalIcon, InfoIcon, MoreIcon, MoveDownIcon,
   MoveUpIcon, PreviewIcon, RetryIcon, TipIcon, WarningIcon,
 } from '../components/icons';
-import { DEEL_HINT, effectieveStatus, isOfficieel, isSamengesteld, nagekekenTekst, uitOfficieleBron } from '../lib/leerplanStatus';
+import { DEEL_HINT, effectieveStatus, isBkLeerplan, isOfficieel, isSamengesteld, nagekekenTekst, uitOfficieleBron } from '../lib/leerplanStatus';
+import { BK_EDITOR_GEWIJZIGD, BK_EDITOR_NAAR_RICHTING, BK_EDITOR_NIET_NAGEKEKEN } from '../lib/bkLabels';
 import { ControleLabel, OfficieelLabel, officieelSoort } from '../components/curriculum/ControleLabel';
 import { LeerplanOpSlot } from '../components/curriculum/LeerplanOpSlot';
 import { LeerplanWegwijzer } from '../components/curriculum/LeerplanWegwijzer';
@@ -457,6 +458,13 @@ function CurriculumEditor({
   const uitBron = uitOfficieleBron(curriculum);
   // Een samengestelde lijst pas je aan door de keuze te wijzigen; een eigen kopie ervan pas je hier aan.
   const keuzeAanpassen = samengesteld && curriculum.kind !== 'eigen';
+  // Een leerplan met de competenties van een beroepskwalificatie maak je opnieuw nagekeken bij de studierichting
+  // (docs/STUDIERICHTINGEN.md § 23.7.5); hier kan het niet nagekeken worden. De link gaat naar de richting en het jaar.
+  const bk = isBkLeerplan(curriculum);
+  const dg = curriculum.doelgroep;
+  const richtingLink = bk && dg?.groep
+    ? `/cursussen/richtingen/${encodeURIComponent(dg.groep)}${dg.jaar !== undefined ? `?jaar=${dg.jaar}` : ''}`
+    : undefined;
   const bronSet = curriculum.herkomst?.bronNaam;
   const setGoals = (next: CurriculumGoal[]) => onChange({ ...curriculum, goals: next });
   const patch = (i: number, p: Partial<CurriculumGoal>) => setGoals(goals.map((g, j) => (j === i ? { ...g, ...p } : g)));
@@ -516,13 +524,14 @@ function CurriculumEditor({
             <p className="hint lp-labeluitleg">
               {keuzeAanpassen
                 ? 'Deze lijst kon niet als nagekeken bevestigd worden. Pas de keuze aan en bewaar de lijst opnieuw om het nog eens te proberen. Bewaar je ze opnieuw, dan wordt ze opnieuw samengesteld uit de officiële doelen; wat je zelf in de doelen veranderde, gaat dan verloren.'
-                : 'De doelen zijn nog niet met de bron vergeleken. Kijk ze na om ze vast te leggen.'}
+                : bk ? BK_EDITOR_NIET_NAGEKEKEN : 'De doelen zijn nog niet met de bron vergeleken. Kijk ze na om ze vast te leggen.'}
             </p>
           )}
         </div>
         <div className="page-head-actions">
           {wizardLink && <Link className="btn btn-primary" to={wizardLink}><BadgeCheck size={18} /> Nakijken en bevestigen</Link>}
           {keuzeAanpassen && <Link className="btn btn-primary" to={aanpassenLink}><EditIcon size={18} /> Keuze aanpassen</Link>}
+          {richtingLink && status === 'niet-gecontroleerd' && <Link className="btn btn-ghost" to={richtingLink}>{BK_EDITOR_NAAR_RICHTING}</Link>}
           <button className="btn btn-ai" onClick={onAskAI}><AIIcon size={18} /> Doelen toevoegen met AI</button>
           <button className="btn btn-ghost" onClick={() => exporteer(curriculum)}>
             <ExportIcon size={18} /> Exporteren
@@ -542,7 +551,14 @@ function CurriculumEditor({
               Dit leerplan telt daarom niet meer als nagekeken.
               {officieel && ' Wil je de officiële doelen? Gebruik de officiële set opnieuw, of maak er bewust een eigen leerplan van.'}
               {keuzeAanpassen && ' Wil je weer de officiële doelen? Pas de keuze aan en bewaar de lijst opnieuw: ze wordt dan opnieuw samengesteld uit de officiële doelen, en je eigen aanpassingen gaan verloren.'}
+              {bk && BK_EDITOR_GEWIJZIGD}
             </p>
+            {bk && (
+              <div className="lp-acties">
+                {richtingLink && <Link className="btn btn-sm btn-ghost" to={richtingLink}>{BK_EDITOR_NAAR_RICHTING}</Link>}
+                <button className="btn btn-sm btn-ghost" onClick={onEigenKopie}>Eigen kopie maken</button>
+              </div>
+            )}
             {officieel && (
               <div className="lp-acties">
                 {bronSet && isGeldigSetId(bronSet) && (

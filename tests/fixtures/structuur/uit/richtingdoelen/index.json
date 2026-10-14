@@ -4,7 +4,7 @@
   "v": 1,
   "bron": "https://www.onderwijsdoelen.be/",
   "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen/onderwijsdoel?structuuronderdeel_groep_nummer=",
-  "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+  "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)",
   "licentie": "nog te bevestigen",
   "matrixSha256": "2b20760da4b2b5ae8637202517946cc58f96cbaddb505dbb3772d40528300318",
   "groepen": [

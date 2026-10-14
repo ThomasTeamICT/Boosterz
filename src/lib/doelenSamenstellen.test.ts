@@ -33,7 +33,7 @@ function maakSet(id: string, doelen: Minimumdoel[], kop: Partial<MinimumdoelenSe
       id, naam: 'Secundair onderwijs 1ste graad A-stroom - Vak - Testvak - Eindtermen', korteNaam: 'Testvak',
       versie: '1.0', geldigheid: 'Geldig', geldigVan: '2024-09-01', graad: '1ste graad', stroom: 'A-stroom', sleutelcompetenties: [],
       bron: 'https://www.onderwijsdoelen.be/', api: 'https://onderwijs.api.vlaanderen.be/onderwijsdoelen',
-      naamsvermelding: 'Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)',
+      naamsvermelding: 'Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)',
       licentie: 'nog te bevestigen', opgehaald: '2026-10-05T12:20:49Z', aantal: doelen.length, sha256: 'a'.repeat(64),
       ...kop,
     },
@@ -632,7 +632,7 @@ describe('leerplanUitSelectie: kop van de lijst', () => {
     expect(Math.abs(lp.herkomst!.ingelezenOp - Date.now())).toBeLessThan(10_000);
     expect(lp.subject).toBe('Wiskunde');
     expect(lp.source).toBe(
-      'Samengesteld uit de officiële minimumdoelen: Testvak (ODS_9001). Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be) (opgehaald 5 oktober 2026)',
+      'Samengesteld uit de officiële minimumdoelen: Testvak (ODS_9001). Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be) (opgehaald 5 oktober 2026)',
     );
   });
 

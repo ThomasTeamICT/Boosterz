@@ -11,7 +11,7 @@
   "definitie": "De omsteller verspaning legt de verspanings-en gereedschapsvoorwaarden vast, definieert de hulpgereedschappen en bewerkt stukken door het wegnemen van materie met conventionele machines, CNC-machines of bewerkingscentra teneinde een performant proces te bekomen en stukken uit diverse materiaalsoorten (ferro, non-ferro en kunststoffen) te vervaardigen volgens volumetrische specificaties (3D).",
   "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
   "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0261-3",
-  "naamsvermelding": "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
+  "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
   "licentie": "nog te bevestigen",
   "opgehaald": "2026-10-10T21:53:58Z",
   "aantal": 22,

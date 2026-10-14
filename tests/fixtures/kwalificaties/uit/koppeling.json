@@ -4,7 +4,7 @@
   "v": 1,
   "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
   "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/",
-  "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (API Structuuronderdelen)",
+  "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (API Structuuronderdelen)",
   "licentie": "nog te bevestigen",
   "opgehaald": "2026-10-10T00:00:00Z",
   "matrixSha256": "2b20760da4b2b5ae8637202517946cc58f96cbaddb505dbb3772d40528300318",

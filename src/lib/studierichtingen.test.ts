@@ -42,7 +42,7 @@ const MINIMUMDOELEN_INDEX = join(MINIMUMDOELEN, 'index.json');
 const ODS_3116 = join(MINIMUMDOELEN, 'ODS_3116.json');
 const API_SO = `${STRUCTUUR_API}/structuuronderdeel`;
 const DOELEN_BRON = 'https://www.onderwijsdoelen.be/';
-const DOELEN_NAAMSVERMELDING = 'Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)';
+const DOELEN_NAAMSVERMELDING = 'Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)';
 
 function sha256Van(waarde: unknown): string {
   return createHash('sha256').update(canoniek(waarde), 'utf8').digest('hex');

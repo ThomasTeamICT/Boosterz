@@ -10,12 +10,12 @@ De eigenaar pauzeerde het werk op 11 oktober 2026 (tokens nodig voor een ander p
 
 **Besluit van de eigenaar (11 oktober 2026), licentie en bronvermelding:** de eigenaar stelt de vraag van § 23.10 zelf aan TechLoket Onderwijs en verwacht niet snel een antwoord; hij vindt het niet problematisch. Werkkeuze: **een algemene bronvermelding zonder naam van een agentschap**, waar er een nodig is: "Bron: Vlaamse overheid, Onderwijs en Vorming" (met de API of site tussen haakjes, en de ophaaldatum). `licentie: "nog te bevestigen"` blijft staan tot er een antwoord is.
 
-**Wat er volgende keer kan gebeuren, in deze volgorde (klein naar groot):**
+**Wat er volgende keer kan gebeuren, in deze volgorde (klein naar groot; 1 en 2 gedaan op 14 oktober 2026):**
 
 | # | Wat | Waar | Grootte |
 |---|---|---|---|
-| 1 | De bronvermelding algemeen maken: "Departement Onderwijs en Vorming" bij de minimumdoelen wordt "Onderwijs en Vorming" (onderwijsdoelen.be noemt AHOVOKS als uitgever, zie § 23.10); de BK-vermelding wordt "Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)". Constanten aanpassen met hun tests; de volgende maandelijkse run (de 3de van de maand, 05:23 UTC) schrijft de bestanden opnieuw. | `src/lib/minimumdoelen.ts` en `tools/leerplannen/haal-minimumdoelen.mjs` (naamsvermelding), `src/lib/beroepskwalificaties.ts` (`BK_NAAMSVERMELDING`, `KOPPELING_NAAMSVERMELDING`), `src/lib/studierichtingen.ts` (`STRUCTUUR_NAAMSVERMELDING`), de bronregel in `src/lib/bkWeergave.ts` | klein, hoofdsessie |
-| 2 | De hint "Kijk ze na" bij een kopie van een BK-leerplan in de leerplaneditor: "Maak het leerplan opnieuw bij ‘Beroepskwalificaties’ bij de studierichting: het wordt dan meteen nagekeken bewaard.", en bij status `gewijzigd` ook de knop "Eigen kopie maken" (voorstel van S3, § 23 stand I4) | `src/pages/CurriculaPage.tsx` (`CurriculumEditor`) | klein, bouwer |
+| 1 | ~~De bronvermelding algemeen maken~~ **Klaar** (14 oktober 2026): overal "Bron: Vlaamse overheid, Onderwijs en Vorming" (onderwijsdoelen.be, API Structuuronderdelen) en "Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)". De constanten in `minimumdoelen.ts`, `studierichtingen.ts` en `beroepskwalificaties.ts`, de bronregel in `bkWeergave.ts`, en ook de kop van de bestanden in `public/leerplannen/` en `tests/fixtures/` (de ophaalscripts laten een ongewijzigd bestand staan, dus de nieuwe vermelding zou er anders nooit in komen; de sha256 van een bestand telt alleen de inhoud). Bewaarde leerplannen houden hun oude bronregel (niets verandert stil); de vingerafdruk telt alleen de doelen. | | |
+| 2 | ~~De hint bij een kopie van een BK-leerplan in de leerplaneditor~~ **Klaar** (14 oktober 2026): bij een BK-leerplan dat niet nagekeken is (een eigen kopie) de zin "Dit leerplan volgt de competenties van een beroepskwalificatie, maar telt niet als nagekeken. Maak het leerplan opnieuw bij ‘Beroepskwalificaties’ bij de studierichting: het wordt dan meteen nagekeken bewaard." met de knop "Studierichting openen"; bij een gewijzigd BK-leerplan dezelfde uitleg in de waarschuwing, met "Studierichting openen" en "Eigen kopie maken". Teksten in `bkLabels.ts` (licht, getest); in de browser nagekeken op 390 px. | | |
 | 3 | Na de tweede maandelijkse run (3 november 2026): T7 en W2 nakijken in het rapport (`versieOverlap`: blijft `competentie_code` gelijk over versies?), de data-PR nakijken zoals § 23.5.13 en samenvoegen op teken van de eigenaar | rapport van de workflow, § 23.3 en § 23.12 | klein, hoofdsessie |
 | 4 | Eventueel de koppeling slanker maken: ze weegt 1,58 MB (75 kB gzip), vooral door de extra velden van de studiebekrachtigingen (0,59 MB) en afgelopen erkenningen (0,40 MB) | `tools/leerplannen/haal-beroepskwalificaties.mjs`, `src/lib/beroepskwalificaties.ts` | middel, kernbouwer |
 | 5 | Fase 3b (W14, later): de BK-dekking ook in de cursuseditor, in "Mijn richtingen" en in de klas, en "Plan de competenties die nog nergens aan bod komen" | nieuw ontwerp nodig | groot |
@@ -121,7 +121,7 @@ De service worker behandelt de nieuwe bestanden zoals de minimumdoelen: netwerk 
   "v": 1,
   "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
   "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep",
-  "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (API Structuuronderdelen)",
+  "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (API Structuuronderdelen)",
   "licentie": "nog te bevestigen",
   "opgehaald": "2026-11-03T05:41:12Z",
   "aantalGroepen": 545,
@@ -2056,7 +2056,7 @@ Voor elk bestand gelden de regels van § 3.1: kop met 2 spaties inspringing, é�
   "v": 1,
   "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
   "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/",
-  "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (API Structuuronderdelen)",
+  "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (API Structuuronderdelen)",
   "licentie": "nog te bevestigen",
   "opgehaald": "2026-11-03T06:10:00Z",
   "matrixSha256": "<sha256 van studierichtingen.json bij het koppelen>",
@@ -2135,7 +2135,7 @@ Puur: geen imports en alleen erasable TypeScript, zoals `studierichtingen.ts`. H
 export const BK_API = 'https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2';
 export const BK_BRON = 'https://onderwijs-api-portaal.vlaanderen.be/';
 /** Werkkeuze tot TechLoket antwoordt (§ 23.10): geen naam van een agentschap. Eén constante; aanpassen = een nieuwe run. */
-export const BK_NAAMSVERMELDING = 'Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)';
+export const BK_NAAMSVERMELDING = 'Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)';
 export const BK_NUMMER = /^BK-\d{3,6}$/;
 export const BK_VERSIE = /^BK-\d{3,6}-\d{1,4}$/;
 export const DBK_NUMMER = /^BK-\d{3,6}-\d{1,4}-DBK-\d{1,4}$/;
@@ -2639,7 +2639,7 @@ De sectie staat er als het kader BK's heeft, of als de richting finaliteit A of 
 | Melding `niet-meer-bij-richting` (onder de kaarten) | `callout` (role note): "Je leerplan ‘<titel>’ volgt ‘<BK-titel>’, maar die beroepskwalificatie hoort volgens de officiële bron niet meer bij deze richting. Je leerplan blijft werken." |
 | Toekomst | "Vanaf 1 september 2027 hoort bij deze richting: Onthaalmedewerker en Baliemedewerker." |
 | `details` | summary "Wat leerlingen in deze richting kunnen behalen (5)" → per rij de naam, met " (onderwijskwalificatie)", " (beroepskwalificatie)" of " (deelkwalificatie)" erachter, alleen als de naam dat soort nog niet noemt (K7: de namen uit de bron noemen het meestal al, bv. "Bewijs van beroepskwalificatie Onthaalmedewerker (BK-0390-2)"). Met een DBK de hint: "Een deelkwalificatie is een deel van een beroepskwalificatie. Welke competenties erbij horen, staat niet in de gegevens die Boosterz ophaalt." |
-| Bronregel | "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties) en API Structuuronderdelen, opgehaald op 3 november 2026. Boosterz toont de competenties letterlijk en verzint geen koppelingen." |
+| Bronregel | "Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties) en API Structuuronderdelen, opgehaald op 3 november 2026. Boosterz toont de competenties letterlijk en verzint geen koppelingen." |
 
 Na "Werk het leerplan bij" of "Maak een leerplan met de versie van nu" gaat de focus naar de kop van de sectie. Een BK-leerplan staat ook in de bestaande lijst "Leerplannen van deze richting op dit toestel" (vanzelf, via `uitOfficieleBron`); daar verandert niets.
 
@@ -2744,7 +2744,7 @@ Elk S-pakket meet en meldt; de hoofdsessie meet na I2 en I3. Alleen de hoofdsess
 - BK-leerplannen gelden als "uit de officiële bron" (geen `DEEL_HINT`), zoals de minimumdoelen (W10).
 - Het curriculumdossier (Word) wordt niet opgehaald, niet getoond en niet gelinkt.
 
-**Werkkeuze voor de naamsvermelding:** "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)", zonder naam van een agentschap. ONDERWIJS-API.md noemt er geen; de opdracht noemt AKOV, LEERPLANNEN.md noemt de nieuwsbrief van de API Kwalificaties en Curriculum van AHOVOKS. Tot TechLoket antwoordt, noemen we geen naam die verkeerd kan zijn. Het is één constante en een nieuwe run.
+**Werkkeuze voor de naamsvermelding** (sinds 14 oktober 2026, besluit van de eigenaar: algemeen, zonder agentschap): "Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)"; daarvoor "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)". ONDERWIJS-API.md noemt er geen; de opdracht noemt AKOV, LEERPLANNEN.md noemt de nieuwsbrief van de API Kwalificaties en Curriculum van AHOVOKS. Tot TechLoket antwoordt, noemen we geen naam die verkeerd kan zijn. Het is één constante en een nieuwe run.
 
 **De eigenaar vraagt via het formulier van TechLoket Onderwijs** (sinds 24 maart 2026 de enige weg; mee met O9 en LEERPLANNEN.md § 12):
 1. Onder welke licentie mogen de gegevens van de API Beroepskwalificaties en de API Structuuronderdelen bewaard worden in een publieke repository, letterlijk getoond in een publieke webapp, en opgenomen in leerplannen en cursussen die leerkrachten delen? Met welke naamsvermelding (welk agentschap)?

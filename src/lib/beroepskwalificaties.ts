@@ -38,7 +38,7 @@
 export const BK_API = 'https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2';
 export const BK_BRON = 'https://onderwijs-api-portaal.vlaanderen.be/';
 /** Werkkeuze tot TechLoket antwoordt (§ 23.10): geen naam van een agentschap. Eén constante; aanpassen = een nieuwe run. */
-export const BK_NAAMSVERMELDING = 'Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)';
+export const BK_NAAMSVERMELDING = 'Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)';
 export const BK_NUMMER = /^BK-\d{3,6}$/;
 export const BK_VERSIE = /^BK-\d{3,6}-\d{1,4}$/;
 export const DBK_NUMMER = /^BK-\d{3,6}-\d{1,4}-DBK-\d{1,4}$/;
@@ -54,7 +54,7 @@ export const BK_INDEX_KIND = 'beroepskwalificaties-index';
 export const BK_KIND = 'beroepskwalificatie';
 /** Het adres in de kop van de koppeling: het detail per structuuronderdeel. */
 export const KOPPELING_API = 'https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeel/';
-export const KOPPELING_NAAMSVERMELDING = 'Bron: Vlaamse overheid, Departement Onderwijs en Vorming (API Structuuronderdelen)';
+export const KOPPELING_NAAMSVERMELDING = 'Bron: Vlaamse overheid, Onderwijs en Vorming (API Structuuronderdelen)';
 export const BK_INDEX_API = `${BK_API}/beroepskwalificatie/`;
 export const LICENTIE = 'nog te bevestigen';
 /** Elk adres in een kop begint hiermee: zo komt een adres van een lokale testserver nooit in de bestanden. */

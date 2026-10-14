@@ -11,7 +11,7 @@
   "definitie": "Organiseert en voert recreatieve activiteiten (sport, spel, natuur, muziek,…) uit voor jongeren, volwassenen (of voor verschillende doelgroepen) volgens het specifieke karakter van de organisatie (vakantiecentrum, vrijetijdscentrum, ...) teneinde een gepast ontspanningsprogramma aan te bieden.",
   "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
   "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0309-2",
-  "naamsvermelding": "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
+  "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
   "licentie": "nog te bevestigen",
   "opgehaald": "2026-10-10T21:53:58Z",
   "aantal": 17,

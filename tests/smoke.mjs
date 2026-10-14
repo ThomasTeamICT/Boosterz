@@ -1636,7 +1636,7 @@ const rtOpslag = (p, groep) => p.evaluate((g) => {
   const nRijen = await p.locator('a.ri-rij').count();
   check(`(2) lijst: de nagebootste matrix wordt gebruikt (bestand geserveerd, ${nRijen} van hoogstens 9 richtingen)`, treffers.includes('studierichtingen.json') && nRijen >= 4 && nRijen <= 9);
   check('(2) lijst: de teller kondigt het aantal aan (aria-live)', /^\d+ richting(en)?$/.test((await p.locator('.ri-aantal[aria-live="polite"]').innerText()).trim()));
-  check('(2) lijst: de bronregel noemt de overheid en de ophaaldatum, zonder groepnummer', /^Bron: Vlaamse overheid, Departement Onderwijs en Vorming \(API Structuuronderdelen\), opgehaald op \d{1,2} [a-z]+ \d{4}\.$/.test((await p.locator('.ri-bron').innerText()).trim()) && (await rtGeenIds(p)));
+  check('(2) lijst: de bronregel noemt de overheid en de ophaaldatum, zonder groepnummer', /^Bron: Vlaamse overheid, Onderwijs en Vorming \(API Structuuronderdelen\), opgehaald op \d{1,2} [a-z]+ \d{4}\.$/.test((await p.locator('.ri-bron').innerText()).trim()) && (await rtGeenIds(p)));
 
   // (3) 2de graad en zoeken: de link naar Natuurwetenschappen
   await p.getByLabel('2de graad', { exact: true }).check();
@@ -1810,7 +1810,7 @@ console.log('20e. Studierichtingen op de echte data');
       // Lijst
       await go('/#/cursussen/richtingen');
       await p.waitForSelector('.ri-lijst', { timeout: 20000 });
-      check(`${wie}: de lijst heeft één main, één h1 en een bronregel zonder groepnummer`, (await p.locator('main').count()) === 1 && (await p.locator('main h1').count()) === 1 && /^Bron: Vlaamse overheid, Departement Onderwijs en Vorming \(API Structuuronderdelen\), opgehaald op \d{1,2} [a-z]+ \d{4}\.$/.test((await p.locator('.ri-bron').innerText()).trim()) && (await rtGeenIds(p)));
+      check(`${wie}: de lijst heeft één main, één h1 en een bronregel zonder groepnummer`, (await p.locator('main').count()) === 1 && (await p.locator('main h1').count()) === 1 && /^Bron: Vlaamse overheid, Onderwijs en Vorming \(API Structuuronderdelen\), opgehaald op \d{1,2} [a-z]+ \d{4}\.$/.test((await p.locator('.ri-bron').innerText()).trim()) && (await rtGeenIds(p)));
       await p.getByLabel(graad, { exact: true }).check();
       await p.fill('input[type=search]', r.zoek);
       await sleep(700);
@@ -2493,7 +2493,7 @@ const rtHoogtes = (loc) => loc.evaluateAll((l) => l.filter((e) => e.getBoundingC
   await behaalbaar.first().click();
   await sleep(200);
   check(`(2) sectie: "Wat leerlingen in deze richting kunnen behalen (${nBehaalbaar})" toont ${nBehaalbaar} regels, met de hint over een deelkwalificatie`, (await behaalbaar.count()) === 1 && nBehaalbaar >= 1 && (await sectie.locator('ul.bk-behaalbaar > li').count()) === nBehaalbaar && /Een deelkwalificatie is een deel van een beroepskwalificatie\./.test(await sectie.innerText()));
-  check('(2) sectie: de bronregel noemt de Vlaamse kwalificatiestructuur en de ophaaldatum', /^Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur \(API Beroepskwalificaties\) en API Structuuronderdelen, opgehaald op \d{1,2} [a-z]+ \d{4}\./.test((await sectie.locator('.bk-bron').innerText()).trim()));
+  check('(2) sectie: de bronregel noemt de Vlaamse kwalificatiestructuur en de ophaaldatum', /^Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur \(API Beroepskwalificaties\) en API Structuuronderdelen, opgehaald op \d{1,2} [a-z]+ \d{4}\./.test((await sectie.locator('.bk-bron').innerText()).trim()));
   check('(2) sectie: geen ODS_, ADV-, bkc-code of groepnummer buiten de bronregel (ook niet in wat dichtstaat)', await rtBkGeenIds(p));
 
   // (3) Het venster: eerst vanaf de kaart van de tweede beroepskwalificatie (startBk), dan de hoofdstroom vanaf de eerste

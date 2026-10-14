@@ -11,7 +11,7 @@
   "definitie": "Het verrichten van specifieke werkzaamheden met betrekking tot goederenbehandeling en het naleven van kwaliteitsprocedures, hygiëne- en veiligheidsvoorschriften en leveringstermijnen teneinde de ontvangst, de opslag, het voorraadbeheer, de voorbereiding van bestellingen en de verzending van goederen, producten, grondstoffen, … te garanderen",
   "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
   "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0002-3",
-  "naamsvermelding": "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
+  "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
   "licentie": "nog te bevestigen",
   "opgehaald": "2026-10-10T21:53:58Z",
   "aantal": 5,

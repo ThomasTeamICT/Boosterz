@@ -11,7 +11,7 @@
   "definitie": "De schoonheidsspecialist voert schoonheids- en lichaamsverzorgingen uit op het gelaat, de handen, de gezonde voeten en andere lichaamsdelen en informeert over een goede verzorging van het lichaam, over de esthetiek en over schoonheidsproducten teneinde het uiterlijk en het welzijn van de mens in stand te houden of mooier/beter te maken.",
   "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
   "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0225-2",
-  "naamsvermelding": "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
+  "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
   "licentie": "nog te bevestigen",
   "opgehaald": "2026-10-10T21:53:58Z",
   "aantal": 25,

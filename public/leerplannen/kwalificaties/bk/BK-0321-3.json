@@ -11,7 +11,7 @@
   "definitie": "Het opvolgen en informeren van het personeel en het administratief beheren van personeelsdossiers, rekening houdend met de geldende regelgeving en het HR-beleid van de organisatie teneinde een efficiënt personeelsbeheer te ondersteunen en uit te voeren.",
   "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
   "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0321-3",
-  "naamsvermelding": "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
+  "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
   "licentie": "nog te bevestigen",
   "opgehaald": "2026-10-10T21:53:58Z",
   "aantal": 15,

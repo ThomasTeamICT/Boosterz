@@ -120,7 +120,7 @@ export interface GenormaliseerdRecord extends SetVanRecord {
 export const API_BASIS = 'https://onderwijs.api.vlaanderen.be/onderwijsdoelen';
 /** Het patroon van een link naar één set op de site is nog niet gekend: we verwijzen naar de site. */
 export const BRON_BASIS = 'https://www.onderwijsdoelen.be/';
-export const NAAMSVERMELDING = 'Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)';
+export const NAAMSVERMELDING = 'Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)';
 export const LICENTIE = 'nog te bevestigen';
 
 const TEKST_SLEUTELS = ['naam', 'omschrijving', 'code', 'label', 'waarde'];

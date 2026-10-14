@@ -11,7 +11,7 @@
   "definitie": "Het opvolgen van productiegegevens, het instellen, omstellen, bedienen, opvolgen en het sturen van de productie aan de installatie en/of vanuit de controlekamer, het uitvoeren van kwaliteitscontroles op geregelde tijdstippen en het nemen van maatregelen in geval van storingen en afwijkingen in overleg met een verantwoordelijke, steeds in navolging van kwaliteitsprocedures, hygiëne-, milieu-, veiligheids- en productievoorschriften (kwaliteit, kosten, termijn, …) teneinde grondstoffen aan de procesinstallatie en machinelijn te bewerken tot (half)afgewerkte producten.",
   "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
   "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0493-1",
-  "naamsvermelding": "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
+  "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
   "licentie": "nog te bevestigen",
   "opgehaald": "2026-10-10T21:53:58Z",
   "aantal": 10,

@@ -39,7 +39,7 @@
 
 export const STRUCTUUR_API = 'https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2';
 export const STRUCTUUR_BRON = 'https://onderwijs-api-portaal.vlaanderen.be/';
-export const STRUCTUUR_NAAMSVERMELDING = 'Bron: Vlaamse overheid, Departement Onderwijs en Vorming (API Structuuronderdelen)';
+export const STRUCTUUR_NAAMSVERMELDING = 'Bron: Vlaamse overheid, Onderwijs en Vorming (API Structuuronderdelen)';
 export const KOPPEL_PARAMETER = 'structuuronderdeel_groep_nummer';
 export const GROEP_NUMMER = /^G-\d{4,6}$/;
 

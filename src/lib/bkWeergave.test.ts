@@ -209,10 +209,10 @@ describe('de sectie bij de richting', () => {
 
   it('bkBronregel: met en zonder dag van ophalen', () => {
     expect(bkBronregel('2026-11-03T10:00:00Z')).toBe(
-      'Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties) en API Structuuronderdelen, opgehaald op 3 november 2026. Boosterz toont de competenties letterlijk en verzint geen koppelingen.',
+      'Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties) en API Structuuronderdelen, opgehaald op 3 november 2026. Boosterz toont de competenties letterlijk en verzint geen koppelingen.',
     );
     expect(bkBronregel()).toBe(
-      'Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties) en API Structuuronderdelen. Boosterz toont de competenties letterlijk en verzint geen koppelingen.',
+      'Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties) en API Structuuronderdelen. Boosterz toont de competenties letterlijk en verzint geen koppelingen.',
     );
   });
 });
@@ -463,10 +463,31 @@ describe('bkLabels: wat de leerplanpagina en de inleespagina nodig hebben, zonde
   const code = (tekst: string): string => tekst.split('\n').filter((r) => !/^\s*(\/\/|\*|\/\*)/.test(r)).join('\n');
 
   it('bkWeergave voert dezelfde namen opnieuw uit, met dezelfde waarden', () => {
-    expect(Object.keys(L).sort()).toEqual(['BK_LABEL_KOPIE', 'BK_LABEL_OFFICIEEL', 'bkInleesTekst']);
+    expect(Object.keys(L).sort()).toEqual(['BK_EDITOR_GEWIJZIGD', 'BK_EDITOR_NAAR_RICHTING', 'BK_EDITOR_NIET_NAGEKEKEN', 'BK_LABEL_KOPIE', 'BK_LABEL_OFFICIEEL', 'bkInleesTekst']);
     expect(W.BK_LABEL_OFFICIEEL).toBe(L.BK_LABEL_OFFICIEEL);
     expect(W.BK_LABEL_KOPIE).toBe(L.BK_LABEL_KOPIE);
     expect(W.bkInleesTekst).toBe(L.bkInleesTekst);
+    expect(W.BK_EDITOR_NIET_NAGEKEKEN).toBe(L.BK_EDITOR_NIET_NAGEKEKEN);
+    expect(W.BK_EDITOR_GEWIJZIGD).toBe(L.BK_EDITOR_GEWIJZIGD);
+    expect(W.BK_EDITOR_NAAR_RICHTING).toBe(L.BK_EDITOR_NAAR_RICHTING);
+  });
+
+  it('de zinnen in de leerplaneditor bij een BK-leerplan: letterlijk, zonder interne sleutels, en de editor gebruikt ze', () => {
+    expect(L.BK_EDITOR_NIET_NAGEKEKEN).toBe(
+      'Dit leerplan volgt de competenties van een beroepskwalificatie, maar telt niet als nagekeken. Maak het leerplan opnieuw bij ‘Beroepskwalificaties’ bij de studierichting: het wordt dan meteen nagekeken bewaard.',
+    );
+    expect(L.BK_EDITOR_GEWIJZIGD).toBe(
+      ' Wil je weer de officiële competenties? Maak het leerplan opnieuw bij ‘Beroepskwalificaties’ bij de studierichting, of maak er bewust een eigen leerplan van.',
+    );
+    expect(L.BK_EDITOR_NAAR_RICHTING).toBe('Studierichting openen');
+    for (const t of [L.BK_EDITOR_NIET_NAGEKEKEN, L.BK_EDITOR_GEWIJZIGD, L.BK_EDITOR_NAAR_RICHTING]) {
+      expect(t).not.toMatch(/bkc\d|ADV-\d|ODS_|G-\d{3,4}|widget|structuuronderdeel/i);
+    }
+    // De editor haalt ze uit bkLabels (licht), met de juiste keuzes erbij.
+    const editor = bron('../pages/CurriculaPage.tsx');
+    expect(editor).toMatch(/from '\.\.\/lib\/bkLabels'/);
+    for (const naam of ['BK_EDITOR_NIET_NAGEKEKEN', 'BK_EDITOR_GEWIJZIGD', 'BK_EDITOR_NAAR_RICHTING']) expect(editor).toContain(naam);
+    expect(editor).not.toMatch(/from '\.\.\/lib\/bkWeergave'/);
   });
 
   it('bkLabels.ts heeft geen enkele import (anders komt er weer een heel bestand mee op de leerplanpagina)', () => {

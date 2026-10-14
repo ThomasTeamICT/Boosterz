@@ -67,7 +67,7 @@ function maakBestand(id: string, naam: string, korteNaam: string, doelen: Minimu
     set: {
       id, naam, korteNaam, versie: '1.0', geldigheid: 'Geldig', geldigVan: '2024-09-01', graad: '2de graad', sleutelcompetenties: [],
       bron: 'https://www.onderwijsdoelen.be/', api: 'https://onderwijs.api.vlaanderen.be/onderwijsdoelen',
-      naamsvermelding: 'Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)',
+      naamsvermelding: 'Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)',
       licentie: 'nog te bevestigen', opgehaald: '2026-10-05T12:20:49Z', aantal: doelen.length, sha256: 'a'.repeat(64),
     },
     doelen,

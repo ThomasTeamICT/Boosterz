@@ -80,7 +80,7 @@ export function GegevensStand({ stand, opnieuw }: { stand: Exclude<Laadstand<Ric
 }
 
 /**
- * "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (API Structuuronderdelen), opgehaald op 9 oktober 2026." (de
+ * "Bron: Vlaamse overheid, Onderwijs en Vorming (API Structuuronderdelen), opgehaald op 9 oktober 2026." (de
  * naamsvermelding begint zelf met "Bron:"). Een `toevoeging` komt tussen haakjes achter de datum.
  */
 export function bronTekst(gegevens: RichtingGegevens, toevoeging?: string): string {

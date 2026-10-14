@@ -41,7 +41,7 @@ function maakBestand(doelen?: Minimumdoel[]): MinimumdoelenSetBestand {
       apiId: '9001', korteNaam: 'Artistieke Opvoeding', versie: '1.0', geldigheid: 'Geldig', geldigVan: '2024-09-01',
       graad: '1ste graad', stroom: 'A-stroom', sleutelcompetenties: [],
       bron: 'https://www.onderwijsdoelen.be/', api: 'https://onderwijs.api.vlaanderen.be/onderwijsdoelen',
-      naamsvermelding: 'Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)',
+      naamsvermelding: 'Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)',
       licentie: 'nog te bevestigen', opgehaald: '2026-10-05T12:20:49Z', aantal: lijst.length, sha256: 'a'.repeat(64),
     },
     doelen: lijst,
@@ -62,7 +62,7 @@ describe('leerplanUitSet', () => {
     expect(leerplan.minimumdoelenSets).toEqual(['ODS_9001']);
     expect(leerplan.source).toBe(
       'Secundair onderwijs 1ste graad A-stroom - Vak - Artistieke Opvoeding - Eindtermen. '
-        + 'Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be) (opgehaald 5 oktober 2026)',
+        + 'Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be) (opgehaald 5 oktober 2026)',
     );
   });
 

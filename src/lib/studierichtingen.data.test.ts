@@ -1485,7 +1485,7 @@ const MINIMALE_GROEP = 'G-9001';
 const MINIMALE_SET = 'ODS_9001';
 const MINIMALE_IDS = ['9001001', '9001002', '9001003', '9001004'];
 const MINIMALE_TIJD = '2026-10-09T00:00:00Z';
-const NAAMSVERMELDING = 'Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)';
+const NAAMSVERMELDING = 'Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)';
 
 interface MinimaleMap {
   /** De map met `studierichtingen.json` en `richtingdoelen/`. */
@@ -1550,7 +1550,7 @@ function maakMinimaleMap(): MinimaleMap {
     v: 1,
     bron: 'https://onderwijs-api-portaal.vlaanderen.be/',
     api: 'https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/structuuronderdelen/v2/structuuronderdeelgroep',
-    naamsvermelding: 'Bron: Vlaamse overheid, Departement Onderwijs en Vorming (API Structuuronderdelen)',
+    naamsvermelding: 'Bron: Vlaamse overheid, Onderwijs en Vorming (API Structuuronderdelen)',
     licentie: 'nog te bevestigen',
     opgehaald: MINIMALE_TIJD,
     aantalGroepen: 1,

@@ -11,7 +11,7 @@
   "definitie": "De vliegtuigtechnieker Cat B2 voert preventieve en correctieve onderhoudsacties met diagnose uit aan avionica en elektrische systemen van vliegtuigen, voert eenvoudige werkzaamheden zonder diagnose uit aan elektrische en avionicataken binnen het mechanische systemen\r\nteneinde de functionaliteit/luchtwaardigheid (prestaties, betrouwbaarheid, beschikbaarheid, veiligheid,…) van de onderhouden onderdelen van een vliegtuig te behouden.",
   "bron": "https://onderwijs-api-portaal.vlaanderen.be/",
   "api": "https://onderwijs.api.vlaanderen.be/kwalificaties-en-curriculum/beroepskwalificaties/v2/beroepskwalificatie/BK-0462-1",
-  "naamsvermelding": "Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
+  "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties)",
   "licentie": "nog te bevestigen",
   "opgehaald": "2026-10-10T21:53:58Z",
   "aantal": 11,

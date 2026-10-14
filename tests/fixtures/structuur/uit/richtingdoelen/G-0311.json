@@ -9,7 +9,7 @@
   "filter": "graad=1ste graad; stroom=A-stroom (regel van Boosterz: de bron koppelt de 1ste graad niet per richting)",
   "bron": "https://www.onderwijsdoelen.be/",
   "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen/onderwijsdoel",
-  "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+  "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)",
   "licentie": "nog te bevestigen",
   "opgehaald": "2026-10-09T00:00:00Z",
   "aantal": 1395,

@@ -263,7 +263,7 @@ export const BK_DEELKWALIFICATIE_HINT = 'Een deelkwalificatie is een deel van ee
  */
 export function bkBronregel(opgehaald?: string): string {
   const datum = datumTekst(opgehaald);
-  return `Bron: Vlaamse overheid, Vlaamse kwalificatiestructuur (API Beroepskwalificaties) en API Structuuronderdelen${datum !== '' ? `, opgehaald op ${datum}` : ''}. Boosterz toont de competenties letterlijk en verzint geen koppelingen.`;
+  return `Bron: Vlaamse overheid, Onderwijs en Vorming, Vlaamse kwalificatiestructuur (API Beroepskwalificaties) en API Structuuronderdelen${datum !== '' ? `, opgehaald op ${datum}` : ''}. Boosterz toont de competenties letterlijk en verzint geen koppelingen.`;
 }
 
 /** De bestaande zin bij de doelen van een richting, als het kader beroepskwalificaties heeft (vervangt "… staan in het leerplan van je net."). */
@@ -430,4 +430,4 @@ export const BK_CURSUS_VOLGT_BK = 'Volgt een beroepskwalificatie: zie ‘Compete
 
 // De twee labels en de zin voor de inleespagina staan in `bkLabels.ts`, zonder imports: de leerplanpagina en de inleespagina
 // halen ze op en mogen daarmee niet de rest van dit bestand (en de dekking) mee binnentrekken. Ze blijven hier bereikbaar.
-export { BK_LABEL_KOPIE, BK_LABEL_OFFICIEEL, bkInleesTekst } from './bkLabels';
+export { BK_EDITOR_GEWIJZIGD, BK_EDITOR_NAAR_RICHTING, BK_EDITOR_NIET_NAGEKEKEN, BK_LABEL_KOPIE, BK_LABEL_OFFICIEEL, bkInleesTekst } from './bkLabels';

@@ -9,7 +9,7 @@
   "filter": "structuuronderdeel_groep_nummer=G-0184",
   "bron": "https://www.onderwijsdoelen.be/",
   "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen/onderwijsdoel",
-  "naamsvermelding": "Bron: Vlaamse overheid, Departement Onderwijs en Vorming (onderwijsdoelen.be)",
+  "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)",
   "licentie": "nog te bevestigen",
   "opgehaald": "2026-10-09T16:21:37Z",
   "aantal": 850,

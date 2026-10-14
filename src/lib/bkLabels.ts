@@ -11,3 +11,18 @@ export const BK_LABEL_KOPIE = 'Kopie van een officiële beroepskwalificatie';
 export function bkInleesTekst(titel: string): string {
   return `${typeof titel === 'string' ? titel.trim() : ''} komt rechtstreeks uit een officiële beroepskwalificatie. Er valt niets in te lezen: de competenties staan letterlijk zoals in de officiële bron.`;
 }
+
+/**
+ * In de leerplaneditor, bij een BK-leerplan dat niet (meer) als nagekeken telt: een eigen kopie, of een leerplan waarvan de
+ * doelen veranderden. Zo'n leerplan kan niet nagekeken worden met "Nakijken en bevestigen" (dat is voor leerplannen die je
+ * inleest); een nagekeken leerplan met competenties maak je bij de studierichting.
+ */
+export const BK_EDITOR_NIET_NAGEKEKEN =
+  'Dit leerplan volgt de competenties van een beroepskwalificatie, maar telt niet als nagekeken. Maak het leerplan opnieuw bij ‘Beroepskwalificaties’ bij de studierichting: het wordt dan meteen nagekeken bewaard.';
+
+/** Achter "Dit leerplan telt daarom niet meer als nagekeken." als de doelen van een BK-leerplan veranderden. */
+export const BK_EDITOR_GEWIJZIGD =
+  ' Wil je weer de officiële competenties? Maak het leerplan opnieuw bij ‘Beroepskwalificaties’ bij de studierichting, of maak er bewust een eigen leerplan van.';
+
+/** De knop naar de studierichting van het leerplan. */
+export const BK_EDITOR_NAAR_RICHTING = 'Studierichting openen';
