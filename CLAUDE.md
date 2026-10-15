@@ -33,7 +33,7 @@ De deploy-workflow draait lint, typecheck, unit tests en build. Een lintfout blo
 
 - Iconen, maten, kleuren en de emoji-regel staan in `docs/ontwerp/ICONEN.md`. Eén iconenset (Lucide), vaste iconen per actie in `src/components/icons.ts`, een tegel per widgetsoort met `TypeTile`. `src/lib/color.test.ts` bewaakt het contrast van de tokens in `global.css`.
 - Nieuwe css per scherm in een eigen bestand in `src/styles/`, met de tokens. Nooit witte tekst op `--brand`: gebruik `--brand-fill`. Tekst in de accentkleur van een widget via `color-mix(in srgb, var(--player-accent, var(--brand-fill)) 60%, var(--text))`.
-- Termen: "widget" in de leerkrachtschil (met als uitleg "oefening, spel of hulpmiddel"), "oefening" op leerlingschermen, nooit "widget". Verder altijd "leerplan", "nakijken", "toewijzen", "bewaren" en "uitproberen".
+- Termen: "oefening" overal, ook in de schermen van de leerkracht (beslissing van de eigenaar, 15 oktober 2026, na de proefleerkrachten; "widget" alleen nog in code en bestandsnamen). Verder altijd "leerplan", "nakijken", "toewijzen", "bewaren" en "uitproberen".
 - Elk scherm heeft één `main` en één `h1`, tikdoelen van 44 pixels op leerlingschermen, en werkt op 390 pixels breed zonder horizontaal te scrollen.
 
 ## Voorbeeldcursus natuurwetenschappen
