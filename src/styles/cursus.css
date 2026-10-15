@@ -195,3 +195,13 @@
     min-height: 44px;
   }
 }
+
+/* De kopbalk van de cursuseditor loopt op een smal scherm over meerdere regels. "(AI-sleutel nodig)" achter twee knoppen maakte
+ * ze op 390 px 76 px hoger (322 in plaats van 246 px), en de balk blijft vastkleven. Daarom blijven die woorden daar alleen
+ * nog voor schermlezers (en in de title van de knop), zoals `.sr-only`. */
+@media (max-width: 600px) {
+  .ai-sleutel-nodig {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+}

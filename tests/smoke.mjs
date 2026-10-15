@@ -186,9 +186,9 @@ await sleep(300);
 check('QR-code', await page.locator('img[alt^="QR-code"]').isVisible());
 check('Classroom-knop', await page.locator('a', { hasText: 'Google Classroom' }).isVisible());
 {
-  // Pakket Q3: één begrip in het venster: "Code (werkt alleen op dit toestel)" en "Link voor je leerlingen (werkt op elk toestel)".
+  // Pakket Q3: één begrip in het venster: "Code (werkt alleen op dit toestel)" en "Link naar deze oefening (werkt op elk toestel)".
   const tekst = await page.locator('.modal').innerText();
-  check('delen: "Code (werkt alleen op dit toestel)" en "Link voor je leerlingen (werkt op elk toestel)", met "Plak hem in Smartschool of je klasplatform."; niet meer "Losse code", "zelfde toestel" of "Draagbare link"; geen "widget" in die teksten', /Code \(werkt alleen op dit toestel\)/.test(tekst) && /Link voor je leerlingen \(werkt op elk toestel\)/.test(tekst) && /Plak hem in Smartschool of je klasplatform\./.test(tekst) && !/Losse code|zelfde toestel|Draagbare link/.test(tekst) && !/widget/i.test(tekst.slice(tekst.indexOf('Code (werkt alleen'), tekst.indexOf('Code (werkt alleen') + 400)));
+  check('delen: "Code (werkt alleen op dit toestel)" en "Link naar deze oefening (werkt op elk toestel)", met "Plak hem in Smartschool of je klasplatform."; niet meer "Losse code", "zelfde toestel" of "Draagbare link"; geen "widget" in die teksten', /Code \(werkt alleen op dit toestel\)/.test(tekst) && /Link naar deze oefening \(werkt op elk toestel\)/.test(tekst) && /Plak hem in Smartschool of je klasplatform\./.test(tekst) && !/Losse code|zelfde toestel|Draagbare link/.test(tekst) && !/widget/i.test(tekst.slice(tekst.indexOf('Code (werkt alleen'), tekst.indexOf('Code (werkt alleen') + 400)));
 }
 await page.keyboard.press('Escape');
 
@@ -233,7 +233,7 @@ check('embed-code voor LMS', (await page.locator('.modal textarea').first().inpu
 {
   // Pakket Q3: dezelfde twee begrippen in het deelvenster van een cursus.
   const tekst = await page.locator('.modal').innerText();
-  check('cursus delen: "Code (werkt alleen op dit toestel)" en "Link voor je leerlingen (werkt op elk toestel)", met "Plak hem in Smartschool of je klasplatform."; niet meer "Losse code", "zelfde toestel" of "Draagbare link"', /Code \(werkt alleen op dit toestel\)/.test(tekst) && /Link voor je leerlingen \(werkt op elk toestel\)/.test(tekst) && /Plak hem in\s+Smartschool of je klasplatform\./.test(tekst) && !/Losse code|zelfde toestel|Draagbare link/.test(tekst));
+  check('cursus delen: "Code (werkt alleen op dit toestel)" en "Link naar deze cursus (werkt op elk toestel)", met "Plak hem in Smartschool of je klasplatform."; niet meer "Losse code", "zelfde toestel" of "Draagbare link"', /Code \(werkt alleen op dit toestel\)/.test(tekst) && /Link naar deze cursus \(werkt op elk toestel\)/.test(tekst) && /Plak hem in\s+Smartschool of je klasplatform\./.test(tekst) && !/Losse code|zelfde toestel|Draagbare link/.test(tekst));
   check('cursus delen: er is geen klas vooraf gekozen', (await page.locator('.modal').getByLabel('Klas', { exact: true }).inputValue()) === '');
 }
 await page.keyboard.press('Escape');
@@ -3009,7 +3009,7 @@ const rtHoogtes = (loc) => loc.evaluateAll((l) => l.filter((e) => e.getBoundingC
   const totaal = Number(/Je cursussen dekken 0 van de (\d+) competenties\./.exec(bkTekst ?? '')?.[1]);
   check(`(5) dekking: "Je cursussen dekken 0 van de ${totaal} competenties." (het totaal van beide beroepskwalificaties: ${bk1.n} + ${bk2.n})`, totaal === bk1.n + bk2.n);
   check(`(5) dekking: "${n - 1} competenties staan al gepland op een sectie die nog leeg is" (geraamte = gepland, niet gedekt)`, new RegExp(`${n - 1} competenties staan al gepland op een sectie die nog leeg is`).test(bkTekst ?? ''));
-  check('(5) dekking: in het blok Minimumdoelen staat de BK-cursus bij "Cursussen die niet meetellen" met "Telt hier niet mee: deze cursus volgt een beroepskwalificatie (zie ‘Competenties van de beroepskwalificaties’)."', !!cursus && (mdTekst ?? '').includes(cursus.title) && (mdTekst ?? '').includes('Telt hier niet mee: deze cursus volgt een beroepskwalificatie (zie ‘Competenties van de beroepskwalificaties’).') && /Je cursussen dekken 0 van de \d+ minimumdoelen/.test(mdTekst ?? ''));
+  check('(5) dekking: in het blok Minimumdoelen staat de BK-cursus bij "Andere cursussen van deze richting" met "Telt hier niet mee: deze cursus volgt een beroepskwalificatie (zie ‘Competenties van de beroepskwalificaties’)."', !!cursus && (mdTekst ?? '').includes('Andere cursussen van deze richting') && !(mdTekst ?? '').includes('Cursussen die niet meetellen') && (mdTekst ?? '').includes(cursus.title) && (mdTekst ?? '').includes('Telt hier niet mee: deze cursus volgt een beroepskwalificatie (zie ‘Competenties van de beroepskwalificaties’).') && /Je cursussen dekken 0 van de \d+ minimumdoelen/.test(mdTekst ?? ''));
   const cursussenTekst = await p.locator('section[aria-labelledby="ri-cursussen-kop"]').innerText();
   check('(5) cursussen: de cursus staat onder "Cursussen voor deze richting" met "Volgt een beroepskwalificatie: zie ‘Competenties van de beroepskwalificaties’ hieronder."', !!cursus && cursussenTekst.includes(cursus.title) && cursussenTekst.includes('Volgt een beroepskwalificatie: zie ‘Competenties van de beroepskwalificaties’ hieronder.'));
   const perBk = (await dekking.locator('.dk-bk details.dk-set > summary').allInnerTexts()).map(zonderRuimte);
@@ -4482,6 +4482,11 @@ check('klaslink gegenereerd', /#\/klas\/open\?d=/.test(klaslink));
   check('klas delen: eerst de kop "Link voor je leerlingen" met de knop "Kopieer de link", pas daaronder de kop "Code (werkt alleen op dit toestel)"', gemeten.link > 0 && gemeten.kopieer > gemeten.link && gemeten.code > gemeten.kopieer);
   check(`klas delen: de code staat kleiner (${gemeten.codeGrootte} px, voorheen 38 px) en de zin "Plak hem in Smartschool of je klasplatform." staat erbij`, gemeten.codeGrootte > 0 && gemeten.codeGrootte <= 28 && /Plak hem in Smartschool of je klasplatform\./.test(tekst));
   check('klas delen: één begrip: geen "Klaslink kopiëren", "Klaspakket (elk toestel", "zelfde toestel" of "In de klas" meer; de QR is die van de link voor je leerlingen of er staat dat hij te lang is', !/Klaslink kopiëren|Klaspakket \(|zelfde toestel|In de klas \(/.test(tekst) && ((await venster.locator('img[alt="QR-code van de link voor je leerlingen"]').count()) === 1 || /De link is te lang voor een QR-code/.test(tekst)));
+  // Herstel uit de proefleerkrachten (NIEUWE-CURSUS.md § 2.5): de focus staat op "Kopieer de link", er is één kopieerknop voor de link, en de QR is te downloaden.
+  const klasCode = (await venster.locator('.dl-code').innerText()).trim();
+  check('klas delen: de focus staat op de knop "Kopieer de link" (niet op de knop bij de code)', (await page.evaluate(() => document.activeElement?.textContent?.trim())) === 'Kopieer de link');
+  check('klas delen: één kopieerknop voor de link (geen "Link kopiëren" naast de QR) en "QR downloaden" biedt qr-<code>.png aan', (await venster.getByRole('button', { name: 'Link kopiëren' }).count()) === 0 && (/De link is te lang voor een QR-code/.test(tekst) || (await venster.locator('a[download]', { hasText: 'QR downloaden' }).getAttribute('download', { timeout: 5000 })) === `qr-${klasCode}.png`));
+  check('klas delen: de uitleg zegt dat je na een wijziging de nieuwe link geeft, en waar leerlingen hun werk indienen', /geef dan de nieuwe link/.test(tekst) && /die lees je in op het Inleverpunt/.test(tekst));
   // De bevestiging "Gekopieerd", en de terugval als het klembord niet mag (een geselecteerde link met uitleg)
   await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.resolve() } }));
   await venster.getByRole('button', { name: 'Kopieer de link' }).click();

@@ -84,3 +84,28 @@ export function uitwerkKaartje(t: UitwerkTelling): string {
   const basis = `${uitwerkPercent(t)} % uitgewerkt`;
   return t.gepland > 0 ? `${basis} · ${t.gepland} gepland` : basis;
 }
+
+// ── De tabel van de weergave "Leerplan": status per doel en de regel eronder ──
+
+/** De status van een rij in de tabel: `computeCoverage` kent geen 'planned'; dat komt uit `geplandeRijen` (§ 14.5). */
+export type RijStatus = 'covered' | 'planned' | 'optional' | 'missing';
+
+/**
+ * De status die de tabel toont: een gedekt doel dat alleen op nog lege secties staat (zijn id zit in `gepland`, de
+ * doel-id's van `geplandeRijen`) is 'planned', niet 'covered'. De andere statussen blijven zoals `computeCoverage` ze gaf.
+ */
+export function rijStatus(row: { status: 'covered' | 'optional' | 'missing'; goal: { id: string } }, gepland: ReadonlySet<string>): RijStatus {
+  return row.status === 'covered' && gepland.has(row.goal.id) ? 'planned' : row.status;
+}
+
+/**
+ * De regel onder de tabel als geen doel meer ontbreekt of alleen in verdieping staat. Alleen als ook alles uitgewerkt is,
+ * staat er "Alle doelen van dit leerplan komen aan bod in een gewone sectie."; staan er nog doelen gepland, dan
+ * "Alle doelen staan op een gewone sectie; 2 daarvan staan nog gepland (de sectie is nog leeg)." (bij één "1 daarvan staat nog gepland").
+ */
+export function alleDoelenRegel(gepland: number): string {
+  const n = geheel(gepland);
+  if (n === 0) return 'Alle doelen van dit leerplan komen aan bod in een gewone sectie.';
+  const deel = n === 1 ? '1 daarvan staat nog gepland' : `${n} daarvan staan nog gepland`;
+  return `Alle doelen staan op een gewone sectie; ${deel} (de sectie is nog leeg).`;
+}

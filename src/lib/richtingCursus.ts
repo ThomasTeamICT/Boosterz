@@ -477,19 +477,81 @@ function splitsThema(thema: string | undefined): { hoofdstuk: string | null; rub
 const GRAAD_OF_STROOM = /^(?:\d+(?:ste|de|e)\s+graad\b|[a-z]-stroom$)/i;
 /** Het set-nummer dat `setLabels` (doelenSamenstellen.ts) achter een naam zet als twee sets anders dezelfde naam hebben. */
 const SET_NUMMER = /\s*\(ODS_\d+\)\s*$/;
+/** "Finaliteit", "Dubbele finaliteit", "Finaliteit doorstroom" en "Finaliteit arbeidsmarkt": woorden die een leerkracht niets zeggen. */
+const FINALITEIT = /\b(?:dubbele\s+)?finaliteit(?:\s+(?:doorstroom|arbeidsmarkt))?\b/gi;
+
+/** Een tekst zonder de woorden over finaliteit, en zonder lege haakjes of losse scheidingstekens die ze achterlaten. */
+function zonderFinaliteit(t: string): string {
+  return t
+    .replace(FINALITEIT, ' ')
+    .replace(/\(\s*\)/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+,/g, ',')
+    .replace(/^[\s,;:]+|[\s,;:]+$/g, '');
+}
+
+/** De delen van de setnaam in het thema van een samengestelde lijst ("Nederlands · aso · 2de graad (ODS_3351)"). */
+interface SetLabelDelen {
+  /** De korte naam van het vak of de set. */
+  naam: string;
+  /** Wat de set van andere sets met dezelfde naam onderscheidt, zonder graad, stroom en finaliteit: "aso", "kso, tso". */
+  context: string[];
+  /** De graad en de stroom: "2de graad", "1ste graad A-stroom", of leeg. */
+  niveau: string;
+}
+
+function setLabelDelen(label: string): SetLabelDelen {
+  const delen = label.replace(SET_NUMMER, '').split(SCHEIDER_TITEL).map((d) => d.trim()).filter((d) => d !== '');
+  if (delen.length === 0) return { naam: label.trim(), context: [], niveau: '' };
+  const [eerste, ...rest] = delen;
+  return {
+    naam: zonderFinaliteit(eerste) || eerste,
+    context: rest.filter((d) => !GRAAD_OF_STROOM.test(d)).map(zonderFinaliteit).filter((d) => d !== ''),
+    niveau: rest.filter((d) => GRAAD_OF_STROOM.test(d)).join(SCHEIDER_TITEL),
+  };
+}
+
+function metHaakjes(naam: string, extra: readonly string[]): string {
+  return extra.length > 0 ? `${naam} (${extra.join(SCHEIDER_TITEL)})` : naam;
+}
+
+/** Een naam om te vergelijken: zonder accenten en hoofdletters, met één spatie tussen de woorden. */
+function naamSleutel(naam: string): string {
+  return zonderAccenten(naam).replace(/\s+/g, ' ').trim();
+}
 
 /**
- * De naam van een hoofdstuk uit de setnaam in het thema van een samengestelde lijst: de korte naam van het vak of de set,
- * zonder graad, stroom en set-nummer. `setLabels` voegt die toe om sets met dezelfde korte naam uit elkaar te houden
- * ("Nederlands · aso · 2de graad (ODS_3351)"); een leerkracht en een leerling hebben er niets aan. Wat de sets nog wel
- * onderscheidt, blijft tussen haakjes staan: "Nederlands (aso)".
+ * De hoofdstuknamen voor de setnamen in het thema van een samengestelde lijst (`setLabels` in doelenSamenstellen.ts): de
+ * korte naam van het vak of de set, in dezelfde volgorde als `labels`. Het gaat over alle sets van het leerplan samen, zodat een
+ * naam voor een set nooit afhangt van welke doelen er een cursus in komen:
+ * - eerst de korte naam, zonder graad, stroom, set-nummer en de woorden over finaliteit; wat sets met dezelfde naam nog
+ *   onderscheidt (de soort onderwijs) blijft tussen haakjes staan: "Nederlands (aso)";
+ * - blijven twee sets dan dezelfde naam houden, dan komen de graad en de stroom terug, tussen haakjes, bij precies die sets:
+ *   "Cultureel bewustzijn (2de graad)";
+ * - alleen als dan nog niets de sets onderscheidt (twee versies van dezelfde set): het tweede krijgt " (2)", het derde " (3)".
  */
-function hoofdstukNaamUitSet(label: string): string {
-  const delen = label.replace(SET_NUMMER, '').split(SCHEIDER_TITEL).map((d) => d.trim()).filter((d) => d !== '');
-  if (delen.length === 0) return label.trim();
-  const [naam, ...rest] = delen;
-  const onderscheid = rest.filter((d) => !GRAAD_OF_STROOM.test(d));
-  return onderscheid.length > 0 ? `${naam} (${onderscheid.join(SCHEIDER_TITEL)})` : naam;
+export function hoofdstukNamenUitSets(labels: readonly string[]): string[] {
+  const delen = labels.map(setLabelDelen);
+  let namen = delen.map((d) => metHaakjes(d.naam, d.context));
+  const telling = new Map<string, number>();
+  for (const n of namen) telling.set(naamSleutel(n), (telling.get(naamSleutel(n)) ?? 0) + 1);
+  namen = namen.map((n, i) => (
+    (telling.get(naamSleutel(n)) ?? 0) > 1 && delen[i].niveau !== '' ? metHaakjes(delen[i].naam, [...delen[i].context, delen[i].niveau]) : n
+  ));
+  const keer = new Map<string, number>();
+  return namen.map((n) => {
+    const sleutel = naamSleutel(n);
+    const k = (keer.get(sleutel) ?? 0) + 1;
+    keer.set(sleutel, k);
+    return k > 1 ? `${n} (${k})` : n;
+  });
+}
+
+interface GeraamteHoofdstuk {
+  /** De vaste titel van het hoofdstuk (`hoofdstukTitels`), nog niet ingekort. */
+  titel: string;
+  /** Per rubriek (`''` = geen rubriek) de doelen, in de volgorde van het eerste voorkomen. */
+  secties: Map<string, GeraamteSectie>;
 }
 
 interface GeraamteSectie {
@@ -497,13 +559,39 @@ interface GeraamteSectie {
   regels: string[];
 }
 
-interface GeraamteHoofdstuk {
-  /** De setnaam uit het thema, of `null` als het thema geen hoofdstuk noemt. */
-  label: string | null;
-  /** Staat er minstens één doel uit een officiële set in (het thema kwam dan uit `setLabels`)? */
-  uitSet: boolean;
-  /** Per rubriek (`''` = geen rubriek) de doelen, in de volgorde van het eerste voorkomen. */
-  secties: Map<string, GeraamteSectie>;
+/**
+ * De titel van elk hoofdstuk van het leerplan, één keer bepaald over alle doelen (los van de codes waarvoor een cursus het
+ * geraamte vraagt), zodat dezelfde set altijd hetzelfde hoofdstuk krijgt. Zo zet `voegGeplandeSectiesToe` (gatenCursus.ts, dat
+ * samenvoegt op de titel van het hoofdstuk) een sectie nooit in het hoofdstuk van een andere set met dezelfde korte naam.
+ * De sleutel is het eerste deel van het thema, of `''` voor doelen zonder thema.
+ *
+ * - Een samengesteld leerplan (`herkomst.methode` 'samengesteld', de themanamen komen uit `setLabels`): `hoofdstukNamenUitSets`.
+ * - Een ander leerplan (van een net, eigen of ingelezen): de themanaam zoals ze is, ook als ze " · " bevat of
+ *   `goal.refs` heeft. Het gaat om de naam die de leerkracht of het net zelf gaf.
+ * - Doelen zonder thema: het vak van het leerplan, anders "Hoofdstuk <nummer>" (de plaats van dat hoofdstuk in het leerplan).
+ */
+function hoofdstukTitels(leerplan: Curriculum, doelen: readonly { goal: CurriculumGoal }[]): Map<string, string> {
+  const labels = new Map<string, string | null>();
+  for (const { goal } of doelen) {
+    const { hoofdstuk } = splitsThema(goal.theme);
+    const sleutel = hoofdstuk ?? '';
+    if (!labels.has(sleutel)) labels.set(sleutel, hoofdstuk);
+  }
+  const vak = typeof leerplan?.subject === 'string' ? leerplan.subject.trim() : '';
+  const samengesteld = leerplan?.herkomst?.methode === 'samengesteld';
+  const metThema = [...labels.values()].filter((l): l is string => l !== null);
+  const uitSet = new Map<string, string>();
+  if (samengesteld) {
+    const namen = hoofdstukNamenUitSets(metThema);
+    metThema.forEach((label, i) => uitSet.set(label, namen[i]));
+  }
+  const titels = new Map<string, string>();
+  let nummer = 0;
+  for (const [sleutel, label] of labels) {
+    nummer++;
+    titels.set(sleutel, label === null ? (vak || `Hoofdstuk ${nummer}`) : (uitSet.get(label) ?? label));
+  }
+  return titels;
 }
 
 /**
@@ -511,8 +599,9 @@ interface GeraamteHoofdstuk {
  * - een hoofdstuk per eerste deel van `goal.theme` (vóór " › "; bij een samengestelde lijst is dat de setnaam, bij een
  *   leerplan van een net het eigen thema), in de volgorde van het eerste voorkomen. Doelen zonder thema komen in één
  *   hoofdstuk met het vak van het leerplan als naam, of "Hoofdstuk <nummer>";
- * - de naam van een hoofdstuk uit een officiële set is de korte naam van het vak of de set, zonder graad, stroom en
- *   set-nummer (`hoofdstukNaamUitSet`); hebben twee hoofdstukken dan dezelfde naam, dan krijgt het tweede " (2)";
+ * - de naam van een hoofdstuk uit een officiële set is de korte naam van het vak of de set, zonder graad, stroom,
+ *   set-nummer en finaliteit (`hoofdstukNamenUitSets`); graad en stroom komen terug als de naam anders dubbel is. De titels
+ *   liggen vast voor het hele leerplan: ze hangen niet af van `codes`;
  * - daarin een sectie per rest van het thema (de rubriek), met de naam van de rubriek; doelen zonder rubriek komen in een
  *   sectie "Deel 1" (is ze de enige) of "Andere doelen" (staat ze naast secties met een rubriek);
  * - `goalCodes` zijn de codes van de doelen van de sectie, en één blok `callout` (kind 'goal', "Doelen in deze sectie")
@@ -528,24 +617,26 @@ interface GeraamteHoofdstuk {
 export function geraamteHoofdstukken(leerplan: Curriculum, codes?: readonly string[]): CourseChapter[] {
   const gewenst = codes ? new Set(normalizeGoalCodes(codes)) : undefined;
   const gezien = new Set<string>();
-  const doelen: { code: string; goal: CurriculumGoal }[] = [];
+  // Alle doelen met een bruikbare, unieke code: daarover liggen de hoofdstuktitels vast.
+  const alle: { code: string; goal: CurriculumGoal }[] = [];
   for (const goal of Array.isArray(leerplan?.goals) ? leerplan.goals : []) {
     const code = normalizeGoalCode(typeof goal?.code === 'string' ? goal.code : '');
-    if (!heeftInhoud(code) || gezien.has(code) || (gewenst && !gewenst.has(code))) continue;
+    if (!heeftInhoud(code) || gezien.has(code)) continue;
     gezien.add(code);
-    doelen.push({ code, goal });
+    alle.push({ code, goal });
   }
+  const doelen = gewenst ? alle.filter((d) => gewenst.has(d.code)) : alle;
   if (doelen.length === 0) return [];
 
+  const titels = hoofdstukTitels(leerplan, alle);
   const eenSectiePerHoofdstuk = doelen.length > MAX_DOELEN_PER_RUBRIEK;
   // Sleutel `''` = doelen zonder thema (de enige sleutel die geen echte themanaam kan zijn).
   const hoofdstukken = new Map<string, GeraamteHoofdstuk>();
   for (const { code, goal } of doelen) {
     const { hoofdstuk, rubriek } = splitsThema(goal.theme);
     const sleutel = hoofdstuk ?? '';
-    const h = hoofdstukken.get(sleutel) ?? { label: hoofdstuk, uitSet: false, secties: new Map<string, GeraamteSectie>() };
+    const h = hoofdstukken.get(sleutel) ?? { titel: titels.get(sleutel) ?? sleutel, secties: new Map<string, GeraamteSectie>() };
     hoofdstukken.set(sleutel, h);
-    if (Array.isArray(goal.refs) && goal.refs.length > 0) h.uitSet = true;
     const rubriekSleutel = eenSectiePerHoofdstuk ? '' : (rubriek ?? '');
     const sectie = h.secties.get(rubriekSleutel) ?? { codes: [], regels: [] };
     h.secties.set(rubriekSleutel, sectie);
@@ -553,30 +644,16 @@ export function geraamteHoofdstukken(leerplan: Curriculum, codes?: readonly stri
     sectie.regels.push(doelRegel(code, goal.text));
   }
 
-  const vak = typeof leerplan?.subject === 'string' ? leerplan.subject.trim() : '';
-  const gebruikt = new Map<string, number>();
-  return [...hoofdstukken.values()].map((h, i): CourseChapter => {
-    const naam = h.label === null ? (vak || `Hoofdstuk ${i + 1}`) : h.uitSet ? hoofdstukNaamUitSet(h.label) : h.label;
-    // Twee hoofdstukken uit sets die na het weglaten van graad en stroom dezelfde naam kregen: het tweede krijgt " (2)".
-    // Eigen themanamen van een net blijven zoals ze zijn.
-    let titel = naam;
-    if (h.uitSet) {
-      const sleutel = naam.toLocaleLowerCase('nl');
-      const keer = (gebruikt.get(sleutel) ?? 0) + 1;
-      gebruikt.set(sleutel, keer);
-      if (keer > 1) titel = `${naam} (${keer})`;
-    }
-    return {
+  return [...hoofdstukken.values()].map((h): CourseChapter => ({
+    id: uid(),
+    title: inkort(h.titel, MAX_TITEL),
+    sections: [...h.secties].map(([rubriek, s]): CourseSection => ({
       id: uid(),
-      title: inkort(titel, MAX_TITEL),
-      sections: [...h.secties].map(([rubriek, s]): CourseSection => ({
-        id: uid(),
-        title: inkort(rubriek !== '' ? rubriek : h.secties.size === 1 ? NAAM_ENIGE_SECTIE : NAAM_OVERIGE_SECTIE, MAX_TITEL),
-        blocks: [{ id: uid(), type: 'callout', kind: 'goal', title: TITEL_DOELEN_KADERTJE, text: s.regels.join('\n') }],
-        goalCodes: s.codes,
-      })),
-    };
-  });
+      title: inkort(rubriek !== '' ? rubriek : h.secties.size === 1 ? NAAM_ENIGE_SECTIE : NAAM_OVERIGE_SECTIE, MAX_TITEL),
+      blocks: [{ id: uid(), type: 'callout', kind: 'goal', title: TITEL_DOELEN_KADERTJE, text: s.regels.join('\n') }],
+      goalCodes: s.codes,
+    })),
+  }));
 }
 
 /**

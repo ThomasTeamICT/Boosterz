@@ -77,8 +77,8 @@ export function CourseShareModal({ course, onClose }: { course: Course; onClose:
         <div>
           <strong>Code (werkt alleen op dit toestel):</strong> voor leerlingen die op dit toestel werken (bv. een
           klaslaptop). Ze typen de code en vullen zelf hun naam in, los van een klaslijst; hun voortgang komt dan
-          automatisch bij jou terecht. Op hun eigen toestel werkt de code niet: gebruik daar de link voor je
-          leerlingen, bij <em>Meer manieren om te delen</em>.
+          automatisch bij jou terecht. Op hun eigen toestel werkt de code niet: gebruik daar de link naar deze
+          cursus, bij <em>Meer manieren om te delen</em>.
         </div>
       </div>
       <div style={{ textAlign: 'center', margin: '10px 0 14px' }}>
@@ -106,7 +106,7 @@ export function CourseShareModal({ course, onClose }: { course: Course; onClose:
 
           <h3 style={{ marginTop: 0 }}>Wat deel je?</h3>
           <p className="hint" style={{ marginTop: -6 }}>
-            Deel gerust per hoofdstuk — zo groeit de cursus mee met je lessenreeks. Ingebedde oefen-widgets reizen automatisch mee{widgetCount > 0 ? ` (${widgetCount} in deze selectie)` : ''}.
+            Deel gerust per hoofdstuk — zo groeit de cursus mee met je lessenreeks. Ingebedde oefeningen reizen automatisch mee{widgetCount > 0 ? ` (${widgetCount} in deze selectie)` : ''}.
           </p>
           <div style={{ display: 'grid', gap: 4, marginBottom: 14 }}>
             {course.chapters.map((ch) => (
@@ -120,7 +120,7 @@ export function CourseShareModal({ course, onClose }: { course: Course; onClose:
           <div className="callout">
             <span aria-hidden><Globe size={18} /></span>
             <div>
-              <strong>Link voor je leerlingen (werkt op elk toestel):</strong> de hele cursus zit in de link,
+              <strong>Link naar deze cursus (werkt op elk toestel):</strong> de hele cursus zit in de link,
               dus hij werkt op het eigen toestel van je leerlingen, ook thuis en zonder account. Plak hem in
               Smartschool of je klasplatform. De leesvoortgang blijft dan op het toestel van de leerling; die
               stuurt op het einde zijn <em>voortgangscode</em> door.
@@ -214,7 +214,7 @@ export function CourseShareModal({ course, onClose }: { course: Course; onClose:
               <ExportIcon size={16} /> Cursusbestand (.json)
             </button>
             <span className="hint">
-              Voor collega's of als back-up — de volledige cursus mét ingebedde widgets. Importeren kan bij Cursussen.
+              Voor collega's of als back-up — de volledige cursus mét ingebedde oefeningen. Importeren kan bij Cursussen.
             </span>
           </div>
         </div>

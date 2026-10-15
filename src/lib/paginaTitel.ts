@@ -1,10 +1,10 @@
 // Documenttitel per route: een schermlezer en de tabbladbalk melden zo waar je bent.
-// Op leerlingroutes staat nooit het woord "widget" (daar heet het "oefening").
+// Nergens staat het woord "widget": voor leerling en leerkracht heet het "oefening".
 // Volgorde telt: het eerste voorvoegsel dat past, wint.
 const TITELS: [string, string][] = [
-  ['/widgets', 'Widgets'],
-  ['/nieuw', 'Nieuwe widget'],
-  ['/bewerk', 'Widget bewerken'],
+  ['/widgets', 'Oefeningen'],
+  ['/nieuw', 'Nieuwe oefening'],
+  ['/bewerk', 'Oefening bewerken'],
   ['/print', 'Afdrukken'],
   ['/speel', 'Oefening'],
   ['/open', 'Oefening'],

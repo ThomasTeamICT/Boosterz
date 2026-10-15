@@ -19,8 +19,8 @@ export function PrintPage() {
     return (
       <main className="page" style={{ textAlign: 'center', paddingTop: 60 }}>
         <h1>Niet afdrukbaar</h1>
-        <p style={{ color: 'var(--text-soft)' }}>Deze widget bestaat niet of heeft geen afdrukbare versie.</p>
-        <Link to="/widgets" className="btn btn-primary"><BackIcon size={18} aria-hidden /> Naar mijn widgets</Link>
+        <p style={{ color: 'var(--text-soft)' }}>Deze oefening bestaat niet of heeft geen afdrukbare versie.</p>
+        <Link to="/widgets" className="btn btn-primary"><BackIcon size={18} aria-hidden /> Naar mijn oefeningen</Link>
       </main>
     );
   }

@@ -844,7 +844,7 @@ export function sanitizeGeneratedWidgets(raw: unknown, opts: SanitizeOptions = {
       ? ((raw as Record<string, unknown>).widgets as unknown[])
       : null;
   if (!list) {
-    return { widgets: [], warnings: ['De AI gaf geen widgetlijst terug in het verwachte formaat.'] };
+    return { widgets: [], warnings: ['De AI gaf geen lijst met oefeningen terug in het verwachte formaat.'] };
   }
   const widgets: Widget[] = [];
   for (const item of list) {
@@ -852,7 +852,7 @@ export function sanitizeGeneratedWidgets(raw: unknown, opts: SanitizeOptions = {
     if (!w || typeof w !== 'object') continue;
     const type = str(w.type);
     if (!isGenType(type)) {
-      warnings.push(`Widgettype "${type || '?'}" wordt niet ondersteund en is overgeslagen.`);
+      warnings.push(`Soort oefening "${type || '?'}" wordt niet ondersteund en is overgeslagen.`);
       continue;
     }
     const rawCfg = (w.config && typeof w.config === 'object' ? w.config : {}) as Record<string, unknown>;
@@ -869,7 +869,7 @@ export function sanitizeGeneratedWidgets(raw: unknown, opts: SanitizeOptions = {
     widgets.push(widget);
   }
   if (widgets.length === 0 && warnings.length === 0) {
-    warnings.push('De AI leverde geen bruikbare widgets op. Probeer het opnieuw met een duidelijkere opdracht.');
+    warnings.push('De AI leverde geen bruikbare oefeningen op. Probeer het opnieuw met een duidelijkere opdracht.');
   }
   return { widgets, warnings };
 }

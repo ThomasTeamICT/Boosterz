@@ -49,7 +49,7 @@ interface SourceItem extends ExtractedSource {
 
 const KIND_META: Record<ExtractedSource['kind'], { icon: LucideIcon; label: string }> = {
   text: { icon: FileText, label: 'tekst' },
-  widget: { icon: Puzzle, label: 'widget' },
+  widget: { icon: Puzzle, label: 'oefening' },
   pack: { icon: Package, label: 'pakket' },
   course: { icon: CourseIcon, label: 'cursus' },
 };
@@ -251,7 +251,7 @@ export function ImportPage() {
     void guarded(item.key, async () => {
       if (item.kind === 'widget' && item.widget) {
         const saved = saveImportedWidget(item.widget); // gooit een ImportError als de opslag vol is
-        const text = `“${saved.title}” staat nu bij je widgets (code ${saved.code}).`;
+        const text = `“${saved.title}” staat nu bij je oefeningen (code ${saved.code}).`;
         patch(item.key, {
           imported: text,
           importTone: 'ok',
@@ -293,7 +293,7 @@ export function ImportPage() {
       importTone: tone,
       importBadge: tone === 'ok' ? 'geïmporteerd' : 'deels bewaard',
       importedTo: {
-        label: <><Puzzle size={16} /> Naar mijn widgets</>,
+        label: <><Puzzle size={16} /> Naar mijn oefeningen</>,
         to: res.folderId ? `/widgets?map=${encodeURIComponent(res.folderId)}` : '/widgets',
       },
       retry: res.failed.length > 0
@@ -304,7 +304,7 @@ export function ImportPage() {
         : undefined,
     });
     const total = alreadySaved + res.widgets.length;
-    toast(tone === 'ok' ? `${total} widget${total === 1 ? '' : 's'} geïmporteerd` : text, tone === 'ok' ? 'ok' : 'err');
+    toast(tone === 'ok' ? `${total} ${total === 1 ? 'oefening' : 'oefeningen'} geïmporteerd` : text, tone === 'ok' ? 'ok' : 'err');
   }
 
   /** De widgets die bij een volle opslag niet bewaard konden worden, opnieuw proberen (in dezelfde map). */
@@ -356,7 +356,7 @@ export function ImportPage() {
           </p>
         </div>
         <div className="page-head-actions">
-          <Link to="/widgets" className="btn btn-ghost"><BackIcon size={16} /> Mijn widgets</Link>
+          <Link to="/widgets" className="btn btn-ghost"><BackIcon size={16} /> Mijn oefeningen</Link>
         </div>
       </div>
 
@@ -367,7 +367,7 @@ export function ImportPage() {
           <strong>Wat kan hier binnen?</strong>
           <ul style={{ margin: '6px 0 0', paddingLeft: 20 }}>
             <li><strong>.docx</strong> (Word), <strong>.pdf</strong>, <strong>.md</strong>, <strong>.txt</strong> en <strong>.html</strong> → de tekst eruit.</li>
-            <li><strong>.json</strong> uit Boosterz → een widget, een vakgroeppakket of een cursus, meteen te importeren.</li>
+            <li><strong>.json</strong> uit Boosterz → een oefening, een vakgroeppakket of een cursus, meteen te importeren.</li>
           </ul>
           <p className="hint" style={{ margin: '8px 0 0' }}>
             <WarningIcon size={16} className="icon-inline" aria-hidden /> Een <strong>gescande</strong> pdf (foto’s van
@@ -626,7 +626,7 @@ function CourseConflictModal({
       <ul>
         {conflicts.map((c) => (
           <li key={conflictKey(c)}>
-            {c.kind === 'course' ? 'Cursus' : 'Widget'} <strong>“{c.title}”</strong>
+            {c.kind === 'course' ? 'Cursus' : 'Oefening'} <strong>“{c.title}”</strong>
             {c.localTitle !== c.title && <> (hier: “{c.localTitle}”)</>}
             {c.older && <> — de versie in het bestand is <strong>ouder</strong> dan die op dit toestel</>}
           </li>
@@ -797,16 +797,16 @@ function SourceCard({
 
 function describeBundle(item: SourceItem): string {
   if (item.kind === 'widget' && item.widget) {
-    return 'Dit is één widget. Bij het importeren krijgt ze een nieuwe deelcode, zodat ze naast je bestaande widgets kan bestaan.';
+    return 'Dit is één oefening. Bij het importeren krijgt ze een nieuwe deelcode, zodat ze naast je bestaande oefeningen kan bestaan.';
   }
   if (item.kind === 'pack' && item.pack) {
     const n = item.pack.widgets.length;
-    return `Dit vakgroeppakket bevat ${n} widget${n === 1 ? '' : 's'}${item.pack.meta.auteur ? `, gedeeld door ${item.pack.meta.auteur}` : ''}. Ze komen in een nieuwe map “${item.pack.meta.naam}”.`;
+    return `Dit vakgroeppakket bevat ${n} ${n === 1 ? 'oefening' : 'oefeningen'}${item.pack.meta.auteur ? `, gedeeld door ${item.pack.meta.auteur}` : ''}. Ze komen in een nieuwe map “${item.pack.meta.naam}”.`;
   }
   if (item.kind === 'course' && item.course) {
     const n = item.course.widgets.length;
     const p = item.course.pdfs?.length ?? 0;
-    const extra = [n ? `${n} meegereisde widget${n === 1 ? '' : 's'}` : '', p ? `${p} pdf${p === 1 ? '' : '’s'}` : '']
+    const extra = [n ? `${n} meegereisde ${n === 1 ? 'oefening' : 'oefeningen'}` : '', p ? `${p} pdf${p === 1 ? '' : '’s'}` : '']
       .filter(Boolean)
       .join(' en ');
     return `Dit is een cursusbestand${extra ? ` met ${extra}` : ''}. Staat er al een andere versie op dit toestel, dan kies je eerst: vervangen, je eigen versie houden of als kopie bewaren.`;

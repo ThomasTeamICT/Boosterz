@@ -1,4 +1,5 @@
 import type { CourseBlock } from '../../lib/courseTypes';
+import { TITEL_DOELEN_KADERTJE } from '../../lib/doelenKadertjeTitel';
 
 // ── Lege blokken ────────────────────────────────────────────────────────────
 //
@@ -10,6 +11,10 @@ import type { CourseBlock } from '../../lib/courseTypes';
 //
 // Een oefening waarvan het id wél ingevuld is maar niet op dit toestel staat,
 // is NIET leeg: dan klopt de melding "vraag je leerkracht om een nieuwe link".
+//
+// Het doelenkadertje van het geraamte ("Doelen in deze sectie") zonder tekst (de leerkracht koppelde alle doelen van de
+// sectie los) is ook leeg: het blok blijft in de editor staan om later weer gevuld te worden, en een sectie met alleen
+// zo'n kadertje toont de lezer als "Deze sectie is nog leeg."
 
 const blank = (v: unknown): boolean => typeof v !== 'string' || v.trim() === '';
 const list = <T>(v: T[] | undefined): T[] => (Array.isArray(v) ? v : []);
@@ -23,7 +28,7 @@ export function isEmptyBlock(block: CourseBlock): boolean {
     case 'audio': return blank(block.url);
     case 'pdf': return blank(block.pdfId) && blank(block.url);
     case 'embed': return blank(block.url);
-    case 'callout': return blank(block.text) && blank(block.title);
+    case 'callout': return blank(block.text) && (blank(block.title) || (block.kind === 'goal' && block.title === TITEL_DOELEN_KADERTJE));
     case 'quote': return blank(block.text);
     case 'divider': return false;
     case 'attachment': return blank(block.dataUrl) && blank(block.name);

@@ -71,7 +71,7 @@ export function ShareModal({ widget, onClose }: { widget: Widget; onClose: () =>
         <div>
           <strong>Code (werkt alleen op dit toestel):</strong> voor leerlingen die op dit toestel werken (bv. een
           klaslaptop). Ze kiezen <em>Ik ben leerling</em>, typen de code en vullen zelf hun naam in, los van een klaslijst.
-          Op hun eigen toestel werkt de code niet: gebruik daar de link voor je leerlingen, bij <em>Meer manieren om te delen</em>.
+          Op hun eigen toestel werkt de code niet: gebruik daar de link naar deze oefening, bij <em>Meer manieren om te delen</em>.
         </div>
       </div>
       <div style={{ textAlign: 'center', margin: '10px 0 18px' }}>
@@ -100,7 +100,7 @@ export function ShareModal({ widget, onClose }: { widget: Widget; onClose: () =>
           <div className="callout">
             <span aria-hidden><Globe size={18} /></span>
             <div>
-              <strong>Link voor je leerlingen (werkt op elk toestel):</strong> de hele oefening zit in de link zelf,
+              <strong>Link naar deze oefening (werkt op elk toestel):</strong> de hele oefening zit in de link zelf,
               dus hij werkt op het eigen toestel van je leerlingen, ook thuis. Plak hem in Smartschool of je
               klasplatform. Resultaten blijven dan wel op het toestel van de leerling.
             </div>
@@ -110,7 +110,7 @@ export function ShareModal({ widget, onClose }: { widget: Widget; onClose: () =>
               <span aria-hidden><WarningIcon size={18} /></span>
               <div>
                 {inlined.unresolved === 1 ? 'Eén afbeelding of bijlage' : `${inlined.unresolved} afbeeldingen of bijlagen`} van deze
-                widget staan niet (meer) op dit toestel en reizen dus niet mee in de link of het bestand.
+                oefening staan niet (meer) op dit toestel en reizen dus niet mee in de link of het bestand.
               </div>
             </div>
           )}
@@ -146,7 +146,7 @@ export function ShareModal({ widget, onClose }: { widget: Widget; onClose: () =>
                 hint="Scan met tablet of gsm. Op een projector of smartboard: download de QR en toon hem op volledig scherm."
                 copyLabel="Link kopiëren"
                 downloadName={`qr-${widget.code}.png`}
-                tooLongText="Deze widget bevat te veel (bv. afbeeldingen of veel vragen) om in één QR-code te passen. Kopieer de link en deel ze via mail of Google Classroom."
+                tooLongText="Deze oefening bevat te veel (bv. afbeeldingen of veel vragen) om in één QR-code te passen. Kopieer de link en deel ze via mail of Google Classroom."
                 enlarge={false}
               />
             </div>
@@ -221,7 +221,7 @@ function AdaptedLinkSection({ widget, inlined }: { widget: Widget; inlined: Widg
             <CopyButton text={adaptedUrl} label="Kopiëren" />
           </div>
         ) : (
-          <p className="hint">Vink een aanpassing aan die effect heeft op deze widget.</p>
+          <p className="hint">Vink een aanpassing aan die effect heeft op deze oefening.</p>
         )}
       </div>
     </details>
@@ -331,9 +331,9 @@ export function AssignToClassSection({
       <div className="callout">
         <span aria-hidden><AssignIcon size={18} /></span>
         <div>
-          <strong>Toewijzen aan een klas:</strong> je leerlingen zien deze opdracht in hun klas, via de link voor
-          je leerlingen, en kiezen hun naam uit de klaslijst — geen tikfouten of dubbels, en hun werk komt
-          automatisch onder hun eigen naam in je klasoverzicht terecht.
+          <strong>Toewijzen aan een klas:</strong> je leerlingen zien deze opdracht in hun klas zodra je ze de link
+          voor je leerlingen uit het klasoverzicht geeft, en kiezen hun naam uit de klaslijst — geen tikfouten of
+          dubbels, en hun werk komt automatisch onder hun eigen naam in je klasoverzicht terecht.
         </div>
       </div>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>

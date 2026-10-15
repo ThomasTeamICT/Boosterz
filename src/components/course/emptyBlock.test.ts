@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CourseBlock, CourseBlockType } from '../../lib/courseTypes';
 import { makeBlock } from '../../lib/courses';
+import { TITEL_DOELEN_KADERTJE } from '../../lib/doelenKadertje';
 import { isEmptyBlock, leerlingBlokken, nietsTeVerliezen } from './emptyBlock';
 
 describe('isEmptyBlock', () => {
@@ -54,6 +55,36 @@ describe('isEmptyBlock', () => {
   it('houdt een kapot blok (ontbrekende lijst) uit de crash', () => {
     const kapot = { id: 'x', type: 'terms' } as unknown as CourseBlock;
     expect(() => isEmptyBlock(kapot)).not.toThrow();
+  });
+});
+
+describe('het doelenkadertje van het geraamte (O4)', () => {
+  const kadertje = (text: string, over: Partial<Extract<CourseBlock, { type: 'callout' }>> = {}): CourseBlock => ({
+    id: 'k', type: 'callout', kind: 'goal', title: TITEL_DOELEN_KADERTJE, text, ...over,
+  });
+
+  it('zonder tekst is het kadertje een leeg blok, ook al heeft het zijn titel', () => {
+    expect(isEmptyBlock(kadertje(''))).toBe(true);
+    expect(isEmptyBlock(kadertje('  \n '))).toBe(true);
+  });
+
+  it('met tekst is het kadertje niet leeg', () => {
+    expect(isEmptyBlock(kadertje('NW 1.1 — Een doel.'))).toBe(false);
+  });
+
+  it('alleen het kadertje van de app (kind goal en de vaste titel) valt weg; een eigen titel of een ander soort blijft', () => {
+    expect(isEmptyBlock(kadertje('', { title: 'Mijn doelen' }))).toBe(false);
+    expect(isEmptyBlock(kadertje('', { kind: 'tip' }))).toBe(false);
+  });
+
+  it('de lezer slaat het lege kadertje over: een sectie met alleen dat kadertje heeft niets te tonen', () => {
+    expect(leerlingBlokken([kadertje('')])).toEqual([]);
+    const tekst: CourseBlock = { id: 't', type: 'text', markdown: 'Uitleg' };
+    expect(leerlingBlokken([kadertje(''), tekst, kadertje('NW 1.1 — Een doel.', { id: 'k2' })]).map((b) => b.id)).toEqual(['t', 'k2']);
+  });
+
+  it('de leerkracht verliest niets als ze het lege kadertje verwijdert', () => {
+    expect(nietsTeVerliezen(kadertje(''))).toBe(true);
   });
 });
 

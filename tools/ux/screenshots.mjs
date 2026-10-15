@@ -114,10 +114,10 @@ for (const setName of wanted) {
   await sleep(1200); await shot('cursus-lezer-sectie');
   if (data.klasId) {
     await go(`#/klas/${data.klasId}`);
-    await page.getByRole('button', { name: /Klaslink/ }).first().click().catch(() => {});
-    await page.waitForFunction(() => { const el = document.querySelector('[aria-label="Klaspakketlink"]'); return el && /#\/klas\/open\?d=/.test(el.value || el.textContent || ''); }, null, { timeout: 15000 }).catch(() => {});
+    await page.getByRole('button', { name: /Link voor je leerlingen/ }).first().click().catch(() => {});
+    await page.waitForFunction(() => { const el = document.querySelector('input[aria-label="Link voor je leerlingen"]'); return el && /#\/klas\/open\?d=/.test(el.value || el.textContent || ''); }, null, { timeout: 15000 }).catch(() => {});
     await shot('klaslink-delen');
-    const link = await page.evaluate(() => { const el = document.querySelector('[aria-label="Klaspakketlink"]'); return el ? (el.value || el.textContent || '') : ''; });
+    const link = await page.evaluate(() => { const el = document.querySelector('input[aria-label="Link voor je leerlingen"]'); return el ? (el.value || el.textContent || '') : ''; });
     if (link) {
       await page.goto(link.replace(/^https?:\/\/[^/]+/, BASE), { waitUntil: 'networkidle' }); await sleep(1200);
       await shot('leerling-kies-naam');

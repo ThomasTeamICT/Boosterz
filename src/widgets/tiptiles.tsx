@@ -88,7 +88,7 @@ export function TipTilesEditor({ config, onChange }: EditorProps<TipTilesConfig>
                     Standaardkleur gebruiken
                   </button>
                 ) : (
-                  <span className="hint">Nu: standaardkleur van de widget.</span>
+                  <span className="hint">Nu: standaardkleur van de oefening.</span>
                 )}
               </div>
             </Field>

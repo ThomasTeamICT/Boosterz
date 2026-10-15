@@ -57,8 +57,6 @@ export interface BlockRendererProps {
 export function BlockRenderer(props: BlockRendererProps): JSX.Element {
   const { block } = props;
   const interactive = props.interactive !== false;
-  // Een doelenkadertje zonder tekst (de leerkracht koppelde alle doelen van de sectie los) heeft een leerling niets te zeggen.
-  if (block.type === 'callout' && block.kind === 'goal' && (block.text ?? '').trim() === '') return <></>;
   return (
     <div className="course-block">
       {renderBlock(block, interactive, props)}

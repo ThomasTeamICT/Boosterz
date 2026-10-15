@@ -19,6 +19,18 @@ describe('htmlToMarkdown — koppen en alinea\'s', () => {
   it('kapt h4–h6 af op ###', () => {
     expect(htmlToMarkdown('<h4>Diep</h4><h6>Dieper</h6>')).toBe('### Diep\n\n### Dieper');
   });
+  it('in een kop geven vet en cursief alleen hun tekst: een vette titel krijgt geen sterretjes', () => {
+    expect(htmlToMarkdown('<h1><strong>Bodem en landschap</strong></h1>')).toBe('# Bodem en landschap');
+    expect(htmlToMarkdown('<h1><b>Bodem</b> en <i>landschap</i></h1>')).toBe('# Bodem en landschap');
+    expect(htmlToMarkdown('<h2><em>Gesteenten</em></h2><h3><strong><em>Voorbeeld</em></strong></h3>')).toBe('## Gesteenten\n\n### Voorbeeld');
+    // Ook als het vet dieper genest staat, of rond een link of hoog en laag.
+    expect(htmlToMarkdown('<h2><a href="https://voorbeeld.be"><strong>Meer</strong></a> over H<sub><b>2</b></sub>O</h2>')).toBe('## [Meer](https://voorbeeld.be) over H₂O');
+    // Een spatie binnen het vet blijft netjes: geen dubbele spaties.
+    expect(htmlToMarkdown('<h1>Hoofdstuk <strong>1: </strong>Bodem</h1>')).toBe('# Hoofdstuk 1: Bodem');
+  });
+  it('buiten een kop blijven vet en cursief zoals ze waren, ook in een alinea direct na een kop', () => {
+    expect(htmlToMarkdown('<h1><strong>Titel</strong></h1><p><strong>Vet</strong> en <em>schuin</em></p>')).toBe('# Titel\n\n**Vet** en *schuin*');
+  });
   it('vouwt witruimte in alinea\'s samen en scheidt blokken met een witregel', () => {
     expect(htmlToMarkdown('<p>Een\n   zin.</p>\n<p>  Nog een.  </p>')).toBe('Een zin.\n\nNog een.');
   });

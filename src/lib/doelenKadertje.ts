@@ -6,9 +6,9 @@
 import type { CourseBlock } from './courseTypes';
 import { normalizeGoalCode, normalizeGoalCodes, shortGoalText } from './curriculum';
 import type { Curriculum, CurriculumGoal } from './curriculumTypes';
+import { TITEL_DOELEN_KADERTJE } from './doelenKadertjeTitel';
 
-/** De titel van het doelenkadertje dat het geraamte zet: zo herkennen we het later terug. */
-export const TITEL_DOELEN_KADERTJE = 'Doelen in deze sectie';
+export { TITEL_DOELEN_KADERTJE };
 
 /**
  * Tot oktober 2026 kapte het geraamte de doeltekst in dit kadertje af op zoveel tekens. Zulke kadertjes herkennen we nog
@@ -34,32 +34,44 @@ function isGeraamteKadertje(b: CourseBlock): b is KadertjeBlok {
   return !!b && typeof b === 'object' && b.type === 'callout' && b.kind === 'goal' && b.title === TITEL_DOELEN_KADERTJE;
 }
 
-/** Het leerplandoel bij een (genormaliseerde) code: het eerste met die code, zoals `geraamteHoofdstukken` het kiest. */
-function doelVoorCode(leerplan: Curriculum, code: string): CurriculumGoal | undefined {
-  return leerplan.goals.find((g) => normalizeGoalCode(typeof g?.code === 'string' ? g.code : '') === code);
+/** Het eerste leerplandoel per (genormaliseerde) code, zoals `geraamteHoofdstukken` het kiest. Eén keer opgebouwd, dan een opzoeking per code. */
+function doelenPerCode(leerplan: Curriculum): Map<string, CurriculumGoal> {
+  const uit = new Map<string, CurriculumGoal>();
+  for (const goal of leerplan.goals) {
+    const code = normalizeGoalCode(typeof goal?.code === 'string' ? goal.code : '');
+    if (!uit.has(code)) uit.set(code, goal);
+  }
+  return uit;
 }
+
+/** Per code (die in het leerplan staat) een regel, in de volgorde van de codes. Een code die niet in het leerplan staat, krijgt geen regel. */
+function kadertjeRegels(
+  codes: readonly string[] | undefined,
+  doelen: ReadonlyMap<string, CurriculumGoal>,
+  regel: (code: string, goal: CurriculumGoal) => string,
+): string {
+  return normalizeGoalCodes(codes)
+    .flatMap((code) => {
+      const goal = doelen.get(code);
+      return goal ? [regel(code, goal)] : [];
+    })
+    .join('\n');
+}
+
+/** De regel die het geraamte voor een doel zet. */
+const geraamteRegel = (code: string, goal: CurriculumGoal): string => doelRegel(code, goal.text);
 
 /**
  * De tekst van het doelenkadertje voor deze codes zoals het geraamte ze zet: per code een regel "<code> — <volledige zin>",
  * in de volgorde van de codes. Een code die niet in het leerplan staat, krijgt geen regel (er valt niets van te tonen).
  */
 export function doelenKadertjeTekst(codes: readonly string[] | undefined, leerplan: Curriculum): string {
-  return normalizeGoalCodes(codes)
-    .flatMap((code) => {
-      const goal = doelVoorCode(leerplan, code);
-      return goal ? [doelRegel(code, goal.text)] : [];
-    })
-    .join('\n');
+  return kadertjeRegels(codes, doelenPerCode(leerplan), geraamteRegel);
 }
 
 /** Dezelfde tekst zoals het geraamte ze tot oktober 2026 zette: de doeltekst afgekapt op `OUDE_REGEL_TEKST` tekens. */
-function oudeDoelenKadertjeTekst(codes: readonly string[] | undefined, leerplan: Curriculum): string {
-  return normalizeGoalCodes(codes)
-    .flatMap((code) => {
-      const goal = doelVoorCode(leerplan, code);
-      return goal ? [`${code} — ${shortGoalText(typeof goal.text === 'string' ? goal.text : '', OUDE_REGEL_TEKST)}`] : [];
-    })
-    .join('\n');
+function oudeKadertjeTekst(codes: readonly string[] | undefined, doelen: ReadonlyMap<string, CurriculumGoal>): string {
+  return kadertjeRegels(codes, doelen, (code, goal) => `${code} — ${shortGoalText(typeof goal.text === 'string' ? goal.text : '', OUDE_REGEL_TEKST)}`);
 }
 
 /**
@@ -84,8 +96,11 @@ export function werkDoelenKadertjeBij(
   leerplan: Curriculum | undefined,
 ): CourseBlock[] {
   if (!leerplan || !Array.isArray(leerplan.goals)) return blokken as CourseBlock[];
-  const gemaakt = new Set([doelenKadertjeTekst(vorigeCodes, leerplan), oudeDoelenKadertjeTekst(vorigeCodes, leerplan)]);
-  const nieuw = doelenKadertjeTekst(nieuweCodes, leerplan);
+  // Zonder kadertje van het geraamte is er niets bij te werken: dan ook geen werk voor het leerplan.
+  if (!blokken.some(isGeraamteKadertje)) return blokken as CourseBlock[];
+  const doelen = doelenPerCode(leerplan);
+  const gemaakt = new Set([kadertjeRegels(vorigeCodes, doelen, geraamteRegel), oudeKadertjeTekst(vorigeCodes, doelen)]);
+  const nieuw = kadertjeRegels(nieuweCodes, doelen, geraamteRegel);
   let veranderd = false;
   const uit = blokken.map((b) => {
     if (!isGeraamteKadertje(b) || !gemaakt.has(b.text) || b.text === nieuw) return b;

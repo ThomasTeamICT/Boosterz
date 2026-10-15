@@ -459,7 +459,7 @@ describe('processCodes — eerst ingelezen zonder widget, daarna mét (nieuw 1)'
     const metWidget = makeDeps({ submissions: [opgeslagen] });
     const tweede = processCodes(resultCode(vanThuis), metWidget.deps);
     expect(tweede.rows[0].outcome).toBe('dubbel');
-    expect(tweede.rows[0].message).toMatch(/gekoppeld aan deze widget/);
+    expect(tweede.rows[0].message).toMatch(/gekoppeld aan deze oefening/);
     expect(metWidget.savedSubs).toHaveLength(1);
     expect(metWidget.savedSubs[0].id).toBe(opgeslagen.id);
     expect(metWidget.savedSubs[0].widgetId).toBe('w1');

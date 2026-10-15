@@ -104,7 +104,7 @@ export function ClassDashboardPage() {
 
   const titleOf = (a: Assignment): string => {
     const t = a.kind === 'course' ? ctx.courses.get(a.targetId)?.title : ctx.widgets.get(a.targetId)?.title;
-    return t ?? (a.kind === 'course' ? 'Cursus (niet op dit toestel)' : 'Widget (niet op dit toestel)');
+    return t ?? (a.kind === 'course' ? 'Cursus (niet op dit toestel)' : 'Oefening (niet op dit toestel)');
   };
 
   /** Inzendingen die nog op verbetering wachten, per widget. */
@@ -181,7 +181,7 @@ export function ClassDashboardPage() {
         </div>
         {assignments.length === 0 ? (
           <p className="hint" style={{ marginBottom: 0 }}>
-            Nog geen opdrachten. Voeg een cursus of oefening toe — je leerlingen zien ze meteen, via de link voor je leerlingen.
+            Nog geen opdrachten. Voeg een cursus of oefening toe en geef je leerlingen daarna de link (knop ‘Link voor je leerlingen’).
           </p>
         ) : (
           <ul style={{ listStyle: 'none', padding: 0, margin: '10px 0 0', display: 'grid', gap: 8 }}>
@@ -568,9 +568,16 @@ function StudentPanel({
  */
 function LeerlingLink({ url }: { url: string }) {
   const veldRef = useRef<HTMLInputElement>(null);
+  const knopRef = useRef<HTMLButtonElement>(null);
   const timer = useRef<number | undefined>(undefined);
   const [stand, setStand] = useState<'' | 'gekopieerd' | 'zelf'>('');
   useEffect(() => () => window.clearTimeout(timer.current), []);
+  // De link verschijnt pas als het klaspakket klaar is. Het venster zette de focus intussen op het eerste dat er stond (de knop
+  // bij de code, onderaan) of liet ze op de pagina: dan krijgt de knop "Kopieer de link" de focus. Wie zelf al elders klikte, houdt ze.
+  useEffect(() => {
+    const actief = document.activeElement;
+    if (!actief || actief === document.body || actief.closest('.dl-coderij')) knopRef.current?.focus();
+  }, []);
   // Een andere link (de opdrachten veranderden): de oude bevestiging geldt niet meer.
   useEffect(() => { setStand(''); }, [url]);
 
@@ -592,7 +599,7 @@ function LeerlingLink({ url }: { url: string }) {
   return (
     <div>
       <div className="dl-linkrij">
-        <button type="button" className="btn btn-primary" onClick={() => { void kopieer(); }}>
+        <button ref={knopRef} type="button" className="btn btn-primary" onClick={() => { void kopieer(); }}>
           <CopyIcon size={16} /> Kopieer de link
         </button>
         <p className="dl-melding" role="status">
@@ -649,6 +656,8 @@ function ClassShareModal({
         <p className="dl-uitleg">
           Werkt op het eigen toestel van je leerlingen, ook thuis. De klaslijst, de opdrachten en hun inhoud
           zitten in de link zelf; je leerling opent hem één keer. Plak hem in Smartschool of je klasplatform.
+          Voeg je later een opdracht toe of wijzig je iets, geef dan de nieuwe link: wie een oudere link opende, ziet de
+          wijziging niet. Wat je leerlingen op hun eigen toestel maken, komt via hun code bij jou: die lees je in op het Inleverpunt.
         </p>
         {busy && !pack ? (
           <p className="dl-uitleg" role="status" aria-busy>Link wordt klaargemaakt (afbeeldingen worden ingevoegd)…</p>
@@ -682,8 +691,9 @@ function ClassShareModal({
                 value={pack.url}
                 label="de link voor je leerlingen"
                 size={180}
-                copyLabel="Link kopiëren"
-                hint="Laat je leerlingen deze QR scannen met hun eigen toestel."
+                copy={false}
+                downloadName={`qr-${cls.code}.png`}
+                hint="Laat je leerlingen deze QR scannen met hun eigen toestel. Op een projector of smartboard: download de QR en toon hem op volledig scherm."
                 enlarge={false}
               />
             )}
@@ -848,7 +858,7 @@ function NewAssignmentModal({
           </Field>
         )
       ) : widgets.length === 0 ? (
-        <p className="hint">Je hebt nog geen oefeningen met resultaten. Maak er eerst een bij <strong>Mijn widgets</strong>.</p>
+        <p className="hint">Je hebt nog geen oefeningen met resultaten. Maak er eerst een bij <strong>Mijn oefeningen</strong>.</p>
       ) : (
         <Field label="Oefening">
           <select className="select" value={targetId} onChange={(e) => setTargetId(e.target.value)}>

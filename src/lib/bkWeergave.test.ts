@@ -436,9 +436,9 @@ describe('de dekking', () => {
 
   it('bkNietMeetellendeTekst: 0, 1 en 2', () => {
     expect(bkNietMeetellendeTekst(0)).toBe('');
-    expect(bkNietMeetellendeTekst(1)).toBe('1 cursus van deze richting volgt geen beroepskwalificatie. Daarom staat ze niet in deze telling; bij de cursus lees je waarom.');
-    expect(bkNietMeetellendeTekst(2)).toBe('2 cursussen van deze richting volgen geen beroepskwalificatie. Daarom staan ze niet in deze telling; bij elke cursus lees je waarom.');
-    expect(bkNietMeetellendeTekst(4)).toBe('4 cursussen van deze richting volgen geen beroepskwalificatie. Daarom staan ze niet in deze telling; bij elke cursus lees je waarom.');
+    expect(bkNietMeetellendeTekst(1)).toBe('1 cursus van deze richting staat niet in deze telling; bij de cursus lees je waarom.');
+    expect(bkNietMeetellendeTekst(2)).toBe('2 cursussen van deze richting staan niet in deze telling; bij elke cursus lees je waarom.');
+    expect(bkNietMeetellendeTekst(4)).toBe('4 cursussen van deze richting staan niet in deze telling; bij elke cursus lees je waarom.');
   });
 
   it('de kop boven die cursussen zegt wat ze zijn en is geen verwijt: niet "niet meetellen"', () => {

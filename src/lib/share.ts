@@ -162,7 +162,7 @@ function importedWidget(raw: unknown): Widget | null {
   const w = raw as Record<string, unknown> | null;
   if (!w || typeof w !== 'object' || typeof w.type !== 'string') return null;
   if (!w.config || typeof w.config !== 'object') return null;
-  w.title = typeof w.title === 'string' && w.title.trim() ? w.title : 'Geïmporteerde widget';
+  w.title = typeof w.title === 'string' && w.title.trim() ? w.title : 'Geïmporteerde oefening';
   w.settings = { ...FALLBACK_SETTINGS, ...(typeof w.settings === 'object' && w.settings ? w.settings : {}) };
   w.folderId = typeof w.folderId === 'string' ? w.folderId : null;
   w.createdAt = typeof w.createdAt === 'number' ? w.createdAt : Date.now();

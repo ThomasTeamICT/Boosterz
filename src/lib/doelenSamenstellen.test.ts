@@ -362,7 +362,7 @@ describe.runIf(ECHT)('opnieuw samenstellen over meer aanpassingen heen: weggelat
     expect(r2!.bevestigd).toBe(true);
     expect(r2!.leerplan.weggelatenCodes).toEqual(nederlandsA);
     expect(r2!.waarschuwingen).toEqual([
-      '3 doelen uit de bewaarde lijst vallen weg (BG02.01, BG02.02, BG02.03). Is een cursus of widget aan zo\'n doel gekoppeld, dan vindt die het doel niet meer in deze lijst.',
+      '3 doelen uit de bewaarde lijst vallen weg (BG02.01, BG02.02, BG02.03). Is een cursus of oefening aan zo\'n doel gekoppeld, dan vindt die het doel niet meer in deze lijst.',
     ]);
     // Exporteren en importeren behoudt het veld en de status.
     expect(controleStatus(tweede)).toBe('gecontroleerd');
@@ -1229,7 +1229,7 @@ describe('leerplanUitSelectie: doelen die uit de bewaarde lijst wegvallen (C2, n
   const s1 = drieDoelen('ODS_9001', 'a');
   const s2 = drieDoelen('ODS_9002', 'b', { korteNaam: 'Ander', stroom: 'B-stroom' });
   const eerst = leerplanUitSelectie([{ bestand: s1, doelen: 'alle' }], { titel: 'T' }).leerplan;
-  const gevolg = 'Is een cursus of widget aan zo\'n doel gekoppeld, dan vindt die het doel niet meer in deze lijst.';
+  const gevolg = 'Is een cursus of oefening aan zo\'n doel gekoppeld, dan vindt die het doel niet meer in deze lijst.';
 
   it('noemt hoeveel doelen wegvallen, met hun codes, en bewaart die codes in `weggelatenCodes`', () => {
     const r = leerplanUitSelectie([{ bestand: s1, doelen: ['a1'] }], { titel: 'T', bestaand: eerst });
@@ -1240,7 +1240,7 @@ describe('leerplanUitSelectie: doelen die uit de bewaarde lijst wegvallen (C2, n
 
   it('één doel: enkelvoud', () => {
     const r = leerplanUitSelectie([{ bestand: s1, doelen: ['a1', 'a2'] }], { titel: 'T', bestaand: eerst });
-    expect(r.waarschuwingen).toEqual(['1 doel uit de bewaarde lijst valt weg (1.03). Is een cursus of widget aan dat doel gekoppeld, dan vindt die het doel niet meer in deze lijst.']);
+    expect(r.waarschuwingen).toEqual(['1 doel uit de bewaarde lijst valt weg (1.03). Is een cursus of oefening aan dat doel gekoppeld, dan vindt die het doel niet meer in deze lijst.']);
   });
 
   it('hoogstens 5 codes, daarna "…"', () => {

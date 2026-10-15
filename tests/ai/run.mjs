@@ -438,7 +438,7 @@ async function flowStudio(page, report, aiCalls, ctx, texts) {
     // soort) toont de app de "Bewaren"-voorvertoning. Ruim getimed: bij 5
     // soorten kunnen dat 2 golven zijn, en elke aanroep denkt apart na.
     const { settled: previewShown } = await runBatchAIStep(
-      page, aiCalls, flow, 'widgets uit bron',
+      page, aiCalls, flow, 'oefeningen uit bron',
       () => page.getByRole('button', { name: /^Genereer/ }).click(),
       () => page.getByRole('heading', { name: 'Bewaren' }),
       { timeout: 270000 }
@@ -451,7 +451,7 @@ async function flowStudio(page, report, aiCalls, ctx, texts) {
 
     let newTypes = [];
     if (previewShown) {
-      await page.getByRole('button', { name: /widgets? bewaren/ }).click();
+      await page.getByRole('button', { name: /oefening(en)? bewaren/ }).click();
       await page.getByRole('heading', { name: /Klaar — /, exact: false }).waitFor({ timeout: 15000 }).catch(() => {});
       const all = await readLS(page, 'wf.widgets.v1', []);
       // Volledige Widget-objecten (config: vragen, opties, hints, …) voor de nakijkronde.
@@ -909,9 +909,16 @@ async function flowCursus(page, report, aiCalls, ctx, texts) {
     // Doelendekking: dekking vóór meten
     await page.getByRole('button', { name: 'Doelendekking' }).click();
     let dCov = page.getByRole('dialog', { name: 'Doelendekking' });
-    const summaryBefore = (await dCov.locator('text=/Dekkend/').first().textContent().catch(() => '')) ?? '';
-    const mBefore = summaryBefore.match(/Dekkend:\s*(?:alle\s*(\d+)|(\d+)\s*van\s*(\d+))/);
-    const coveredBefore = mBefore ? parseInt(mBefore[1] ?? mBefore[2], 10) : null;
+    // De zin bovenaan de weergave Leerplan (uitwerkZinnen.ts): "2 van de 6 doelen zijn uitgewerkt. …", "Alle 6 doelen zijn uitgewerkt." of
+    // "Het enige doel is uitgewerkt." Het getal is het aantal uitgewerkte doelen; een doel dat alleen op een lege sectie staat telt niet mee.
+    const UITGEWERKT = /(?:(\d+) van de \d+ doelen (?:zijn|is) uitgewerkt|Alle (\d+) doelen zijn uitgewerkt|Het enige doel is uitgewerkt)/;
+    const leesUitgewerkt = (zin) => {
+      const m = zin.match(UITGEWERKT);
+      if (!m) return null;
+      return parseInt(m[1] ?? m[2] ?? '1', 10);
+    };
+    const summaryBefore = (await dCov.locator('text=/uitgewerkt/').first().textContent().catch(() => '')) ?? '';
+    const coveredBefore = leesUitgewerkt(summaryBefore);
 
     await dCov.getByRole('button', { name: 'Vul de hiaten' }).click();
     const dFill = page.getByRole('dialog', { name: 'Cursus optimaliseren' });
@@ -930,9 +937,8 @@ async function flowCursus(page, report, aiCalls, ctx, texts) {
 
     await page.getByRole('button', { name: 'Doelendekking' }).click();
     dCov = page.getByRole('dialog', { name: 'Doelendekking' });
-    const summaryAfter = (await dCov.locator('text=/Dekkend/').first().textContent().catch(() => '')) ?? '';
-    const mAfter = summaryAfter.match(/Dekkend:\s*(?:alle\s*(\d+)|(\d+)\s*van\s*(\d+))/);
-    const coveredAfter = mAfter ? parseInt(mAfter[1] ?? mAfter[2], 10) : null;
+    const summaryAfter = (await dCov.locator('text=/uitgewerkt/').first().textContent().catch(() => '')) ?? '';
+    const coveredAfter = leesUitgewerkt(summaryAfter);
     report.check(flow, `5d: dekking steeg (${summaryBefore.trim()} → ${summaryAfter.trim()})`, coveredBefore !== null && coveredAfter !== null && coveredAfter > coveredBefore, `voor="${summaryBefore.trim()}" na="${summaryAfter.trim()}"`);
     await page.keyboard.press('Escape');
     await sleep(200);

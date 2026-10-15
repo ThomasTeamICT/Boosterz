@@ -50,6 +50,35 @@ describe('kandidaatSets: het vak eerst, ook de sleutelcompetentie die erbij hoor
   });
 });
 
+describe('setNoemtVak en kandidaatSets: "lichamelijke opvoeding" en "LO" (Z3)', () => {
+  const KUNST = set('ODS_2119', 'Artistieke Opvoeding', 'Secundair onderwijs 1ste graad A-stroom - Vak - Artistieke Opvoeding - Eindtermen');
+  const LO_OUD = set('ODS_2120', 'Lichamelijke Opvoeding', 'Secundair onderwijs 1ste graad A-stroom - Vak - Lichamelijke Opvoeding - Eindtermen');
+  const TECH = set('ODS_2130', 'Wiskunde – natuurwetenschappen – technologie – STEM', 'Secundair onderwijs 1ste graad A-stroom -  Competenties inzake wiskunde, exacte wetenschappen en technologie - Eindtermen');
+
+  it('de set van nu (lichamelijke en geestelijke gezondheid) en de oude vakset horen bij het vak, "Artistieke Opvoeding" niet', () => {
+    for (const vak of ['Lichamelijke opvoeding', 'lichamelijke opvoeding', 'LO', 'L.O.']) {
+      expect(setNoemtVak(BEWEGEN, vak), vak).toBe(true);
+      expect(setNoemtVak(LO_OUD, vak), vak).toBe(true);
+      expect(setNoemtVak(KUNST, vak), vak).toBe(false);
+      expect(setNoemtVak(TECH, vak), vak).toBe(false);
+    }
+  });
+
+  it('"opvoeding" alleen noemt nog wel beide sets met dat woord', () => {
+    expect(setNoemtVak(KUNST, 'opvoeding')).toBe(true);
+    expect(setNoemtVak(LO_OUD, 'opvoeding')).toBe(true);
+  });
+
+  it('kandidaatSets zet bij "LO" de sets van lichamelijke opvoeding vooraan en laat "Artistieke Opvoeding" achter', () => {
+    const index = [KUNST, WISKUNDE, TECH, BEWEGEN, LO_OUD];
+    for (const vak of ['LO', 'Lichamelijke opvoeding']) {
+      const ids = kandidaatSets(index, { ...OPTIES, vak }).map((s) => s.id);
+      expect(ids.slice(0, 2).sort(), vak).toEqual(['ODS_2120', 'ODS_2438']);
+      expect(ids.slice(2), vak).not.toContain('ODS_2120');
+    }
+  });
+});
+
 describe('setNoemtVak', () => {
   it('de naam of de korte naam noemt het vak, zonder accenten en hoofdletters', () => {
     expect(setNoemtVak(VAK_AAR, 'Aardrijkskunde')).toBe(true);

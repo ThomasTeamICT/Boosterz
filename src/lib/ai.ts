@@ -19,7 +19,7 @@ export interface AISettings {
 
 export interface AIUsageEntry {
   at: number;
-  /** Korte taakomschrijving, bv. "widgets uit bron" of "cursus uit leerplandoelen". */
+  /** Korte taakomschrijving, bv. "oefeningen uit bron" of "cursus uit leerplandoelen". */
   task: string;
   model: string;
   inputTokens: number;
@@ -479,7 +479,7 @@ export function effectiveMaxTokens(provider: AIProviderId, requested: number | u
 function truncatedError(): AIError {
   return new AIError(
     'Het antwoord van de AI werd afgekapt omdat het te lang werd. Probeer het opnieuw, vraag minder tegelijk ' +
-    '(bv. minder widgettypes of een kleiner stuk tekst), of kies een ander model bij de AI-instellingen.'
+    '(bv. minder soorten oefeningen of een kleiner stuk tekst), of kies een ander model bij de AI-instellingen.'
   );
 }
 

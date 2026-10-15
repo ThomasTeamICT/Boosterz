@@ -215,7 +215,7 @@ export function CoursesPage() {
       if (keuze?.choice === 'kopie') melding = `"${titel}" geïmporteerd: wat al bestond, staat ernaast als kopie`;
       else if (keuze?.choice === 'houden') melding = `"${titel}" geïmporteerd: je eigen versie bleef staan`;
       else if (keuze?.choice === 'bijwerken') melding = `"${titel}" vervangen door de versie uit het bestand`;
-      else if (!hadCourse) melding = `Cursus "${titel}" geïmporteerd${bundle.widgets.length ? ` (met ${n(bundle.widgets.length, 'widget', 'widgets')})` : ''}`;
+      else if (!hadCourse) melding = `Cursus "${titel}" geïmporteerd${bundle.widgets.length ? ` (met ${n(bundle.widgets.length, 'oefening', 'oefeningen')})` : ''}`;
       else if (res.updated > 0 || res.added > 0) melding = `Cursus "${titel}" bijgewerkt`;
       else melding = `Cursus "${titel}" stond al zo op dit toestel`;
       if (pdf.restored > 0) melding += ` · ${n(pdf.restored, 'pdf', "pdf's")} teruggezet`;
@@ -483,7 +483,7 @@ export function CoursesPage() {
       {deleteTarget && (
         <ConfirmModal
           title="Cursus verwijderen?"
-          message={`"${deleteTarget.title}" en de bijhorende leesvoortgang van leerlingen worden definitief verwijderd. De oefeningen uit de cursus blijven bestaan bij Widgets.`}
+          message={`"${deleteTarget.title}" en de bijhorende leesvoortgang van leerlingen worden definitief verwijderd. De oefeningen uit de cursus blijven bestaan bij Oefeningen.`}
           onConfirm={() => { deleteCourse(deleteTarget.id); toast('Cursus verwijderd', 'ok'); }}
           onClose={() => setDeleteTarget(null)}
         />
@@ -526,7 +526,7 @@ function ImportConflictModal({
       <ul>
         {conflicten.map((c) => (
           <li key={conflictKey(c)}>
-            {c.kind === 'course' ? 'Cursus' : 'Widget'} <strong>“{c.title}”</strong>
+            {c.kind === 'course' ? 'Cursus' : 'Oefening'} <strong>“{c.title}”</strong>
             {c.localTitle !== c.title && <> (hier: “{c.localTitle}”)</>}
             {c.older && <> — de versie in het bestand is <strong>ouder</strong> dan die op dit toestel</>}
           </li>

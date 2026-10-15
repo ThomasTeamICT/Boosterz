@@ -11,7 +11,7 @@ import {
   type MinimumdoelenIndexSet,
   type MinimumdoelenSetBestand,
 } from './minimumdoelen';
-import { bevatFrase, competentieFrases } from './vakZoektabel';
+import { bevatFrase, competentieFrases, vakAlsZoekwoord } from './vakZoektabel';
 
 /** De map met de bestanden, naast de app (vite base './'; de hash-route verandert het pad niet). */
 export const MINIMUMDOELEN_MAP = `${import.meta.env.BASE_URL}leerplannen/minimumdoelen/`;
@@ -307,10 +307,13 @@ export function zonderAccenten(tekst: string): string {
 /**
  * De sets die aan alle filters voldoen, in de volgorde van de index. Alle zoekwoorden moeten passen. Een
  * zoekwoord dat een vak is ("aardrijkskunde"), vindt ook de set van de sleutelcompetentie die erbij hoort
- * ("Ruimtelijk bewustzijn"): dat is een hulp bij het zoeken, geen officiële koppeling (zie vakZoektabel.ts).
+ * ("Ruimtelijk bewustzijn"): dat is een hulp bij het zoeken, geen officiële koppeling (zie vakZoektabel.ts). Een meerwoordige
+ * vaknaam of afkorting ("lichamelijke opvoeding", "LO") wordt eerst het hoofdwoord van dat vak, zodat elke lijst die op deze
+ * functie zoekt dezelfde sets vindt.
  */
 export function filterSets(sets: readonly MinimumdoelenIndexSet[], filter: SetFilter): MinimumdoelenIndexSet[] {
-  const termen = zonderAccenten(filter.zoek).split(/\s+/).filter(Boolean);
+  // "lichamelijke opvoeding" en "LO" zoeken de sets van dat vak (`vakAlsZoekwoord`); een andere tekst blijft zoals ze is.
+  const termen = zonderAccenten(vakAlsZoekwoord(filter.zoek)).split(/\s+/).filter(Boolean);
   const oud = filter.geldigheid === 'actueel' ? oudeVersieIds(sets) : undefined;
   const alternatieven = termen.map((t) => competentieFrases(t));
   return sets.filter((s) => {

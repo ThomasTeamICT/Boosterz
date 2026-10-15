@@ -598,7 +598,7 @@ function QuestionBankModal({ onImport, onClose }: { onImport: (qs: Question[]) =
 
   return (
     <Modal
-      title="Vragen importeren uit je andere widgets"
+      title="Vragen importeren uit je andere oefeningen"
       onClose={onClose}
       wide
       footer={

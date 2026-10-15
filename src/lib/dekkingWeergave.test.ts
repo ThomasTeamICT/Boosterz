@@ -27,6 +27,7 @@ import {
   KADER_NOG_NIET_NOOT,
   KIES_JAAR_HINT,
   RICHTING_ONBEKEND_NOOT,
+  ANDERE_CURSUSSEN_KOP,
   bkTitelsVanLeerplan,
   bkWeergaveLabel,
   buitenJaarTekst,
@@ -354,6 +355,11 @@ describe('cursussen bij een richting', () => {
 
   it('een cursus van een ander jaar', () => {
     expect(buitenJaarTekst(3)).toBe('Telt nu niet mee: je telt alleen het 3de jaar.');
+  });
+
+  it('de kop boven de cursussen buiten de telling zegt wat ze zijn, en is geen verwijt', () => {
+    expect(ANDERE_CURSUSSEN_KOP).toBe('Andere cursussen van deze richting');
+    expect(ANDERE_CURSUSSEN_KOP).not.toMatch(/niet meetell|tellen? hier niet mee|telt niet mee/i);
   });
 });
 

@@ -143,7 +143,7 @@ export function InboxPage() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '10px 0' }}>
             <span className="badge badge-ok">{totals.nieuw} nieuw</span>
             {totals.dubbel > 0 && <span className="badge">{totals.dubbel} al aanwezig</span>}
-            {totals.onbekend > 0 && <span className="badge badge-warn">{totals.onbekend} zonder widget of cursus hier</span>}
+            {totals.onbekend > 0 && <span className="badge badge-warn">{totals.onbekend} zonder oefening of cursus hier</span>}
             {totals.ongeldig > 0 && <span className="badge badge-err">{totals.ongeldig} ongeldig</span>}
           </div>
           <div className="card" style={{ overflowX: 'auto' }}>

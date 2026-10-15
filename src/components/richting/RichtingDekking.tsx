@@ -11,6 +11,7 @@ import { DekkingPerSet, ToonKeuze } from '../course/MinimumdoelenDekking';
 import { FoutBericht, LaadBericht } from '../curriculum/LaadStatus';
 import { PlannedIcon, RetryIcon, WarningIcon } from '../icons';
 import {
+  ANDERE_CURSUSSEN_KOP,
   EERSTE_GRAAD_ZIN,
   FOUT_SETS_DEKKING,
   KIES_JAAR_HINT,
@@ -166,7 +167,7 @@ function DekkingInhoud({ info, gegevens, metBk, laadt, fout, onPlan, knopRef }: 
       <DekkingPerSet dekking={dekking} toon={toon} namen={namen} />
       {nietMee.length > 0 && (
         <div className="dk-cursussen">
-          <Kop>Cursussen die niet meetellen</Kop>
+          <Kop>{ANDERE_CURSUSSEN_KOP}</Kop>
           <ul className="dk-cursuslijst">
             {nietMee.map((c) => (
               <li key={c.courseId} className="dk-cursus">

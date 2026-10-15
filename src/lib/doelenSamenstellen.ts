@@ -479,8 +479,8 @@ function waarschuwingWegvallen(bestaand: Curriculum, nieuweSleutels: ReadonlySet
   const lijst = aantal > genoemd.length ? [...genoemd, '…'] : genoemd;
   const tussen = genoemd.length > 0 ? ` (${lijst.join(', ')})` : '';
   return aantal === 1
-    ? `1 doel uit de bewaarde lijst valt weg${tussen}. Is een cursus of widget aan dat doel gekoppeld, dan vindt die het doel niet meer in deze lijst.`
-    : `${aantal} doelen uit de bewaarde lijst vallen weg${tussen}. Is een cursus of widget aan zo'n doel gekoppeld, dan vindt die het doel niet meer in deze lijst.`;
+    ? `1 doel uit de bewaarde lijst valt weg${tussen}. Is een cursus of oefening aan dat doel gekoppeld, dan vindt die het doel niet meer in deze lijst.`
+    : `${aantal} doelen uit de bewaarde lijst vallen weg${tussen}. Is een cursus of oefening aan zo'n doel gekoppeld, dan vindt die het doel niet meer in deze lijst.`;
 }
 
 interface CodeInvoer {

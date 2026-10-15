@@ -188,7 +188,7 @@ function Dashboard({
         <div className="start-quick">
           <Link to="/nieuw" className="start-quick-tile">
             <span className="icon" aria-hidden="true"><Shapes size={18} /></span>
-            <span><b>Widget</b><small>Oefening, spel of hulpmiddel · 38 soorten</small></span>
+            <span><b>Oefening</b><small>Quiz, spel of hulpmiddel · 38 soorten</small></span>
           </Link>
           <Link to="/cursussen?nieuw=1" className="start-quick-tile">
             <span className="icon" aria-hidden="true"><CourseIcon size={18} /></span>
@@ -209,7 +209,7 @@ function Dashboard({
 const HOW_IT_WORKS = [
   {
     Icon: Shapes, title: 'Materiaal maken',
-    text: 'Widgets (38 soorten oefeningen en spelletjes), cursussen (hoofdstukken met uitleg en oefeningen erin) en leerplannen (doelen waar je materiaal aan hangt).',
+    text: 'Oefeningen en spelletjes (38 soorten), cursussen (hoofdstukken met uitleg en oefeningen erin) en leerplannen (doelen waar je materiaal aan hangt).',
   },
   {
     Icon: ShareIcon, title: 'Delen',
@@ -248,7 +248,7 @@ function FirstVisit() {
 
       <div className="start-ctas">
         <Link to="/ai-studio" className="btn btn-ai btn-lg"><AIIcon size={18} aria-hidden="true" /> Maak iets met AI</Link>
-        <Link to="/nieuw" className="btn btn-primary btn-lg">Zelf een widget maken</Link>
+        <Link to="/nieuw" className="btn btn-primary btn-lg">Zelf een oefening maken</Link>
         <Link to="/cursussen?voorbeeld=1" className="btn btn-ghost btn-lg"><CourseIcon size={18} aria-hidden="true" /> Bekijk de voorbeeldcursus</Link>
       </div>
 

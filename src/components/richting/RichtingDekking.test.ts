@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { BK_DEKKING_TITEL, BK_LADEN, BK_MD_REDEN_BK_CURSUS } from '../../lib/bkWeergave';
 import type { Course } from '../../lib/courseTypes';
 import type { Curriculum } from '../../lib/curriculumTypes';
+import { ANDERE_CURSUSSEN_KOP } from '../../lib/dekkingWeergave';
 import { dekkingMinimumdoelen, type CursusBijdrage } from '../../lib/dekkingMinimumdoelen';
 import type { RichtingBk } from '../../lib/richtingBk';
 import type { RichtingInfo, RichtingKader, RichtingKeuze } from '../../lib/richtingKader';
@@ -81,7 +82,7 @@ function toon(bk: BkStand, s: DekkingStand = stand()): string {
 const hoeveel = (html: string, tekst: string) => html.split(tekst).length - 1;
 const KOP = `>${BK_DEKKING_TITEL}</h3>`;
 const FOUT = 'konden niet getoond worden';
-/** De rij (`li`) van de cursus met deze titel, in de lijst "Cursussen die niet meetellen". */
+/** De rij (`li`) van de cursus met deze titel, in de lijst "Andere cursussen van deze richting". */
 function rij(html: string, titel: string): string {
   const stuk = html.split('<li class="dk-cursus">').find((s) => s.includes(`>${titel}</a>`));
   if (stuk === undefined) throw new Error(`geen rij voor ${titel}`);
@@ -109,6 +110,14 @@ describe('RichtingDekking: de verwijzing naar het blok met competenties', () => 
     expect(rij(html, 'Zonder competenties')).not.toContain(BK_MD_REDEN_BK_CURSUS);
     expect(rij(html, 'Zonder competenties')).toContain('verwijst niet naar minimumdoelen');
     expect(rij(html, 'Van een net')).not.toContain(BK_MD_REDEN_BK_CURSUS);
+  });
+
+  it('de kop boven de cursussen buiten de telling is "Andere cursussen van deze richting" (een niveau lager onder de kop Minimumdoelen), nooit "niet meetellen"', () => {
+    mock.deel = { BkDekking: () => createElement('div', { id: 'bk-stub' }) };
+    const metBk = toon(MET_BK);
+    expect(metBk).toContain(`<h4>${ANDERE_CURSUSSEN_KOP}</h4>`);
+    expect(toon(ZONDER_BK)).toContain(`<h3>${ANDERE_CURSUSSEN_KOP}</h3>`);
+    expect(metBk).not.toMatch(/Cursussen die niet meetellen/);
   });
 
   it('zonder beroepskwalificaties bij de richting is de sectie zoals ze was: geen kop, geen verwijzing', () => {

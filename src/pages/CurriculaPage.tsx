@@ -362,7 +362,7 @@ export function CurriculaPage() {
       {deleteTarget && (
         <ConfirmModal
           title="Leerplan verwijderen?"
-          message={`"${deleteTarget.title}" en zijn ${deleteTarget.goals.length} doelen worden verwijderd. Cursussen en widgets blijven bestaan, maar hun doelcodes verwijzen dan naar een leerplan dat er niet meer is.`}
+          message={`"${deleteTarget.title}" en zijn ${deleteTarget.goals.length} doelen worden verwijderd. Cursussen en oefeningen blijven bestaan, maar hun doelcodes verwijzen dan naar een leerplan dat er niet meer is.`}
           onConfirm={() => { deleteCurriculum(deleteTarget.id); reload(); toast('Leerplan verwijderd', 'ok'); }}
           onClose={() => setDeleteTarget(null)}
         />

@@ -184,7 +184,7 @@ function CompactQuestionEditor({ q, onChange }: { q: Question; onChange: (q: Que
           <Wrench aria-hidden />
           <div>
             Het vraagtype <strong>{meta?.name ?? q.type}</strong> kun je in het gesplitste werkblad niet bewerken.
-            Voor de leerling werkt de vraag wél gewoon; bewerken doe je via een quiz-widget.
+            Voor de leerling werkt de vraag wél gewoon; bewerken doe je via een quiz.
           </div>
         </div>
       );

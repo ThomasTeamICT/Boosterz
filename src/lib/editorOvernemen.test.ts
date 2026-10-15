@@ -104,7 +104,7 @@ describe('leaveMessage (B9)', () => {
     for (const reden of [undefined, null, '', '   ', 'Een reden.']) {
       const t = leaveMessage('mislukt', reden);
       expect(t).toContain('gaan je laatste wijzigingen verloren');
-      expect(t).toContain('Download de widget eerst als bestand');
+      expect(t).toContain('Download de oefening eerst als bestand');
     }
   });
 

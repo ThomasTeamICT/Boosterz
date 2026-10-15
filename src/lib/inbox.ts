@@ -240,7 +240,7 @@ function aanvullingBijDubbel(
     deps.findWidget(earlier)?.id === widget.id
   ) {
     next = { ...earlier, widgetId: widget.id };
-    wat.push('nu gekoppeld aan deze widget');
+    wat.push('nu gekoppeld aan deze oefening');
   }
   const extra: Record<string, unknown> = {};
   for (const k of REFLECTIE_SLEUTELS) {
@@ -311,7 +311,7 @@ function verwerkResultaat(sub: Submission, row: InboxRow, beurt: Beurt) {
   row.saved = true;
   if (!widget) {
     row.outcome = 'onbekend';
-    row.message = 'Bewaard, maar deze widget staat niet op dit toestel — importeer ze om het resultaat te zien.';
+    row.message = 'Bewaard, maar deze oefening staat niet op dit toestel — importeer ze om het resultaat te zien.';
   } else {
     row.outcome = 'nieuw';
   }
@@ -438,7 +438,7 @@ export function summarizeReport(report: InboxReport): string {
   if (report.rows.length === 0) return 'Geen codes gevonden.';
   const parts = [`${report.nieuw} nieuw`];
   if (report.dubbel) parts.push(`${report.dubbel} al aanwezig`);
-  if (report.onbekend) parts.push(`${report.onbekend} zonder widget of cursus hier`);
+  if (report.onbekend) parts.push(`${report.onbekend} zonder oefening of cursus hier`);
   if (report.ongeldig) parts.push(`${report.ongeldig} ongeldig`);
   return parts.join(', ');
 }

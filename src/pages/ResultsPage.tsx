@@ -146,7 +146,7 @@ export function ResultsPage() {
   if (!widget) {
     return (
       <div className="page" style={{ textAlign: 'center', paddingTop: 60 }}>
-        <h1>Widget niet gevonden</h1>
+        <h1>Oefening niet gevonden</h1>
         <Link to="/resultaten" className="btn btn-primary"><BackIcon size={16} /> Alle resultaten</Link>
       </div>
     );
@@ -284,7 +284,7 @@ export function ResultsPage() {
             <p>Er staat wel werk van andere klassen of van leerlingen zonder klas op dit toestel.</p>
           </EmptyState>
         ) : (
-          <EmptyState icon={<InboxIcon size={40} />} title="Nog geen inzendingen voor deze widget">
+          <EmptyState icon={<InboxIcon size={40} />} title="Nog geen inzendingen voor deze oefening">
             <p>Deel de code <strong style={{ fontFamily: 'monospace' }}>{widget.code}</strong> met je klas om resultaten te verzamelen.</p>
           </EmptyState>
         )
@@ -1164,8 +1164,8 @@ function ResultCodeImportModal({
           <p style={{ margin: '0 0 6px' }}><strong>{outcome.summary}</strong></p>
           {outcome.elsewhere > 0 && (
             <p style={{ margin: '0 0 6px' }}>
-              {outcome.elsewhere} {outcome.elsewhere === 1 ? 'resultaat hoort' : 'resultaten horen'} niet bij deze widget en
-              {outcome.elsewhere === 1 ? ' is' : ' zijn'} bij de eigen widget of cursus bewaard.
+              {outcome.elsewhere} {outcome.elsewhere === 1 ? 'resultaat hoort' : 'resultaten horen'} niet bij deze oefening en
+              {outcome.elsewhere === 1 ? ' is' : ' zijn'} bij de eigen oefening of cursus bewaard.
             </p>
           )}
           {outcome.problems.length > 0 && (

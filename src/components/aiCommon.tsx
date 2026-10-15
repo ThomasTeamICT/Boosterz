@@ -19,7 +19,7 @@ export function AIGate({ children, uitleg, wegZonderAi }: { children: React.Reac
         {uitleg ?? (
           <>
             Voeg één keer een API-sleutel toe (Google Gemini, Anthropic of OpenAI) — of open de
-            instel-link die je van je beheerder kreeg — en maak daarna in enkele seconden widgets
+            instel-link die je van je beheerder kreeg — en maak daarna in enkele seconden oefeningen
             en cursussen uit je eigen bronmateriaal. De sleutel blijft op dit toestel.
           </>
         )}

@@ -79,16 +79,16 @@ export function HelpPage() {
 
 const PARTS: { title: string; Icon: LucideIcon; text: string }[] = [
   {
-    title: 'Materiaal: widgets, cursussen en leerplannen', Icon: Library,
-    text: 'Een widget is één oefening of spel (38 soorten). Een cursus bundelt hoofdstukken met uitleg en widgets erin. Een leerplan legt doelen vast waar je materiaal aan koppelt, zodat de dekking en de scores per doel kloppen.',
+    title: 'Materiaal: oefeningen, cursussen en leerplannen', Icon: Library,
+    text: 'Oefeningen zijn er in 38 soorten, van quiz tot spel of hulpmiddel. Een cursus bundelt hoofdstukken met uitleg en oefeningen erin. Een leerplan legt doelen vast waar je materiaal aan koppelt, zodat de dekking en de scores per doel kloppen.',
   },
   {
     title: 'Klassen', Icon: AssignIcon,
-    text: 'Een klaslijst met een klascode. Je wijst er opdrachten aan toe — een cursus of widget, met een deadline — en één klaslink brengt elke leerling naar zijn eigen overzicht.',
+    text: 'Een klaslijst met een klascode. Je wijst er opdrachten aan toe — een cursus of oefening, met een deadline — en één klaslink brengt elke leerling naar zijn eigen overzicht.',
   },
   {
     title: 'Resultaten', Icon: ChartColumn,
-    text: 'Scores, antwoorden en leesvoortgang van elke inzending, per widget of cursus en per leerplandoel. Open vragen kijk je hier na; per klas zie je meteen wie nog moet indienen.',
+    text: 'Scores, antwoorden en leesvoortgang van elke inzending, per oefening of cursus en per leerplandoel. Open vragen kijk je hier na; per klas zie je meteen wie nog moet indienen.',
   },
   {
     title: 'Inleverpunt', Icon: Inbox,
@@ -96,7 +96,7 @@ const PARTS: { title: string; Icon: LucideIcon; text: string }[] = [
   },
   {
     title: 'AI-studio', Icon: AIIcon,
-    text: 'Optioneel, met je eigen sleutel bij Anthropic of OpenAI. Plak een hoofdstuk of leerplandoelen en krijg een voorzet voor widgets of een cursus — jij kijkt na voor je deelt. Zonder sleutel werkt de rest van Boosterz gewoon.',
+    text: 'Optioneel, met je eigen sleutel bij Anthropic of OpenAI. Plak een hoofdstuk of leerplandoelen en krijg een voorzet voor oefeningen of een cursus — jij kijkt na voor je deelt. Zonder sleutel werkt de rest van Boosterz gewoon.',
   },
   {
     title: 'De leerlingkant', Icon: StudentIcon,
@@ -117,7 +117,7 @@ const STEPS: string[] = [
 const FAQ: { q: string; a: React.ReactNode }[] = [
   {
     q: 'Waar staan mijn gegevens?',
-    a: 'Alles staat lokaal in de browser van dit toestel — er is geen server en geen account. Dat betekent ook: een ander toestel of een andere browser ziet je widgets niet vanzelf. Exporteer belangrijke widgets of cursussen als bestand (back-up!) of deel ze via de draagbare link.',
+    a: 'Alles staat lokaal in de browser van dit toestel — er is geen server en geen account. Dat betekent ook: een ander toestel of een andere browser ziet je oefeningen niet vanzelf. Exporteer belangrijke oefeningen of cursussen als bestand (back-up!) of deel ze via de draagbare link.',
   },
   {
     q: 'Wat kost de AI-assistent?',
@@ -133,11 +133,11 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'Werkt dit in Smartschool of Moodle?',
-    a: 'Ja: elke widget en cursus heeft in het deelvenster een insluitcode (iframe) die je in een pagina van je leeromgeving plakt. De gewone deellink werkt uiteraard ook overal waar je een link kwijt kan.',
+    a: 'Ja: elke oefening en cursus heeft in het deelvenster een insluitcode (iframe) die je in een pagina van je leeromgeving plakt. De gewone deellink werkt uiteraard ook overal waar je een link kwijt kan.',
   },
   {
     q: 'Hoe deel ik met collega\'s?',
-    a: 'Exporteer een widget of cursus als JSON-bestand, of deel een hele map in één keer als vakgroeppakket (bij Materiaal, Widgets: open de map, kies "Map" en dan "Delen als pakket"). Je collega importeert het bestand en heeft meteen alles, inclusief ingebedde oefeningen.',
+    a: 'Exporteer een oefening of cursus als JSON-bestand, of deel een hele map in één keer als vakgroeppakket (bij Materiaal, Oefeningen: open de map, kies "Map" en dan "Delen als pakket"). Je collega importeert het bestand en heeft meteen alles, inclusief ingebedde oefeningen.',
   },
   {
     q: 'Kan ik terug naar een vorige versie?',
@@ -148,7 +148,7 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
     a: (
       <ol>
         <li>Maak bij Klassen een klas en plak je klaslijst.</li>
-        <li>Wijs opdrachten toe: een cursus of widget, met een deadline.</li>
+        <li>Wijs opdrachten toe: een cursus of oefening, met een deadline.</li>
         <li>Deel de klaslink of de QR-code met je leerlingen: op elk toestel opent die het overzicht van de leerling, waar hij zijn naam kiest en zijn opdrachten ziet.</li>
         <li>Inleveren: de leerling toont zijn QR-code in de sectie Inleveren, jij scant of plakt ze op het Inleverpunt. Het klasoverzicht telt alles op per leerling, ook per leerplandoel.</li>
       </ol>
@@ -192,7 +192,7 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'Ik heb al cursusmateriaal in Word of pdf. Hoe krijg ik dat erin?',
-    a: 'Ga naar Importeren (ook via de knop op de widgetpagina): sleep je .docx, pdf, markdown of tekst erin. Je ziet de tekst en kiest wat je ermee doet: een cursus laten bouwen met AI (optioneel gekoppeld aan een leerplan), oefeningen laten maken in de AI-studio, of zonder AI omzetten naar een cursus waarbij koppen hoofdstukken en secties worden. Daarna pas je alles aan in de editor en kan je het met de optimaliseer-knop vereenvoudigen, differentiëren of controlevragen laten toevoegen.',
+    a: 'Ga naar Importeren (ook via de knop op de pagina Oefeningen): sleep je .docx, pdf, markdown of tekst erin. Je ziet de tekst en kiest wat je ermee doet: een cursus laten bouwen met AI (optioneel gekoppeld aan een leerplan), oefeningen laten maken in de AI-studio, of zonder AI omzetten naar een cursus waarbij koppen hoofdstukken en secties worden. Daarna pas je alles aan in de editor en kan je het met de optimaliseer-knop vereenvoudigen, differentiëren of controlevragen laten toevoegen.',
   },
   {
     q: 'Mijn cursus is één pdf per hoofdstuk. Kan dat in één keer?',
@@ -200,6 +200,6 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'De opslag zit vol — wat nu?',
-    a: 'Afbeeldingen, audio en bijlagen staan sinds kort apart in de bestandsopslag van de browser (IndexedDB, honderden MB), dus die vullen de kleine tekstopslag niet meer. Zit ze toch vol, dan zijn oude inzendingen (met tekeningen en audio-antwoorden) meestal de boosdoener: wis ze via de privacypagina, of exporteer oude widgets naar een bestand en verwijder ze uit de app.',
+    a: 'Afbeeldingen, audio en bijlagen staan sinds kort apart in de bestandsopslag van de browser (IndexedDB, honderden MB), dus die vullen de kleine tekstopslag niet meer. Zit ze toch vol, dan zijn oude inzendingen (met tekeningen en audio-antwoorden) meestal de boosdoener: wis ze via de privacypagina, of exporteer oude oefeningen naar een bestand en verwijder ze uit de app.',
   },
 ];

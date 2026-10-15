@@ -8,7 +8,7 @@ import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from './minimumdo
 import { geldigheidVanDoelen } from './minimumdoelen';
 import { geldigheidTekst, geldigheidVan, soortVanSet, zonderAccenten, type GeldigheidCode, type SoortOnderwijs } from './minimumdoelenBron';
 import { stelSetsVoor } from './minimumdoelVerwijzing';
-import { bevatFrase, competentieFrases } from './vakZoektabel';
+import { bevatFrase, competentieFrases, vakAlsZoekwoord } from './vakZoektabel';
 
 // ── Geldigheid ──────────────────────────────────────────────────────────────
 
@@ -65,9 +65,13 @@ export function geldigheidVoorLijst(set: MinimumdoelenIndexSet, bestand?: Minimu
 
 export type OnderwijsKeuze = Exclude<SoortOnderwijs, 'ander'>;
 
-/** Woorden uit het vak om sets op te herkennen: "Natuurwetenschappen" → ["natuurwetenschappen"]. */
+/**
+ * Woorden uit het vak om sets op te herkennen: "Natuurwetenschappen" → ["natuurwetenschappen"]. Een meerwoordige vaknaam of
+ * afkorting wordt eerst het hoofdwoord van dat vak (`vakAlsZoekwoord`): "Lichamelijke opvoeding" en "LO" geven ["lichamelijke"],
+ * zodat ze de sets van nu vinden en niet "Artistieke Opvoeding" (op het woord "opvoeding").
+ */
 function vakWoorden(vak: string): string[] {
-  return zonderAccenten(vak).split(/[^\p{L}\d]+/u).filter((w) => w.length >= 3);
+  return zonderAccenten(vakAlsZoekwoord(vak)).split(/[^\p{L}\d]+/u).filter((w) => w.length >= 3);
 }
 
 /** Maakt de toets "noemt deze set het vak?" voor één vak; zo wordt het vak maar één keer uitgesplitst. */

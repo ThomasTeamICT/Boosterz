@@ -23,6 +23,7 @@ import { PlannedIcon, RetryIcon, WarningIcon } from '../../icons';
 import type { BkBestand } from '../../../lib/beroepskwalificaties';
 import { laadBk } from '../../../lib/beroepskwalificatiesBron';
 import {
+  BK_ANDERE_CURSUSSEN_KOP,
   BK_DEKKING_TITEL,
   BK_GEEN_OPEN,
   BK_LADEN,
@@ -271,7 +272,7 @@ export function BkDekking({ info, keuze, bk, courses, curricula, matrix, vandaag
           )}
           {nietMee.length > 0 && (
             <div className="dk-cursussen">
-              <h4>Cursussen die niet meetellen</h4>
+              <h4>{BK_ANDERE_CURSUSSEN_KOP}</h4>
               <p className="dk-uitleg">{bkNietMeetellendeTekst(nietMee.length)}</p>
               <ul className="dk-cursuslijst">
                 {nietMee.map((c) => (

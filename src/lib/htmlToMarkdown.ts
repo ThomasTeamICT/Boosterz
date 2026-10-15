@@ -10,7 +10,8 @@
 //  - koppen h1–h3 → #/##/### (h4–h6 vallen samen met ###: dieper gaat het
 //    cursusmodel niet)
 //  - p, ul/ol (genest), blockquote, pre, hr
-//  - strong/b → **, em/i → *, code → `, del/s → ~~, a[href] → [tekst](url)
+//  - strong/b → **, em/i → *, code → `, del/s → ~~, a[href] → [tekst](url); in een kop geven strong/b/em/i alleen hun
+//    tekst: een kop is al zwaar genoeg, en `# **Titel**` zou de titel van een cursus met sterretjes tonen
 //  - sup/sub → Unicode-hoog/laag (m², H₂O); lukt dat niet voor alle tekens,
 //    dan ^(…) voor sup en gewone tekst voor sub
 //  - table → markdown-tabel als alle rijen even breed zijn, anders platte rijen
@@ -234,9 +235,9 @@ function mapChars(text: string, table: Record<string, string>): string | null {
  * "m2". Waar het kan worden het Unicode-tekens; anders ^(…) voor hoog en de
  * gewone tekst voor laag. Spaties aan de rand blijven buiten de omzetting.
  */
-function scriptOf(el: ElNode): string {
+function scriptOf(el: ElNode, zonderOpmaak: boolean): string {
   const sup = el.tag === 'sup';
-  const inner = inlineOf(el.children);
+  const inner = inlineOf(el.children, zonderOpmaak);
   const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(inner);
   if (!m || !m[2]) return inner;
   const plain = rawText(el).replace(/\s+/g, ' ').trim();
@@ -249,7 +250,8 @@ function scriptOf(el: ElNode): string {
 
 // ── Inline ──────────────────────────────────────────────────────────────────
 
-function inlineOf(nodes: HNode[]): string {
+/** `zonderOpmaak`: vet en cursief geven alleen hun tekst (in een kop). Dat geldt ook voor wat erin genest staat. */
+function inlineOf(nodes: HNode[], zonderOpmaak = false): string {
   let out = '';
   for (const n of nodes) {
     if (!isEl(n)) {
@@ -264,31 +266,31 @@ function inlineOf(nodes: HNode[]): string {
         break; // afbeeldingen reizen niet mee als tekst
       case 'strong':
       case 'b':
-        out += wrapMark(inlineOf(n.children), '**');
+        out += zonderOpmaak ? inlineOf(n.children, true) : wrapMark(inlineOf(n.children), '**');
         break;
       case 'em':
       case 'i':
       case 'cite':
       case 'var':
         // `*` en niet `_`: de lezer (lib/markdown.ts) kent alleen `*cursief*`.
-        out += wrapMark(inlineOf(n.children), '*');
+        out += zonderOpmaak ? inlineOf(n.children, true) : wrapMark(inlineOf(n.children), '*');
         break;
       case 'sup':
       case 'sub':
-        out += scriptOf(n);
+        out += scriptOf(n, zonderOpmaak);
         break;
       case 'code':
       case 'kbd':
       case 'samp':
-        out += wrapMark(inlineOf(n.children), '`');
+        out += wrapMark(inlineOf(n.children, zonderOpmaak), '`');
         break;
       case 'del':
       case 's':
       case 'strike':
-        out += wrapMark(inlineOf(n.children), '~~');
+        out += wrapMark(inlineOf(n.children, zonderOpmaak), '~~');
         break;
       case 'a': {
-        const text = inlineOf(n.children);
+        const text = inlineOf(n.children, zonderOpmaak);
         const href = (n.attrs.href ?? '').trim();
         out += href && /^(https?:|mailto:)/i.test(href) && text.trim()
           ? `[${text.trim()}](${href})`
@@ -296,15 +298,15 @@ function inlineOf(nodes: HNode[]): string {
         break;
       }
       default:
-        out += inlineOf(n.children);
+        out += inlineOf(n.children, zonderOpmaak);
     }
   }
   return out;
 }
 
-/** Inline-inhoud op één regel (voor koppen, lijstitems en tabelcellen). */
-function oneLine(nodes: HNode[]): string {
-  return tidy(inlineOf(nodes)).replace(/\n+/g, ' ');
+/** Inline-inhoud op één regel (voor koppen, lijstitems en tabelcellen). In een kop (`zonderOpmaak`) zonder vet en cursief. */
+function oneLine(nodes: HNode[], zonderOpmaak = false): string {
+  return tidy(inlineOf(nodes, zonderOpmaak)).replace(/\n+/g, ' ');
 }
 
 // ── Blokken ─────────────────────────────────────────────────────────────────
@@ -389,7 +391,7 @@ function tableOf(el: ElNode): string[] {
 function blockOf(el: ElNode): string[] {
   const level = HEADING_LEVEL[el.tag];
   if (level) {
-    const t = oneLine(el.children);
+    const t = oneLine(el.children, true);
     return t ? [`${'#'.repeat(level)} ${t}`] : [];
   }
   switch (el.tag) {

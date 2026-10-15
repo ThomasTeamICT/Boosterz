@@ -19,7 +19,7 @@
 // `bkFoutBijBestaandeCursus`.
 
 import type { BkMelding } from './bkLeerplan';
-import { enkelOfMeer, kortTekst, redenTekst, somLijst, statusTekst } from './dekkingWeergave';
+import { ANDERE_CURSUSSEN_KOP, enkelOfMeer, kortTekst, redenTekst, somLijst, statusTekst } from './dekkingWeergave';
 import { percentVan, type MdStatus, type NietMeeReden } from './dekkingMinimumdoelen';
 import type { foutBijBestaandeCursus, PlanTeksten } from './gatenWeergave';
 import type { BekrachtigingSoort } from './richtingBk';
@@ -458,19 +458,18 @@ export const bkStatusTekst = statusTekst;
  * zegt wat die cursussen zijn (de andere cursussen van de richting) en niet dat ze "niet meetellen", wat als een verwijt
  * leest. Het scherm (BkDekking.tsx) gebruikt deze tekst als kop boven `bkNietMeetellendeTekst`.
  */
-export const BK_ANDERE_CURSUSSEN_KOP = 'Andere cursussen van deze richting';
+export const BK_ANDERE_CURSUSSEN_KOP = ANDERE_CURSUSSEN_KOP;
 
 /**
- * De zin onder die kop: "4 cursussen van deze richting volgen geen beroepskwalificatie. Daarom staan ze niet in deze telling; bij
- * elke cursus lees je waarom." (bij één "1 cursus … volgt … Daarom staat ze niet in deze telling; bij de cursus lees je waarom.").
- * Leeg bij 0. De zin zegt wat de cursussen zijn (cursussen zonder beroepskwalificatie) en laat de reden bij elke cursus staan
- * (`bkRedenTekst`): niet elke cursus mist om dezelfde reden haar beroepskwalificatie.
+ * De zin onder die kop: "4 cursussen van deze richting staan niet in deze telling; bij elke cursus lees je waarom." (bij één
+ * "1 cursus van deze richting staat niet in deze telling; bij de cursus lees je waarom."). Leeg bij 0. De zin noemt de reden
+ * niet zelf: die staat bij elke cursus (`bkRedenTekst`), want niet elke cursus mist om dezelfde reden haar beroepskwalificatie.
  */
 export function bkNietMeetellendeTekst(n: number): string {
   if (n <= 0) return '';
   return n === 1
-    ? '1 cursus van deze richting volgt geen beroepskwalificatie. Daarom staat ze niet in deze telling; bij de cursus lees je waarom.'
-    : `${n} cursussen van deze richting volgen geen beroepskwalificatie. Daarom staan ze niet in deze telling; bij elke cursus lees je waarom.`;
+    ? '1 cursus van deze richting staat niet in deze telling; bij de cursus lees je waarom.'
+    : `${n} cursussen van deze richting staan niet in deze telling; bij elke cursus lees je waarom.`;
 }
 
 /**

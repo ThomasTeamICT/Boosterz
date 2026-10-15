@@ -168,11 +168,11 @@ export type LeaveKind = 'conflict' | 'verwijderd' | 'mislukt';
  */
 export function leaveMessage(kind: LeaveKind, reason?: string | null): string {
   if (kind === 'conflict') {
-    return 'Een ander tabblad bewaarde intussen een andere versie van deze widget. Als je nu weggaat, gaan je wijzigingen hier verloren.';
+    return 'Een ander tabblad bewaarde intussen een andere versie van deze oefening. Als je nu weggaat, gaan je wijzigingen hier verloren.';
   }
   if (kind === 'verwijderd') {
-    return 'Deze widget werd in een ander tabblad verwijderd. Als je nu weggaat, gaan je wijzigingen hier verloren.';
+    return 'Deze oefening werd in een ander tabblad verwijderd. Als je nu weggaat, gaan je wijzigingen hier verloren.';
   }
   const why = reason?.trim() || 'Bewaren op dit toestel lukt niet.';
-  return `${why} Als je nu weggaat, gaan je laatste wijzigingen verloren. Download de widget eerst als bestand als je ze wil houden.`;
+  return `${why} Als je nu weggaat, gaan je laatste wijzigingen verloren. Download de oefening eerst als bestand als je ze wil houden.`;
 }

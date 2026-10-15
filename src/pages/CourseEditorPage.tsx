@@ -90,6 +90,7 @@ function useHeeftAIKey(): boolean {
 /**
  * Knop voor een AI-functie. Met een sleutel in de AI-kleur; zonder sleutel rustig (zoals een gewone knop) en met
  * " (AI-sleutel nodig)": zo lijkt ze niet klaar voor gebruik. Ze blijft klikbaar: het venster legt uit hoe je een sleutel instelt.
+ * Op een smal scherm staan die woorden alleen nog voor schermlezers en in de title (cursus.css): anders groeit de kopbalk.
  */
 function AIKnop({ heeftSleutel, titel, onClick, children }: {
   heeftSleutel: boolean;
@@ -104,7 +105,7 @@ function AIKnop({ heeftSleutel, titel, onClick, children }: {
       onClick={onClick}
       title={heeftSleutel ? titel : `${titel} Daarvoor heb je eerst een AI-sleutel nodig (AI-instellingen).`}
     >
-      <AIIcon size={16} aria-hidden /> {children}{!heeftSleutel && ' (AI-sleutel nodig)'}
+      <AIIcon size={16} aria-hidden /> {children}{!heeftSleutel && <>{' '}<span className="ai-sleutel-nodig">(AI-sleutel nodig)</span></>}
     </button>
   );
 }
@@ -148,19 +149,19 @@ function deleteQuestion(p: PendingDelete, course: Course): { title: string; mess
   if (p.kind === 'chapter') {
     return {
       title: 'Hoofdstuk verwijderen?',
-      message: 'Dit hoofdstuk bevat nog secties. Alles erin wordt definitief verwijderd (widgets zelf blijven bestaan).',
+      message: 'Dit hoofdstuk bevat nog secties. Alles erin wordt definitief verwijderd (oefeningen zelf blijven bestaan).',
     };
   }
   if (p.kind === 'section') {
     return {
       title: 'Sectie verwijderen?',
-      message: 'Deze sectie bevat nog blokken of leerdoelen. Ze wordt definitief verwijderd (widgets zelf blijven bestaan).',
+      message: 'Deze sectie bevat nog blokken of leerdoelen. Ze wordt definitief verwijderd (oefeningen zelf blijven bestaan).',
     };
   }
   const block = findBlock(course, p.sectionId, p.blockId);
   const name = block ? BLOCK_META[block.type].name : 'blok';
   let extra = '';
-  if (block?.type === 'widget') extra = ' De widget zelf blijft bestaan.';
+  if (block?.type === 'widget') extra = ' De oefening zelf blijft bestaan.';
   if (block?.type === 'pdf' && block.pdfId) {
     extra = ' Gebruikt geen ander blok het pdf-bestand nog, dan verdwijnt ook dat van dit toestel.';
   }
@@ -954,7 +955,7 @@ function SectionPane({
         <div className="empty-state" style={{ padding: '26px 16px' }}>
           <div className="big" aria-hidden><Blocks size={40} /></div>
           <h3>Nog geen inhoud</h3>
-          <p style={{ color: 'var(--text-soft)' }}>Voeg je eerste blok toe — tekst, video, een oefenwidget, …</p>
+          <p style={{ color: 'var(--text-soft)' }}>Voeg je eerste blok toe — tekst, video, een oefening, …</p>
         </div>
       )}
 

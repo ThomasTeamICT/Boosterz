@@ -159,3 +159,46 @@ describe('werkDoelenKadertjeBij: het kadertje met de doelen volgt de doelen van 
   });
 });
 
+describe('werkDoelenKadertjeBij: zuinig met het leerplan (O6)', () => {
+  /** Een leerplan waarvan de doelen tellen hoe vaak ze doorzocht of doorlopen worden. */
+  function metTeller(goals: { code: string; text: string }[]): { lp: Curriculum; toegang: () => number } {
+    let n = 0;
+    const lijst = new Proxy(goals.map((g, i) => ({ id: `g${i}`, ...g })), {
+      get(doel, prop, ontvanger) {
+        if (prop === 'find' || prop === 'filter' || prop === 'some' || prop === Symbol.iterator) n++;
+        return Reflect.get(doel, prop, ontvanger);
+      },
+    });
+    const lp = createCurriculum({ title: 'T', net: 'minimumdoelen', subject: '', level: '' });
+    lp.goals = lijst;
+    return { lp, toegang: () => n };
+  }
+  const doelen = Array.from({ length: 300 }, (_, i) => ({ code: `D${i + 1}`, text: `Doel ${i + 1}.` }));
+  const kadertje = (codes: string[], lp: Curriculum): CourseBlock => geraamteHoofdstukken(lp, codes)[0].sections[0].blocks[0];
+
+  it('zonder kadertje van het geraamte geeft ze dezelfde lijst terug, zonder het leerplan te doorzoeken', () => {
+    const { lp, toegang } = metTeller(doelen);
+    const blokken: CourseBlock[] = [{ id: 't', type: 'text', markdown: 'Eigen tekst.' }, { id: 'k', type: 'callout', kind: 'goal', title: 'Mijn doelen', text: 'D1' }];
+    expect(werkDoelenKadertjeBij(blokken, ['D1'], ['D1', 'D2'], lp)).toBe(blokken);
+    expect(toegang()).toBe(0);
+  });
+
+  it('met een kadertje bouwt ze het leerplan één keer om, ook bij 300 codes', () => {
+    const { lp, toegang } = metTeller(doelen);
+    const codes = doelen.map((d) => d.code);
+    const start = toegang(); // het kadertje hieronder doorloopt het leerplan zelf ook
+    const blok = kadertje(codes, lp);
+    const na = toegang();
+    expect(na).toBeGreaterThan(start);
+    const uit = werkDoelenKadertjeBij([blok], codes, codes.slice(1), lp);
+    expect(toegang() - na).toBeLessThanOrEqual(1);
+    const tekst = uit[0].type === 'callout' ? uit[0].text : '';
+    expect(tekst.split('\n')).toHaveLength(299);
+    expect(tekst.startsWith('D2 — Doel 2.')).toBe(true);
+  });
+
+  it('bij een dubbele code in het leerplan wint het eerste doel, zoals in het geraamte', () => {
+    const lp = leerplanMet([{ code: 'A1', text: 'Eerste.' }, { code: 'a1', text: 'Tweede.' }, { code: 'B2', text: 'Derde.' }]);
+    expect(doelenKadertjeTekst(['A1', 'B2'], lp)).toBe('A1 — Eerste.\nB2 — Derde.');
+  });
+});

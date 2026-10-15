@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { computeCoverage, geplandeRijen } from './coverage';
 import type { Course } from './courseTypes';
 import type { Curriculum } from './curriculumTypes';
-import { uitwerkKaartje, uitwerkPercent, uitwerkTelling, uitwerkZin } from './uitwerkZinnen';
+import { alleDoelenRegel, rijStatus, uitwerkKaartje, uitwerkPercent, uitwerkTelling, uitwerkZin } from './uitwerkZinnen';
 
 const T = (totaal: number, uitgewerkt: number, gepland: number) => ({ totaal, uitgewerkt, gepland, open: totaal - uitgewerkt - gepland });
 
@@ -149,5 +149,53 @@ describe('met computeCoverage en geplandeRijen', () => {
   it('alles uitgewerkt', () => {
     const c = cursus([{ goalCodes: ['A1', 'A2', 'A3'], blocks: [TEKST_BLOK] }]);
     expect(zinVoor(c)).toEqual({ zin: 'Alle 3 doelen zijn uitgewerkt.', kaartje: '100 % uitgewerkt' });
+  });
+});
+
+describe('de tabel van de weergave Leerplan: rijStatus en alleDoelenRegel', () => {
+  function statussen(c: Course): { status: string[]; regel: string } {
+    const res = computeCoverage(c, leerplan, []);
+    const gepland = new Set(geplandeRijen(res, c, []).map((r) => r.goal.id));
+    return { status: res.rows.map((r) => rijStatus(r, gepland)), regel: alleDoelenRegel(gepland.size) };
+  }
+
+  it('een geraamte: elk doel is "planned" in plaats van "covered", en de regel zegt dat ze nog gepland staan', () => {
+    const c = cursus([
+      { goalCodes: ['A1'], blocks: [DOELEN_BLOK] },
+      { goalCodes: ['A2', 'A3'], blocks: [DOELEN_BLOK] },
+    ]);
+    expect(statussen(c)).toEqual({
+      status: ['planned', 'planned', 'planned'],
+      regel: 'Alle doelen staan op een gewone sectie; 3 daarvan staan nog gepland (de sectie is nog leeg).',
+    });
+  });
+
+  it('deels uitgewerkt: alleen de lege secties geven "planned"; een doel zonder sectie blijft "missing"', () => {
+    const c = cursus([
+      { goalCodes: ['A1'], blocks: [DOELEN_BLOK, TEKST_BLOK] },
+      { goalCodes: ['A2'], blocks: [DOELEN_BLOK] },
+    ]);
+    expect(statussen(c).status).toEqual(['covered', 'planned', 'missing']);
+  });
+
+  it('alles uitgewerkt: niets is "planned" en de regel blijft de gewone zin', () => {
+    const c = cursus([{ goalCodes: ['A1', 'A2', 'A3'], blocks: [TEKST_BLOK] }]);
+    expect(statussen(c)).toEqual({
+      status: ['covered', 'covered', 'covered'],
+      regel: 'Alle doelen van dit leerplan komen aan bod in een gewone sectie.',
+    });
+  });
+
+  it('enkelvoud: "1 daarvan staat nog gepland"', () => {
+    expect(alleDoelenRegel(1)).toBe('Alle doelen staan op een gewone sectie; 1 daarvan staat nog gepland (de sectie is nog leeg).');
+    expect(alleDoelenRegel(2)).toBe('Alle doelen staan op een gewone sectie; 2 daarvan staan nog gepland (de sectie is nog leeg).');
+    expect(alleDoelenRegel(0)).toBe('Alle doelen van dit leerplan komen aan bod in een gewone sectie.');
+  });
+
+  it('"optional" en "missing" blijven wat ze zijn, ook met een id in de geplande set', () => {
+    const gepland = new Set(['x']);
+    expect(rijStatus({ status: 'optional', goal: { id: 'x' } }, gepland)).toBe('optional');
+    expect(rijStatus({ status: 'missing', goal: { id: 'x' } }, gepland)).toBe('missing');
+    expect(rijStatus({ status: 'covered', goal: { id: 'y' } }, gepland)).toBe('covered');
   });
 });

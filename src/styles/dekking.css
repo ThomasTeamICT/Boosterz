@@ -89,7 +89,7 @@
 .dk-status-verdieping { color: var(--warn-text); }
 .dk-status-open { color: var(--err-text); }
 
-/* ── Cursussen die niet meetellen ──────────────────────────────────────── */
+/* ── Andere cursussen van de richting (niet in de telling) ─────────────────────────────────────────── */
 
 .dk-cursussen { margin: 20px 0 0; }
 .dk-cursussen h3, .dk-cursussen h4 { margin: 0 0 6px; font-size: 1.05rem; }

@@ -94,7 +94,7 @@ export function verklaarWeigeringen(rows: InboxRow[], codes: string[]): InboxRow
 /** De regel die de camerascanner na elke gescande code toont. */
 export function scanRegel(row: InboxRow): string {
   const wie = row.studentName || 'Onbekende leerling';
-  const wat = row.title ?? (row.kind === 'course' ? 'onbekende cursus' : 'onbekende widget');
+  const wat = row.title ?? (row.kind === 'course' ? 'onbekende cursus' : 'onbekende oefening');
   if (row.outcome === 'nieuw') return `${wie} — ${wat} — ${row.detail}`;
   if (aanvullingMislukt(row)) return `${wie} — ${wat} — ${row.message}`;
   if (row.outcome === 'dubbel') return `${wie} — ${wat} — stond hier al`;

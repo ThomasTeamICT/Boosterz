@@ -621,7 +621,7 @@ describe('normalizeToDefaults (OP14)', () => {
     const w = prepareImportedWidget(raw, null)!;
     expect(w.id).not.toBe('x');
     expect(w.code).not.toBe('OUD');
-    expect(w.title).toBe('Geïmporteerde widget');
+    expect(w.title).toBe('Geïmporteerde oefening');
     expect((w.config as unknown as { questions: unknown }).questions).toEqual([]);
     expect((w.config as unknown as { layout: unknown }).layout).toBe('3');
     expect(w.settings.accentColor).toBe('5');
@@ -657,7 +657,7 @@ describe('saveImportedWidget en saveImportedPack (OP2)', () => {
 
     quota.failKeys.add('wf.widgets.v1');
     expect(() => saveImportedWidget(fotoWidget(2))).toThrow(/opslag van dit toestel is vol/);
-    expect(() => saveImportedWidget({ ...fotoWidget(3), type: 'bestaatniet' } as unknown as Widget)).toThrow(/Onbekend widgettype/);
+    expect(() => saveImportedWidget({ ...fotoWidget(3), type: 'bestaatniet' } as unknown as Widget)).toThrow(/Onbekende soort oefening/);
   });
 
   it('volle opslag halverwege: telt alleen wat echt bewaard is ("3 van 5"), en meldt het', () => {
@@ -670,8 +670,8 @@ describe('saveImportedWidget en saveImportedPack (OP2)', () => {
     expect(getFolders().map((f) => f.name)).toEqual(['Fotopakket']);
     const msg = describePackImport(res);
     expect(msg.tone).toBe('warn');
-    expect(msg.text).toMatch(/^3 van 5 widgets bewaard in de map “Fotopakket”; 2 niet/);
-    expect(msg.text).not.toMatch(/5 widgets geïmporteerd/);
+    expect(msg.text).toMatch(/^3 van 5 oefeningen bewaard in de map “Fotopakket”; 2 niet/);
+    expect(msg.text).not.toMatch(/5 oefeningen geïmporteerd/);
 
     // Ruimte gemaakt: opnieuw proberen, in dezelfde map, telt verder.
     quota.limit = Infinity;
@@ -683,7 +683,7 @@ describe('saveImportedWidget en saveImportedPack (OP2)', () => {
     expect(again.widgets.every((w) => w.folderId === res.folderId)).toBe(true);
     expect(getFolders()).toHaveLength(1);
     expect(describePackImport(again, res.widgets.length)).toEqual({
-      text: '5 widgets geïmporteerd in de map “Fotopakket”.',
+      text: '5 oefeningen geïmporteerd in de map “Fotopakket”.',
       tone: 'ok',
     });
   });
@@ -705,7 +705,7 @@ describe('saveImportedWidget en saveImportedPack (OP2)', () => {
     expect(again.failed).toHaveLength(0);
     expect(again.folderSaved).toBe(false);
     const msg = describePackImport(again, res.widgets.length);
-    expect(msg.text).toBe('5 widgets geïmporteerd in je hoofdmap (de map “Fotopakket” kon niet aangemaakt worden).');
+    expect(msg.text).toBe('5 oefeningen geïmporteerd in je hoofdmap (de map “Fotopakket” kon niet aangemaakt worden).');
     expect(msg.tone).toBe('warn');
     // Zonder die gegeven blijft het gedrag zoals het was: een bestaande map is bewaard.
     expect(saveImportedPack({ ...pakket(0), widgets: [fotoWidget(9)] }, { intoFolder: { id: null, name: 'X' } }).folderSaved).toBe(true);
@@ -717,7 +717,7 @@ describe('saveImportedWidget en saveImportedPack (OP2)', () => {
     expect(res.widgets).toHaveLength(2);
     expect(res.failed).toHaveLength(1);
     expect(res.skipped).toBe(1);
-    expect(describePackImport(res).text).toMatch(/1 onderdeel overgeslagen: onbekend widgettype/);
+    expect(describePackImport(res).text).toMatch(/1 onderdeel overgeslagen: onbekende soort oefening/);
   });
 
   it('niets bewaard: geen lege map achterlaten, en een foutmelding', () => {
@@ -728,7 +728,7 @@ describe('saveImportedWidget en saveImportedPack (OP2)', () => {
     expect(getFolders()).toHaveLength(0);
     const msg = describePackImport(res);
     expect(msg.tone).toBe('err');
-    expect(msg.text).toMatch(/Geen enkele widget bewaard/);
+    expect(msg.text).toMatch(/Geen enkele oefening bewaard/);
   });
 
   it('map niet te bewaren: de widgets komen in de hoofdmap, en dat staat in de melding', () => {
@@ -964,7 +964,7 @@ describe('saveImportedCourse: eerlijke melding (B2, H1-N1)', () => {
     expect(msg.badge).toBe('bijgewerkt');
     expect(msg.tone).toBe('ok');
     expect(msg.text).not.toMatch(/niets veranderd|stond al zo/);
-    expect(msg.text).toBe('De cursus “De waterkringloop” bleef gelijk; 1 widget (“Quiz”) is vervangen door de versie uit het bestand.');
+    expect(msg.text).toBe('De cursus “De waterkringloop” bleef gelijk; 1 oefening (“Quiz”) is vervangen door de versie uit het bestand.');
   });
 
   it('B2: een ontbrekende widget komt terug: "kwam erbij", niet "niets veranderd"', async () => {
@@ -975,7 +975,7 @@ describe('saveImportedCourse: eerlijke melding (B2, H1-N1)', () => {
     expect(res.outcome).toBe('bijgewerkt');
     expect(res.widgetsAdded).toBe(1);
     const msg = describeCourseImport(res);
-    expect(msg.text).toBe('De cursus “De waterkringloop” bleef gelijk; 1 widget kwam erbij.');
+    expect(msg.text).toBe('De cursus “De waterkringloop” bleef gelijk; 1 oefening kwam erbij.');
     expect(msg.badge).toBe('bijgewerkt');
   });
 
@@ -987,7 +987,7 @@ describe('saveImportedCourse: eerlijke melding (B2, H1-N1)', () => {
     const res = await saveImportedCourse(b, { choice: 'houden', conflicts });
     expect(res.outcome).toBe('gehouden');
     expect(getCourse('c1')!.title).toBe('EIGEN');
-    expect(describeCourseImport(res).text).toMatch(/niet overgenomen\. Ook 1 widget kwam erbij\.$/);
+    expect(describeCourseImport(res).text).toMatch(/niet overgenomen\. Ook 1 oefening kwam erbij\.$/);
   });
 
   it('B2: "mijn versie houden" terwijl een ongewijzigde kopie van een widget wel bijgewerkt wordt: de melding noemt het', async () => {
@@ -1004,7 +1004,7 @@ describe('saveImportedCourse: eerlijke melding (B2, H1-N1)', () => {
     expect(getWidget('w1')!.title).toBe('Quiz v2');
     const msg = describeCourseImport(res);
     expect(msg.badge).toBe('cursus gehouden'); // niet "niets vervangen": er is wel een widget bijgewerkt
-    expect(msg.text).toMatch(/Ook 1 widget \(“Quiz v2”\) is vervangen door de versie uit het bestand\.$/);
+    expect(msg.text).toMatch(/Ook 1 oefening \(“Quiz v2”\) is vervangen door de versie uit het bestand\.$/);
   });
 
   it('B2: twee vervangen widgets en een cursus die ook veranderde: beide staan in de melding', async () => {
@@ -1021,7 +1021,7 @@ describe('saveImportedCourse: eerlijke melding (B2, H1-N1)', () => {
     expect([...res.replaced].sort()).toEqual(['Quiz', 'Tweede']);
     expect(describeCourseImport(res).text).toBe(
       'Je cursus “BESTAND” is vervangen door de versie uit het bestand. ' +
-      'Ook 2 widgets zijn vervangen door de versie uit het bestand.'
+      'Ook 2 oefeningen zijn vervangen door de versie uit het bestand.'
     );
   });
 
@@ -1082,7 +1082,7 @@ describe('saveImportedCourse: een mislukte poging laat niets half achter (B3)', 
     const res = await saveImportedCourse(b, { choice: 'kopie', conflicts });
     expect(res.outcome).toBe('kopie');
     expect(getWidgets().map((w) => w.title).sort()).toEqual(['BESTAND QUIZ (kopie)', 'EIGEN QUIZ']);
-    expect(describeCourseImport(res).text).toMatch(/ernaast als kopie.*Ook 1 widget staat ernaast als kopie\./);
+    expect(describeCourseImport(res).text).toMatch(/ernaast als kopie.*Ook 1 oefening staat ernaast als kopie\./);
   });
 
   it('"vervangen" terwijl de cursus niet past: geen "niets veranderd", en de vervangen widget wordt genoemd', async () => {
@@ -1099,7 +1099,7 @@ describe('saveImportedCourse: een mislukte poging laat niets half achter (B3)', 
     expect(msg.text).not.toMatch(/niets veranderd|stond al zo/);
     expect(msg.text).toMatch(/is niet bewaard: de opslag van dit toestel is vol\./);
     expect(msg.text).toMatch(/Je bestaande versie van de cursus bleef zoals ze was\./);
-    expect(msg.text).toMatch(/1 widget \(“BESTAND QUIZ”\) is wel al vervangen door de versie uit het bestand\./);
+    expect(msg.text).toMatch(/1 oefening \(“BESTAND QUIZ”\) is wel al vervangen door de versie uit het bestand\./);
   });
 
   it('een nieuwe cursus die niet past: de widget uit dezelfde poging is weer weg, en de melding zegt dat', async () => {
@@ -1109,7 +1109,7 @@ describe('saveImportedCourse: een mislukte poging laat niets half achter (B3)', 
     expect(res.courseId).toBeNull();
     expect(res.widgetsRemoved).toBe(1);
     expect(getWidgets()).toHaveLength(0);
-    expect(describeCourseImport(res).text).toMatch(/Wat tijdens deze poging al bewaard was \(1 widget\), is weer weggehaald\./);
+    expect(describeCourseImport(res).text).toMatch(/Wat tijdens deze poging al bewaard was \(1 oefening\), is weer weggehaald\./);
     // Ruimte gemaakt: een nieuwe poging lukt zonder restanten.
     quota.failKeys.clear();
     const again = await saveImportedCourse(bestand(metWidget(), { widgets: [widgetW1()] }));
@@ -1132,7 +1132,7 @@ describe('saveImportedCourse: een mislukte poging laat niets half achter (B3)', 
     const msg = describeCourseImport(res);
     expect(msg.tone).toBe('warn');
     expect(msg.badge).toBe('deels bewaard');
-    expect(msg.text).toMatch(/Ook 1 widget kwam erbij\..*Let op: niet alles kon bewaard worden/);
+    expect(msg.text).toMatch(/Ook 1 oefening kwam erbij\..*Let op: niet alles kon bewaard worden/);
   });
 });
 
@@ -1351,5 +1351,13 @@ describe('Word-document: de stijl "Titel" is de titel van de cursus', () => {
     const stijlen = [...Object.values(WORD_NL), ondertitel];
     const md = await docxToMarkdown(maakDocx([WORD_CURSUS[0], ['Voor de 2de graad', ondertitel], ...WORD_CURSUS.slice(1)], stijlen));
     expect(md.split('\n\n').slice(0, 2)).toEqual(['# Bodem en landschap', 'Voor de 2de graad']);
+    // En in de cursus: tekst tussen de Titel en de eerste Kop 1 wordt een inleidend hoofdstuk, met de titel van de cursus als
+    // naam, vóór de gewone hoofdstukken. De ondertitel gaat dus niet verloren, maar is ook niet de ondertitel van de cursus.
+    const cursus = markdownToCourse(md, 'bodem-en-landschap');
+    expect(cursus.title).toBe('Bodem en landschap');
+    expect(cursus.chapters.map((h) => h.title)).toEqual(['Bodem en landschap', 'Hoofdstuk 1: Bodem', 'Hoofdstuk 2: Landschap']);
+    expect(cursus.chapters[0].sections.map((s) => s.title)).toEqual(['Inleiding']);
+    expect(blocksOf(cursus, 0, 0)).toMatchObject([{ type: 'text', markdown: 'Voor de 2de graad' }]);
+    expect(cursus.chapters[1].sections.map((s) => s.title)).toEqual(['Inleiding', 'Gesteenten']);
   });
 });

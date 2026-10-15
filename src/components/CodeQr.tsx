@@ -59,6 +59,7 @@ export function CodeQr({
   maxChars = QR_MAX_CHARS,
   hint,
   copyLabel = 'Code kopiëren',
+  copy = true,
   downloadName,
   tooLongText,
   enlarge = true,
@@ -74,6 +75,11 @@ export function CodeQr({
   maxChars?: number;
   hint?: string;
   copyLabel?: string;
+  /**
+   * false = geen eigen kopieerknop: de pagina heeft er al een voor dezelfde tekst, en twee knoppen voor één link verwarren.
+   * Standaard staat de knop er wel.
+   */
+  copy?: boolean;
   /** Bestandsnaam (bv. "qr-ABC123.png"): toont dan ook een knop "QR downloaden". */
   downloadName?: string;
   /** Uitleg als de tekst te lang is voor een QR; vervangt de standaardzin. */
@@ -111,9 +117,11 @@ export function CodeQr({
         <div>
           <strong>Te groot voor een QR-code.</strong>{' '}
           {tooLongText ?? 'Deze code bevat te veel (bv. een tekening of foto) om ze te laten scannen. Kopieer ze en stuur ze door via je gewone kanaal.'}
-          <div style={{ marginTop: 8 }}>
-            <CopyButton text={value} label={copyLabel} />
-          </div>
+          {copy && (
+            <div style={{ marginTop: 8 }}>
+              <CopyButton text={value} label={copyLabel} />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -155,7 +163,7 @@ export function CodeQr({
       <div style={{ flex: '1 1 180px', minWidth: 0 }}>
         {hint && <p className="hint" style={{ marginTop: 0 }}>{hint}</p>}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <CopyButton text={value} label={copyLabel} />
+          {copy && <CopyButton text={value} label={copyLabel} />}
           {qr && downloadName && (
             <a className="btn btn-sm btn-ghost" href={qr.url} download={downloadName}>
               <DownloadIcon size={16} /> QR downloaden

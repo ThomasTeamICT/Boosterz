@@ -7,15 +7,81 @@ begrijpend lezen", niet in sets, minimumdoelen, leerplannen of beroepskwalificat
 Afgesproken werkwijze: (1) proefleerkrachten in de echte app, (2) voorstellen voor de ingang met schetsen, de eigenaar kiest,
 (3) bouwen in stappen met review en rechter. Daarnaast: de AI-cursusbouwer in etappes (eerst het kader, dan per hoofdstuk), zie § 3.
 
+## Hervatten (geparkeerd op 15 oktober 2026)
+
+De eigenaar parkeerde het werk op 15 oktober 2026 om financiële redenen. Dit blok is het startpunt voor de volgende sessie: lees het
+eerst, samen met `CLAUDE.md`.
+
+### Waar we staan
+
+**De kern van Boosterz staat live** (https://thomasteamict.github.io/Boosterz/): cursussen en oefeningen maken, delen met een klas,
+leerlingen die zonder account werken, resultaten, de AI-studio met de eigen sleutel van de leerkracht. Daarbovenop, in oktober 2026:
+
+| Wat | Waar het ontwerp staat |
+|---|---|
+| Officiële minimumdoelen (maandelijks opgehaald), leerplannen inlezen met een controlepoort, een eigen doelenlijst samenstellen | `docs/LEERPLANNEN.md` |
+| Studierichtingen: de doelen per richting en jaar, cursushulp zonder AI, dekking over cursussen heen, gaten dichten, Mijn richtingen, klas aan richting | `docs/STUDIERICHTINGEN.md` § 1-22 |
+| Beroepskwalificaties per richting (fase 3) en de dekking op competenties overal, competenties plannen (fase 3b) | `docs/STUDIERICHTINGEN.md` § 23-24 |
+| Samenstellen sturender ("Voor welke leerlingen?", tweelingen met één klik) en de brug van een doelenlijst naar een cursus | `docs/LEERPLANNEN.md` § 16 |
+| Snelle verbeteringen na de proefleerkrachten (dekking leesbaar en eerlijk, delen met de link die werkt, opbouw, vindbaarheid) en "oefening" in plaats van "widget" | dit document, § 2.5 |
+
+### De vraag van de eigenaar en de afgesproken lijn
+
+"Over het algemeen gaat dit nog te moeilijk werken voor de gemiddelde leerkracht." Een leerkracht denkt in "ik geef Nederlands in 1B
+en wil een cursus over begrijpend lezen", niet in sets, minimumdoelen, leerplannen of beroepskwalificaties. De app moet die vertaling
+zelf maken. Vier nagespeelde proefleerkrachten (§ 2) bevestigen het: iedereen haalde zijn doel, maar via omwegen en met twijfels.
+
+**De lijn voor de volgende stappen, in deze volgorde:**
+
+1. **Voorstellen voor één eenvoudige ingang "Nieuwe cursus"** (twee of drie, met schetsen van de schermen); de eigenaar kiest. Eisen
+   in § 2.5: een grote knop op de startpagina; drie vragen in de taal van de leerkracht (voor wie, waarover, hoe starten); de app kiest
+   de officiële doelen en maakt het leerplan onzichtbaar; één telling (uitgewerkt, gepland, nog niet) tegen wat de leerkracht koos;
+   afsluiten met "Geef aan je klas". Leerplannen, sets, studierichtingen en de samenstelwizard gaan naar "Gevorderd". De eigenaar
+   keurde de richting goed ("Nieuwe cursus" als hoofdingang, de rest onder "Gevorderd").
+2. **De AI-cursusbouwer in etappes** (§ 3): eerst het kader (thema's, hoofdstukken, secties met hun doelen, klein antwoord, dekking
+   meteen zichtbaar en aan te passen), dan de inhoud per hoofdstuk met een voortgangsbalk; elk klaar hoofdstuk wordt meteen bewaard en
+   een mislukt hoofdstuk kan apart opnieuw. Herbruikbaar: `runBatch` (`aiBatch.ts`), optimaliseren per hoofdstuk, het geraamte met
+   doelcodes, de nagebootste AI in `tests/ai/mock-cursus.mjs`. Ook de oorzaak van het "blokkeren" wegnemen (de stream zet bij elk
+   stukje de hele tekst opnieuw in de state).
+3. **Bouwen in fasen** volgens de werkwijze in `CLAUDE.md`, met review en rechter.
+
+Tip voor de kosten: één ontwerpfase met een paar voorstellen en de keuze van de eigenaar kost weinig; de grote kost zit in het bouwen
+met veel agents en in de volledige rooktest (±8 minuten per run, twee keer). Werk per fase en meld het resultaat tussendoor.
+
+### Wat wacht, en op wie
+
+| Wat | Op wie | Wanneer |
+|---|---|---|
+| De maandelijkse data-PR nakijken (T7 en W2 in het rapport) en samenvoegen op teken van de eigenaar | hoofdsessie, eigenaar | na 3 november 2026 |
+| Antwoord van TechLoket over de licentie van de onderwijsdata (`docs/STUDIERICHTINGEN.md` § 23.10); tot dan "algemene bronvermelding" | eigenaar | open |
+| Een licentie voor de repo zelf, vóór een brede uitrol | eigenaar | open |
+| De takken van de gesloten proef-PR's #7, #8 en #9 verwijderen (de sessie mocht dat niet) | eigenaar | open |
+| Werkkeuzes W1-W15 (`STUDIERICHTINGEN.md` § 23.12), V1-V10 (§ 22), X1-X11 (§ 24.11): de werkkeuze geldt tot de eigenaar beslist | eigenaar | open |
+| Niveaumodel (`docs/NIVEAUS.md`): pas starten op teken van de eigenaar | eigenaar | later |
+
+**Kleinere vervolgpunten uit de reviews** (geen haast, telkens met de plaats in de code in de stand van zaken hieronder):
+de telling van doelen met code "0000" (uitleg in 46 officiële sets die nu als doel meetelt: eerst nakijken, raakt de dekking overal);
+dezelfde "19 tegenover 24" bij de minimumdoelen als bij de competenties; de overige woorden rond delen ("klaslink", "klaspakket",
+"klascode" op de klaspagina's en in de Hulp) gelijktrekken met "link voor je leerlingen"; de kopbalk van de cursuseditor op de gsm;
+een ondertitel uit Word naar de ondertitel van de cursus (nu wordt tekst tussen de Titel en de eerste Kop 1 een inleidend hoofdstuk met de naam van de cursus); de regressiescripts in `tests/herstel/` zoeken nog op oude schermteksten met "widget" (mechanisch aanpassen en één keer draaien; ze vallen buiten de poort); de nieuwe hoofdstuknamen van het geraamte: een cursus die met de oude namen gemaakt werd, krijgt bij "gaten dichten" een tweede hoofdstuk naast het oude, en eigen thema's met " · " in een eigen kopie van een samengestelde lijst worden nu ook ingekort (beperken tot labels waarvan een doel refs heeft, `richtingCursus.ts` `hoofdstukTitels`).
+
+### Zo begin je de volgende sessie
+
+1. Lees `CLAUDE.md` en dit blok; `git pull` op `claude/bookwidgets-web-app-kvcfim`.
+2. Draai de kwaliteitspoort uit `CLAUDE.md` (lint, typecheck, unit tests, build, de rooktest twee keer na elkaar, `tests/ai/mock-studio.mjs`).
+3. Geef elke bouwagent de regels uit `docs/werkwijze/regels-bouwagents.md` mee (eigen worktree met een symlink naar `node_modules`,
+   geen git stash/checkout/reset/commit, alleen de genoemde bestanden, poorten groen vóór opleveren, verslag in het Nederlands).
+4. Begin met stap 1 van de lijn: de voorstellen voor "Nieuwe cursus".
+
 ## Stand van zaken
 
 | Wat | Stand | Op wie |
 |---|---|---|
 | Proefleerkrachten (vier personas, zonder AI-sleutel) en synthese | **Klaar** (15 oktober 2026): § 2 | agents |
 | Verkenning AI-cursusbouwer (waarom hij vastloopt) | **Klaar** (15 oktober 2026): § 3 | agents |
-| Snelle verbeteringen uit § 2.5 | **Bezig** (15 oktober 2026, akkoord van de eigenaar); de telling van code 0000 apart (eerst nakijken) | bouwers, reviewers, rechter |
-| Voorstellen voor de ingang "Nieuwe cursus" (met schetsen) | Wacht op de eigenaar | hoofdsessie |
-| Beslissing: "widget" of "oefening" in de schermen van de leerkracht (§ 2.3) | **Beslist** (15 oktober 2026): "oefening" overal; CLAUDE.md aangepast. Omzetting van de schermteksten: na de snelle verbeteringen | eigenaar; bouwers |
+| Snelle verbeteringen uit § 2.5 | **Klaar en live** (15 oktober 2026): vier pakketten, review en rechter per pakket, daarna de bevestigde punten hersteld (o.a. "gepland" als eigen status in de dekkingstabel, de namen van het geraamte bepaald over het hele leerplan zodat gaten dichten nooit in het verkeerde hoofdstuk schrijft, één naam per link bij delen, "LO" en "lichamelijke opvoeding" overal vindbaar). De telling van code 0000 bewust apart (zie Hervatten) | bouwers, reviewers, rechter, hoofdsessie |
+| Voorstellen voor de ingang "Nieuwe cursus" (met schetsen) | **Geparkeerd** (15 oktober 2026): stap 1 van de lijn bij het hervatten | hoofdsessie |
+| Beslissing: "widget" of "oefening" in de schermen van de leerkracht (§ 2.3) | **Klaar en live** (15 oktober 2026): "oefening" overal op het scherm (214 teksten; Playwright vond in de belangrijkste schermen geen "widget" meer). Bewust gebleven: routes, opslagsleutels, JSON-velden, AI-prompts, en de exportbestandsnamen `.widget.json` en `.widgetpak.json` (zichtbaar op het importscherm; hernoemen kan zonder formaatwijziging, beslissing van de eigenaar) | eigenaar; bouwers |
 | Sturender samenstellen en de brug naar een cursus (LEERPLANNEN.md § 16) | **Klaar en live** (15 oktober 2026) | bouwers, hoofdsessie |
 
 ## 1. Waarom

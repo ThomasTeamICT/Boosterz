@@ -693,7 +693,8 @@ describe('voegGeplandeSectiesToe', () => {
   });
 
   it('nieuwe hoofdstukken die alleen in hoofdletters verschillen, worden één hoofdstuk', () => {
-    const lp = { ...leerplan, goals: [
+    // Een leerplan van een net: de themanamen blijven zoals ze zijn en `voegGeplandeSectiesToe` voegt ze samen op de titel.
+    const lp = { ...leerplan, herkomst: undefined, goals: [
       { id: 'g1', code: 'A1', text: 'a', theme: 'Alfa › Eerste' },
       { id: 'g2', code: 'A2', text: 'b', theme: 'alfa › Tweede' },
     ] };
@@ -701,6 +702,38 @@ describe('voegGeplandeSectiesToe', () => {
     expect(r.course.chapters.map((h) => h.title)).toEqual(['Wiskunde', 'Verdieping', 'Alfa']);
     expect(r.course.chapters[2].sections.map((s) => s.title)).toEqual(['Eerste', 'Tweede']);
     expect(r.hoofdstukken).toBe(1);
+  });
+
+  it('O1: sets met dezelfde korte naam houden elk hun eigen hoofdstuk, ook als de gevraagde codes maar van één set zijn', () => {
+    const a = maakBestand('ODS_9201', `${NAAM_BEGIN} -  Nederlands - Eindtermen`, 'Nederlands', reeks('a', 'A', 3));
+    const b = maakBestand('ODS_9202', `${NAAM_BEGIN} -  Nederlands - Eindtermen`, 'Nederlands', reeks('b', 'B', 3));
+    const lp = leerplanVan({ bestand: a, doelen: 'alle' }, { bestand: b, doelen: 'alle' });
+    const van = (set: string) => lp.goals.filter((g) => g.refs?.[0].set === set).map((g) => g.code);
+    const [codesA, codesB] = [van('ODS_9201'), van('ODS_9202')];
+    const sectie = (id: string, code: string): CourseSection => ({
+      id, title: `Sectie ${id}`, blocks: [{ id: `b-${id}`, type: 'text', markdown: 'Uitleg.' }], goalCodes: [code],
+    });
+    const cursus: Course = {
+      ...cursusMet([]), curriculumId: lp.id,
+      chapters: [
+        { id: 'h1', title: 'Nederlands', sections: [sectie('sa1', codesA[0])] },
+        { id: 'h2', title: 'Nederlands (2)', sections: [sectie('sb1', codesB[0])] },
+      ],
+    };
+    // Alleen een code van de tweede set: de sectie komt in het hoofdstuk van de tweede set, niet in dat van de eerste.
+    const r = voegGeplandeSectiesToe(cursus, lp, [codesB[1]]);
+    expect(r.course.chapters.map((h) => h.title)).toEqual(['Nederlands', 'Nederlands (2)']);
+    expect(r.course.chapters[0].sections).toEqual(cursus.chapters[0].sections);
+    expect(r.course.chapters[1].sections.map((s) => s.goalCodes)).toEqual([[codesB[0]], [codesB[1]]]);
+    expect(r).toMatchObject({ toegevoegd: [codesB[1]], hoofdstukken: 1 });
+    // En een code van de eerste set komt in het eerste hoofdstuk.
+    const r2 = voegGeplandeSectiesToe(cursus, lp, [codesA[2]]);
+    expect(r2.course.chapters[0].sections.map((s) => s.goalCodes)).toEqual([[codesA[0]], [codesA[2]]]);
+    expect(r2.course.chapters[1].sections).toEqual(cursus.chapters[1].sections);
+    // Beide tegelijk: elk in zijn eigen hoofdstuk, geen derde hoofdstuk.
+    const r3 = voegGeplandeSectiesToe(cursus, lp, [codesB[2], codesA[1]]);
+    expect(r3.course.chapters).toHaveLength(2);
+    expect(r3.hoofdstukken).toBe(2);
   });
 
   it('sanitizeCourse laat alle secties, ids en doelcodes staan', () => {

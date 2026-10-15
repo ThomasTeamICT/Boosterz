@@ -47,7 +47,7 @@ export function ResultsOverviewPage() {
       <div className="page-head">
         <div>
           <h1>Resultaten</h1>
-          <p className="sub">Alle inzendingen van je leerlingen, per widget.</p>
+          <p className="sub">Alle inzendingen van je leerlingen, per oefening.</p>
         </div>
       </div>
 
@@ -80,19 +80,19 @@ export function ResultsOverviewPage() {
           </EmptyState>
         ) : (
           <EmptyState icon={<ResultsIcon size={40} />} title="Nog geen inzendingen">
-            <p>Deel een widget met je klas via de code of link — de resultaten verschijnen hier automatisch.</p>
-            <Link to="/widgets" className="btn btn-primary">Naar mijn widgets</Link>
+            <p>Deel een oefening met je klas via de code of link — de resultaten verschijnen hier automatisch.</p>
+            <Link to="/widgets" className="btn btn-primary">Naar mijn oefeningen</Link>
           </EmptyState>
         )
       ) : (
         <>
           <ClassFilterNotice hidden={hidden} onShowAll={() => setFilter('all')} />
           <CrossWidgetGoals items={withSubs} />
-          <div className="table-wrap" role="region" tabIndex={0} aria-label="Resultaten per widget">
+          <div className="table-wrap" role="region" tabIndex={0} aria-label="Resultaten per oefening">
             <table className="data">
               <thead>
                 <tr>
-                  <th scope="col">Widget</th>
+                  <th scope="col">Oefening</th>
                   <th scope="col">Inzendingen</th>
                   <th scope="col">Gemiddelde score</th>
                   <th scope="col">Na te kijken</th>
@@ -279,13 +279,13 @@ function CrossWidgetGoals({ items }: { items: { widget: Widget; subs: Submission
   return (
     <details className="card card-pad" open style={{ marginBottom: 18 }}>
       <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '1.05rem' }}>
-        <GoalIcon size={18} className="icon-inline" /> Leerdoelen over widgets heen
+        <GoalIcon size={18} className="icon-inline" /> Leerdoelen over oefeningen heen
       </summary>
       <p className="hint" style={{ margin: '8px 0 14px' }}>
-        Dit zijn <strong>indicaties</strong>, samengeteld over alle widgets waarvan vragen dit leerdoel dragen.
-        Vragen met een <strong>leerplandoelcode</strong> tellen over widgets heen samen, binnen hetzelfde leerplan;
+        Dit zijn <strong>indicaties</strong>, samengeteld over alle oefeningen waarvan vragen dit leerdoel dragen.
+        Vragen met een <strong>leerplandoelcode</strong> tellen over oefeningen heen samen, binnen hetzelfde leerplan;
         vragen met alleen een vrije doel-tag blijven op hun eigen naam staan.
-        Per leerling telt per widget de beste poging.
+        Per leerling telt per oefening de beste poging.
         Nog niet beoordeelde antwoorden tellen niet mee: zo'n score is voorlopig.
         Gebruik ze als startpunt voor een gesprek, niet als eindoordeel.
       </p>
@@ -315,7 +315,7 @@ function CrossWidgetGoals({ items }: { items: { widget: Widget; subs: Submission
               <div style={{ width: `${p ?? 0}%`, background: barColor(p) }} />
             </div>
             <div className="hint" style={{ marginTop: 3 }}>
-              gebaseerd op {agg.widgetIds.size} {agg.widgetIds.size === 1 ? 'widget' : 'widgets'} · {agg.subIds.size} {agg.subIds.size === 1 ? 'inzending' : 'inzendingen'}
+              gebaseerd op {agg.widgetIds.size} {agg.widgetIds.size === 1 ? 'oefening' : 'oefeningen'} · {agg.subIds.size} {agg.subIds.size === 1 ? 'inzending' : 'inzendingen'}
               {agg.pending > 0 && ` · ${agg.pending} ${agg.pending === 1 ? 'antwoord moet' : 'antwoorden moeten'} nog nagekeken worden`}
             </div>
           </div>

@@ -176,7 +176,7 @@ const NAV: NavItem[] = [
 ];
 
 const NEW_ITEMS: MenuItem[] = [
-  { label: 'Widget', hint: 'Oefening, spel of hulpmiddel · 38 soorten', Icon: Shapes, to: '/nieuw' },
+  { label: 'Oefening', hint: 'Quiz, spel of hulpmiddel · 38 soorten', Icon: Shapes, to: '/nieuw' },
   { label: 'Met AI, uit je leerstof', hint: 'Plak tekst of kies een pdf', Icon: Sparkles, to: '/ai-studio' },
   { label: 'Cursus', hint: 'Hoofdstukken met uitleg en oefeningen', Icon: BookOpen, to: '/cursussen?nieuw=1' },
   { label: 'Cursus voor een studierichting', hint: 'Met de officiële doelen van een richting en een jaar', Icon: RichtingIcon, to: '/cursussen/richtingen' },
@@ -301,7 +301,7 @@ function NavDrawer({
 /** Tabbladen van het materiaal: widgets, cursussen en leerplannen horen samen. */
 function MaterialTabs() {
   const tabs: { to: string; label: string; Icon: LucideIcon }[] = [
-    { to: '/widgets', label: 'Widgets', Icon: Shapes },
+    { to: '/widgets', label: 'Oefeningen', Icon: Shapes },
     { to: '/cursussen', label: 'Cursussen', Icon: BookOpen },
     { to: '/leerplannen', label: 'Leerplannen', Icon: ListTree },
   ];

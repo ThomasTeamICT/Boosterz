@@ -390,7 +390,7 @@ export function AIEditorPanel({ widget, onClose, onApply }: {
       if (fresh.length === 0) {
         throw new AIError(
           dropped > 0
-            ? 'De AI gaf enkel vragen die al in deze widget staan. Probeer het opnieuw of pas de focus aan.'
+            ? 'De AI gaf enkel vragen die al in deze oefening staan. Probeer het opnieuw of pas de focus aan.'
             : 'De AI leverde geen bruikbare nieuwe vragen op. Probeer het opnieuw of pas de focus aan.'
         );
       }
@@ -399,7 +399,7 @@ export function AIEditorPanel({ widget, onClose, onApply }: {
         summary: `+${fresh.length} ${fresh.length === 1 ? 'vraag' : 'vragen'}`,
         details: <QuestionPreviewList qs={fresh} />,
         warnings: dropped > 0
-          ? [`${dropped} ${dropped === 1 ? 'vraag stond al in deze widget of kwam dubbel voor en is' : 'vragen stonden al in deze widget of kwamen dubbel voor en zijn'} weggelaten.`]
+          ? [`${dropped} ${dropped === 1 ? 'vraag stond al in deze oefening of kwam dubbel voor en is' : 'vragen stonden al in deze oefening of kwamen dubbel voor en zijn'} weggelaten.`]
           : [],
       };
     });
@@ -770,7 +770,7 @@ ${payload}`;
         warnings.push(`${untagged} ${untagged === 1 ? 'vraag blijft' : 'vragen blijven'} zonder doelcode — die tellen niet mee in de score per leerplandoel.`);
       }
       if (widget.curriculumId !== curriculum.id) {
-        warnings.push(`Zet “${curriculum.title}” daarna ook als leerplan van deze widget bij de instellingen, zodat de doeltekst overal meegetoond wordt.`);
+        warnings.push(`Zet “${curriculum.title}” daarna ook als leerplan van deze oefening bij de instellingen, zodat de doeltekst overal meegetoond wordt.`);
       }
 
       return {
@@ -861,7 +861,7 @@ ${payload}`;
         };
       }
 
-      if (!itemDef) throw new AIError('Voor dit widgettype is er (nog) geen AI-hulp.');
+      if (!itemDef) throw new AIError('Voor deze soort oefening is er (nog) geen AI-hulp.');
       const existingList = Array.isArray(cfg[itemDef.field]) ? (cfg[itemDef.field] as unknown[]) : [];
       // Ook de gesaneerde variant(en) van bestaande teksten meenemen, zodat de
       // sanitizer-transformatie (bv. "ideeën" → "ideeen") geen dubbels oplevert.
@@ -950,7 +950,7 @@ ${source.trim()}
       const merged = [...existing, ...fresh].sort((a, b) => a.timeSec - b.timeSec);
       const warnings: string[] = [];
       if (!str(cfg.videoUrl).trim()) {
-        warnings.push('Vergeet niet de video-URL in te vullen bij de inhoud van deze widget.');
+        warnings.push('Vergeet niet de video-URL in te vullen bij de inhoud van deze oefening.');
       }
       return {
         config: { ...cfg, checkpoints: merged },
@@ -987,9 +987,9 @@ ${source.trim()}
   let body: React.ReactNode;
   if (!supported) {
     body = (
-      <EmptyState icon={<AIIcon size={40} aria-hidden />} title="Voor dit widgettype is er (nog) geen AI-hulp.">
+      <EmptyState icon={<AIIcon size={40} aria-hidden />} title="Voor deze soort oefening is er (nog) geen AI-hulp.">
         <p className="hint" style={{ margin: 0 }}>
-          Probeer de AI-studio voor het genereren van nieuwe widgets uit bronmateriaal.
+          Probeer de AI-studio voor het genereren van nieuwe oefeningen uit bronmateriaal.
         </p>
       </EmptyState>
     );
@@ -1194,7 +1194,7 @@ ${source.trim()}
               desc="Herschrijft zwakke foute opties tot plausibele misvattingen; juiste antwoorden blijven staan."
               onClick={runDistractors}
               disabled={mcqs.length === 0}
-              disabledHint="Geen meerkeuzevragen in deze widget."
+              disabledHint="Geen meerkeuzevragen in deze oefening."
             />
             <ActionCard
               icon={<GoalIcon size={24} aria-hidden />}

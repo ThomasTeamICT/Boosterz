@@ -3,17 +3,17 @@ import { Link } from 'react-router-dom';
 import type { Course, CourseChapter, CourseSection } from '../../lib/courseTypes';
 import type { Curriculum } from '../../lib/curriculumTypes';
 import type { Widget } from '../../lib/types';
-import { computeCoverage, geplandeRijen, type CoverageRow } from '../../lib/coverage';
+import { computeCoverage, geplandeRijen } from '../../lib/coverage';
 import { getCurriculum } from '../../lib/curriculum';
 import {
   BK_DEKKING_LADEN, FOUT_LADEN_BK_DEKKING, FOUT_LADEN_DEKKING, bkWeergaveLabel, leerplanHeeftBkVerwijzingen,
   leerplanHeeftVerwijzingen,
 } from '../../lib/dekkingWeergave';
 import { hasAIKey } from '../../lib/ai';
-import { uitwerkTelling, uitwerkZin } from '../../lib/uitwerkZinnen';
+import { alleDoelenRegel, rijStatus, uitwerkTelling, uitwerkZin, type RijStatus } from '../../lib/uitwerkZinnen';
 import { EmptyState } from '../ui';
 import {
-  AIIcon, CheckIcon, CloseIcon, GoalIcon, RetryIcon, SettingsIcon, TipIcon, WarningIcon,
+  AIIcon, CheckIcon, CloseIcon, GoalIcon, PlannedIcon, RetryIcon, SettingsIcon, TipIcon, WarningIcon,
 } from '../icons';
 import { Puzzle } from 'lucide-react';
 import '../../styles/dekking.css';
@@ -83,8 +83,10 @@ export function GoalCoverage({
 
 // ── Matrix op leerplandoelen (cursus met curriculumId) ──────────────────────
 
-const STATUS_META: Record<CoverageRow['status'], { icon: typeof CheckIcon; label: string; badge: string }> = {
+const STATUS_META: Record<RijStatus, { icon: typeof CheckIcon; label: string; badge: string }> = {
   covered: { icon: CheckIcon, label: 'gedekt', badge: 'badge badge-ok' },
+  // Een doel dat alleen op nog lege secties staat: wel gepland, nog niet uitgewerkt. Neutraal, want er is nog niets te lezen.
+  planned: { icon: PlannedIcon, label: 'gepland', badge: 'badge' },
   optional: { icon: WarningIcon, label: 'alleen in verdieping', badge: 'badge badge-warn' },
   missing: { icon: CloseIcon, label: 'niet gedekt', badge: 'badge badge-err' },
 };
@@ -101,10 +103,12 @@ function CurriculumCoverage({
   const result = useMemo(() => computeCoverage(course, curriculum, widgets), [course, curriculum, widgets]);
   // `computeCoverage` telt een doel als gedekt zodra een gewone sectie zijn code draagt, ook als die sectie nog leeg is. Wat de
   // leerkracht leest, splitst dat in uitgewerkt en gepland (een doel dat alleen op nog lege secties staat, § 14.5): zie uitwerkZinnen.ts.
-  const telling = useMemo(
-    () => uitwerkTelling(result, geplandeRijen(result, course, widgets).length),
+  // De geplande doel-id's worden één keer bepaald: de zin, de status in de tabel en de regel onder de tabel leiden er allemaal uit af.
+  const gepland = useMemo(
+    () => new Set(geplandeRijen(result, course, widgets).map((r) => r.goal.id)),
     [result, course, widgets],
   );
+  const telling = useMemo(() => uitwerkTelling(result, gepland.size), [result, gepland]);
   // Zonder AI-sleutel doet de knop "Vul de hiaten" niets nuttigs: ze opent de uitleg om er een in te stellen. Daarom een rustiger stijl.
   const metSleutel = hasAIKey();
   // Bij een BK-leerplan gaat "Beroepskwalificatie" voor op "Minimumdoelen": een cursus volgt één leerplan en meet zich aan één bron.
@@ -240,7 +244,7 @@ function CurriculumCoverage({
           </thead>
           <tbody>
             {result.rows.map((row) => {
-              const meta = STATUS_META[row.status];
+              const meta = STATUS_META[rijStatus(row, gepland)];
               return (
                 <tr key={row.goal.id} style={{ borderTop: '1px solid var(--line)' }}>
                   <th scope="row" className="dk-doelkolom" style={{ ...sticky, fontWeight: 600, fontSize: '0.86rem' }}>
@@ -296,7 +300,9 @@ function CurriculumCoverage({
           </ul>
         </div>
       ) : (
-        <p style={{ display: 'flex', alignItems: 'center', gap: 6 }}><CheckIcon size={16} aria-hidden /> Alle doelen van dit leerplan komen aan bod in een gewone sectie.</p>
+        <p style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {gepland.size === 0 ? <CheckIcon size={16} aria-hidden /> : <PlannedIcon size={16} aria-hidden />} {alleDoelenRegel(gepland.size)}
+        </p>
       )}
 
       {result.sectionsWithoutCode.length > 0 && (

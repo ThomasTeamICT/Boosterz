@@ -169,7 +169,7 @@ function lintFor(w: Widget): LintWarning[] | null {
 
 const STEPS = [
   { nr: 1, title: 'Plak je tekst', text: 'Een hoofdstuk, artikel of stuk cursus — of beschrijf gewoon wat je wil.' },
-  { nr: 2, title: 'Kies widgettypes', text: 'Quiz, flitskaarten, kruiswoordraadsel … meerdere tegelijk kan. Leerplandoelen aanvinken mag ook.' },
+  { nr: 2, title: 'Kies soorten oefeningen', text: 'Quiz, flitskaarten, kruiswoordraadsel … meerdere tegelijk kan. Leerplandoelen aanvinken mag ook.' },
   { nr: 3, title: 'Kijk na en bewaar', text: 'Jij beslist wat goed genoeg is; bijschaven kan altijd in de editor.' },
 ];
 
@@ -189,7 +189,7 @@ function TypeBatchProgress({
     <div style={{ display: 'grid', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span className="ai-pulse" aria-hidden><AIIcon size={18} /></span>
-        <strong aria-live="polite">De AI maakt je widgets… ({done}/{activeTypes.length})</strong>
+        <strong aria-live="polite">De AI maakt je oefeningen… ({done}/{activeTypes.length})</strong>
         <span style={{ flex: 1 }} />
         <button className="btn btn-sm btn-ghost" onClick={onCancel}>Annuleren</button>
       </div>
@@ -345,7 +345,7 @@ export function AIStudioPage() {
       differentiate,
     });
     const full = await askAI({
-      system, prompt, task: 'widgets uit bron', maxTokens: WIDGET_TYPE_MAX_TOKENS, signal,
+      system, prompt, task: 'oefeningen uit bron', maxTokens: WIDGET_TYPE_MAX_TOKENS, signal,
     });
     return sanitizeGeneratedWidgets(extractJson(full), { allowedGoalCodes });
   }
@@ -445,7 +445,7 @@ export function AIStudioPage() {
     setSaved(toSave);
     setNewFolderName('');
     setFolderId(targetFolder ?? '');
-    toast(`${toSave.length} ${n(toSave.length, 'widget', 'widgets')} bewaard`, 'ok');
+    toast(`${toSave.length} ${n(toSave.length, 'oefening', 'oefeningen')} bewaard`, 'ok');
     setPhase('saved');
   }
 
@@ -555,7 +555,7 @@ export function AIStudioPage() {
                 </Field>
               </div>
 
-              <Field label="Aantal vragen/items per widget" hint="0 = de AI kiest zelf een passend aantal.">
+              <Field label="Aantal vragen/items per oefening" hint="0 = de AI kiest zelf een passend aantal.">
                 <input
                   className="input"
                   type="number"
@@ -564,7 +564,7 @@ export function AIStudioPage() {
                   value={itemCount}
                   onChange={(e) => setItemCount(clamp(Math.round(Number(e.target.value) || 0), 0, 40))}
                   style={{ maxWidth: 140 }}
-                  aria-label="Aantal vragen of items per widget (0 = de AI kiest)"
+                  aria-label="Aantal vragen of items per oefening (0 = de AI kiest)"
                 />
               </Field>
 
@@ -594,7 +594,7 @@ export function AIStudioPage() {
               />
 
               <div className="field" style={{ marginTop: 10, marginBottom: 0 }}>
-                <label id="type-kiezer-label">Widgettypes</label>
+                <label id="type-kiezer-label">Soorten oefeningen</label>
                 <div role="group" aria-labelledby="type-kiezer-label" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {AI_GEN_TYPES.map((t) => {
                     const def = getTypeDef(t);
@@ -616,7 +616,7 @@ export function AIStudioPage() {
                     );
                   })}
                 </div>
-                <span className="hint">Meerdere types tegelijk kan — je krijgt dan één widget per type.</span>
+                <span className="hint">Meerdere soorten tegelijk kan — je krijgt dan één oefening per soort.</span>
               </div>
             </fieldset>
 
@@ -629,11 +629,11 @@ export function AIStudioPage() {
               ) : (
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                   <button className="btn btn-primary btn-lg" onClick={generate} disabled={!canGenerate}>
-                    <AIIcon size={18} aria-hidden /> Genereer {types.length > 1 ? `${types.length} widgets` : 'widget'}
+                    <AIIcon size={18} aria-hidden /> Genereer {types.length > 1 ? `${types.length} oefeningen` : 'oefening'}
                   </button>
                   {!canGenerate && (
                     <span className="hint">
-                      Plak bronmateriaal óf beschrijf wat je wil, en kies minstens één widgettype.
+                      Plak bronmateriaal óf beschrijf wat je wil, en kies minstens één soort oefening.
                     </span>
                   )}
                   {hasPreview && (
@@ -775,7 +775,7 @@ export function AIStudioPage() {
                     className="select"
                     value={folderId}
                     onChange={(e) => setFolderId(e.target.value)}
-                    aria-label="Map om de widgets in te bewaren"
+                    aria-label="Map om de oefeningen in te bewaren"
                   >
                     <option value="">Hoofdmap (geen map)</option>
                     {folders.map((f) => (
@@ -803,9 +803,9 @@ export function AIStudioPage() {
                   onClick={saveAll}
                   disabled={checkedCount === 0 || (folderId === '__new__' && !newFolderName.trim())}
                 >
-                  <CheckIcon size={16} aria-hidden /> {checkedCount} {n(checkedCount, 'widget', 'widgets')} bewaren
+                  <CheckIcon size={16} aria-hidden /> {checkedCount} {n(checkedCount, 'oefening', 'oefeningen')} bewaren
                 </button>
-                {checkedCount === 0 && <span className="hint">Vink minstens één widget aan om te bewaren.</span>}
+                {checkedCount === 0 && <span className="hint">Vink minstens één oefening aan om te bewaren.</span>}
                 {checkedCount > 0 && folderId === '__new__' && !newFolderName.trim() && (
                   <span className="hint">Geef de nieuwe map eerst een naam.</span>
                 )}
@@ -819,10 +819,10 @@ export function AIStudioPage() {
             <div style={{ textAlign: 'center', display: 'grid', gap: 4, justifyItems: 'center' }}>
               <CheckCircle2 size={40} aria-hidden style={{ color: 'var(--ok)' }} />
               <h2 style={{ margin: 0 }}>
-                Klaar — {saved.length} {n(saved.length, 'widget', 'widgets')} bewaard
+                Klaar — {saved.length} {n(saved.length, 'oefening', 'oefeningen')} bewaard
               </h2>
               <p className="hint" style={{ margin: 0, maxWidth: 460 }}>
-                Test elke widget zelf even uit vóór je ze aan je klas geeft — zo merk je meteen
+                Test elke oefening zelf even uit vóór je ze aan je klas geeft — zo merk je meteen
                 of alles klopt.
               </p>
             </div>
@@ -847,7 +847,7 @@ export function AIStudioPage() {
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn btn-primary" onClick={resetForNext}><AIIcon size={16} aria-hidden /> Nog iets maken</button>
-              <Link className="btn btn-ghost" to="/widgets">Naar mijn widgets</Link>
+              <Link className="btn btn-ghost" to="/widgets">Naar mijn oefeningen</Link>
             </div>
           </div>
         )}

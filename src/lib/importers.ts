@@ -247,12 +247,12 @@ function fromJson(raw: string, origin: string, fallbackTitle: string): Extracted
   const pack = importFolderPack(raw);
   if (pack) {
     if (pack.widgets.length === 0) {
-      throw new ImportError(`Het pakket “${origin}” bevat geen bruikbare widgets.`);
+      throw new ImportError(`Het pakket “${origin}” bevat geen bruikbare oefeningen.`);
     }
     return {
       kind: 'pack',
       origin,
-      sourceLabel: `vakgroeppakket · ${plural(pack.widgets.length, 'widget', 'widgets')}`,
+      sourceLabel: `vakgroeppakket · ${plural(pack.widgets.length, 'oefening', 'oefeningen')}`,
       title: pack.meta.naam || fallbackTitle,
       text: '',
       pack,
@@ -269,7 +269,7 @@ function fromJson(raw: string, origin: string, fallbackTitle: string): Extracted
       sourceLabel:
         `cursus · ${plural(bundle.course.chapters.length, 'hoofdstuk', 'hoofdstukken')}, ` +
         `${plural(sections, 'sectie', 'secties')}` +
-        (bundle.widgets.length ? ` · ${plural(bundle.widgets.length, 'widget', 'widgets')}` : ''),
+        (bundle.widgets.length ? ` · ${plural(bundle.widgets.length, 'oefening', 'oefeningen')}` : ''),
       title: bundle.course.title || fallbackTitle,
       text: '',
       course: bundle,
@@ -280,12 +280,12 @@ function fromJson(raw: string, origin: string, fallbackTitle: string): Extracted
   const widget = importWidgetJson(raw);
   if (widget) {
     if (!knownType(widget.type)) {
-      throw new ImportError(`Onbekend widgettype “${widget.type}” — dit bestand kan niet geïmporteerd worden.`);
+      throw new ImportError(`Onbekende soort oefening “${widget.type}” — dit bestand kan niet geïmporteerd worden.`);
     }
     return {
       kind: 'widget',
       origin,
-      sourceLabel: 'widgetbestand',
+      sourceLabel: 'oefening',
       title: widget.title || fallbackTitle,
       text: '',
       widget,
@@ -294,7 +294,7 @@ function fromJson(raw: string, origin: string, fallbackTitle: string): Extracted
   }
 
   throw new ImportError(
-    `“${origin}” is geen widget-, pakket- of cursusbestand van Boosterz. Exporteer het opnieuw vanuit Boosterz.`
+    `“${origin}” is geen bestand met een oefening, pakket of cursus van Boosterz. Exporteer het opnieuw vanuit Boosterz.`
   );
 }
 
@@ -374,7 +374,7 @@ export async function extractFromFile(file: File): Promise<ExtractedSource> {
   }
   throw new ImportError(
     `Van “${origin}” kan geen tekst gelezen worden. Werkt wel: .docx, .pdf, .md, .txt, .html en ` +
-      '.json (widget, pakket of cursus uit Boosterz).'
+      '.json (oefening, pakket of cursus uit Boosterz).'
   );
 }
 
@@ -845,7 +845,7 @@ export function prepareImportedWidget(widget: Widget, folderId: string | null): 
     id: uid(),
     code: makeCode(),
     folderId,
-    title: typeof raw.title === 'string' && raw.title.trim() ? raw.title : 'Geïmporteerde widget',
+    title: typeof raw.title === 'string' && raw.title.trim() ? raw.title : 'Geïmporteerde oefening',
     // Ontbrekende of kapotte velden aanvullen, anders crasht de editor of de speler.
     config: normalizeToDefaults(def.defaultConfig() as Record<string, unknown>, raw.config) as unknown as Widget['config'],
     settings: normalizeToDefaults(
@@ -870,8 +870,8 @@ function adopt(widget: Widget, folderId: string | null): AdoptOutcome {
 export function saveImportedWidget(widget: Widget): Widget {
   const res = adopt(widget, null);
   if (res.ok) return res.widget;
-  if (res.reason === 'type') throw new ImportError(`Onbekend widgettype “${widget.type}” — niet geïmporteerd.`);
-  throw new ImportError(`De opslag van dit toestel is vol — de widget is niet bewaard. ${STORAGE_FULL_HINT}`);
+  if (res.reason === 'type') throw new ImportError(`Onbekende soort oefening “${widget.type}” — niet geïmporteerd.`);
+  throw new ImportError(`De opslag van dit toestel is vol — de oefening is niet bewaard. ${STORAGE_FULL_HINT}`);
 }
 
 export interface PackImportResult {
@@ -948,24 +948,24 @@ export function describePackImport(res: PackImportResult, alreadySaved = 0): { t
       ? ''
       : ` in je hoofdmap (de map “${res.folderName}” kon niet aangemaakt worden)`;
   const skipped =
-    res.skipped > 0 ? ` ${plural(res.skipped, 'onderdeel', 'onderdelen')} overgeslagen: onbekend widgettype.` : '';
-  if (total === 0) return { text: `Er is geen enkele widget geïmporteerd.${skipped}`, tone: 'err' };
+    res.skipped > 0 ? ` ${plural(res.skipped, 'onderdeel', 'onderdelen')} overgeslagen: onbekende soort oefening.` : '';
+  if (total === 0) return { text: `Er is geen enkele oefening geïmporteerd.${skipped}`, tone: 'err' };
   if (saved === 0) {
     return {
-      text: `Geen enkele widget bewaard: de opslag van dit toestel is vol. ${STORAGE_FULL_HINT}${skipped}`,
+      text: `Geen enkele oefening bewaard: de opslag van dit toestel is vol. ${STORAGE_FULL_HINT}${skipped}`,
       tone: 'err',
     };
   }
   if (failed > 0) {
     return {
       text:
-        `${saved} van ${total} widgets bewaard${where}; ${failed} niet, want de opslag van dit toestel is vol. ` +
+        `${saved} van ${total} oefeningen bewaard${where}; ${failed} niet, want de opslag van dit toestel is vol. ` +
         `${STORAGE_FULL_HINT}${skipped}`,
       tone: 'warn',
     };
   }
   return {
-    text: `${plural(saved, 'widget', 'widgets')} geïmporteerd${where}.${skipped}`,
+    text: `${plural(saved, 'oefening', 'oefeningen')} geïmporteerd${where}.${skipped}`,
     tone: res.folderSaved ? 'ok' : 'warn',
   };
 }
@@ -1186,7 +1186,7 @@ export async function saveImportedCourse(
 /** "1 widget (“Quiz”) is" / "3 widgets zijn": het onderwerp van een zin over vervangen widgets. */
 function replacedSubject(r: CourseImportResult): string {
   const n = r.replaced.length;
-  return n === 1 ? `1 widget (“${r.replaced[0]}”) is` : `${n} widgets zijn`;
+  return n === 1 ? `1 oefening (“${r.replaced[0]}”) is` : `${n} oefeningen zijn`;
 }
 
 /** Wat er met de widgets gebeurde, in stukjes voor één zin ("1 widget … is vervangen …"). Leeg: niets. */
@@ -1195,9 +1195,9 @@ function widgetChanges(r: CourseImportResult): string[] {
   if (r.replaced.length > 0) parts.push(`${replacedSubject(r)} vervangen door de versie uit het bestand`);
   // Bij "nieuw" zegt de zin zelf al "met N widgets".
   if (r.widgetsAdded > 0 && r.outcome !== 'nieuw') {
-    parts.push(`${plural(r.widgetsAdded, 'widget kwam', 'widgets kwamen')} erbij`);
+    parts.push(`${plural(r.widgetsAdded, 'oefening kwam', 'oefeningen kwamen')} erbij`);
   }
-  if (r.widgetsCopied > 0) parts.push(`${plural(r.widgetsCopied, 'widget staat', 'widgets staan')} ernaast als kopie`);
+  if (r.widgetsCopied > 0) parts.push(`${plural(r.widgetsCopied, 'oefening staat', 'oefeningen staan')} ernaast als kopie`);
   return parts;
 }
 
@@ -1217,12 +1217,12 @@ export function describeCourseImport(r: CourseImportResult): { text: string; ton
         msg += ` ${replacedSubject(r)} wel al vervangen door de versie uit het bestand.`;
       }
       if (r.widgetsRemoved > 0) {
-        msg += ` Wat tijdens deze poging al bewaard was (${plural(r.widgetsRemoved, 'widget', 'widgets')}), is weer weggehaald.`;
+        msg += ` Wat tijdens deze poging al bewaard was (${plural(r.widgetsRemoved, 'oefening', 'oefeningen')}), is weer weggehaald.`;
       }
       return { text: `${msg} ${STORAGE_FULL_HINT}`, tone: 'err', badge: 'niet bewaard' };
     }
     case 'nieuw':
-      text = `Cursus ${t} staat nu bij je cursussen${r.widgets ? ` (met ${plural(r.widgets, 'widget', 'widgets')})` : ''}.`;
+      text = `Cursus ${t} staat nu bij je cursussen${r.widgets ? ` (met ${plural(r.widgets, 'oefening', 'oefeningen')})` : ''}.`;
       break;
     case 'bijgewerkt':
       badge = 'bijgewerkt';

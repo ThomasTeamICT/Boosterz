@@ -46,7 +46,7 @@ describe('importOutcome', () => {
   });
 
   it('telt een onbekende widget mee als bewaard maar niet als netjes', () => {
-    const out = importOutcome(verslag([rij(1, 'onbekend', true, 'Bewaard, maar deze widget staat niet op dit toestel')]), 0);
+    const out = importOutcome(verslag([rij(1, 'onbekend', true, 'Bewaard, maar deze oefening staat niet op dit toestel')]), 0);
     expect(out.saved).toBe(1);
     expect(out.elsewhere).toBe(1);
     expect(out.clean).toBe(false);
@@ -183,7 +183,7 @@ describe('scanRegel (G5)', () => {
   it('de andere uitkomsten blijven zoals ze waren', () => {
     expect(scanRegel(r({}))).toBe('Leerling 1 — Quiz — 1/1 · 100%');
     expect(scanRegel(r({ outcome: 'dubbel' }))).toBe('Leerling 1 — Quiz — stond hier al');
-    expect(scanRegel(r({ outcome: 'onbekend', title: null }))).toBe('Leerling 1 — bewaard, maar onbekende widget staat niet op dit toestel');
+    expect(scanRegel(r({ outcome: 'onbekend', title: null }))).toBe('Leerling 1 — bewaard, maar onbekende oefening staat niet op dit toestel');
     expect(scanRegel(r({ outcome: 'onbekend', title: null, kind: 'course' }))).toBe('Leerling 1 — bewaard, maar onbekende cursus staat niet op dit toestel');
   });
 });

@@ -1089,6 +1089,61 @@ describe('geraamteHoofdstukken', () => {
       expect(ch.map((c) => c.title)).toEqual(['Nederlands (aso)', 'Nederlands (bso)']);
     });
 
+    it('O2: graad en stroom komen terug, tussen haakjes, als de naam anders dubbel zou zijn (over het hele leerplan)', () => {
+      const cultuur2 = metNiveau(maakBestand('ODS_9501', `${NAAM_BEGIN} -  Cultureel bewustzijn - Eindtermen`, 'Cultureel bewustzijn', reeks('a', 'A', 2)), '2de graad');
+      const cultuur3 = metNiveau(maakBestand('ODS_9502', 'Secundair onderwijs 3de graad -  Cultureel bewustzijn - Eindtermen', 'Cultureel bewustzijn', reeks('b', 'B', 2)), '3de graad');
+      const nl = metNiveau(maakBestand('ODS_9503', `${NAAM_BEGIN} -  Nederlands - Eindtermen`, 'Nederlands', reeks('n', 'N', 2)), '2de graad');
+      const lp = samen(cultuur2, nl, cultuur3);
+      // Bewijs dat het thema de graad bevat en geen set-nummer.
+      expect(lp.goals[0].theme).toContain('2de graad');
+      // Alleen de dubbele naam krijgt de graad terug; "Nederlands" is uniek en blijft kaal.
+      expect(geraamteHoofdstukken(lp).map((c) => c.title)).toEqual(['Cultureel bewustzijn (2de graad)', 'Nederlands', 'Cultureel bewustzijn (3de graad)']);
+      // Zonder de tweede set is de naam uniek en blijft de graad weg.
+      expect(geraamteHoofdstukken(samen(cultuur2, nl)).map((c) => c.title)).toEqual(['Cultureel bewustzijn', 'Nederlands']);
+    });
+
+    it('O2: de woorden over finaliteit staan nooit in een hoofdstuknaam; de onderwijsvorm blijft het onderscheid', () => {
+      const doorstroom = maakBestand('ODS_9511', `${NAAM_BEGIN} aso, kso, tso Finaliteit doorstroom -  Cultureel bewustzijn - Eindtermen`, 'Cultureel bewustzijn', reeks('a', 'A', 1));
+      const arbeidsmarkt = maakBestand('ODS_9512', `${NAAM_BEGIN} bso Finaliteit arbeidsmarkt -  Cultureel bewustzijn - Eindtermen`, 'Cultureel bewustzijn', reeks('b', 'B', 1));
+      const dubbel = maakBestand('ODS_9513', 'Secundair onderwijs 3de graad kso, tso Dubbele finaliteit -  Cultureel bewustzijn - Eindtermen', 'Cultureel bewustzijn', reeks('c', 'C', 1));
+      const lp = samen(doorstroom, arbeidsmarkt, dubbel);
+      // Bewijs dat het thema de woorden wel bevat.
+      expect(lp.goals[0].theme).toMatch(/Finaliteit doorstroom/);
+      const titels = geraamteHoofdstukken(lp).map((c) => c.title);
+      expect(titels).toEqual(['Cultureel bewustzijn (aso, kso, tso)', 'Cultureel bewustzijn (bso)', 'Cultureel bewustzijn (kso, tso)']);
+      expect(titels.join('|')).not.toMatch(/finaliteit/i);
+    });
+
+    it('O2: een nummer alleen als niets anders onderscheidt (twee versies), en pas na graad en stroom', () => {
+      const a = metNiveau(maakBestand('ODS_9521', `${NAAM_BEGIN} -  Nederlands - Eindtermen`, 'Nederlands', reeks('a', 'A', 1)), '2de graad');
+      const b = metNiveau(maakBestand('ODS_9522', `${NAAM_BEGIN} -  Nederlands - Eindtermen`, 'Nederlands', reeks('b', 'B', 1)), '2de graad');
+      const c = metNiveau(maakBestand('ODS_9523', 'Secundair onderwijs 3de graad -  Nederlands - Eindtermen', 'Nederlands', reeks('c', 'C', 1)), '3de graad');
+      const titels = geraamteHoofdstukken(samen(a, b, c)).map((ch) => ch.title);
+      expect(titels).toEqual(['Nederlands (2de graad)', 'Nederlands (2de graad) (2)', 'Nederlands (3de graad)']);
+      expect(titels.join('|')).not.toMatch(/ODS_/);
+    });
+
+    it('O1: de titels liggen vast over het hele leerplan, ook als de cursus maar de codes van één set vraagt', () => {
+      const a = maakBestand('ODS_9531', `${NAAM_BEGIN} -  Nederlands - Eindtermen`, 'Nederlands', reeks('a', 'A', 2));
+      const b = maakBestand('ODS_9532', `${NAAM_BEGIN} -  Nederlands - Eindtermen`, 'Nederlands', reeks('b', 'B', 2));
+      const lp = samen(a, b);
+      const codeVan = (set: string) => lp.goals.filter((g) => g.refs?.[0].set === set).map((g) => g.code);
+      expect(geraamteHoofdstukken(lp).map((c) => c.title)).toEqual(['Nederlands', 'Nederlands (2)']);
+      // Alleen set b: ze blijft "Nederlands (2)" en wordt geen "Nederlands" (het hoofdstuk van set a).
+      const alleenB = geraamteHoofdstukken(lp, codeVan('ODS_9532'));
+      expect(alleenB.map((c) => c.title)).toEqual(['Nederlands (2)']);
+      expect(sectieCodes(alleenB)).toEqual(codeVan('ODS_9532'));
+      expect(geraamteHoofdstukken(lp, codeVan('ODS_9531')).map((c) => c.title)).toEqual(['Nederlands']);
+    });
+
+    it('O1: "Hoofdstuk <nummer>" volgt de plaats in het hele leerplan, niet in de gevraagde codes', () => {
+      const lp = leerplanMet([
+        { code: 'G1', text: 'Een.', theme: 'Getallenleer' },
+        { code: 'G2', text: 'Twee.' },
+      ]);
+      expect(geraamteHoofdstukken(lp, ['G2']).map((c) => c.title)).toEqual(['Hoofdstuk 2']);
+    });
+
     it('een leerplan van een net (zonder verwijzingen naar sets) houdt zijn eigen themanamen, ook als ze " · " bevatten', () => {
       const lp = leerplanMet([
         { code: 'W1', text: 'Een.', theme: 'Getallen · 2de graad › Optellen' },
@@ -1097,6 +1152,21 @@ describe('geraamteHoofdstukken', () => {
       const ch = geraamteHoofdstukken(lp);
       expect(ch.map((c) => c.title)).toEqual(['Getallen · 2de graad']);
       expect(ch[0].sections.map((s) => s.title)).toEqual(['Optellen', 'Aftrekken']);
+    });
+
+    it('O3: een leerplan van een net houdt zijn themanamen letterlijk, ook als de doelen verwijzingen (refs) hebben; "uit een set" volgt de herkomst', () => {
+      const goals = [
+        { id: 'g1', code: 'W1', text: 'Een.', theme: 'Getallen · 2de graad › Optellen', refs: [{ set: 'ODS_1', id: 'x1', code: 'W1' }] },
+        { id: 'g2', code: 'W2', text: 'Twee.', theme: 'Getallen · 2de graad › Aftrekken', refs: [{ set: 'ODS_1', id: 'x2', code: 'W2' }] },
+      ];
+      const net = createCurriculum({ title: 'Net', net: 'minimumdoelen', subject: '', level: '', goals });
+      expect(geraamteHoofdstukken(net).map((c) => c.title)).toEqual(['Getallen · 2de graad']);
+      // Hetzelfde thema in een samengestelde lijst is een setnaam: de graad valt weg (en komt terug als de naam anders dubbel is).
+      const samengesteld = createCurriculum({
+        title: 'Samen', net: 'minimumdoelen', subject: '', level: '', goals,
+        herkomst: { methode: 'samengesteld', ingelezenOp: 0 },
+      });
+      expect(geraamteHoofdstukken(samengesteld).map((c) => c.title)).toEqual(['Getallen']);
     });
 
     it('twee netthema\'s die alleen in hoofdletters verschillen blijven twee hoofdstukken met hun eigen naam (samenvoegen is voor gatenCursus)', () => {

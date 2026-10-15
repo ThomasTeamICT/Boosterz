@@ -293,7 +293,7 @@ export function EditorPage() {
       }
       // De banner staat achter het venster van de assistent: zeg het daarom ook in een melding.
       if (!onScreen && aiOpenRef.current && holdRef.current?.kind !== 'conflict') {
-        toast('Een ander tabblad bewaarde deze widget intussen. Sluit de AI-assistent om de nieuwe versie te laden.', 'err');
+        toast('Een ander tabblad bewaarde deze oefening intussen. Sluit de AI-assistent om de nieuwe versie te laden.', 'err');
       }
       setHold({ kind: 'conflict' });
     };
@@ -335,8 +335,8 @@ export function EditorPage() {
     if (!w) return;
     try {
       const json = await exportWidgetJsonWithMedia(w);
-      downloadFile(`${w.title.replace(/[^\w\dà-ÿ -]/gi, '').trim() || 'widget'}.widget.json`, json);
-      toast('De widget is gedownload als bestand. Terugzetten kan via "Bestaand materiaal verwerken".', 'ok');
+      downloadFile(`${w.title.replace(/[^\w\dà-ÿ -]/gi, '').trim() || 'oefening'}.widget.json`, json);
+      toast('De oefening is gedownload als bestand. Terugzetten kan via "Bestaand materiaal verwerken".', 'ok');
     } catch {
       toast('Downloaden is mislukt.', 'err');
     }
@@ -361,7 +361,7 @@ export function EditorPage() {
     const w = widgetRef.current;
     const wasDeleted = holdRef.current?.kind === 'verwijderd';
     if (w && persist(w, true)) {
-      toast(wasDeleted ? `De widget is opnieuw bewaard.${resultsGoneSentence(w)}` : 'Jouw versie is bewaard.', 'ok');
+      toast(wasDeleted ? `De oefening is opnieuw bewaard.${resultsGoneSentence(w)}` : 'Jouw versie is bewaard.', 'ok');
       focusTitle();
     }
   };
@@ -406,9 +406,9 @@ export function EditorPage() {
   if (!widget) {
     return (
       <main id="main" className="page page-narrow" style={{ textAlign: 'center', paddingTop: 80 }}>
-        <h1>Widget niet gevonden</h1>
-        <p style={{ color: 'var(--text-soft)' }}>Deze widget bestaat niet (meer) in deze browser.</p>
-        <Link to="/widgets" className="btn btn-primary"><BackIcon size={18} aria-hidden /> Naar mijn widgets</Link>
+        <h1>Oefening niet gevonden</h1>
+        <p style={{ color: 'var(--text-soft)' }}>Deze oefening bestaat niet (meer) in deze browser.</p>
+        <Link to="/widgets" className="btn btn-primary"><BackIcon size={18} aria-hidden /> Naar mijn oefeningen</Link>
       </main>
     );
   }
@@ -427,7 +427,7 @@ export function EditorPage() {
         <div className="callout warn" role="alert">
           <WarningIcon size={20} aria-hidden style={{ flex: 'none' }} />
           <div style={{ minWidth: 0 }}>
-            <strong>Deze widget werd intussen in een ander tabblad bewaard.</strong>{' '}
+            <strong>Deze oefening werd intussen in een ander tabblad bewaard.</strong>{' '}
             {changedOnScreen
               ? 'Je wijzigingen hier zijn nog niet bewaard. Kies welke versie je houdt.'
               : 'De AI-assistent werkt nog met de oude versie. Sluit de assistent om de nieuwe versie te laden, of kies zelf welke versie je houdt.'}
@@ -447,7 +447,7 @@ export function EditorPage() {
         <div className="callout warn" role="alert">
           <WarningIcon size={20} aria-hidden style={{ flex: 'none' }} />
           <div style={{ minWidth: 0 }}>
-            <strong>Deze widget werd in een ander tabblad verwijderd.</strong> Ze wordt hier niet vanzelf
+            <strong>Deze oefening werd in een ander tabblad verwijderd.</strong> Ze wordt hier niet vanzelf
             teruggezet. Wil je ze toch houden, bewaar ze dan opnieuw.{resultsGoneSentence(widget)}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
               <button type="button" className="btn btn-sm btn-primary" onClick={keepMine}>Opnieuw bewaren</button>
@@ -465,7 +465,7 @@ export function EditorPage() {
             <strong>Niet bewaard.</strong> {failMessage ?? FAIL_FALLBACK}
             <p style={{ margin: '6px 0 0' }}>
               Je wijzigingen staan nog op dit scherm. Sluit dit tabblad niet: maak eerst ruimte en klik dan op
-              “Opnieuw proberen”, of download de widget als bestand.
+              “Opnieuw proberen”, of download de oefening als bestand.
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
               <button type="button" className="btn btn-sm btn-primary" onClick={retrySave}>
@@ -489,7 +489,7 @@ export function EditorPage() {
   return (
     <div className="appshell">
       <header className="topbar editor-topbar">
-        <h1 className="sr-only">Widget bewerken: {widget.title}</h1>
+        <h1 className="sr-only">Oefening bewerken: {widget.title}</h1>
         <button className="btn btn-quiet btn-sm" onClick={() => navigate('/widgets')}>
           <BackIcon size={18} aria-hidden /> Terug
         </button>
@@ -500,7 +500,7 @@ export function EditorPage() {
           style={{ maxWidth: 340, fontWeight: 700 }}
           value={widget.title}
           onChange={(e) => setWidget({ ...widget, title: e.target.value })}
-          aria-label="Titel van de widget"
+          aria-label="Titel van de oefening"
         />
         <span
           className="hint"
@@ -518,7 +518,7 @@ export function EditorPage() {
                     : null}
         </span>
         <div className="topbar-spacer" />
-        <span className="badge" title="Code van deze widget" style={{ fontFamily: 'monospace', letterSpacing: '0.15em' }}>{widget.code}</span>
+        <span className="badge" title="Code van deze oefening" style={{ fontFamily: 'monospace', letterSpacing: '0.15em' }}>{widget.code}</span>
         {def.hasSubmissions && (
           <Link to={`/resultaten/${widget.id}`} className="btn btn-sm btn-ghost"><ResultsIcon size={18} aria-hidden /> Resultaten ({subCount})</Link>
         )}
@@ -537,7 +537,7 @@ export function EditorPage() {
         <button
           className="btn btn-sm btn-ghost"
           onClick={() => setTemplateOpen(true)}
-          title="Bewaar deze widget als eigen sjabloon voor later hergebruik"
+          title="Bewaar deze oefening als eigen sjabloon voor later hergebruik"
         >
           <Bookmark size={18} aria-hidden /> Bewaar als sjabloon
         </button>
@@ -562,12 +562,12 @@ export function EditorPage() {
           {alerts && <div style={{ maxWidth: 860, margin: '14px auto 0', width: 'calc(100% - 36px)' }}>{alerts}</div>}
           <div className="callout warn" style={{ maxWidth: 860, margin: '14px auto 0', width: 'calc(100% - 36px)' }}>
             <PreviewIcon aria-hidden />
-            <div>Voorbeeldmodus — zo ziet je leerling de widget. Er wordt niets opgeslagen.
+            <div>Voorbeeldmodus — zo ziet je leerling de oefening. Er wordt niets opgeslagen.
               <button className="btn btn-sm btn-ghost" style={{ marginLeft: 10 }} onClick={() => setPreviewKey((k) => k + 1)}><RetryIcon size={16} aria-hidden /> Herstart voorbeeld</button>
             </div>
           </div>
           <div className={`player-main ${def.wide ? 'player-main-wide' : ''}`}>
-            <React.Suspense fallback={<div className="hint" role="status" style={{ textAlign: 'center', padding: '40px 0' }}>Widget laden…</div>}>
+            <React.Suspense fallback={<div className="hint" role="status" style={{ textAlign: 'center', padding: '40px 0' }}>Oefening laden…</div>}>
               <def.Player key={previewKey} widget={widget} studentName="Voorbeeld" preview onComplete={() => {}} />
             </React.Suspense>
           </div>
@@ -609,7 +609,7 @@ export function EditorPage() {
               {tab === 'content' ? (
                 // de editormodule wordt lazy geladen (zie registry): even een laadmelding tonen
                 <div role="tabpanel" id="panel-content" aria-labelledby="tab-content">
-                  <React.Suspense fallback={<div className="hint" role="status" style={{ textAlign: 'center', padding: '40px 0' }}>Widget laden…</div>}>
+                  <React.Suspense fallback={<div className="hint" role="status" style={{ textAlign: 'center', padding: '40px 0' }}>Oefening laden…</div>}>
                     <def.Editor key={syncKey} config={widget.config} onChange={(config: unknown) => setWidget({ ...widget, config })} />
                   </React.Suspense>
                 </div>
@@ -624,7 +624,7 @@ export function EditorPage() {
               <p style={{ color: 'var(--text-soft)', fontSize: '0.9rem' }}>{def.tagline}</p>
               <hr className="divider" />
               <p style={{ fontSize: '0.9rem', color: 'var(--text-soft)', marginBottom: 8 }}>
-                <strong>Zo deel je deze widget:</strong>
+                <strong>Zo deel je deze oefening:</strong>
               </p>
               <ol style={{ fontSize: '0.88rem', color: 'var(--text-soft)', paddingLeft: 18, margin: 0 }}>
                 <li>Klik op <em>Uitproberen</em> om alles zelf te testen.</li>
@@ -704,10 +704,10 @@ function SaveTemplateModal({ widget, onClose }: { widget: Widget; onClose: () =>
     if (!name.trim()) return;
     try {
       saveCustomTemplate(name, widget);
-      toast('Sjabloon bewaard — je vindt het terug bij "Nieuwe widget"', 'ok');
+      toast('Sjabloon bewaard — je vindt het terug bij "Nieuwe oefening"', 'ok');
       onClose();
     } catch {
-      toast('Bewaren mislukt: de lokale opslag is vol. Verwijder oude widgets of sjablonen.', 'err');
+      toast('Bewaren mislukt: de lokale opslag is vol. Verwijder oude oefeningen of sjablonen.', 'err');
     }
   };
 
@@ -724,7 +724,7 @@ function SaveTemplateModal({ widget, onClose }: { widget: Widget; onClose: () =>
     >
       <Field
         label="Naam van het sjabloon"
-        hint="Bewaart de inhoud én instellingen van deze widget als startpunt voor nieuwe widgets."
+        hint="Bewaart de inhoud én instellingen van deze oefening als startpunt voor nieuwe oefeningen."
       >
         <input
           className="input"

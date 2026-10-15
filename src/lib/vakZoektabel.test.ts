@@ -98,7 +98,7 @@ describe('filterSets met de zoektabel (hulp bij het zoeken, geen koppeling)', ()
   });
 });
 
-describe('lichamelijke opvoeding en LO (filterSets met vakAlsZoekwoord)', () => {
+describe('lichamelijke opvoeding en LO (filterSets zet ze zelf om met vakAlsZoekwoord)', () => {
   const sets = [
     set('ODS_OUD', 'Lichamelijke Opvoeding', 'Buitengewoon Secundair onderwijs Opleidingsvorm 3 - Domein - Lichamelijke Opvoeding - Ontwikkelingsdoelen'),
     set('ODS_NU', 'Lichamelijke en geestelijke gezondheid', 'Secundair onderwijs 3de graad bso Finaliteit arbeidsmarkt -  Competenties op het vlak van lichamelijk, geestelijk en emotioneel bewustzijn/gezondheid - Eindtermen'),
@@ -107,22 +107,29 @@ describe('lichamelijke opvoeding en LO (filterSets met vakAlsZoekwoord)', () => 
   ];
   const ids = (zoek: string) => filterSets(sets, { ...ALLE, zoek }).map((s) => s.id);
 
-  it('zonder omzetting vindt "lichamelijke opvoeding" alleen de oude set: "opvoeding" staat niet in de set van nu', () => {
-    expect(ids('lichamelijke opvoeding')).toEqual(['ODS_OUD']);
-  });
-
-  it('met omzetting vindt "lichamelijke opvoeding" ook de set van nu, en niet de rest', () => {
-    expect(ids(vakAlsZoekwoord('lichamelijke opvoeding'))).toEqual(['ODS_OUD', 'ODS_NU']);
+  it('"lichamelijke opvoeding" vindt zonder tussenstap ook de set van nu, en niet "Artistieke Opvoeding"', () => {
+    expect(ids('lichamelijke opvoeding')).toEqual(['ODS_OUD', 'ODS_NU']);
+    expect(ids('  Lichamelijke   OPVOEDING ')).toEqual(['ODS_OUD', 'ODS_NU']);
   });
 
   it('"LO" en "L.O." vinden die sets, en geen set waar "lo" midden in een woord staat (technologie)', () => {
-    expect(ids('lo')).toContain('ODS_TECH');
-    expect(ids(vakAlsZoekwoord('LO'))).toEqual(['ODS_OUD', 'ODS_NU']);
-    expect(ids(vakAlsZoekwoord('L.O.'))).toEqual(['ODS_OUD', 'ODS_NU']);
+    expect(ids('LO')).toEqual(['ODS_OUD', 'ODS_NU']);
+    expect(ids('L.O.')).toEqual(['ODS_OUD', 'ODS_NU']);
+    expect(ids('LO')).not.toContain('ODS_TECH');
+  });
+
+  it('de omzetting vooraf (zoals de pagina Minimumdoelen ze deed) geeft hetzelfde: ze is idempotent', () => {
+    expect(ids(vakAlsZoekwoord('lichamelijke opvoeding'))).toEqual(ids('lichamelijke opvoeding'));
+    expect(ids(vakAlsZoekwoord('LO'))).toEqual(ids('LO'));
   });
 
   it('"opvoeding" alleen blijft zoeken op het woord zelf', () => {
-    expect(ids(vakAlsZoekwoord('opvoeding'))).toEqual(['ODS_OUD', 'ODS_KUNST']);
+    expect(ids('opvoeding')).toEqual(['ODS_OUD', 'ODS_KUNST']);
+  });
+
+  it('een andere zoektekst blijft zoals ze was', () => {
+    expect(ids('artistieke opvoeding')).toEqual(['ODS_KUNST']);
+    expect(ids('technologie')).toEqual(['ODS_TECH']);
   });
 });
 
@@ -142,10 +149,10 @@ describe.runIf(existsSync(INDEX))('de tabel tegen de meegeleverde sets', () => {
     });
   }
 
-  it('elk vak, elke meerwoordige naam en elke afkorting in de tabel vindt via vakAlsZoekwoord minstens één set', () => {
+  it('elk vak, elke meerwoordige naam en elke afkorting in de tabel vindt via filterSets minstens één set', () => {
     for (const regel of VAK_ZOEKTABEL) {
       for (const vak of regel.vakken) {
-        const gevonden = filterSets(sets, { ...ALLE, zoek: vakAlsZoekwoord(vak) });
+        const gevonden = filterSets(sets, { ...ALLE, zoek: vak });
         expect(gevonden.length, vak).toBeGreaterThan(0);
       }
     }
@@ -153,7 +160,7 @@ describe.runIf(existsSync(INDEX))('de tabel tegen de meegeleverde sets', () => {
 
   it('"lichamelijke opvoeding", "LO" en "L.O." vinden de sets die nu gelden: "Lichamelijke en geestelijke gezondheid"', () => {
     for (const zoek of ['lichamelijke opvoeding', 'LO', 'L.O.', 'lo 3de graad']) {
-      const actueel = filterSets(sets, { zoek: vakAlsZoekwoord(zoek), geldigheid: 'actueel', graad: '', soort: 'alle' });
+      const actueel = filterSets(sets, { zoek, geldigheid: 'actueel', graad: '', soort: 'alle' });
       const nu = actueel.filter((s) => s.korteNaam === 'Lichamelijke en geestelijke gezondheid');
       expect(nu.length, zoek).toBeGreaterThan(0);
       // Geen enkele set die nu geldt komt mee omdat "lo" in een ander woord staat.

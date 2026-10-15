@@ -285,6 +285,12 @@ export function cursusRegel(c: CursusRegelIn): { hoofd: string; extra?: string }
   return { hoofd: `Telt mee voor ${enkelOfMeer(c.draagtBij, 'doel', 'doelen')}`, ...(extra ? { extra } : {}) };
 }
 
+/**
+ * De kop boven de cursussen van de richting die niet in de telling zitten (blok Minimumdoelen). Positief en eerlijk: de kop zegt
+ * wat die cursussen zijn en niet dat ze "niet meetellen", wat als een verwijt leest. Bij elke cursus staat de reden (`cursusRegel`).
+ */
+export const ANDERE_CURSUSSEN_KOP = 'Andere cursussen van deze richting';
+
 /** Een cursus van een ander jaar dan het jaar dat de telling kiest. */
 export function buitenJaarTekst(jaar: number): string {
   return `Telt nu niet mee: je telt alleen het ${jaarTekst(jaar)}.`;

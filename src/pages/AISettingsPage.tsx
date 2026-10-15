@@ -571,7 +571,7 @@ export function AISettingsPage() {
                   {usage.map((u, i) => (
                     <tr key={`${u.at}-${i}`} style={{ cursor: 'default' }}>
                       <td style={{ whiteSpace: 'nowrap' }}>{formatDate(u.at)}</td>
-                      <td>{u.task}</td>
+                      <td>{u.task === 'widgets uit bron' ? 'oefeningen uit bron' : u.task}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>{u.model}</td>
                       <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{num(u.inputTokens)}</td>
                       <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{num(u.outputTokens)}</td>

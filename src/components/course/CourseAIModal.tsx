@@ -6,7 +6,8 @@ import { allSections } from '../../lib/courseTypes';
 import type { CurriculumGoal } from '../../lib/curriculumTypes';
 import { exportCourseJson } from '../../lib/courses';
 import { getCurriculum, normalizeGoalCode } from '../../lib/curriculum';
-import { computeCoverage } from '../../lib/coverage';
+import { computeCoverage, geplandeRijen } from '../../lib/coverage';
+import { uitwerkTelling, uitwerkZin } from '../../lib/uitwerkZinnen';
 import {
   buildNewCoursePrompt, buildOptimizeChapterPrompt, buildOptimizePrompt, buildReworkPrompt,
   buildSectionExercisesPrompt, buildSectionPrompt, checkMissingTopics, compactCourseLength, MAX_SOURCE_CHARS,
@@ -160,6 +161,11 @@ export function CourseAIModal({
   const coverage = useMemo(
     () => (course && curriculum ? computeCoverage(course, curriculum, getWidgets()) : undefined),
     [course, curriculum]
+  );
+  // De zin boven de keuzes is dezelfde als in de weergave Leerplan: uitgewerkt, gepland of nog niet (niet "Dekkend: alle … doelen").
+  const dekkingZin = useMemo(
+    () => (course && coverage ? uitwerkZin(uitwerkTelling(coverage, geplandeRijen(coverage, course).length)) : undefined),
+    [course, coverage]
   );
   const uncoveredGoals: CurriculumGoal[] = coverage ? coverage.uncovered.map((r) => r.goal) : [];
 
@@ -534,7 +540,7 @@ export function CourseAIModal({
                 <label className="checkbox-row">
                   <input type="checkbox" checked={withQuizzes} onChange={(e) => setWithQuizzes(e.target.checked)} />
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <CheckIcon size={14} aria-hidden /> Per hoofdstuk ook een oefenquiz maken (aparte widgets, automatisch ingebed in de cursus)
+                    <CheckIcon size={14} aria-hidden /> Per hoofdstuk ook een oefenquiz maken (aparte oefeningen, automatisch ingebed in de cursus)
                   </span>
                 </label>
               </>
@@ -556,7 +562,7 @@ export function CourseAIModal({
               <>
                 <p className="hint" style={{ margin: 0 }}>
                   <strong>{course.title}</strong> — {course.chapters.length} hoofdstuk(ken), {secCount(course)} secties.
-                  {coverage ? ` ${coverage.summary}` : ' Koppel een leerplan in de cursusinstellingen om ook de hiaten te kunnen vullen.'}
+                  {dekkingZin ? ` ${dekkingZin}` : ' Koppel een leerplan in de cursusinstellingen om ook de hiaten te kunnen vullen.'}
                 </p>
                 <fieldset style={{ border: 'none', padding: 0, margin: '10px 0 0' }}>
                   <legend style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-soft)', padding: 0 }}>
@@ -636,7 +642,7 @@ export function CourseAIModal({
                 <p className="hint" style={{ margin: 0 }}>
                   Oefeningen bij de sectie <strong>{section.title}</strong>
                   {section.blocks.length === 0 && ' (deze sectie bevat nog geen inhoud — de AI vertrekt dan van de titel en de doelen)'}
-                  . Ze worden bewaard bij “Mijn widgets” én achteraan deze sectie ingebed.
+                  . Ze worden bewaard bij “Mijn oefeningen” én achteraan deze sectie ingebed.
                 </p>
                 {sectionGoals.length > 0 ? (
                   <p className="hint" style={{ margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: 6 }}>

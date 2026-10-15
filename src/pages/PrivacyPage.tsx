@@ -145,7 +145,7 @@ export function PrivacyPage() {
         <p>Boosterz zelf zet geen cookies en gebruikt geen advertenties of statistiekdiensten.</p>
         <h2 style={H2}>Wat wordt bewaard?</h2>
         <ul style={{ paddingLeft: 20 }}>
-          <li><strong>Widgets</strong> ({widgets.length}): jouw oefeningen.</li>
+          <li><strong>Oefeningen</strong> ({widgets.length}): alles wat je zelf maakte of importeerde.</li>
           <li><strong>Afbeeldingen, audio en bijlagen</strong> ({media.count}, {formatBytes(media.bytes)}): apart bewaard in de bestandsopslag van de browser (IndexedDB), samen met geüploade pdf's en ingeleverde bestanden.</li>
           <li><strong>Cursussen &amp; leesvoortgang</strong>: je cursusinhoud en, per leerling(naam), welke secties gelezen zijn en hoelang.</li>
           <li><strong>Klassen &amp; opdrachten</strong>: klaslijsten (namen en eventueel klasnummers van leerlingen), de opdrachten per klas en, op een leerlingtoestel, de gekozen naam uit de klaslijst. Een klaslijst zijn persoonsgegevens van minderjarigen: deel klaslinks en klaspakketten alleen met de klas zelf.</li>
@@ -195,7 +195,7 @@ export function PrivacyPage() {
               />
             </div>
             <p className="hint" style={{ marginTop: 8, color: 'var(--text-soft)', fontSize: '0.88rem' }}>
-              Widgets, cursussen en inzendingen staan als tekst in de browseropslag. Die is klein — ongeveer
+              Oefeningen, cursussen en inzendingen staan als tekst in de browseropslag. Die is klein — ongeveer
               5 MB voor de hele app, hoeveel plaats je toestel verder ook heeft. Afbeeldingen, audio, bijlagen
               en pdf's staan daarom apart in de bestandsopslag (IndexedDB), waar doorgaans honderden MB
               ruimte is
@@ -250,7 +250,7 @@ export function PrivacyPage() {
                 volledige opslag van een website na ongeveer zeven dagen zonder bezoek: één vakantieweek
                 volstaat om een cursus of het werk van leerlingen kwijt te spelen. Ook "browsergegevens
                 wissen", een ander gebruikersprofiel of een toestel met weinig vrije ruimte doet dat.
-                Exporteer daarom wat je niet wil verliezen: <a href="#/widgets">widgets en mappen</a> als
+                Exporteer daarom wat je niet wil verliezen: <a href="#/widgets">oefeningen en mappen</a> als
                 pakketbestand, <a href="#/cursussen">cursussen</a> met <ExportIcon size={14} className="icon-inline" aria-hidden /> Exporteren, en resultaten als CSV.
                 Zet die bestanden op de schoolschijf — dát is je back-up.
               </div>
@@ -266,18 +266,18 @@ export function PrivacyPage() {
             Alle inzendingen &amp; leerlinggegevens wissen ({subs.length})
           </button>
           <button className="btn btn-ghost" onClick={() => setConfirm('all')}>
-            Alles wissen (ook widgets)
+            Alles wissen (ook oefeningen)
           </button>
         </div>
         <p className="hint" style={{ marginTop: 10 }}>
-          Individuele inzendingen wis je bij de resultaten van elke widget (<DeleteIcon size={14} className="icon-inline" aria-hidden /> naast de rij).
+          Individuele inzendingen wis je bij de resultaten van elke oefening (<DeleteIcon size={14} className="icon-inline" aria-hidden /> naast de rij).
         </p>
       </div>
 
       {confirm === 'subs' && (
         <ConfirmModal
           title="Alle leerlinggegevens wissen?"
-          message={`${subs.length} ${subs.length === 1 ? 'inzending' : 'inzendingen'}, pogingtellers, tussentijds opgeslagen werk, ingeleverde bestanden, leerlingnotities, markeringen, voortgang en deadlines worden definitief verwijderd. Je widgets blijven bestaan. Klaslijsten en je feedbackbank blijven staan.`}
+          message={`${subs.length} ${subs.length === 1 ? 'inzending' : 'inzendingen'}, pogingtellers, tussentijds opgeslagen werk, ingeleverde bestanden, leerlingnotities, markeringen, voortgang en deadlines worden definitief verwijderd. Je oefeningen blijven bestaan. Klaslijsten en je feedbackbank blijven staan.`}
           onConfirm={wipeSubmissions}
           onClose={() => setConfirm(null)}
         />
@@ -285,7 +285,7 @@ export function PrivacyPage() {
       {confirm === 'all' && (
         <ConfirmModal
           title="Alles wissen?"
-          message="Alle widgets, mappen, inzendingen en instellingen op dit toestel worden definitief verwijderd. Exporteer eerst wat je wil bewaren."
+          message="Alle oefeningen, mappen, inzendingen en instellingen op dit toestel worden definitief verwijderd. Exporteer eerst wat je wil bewaren."
           onConfirm={wipeAll}
           onClose={() => setConfirm(null)}
         />

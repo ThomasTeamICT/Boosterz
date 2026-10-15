@@ -49,7 +49,7 @@ export const BLOCK_META: Record<CourseBlockType, { icon: LucideIcon; name: strin
   table: { icon: TableTypeIcon, name: 'Tabel', blurb: 'Eenvoudige tabel met optionele kopregel.' },
   terms: { icon: BookMarked, name: 'Begrippen', blurb: 'Begrippenlijst met term en uitleg.' },
   checklist: { icon: ListChecks, name: 'Afvinklijst', blurb: 'Lijstje dat de leerling zelf afvinkt (telt mee in de voortgang).' },
-  widget: { icon: Puzzle, name: 'Widget', blurb: 'Een oefening of toets uit Boosterz, inline afspeelbaar.' },
+  widget: { icon: Puzzle, name: 'Oefening', blurb: 'Een oefening of toets uit Boosterz, inline afspeelbaar.' },
 };
 
 /** Volgorde voor het blokkenpalet. */
@@ -878,7 +878,7 @@ function WidgetBlockEditor({ b, onChange }: { b: WidgetBlock; onChange: OnChange
     return (
       <div>
         <p className="hint" style={{ marginTop: 0 }}>
-          Je hebt nog geen widgets. Maak er eerst één — daarna kan je hem hier in de cursus zetten.
+          Je hebt nog geen oefeningen. Maak er eerst één — daarna kan je ze hier in de cursus zetten.
         </p>
         <a className="btn btn-sm btn-ghost" href="#/nieuw" target="_blank" rel="noopener noreferrer"><AddIcon size={16} /> Nieuwe oefening maken (opent in een nieuw tabblad)</a>
       </div>
@@ -893,8 +893,8 @@ function WidgetBlockEditor({ b, onChange }: { b: WidgetBlock; onChange: OnChange
           <input
             className="input input-sm"
             value={search}
-            placeholder="Zoek widget…"
-            aria-label="Zoek een widget op titel, code of type"
+            placeholder="Zoek oefening…"
+            aria-label="Zoek een oefening op titel, code of type"
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
@@ -902,10 +902,10 @@ function WidgetBlockEditor({ b, onChange }: { b: WidgetBlock; onChange: OnChange
           className="select input-sm"
           style={{ flex: 1, minWidth: 220 }}
           value={b.widgetId}
-          aria-label="Kies de widget voor dit blok"
+          aria-label="Kies de oefening voor dit blok"
           onChange={(e) => onChange({ ...b, widgetId: e.target.value })}
         >
-          <option value="">— kies een widget —</option>
+          <option value="">— kies een oefening —</option>
           {options.map((w) => {
             const def = getTypeDef(w.type);
             return (
@@ -918,7 +918,7 @@ function WidgetBlockEditor({ b, onChange }: { b: WidgetBlock; onChange: OnChange
       </div>
       {b.widgetId && !selected && (
         <p className="hint" style={{ color: 'var(--err)', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <WarningIcon size={16} /> Deze widget bestaat niet (meer) in deze browser. Kies een andere.
+          <WarningIcon size={16} /> Deze oefening bestaat niet (meer) in deze browser. Kies een andere.
         </p>
       )}
       {selected && (
@@ -929,15 +929,15 @@ function WidgetBlockEditor({ b, onChange }: { b: WidgetBlock; onChange: OnChange
               <strong>{selected.title}</strong>
               {getTypeDef(selected.type).hasSubmissions
                 ? ' — resultaten komen bij Resultaten terecht'
-                : ' — oefenwidget zonder inzendingen'}
+                : ' — oefening zonder inzendingen'}
             </span>
             <a className="btn btn-sm btn-ghost" href={`#/bewerk/${selected.id}`} target="_blank" rel="noopener noreferrer">
-              <EditIcon size={16} /> Widget bewerken
+              <EditIcon size={16} /> Oefening bewerken
             </a>
           </div>
         </div>
       )}
-      <Field label="Notitie boven de widget (optioneel)" hint="Korte instructie voor de leerling, bv. 'Maak deze oefening na het lezen.'">
+      <Field label="Notitie boven de oefening (optioneel)" hint="Korte instructie voor de leerling, bv. 'Maak deze oefening na het lezen.'">
         <input
           className="input input-sm"
           value={b.note ?? ''}

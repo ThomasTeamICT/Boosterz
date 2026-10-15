@@ -102,14 +102,14 @@ export function NewWidgetPage() {
     <div className="page mat-page">
       <div className="page-head">
         <div>
-          <h1>Nieuwe widget</h1>
+          <h1>Nieuwe oefening</h1>
           <p className="sub">Kies de soort die bij je les past. Je kan alles daarna nog aanpassen.</p>
         </div>
       </div>
 
       <div className="lib-search mat-new-search">
         <SearchIcon size={18} />
-        <label htmlFor="nieuw-zoek" className="sr-only">Zoek een soort widget</label>
+        <label htmlFor="nieuw-zoek" className="sr-only">Zoek een soort oefening</label>
         <input
           id="nieuw-zoek"
           className="input" type="search"
@@ -127,7 +127,7 @@ export function NewWidgetPage() {
           <span className="mat-ai-icon" aria-hidden="true"><AIIcon size={24} /></span>
           <span className="mat-ai-text">
             <h2>Laat de AI het voorbereidende werk doen</h2>
-            <p>Plak je cursustekst of leerplandoelen en krijg kant-en-klare widgets als voorzet. Jij kijkt na en bewaart.</p>
+            <p>Plak je cursustekst of leerplandoelen en krijg kant-en-klare oefeningen als voorzet. Jij kijkt na en bewaart.</p>
           </span>
           <span className="btn btn-ai" aria-hidden="true">Naar de AI-studio <ArrowRight size={18} /></span>
         </Link>
@@ -162,7 +162,7 @@ export function NewWidgetPage() {
         <section style={{ marginBottom: 30 }} aria-labelledby="cat-mytemplates">
           <h2 id="cat-mytemplates" className="mat-section-title"><Star size={20} /> Mijn sjablonen</h2>
           <p className="hint" style={{ marginBottom: 12 }}>
-            Sjablonen die je zelf bewaarde vanuit de editor. Klik om er een nieuwe widget mee te starten.
+            Sjablonen die je zelf bewaarde vanuit de editor. Klik om er een nieuwe oefening mee te starten.
           </p>
           <div className="type-grid">
             {mine.map((t) => {
@@ -220,14 +220,14 @@ export function NewWidgetPage() {
                   finishWidget(w);
                 }}
               >
-                Widget aanmaken
+                Oefening aanmaken
               </button>
             </>
           }
         >
           <p className="hint" style={{ marginBottom: 14 }}>
             Dit sjabloon bevat invulvelden. Velden die je leeg laat, blijven als [placeholder] in
-            de widget staan. Die kan je later in de editor nog invullen.
+            de oefening staan. Die kan je later in de editor nog invullen.
           </p>
           {fill.placeholders.map((p) => (
             <Field key={p} label={readableLabel(p)}>
@@ -248,7 +248,7 @@ export function NewWidgetPage() {
       {templateToDelete && (
         <ConfirmModal
           title="Sjabloon verwijderen?"
-          message={`Weet je zeker dat je het sjabloon "${templateToDelete.name}" wil verwijderen? Widgets die je er al mee maakte, blijven gewoon bestaan.`}
+          message={`Weet je zeker dat je het sjabloon "${templateToDelete.name}" wil verwijderen? Oefeningen die je er al mee maakte, blijven gewoon bestaan.`}
           confirmLabel="Verwijderen"
           onConfirm={() => {
             deleteCustomTemplate(templateToDelete.id);

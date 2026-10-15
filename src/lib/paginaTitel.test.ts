@@ -5,9 +5,9 @@ describe('paginaTitel', () => {
   it('geeft per route een label met de merknaam erachter', () => {
     const verwacht: [string, string][] = [
       ['/', 'Start'],
-      ['/widgets', 'Widgets'],
-      ['/nieuw', 'Nieuwe widget'],
-      ['/bewerk/abc123', 'Widget bewerken'],
+      ['/widgets', 'Oefeningen'],
+      ['/nieuw', 'Nieuwe oefening'],
+      ['/bewerk/abc123', 'Oefening bewerken'],
       ['/print/abc123', 'Afdrukken'],
       ['/cursussen', 'Cursussen'],
       ['/cursussen/richtingen', 'Studierichtingen'],
@@ -51,13 +51,17 @@ describe('paginaTitel', () => {
   });
 
   it('negeert een slotslash en toont onbekende paden als de meedoenpagina', () => {
-    expect(paginaTitel('/widgets/')).toBe('Widgets · Boosterz');
+    expect(paginaTitel('/widgets/')).toBe('Oefeningen · Boosterz');
     expect(paginaTitel('')).toBe('Start · Boosterz');
     expect(paginaTitel('/main')).toBe('Meedoen · Boosterz');
   });
 
-  it('gebruikt op leerlingroutes nooit het woord "widget"', () => {
-    for (const pad of ['/speel/ABC123', '/open', '/meedoen', '/voortgang', '/leerling/KLAS01', '/klas/open', '/cursus/lees/ABC123', '/cursus/open', '/main']) {
+  it('gebruikt op geen enkele route het woord "widget" (ook niet in de leerkrachtschil)', () => {
+    for (const pad of [
+      '/', '/widgets', '/nieuw', '/bewerk/abc123', '/print/abc123', '/resultaten', '/resultaten/w1', '/ai-studio', '/importeren',
+      '/cursussen', '/cursus/bewerk/c1', '/klassen', '/klas/k1', '/leerplannen', '/hulp', '/privacy',
+      '/speel/ABC123', '/open', '/meedoen', '/voortgang', '/leerling/KLAS01', '/klas/open', '/cursus/lees/ABC123', '/cursus/open', '/main',
+    ]) {
       expect(paginaTitel(pad), pad).not.toMatch(/widget/i);
     }
   });
@@ -73,9 +77,9 @@ describe('volgRoute', () => {
     };
     const titels: string[] = [];
     volgRoute(router, (t) => titels.push(t));
-    expect(titels).toEqual(['Widgets · Boosterz']);
+    expect(titels).toEqual(['Oefeningen · Boosterz']);
     pad = '/klassen';
     luisteraar();
-    expect(titels).toEqual(['Widgets · Boosterz', 'Klassen · Boosterz']);
+    expect(titels).toEqual(['Oefeningen · Boosterz', 'Klassen · Boosterz']);
   });
 });

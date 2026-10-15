@@ -19,7 +19,6 @@ import {
   zoekTermen, zoekVoorbeelden, type SoortOnderwijs,
 } from '../lib/minimumdoelenBron';
 import { geldigheidJaren } from '../lib/setKeuze';
-import { vakAlsZoekwoord } from '../lib/vakZoektabel';
 import { isAttitude, isOptioneel, leerplanUitSet, themaVanDoel, vindLeerplanVoorSet } from '../lib/minimumdoelenLeerplan';
 import { DoelenPerRubriek, type DoelRij } from '../components/curriculum/DoelenPerRubriek';
 import { Field, useToast } from '../components/ui';
@@ -119,16 +118,15 @@ export function MinimumdoelenPage() {
     const aanwezig = new Set(sets.map((s) => soortVanSet(s.naam)));
     return SOORT_VOLGORDE.filter((s) => aanwezig.has(s));
   }, [sets]);
-  // "lichamelijke opvoeding" en "LO" zoeken de sets van dat vak (lib/vakZoektabel.ts); een andere tekst blijft zoals ze is.
-  const zoekTekst = useMemo(() => vakAlsZoekwoord(zoek), [zoek]);
+  // `filterSets` zet "lichamelijke opvoeding" en "LO" zelf om in de sets van dat vak (lib/vakZoektabel.ts).
   const gefilterd = useMemo(
-    () => gewoonEerst(filterSets(sets, { zoek: zoekTekst, geldigheid, graad, soort })),
-    [sets, zoekTekst, geldigheid, graad, soort],
+    () => gewoonEerst(filterSets(sets, { zoek, geldigheid, graad, soort })),
+    [sets, zoek, geldigheid, graad, soort],
   );
   // Hoeveel oude versies er bij deze filters verborgen zijn: dat zeggen we bij het vinkje.
   const verborgenOud = useMemo(
-    () => (geldigheid === 'actueel' ? filterSets(sets, { zoek: zoekTekst, geldigheid: 'alle', graad, soort }).length - gefilterd.length : 0),
-    [sets, zoekTekst, geldigheid, graad, soort, gefilterd.length],
+    () => (geldigheid === 'actueel' ? filterSets(sets, { zoek, geldigheid: 'alle', graad, soort }).length - gefilterd.length : 0),
+    [sets, zoek, geldigheid, graad, soort, gefilterd.length],
   );
   const laatstOpgehaald = useMemo(() => sets.reduce((m, s) => (s.opgehaald > m ? s.opgehaald : m), ''), [sets]);
   const gekozen = setId ? sets.find((s) => s.id === setId) : undefined;

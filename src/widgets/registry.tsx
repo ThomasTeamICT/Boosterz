@@ -370,7 +370,7 @@ export const WIDGET_TYPES: WidgetTypeDef[] = TYPE_DEFS.map((d) => ({ ...d, color
 
 export function getTypeDef(id: WidgetTypeId): WidgetTypeDef {
   const def = WIDGET_TYPES.find((t) => t.id === id);
-  if (!def) throw new Error(`Onbekend widgettype: ${id}`);
+  if (!def) throw new Error(`Onbekende soort oefening: ${id}`);
   return def;
 }
 

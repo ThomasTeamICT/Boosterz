@@ -71,7 +71,7 @@ function n(count: number, one: string, many: string): string {
 
 function scopeName(scope: LibraryScope, index: LibraryIndex): string {
   switch (scope.kind) {
-    case 'all': return 'Alle widgets';
+    case 'all': return 'Alle oefeningen';
     case 'examples': return 'Voorbeelden';
     case 'courses': return 'In cursussen';
     case 'folders': return 'Mijn mappen';
@@ -221,7 +221,7 @@ export function TeacherDashboard() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    if (saveWidget(copy)) toast('Widget gedupliceerd', 'ok');
+    if (saveWidget(copy)) toast('Oefening gedupliceerd', 'ok');
     else toast('Niet gedupliceerd: de opslag van dit toestel is vol.', 'err');
   };
 
@@ -229,7 +229,7 @@ export function TeacherDashboard() {
     try {
       // Met media als data-URL, zodat het bestand op een ander toestel werkt.
       const json = await exportWidgetJsonWithMedia(w);
-      downloadFile(`${w.title.replace(/[^\w\dà-ÿ -]/gi, '').trim() || 'widget'}.widget.json`, json);
+      downloadFile(`${w.title.replace(/[^\w\dà-ÿ -]/gi, '').trim() || 'oefening'}.widget.json`, json);
     } catch {
       toast('Exporteren mislukt', 'err');
     }
@@ -241,7 +241,7 @@ export function TeacherDashboard() {
     const pack = importFolderPack(text);
     if (pack) {
       if (pack.widgets.length === 0) {
-        toast('Dit pakket bevat geen bruikbare widgets', 'err');
+        toast('Dit pakket bevat geen bruikbare oefeningen', 'err');
         return;
       }
       setPackImport(pack);
@@ -249,7 +249,7 @@ export function TeacherDashboard() {
     }
     const w = importWidgetJson(text);
     if (!w) {
-      toast('Dit bestand is geen geldige widget', 'err');
+      toast('Dit bestand is geen geldige oefening', 'err');
       return;
     }
     // Zelfde weg als de importpagina: onbekend type weigeren, velden naar de
@@ -267,14 +267,14 @@ export function TeacherDashboard() {
   const exportFolder = async (folder: Folder) => {
     const inFolder = data.widgets.filter((w) => w.folderId === folder.id);
     if (inFolder.length === 0) {
-      toast('Deze map bevat geen widgets om te delen', 'err');
+      toast('Deze map bevat geen oefeningen om te delen', 'err');
       return;
     }
     // async: afbeeldingen uit IndexedDB gaan als data-URL mee in het pakket
     const json = await exportFolderPack(folder.name, inFolder, getPrefs().teacherName);
     const safeName = folder.name.trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '-') || 'map';
     downloadFile(`${safeName}.widgetpak.json`, json);
-    toast(`Map “${folder.name}” gedownload als pakket (${n(inFolder.length, 'widget', 'widgets')})`, 'ok');
+    toast(`Map “${folder.name}” gedownload als pakket (${n(inFolder.length, 'oefening', 'oefeningen')})`, 'ok');
   };
 
   const widgetMenu = (w: Widget): MenuItem[] => {
@@ -300,9 +300,9 @@ export function TeacherDashboard() {
   };
 
   const importItems: MenuItem[] = [
-    { label: 'JSON-bestand', hint: 'Een widget of een vakgroeppakket', Icon: FileBraces, onSelect: () => fileRef.current?.click() },
+    { label: 'JSON-bestand', hint: 'Een oefening of een vakgroeppakket', Icon: FileBraces, onSelect: () => fileRef.current?.click() },
     { label: 'Uit pdf, Word of tekst', hint: 'Bestaand materiaal omzetten', Icon: ImportIcon, to: '/importeren' },
-    { label: 'Met AI', hint: 'Widgets uit je leerstof', Icon: AIIcon, to: '/ai-studio' },
+    { label: 'Met AI', hint: 'Oefeningen uit je leerstof', Icon: AIIcon, to: '/ai-studio' },
   ];
 
   const activeFolder = scope.kind === 'folder' ? index.folders.find((f) => f.id === scope.id) ?? null : null;
@@ -324,8 +324,8 @@ export function TeacherDashboard() {
   const isEmpty = !hasCards && view.rows.length === 0;
   const filtering = Boolean(query.trim() || category);
 
-  // In een cursus spreken we van oefeningen, elders van widgets.
-  const count = (x: number) => (scope.kind === 'course' ? n(x, 'oefening', 'oefeningen') : n(x, 'widget', 'widgets'));
+  // Overal spreken we van oefeningen.
+  const count = (x: number) => n(x, 'oefening', 'oefeningen');
   const resultText = query.trim()
     ? view.matched === 0
       ? `Niets gevonden voor “${query.trim()}”`
@@ -338,14 +338,14 @@ export function TeacherDashboard() {
     <div className="page mat-page">
       <div className="page-head">
         <div>
-          <h1>Widgets</h1>
-          <p className="sub">{n(data.widgets.length, 'widget', 'widgets')} · alles lokaal bewaard in deze browser</p>
+          <h1>Oefeningen</h1>
+          <p className="sub">{n(data.widgets.length, 'oefening', 'oefeningen')} · alles lokaal bewaard in deze browser</p>
         </div>
         <div className="page-head-actions">
           <MenuButton label="Importeren" Icon={ImportIcon} items={importItems} className="btn btn-ghost" />
           <input ref={fileRef} type="file" accept="application/json,.json" hidden
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); e.target.value = ''; }} />
-          <Link to="/nieuw" className="btn btn-primary"><AddIcon size={18} /> Nieuwe widget</Link>
+          <Link to="/nieuw" className="btn btn-primary"><AddIcon size={18} /> Nieuwe oefening</Link>
         </div>
       </div>
 
@@ -363,9 +363,9 @@ export function TeacherDashboard() {
             <span className="lib-count">{currentCount}</span>
             <ChevronDown size={18} className="lib-toggle-chevron" />
           </button>
-          <nav id="lib-nav" className={`lib-nav${filtersOpen ? ' is-open' : ''}`} aria-label="Widgets filteren">
+          <nav id="lib-nav" className={`lib-nav${filtersOpen ? ' is-open' : ''}`} aria-label="Oefeningen filteren">
             <ul>
-              <NavItem to={hrefFor({ kind: 'all' })} current={sameScope(scope, { kind: 'all' })} Icon={Shapes} label="Alle widgets" count={counts.all} />
+              <NavItem to={hrefFor({ kind: 'all' })} current={sameScope(scope, { kind: 'all' })} Icon={Shapes} label="Alle oefeningen" count={counts.all} />
               {counts.examples > 0 && (
                 <NavItem to={hrefFor({ kind: 'examples' })} current={scope.kind === 'examples'} Icon={Star} label="Voorbeelden" count={counts.examples} />
               )}
@@ -406,7 +406,7 @@ export function TeacherDashboard() {
           <div className="lib-tools">
             <div className="lib-search">
               <SearchIcon size={18} />
-              <label htmlFor="lib-zoek" className="sr-only">Zoek widgets op titel, soort of code</label>
+              <label htmlFor="lib-zoek" className="sr-only">Zoek oefeningen op titel, soort of code</label>
               <input
                 ref={searchRef}
                 id="lib-zoek"
@@ -459,7 +459,7 @@ export function TeacherDashboard() {
                   items={[
                     { label: 'Map bewerken', hint: 'Naam en kleur', Icon: FolderPen, onSelect: () => setFolderModal(activeFolder) },
                     { label: 'Delen als pakket', hint: 'Eén bestand voor je vakgroep', Icon: Package, onSelect: () => { void exportFolder(activeFolder); } },
-                    { label: 'Map verwijderen', hint: 'De widgets blijven bestaan', Icon: DeleteIcon, danger: true, separator: true, onSelect: () => setDeleteFolderTarget(activeFolder) },
+                    { label: 'Map verwijderen', hint: 'De oefeningen blijven bestaan', Icon: DeleteIcon, danger: true, separator: true, onSelect: () => setDeleteFolderTarget(activeFolder) },
                   ]}
                 />
               )}
@@ -540,12 +540,12 @@ export function TeacherDashboard() {
 
           {isEmpty && (
             data.widgets.length === 0 ? (
-              <EmptyState icon={<Shapes size={40} />} title="Nog geen widgets">
-                <p>Maak je eerste widget en deel hem met je klas.</p>
-                <Link to="/nieuw" className="btn btn-primary"><AddIcon size={18} /> Nieuwe widget</Link>
+              <EmptyState icon={<Shapes size={40} />} title="Nog geen oefeningen">
+                <p>Maak je eerste oefening en deel ze met je klas.</p>
+                <Link to="/nieuw" className="btn btn-primary"><AddIcon size={18} /> Nieuwe oefening</Link>
               </EmptyState>
             ) : filtering ? (
-              <EmptyState icon={<SearchIcon size={40} />} title="Geen widgets gevonden">
+              <EmptyState icon={<SearchIcon size={40} />} title="Geen oefeningen gevonden">
                 <p>Probeer een andere zoekterm of een andere soort.</p>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
                   <button type="button" className="btn btn-ghost" onClick={() => {
@@ -556,18 +556,18 @@ export function TeacherDashboard() {
                   </button>
                   {elsewhere > 0 && (
                     <Link to={hrefFor({ kind: 'all' })} className="btn btn-ghost">
-                      Zoek in alle widgets ({elsewhere})
+                      Zoek in alle oefeningen ({elsewhere})
                     </Link>
                   )}
                 </div>
               </EmptyState>
             ) : scope.kind === 'folder' ? (
               <EmptyState icon={<FolderIcon size={40} />} title="Deze map is leeg">
-                <p>Zet een widget in deze map via het menu van de widget: “Naar map”.</p>
+                <p>Zet een oefening in deze map via het menu van de oefening: “Naar map”.</p>
               </EmptyState>
             ) : (
               <EmptyState icon={<Shapes size={40} />} title="Nog niets hier">
-                <p>Kies links een andere selectie, of maak een nieuwe widget.</p>
+                <p>Kies links een andere selectie, of maak een nieuwe oefening.</p>
               </EmptyState>
             )
           )}
@@ -586,14 +586,14 @@ export function TeacherDashboard() {
           widget={deleteTarget}
           subCount={data.subCounts.get(deleteTarget.id) ?? 0}
           warning={deleteWarning(index.usage.get(deleteTarget.id))}
-          onConfirm={() => { deleteWidget(deleteTarget.id); toast('Widget verwijderd', 'ok'); }}
+          onConfirm={() => { deleteWidget(deleteTarget.id); toast('Oefening verwijderd', 'ok'); }}
           onClose={() => setDeleteTarget(null)}
         />
       )}
       {deleteFolderTarget && (
         <ConfirmModal
           title="Map verwijderen?"
-          message={`De map “${deleteFolderTarget.name}” wordt verwijderd. De widgets erin blijven bestaan en staan daarna bij “Zonder map”.`}
+          message={`De map “${deleteFolderTarget.name}” wordt verwijderd. De oefeningen erin blijven bestaan en staan daarna bij “Zonder map”.`}
           onConfirm={() => {
             deleteFolder(deleteFolderTarget.id);
             navigate('/widgets?toon=mappen', { replace: true });
@@ -668,7 +668,7 @@ function NavItem({
 
 function GroupRowLink({ row, to }: { row: GroupRow; to: string }) {
   const Icon = row.kind === 'course' ? CourseIcon : row.kind === 'folder' ? FolderIcon : FolderMinus;
-  const count = row.kind === 'course' ? n(row.count, 'oefening', 'oefeningen') : n(row.count, 'widget', 'widgets');
+  const count = n(row.count, 'oefening', 'oefeningen');
   return (
     <Link to={to} className="lib-row">
       <span className="lib-row-icon"><Icon size={20} style={row.color ? { color: row.color } : undefined} /></span>
@@ -731,7 +731,7 @@ function DeleteWidgetModal({ widget, subCount, warning, onConfirm, onClose }: {
 }) {
   return (
     <Modal
-      title="Widget verwijderen?"
+      title="Oefening verwijderen?"
       onClose={onClose}
       describe
       footer={
@@ -917,7 +917,7 @@ function PackImportModal({ pack, onClose, onImported }: {
         <>
           <button className="btn btn-ghost" onClick={onClose}>Annuleren</button>
           <button className="btn btn-primary" disabled={chosen.length === 0} onClick={doImport}>
-            {chosen.length === 0 ? 'Importeren' : `${chosen.length} widget${chosen.length === 1 ? '' : 's'} importeren`}
+            {chosen.length === 0 ? 'Importeren' : `${chosen.length} ${chosen.length === 1 ? 'oefening' : 'oefeningen'} importeren`}
           </button>
         </>
       }
@@ -928,12 +928,12 @@ function PackImportModal({ pack, onClose, onImported }: {
           <strong>{pack.meta.naam}</strong>
           <div className="hint" style={{ marginTop: 4 }}>
             {pack.meta.auteur ? `Gedeeld door ${pack.meta.auteur}` : 'Auteur onbekend'}
-            {dateTxt ? ` · ${dateTxt}` : ''} · {pack.widgets.length} widget{pack.widgets.length === 1 ? '' : 's'}
+            {dateTxt ? ` · ${dateTxt}` : ''} · {pack.widgets.length} {pack.widgets.length === 1 ? 'oefening' : 'oefeningen'}
           </div>
         </div>
       </div>
 
-      <Field label="Welke widgets wil je importeren?" hint="Widgets met dezelfde titel en hetzelfde type als een bestaande widget staan standaard uitgevinkt.">
+      <Field label="Welke oefeningen wil je importeren?" hint="Oefeningen met dezelfde titel en hetzelfde type als een bestaande oefening staan standaard uitgevinkt.">
         <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
           <button className="btn btn-sm btn-quiet"
             onClick={() => setChecked(new Set(rows.filter((r) => r.def).map((r) => r.index)))}>
@@ -969,7 +969,7 @@ function PackImportModal({ pack, onClose, onImported }: {
         onChange={setInNewFolder}
         label={`Importeren in nieuwe map “${pack.meta.naam}”`}
       />
-      {!inNewFolder && <p className="hint" style={{ marginTop: 4 }}>De widgets komen dan bij “Zonder map” terecht.</p>}
+      {!inNewFolder && <p className="hint" style={{ marginTop: 4 }}>De oefeningen komen dan bij “Zonder map” terecht.</p>}
     </Modal>
   );
 }
