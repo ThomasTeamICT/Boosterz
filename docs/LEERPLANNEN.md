@@ -15,6 +15,7 @@ leerplan) moet de punten met "te bevestigen" afvinken vóór het bouwen begint.*
 | Vraag aan het GO! (via een contactpersoon bij PBD) | Concept klaar bij de eigenaar (5 oktober 2026): een afgebakend experiment met enkele leerplannen. Nog te versturen. |
 | Vragen aan het departement (§ 12) | Nog te stellen. Onderzoek van 11 oktober 2026 en een kant-en-klare vraag (licentie, naamsvermelding: onderwijsdoelen.be noemt AHOVOKS als uitgever, niet het departement) in `docs/STUDIERICHTINGEN.md` § 23.10. Sinds 24 maart 2026 **alleen via het formulier van TechLoket Onderwijs**, niet meer per mail (Nieuwsbrief API K&C van AHOVOKS). |
 | Vragen aan KOV, GO!, OVSG, POV (§ 12) | Teksten klaar in het aanvraagdossier (Claude Docs, "Aanvraagdossier leerplangegevens"); nog niet verstuurd. |
+| Sturender samenstellen en de brug naar een cursus (§ 16) | **Bezig** sinds 15 oktober 2026, op vraag van de eigenaar bij het testen voor een demo: eerst de leerlingen kiezen, tweelingen (gewoon/buitengewoon) en gemengde stromen met één klik oplossen, geen set-nummers meer in de waarschuwingen, en na het bewaren "Wat nu?" met "Maak een cursus met deze doelen" en "Gebruik ze in een cursus die je al hebt" (ook op de pagina Leerplannen). Stand in § 16. |
 | Eerste toepassing | De cursus "Aardrijkskunde: bodem en landschap" (leerplan KOV I-Aar-a) krijgt doelcodes zodra laag 1 en het leerplan erin zitten. De bijhorende minimumdoelen: `ODS_3287` (1ste graad A-stroom, ruimtelijk bewustzijn, 09.01–09.08, geldig). |
 
 Wijzigingen in de doelensets worden aangekondigd in de Nieuwsbrief API K&C (onder meer: minimumdoelen
@@ -479,3 +480,151 @@ twee sets met dezelfde naam waren voor een schermlezer niet te onderscheiden; fo
 ging; meldingen over sets uit een link; een knop op de pagina Leerplannen; teksten bij een lijst die
 niet nagekeken is. Bewust niet: geheugen voor een deelselectie bij weghalen en terugzetten; een
 tekstronde over de namen van de functie.
+
+## 16. Sturender samenstellen en de brug naar een cursus (oktober 2026)
+
+**Vraag van de eigenaar (15 oktober 2026), bij het testen voor een demo.** Stap 3 van "Stel je eigen doelenlijst samen" toonde
+zes waarschuwingen met set-nummers ("Nederlands (ODS_3346): 3 doelen staan ook in Nederlands (ODS_3343) …"): de leerkracht had
+voor basisgeletterdheid in de 1ste graad alle twaalf sets gekozen, terwijl dat drie vakken zijn, elk voor de A- en de B-stroom
+en voor het gewoon en het buitengewoon onderwijs. "Kan het sturender, zodat een leerkracht juiste keuzes maakt?" En: "het is me
+nog niet duidelijk waar de brug met de cursus naartoe gaat."
+
+### Stand van zaken § 16
+
+| Wat | Stand | Op wie |
+|---|---|---|
+| Verkenning (wizard, sets, dubbels; wegen van een leerplan naar een cursus) | **Klaar** (15 oktober 2026) | twee verkenners |
+| Ontwerp (deze paragraaf) | **Klaar** (15 oktober 2026) | hoofdsessie |
+| S-A Sturen in de wizard (16.2 en 16.3) | Wacht | bouwer |
+| S-B De brug naar een cursus (16.4 en 16.5) | Wacht | bouwer |
+| Review, rechter, integratie, uitrol | Wacht | reviewers, rechter, hoofdsessie |
+
+### 16.1 Wat de verkenning vond
+
+- Van de 408 geldige sets zijn er 183 voor het gewoon secundair (SO), 192 voor het buitengewoon secundair (BuSO) en 33 voor het
+  volwassenenonderwijs. Alle 180 geldige BuSO-sets van opleidingsvorm 4 hebben een SO-"tweeling" met **exact dezelfde vaste
+  nummers**; hun namen zijn gelijk na het weglaten van "Buitengewoon " en " Opleidingsvorm 4". Geldige A- en B-stroomsets delen
+  nooit nummers. Een stroom bestaat alleen in de 1ste graad.
+- Stap 1 heeft filters op zoekterm, graad en soort onderwijs (standaard "alle"), maar **geen filter op stroom**. De korte naam is
+  bij een tweeling gelijk ("Nederlands"); alleen de kenmerken onder de naam verschillen.
+- Stap 3 gebruikt `setInBericht` (naam plus set-id) in elke waarschuwing, ook met een richting in de link.
+- Na het bewaren zonder richting landt de leerkracht op het leerplan (`/leerplannen?open=`) met alleen de tip "Koppel deze doelen
+  daarna aan je cursussen via Cursussen". Er is **geen enkele knop** van een leerplan naar een cursus buiten de studierichtingen.
+  "Zelf bouwen" op Cursussen vraagt alleen een titel; het leerplan kies je achteraf in de instellingen van de cursus.
+- Bouwstenen die al bestaan: `geraamteHoofdstukken` en `cursusVoorRichting` (`src/lib/richtingCursus.ts`; een samengestelde
+  lijst geeft "een hoofdstuk per set, een sectie per rubriek"), `passendeCodes`, `setHandoff` voor de AI, de stijl `.rc-keuze`
+  in `richtingcursus.css`, en de zinnen `FOUT_CURSUS_*` in `gatenWeergave.ts`.
+
+### 16.2 Stap 1: eerst de leerlingen
+
+- Bovenaan stap 1, vóór het zoekveld, staat een blok met als kop (h3) **"Voor welke leerlingen is deze lijst?"** en de uitleg
+  **"Boosterz toont dan alleen de sets voor die leerlingen. Veel sets bestaan in meer versies: voor de A- en de B-stroom, en voor
+  het gewoon en het buitengewoon onderwijs."**
+  - Fieldset met legend **"Onderwijs"**, vier keuzerondjes: **"Gewoon secundair onderwijs"** (so), **"Buitengewoon secundair
+    onderwijs"** (buso), **"Volwassenenonderwijs"** (vwo), **"Alle sets"** (alle). Dit vervangt de bestaande select "Soort
+    onderwijs" (zelfde waarde in de filterstaat).
+  - De bestaande select **"Graad"** schuift mee in dit blok.
+  - Alleen als de graad "1ste graad" is: fieldset met legend **"Stroom"** en drie keuzerondjes **"A-stroom"**, **"B-stroom"**,
+    **"Allebei"**. Een nieuwe filter `stroom` (`'' | 'A-stroom' | 'B-stroom'`) in `filterSets`; een set zonder stroom valt nooit
+    weg door die filter. Een andere graad zet de stroom terug op "Allebei".
+- **Beginwaarden.** Een nieuwe lijst zonder sets in de link: onderwijs "Gewoon secundair onderwijs", alle graden, stroom
+  "Allebei". Staan er sets in de link (`?sets=`, `?richting=`, of een bewaarde lijst bij "Keuze aanpassen"), dan volgt het blok
+  die sets: allemaal BuSO → "Buitengewoon …", allemaal SO → "Gewoon …", gemengd → "Alle sets"; één gemeenschappelijke graad en
+  stroom worden overgenomen. Zo verdwijnt een set uit de link nooit uit beeld.
+- Onder de resultaten staat, als de keuze sets verbergt: **"{n} sets voor andere leerlingen staan niet in de lijst."** met de
+  knop **"Toon alle sets"** (zet onderwijs op "Alle sets" en stroom op "Allebei"; focus naar het zoekveld). Enkelvoud: "1 set
+  voor andere leerlingen staat niet in de lijst."
+- **Bij de gekozen sets** (onder de chips, `aria-live="polite"`, met een waarschuwingsicoon en tekst):
+  - Een chip waarvan de **tweeling** ook gekozen is, krijgt onder de kenmerken: **"Dezelfde doelen als een andere set die je
+    koos. Je hebt er maar één nodig."** De tweeling wordt herkend aan de naam (BuSO-naam zonder "Buitengewoon " en
+    " Opleidingsvorm 4" gelijk aan de SO-naam, hoofdletters en dubbele spaties genegeerd) en dient alleen voor deze hulp; de
+    echte controle op vaste nummers blijft die van stap 3.
+  - Gekozen sets van het gewoon én het buitengewoon onderwijs: **"Je koos sets voor het gewoon én het buitengewoon onderwijs.
+    Een lijst is meestal voor één groep leerlingen."**
+  - Gekozen sets van de A- én de B-stroom: **"Je koos sets voor de A-stroom én de B-stroom. Een lijst is meestal voor één
+    stroom."**
+
+### 16.3 Stap 3: in gewone taal, met één klik
+
+- **Tweelingen gekozen** (minstens één SO/BuSO-paar uit 16.2 in de selectie): een eigen melding (warn, `role="group"` met een
+  label, boven "Let op: enkele dingen"):
+  **"Je koos dezelfde doelen twee keer: voor het gewoon en voor het buitengewoon secundair onderwijs ({k} {set|sets} van elk).
+  Een lijst is meestal voor één groep leerlingen. Voor wie is deze lijst?"** met drie knoppen: **"Gewoon secundair onderwijs"**,
+  **"Buitengewoon secundair onderwijs"**, **"Allebei houden"**.
+  - De eerste twee halen de tweelingen van de andere soort weg (alleen sets met een tweeling in de selectie; een set zonder
+    tweeling blijft), zetten het blok van 16.2 op die soort, en tonen een statusregel (`aria-live="polite"`): **"De sets voor het
+    {buitengewoon|gewoon} onderwijs zijn weggehaald. Je lijst telt nu {n} doelen."** De focus gaat naar de kop "Zo wordt je
+    lijst bewaard".
+  - "Allebei houden" verbergt de melding voor deze selectie (tot de keuze verandert); de gewone waarschuwing over dubbele
+    doelen blijft in "Let op".
+  - Bij tweelingen staat de gewone dubbelwaarschuwing van die paren niet ook nog in "Let op" (geen dubbele boodschap).
+- **A- en B-stroom gemengd**: dezelfde vorm: **"Je lijst mengt sets voor de A-stroom en de B-stroom. Voor welke stroom is ze?"**
+  met **"A-stroom"**, **"B-stroom"**, **"Allebei houden"**. Haalt de sets van de andere stroom weg (sets zonder stroom blijven),
+  statusregel **"De sets voor de {B|A}-stroom zijn weggehaald. Je lijst telt nu {n} doelen."**
+- **Geen set-nummers meer in de waarschuwingen.** `setInBericht` wordt: korte naam plus de kenmerken (`setKenmerken`: soort,
+  graad, stroom, context) tussen haakjes, bv. "Nederlands (Buitengewoon secundair onderwijs · 1ste graad · A-stroom ·
+  Opleidingsvorm 4 · Eindtermen basisgeletterdheid)". Alleen als twee sets daarna nog gelijk ogen, komt het set-id erbij. De
+  dubbelzin wordt: **"‘{naam}’ ({kenmerken}) heeft {n} doelen die ook in ‘{naam2}’ ({kenmerken2}) staan. Ze komen nu twee keer
+  in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg."** (enkelvoud: "heeft 1 doel dat ook in … staat. Het
+  komt nu twee keer …").
+- **Naamvoorstel.** `voorstelTitel` voegt " · BuSO" toe als alle sets BuSO zijn (na het niveau): "Basisgeletterdheid · 1ste
+  graad A-stroom · BuSO". Verder ongewijzigd.
+- **Bewust niet:** automatisch ontdubbelen (een minimumdoel is set + vast nummer, § 15); de codes van botsende doelen (de
+  terugval op het set-id blijft, want na "Gewoon …" of "Buitengewoon …" botst er niets meer).
+
+### 16.4 Na het bewaren: "Wat nu?"
+
+- Na een geslaagde "Bewaar de lijst" (met én zonder richting) blijft de leerkracht in de wizard en ziet ze in plaats van de
+  stappen een paneel (component `NaBewaren`), met de focus op de kop:
+  - kop (h2) **"Je lijst is bewaard"**;
+  - **"‘{titel}’ staat bij Leerplannen, met {n} doelen{, nagekeken}. Hang ze nu aan een cursus: dan zie je in de cursus welke
+    doelen ze dekt."** (", nagekeken" alleen als de lijst nagekeken is);
+  - knoppen **"Maak een cursus met deze doelen"** (primair) en **"Gebruik ze in een cursus die je al hebt"**;
+  - links **"Naar je leerplannen"** (`/leerplannen?open=<id>`) en, met een richting, **"Terug naar de studierichting"**
+    (`richtingPad`).
+- De toast na het bewaren verdwijnt (het paneel zegt het). Mislukt het bewaren, dan blijft alles zoals nu.
+
+### 16.5 De twee vensters, ook op de pagina Leerplannen
+
+**Venster "Nieuwe cursus met deze doelen"** (Modal, titel als h2):
+- veld **"Titel van de cursus"**, vooraf ingevuld met de titel van de lijst; verplicht;
+- fieldset legend **"Hoe begin je?"**, keuzerondjes (stijl `.rc-keuze`):
+  - **"Met een geraamte"**: "Een hoofdstuk per set en een sectie per rubriek, met de doelcodes al op de secties. Je vult ze
+    daarna zelf in." (standaard);
+  - **"Met een lege cursus"**: "De cursus hangt aan je lijst. Je zet de doelcodes zelf op je secties.";
+  - **"Laat de AI een eerste versie maken"**: "Met je eigen AI-sleutel." Zonder sleutel `aria-disabled` met "Nog geen AI-sleutel
+    ingesteld." en een link "AI-instellingen" (zoals in het venster van de studierichting);
+- voet: **"Annuleren"** en **"Maak de cursus"** (`aria-disabled` met "Nog nodig: een titel." zolang de titel leeg is).
+- Zonder AI: `cursusVoorRichting` met een **optionele** doelgroep (de doelgroep van het leerplan als die geldig is; anders geen),
+  `saveCourse` (de uitkomst wordt gecontroleerd: lukt het niet, dan in het venster **"Er is niets bewaard: de opslag van dit
+  toestel is vol of geblokkeerd."**), daarna de editor met de toast **"Cursus gemaakt: {h} {hoofdstuk|hoofdstukken}, {c}
+  {doelcode|doelcodes} klaar op de secties."** (geraamte) of **"Cursus gemaakt. Ze hangt aan ‘{lijst}’: zet de doelcodes op je
+  secties."** (leeg). Met AI: `setHandoff({ source: '', title, curriculumId, goalCodes: [] })` en `/cursussen?ai=nieuw`.
+
+**Venster "Gebruik deze doelen in een cursus"**:
+- fieldset legend **"Welke cursus?"**, een keuzerondje per cursus op dit toestel (nieuwste eerst), met eronder
+  "Nog geen leerplan" of "Hangt nu aan ‘{titel}’" of "Hangt al aan deze lijst", en als de cursus doelcodes heeft: "{k} van de
+  {m} doelcodes in deze cursus staan in je lijst." (`passendeCodes`);
+- geen cursussen: **"Je hebt nog geen cursussen op dit toestel."** met de knop **"Maak een cursus met deze doelen"** (opent het
+  andere venster);
+- hangt de gekozen cursus aan een ander leerplan: melding **"Deze cursus hangt nu aan ‘{oud}’. Kies je deze lijst, dan telt de
+  doelendekking voortaan op ‘{nieuw}’. Wat in de cursus staat, verandert niet; doelcodes die niet in je lijst staan, zie je in de
+  doelendekking."**;
+- voet: **"Annuleren"** en **"Koppel aan deze cursus"** (`aria-disabled` met "Nog nodig: een cursus."); hangt de gekozen cursus
+  al aan deze lijst, dan heet de knop **"Open de cursus"**;
+- koppelen: lees de cursus opnieuw, zet alleen `curriculumId`, bewaar met `saveCourseGuarded`; fouten met `FOUT_CURSUS_GEWIJZIGD`,
+  `FOUT_CURSUS_VERWIJDERD`, `FOUT_OPSLAG_VOL`; daarna de editor met de toast **"‘{cursus}’ hangt nu aan ‘{lijst}’."** Niets anders
+  aan de cursus verandert (diep gelijk buiten `curriculumId` en `updatedAt`).
+
+**Pagina Leerplannen.** In `LeerplanOpSlot` en in de editor van een leerplan met minstens één doel vervangt een blok de tip
+"Koppel deze doelen daarna aan je cursussen via Cursussen …": kop (h3) **"Gebruik in een cursus"**, de zin **"Hang deze doelen
+aan een cursus: dan zie je in de cursus welke doelen ze dekt."** en dezelfde twee knoppen. Niet bij een BK-leerplan (dat houdt
+zijn knop "Studierichting openen").
+
+**Bundel en laden.** De twee vensters zitten in een lui chunk dat pas bij de klik laadt (met de melding "Dit kon niet geladen
+worden. Controleer je verbinding en probeer opnieuw." als dat mislukt). Het kritieke pad groeit niet; de chunks van
+SamenstellenPage en CurriculaPage blijven onder 80 kB.
+
+**Toegankelijkheid en taal.** Eén main en één h1 per scherm (de h1 van de wizard blijft); h2 in een venster en voor "Je lijst
+is bewaard"; fieldsets met legend; `aria-disabled` met "Nog nodig: …", nooit `disabled`; focus na elke actie zoals hierboven;
+tikdoelen van 44 px op ≤ 640 px; 390 px zonder horizontaal scrollen; nooit een set-id of groepnummer in de nieuwe teksten.
