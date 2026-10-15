@@ -1132,6 +1132,8 @@ await page.setViewportSize({ width: 1360, height: 900 });
 const SO_SETS = ['ODS_3343', 'ODS_3344', 'ODS_3345', 'ODS_3351', 'ODS_3353', 'ODS_3355'];
 const TWAALF = ['ODS_3343', 'ODS_3344', 'ODS_3345', 'ODS_3346', 'ODS_3347', 'ODS_3350', 'ODS_3351', 'ODS_3353', 'ODS_3355', 'ODS_3352', 'ODS_3354', 'ODS_3356'];
 const gaNaarTwaalf = async () => {
+  // Na het bewaren staat het paneel "Je lijst is bewaard" op dezelfde url (met state): eerst weg, zodat dit een nieuwe wizard is.
+  await go('/#/');
   await go(`/#/leerplannen/samenstellen?sets=${TWAALF.join(',')}`);
   await page.waitForSelector('.sam-blok .sam-doel', { timeout: 20000 });
   await sleep(300);
@@ -1196,6 +1198,12 @@ await page.getByRole('button', { name: 'Bewaar de lijst' }).click();
 await page.waitForFunction((sets) => JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]').some((c) => c.herkomst?.methode === 'samengesteld' && JSON.stringify(c.minimumdoelenSets) === JSON.stringify(sets)), SO_SETS, { timeout: 10000 });
 const sturingLijst = (await samLijsten()).find((c) => JSON.stringify(c.minimumdoelenSets) === JSON.stringify(SO_SETS));
 check('bewaren na "Gewoon secundair onderwijs": in localStorage staan alleen de zes SO-sets, 20 doelen, nagekeken', !!sturingLijst && sturingLijst.goals.length === 20 && sturingLijst.controle?.status === 'gecontroleerd' && sturingLijst.goals.every((g) => SO_SETS.includes(g.refs?.[0]?.set)));
+// Het paneel na het bewaren blijft staan na herladen (state in de geschiedenis), zodat een tweede bewaring geen dubbele lijst maakt.
+await page.getByRole('heading', { name: 'Je lijst is bewaard' }).waitFor({ timeout: 10000 });
+const lijstenVoorHerladen = (await samLijsten()).length;
+await page.reload({ waitUntil: 'networkidle' });
+await page.getByRole('heading', { name: 'Je lijst is bewaard' }).waitFor({ timeout: 15000 }).catch(() => {});
+check('na het bewaren: herladen toont opnieuw "Je lijst is bewaard" (geen verse wizard), zonder de uitleg over het kiezen, en er komt geen lijst bij', (await page.getByRole('heading', { name: 'Je lijst is bewaard' }).count()) === 1 && (await page.locator('.sam-blok').count()) === 0 && (await page.locator('.sam-page .il-intro .sub').count()) === 0 && (await samLijsten()).length === lijstenVoorHerladen);
 
 // "Allebei houden", daarna de stroom, daarna "Buitengewoon secundair onderwijs"
 await gaNaarTwaalf();

@@ -70,10 +70,13 @@ export function SamenstellenPage() {
   const leeg = params.get('leeg') === '1';
   const zelfParam = params.get('zelf');
   const richting = leesRichtingParams(params);
+  // Na het bewaren zet de wizard het id van de lijst in de state van de geschiedenis (zelfde url): dan het paneel "Je lijst is
+  // bewaard". Komt de leerkracht daarna via een link op dezelfde url zonder die state, dan is dat een nieuwe wizard.
+  const bewaardId = bewaardeLijstUitState(useLocation().state) ?? '';
   // Een andere lijst, andere sets of een andere richting, ander jaar of ander soort in de link is een nieuwe wizard: alle staat begint opnieuw.
   return (
     <Samenstellen
-      key={`${curriculumId ?? ''}?${setsParam ?? ''}&${leeg ? 'leeg' : 'alles'}&${richting.sleutel}`}
+      key={`${curriculumId ?? ''}?${setsParam ?? ''}&${leeg ? 'leeg' : 'alles'}&${richting.sleutel}|${bewaardId}`}
       curriculumId={curriculumId} setsParam={setsParam} zelfParam={zelfParam} leeg={leeg} richting={richting}
     />
   );
