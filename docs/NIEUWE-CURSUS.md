@@ -65,6 +65,8 @@ dezelfde "19 tegenover 24" bij de minimumdoelen als bij de competenties; de over
 "klascode" op de klaspagina's en in de Hulp) gelijktrekken met "link voor je leerlingen"; de kopbalk van de cursuseditor op de gsm;
 een ondertitel uit Word naar de ondertitel van de cursus (nu wordt tekst tussen de Titel en de eerste Kop 1 een inleidend hoofdstuk met de naam van de cursus); de regressiescripts in `tests/herstel/` zoeken nog op oude schermteksten met "widget" (mechanisch aanpassen en één keer draaien; ze vallen buiten de poort); de nieuwe hoofdstuknamen van het geraamte: een cursus die met de oude namen gemaakt werd, krijgt bij "gaten dichten" een tweede hoofdstuk naast het oude, en eigen thema's met " · " in een eigen kopie van een samengestelde lijst worden nu ook ingekort (beperken tot labels waarvan een doel refs heeft, `richtingCursus.ts` `hoofdstukTitels`).
 
+**Laatste controle bij het parkeren (commit a08f292):** 6.033 unittests, de rooktest twee keer groen (1.254 checks), AI-cursus en AI-studio met nagebootste AI groen, lint 0 fouten (47 waarschuwingen). **Let op het budget:** het kritieke leerlingpad is 334,5 kB tegen een grens van 334,6 kB. Wie iets toevoegt op het leerlingpad, verplaatst eerst code of verhoogt het budget bewust in `vite.config.ts`, met een geschiedenisregel.
+
 ### Zo begin je de volgende sessie
 
 1. Lees `CLAUDE.md` en dit blok; `git pull` op `claude/bookwidgets-web-app-kvcfim`.
