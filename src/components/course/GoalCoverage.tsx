@@ -6,15 +6,18 @@ import type { Widget } from '../../lib/types';
 import { computeCoverage, geplandeRijen, type CoverageRow } from '../../lib/coverage';
 import { getCurriculum } from '../../lib/curriculum';
 import {
-  BK_DEKKING_LADEN, FOUT_LADEN_BK_DEKKING, FOUT_LADEN_DEKKING, bkWeergaveLabel, geplandeRegel, leerplanHeeftBkVerwijzingen,
+  BK_DEKKING_LADEN, FOUT_LADEN_BK_DEKKING, FOUT_LADEN_DEKKING, bkWeergaveLabel, leerplanHeeftBkVerwijzingen,
   leerplanHeeftVerwijzingen,
 } from '../../lib/dekkingWeergave';
+import { hasAIKey } from '../../lib/ai';
+import { uitwerkTelling, uitwerkZin } from '../../lib/uitwerkZinnen';
 import { EmptyState } from '../ui';
 import {
-  AIIcon, CheckIcon, CloseIcon, GoalIcon, PlannedIcon, RetryIcon, SettingsIcon, TipIcon, WarningIcon,
+  AIIcon, CheckIcon, CloseIcon, GoalIcon, RetryIcon, SettingsIcon, TipIcon, WarningIcon,
 } from '../icons';
 import { Puzzle } from 'lucide-react';
 import '../../styles/dekking.css';
+import '../../styles/dekkingstabel.css';
 
 // De weergave "Minimumdoelen" is zwaar (matrix, kader en setbestanden) en staat in een eigen chunk, zodat de cursuseditor klein
 // blijft. We laden hem eerst los in (`laadDekking`): lukt dat niet (offline), dan blijft de weergave "Leerplan" staan met een melding,
@@ -96,8 +99,14 @@ function CurriculumCoverage({
   onEdit?: (next: (c: Course) => Course) => void;
 }): JSX.Element {
   const result = useMemo(() => computeCoverage(course, curriculum, widgets), [course, curriculum, widgets]);
-  // Doelen die alleen op nog lege secties staan: gepland, nog niet uitgewerkt (§ 14.5).
-  const aantalGepland = useMemo(() => geplandeRijen(result, course, widgets).length, [result, course, widgets]);
+  // `computeCoverage` telt een doel als gedekt zodra een gewone sectie zijn code draagt, ook als die sectie nog leeg is. Wat de
+  // leerkracht leest, splitst dat in uitgewerkt en gepland (een doel dat alleen op nog lege secties staat, § 14.5): zie uitwerkZinnen.ts.
+  const telling = useMemo(
+    () => uitwerkTelling(result, geplandeRijen(result, course, widgets).length),
+    [result, course, widgets],
+  );
+  // Zonder AI-sleutel doet de knop "Vul de hiaten" niets nuttigs: ze opent de uitleg om er een in te stellen. Daarom een rustiger stijl.
+  const metSleutel = hasAIKey();
   // Bij een BK-leerplan gaat "Beroepskwalificatie" voor op "Minimumdoelen": een cursus volgt één leerplan en meet zich aan één bron.
   const extra = useMemo<'beroepskwalificatie' | 'minimumdoelen' | undefined>(() => {
     if (leerplanHeeftBkVerwijzingen(curriculum)) return 'beroepskwalificatie';
@@ -195,23 +204,18 @@ function CurriculumCoverage({
     <div>
       {schakelaar}
       <p style={{ marginTop: 0 }} aria-live="polite">
-        <strong>{result.summary}</strong>{' '}
+        <strong>{uitwerkZin(telling)}</strong>{' '}
         <span className="hint">
           Leerplan: {curriculum.title}
           {curriculum.example ? ' (voorbeeld)' : ''}
         </span>
       </p>
 
-      {aantalGepland > 0 && (
-        <p className="hint" style={{ margin: '-6px 0 12px', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-          <PlannedIcon size={16} aria-hidden style={{ flex: 'none', marginTop: 2 }} />
-          <span>{geplandeRegel(aantalGepland)}</span>
-        </p>
-      )}
-
       {result.uncovered.length > 0 && onFillGaps && (
         <p style={{ margin: '0 0 12px' }}>
-          <button className="btn btn-sm btn-ai" onClick={onFillGaps}><AIIcon size={16} /> Vul de hiaten</button>{' '}
+          <button className={`btn btn-sm ${metSleutel ? 'btn-ai' : 'btn-ghost'}`} onClick={onFillGaps}>
+            <AIIcon size={16} /> Vul de hiaten{metSleutel ? '' : ' (AI-sleutel nodig)'}
+          </button>{' '}
           <span className="hint">De AI maakt nieuwe secties voor de doelen die nog niet aan bod komen.</span>
         </p>
       )}
@@ -220,7 +224,7 @@ function CurriculumCoverage({
         <table className="data" style={{ borderCollapse: 'collapse', width: '100%' }}>
           <thead>
             <tr>
-              <th scope="col" style={{ ...sticky, minWidth: 240 }}>Leerplandoel</th>
+              <th scope="col" className="dk-doelkolom" style={sticky}>Leerplandoel</th>
               {course.chapters.map((ch) => (
                 <th
                   key={ch.id}
@@ -231,7 +235,7 @@ function CurriculumCoverage({
                   {ch.emoji ? `${ch.emoji} ` : ''}{shortTitle(ch.title)}
                 </th>
               ))}
-              <th scope="col" style={{ padding: '7px 8px', fontSize: '0.82rem', borderBottom: '1px solid var(--line)' }}>Status</th>
+              <th scope="col" className="dk-statuskolom" style={{ padding: '7px 8px', fontSize: '0.82rem', borderBottom: '1px solid var(--line)' }}>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -239,10 +243,12 @@ function CurriculumCoverage({
               const meta = STATUS_META[row.status];
               return (
                 <tr key={row.goal.id} style={{ borderTop: '1px solid var(--line)' }}>
-                  <th scope="row" style={{ ...sticky, fontWeight: 600, fontSize: '0.86rem' }}>
+                  <th scope="row" className="dk-doelkolom" style={{ ...sticky, fontWeight: 600, fontSize: '0.86rem' }}>
                     <span style={{ fontFamily: 'monospace' }}>{row.goal.code}</span>{' '}
                     <span style={{ fontWeight: 500 }}>{row.goal.text}</span>
                     {row.goal.level === 'uitbreiding' && <span className="badge" style={{ marginLeft: 6 }}>uitbreiding</span>}
+                    {/* Op een smal scherm staat de status hier en niet in de kolom Status (dekkingstabel.css). */}
+                    <span className={`${meta.badge} dk-status-onder`}><meta.icon size={13} aria-hidden /> {meta.label}</span>
                   </th>
                   {course.chapters.map((ch) => {
                     const secs = row.sections.filter((s) => s.chapterId === ch.id);
@@ -267,7 +273,7 @@ function CurriculumCoverage({
                       </td>
                     );
                   })}
-                  <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                  <td className="dk-statuskolom" style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                     <span className={meta.badge}><meta.icon size={13} /> {meta.label}</span>
                   </td>
                 </tr>

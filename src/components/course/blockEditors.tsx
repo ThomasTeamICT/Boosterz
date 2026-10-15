@@ -855,7 +855,7 @@ function ChecklistEditor({ b, onChange }: { b: ChecklistBlock; onChange: OnChang
 
 function WidgetBlockEditor({ b, onChange }: { b: WidgetBlock; onChange: OnChange }) {
   // Live meebewegen met de opslag: wie in een ander tabblad net een widget
-  // maakte ("Nieuwe widget maken"), ziet hem hier meteen verschijnen.
+  // maakte ("Nieuwe oefening maken"), ziet hem hier meteen verschijnen.
   const [widgets, setWidgets] = useState(() => getWidgets());
   useEffect(() => onStorageChange(() => setWidgets(getWidgets())), []);
   const [search, setSearch] = useState('');
@@ -880,7 +880,7 @@ function WidgetBlockEditor({ b, onChange }: { b: WidgetBlock; onChange: OnChange
         <p className="hint" style={{ marginTop: 0 }}>
           Je hebt nog geen widgets. Maak er eerst één — daarna kan je hem hier in de cursus zetten.
         </p>
-        <a className="btn btn-sm btn-ghost" href="#/nieuw" target="_blank" rel="noopener noreferrer"><AddIcon size={16} /> Nieuwe widget maken</a>
+        <a className="btn btn-sm btn-ghost" href="#/nieuw" target="_blank" rel="noopener noreferrer"><AddIcon size={16} /> Nieuwe oefening maken (opent in een nieuw tabblad)</a>
       </div>
     );
   }
@@ -945,7 +945,7 @@ function WidgetBlockEditor({ b, onChange }: { b: WidgetBlock; onChange: OnChange
         />
       </Field>
       <a className="btn btn-sm btn-quiet" href="#/nieuw" target="_blank" rel="noopener noreferrer">
-        <AddIcon size={16} /> Nieuwe widget maken
+        <AddIcon size={16} /> Nieuwe oefening maken (opent in een nieuw tabblad)
       </a>
     </div>
   );

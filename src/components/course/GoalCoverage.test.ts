@@ -168,3 +168,113 @@ describe.each([
     expect(s.alert()).toBe(false);
   });
 });
+
+// ── De eerlijke zin en de AI-knop in de weergave "Leerplan" ─────────────────────────────────────────────────────────────
+//
+// Een geraamte met alleen de doelen-callout telt voor `computeCoverage` als gedekt. De zin boven de matrix zegt dat niet meer
+// ("Dekkend: alle 6 doelen komen aan bod") maar splitst het in uitgewerkt, gepland en nog niet (docs/NIEUWE-CURSUS.md § 2.2).
+// Zonder AI-sleutel krijgt de knop "Vul de hiaten" een rustiger stijl en " (AI-sleutel nodig)" in het label.
+
+const ZONDER_BRON_LEERPLAN = {
+  id: 'lp-vrij', title: 'Eigen leerplan', net: 'eigen', subject: '', level: '', kind: 'leerplan', createdAt: 1, updatedAt: 1,
+  goals: [
+    { id: 'g1', code: 'A1', text: 'Doel 1.' },
+    { id: 'g2', code: 'A2', text: 'Doel 2.' },
+    { id: 'g3', code: 'A3', text: 'Doel 3.' },
+  ],
+} as unknown as Curriculum;
+
+const DOELEN_CALLOUT = { id: 'b0', type: 'callout', kind: 'goal', text: 'Doelen' };
+const UITLEG = { id: 'b1', type: 'text', text: 'Uitleg' };
+
+function cursusMet(secties: { goalCodes: string[]; blocks: unknown[] }[]): Course {
+  return {
+    ...CURSUS, curriculumId: 'lp-vrij',
+    chapters: [{ id: 'h1', title: 'Hoofdstuk', sections: secties.map((s, i) => ({ id: `s${i}`, title: `Sectie ${i}`, ...s })) }],
+  } as unknown as Course;
+}
+
+type Element = { type?: unknown; props?: Record<string, unknown> };
+
+function tekstVan(knoop: unknown): string {
+  if (Array.isArray(knoop)) return knoop.map(tekstVan).join('');
+  if (typeof knoop === 'string' || typeof knoop === 'number') return String(knoop);
+  if (!knoop || typeof knoop !== 'object') return '';
+  return tekstVan((knoop as Element).props?.children);
+}
+
+function vind(knoop: unknown, past: (k: Element) => boolean, uit: Element[] = []): Element[] {
+  if (Array.isArray(knoop)) { knoop.forEach((k) => vind(k, past, uit)); return uit; }
+  if (!knoop || typeof knoop !== 'object') return uit;
+  const k = knoop as Element;
+  if (past(k)) uit.push(k);
+  vind(k.props?.children, past, uit);
+  return uit;
+}
+
+/** Het scherm van de weergave "Leerplan" met een AI-sleutel die er wel of niet is. */
+async function leerplanScherm(course: Course, sleutel: boolean): Promise<{ zin: string; knop: Element | undefined }> {
+  vi.resetModules();
+  haak.plaatsen.length = 0;
+  vi.doMock('./MinimumdoelenDekking', () => ({ MinimumdoelenDekking: () => null }));
+  vi.doMock('./BkCursusDekking', () => ({ BkCursusDekking: () => null }));
+  vi.doMock('../../lib/ai', () => ({ hasAIKey: () => sleutel }));
+  const { GoalCoverage } = await import('./GoalCoverage');
+  const wortel = GoalCoverage({ course, curriculum: ZONDER_BRON_LEERPLAN, widgets: [], onFillGaps: () => {} }) as ReactElement;
+  const Binnen = wortel.type as (p: unknown) => ReactNode;
+  haak.teller = 0;
+  const boom = Binnen(wortel.props);
+  const zin = vind(boom, (k) => k.type === 'strong').map((k) => tekstVan(k))[0] ?? '';
+  const knop = vind(boom, (k) => k.type === 'button' && tekstVan(k).includes('Vul de hiaten'))[0];
+  vi.doUnmock('../../lib/ai');
+  return { zin, knop };
+}
+
+describe('GoalCoverage: de eerlijke zin in de weergave Leerplan', () => {
+  beforeEach(() => { haak.plaatsen.length = 0; });
+
+  it('een geraamte met alleen de doelen-callout is gepland, niet dekkend of uitgewerkt', async () => {
+    const { zin } = await leerplanScherm(cursusMet([
+      { goalCodes: ['A1'], blocks: [DOELEN_CALLOUT] },
+      { goalCodes: ['A2', 'A3'], blocks: [DOELEN_CALLOUT] },
+    ]), false);
+    expect(zin).toBe('0 van de 3 doelen zijn uitgewerkt. 3 staan gepland (de sectie is nog leeg).');
+    expect(zin).not.toMatch(/dekkend|komen aan bod/i);
+  });
+
+  it('uitgewerkt, gepland en nog niet naast elkaar', async () => {
+    const { zin } = await leerplanScherm(cursusMet([
+      { goalCodes: ['A1'], blocks: [DOELEN_CALLOUT, UITLEG] },
+      { goalCodes: ['A2'], blocks: [DOELEN_CALLOUT] },
+    ]), false);
+    expect(zin).toBe('1 van de 3 doelen is uitgewerkt. 1 staat gepland (de sectie is nog leeg), 1 nog niet.');
+  });
+
+  it('alles uitgewerkt', async () => {
+    const { zin, knop } = await leerplanScherm(cursusMet([{ goalCodes: ['A1', 'A2', 'A3'], blocks: [UITLEG] }]), true);
+    expect(zin).toBe('Alle 3 doelen zijn uitgewerkt.');
+    // Er is niets meer te vullen: de knop staat er dan niet.
+    expect(knop).toBeUndefined();
+  });
+});
+
+describe('GoalCoverage: "Vul de hiaten" zonder en met AI-sleutel', () => {
+  const cursus = cursusMet([{ goalCodes: ['A1'], blocks: [DOELEN_CALLOUT, UITLEG] }]);
+
+  it('zonder sleutel: een rustige knop met " (AI-sleutel nodig)" in het label', async () => {
+    const { knop } = await leerplanScherm(cursus, false);
+    expect(knop).toBeDefined();
+    expect(tekstVan(knop).trim()).toBe('Vul de hiaten (AI-sleutel nodig)');
+    expect(knop?.props?.className).toContain('btn-ghost');
+    expect(knop?.props?.className).not.toContain('btn-ai');
+    // De knop werkt nog: ze opent de uitleg om een sleutel in te stellen.
+    expect(typeof knop?.props?.onClick).toBe('function');
+  });
+
+  it('met sleutel: de paarse AI-knop, zonder toevoeging', async () => {
+    const { knop } = await leerplanScherm(cursus, true);
+    expect(tekstVan(knop).trim()).toBe('Vul de hiaten');
+    expect(knop?.props?.className).toContain('btn-ai');
+    expect(knop?.props?.className).not.toContain('btn-ghost');
+  });
+});

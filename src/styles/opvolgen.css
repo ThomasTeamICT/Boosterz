@@ -65,13 +65,8 @@ a.row-open:hover, .row-open.btn:hover { text-decoration: underline; }
 .btn.row-open:hover { color: var(--text); }
 table.data tbody tr:focus-within { background: var(--bg-sunken); }
 
-/* Rijkop: ziet eruit als een gewone cel, niet als een kolomkop. */
-table.data tbody th[scope="row"] {
-  text-transform: none; letter-spacing: normal; font-size: inherit; font-weight: inherit;
-  color: var(--text); background: transparent; white-space: normal;
-  padding: 11px 14px; border-bottom: 1px solid var(--line);
-}
-table.data tbody tr:last-child th[scope="row"] { border-bottom: none; }
+/* De rijkop (`table.data tbody th[scope="row"]`) staat sinds oktober 2026 in global.css: ze hoort bij elke tabel, ook in
+   schermen die deze stijl niet laden (de dekkingstabel in de cursuseditor). */
 
 /* Een schuifkader hoort ook zijn verborgen tekst (.sr-only) vast te houden:
    zonder positie ligt zo'n absoluut geplaatst stukje tekst buiten het kader en

@@ -92,7 +92,7 @@ export const CATEGORIES: { id: WidgetCategory; name: string }[] = [
 
 const TYPE_DEFS: Omit<WidgetTypeDef, 'color'>[] = [
   {
-    id: 'quiz', name: 'Quiz', tagline: 'Toets met 11 vraagtypes en automatische verbetering',
+    id: 'quiz', name: 'Quiz', tagline: 'Toets met 19 vraagtypes en automatische verbetering',
     Icon: CircleQuestionMark, hue: 236, category: 'test', hasSubmissions: true, hasScore: true,
     defaultConfig: () => ({ questions: [], layout: 'single' }),
     Editor: lazyWidget(() => import('./quiz').then((m) => ({ default: m.QuizEditor }))),

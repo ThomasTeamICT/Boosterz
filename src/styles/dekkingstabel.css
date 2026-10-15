@@ -1,0 +1,18 @@
+/* ── De tabel van de weergave "Leerplan" in de Doelendekking ───────────────── */
+/*
+ * Doelen in de rijen, hoofdstukken in de kolommen, en een kolom Status (GoalCoverage.tsx). Voorvoegsel dk-.
+ *
+ * De eerste kolom blijft bij het schuiven staan (sticky). Op een smal scherm bedekt ze dan de kolom Status, ook helemaal
+ * naar rechts geschoven: de status is niet te bereiken. Daarom staat de status daar onder de doeltekst (`.dk-status-onder`,
+ * dezelfde badge) en verdwijnt de kolom Status. Op een breed scherm is het omgekeerd.
+ */
+
+.dk-doelkolom { min-width: 240px; }
+/* `.badge.` voor de volgorde-onafhankelijkheid: `.badge` zet zelf `display: inline-flex`. */
+.badge.dk-status-onder { display: none; }
+
+@media (max-width: 600px) {
+  .dk-doelkolom { min-width: 180px; }
+  .dk-statuskolom { display: none; }
+  .badge.dk-status-onder { display: flex; width: fit-content; max-width: 100%; margin-top: 6px; white-space: normal; }
+}

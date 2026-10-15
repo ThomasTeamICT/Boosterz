@@ -75,15 +75,17 @@ export function CourseShareModal({ course, onClose }: { course: Course; onClose:
       <div className="callout">
         <span aria-hidden><School size={18} /></span>
         <div>
-          <strong>Losse code (zelfde toestel/browser):</strong> leerlingen typen deze code in — en dus
-          ook zelf hun naam, los van een klaslijst. Voortgang komt dan automatisch bij jou terecht.
+          <strong>Code (werkt alleen op dit toestel):</strong> voor leerlingen die op dit toestel werken (bv. een
+          klaslaptop). Ze typen de code en vullen zelf hun naam in, los van een klaslijst; hun voortgang komt dan
+          automatisch bij jou terecht. Op hun eigen toestel werkt de code niet: gebruik daar de link voor je
+          leerlingen, bij <em>Meer manieren om te delen</em>.
         </div>
       </div>
       <div style={{ textAlign: 'center', margin: '10px 0 14px' }}>
         <div style={{ fontSize: '2.2rem', fontWeight: 800, letterSpacing: '0.3em', fontFamily: 'monospace' }}>
           {course.code}
         </div>
-        <CopyButton text={course.code} label="Code kopiëren" />
+        <CopyButton text={course.code} label="Kopieer de code" />
       </div>
 
       <hr className="divider" />
@@ -94,11 +96,11 @@ export function CourseShareModal({ course, onClose }: { course: Course; onClose:
         <div style={{ paddingTop: 10 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
             <LinkIcon size={16} className="icon-inline" />
-            <strong>Directe link</strong>
-            <span className="hint">(zelfde toestel) — opent de cursus meteen met deze code al ingevuld.</span>
+            <strong>Code als link</strong>
+            <span className="hint">(werkt alleen op dit toestel) — opent de cursus meteen met deze code al ingevuld.</span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
-            <input className="input input-sm" readOnly value={readUrl} aria-label="Directe link met de cursuscode" onFocus={(e) => e.target.select()} />
+            <input className="input input-sm" readOnly value={readUrl} aria-label="Code als link (werkt alleen op dit toestel)" onFocus={(e) => e.target.select()} />
             <CopyButton text={readUrl} label="Kopiëren" />
           </div>
 
@@ -118,9 +120,10 @@ export function CourseShareModal({ course, onClose }: { course: Course; onClose:
           <div className="callout">
             <span aria-hidden><Globe size={18} /></span>
             <div>
-              <strong>Draagbare link (elk toestel):</strong> de cursus zit volledig in de link — werkt
-              overal, ook thuis, zonder account. De leesvoortgang blijft dan op het toestel van de
-              leerling; die stuurt op het einde zijn <em>voortgangscode</em> door.
+              <strong>Link voor je leerlingen (werkt op elk toestel):</strong> de hele cursus zit in de link,
+              dus hij werkt op het eigen toestel van je leerlingen, ook thuis en zonder account. Plak hem in
+              Smartschool of je klasplatform. De leesvoortgang blijft dan op het toestel van de leerling; die
+              stuurt op het einde zijn <em>voortgangscode</em> door.
             </div>
           </div>
           {selected.length === 0 ? (

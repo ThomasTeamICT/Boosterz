@@ -19,7 +19,8 @@ import { FOUT_BK, wisBkCache } from '../../lib/beroepskwalificatiesBron';
 import { bkGeraamte, cursusVoorBk } from '../../lib/bkCursus';
 import { leerplanUitBk, type BkKeuze } from '../../lib/bkLeerplan';
 import { BK_DEKKING_TITEL, BK_LADEN, BK_PLAN_TEKSTEN, BK_ZONDER_BESTAND } from '../../lib/bkWeergave';
-import { computeCoverage } from '../../lib/coverage';
+import { computeCoverage, geplandeRijen } from '../../lib/coverage';
+import { uitwerkTelling, uitwerkZin } from '../../lib/uitwerkZinnen';
 import type { Course } from '../../lib/courseTypes';
 import type { Curriculum } from '../../lib/curriculumTypes';
 import { bkKaderVanVersies, bkVerwijzingen, dekkingBk } from '../../lib/dekkingBk';
@@ -554,13 +555,16 @@ describe('GoalCoverage: de schakelaar "Leerplan / Beroepskwalificatie"', () => {
   it('de weergave "Leerplan" van een BK-leerplan is die van elk leerplan (de matrix op doelen)', () => {
     const cursus = leegMet(LP_ONTHAAL_8);
     const r = computeCoverage(cursus, LP_ONTHAAL_8, []);
+    // Was: `r.summary` ("Dekkend: 0 van 8 doelen."). De zin zegt nu "uitgewerkt", "gepland" en "nog niet" (pakket Q1, docs/NIEUWE-CURSUS.md § 2.2).
+    const verwacht = uitwerkZin(uitwerkTelling(r, geplandeRijen(r, cursus, []).length));
+    expect(verwacht).toBe('0 van de 8 doelen zijn uitgewerkt. 8 nog niet.');
     mock.wachtrij = [];
     const html = renderToStaticMarkup(createElement(
       StaticRouter,
       { location: '/' },
       createElement(GoalCoverage, { course: cursus, curriculum: LP_ONTHAAL_8, widgets: [] }),
     ));
-    expect(tekstVan(html)).toContain(r.summary);
+    expect(tekstVan(html)).toContain(verwacht);
   });
 
   it('de zinnen van het laden en van de fout voor de competenties', () => {

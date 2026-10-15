@@ -16,6 +16,7 @@ import { getTypeDef, type WidgetTypeDef } from '../../widgets/registry';
 import type { PlayerResult } from '../../widgets/shared';
 import type { Submission, Widget } from '../../lib/types';
 import { readableAccent } from '../../lib/color';
+import { titelVoorLeerling } from '../../lib/leerlingTitel';
 import { pct, uid } from '../../lib/utils';
 import { deletePdf, getPdf, savePdf } from '../../lib/pdfStore';
 import { isMediaRef, resolveMediaRef } from '../../lib/mediaStore';
@@ -56,6 +57,8 @@ export interface BlockRendererProps {
 export function BlockRenderer(props: BlockRendererProps): JSX.Element {
   const { block } = props;
   const interactive = props.interactive !== false;
+  // Een doelenkadertje zonder tekst (de leerkracht koppelde alle doelen van de sectie los) heeft een leerling niets te zeggen.
+  if (block.type === 'callout' && block.kind === 'goal' && (block.text ?? '').trim() === '') return <></>;
   return (
     <div className="course-block">
       {renderBlock(block, interactive, props)}
@@ -684,7 +687,7 @@ function WidgetBlockView({
   if (!interactive) {
     return (
       <div className="card" style={{ padding: '14px 18px', borderLeft: `4px solid ${accent ?? def.color}` }}>
-        <strong>Oefening: {widget.title}</strong>
+        <strong>Oefening: {titelVoorLeerling(widget.title)}</strong>
         <div className="hint">{def.name} — wordt digitaal gemaakt in de cursus.</div>
         {block.note && <p style={{ margin: '6px 0 0', fontSize: '0.92rem' }}>{block.note}</p>}
       </div>
@@ -729,8 +732,10 @@ function WidgetBlockView({
       >
         <TypeTile type={def} size="md" />
         <div style={{ flex: 1, minWidth: 160 }}>
-          <strong>Oefening: {widget.title}</strong>
-          <div className="hint" style={{ marginTop: 0 }}>{def.name} — {def.tagline}</div>
+          {/* De uitleg van het soort oefening is voor de leerkracht (het voorbeeld "Als leerling"): de leerling ziet ze niet,
+              en ook het voorvoegsel "Voorbeeld:" van de titel niet. */}
+          <strong>Oefening: {preview ? widget.title : titelVoorLeerling(widget.title)}</strong>
+          {preview && <div className="hint" style={{ marginTop: 0 }}>{def.name} — {def.tagline}</div>}
         </div>
         {alreadySubmitted && !sub && (
           <span className="badge badge-ok" title="Er staat al een inzending met jouw naam op dit toestel">

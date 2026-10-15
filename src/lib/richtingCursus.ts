@@ -19,8 +19,9 @@
 import { createCourse, type GuardedSaveResult } from './courses';
 import type { Course, CourseChapter, CourseSection } from './courseTypes';
 import { allSections } from './courseTypes';
-import { normalizeGoalCode, normalizeGoalCodes, shortGoalText } from './curriculum';
+import { normalizeGoalCode, normalizeGoalCodes } from './curriculum';
 import type { Curriculum, CurriculumGoal } from './curriculumTypes';
+import { doelRegel, TITEL_DOELEN_KADERTJE } from './doelenKadertje';
 import { doelgroepTekst, doelgroepVoorCursus, doelgroepVoorLeerplan, graadTekst, sanitizeDoelgroep, type Doelgroep } from './doelgroep';
 import { leerplanUitSelectie, selectieVanLeerplan, telSelectie, type Samengesteld, type SetKeuze } from './doelenSamenstellen';
 import { effectieveStatus } from './leerplanStatus';
@@ -43,14 +44,14 @@ import { uid } from './utils';
 
 /** Titels (van een leerplan, hoofdstuk of sectie) zijn hoogstens zo lang. */
 const MAX_TITEL = 120;
-/** Hoeveel tekens van een doel in de doelen-callout van een sectie komen. */
-const MAX_REGEL_TEKST = 90;
 /** Boven dit aantal doelen komt er één sectie per hoofdstuk, in plaats van een sectie per rubriek. */
 const MAX_DOELEN_PER_RUBRIEK = 400;
 const SCHEIDER_THEMA = ' › ';
 const SCHEIDER_TITEL = ' · ';
-const TERUGVAL = 'Doelen';
-const TITEL_CALLOUT = 'Doelen in deze sectie';
+/** Naam van een sectie waarvan de doelen geen rubriek hebben, als ze de enige sectie van het hoofdstuk is. */
+const NAAM_ENIGE_SECTIE = 'Deel 1';
+/** Naam van een sectie met doelen zonder rubriek, naast secties die wel een rubriek hebben. */
+const NAAM_OVERIGE_SECTIE = 'Andere doelen';
 
 /** Tekst inkorten tot hoogstens `max` tekens (met "…" als er iets wegviel), zonder een tekenpaar doormidden te knippen. */
 function inkort(t: string, max: number): string {
@@ -459,29 +460,63 @@ export function leerplannenBijRichting(
 
 // ── Het geraamte van de cursus ──────────────────────────────────────────────
 
-/** Het thema van een doel in een hoofdstuk (het deel vóór " › ", bij een samengestelde lijst de setnaam) en een rubriek. */
-function splitsThema(thema: string | undefined): { hoofdstuk: string; rubriek: string } {
+/**
+ * Het thema van een doel in een hoofdstuk (het deel vóór " › ", bij een samengestelde lijst de setnaam) en een rubriek.
+ * `null` = het thema noemt geen hoofdstuk, of geen rubriek.
+ */
+function splitsThema(thema: string | undefined): { hoofdstuk: string | null; rubriek: string | null } {
   // Een thema dat op " ›" eindigt (een lege rubriek) is gewoon het deel ervoor.
   const t = (thema ?? '').trim().replace(/\s*›$/, '');
-  if (t === '') return { hoofdstuk: TERUGVAL, rubriek: TERUGVAL };
+  if (t === '') return { hoofdstuk: null, rubriek: null };
   const i = t.indexOf(SCHEIDER_THEMA);
-  if (i < 0) return { hoofdstuk: t, rubriek: TERUGVAL };
-  return { hoofdstuk: t.slice(0, i).trim() || TERUGVAL, rubriek: t.slice(i + SCHEIDER_THEMA.length).trim() || TERUGVAL };
+  if (i < 0) return { hoofdstuk: t, rubriek: null };
+  return { hoofdstuk: t.slice(0, i).trim() || null, rubriek: t.slice(i + SCHEIDER_THEMA.length).trim() || null };
+}
+
+/** Een deel van de setnaam in een samengestelde lijst dat de graad of de stroom noemt: "2de graad", "1ste graad A-stroom", "A-stroom". */
+const GRAAD_OF_STROOM = /^(?:\d+(?:ste|de|e)\s+graad\b|[a-z]-stroom$)/i;
+/** Het set-nummer dat `setLabels` (doelenSamenstellen.ts) achter een naam zet als twee sets anders dezelfde naam hebben. */
+const SET_NUMMER = /\s*\(ODS_\d+\)\s*$/;
+
+/**
+ * De naam van een hoofdstuk uit de setnaam in het thema van een samengestelde lijst: de korte naam van het vak of de set,
+ * zonder graad, stroom en set-nummer. `setLabels` voegt die toe om sets met dezelfde korte naam uit elkaar te houden
+ * ("Nederlands · aso · 2de graad (ODS_3351)"); een leerkracht en een leerling hebben er niets aan. Wat de sets nog wel
+ * onderscheidt, blijft tussen haakjes staan: "Nederlands (aso)".
+ */
+function hoofdstukNaamUitSet(label: string): string {
+  const delen = label.replace(SET_NUMMER, '').split(SCHEIDER_TITEL).map((d) => d.trim()).filter((d) => d !== '');
+  if (delen.length === 0) return label.trim();
+  const [naam, ...rest] = delen;
+  const onderscheid = rest.filter((d) => !GRAAD_OF_STROOM.test(d));
+  return onderscheid.length > 0 ? `${naam} (${onderscheid.join(SCHEIDER_TITEL)})` : naam;
 }
 
 interface GeraamteSectie {
-  titel: string;
   codes: string[];
   regels: string[];
+}
+
+interface GeraamteHoofdstuk {
+  /** De setnaam uit het thema, of `null` als het thema geen hoofdstuk noemt. */
+  label: string | null;
+  /** Staat er minstens één doel uit een officiële set in (het thema kwam dan uit `setLabels`)? */
+  uitSet: boolean;
+  /** Per rubriek (`''` = geen rubriek) de doelen, in de volgorde van het eerste voorkomen. */
+  secties: Map<string, GeraamteSectie>;
 }
 
 /**
  * De hoofdstukken van een cursus met de doelen van een leerplan al op de secties (§ 12.2):
  * - een hoofdstuk per eerste deel van `goal.theme` (vóór " › "; bij een samengestelde lijst is dat de setnaam, bij een
- *   leerplan van een net het eigen thema), "Doelen" zonder thema, in de volgorde van het eerste voorkomen;
- * - daarin een sectie per rest van het thema (de rubriek), of "Doelen";
+ *   leerplan van een net het eigen thema), in de volgorde van het eerste voorkomen. Doelen zonder thema komen in één
+ *   hoofdstuk met het vak van het leerplan als naam, of "Hoofdstuk <nummer>";
+ * - de naam van een hoofdstuk uit een officiële set is de korte naam van het vak of de set, zonder graad, stroom en
+ *   set-nummer (`hoofdstukNaamUitSet`); hebben twee hoofdstukken dan dezelfde naam, dan krijgt het tweede " (2)";
+ * - daarin een sectie per rest van het thema (de rubriek), met de naam van de rubriek; doelen zonder rubriek komen in een
+ *   sectie "Deel 1" (is ze de enige) of "Andere doelen" (staat ze naast secties met een rubriek);
  * - `goalCodes` zijn de codes van de doelen van de sectie, en één blok `callout` (kind 'goal', "Doelen in deze sectie")
- *   somt ze op, per regel "<code> — <korte tekst>";
+ *   somt ze op, per regel "<code> — <volledige doeltekst>" (`werkDoelenKadertjeBij` werkt dat kadertje later bij);
  * - elke code staat in precies één sectie, en geen enkele sectie is optioneel;
  * - bij meer dan 400 doelen is er één sectie per hoofdstuk;
  * - titels zijn hoogstens 120 tekens.
@@ -503,28 +538,45 @@ export function geraamteHoofdstukken(leerplan: Curriculum, codes?: readonly stri
   if (doelen.length === 0) return [];
 
   const eenSectiePerHoofdstuk = doelen.length > MAX_DOELEN_PER_RUBRIEK;
-  const hoofdstukken = new Map<string, Map<string, GeraamteSectie>>();
+  // Sleutel `''` = doelen zonder thema (de enige sleutel die geen echte themanaam kan zijn).
+  const hoofdstukken = new Map<string, GeraamteHoofdstuk>();
   for (const { code, goal } of doelen) {
     const { hoofdstuk, rubriek } = splitsThema(goal.theme);
-    const secties = hoofdstukken.get(hoofdstuk) ?? new Map<string, GeraamteSectie>();
-    hoofdstukken.set(hoofdstuk, secties);
-    const rubriekSleutel = eenSectiePerHoofdstuk ? TERUGVAL : rubriek;
-    const sectie = secties.get(rubriekSleutel) ?? { titel: rubriekSleutel, codes: [], regels: [] };
-    secties.set(rubriekSleutel, sectie);
+    const sleutel = hoofdstuk ?? '';
+    const h = hoofdstukken.get(sleutel) ?? { label: hoofdstuk, uitSet: false, secties: new Map<string, GeraamteSectie>() };
+    hoofdstukken.set(sleutel, h);
+    if (Array.isArray(goal.refs) && goal.refs.length > 0) h.uitSet = true;
+    const rubriekSleutel = eenSectiePerHoofdstuk ? '' : (rubriek ?? '');
+    const sectie = h.secties.get(rubriekSleutel) ?? { codes: [], regels: [] };
+    h.secties.set(rubriekSleutel, sectie);
     sectie.codes.push(code);
-    sectie.regels.push(`${code} — ${shortGoalText(typeof goal.text === 'string' ? goal.text : '', MAX_REGEL_TEKST)}`);
+    sectie.regels.push(doelRegel(code, goal.text));
   }
 
-  return [...hoofdstukken].map(([hoofdstuk, secties]): CourseChapter => ({
-    id: uid(),
-    title: inkort(hoofdstuk, MAX_TITEL),
-    sections: [...secties.values()].map((s): CourseSection => ({
+  const vak = typeof leerplan?.subject === 'string' ? leerplan.subject.trim() : '';
+  const gebruikt = new Map<string, number>();
+  return [...hoofdstukken.values()].map((h, i): CourseChapter => {
+    const naam = h.label === null ? (vak || `Hoofdstuk ${i + 1}`) : h.uitSet ? hoofdstukNaamUitSet(h.label) : h.label;
+    // Twee hoofdstukken uit sets die na het weglaten van graad en stroom dezelfde naam kregen: het tweede krijgt " (2)".
+    // Eigen themanamen van een net blijven zoals ze zijn.
+    let titel = naam;
+    if (h.uitSet) {
+      const sleutel = naam.toLocaleLowerCase('nl');
+      const keer = (gebruikt.get(sleutel) ?? 0) + 1;
+      gebruikt.set(sleutel, keer);
+      if (keer > 1) titel = `${naam} (${keer})`;
+    }
+    return {
       id: uid(),
-      title: inkort(s.titel, MAX_TITEL),
-      blocks: [{ id: uid(), type: 'callout', kind: 'goal', title: TITEL_CALLOUT, text: s.regels.join('\n') }],
-      goalCodes: s.codes,
-    })),
-  }));
+      title: inkort(titel, MAX_TITEL),
+      sections: [...h.secties].map(([rubriek, s]): CourseSection => ({
+        id: uid(),
+        title: inkort(rubriek !== '' ? rubriek : h.secties.size === 1 ? NAAM_ENIGE_SECTIE : NAAM_OVERIGE_SECTIE, MAX_TITEL),
+        blocks: [{ id: uid(), type: 'callout', kind: 'goal', title: TITEL_DOELEN_KADERTJE, text: s.regels.join('\n') }],
+        goalCodes: s.codes,
+      })),
+    };
+  });
 }
 
 /**

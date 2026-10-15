@@ -20,7 +20,7 @@
 
 import type { BkMelding } from './bkLeerplan';
 import { enkelOfMeer, kortTekst, redenTekst, somLijst, statusTekst } from './dekkingWeergave';
-import { percentVan, type NietMeeReden } from './dekkingMinimumdoelen';
+import { percentVan, type MdStatus, type NietMeeReden } from './dekkingMinimumdoelen';
 import type { foutBijBestaandeCursus, PlanTeksten } from './gatenWeergave';
 import type { BekrachtigingSoort } from './richtingBk';
 
@@ -392,6 +392,56 @@ export function bkSetSamenvatting(naam: string, gedekt: number, totaal: number):
   return `${typeof naam === 'string' ? naam.trim() : ''}: ${gedekt} van ${totaal} gedekt (${percentVan(gedekt, totaal)} %)`;
 }
 
+/**
+ * Hoeveel van deze rijen nergens aan bod komen (`open`), op een sectie staan die nog leeg is (`gepland`) of alleen in
+ * verdieping aan bod komen (`verdieping`). Gedekte rijen tellen niet mee. De drie aantallen horen bij `bkNogNietGedektZin`.
+ */
+export function bkTelStatussen(rijen: readonly { status: MdStatus }[]): { open: number; gepland: number; verdieping: number } {
+  const uit = { open: 0, gepland: 0, verdieping: 0 };
+  for (const r of Array.isArray(rijen) ? rijen : []) {
+    if (r?.status === 'open') uit.open += 1;
+    else if (r?.status === 'gepland') uit.gepland += 1;
+    else if (r?.status === 'verdieping') uit.verdieping += 1;
+  }
+  return uit;
+}
+
+/**
+ * De zin boven de beroepskwalificaties bij de keuze "Nog niet gedekt": ze staan dicht, dus de zin zegt ook wat er te doen valt.
+ *
+ * Het getal in deze zin telt alles wat niet echt gedekt is: ook competenties die alleen gepland staan op een sectie die nog
+ * leeg is, en die alleen in verdieping aan bod komen. De samenvatting erboven (`bkStaartTekst`) telt met "nog niet" alleen
+ * de competenties die nergens aan bod komen. Voor wie ze naast elkaar leest (bv. 24 en 19) zijn dat twee getallen voor
+ * hetzelfde; met `uitsplitsing` zegt de zin zelf hoe het getal opgebouwd is: "24 competenties in 3 beroepskwalificaties zijn
+ * nog niet gedekt: 19 komen nog nergens aan bod, 3 staan gepland (de sectie is nog leeg) en 2 komen alleen in verdieping aan
+ * bod. Open een beroepskwalificatie om ze te zien." Dezelfde drie aantallen staan in de samenvatting.
+ *
+ * Zonder `uitsplitsing`, of als er niets gepland staat en niets alleen in verdieping zit (dan is alles "nog niet"), of als de
+ * aantallen niet optellen tot `aantal`, staat er alleen het eerste deel, zonder dubbele punt.
+ */
+export function bkNogNietGedektZin(
+  aantal: number,
+  aantalBks: number,
+  uitsplitsing?: { open: number; gepland: number; verdieping: number },
+): string {
+  if (!(aantal > 0)) return 'Alle competenties zijn gedekt.';
+  const inBks = beroepskwalificaties(aantalBks);
+  const openen = aantalBks === 1 ? 'de beroepskwalificatie' : 'een beroepskwalificatie';
+  const begin = aantal === 1
+    ? `1 competentie in ${inBks} is nog niet gedekt`
+    : `${aantal} competenties in ${inBks} zijn nog niet gedekt`;
+  const slot = `Open ${openen} om ze te zien.`;
+  const nergens = geheel(uitsplitsing?.open ?? 0);
+  const gepland = geheel(uitsplitsing?.gepland ?? 0);
+  const verdieping = geheel(uitsplitsing?.verdieping ?? 0);
+  if (gepland + verdieping === 0 || nergens + gepland + verdieping !== aantal) return `${begin}. ${slot}`;
+  const delen: string[] = [];
+  if (nergens > 0) delen.push(nergens === 1 ? '1 komt nog nergens aan bod' : `${nergens} komen nog nergens aan bod`);
+  if (gepland > 0) delen.push(gepland === 1 ? '1 staat gepland (de sectie is nog leeg)' : `${gepland} staan gepland (de sectie is nog leeg)`);
+  if (verdieping > 0) delen.push(verdieping === 1 ? '1 komt alleen in verdieping aan bod' : `${verdieping} komen alleen in verdieping aan bod`);
+  return `${begin}: ${somLijst(delen)}. ${slot}`;
+}
+
 /** De regel van een competentie in de lijst: "<doelcode> — <tekst>" (de tekst ingekort tot `max` tekens op een woordgrens). */
 export function bkCompetentieRegel(code: string, tekst: string, max = 200): string {
   return `${typeof code === 'string' ? code.trim() : ''} — ${kortTekst(typeof tekst === 'string' ? tekst : '', max)}`;
@@ -403,12 +453,24 @@ export function bkCompetentieRegel(code: string, tekst: string, max = 200): stri
  */
 export const bkStatusTekst = statusTekst;
 
-/** "4 cursussen van deze richting volgen geen beroepskwalificatie en tellen hier niet mee." / "1 cursus … volgt … telt …". Leeg bij 0. */
+/**
+ * De kop boven de cursussen van de richting die niet in de telling van de competenties zitten. Positief en eerlijk: de kop
+ * zegt wat die cursussen zijn (de andere cursussen van de richting) en niet dat ze "niet meetellen", wat als een verwijt
+ * leest. Het scherm (BkDekking.tsx) gebruikt deze tekst als kop boven `bkNietMeetellendeTekst`.
+ */
+export const BK_ANDERE_CURSUSSEN_KOP = 'Andere cursussen van deze richting';
+
+/**
+ * De zin onder die kop: "4 cursussen van deze richting volgen geen beroepskwalificatie. Daarom staan ze niet in deze telling; bij
+ * elke cursus lees je waarom." (bij één "1 cursus … volgt … Daarom staat ze niet in deze telling; bij de cursus lees je waarom.").
+ * Leeg bij 0. De zin zegt wat de cursussen zijn (cursussen zonder beroepskwalificatie) en laat de reden bij elke cursus staan
+ * (`bkRedenTekst`): niet elke cursus mist om dezelfde reden haar beroepskwalificatie.
+ */
 export function bkNietMeetellendeTekst(n: number): string {
   if (n <= 0) return '';
   return n === 1
-    ? '1 cursus van deze richting volgt geen beroepskwalificatie en telt hier niet mee.'
-    : `${n} cursussen van deze richting volgen geen beroepskwalificatie en tellen hier niet mee.`;
+    ? '1 cursus van deze richting volgt geen beroepskwalificatie. Daarom staat ze niet in deze telling; bij de cursus lees je waarom.'
+    : `${n} cursussen van deze richting volgen geen beroepskwalificatie. Daarom staan ze niet in deze telling; bij elke cursus lees je waarom.`;
 }
 
 /**

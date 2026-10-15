@@ -19,6 +19,7 @@ import {
   zoekTermen, zoekVoorbeelden, type SoortOnderwijs,
 } from '../lib/minimumdoelenBron';
 import { geldigheidJaren } from '../lib/setKeuze';
+import { vakAlsZoekwoord } from '../lib/vakZoektabel';
 import { isAttitude, isOptioneel, leerplanUitSet, themaVanDoel, vindLeerplanVoorSet } from '../lib/minimumdoelenLeerplan';
 import { DoelenPerRubriek, type DoelRij } from '../components/curriculum/DoelenPerRubriek';
 import { Field, useToast } from '../components/ui';
@@ -32,7 +33,17 @@ const SAMENSTELLEN_ROUTE = '/leerplannen/samenstellen';
 const STAP = 60;
 const SMAL_SCHERM = '(max-width: 899px)';
 
+/** Gewoon secundair onderwijs eerst, dan buitengewoon, volwassenen en ander onderwijs. */
 const SOORT_VOLGORDE: SoortOnderwijs[] = ['so', 'buso', 'vwo', 'ander'];
+
+/** Zet de sets per soort onderwijs in `SOORT_VOLGORDE`; binnen een soort blijft de volgorde van de lijst. */
+function gewoonEerst(lijst: MinimumdoelenIndexSet[]): MinimumdoelenIndexSet[] {
+  return lijst
+    .map((set, plek) => ({ set, plek, rang: SOORT_VOLGORDE.indexOf(soortVanSet(set.naam)) }))
+    .sort((a, b) => a.rang - b.rang || a.plek - b.plek)
+    .map((x) => x.set);
+}
+
 /** Vanaf zoveel doelen staat er een zoekveld boven de doelen van een set. */
 const ZOEK_IN_DOELEN_VANAF = 10;
 /** Een set met geldigheid "Onbekend" naast een geldige set met dezelfde naam. */
@@ -108,11 +119,16 @@ export function MinimumdoelenPage() {
     const aanwezig = new Set(sets.map((s) => soortVanSet(s.naam)));
     return SOORT_VOLGORDE.filter((s) => aanwezig.has(s));
   }, [sets]);
-  const gefilterd = useMemo(() => filterSets(sets, { zoek, geldigheid, graad, soort }), [sets, zoek, geldigheid, graad, soort]);
+  // "lichamelijke opvoeding" en "LO" zoeken de sets van dat vak (lib/vakZoektabel.ts); een andere tekst blijft zoals ze is.
+  const zoekTekst = useMemo(() => vakAlsZoekwoord(zoek), [zoek]);
+  const gefilterd = useMemo(
+    () => gewoonEerst(filterSets(sets, { zoek: zoekTekst, geldigheid, graad, soort })),
+    [sets, zoekTekst, geldigheid, graad, soort],
+  );
   // Hoeveel oude versies er bij deze filters verborgen zijn: dat zeggen we bij het vinkje.
   const verborgenOud = useMemo(
-    () => (geldigheid === 'actueel' ? filterSets(sets, { zoek, geldigheid: 'alle', graad, soort }).length - gefilterd.length : 0),
-    [sets, zoek, geldigheid, graad, soort, gefilterd.length],
+    () => (geldigheid === 'actueel' ? filterSets(sets, { zoek: zoekTekst, geldigheid: 'alle', graad, soort }).length - gefilterd.length : 0),
+    [sets, zoekTekst, geldigheid, graad, soort, gefilterd.length],
   );
   const laatstOpgehaald = useMemo(() => sets.reduce((m, s) => (s.opgehaald > m ? s.opgehaald : m), ''), [sets]);
   const gekozen = setId ? sets.find((s) => s.id === setId) : undefined;

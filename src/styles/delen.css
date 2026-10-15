@@ -1,0 +1,73 @@
+/*
+ * Delen met de klas: het venster "Link voor je leerlingen" van het klasoverzicht, het toewijzen aan een klas in de
+ * deelvensters van een oefening of cursus, en de statustabel van het klasoverzicht.
+ * Eén begrip overal: de link voor je leerlingen (werkt op elk toestel) en de code (werkt alleen op dit toestel).
+ */
+
+/* ── Venster "Link voor je leerlingen" ──────────────────────────────────── */
+
+.dl-kop { margin: 0 0 4px; font-size: 1.05rem; }
+.dl-uitleg { margin: 0 0 10px; color: var(--text-soft); font-size: 0.92rem; overflow-wrap: break-word; }
+
+/* De kopieerknop met de bevestiging ernaast, en daaronder het veld met de link (voor wie hem zelf wil kopiëren). */
+.dl-linkrij { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-bottom: 8px; }
+.dl-linkveld { width: 100%; margin-bottom: 12px; }
+
+/* De bevestiging (of de uitleg als het klembord niet mag): een vaste meldingsregel naast de knop. */
+.dl-melding {
+  flex: 1 1 200px; min-width: 0; display: flex; align-items: center; gap: 6px; margin: 0; min-height: 1.5em;
+  color: var(--text); font-size: 0.92rem; overflow-wrap: anywhere;
+}
+.dl-melding-ok { flex: none; color: var(--ok-text); }
+
+.dl-bestand { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 12px; }
+.dl-bestand .dl-uitleg { margin: 0; flex: 1 1 220px; min-width: 0; }
+
+/* De code, kleiner dan de link: ze werkt alleen waar de klas al staat. */
+.dl-coderij { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.dl-code { font-family: monospace; font-size: 1.5rem; font-weight: 800; letter-spacing: 0.25em; color: var(--text); }
+
+/* ── Toewijzen aan een klas ──────────────────────────────────────────────── */
+
+/*
+ * "Toewijzen" blijft klikbaar zolang er geen klas gekozen is (aria-disabled), zodat de knop zegt wat er ontbreekt.
+ * Zichtbaar anders, zonder te vervagen: gestippelde rand en zachte achtergrond met leesbare tekst (geen opacity).
+ * De 2px rand vervangt de 1px rand van .btn-sm; de padding houdt de knop even groot.
+ */
+.dl-knop[aria-disabled='true'],
+.dl-knop[aria-disabled='true']:hover {
+  background: var(--bg-sunken); color: var(--text-soft); border: 2px dashed var(--text-soft); padding: 3px 9px; cursor: not-allowed;
+}
+.dl-knop[aria-disabled='true']:active { transform: none; }
+.dl-nodig { margin: 0; color: var(--text-soft); font-size: 0.92rem; }
+
+/* ── Statustabel van het klasoverzicht ───────────────────────────────────── */
+
+table.data.klas-matrix { min-width: 520px; border-collapse: collapse; width: 100%; }
+table.data.klas-matrix thead th { padding: 8px 10px; font-size: 0.82rem; max-width: 160px; }
+table.data.klas-matrix thead th:first-child {
+  position: sticky; left: 0; z-index: 1; background: var(--bg-raised); text-align: left; padding: 8px 12px; font-size: 0.78rem; max-width: none;
+}
+table.data.klas-matrix tbody th[scope='row'] {
+  position: sticky; left: 0; z-index: 1; background: var(--bg-raised); text-align: left; font-weight: 600; padding: 7px 12px; white-space: nowrap;
+}
+table.data.klas-matrix td { text-align: center; padding: 6px 8px; }
+
+/*
+ * Op een gsm: de namen breken af en de kolomkoppen lopen over meerdere regels, zodat de statuskolommen naast de
+ * namen in beeld staan (390 px: de naam en twee opdrachten) in plaats van achter een lange regel te verdwijnen.
+ * Bij meer opdrachten schuift de tabel zijwaarts; de namen blijven dan staan.
+ */
+@media (max-width: 600px) {
+  table.data.klas-matrix { min-width: 0; }
+  table.data.klas-matrix thead th:first-child,
+  table.data.klas-matrix tbody th[scope='row'] {
+    width: 7.25rem; min-width: 7.25rem; max-width: 7.25rem; white-space: normal; overflow-wrap: anywhere; padding: 7px 8px;
+  }
+  table.data.klas-matrix tbody th[scope='row'] { font-size: 0.9rem; }
+  table.data.klas-matrix thead th:not(:first-child) {
+    min-width: 7.5rem; max-width: none; white-space: normal; overflow-wrap: anywhere; text-transform: none; letter-spacing: normal;
+    padding: 8px 6px; vertical-align: bottom;
+  }
+  table.data.klas-matrix td { padding: 6px 4px; }
+}

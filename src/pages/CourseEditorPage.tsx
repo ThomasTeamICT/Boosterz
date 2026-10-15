@@ -23,6 +23,8 @@ import { deletePdf } from '../lib/pdfStore';
 import { onStorageNotice } from '../lib/storageHealth';
 import { getCurricula, getCurriculum } from '../lib/curriculum';
 import { doelgroepTekst, sanitizeDoelgroep } from '../lib/doelgroep';
+import { werkDoelenKadertjeBij } from '../lib/doelenKadertje';
+import { hasAIKey } from '../lib/ai';
 import { getWidgets, onStorageChange } from '../lib/storage';
 import { downloadFile, makeCode, uid } from '../lib/utils';
 import { CheckRow, ConfirmModal, EmptyState, Field, Modal, useToast } from '../components/ui';
@@ -57,6 +59,55 @@ const COURSE_STORE: DraftStore = {
 };
 
 const SAVE_FAILED_TEXT = 'Bewaren op dit toestel is mislukt. Staat de opslag vol, of blokkeert de browser ze?';
+
+// ── Terugkeren naar dit tabblad, en de AI-knoppen ────────────────────────────
+
+/**
+ * Roept `lees` op als de leerkracht terugkeert naar dit tabblad: het venster krijgt de focus of het tabblad wordt weer
+ * zichtbaar. Wat een ander tabblad intussen bewaarde (een leerplan, de AI-sleutel), staat dan meteen in dit scherm.
+ */
+function useBijTerugkeer(lees: () => void): void {
+  const laatste = useRef(lees);
+  useEffect(() => { laatste.current = lees; });
+  useEffect(() => {
+    const bijTerugkeer = () => { if (document.visibilityState !== 'hidden') laatste.current(); };
+    window.addEventListener('focus', bijTerugkeer);
+    document.addEventListener('visibilitychange', bijTerugkeer);
+    return () => {
+      window.removeEventListener('focus', bijTerugkeer);
+      document.removeEventListener('visibilitychange', bijTerugkeer);
+    };
+  }, []);
+}
+
+/** Is er een AI-sleutel op dit toestel? Leest opnieuw als de leerkracht terugkeert van de AI-instellingen. */
+function useHeeftAIKey(): boolean {
+  const [heeft, setHeeft] = useState(hasAIKey);
+  useBijTerugkeer(() => setHeeft(hasAIKey()));
+  return heeft;
+}
+
+/**
+ * Knop voor een AI-functie. Met een sleutel in de AI-kleur; zonder sleutel rustig (zoals een gewone knop) en met
+ * " (AI-sleutel nodig)": zo lijkt ze niet klaar voor gebruik. Ze blijft klikbaar: het venster legt uit hoe je een sleutel instelt.
+ */
+function AIKnop({ heeftSleutel, titel, onClick, children }: {
+  heeftSleutel: boolean;
+  titel: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={`btn btn-sm ${heeftSleutel ? 'btn-ai' : 'btn-ghost'}`}
+      onClick={onClick}
+      title={heeftSleutel ? titel : `${titel} Daarvoor heb je eerst een AI-sleutel nodig (AI-instellingen).`}
+    >
+      <AIIcon size={16} aria-hidden /> {children}{!heeftSleutel && ' (AI-sleutel nodig)'}
+    </button>
+  );
+}
 
 // ── Immutabele hulpjes ──────────────────────────────────────────────────────
 
@@ -141,6 +192,7 @@ export function CourseEditorPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [goalsOpen, setGoalsOpen] = useState(false);
   const [aiModal, setAiModal] = useState<AIModalState>(null);
+  const heeftSleutel = useHeeftAIKey();
   const [paletteAt, setPaletteAt] = useState<number | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   /** Laatste ernstige opslagmelding (de editor valt buiten Layout en toont ze zelf). */
@@ -435,16 +487,16 @@ export function CourseEditorPage() {
         >
           <PrintIcon size={16} /> Afdrukken
         </a>
-        <button className="btn btn-sm btn-ai" onClick={() => setAiModal({ mode: 'rework' })} title="Laat AI de hele cursus herwerken of uitbreiden">
-          <AIIcon size={16} /> Herwerk met AI
-        </button>
-        <button
-          className="btn btn-sm btn-ai"
+        <AIKnop heeftSleutel={heeftSleutel} titel="Laat AI de hele cursus herwerken of uitbreiden." onClick={() => setAiModal({ mode: 'rework' })}>
+          Herwerk met AI
+        </AIKnop>
+        <AIKnop
+          heeftSleutel={heeftSleutel}
+          titel="Taal vereenvoudigen, differentiëren, controlevragen toevoegen of de hiaten t.o.v. het leerplan vullen."
           onClick={() => setAiModal({ mode: 'optimize' })}
-          title="Taal vereenvoudigen, differentiëren, controlevragen toevoegen of de hiaten t.o.v. het leerplan vullen"
         >
-          <AIIcon size={16} /> Optimaliseer
-        </button>
+          Optimaliseer
+        </AIKnop>
         <button
           className="btn btn-sm btn-ghost"
           onClick={() => setGoalsOpen(true)}
@@ -827,6 +879,7 @@ function SectionPane({
   /** Een blok gebruikt een geüpload pdf-bestand niet meer (opruimen na het bewaren). */
   onPdfReleased: (pdfId: string) => void;
 }) {
+  const heeftSleutel = useHeeftAIKey();
   const goals = section.goals ?? [];
   const setGoals = (g: string[]) => onPatch((s) => ({ ...s, goals: g.length ? g : undefined }));
   // Altijd op de laatste stand van de sectie werken (niet op de props van deze render).
@@ -848,12 +901,12 @@ function SectionPane({
             placeholder="Titel van de sectie"
             onChange={(e) => onPatch((s) => ({ ...s, title: e.target.value }))}
           />
-          <button className="btn btn-sm btn-ai" onClick={onOpenAI} title="Laat AI deze sectie vullen met inhoud">
-            <AIIcon size={16} /> Vul deze sectie met AI
-          </button>
-          <button className="btn btn-sm btn-ai" onClick={onOpenExercises} title="Laat AI oefeningen maken bij de inhoud en de doelen van deze sectie">
-            <AIIcon size={16} /> Stel oefeningen voor
-          </button>
+          <AIKnop heeftSleutel={heeftSleutel} titel="Laat AI deze sectie vullen met inhoud." onClick={onOpenAI}>
+            Vul deze sectie met AI
+          </AIKnop>
+          <AIKnop heeftSleutel={heeftSleutel} titel="Laat AI oefeningen maken bij de inhoud en de doelen van deze sectie." onClick={onOpenExercises}>
+            Stel oefeningen voor
+          </AIKnop>
         </div>
         <div style={{ marginTop: 8 }}>
           <CheckRow
@@ -865,7 +918,13 @@ function SectionPane({
         <GoalCodeInput
           value={section.goalCodes ?? []}
           curriculumId={curriculumId}
-          onChange={(codes) => onPatch((s) => ({ ...s, goalCodes: codes.length ? codes : undefined }))}
+          // Het kadertje "Doelen in deze sectie" dat het geraamte zette, volgt de doelen van de sectie. Een kadertje dat de
+          // leerkracht zelf aanpaste, of een ander soort kadertje, blijft ongemoeid (zie `werkDoelenKadertjeBij`).
+          onChange={(codes) => onPatch((s) => ({
+            ...s,
+            goalCodes: codes.length ? codes : undefined,
+            blocks: werkDoelenKadertjeBij(s.blocks, s.goalCodes, codes, curriculumId ? getCurriculum(curriculumId) : undefined),
+          }))}
         />
         <Field
           label="Leerdoelen in eigen woorden (optioneel)"
@@ -1158,7 +1217,10 @@ function RichtingSetting({
 
 function CurriculumSetting({ course, onChange }: { course: Course; onChange: (patch: Partial<Course>) => void }) {
   const [curricula, setCurricula] = useState<Curriculum[]>([]);
+  // Bij het openen van het venster, en telkens als de leerkracht terugkeert naar dit tabblad: "Leerplannen beheren" opent
+  // een nieuw tabblad, en een leerplan dat daar net bewaard werd, moet hier meteen in de lijst staan.
   useEffect(() => setCurricula(getCurricula()), []);
+  useBijTerugkeer(() => setCurricula(getCurricula()));
   const current = curricula.find((c) => c.id === course.curriculumId);
 
   return (

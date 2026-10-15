@@ -11,7 +11,8 @@ import {
   type CoursePdf, type SharedChoice, type SharedConflict,
 } from '../lib/courses';
 import { getCurricula } from '../lib/curriculum';
-import { computeCoverage } from '../lib/coverage';
+import { computeCoverage, geplandeRijen } from '../lib/coverage';
+import { uitwerkKaartje, uitwerkTelling, uitwerkZin, type UitwerkTelling } from '../lib/uitwerkZinnen';
 import { doelgroepTekst, doelgroepVoorCursus, sanitizeDoelgroep, type Doelgroep } from '../lib/doelgroep';
 import { takeHandoff } from '../lib/handoff';
 import { EXAMPLE_COURSE_ID } from '../lib/library';
@@ -109,15 +110,18 @@ export function CoursesPage() {
     }, { replace: true });
   }, [searchParams, setSearchParams, toast]);
 
-  /** Leerplantitel + dekkingspercentage per cursus (alleen met curriculumId). */
+  /**
+   * Leerplantitel + wat uitgewerkt is en wat alleen gepland staat, per cursus (alleen met curriculumId). Een doel op een lege
+   * sectie telt voor `computeCoverage` als gedekt; op het kaartje is het gepland, niet uitgewerkt (zie uitwerkZinnen.ts).
+   */
   const coverageByCourse = useMemo(() => {
-    const map = new Map<string, { title: string; percent: number; covered: number; total: number }>();
+    const map = new Map<string, { title: string; telling: UitwerkTelling }>();
     for (const course of courses) {
       if (!course.curriculumId) continue;
       const cur = curricula.find((c) => c.id === course.curriculumId);
       if (!cur) continue;
       const res = computeCoverage(course, cur, widgets);
-      map.set(course.id, { title: cur.title, percent: res.percent, covered: res.covered, total: res.total });
+      map.set(course.id, { title: cur.title, telling: uitwerkTelling(res, geplandeRijen(res, course, widgets).length) });
     }
     return map;
   }, [courses, curricula, widgets]);
@@ -395,8 +399,8 @@ export function CoursesPage() {
                         <span>
                           {cov.title}
                           <span className="mat-cover">
-                            <span className="badge badge-brand" title={`${cov.covered} van ${cov.total} leerplandoelen komen aan bod in een gewone sectie`}>
-                              Dekking {cov.percent}% ({cov.covered}/{cov.total})
+                            <span className="badge badge-brand" title={uitwerkZin(cov.telling)}>
+                              {uitwerkKaartje(cov.telling)}
                             </span>
                           </span>
                         </span>

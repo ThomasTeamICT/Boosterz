@@ -929,6 +929,17 @@ table.data th {
 }
 table.data td { padding: 11px 14px; border-bottom: 1px solid var(--line); }
 table.data tr:last-child td { border-bottom: none; }
+
+/* Rijkop: ziet eruit als een gewone cel, niet als een kolomkop. Zonder deze regel erven rijkoppen de hoofdletters en het
+   "niet afbreken" van de kolomkoppen hierboven: een doeltekst staat dan in hoofdletters op één lange regel en duwt de
+   andere kolommen (zoals de status) buiten beeld. Staat hier en niet in een schermstijl, want elke tabel met rijkoppen
+   heeft dit nodig, ook als de pagina daarvoor geen andere stijl laadt. */
+table.data tbody th[scope="row"] {
+  text-transform: none; letter-spacing: normal; font-size: inherit; font-weight: inherit;
+  color: var(--text); background: transparent; white-space: normal;
+  padding: 11px 14px; border-bottom: 1px solid var(--line);
+}
+table.data tbody tr:last-child th[scope="row"] { border-bottom: none; }
 table.data tbody tr { cursor: pointer; }
 table.data tbody tr:hover { background: var(--bg-sunken); }
 

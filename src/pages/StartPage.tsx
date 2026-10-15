@@ -213,7 +213,7 @@ const HOW_IT_WORKS = [
   },
   {
     Icon: ShareIcon, title: 'Delen',
-    text: 'Een klaslink of een code van 6 tekens. Je leerlingen hebben geen account nodig.',
+    text: 'Je geeft je leerlingen een link: die werkt op hun eigen toestel. De code van 6 tekens werkt alleen op dit toestel. Ze hebben geen account nodig.',
   },
   {
     Icon: ResultsIcon, title: 'Opvolgen',

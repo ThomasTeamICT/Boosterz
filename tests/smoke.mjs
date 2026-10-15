@@ -43,6 +43,11 @@ check('startpagina heeft één h1', (await page.locator('main h1').count()) === 
 check('eerste bezoek: uitleg "hoe het in elkaar zit"', await page.locator('text=Hoe het in elkaar zit').first().isVisible());
 check('38 widgetsoorten op de startpagina', (await page.locator('.start-type-chip').count()) === 38);
 check('aparte ingang voor leerlingen', (await page.locator('a[href="#/meedoen"]').count()) >= 1);
+{
+  // Pakket Q3: de belofte bij "Delen" is eerlijk: de link werkt op elk toestel, de code alleen op dit toestel.
+  const delen = await page.locator('.start-step:has(h3:text-is("Delen"))').innerText();
+  check('startpagina: "Delen" belooft een link voor het eigen toestel van de leerlingen en een code die alleen op dit toestel werkt, zonder "widget"', /link.*werkt op hun eigen toestel/.test(delen) && /code van 6 tekens werkt alleen op dit toestel/.test(delen) && !/widget|klaslink/i.test(delen));
+}
 
 // ── 2. Dashboard ────────────────────────────────────────────────────────────
 console.log('2. Dashboard');
@@ -158,10 +163,33 @@ await page.locator('.widget-card').first().locator('button[aria-label^="Acties"]
 await page.getByRole('menuitem', { name: /Delen/ }).click();
 await sleep(700);
 check('delen begint bij de klas', await page.locator('.modal').getByText(/Toewijzen aan een klas/).first().isVisible());
+{
+  // Pakket Q3: nooit een klas vooraf gekozen (ook niet als er maar één klas is, de voorbeeldklas); zonder keuze legt het venster uit wat nodig is.
+  const venster = page.locator('.modal');
+  const keuze = venster.getByLabel('Klas', { exact: true });
+  // Op de css-klasse: met een gekozen klas die al een opdracht heeft, heet de knop "Opdracht bijwerken".
+  const knop = venster.locator('button.dl-knop');
+  const aantalKlassen = await page.evaluate(() => JSON.parse(localStorage.getItem('wf.classes.v1') || '[]').length);
+  const aantalOpdrachten = () => page.evaluate(() => JSON.parse(localStorage.getItem('wf.assignments.v1') || '[]').length);
+  const voorOpdrachten = await aantalOpdrachten();
+  check(`delen: er is geen klas vooraf gekozen, ook niet bij ${aantalKlassen} klas${aantalKlassen === 1 ? ' (de voorbeeldklas)' : 'sen'}: de lijst staat op "kies een klas"`, aantalKlassen >= 1 && (await keuze.inputValue()) === '');
+  const nodig = venster.getByText('Nog nodig: een klas.', { exact: true });
+  check('delen: zonder klas staat er "Nog nodig: een klas." en is "Toewijzen aan deze klas" aria-disabled (niet disabled) en aan die uitleg gekoppeld', await nodig.isVisible() && (await knop.getAttribute('aria-disabled')) === 'true' && (await knop.getAttribute('disabled')) === null && (await knop.getAttribute('aria-describedby')) === (await nodig.getAttribute('id')));
+  await knop.click({ force: true });
+  check('delen: een tik op de knop zonder klas zet de focus op de keuzelijst en wijst niets toe', (await keuze.evaluate((el) => el === document.activeElement)) && (await aantalOpdrachten()) === voorOpdrachten);
+  await keuze.selectOption({ index: 1 });
+  check('delen: met een gekozen klas verdwijnt "Nog nodig: een klas." en is de knop niet meer aria-disabled', (await nodig.count()) === 0 && (await knop.getAttribute('aria-disabled')) === null);
+  await keuze.selectOption('');
+}
 await page.locator('summary', { hasText: 'Meer manieren om te delen' }).click();
 await sleep(300);
 check('QR-code', await page.locator('img[alt^="QR-code"]').isVisible());
 check('Classroom-knop', await page.locator('a', { hasText: 'Google Classroom' }).isVisible());
+{
+  // Pakket Q3: één begrip in het venster: "Code (werkt alleen op dit toestel)" en "Link voor je leerlingen (werkt op elk toestel)".
+  const tekst = await page.locator('.modal').innerText();
+  check('delen: "Code (werkt alleen op dit toestel)" en "Link voor je leerlingen (werkt op elk toestel)", met "Plak hem in Smartschool of je klasplatform."; niet meer "Losse code", "zelfde toestel" of "Draagbare link"; geen "widget" in die teksten', /Code \(werkt alleen op dit toestel\)/.test(tekst) && /Link voor je leerlingen \(werkt op elk toestel\)/.test(tekst) && /Plak hem in Smartschool of je klasplatform\./.test(tekst) && !/Losse code|zelfde toestel|Draagbare link/.test(tekst) && !/widget/i.test(tekst.slice(tekst.indexOf('Code (werkt alleen'), tekst.indexOf('Code (werkt alleen') + 400)));
+}
 await page.keyboard.press('Escape');
 
 // ── 9. Print, privacy, hulp, voortgang ──────────────────────────────────────
@@ -191,12 +219,23 @@ const demo = await page.evaluate(() => {
   return { id: cs[0].id, code: cs[0].code };
 });
 check('cursuskaart aanwezig', await page.getByRole('button', { name: /^Acties voor/ }).first().isVisible());
+{
+  // Pakket Q1: het kaartje zegt wat uitgewerkt is, en toont "gepland" apart (was: "Dekking N% (a/b)").
+  const kaartjes = await page.locator('.mat-cover .badge').allInnerTexts();
+  check(`cursuskaart: het dekkingskaartje zegt "N % uitgewerkt" (met " · M gepland" als er doelen alleen gepland staan) en niet meer "Dekking N% (a/b)" (${kaartjes.join(' | ')})`, kaartjes.length >= 1 && kaartjes.every((t) => /^\d+ % uitgewerkt( · \d+ gepland)?$/.test(t.trim())));
+}
 await page.getByRole('button', { name: /^Acties voor/ }).first().click();
 await page.getByRole('menuitem', { name: /Delen/ }).click();
 await sleep(600);
 await page.locator('summary', { hasText: 'Meer manieren om te delen' }).click();
 await sleep(300);
 check('embed-code voor LMS', (await page.locator('.modal textarea').first().inputValue()).includes('<iframe'));
+{
+  // Pakket Q3: dezelfde twee begrippen in het deelvenster van een cursus.
+  const tekst = await page.locator('.modal').innerText();
+  check('cursus delen: "Code (werkt alleen op dit toestel)" en "Link voor je leerlingen (werkt op elk toestel)", met "Plak hem in Smartschool of je klasplatform."; niet meer "Losse code", "zelfde toestel" of "Draagbare link"', /Code \(werkt alleen op dit toestel\)/.test(tekst) && /Link voor je leerlingen \(werkt op elk toestel\)/.test(tekst) && /Plak hem in\s+Smartschool of je klasplatform\./.test(tekst) && !/Losse code|zelfde toestel|Draagbare link/.test(tekst));
+  check('cursus delen: er is geen klas vooraf gekozen', (await page.locator('.modal').getByLabel('Klas', { exact: true }).inputValue()) === '');
+}
 await page.keyboard.press('Escape');
 
 // ── 12. Cursuseditor: structuur, palet, doelendekking, AI-knop ──────────────
@@ -205,10 +244,161 @@ await go(`/#/cursus/bewerk/${demo.id}`);
 check('structuurpaneel', await page.locator('text=Hoofdstuk').first().isVisible());
 check('blok toevoegen-knop', await page.getByRole('button', { name: /Blok toevoegen/ }).first().isVisible());
 check('AI-herwerkknop', await page.locator('button', { hasText: /Herwerk met AI|✨/ }).first().isVisible());
+// Q2: een tijdelijke cursus met één oefening voor de controles (g), (d) en (f); ze staat achteraan en verdwijnt na afloop weer
+const q2OefenCursus = 'q2-oefencursus';
+const q2MaakOefenCursus = () => page.evaluate((id) => {
+  const cs = JSON.parse(localStorage.getItem('wf.courses.v1'));
+  const w = JSON.parse(localStorage.getItem('wf.widgets.v1')).find((x) => x.title.startsWith('Voorbeeld:') && x.type === 'quiz');
+  const c = JSON.parse(JSON.stringify(cs[0]));
+  c.id = id; c.code = 'Q2OEF1'; c.title = 'Q2 oefencursus';
+  c.chapters = [{ id: 'q2h1', title: 'Hoofdstuk', sections: [{ id: 'q2s1', title: 'Oefen even', blocks: [{ id: 'q2b1', type: 'widget', widgetId: w.id }] }] }];
+  localStorage.setItem('wf.courses.v1', JSON.stringify([...cs.filter((x) => x.id !== id), c]));
+}, q2OefenCursus);
+const q2RuimOp = () => page.evaluate((id) => localStorage.setItem('wf.courses.v1', JSON.stringify(JSON.parse(localStorage.getItem('wf.courses.v1')).filter((x) => x.id !== id))), q2OefenCursus);
+
+// Q2 (e): zonder AI-sleutel zijn de AI-knoppen van de editor rustig en zeggen ze dat er een sleutel nodig is
+{
+  const knop = (naam) => page.getByRole('button', { name: naam, exact: true });
+  const klasse = async (l) => (await l.first().getAttribute('class').catch(() => null)) ?? '';
+  const zonder = ['Herwerk met AI (AI-sleutel nodig)', 'Optimaliseer (AI-sleutel nodig)', 'Vul deze sectie met AI (AI-sleutel nodig)', 'Stel oefeningen voor (AI-sleutel nodig)'];
+  check('(Q2e) zonder AI-sleutel: alle vier de AI-knoppen van de editor zeggen "(AI-sleutel nodig)"', (await Promise.all(zonder.map((n) => knop(n).count()))).every((n) => n === 1));
+  check('(Q2e) zonder AI-sleutel: de knoppen hebben niet de AI-kleur (btn-ai) maar zijn rustig (btn-ghost)', (await Promise.all(zonder.map((n) => klasse(knop(n))))).every((k) => !/\bbtn-ai\b/.test(k) && /\bbtn-ghost\b/.test(k)));
+  // Met een sleutel (ingesteld in een ander tabblad) verandert dat zodra de leerkracht terugkeert naar dit tabblad.
+  await page.evaluate(() => {
+    localStorage.setItem('wf.ai.v1', JSON.stringify({ provider: 'anthropic', apiKey: 'test-sleutel-1234', model: 'claude-sonnet-5' }));
+    window.dispatchEvent(new Event('focus'));
+  });
+  await sleep(400);
+  const met = ['Herwerk met AI', 'Optimaliseer', 'Vul deze sectie met AI', 'Stel oefeningen voor'];
+  check('(Q2e) met een AI-sleutel: de knoppen zonder toevoeging en in de AI-kleur (na terugkeer naar het tabblad)', (await Promise.all(met.map((n) => knop(n).count()))).every((n) => n === 1) && (await Promise.all(met.map((n) => klasse(knop(n))))).every((k) => /\bbtn-ai\b/.test(k)));
+  await page.evaluate(() => {
+    localStorage.removeItem('wf.ai.v1');
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await sleep(400);
+  check('(Q2e) sleutel weer weg: de toevoeging komt terug (tabblad weer zichtbaar)', (await knop('Herwerk met AI (AI-sleutel nodig)').count()) === 1);
+}
+
+// Q2 (g): "Nieuwe oefening maken" zegt dat het in een nieuw tabblad opent
+{
+  await q2MaakOefenCursus();
+  await go(`/#/cursus/bewerk/${q2OefenCursus}`);
+  await sleep(500);
+  const nieuweOefening = page.getByRole('link', { name: 'Nieuwe oefening maken (opent in een nieuw tabblad)' });
+  check('(Q2g) widgetblok in de editor: de link heet "Nieuwe oefening maken (opent in een nieuw tabblad)" en opent echt een nieuw tabblad', (await nieuweOefening.count()) >= 1 && (await nieuweOefening.first().getAttribute('target')) === '_blank' && /#\/nieuw$/.test((await nieuweOefening.first().getAttribute('href')) ?? ''));
+  check('(Q2g) het woord "widget" staat niet in die link', !/widget/i.test(await nieuweOefening.first().innerText()));
+}
+
+// Q2 (d): de keuzelijst "Leerplan van deze cursus" leest opnieuw als de leerkracht terugkeert naar het tabblad
+{
+  await page.getByRole('button', { name: /^Instellingen$/ }).click();
+  const lijst = page.getByLabel('Leerplan van deze cursus');
+  await lijst.waitFor({ timeout: 5000 });
+  const opties = () => lijst.locator('option').allInnerTexts();
+  const voor = await opties();
+  await page.evaluate(() => {
+    const lijst = JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]');
+    const kopie = { ...lijst[0], id: 'q2-nieuw-leerplan', title: 'Q2 net bewaard in een ander tabblad', example: false };
+    localStorage.setItem('wf.curricula.v1', JSON.stringify([...lijst, kopie]));
+  });
+  check('(Q2d) zolang de leerkracht niet terugkeert, blijft de lijst zoals ze was', (await opties()).length === voor.length);
+  await page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); });
+  await sleep(400);
+  const na = await opties();
+  check('(Q2d) na terugkeer naar het tabblad (zichtbaar): het nieuwe leerplan staat in de keuzelijst', na.length === voor.length + 1 && na.includes('Q2 net bewaard in een ander tabblad'));
+  await page.evaluate(() => {
+    const lijst = JSON.parse(localStorage.getItem('wf.curricula.v1') || '[]').filter((c) => c.id !== 'q2-nieuw-leerplan');
+    localStorage.setItem('wf.curricula.v1', JSON.stringify(lijst));
+    window.dispatchEvent(new Event('focus'));
+  });
+  await sleep(400);
+  check('(Q2d) na de focus van het venster: het leerplan is weer weg uit de lijst', (await opties()).length === voor.length);
+  await page.keyboard.press('Escape');
+  await sleep(300);
+  // Terug naar de voorbeeldcursus voor de volgende controles, en de tijdelijke cursus opruimen
+  await go(`/#/cursus/bewerk/${demo.id}`);
+  await q2RuimOp();
+}
 await page.getByRole('button', { name: /Doelendekking/ }).click();
 await sleep(400);
 check('doelendekking-modal', await page.locator('.modal', { hasText: /doel/i }).isVisible());
+{
+  // Pakket Q1 (b): de zin boven de matrix. Was: "Dekkend: N van M doelen." / "Dekkend: alle N doelen komen aan bod."
+  const dek12 = await page.locator('.modal', { hasText: /doel/i }).innerText();
+  check('doelendekking, weergave "Leerplan": de zin zegt "N van de M doelen zijn uitgewerkt" (of "Alle N doelen zijn uitgewerkt") en niet meer "Dekkend:"', (/\d+ van de \d+ doelen (zijn|is) uitgewerkt\./.test(dek12) || /Alle \d+ doelen zijn uitgewerkt\./.test(dek12)) && !/Dekkend:/.test(dek12));
+  // Pakket Q1 (e): zonder AI-sleutel een rustige knop met "(AI-sleutel nodig)"; met sleutel ongewijzigd.
+  const knop12 = () => page.locator('.modal').getByRole('button', { name: /Vul de hiaten/ });
+  const lees12 = async () => ((await knop12().count()) === 0 ? null : { tekst: (await knop12().innerText()).trim(), klasse: (await knop12().getAttribute('class')) ?? '' });
+  const zonder12 = await lees12();
+  check('doelendekking zonder AI-sleutel: "Vul de hiaten (AI-sleutel nodig)" in de rustige stijl (btn-ghost, niet btn-ai)', !!zonder12 && zonder12.tekst === 'Vul de hiaten (AI-sleutel nodig)' && /\bbtn-ghost\b/.test(zonder12.klasse) && !/\bbtn-ai\b/.test(zonder12.klasse));
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => localStorage.setItem('wf.ai.v1', JSON.stringify({ provider: 'gemini', apiKey: 'test-sleutel-1234', model: 'gemini-3.7-flash' })));
+  await page.getByRole('button', { name: /Doelendekking/ }).click();
+  await sleep(400);
+  const met12 = await lees12();
+  check('doelendekking met AI-sleutel: "Vul de hiaten" zonder toevoeging, in de AI-stijl (btn-ai) zoals voorheen', !!met12 && met12.tekst === 'Vul de hiaten' && /\bbtn-ai\b/.test(met12.klasse) && !/\bbtn-ghost\b/.test(met12.klasse));
+  await page.evaluate(() => localStorage.removeItem('wf.ai.v1'));
+}
 await page.keyboard.press('Escape');
+// Zonder AI-sleutel wijst het venster "Oefeningen voorstellen" de weg zonder AI; de andere AI-vensters blijven zoals ze waren.
+await page.getByRole('button', { name: /Stel oefeningen voor/ }).first().click();
+await sleep(400);
+const oefenVenster = page.locator('.modal', { hasText: 'Oefeningen voorstellen' });
+const zonderAi = oefenVenster.locator('.ai-gate-zonder');
+check('zonder sleutel: het venster "Oefeningen voorstellen" zegt eerst dat de AI niet ingesteld is, en wijst dan de weg zonder AI', /AI-assistent nog niet ingesteld/.test(await oefenVenster.innerText()) && (await zonderAi.count()) === 1);
+check('… met de zin "Zonder AI voeg je zelf een oefening toe: klik onder aan de sectie op ‘Blok toevoegen’ en kies het blok met ‘Een oefening of toets uit Boosterz’." (zonder het woord widget)', (await zonderAi.innerText()).trim() === 'Zonder AI voeg je zelf een oefening toe: klik onder aan de sectie op ‘Blok toevoegen’ en kies het blok met ‘Een oefening of toets uit Boosterz’.' && !/widget/i.test(await zonderAi.innerText()));
+check('… en "AI instellen" blijft ernaast staan', await oefenVenster.getByRole('link', { name: /AI instellen/ }).isVisible());
+await page.setViewportSize({ width: 390, height: 844 });
+await sleep(200);
+check('390 px: het venster zonder sleutel scrollt niet horizontaal en de weg zonder AI past in beeld', await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1) && (await zonderAi.boundingBox()).x >= 0 && (await zonderAi.boundingBox()).x + (await zonderAi.boundingBox()).width <= 390);
+await page.setViewportSize({ width: 1360, height: 900 });
+await page.keyboard.press('Escape');
+await sleep(200);
+await page.getByRole('button', { name: /Blok toevoegen/ }).first().click();
+await sleep(300);
+check('de zin klopt met de editor: in "Blok toevoegen" staat het blok met "Een oefening of toets uit Boosterz"', (await page.locator('.modal .block-palette-item', { hasText: 'Een oefening of toets uit Boosterz' }).count()) === 1);
+await page.keyboard.press('Escape');
+await sleep(200);
+await page.getByRole('button', { name: /Vul deze sectie met AI/ }).first().click();
+await sleep(400);
+check('de andere AI-vensters houden de gewone poort, zonder weg zonder AI', /AI-assistent nog niet ingesteld/.test(await page.locator('.modal').innerText()) && (await page.locator('.ai-gate-zonder').count()) === 0);
+await page.keyboard.press('Escape');
+{
+  // Pakket Q1 (a): de dekkingstabel is leesbaar in een verse opslag, meteen na het openen van de Doelendekking. De correctie voor de
+  // rijkop stond in opvolgen.css, dat pas laadt na een bezoek aan de klas- of resultatenpagina; in deze verse context is dat bezoek er niet.
+  const v = await rtOpen('12-dekkingstabel', { fixtures: false });
+  await v.go('/#/cursussen');
+  await v.p.waitForFunction(() => JSON.parse(localStorage.getItem('wf.courses.v1') || '[]').some((c) => c.curriculumId), null, { timeout: 15000 });
+  const vId = await v.p.evaluate(() => JSON.parse(localStorage.getItem('wf.courses.v1') || '[]').find((c) => c.curriculumId).id);
+  await v.go(`/#/cursus/bewerk/${vId}`);
+  await v.p.getByRole('button', { name: /Doelendekking/ }).click();
+  await v.p.locator('table.data tbody th[scope="row"]').first().waitFor({ timeout: 15000 });
+  for (const breedte of [1280, 390]) {
+    await v.p.setViewportSize({ width: breedte, height: 900 });
+    await sleep(300);
+    const m = await v.p.evaluate(() => {
+      const th = document.querySelector('table.data tbody th[scope="row"]');
+      const kaart = th.closest('table').closest('.card');
+      const cs = getComputedStyle(th);
+      const tr = th.closest('tr');
+      tr.scrollIntoView({ block: 'center' });
+      const k = kaart.getBoundingClientRect();
+      const el = [...tr.querySelectorAll('.badge-ok, .badge-warn, .badge-err')].find((e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0);
+      const r = el?.getBoundingClientRect();
+      const hit = r ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) : null;
+      return {
+        gewoneLetters: cs.textTransform === 'none' && th.innerText !== th.innerText.toUpperCase(),
+        afgebroken: cs.whiteSpace === 'normal' && th.getBoundingClientRect().height > 40,
+        paginaScrolltNiet: document.documentElement.scrollWidth <= window.innerWidth,
+        statusZichtbaar: !!el && !!hit && (el.contains(hit) || hit.contains(el)) && r.left >= k.left - 1 && r.right <= k.right + 1,
+      };
+    });
+    check(`dekkingstabel op ${breedte} px, verse opslag (zonder klaspagina): de doeltekst staat in gewone letters en is afgebroken (${m.gewoneLetters}, ${m.afgebroken})`, m.gewoneLetters && m.afgebroken);
+    check(`dekkingstabel op ${breedte} px: de status van de eerste rij is te zien, onbedekt en binnen het kader, en de pagina scrolt niet horizontaal (${m.statusZichtbaar}, ${m.paginaScrolltNiet})`, m.statusZichtbaar && m.paginaScrolltNiet);
+  }
+  check('dekkingstabel: geen console- of paginafouten', v.fouten.length === 0);
+  await v.ctx.close();
+}
 
 // ── 13. Cursusviewer: lezen, notities (persistentie!), zoeken ───────────────
 console.log('13. Cursusviewer');
@@ -238,6 +428,37 @@ check('markeer-als-gelezen-knop', await page.getByRole('button', { name: /Markee
 await page.getByRole('button', { name: /Markeer als gelezen/ }).first().click();
 await sleep(400);
 
+// Q2 (f): een oefening in de cursus toont de leerling geen uitleg die voor de leerkracht bedoeld is en geen "Voorbeeld:" in de
+// titel. Het voorbeeld voor de leerkracht ("Als leerling") toont de uitleg wel.
+{
+  await q2MaakOefenCursus();
+  const sectieKnop = page.locator('nav[aria-label="Inhoudstafel"] button', { hasText: 'Oefen even' }).first();
+  const naarOefening = async (hash) => {
+    await go(hash);
+    if (await page.locator('#course-student-name').isVisible().catch(() => false)) {
+      await page.fill('#course-student-name', 'Testlezer');
+      await page.getByRole('button', { name: /Start|Aan de slag/ }).first().click();
+      await sleep(600);
+    }
+    await sectieKnop.click();
+    const kop = page.locator('.course-block strong', { hasText: /^Oefening: / }).first();
+    await kop.waitFor({ timeout: 10000 });
+    await sleep(400);
+    return {
+      titel: (await kop.innerText()).trim(),
+      uitleg: (await kop.locator('xpath=following-sibling::div[contains(@class,"hint")]').first().innerText().catch(() => '')).trim(),
+      tekst: await page.evaluate(() => document.body.innerText),
+    };
+  };
+  const vb = await naarOefening(`/#/cursus/lees/Q2OEF1?voorbeeld=1`);
+  const uitlegTekst = vb.uitleg.includes(' — ') ? vb.uitleg.split(' — ').slice(1).join(' — ') : '';
+  check(`(Q2f) voorbeeld voor de leerkracht ("Als leerling"): de uitleg van het soort oefening staat er wel ("${vb.uitleg.slice(0, 50)}") en de titel houdt "Voorbeeld:"`, uitlegTekst.length > 10 && vb.tekst.includes(uitlegTekst) && /^Oefening: Voorbeeld: /.test(vb.titel));
+  const leerling = await naarOefening('/#/cursus/lees/Q2OEF1');
+  check(`(Q2f) leerling: de titel van de oefening is "${leerling.titel}" (zonder "Voorbeeld:")`, /^Oefening: \S/.test(leerling.titel) && !/Voorbeeld:/.test(leerling.titel));
+  check('(Q2f) leerling: de uitleg voor de leerkracht staat nergens op het scherm, en onder de titel staat geen kleine tekst', uitlegTekst.length > 10 && !leerling.tekst.includes(uitlegTekst) && leerling.uitleg === '');
+  await q2RuimOp();
+}
+
 // ── 14. Cursus volgen + printen ─────────────────────────────────────────────
 console.log('14. Cursus volgen/printen');
 await go(`/#/cursus/volg/${demo.id}`);
@@ -259,6 +480,16 @@ await page.fill('input[aria-label="Code van 6 tekens"]', demo.code);
 await page.getByRole('button', { name: /Start/ }).click();
 await sleep(500);
 check('cursuscode werkt', page.url().includes('/cursus/lees/'));
+{
+  // Pakket Q3: de uitleg en de foutmelding zeggen wat de leerling doet als de code niet werkt.
+  await go('/#/meedoen');
+  check('meedoen: de uitleg zegt "Werkt hij niet? Open dan de link van je leerkracht."', /Werkt hij niet\? Open dan de link van je leerkracht\./.test(await page.locator('main').innerText()));
+  await page.fill('input[aria-label="Code van 6 tekens"]', 'ZZZZZZ');
+  await page.getByRole('button', { name: /Start/ }).click();
+  await sleep(500);
+  const fout = (await page.getByRole('alert').filter({ hasText: 'ZZZZZZ' }).innerText()).trim();
+  check('meedoen: een onbekende code zegt "Een code werkt alleen op het toestel van je leerkracht. Vraag je leerkracht om de link." en noemt geen klaspakket of draagbare link', /Een code werkt alleen op het toestel van je leerkracht\. Vraag je leerkracht om de link\.$/.test(fout) && !/draagbare|klaspakket|widget/i.test(fout));
+}
 
 // ── 16. Foutpaden: nette meldingen, geen wit scherm ─────────────────────────
 console.log('16. Foutpaden');
@@ -548,6 +779,16 @@ check('uitleg over de sets en wat er (nog) niet in zit', /De minimumdoelen zijn 
 check('h1 is "Officiële minimumdoelen"', /Officiële minimumdoelen/.test(await page.locator('main h1').innerText()));
 const nSets = await page.locator('.md-sets > li').count();
 check(`lijst met sets (${nSets})`, nSets >= 10);
+// Gewoon secundair onderwijs eerst, dan buitengewoon, volwassenen en ander; de hele lijst, ook na "Toon meer sets".
+while (await page.getByRole('button', { name: /^Toon meer sets/ }).count() > 0) {
+  await page.getByRole('button', { name: /^Toon meer sets/ }).click();
+  await sleep(100);
+}
+const soortRang = await page.locator('.md-sets > li').evaluateAll((lijst) => lijst.map((li) => {
+  const meta = li.querySelector('.md-set-meta')?.textContent ?? '';
+  return /Buitengewoon secundair onderwijs/.test(meta) ? 1 : /Volwassenenonderwijs/.test(meta) ? 2 : /Ander onderwijs/.test(meta) ? 3 : 0;
+}));
+check(`de lijst begint met het gewoon secundair onderwijs en wisselt daarna niet meer terug (${soortRang.filter((r) => r === 0).length} gewoon, ${soortRang.filter((r) => r === 1).length} buitengewoon, ${soortRang.filter((r) => r === 2).length} volwassenen)`, soortRang.length > 100 && soortRang[0] === 0 && soortRang.filter((r) => r === 0).length > 50 && soortRang.every((r, i) => i === 0 || r >= soortRang[i - 1]) && soortRang.includes(1) && soortRang.includes(2));
 check('het aantal sets wordt aangekondigd (aria-live)', (await page.locator('.md-aantal[aria-live="polite"]').innerText()).length > 0);
 check('naamsvermelding en ophaaldatum staan bovenaan', /Vlaamse overheid/.test(await page.locator('.md-bron').innerText()) && /opgehaald op/.test(await page.locator('.md-bron').innerText()));
 // Zoeken (zonder accenten en op nummer), dan de set openen
@@ -648,6 +889,15 @@ await page.fill('input[type=search]', 'aardrijkskunde');
 await sleep(300);
 const vakSets = await page.locator('.md-sets > li').allInnerTexts();
 check('zoeken op "aardrijkskunde" vindt ook "Ruimtelijk bewustzijn" (hulp bij het zoeken)', vakSets.some((t) => /Ruimtelijk bewustzijn/.test(t)));
+// "lichamelijke opvoeding", "LO" en "L.O." vinden de sets die nu gelden (vroeger eerst een oude set van het buitengewoon onderwijs uit 2002)
+for (const zoekVak of ['lichamelijke opvoeding', 'LO', 'L.O.', 'lo 3de graad']) {
+  await page.fill('input[type=search]', zoekVak);
+  await sleep(300);
+  const loSets = await page.locator('.md-sets > li').allInnerTexts();
+  check(`zoeken op "${zoekVak}" vindt de sets "Lichamelijke en geestelijke gezondheid", het gewoon secundair eerst, en geen set waar "lo" midden in een woord staat`, loSets.length > 0 && /^Lichamelijke en geestelijke gezondheid/.test(loSets[0]) && !/Buitengewoon/.test(loSets[0]) && !loSets.some((t) => /technologie/i.test(t)));
+}
+await page.fill('input[type=search]', 'aardrijkskunde');
+await sleep(300);
 check('oude versies staan standaard niet in de lijst, met een melding hoeveel er verborgen zijn', !vakSets.some((t) => /Niet meer geldig|Oudere versie/.test(t)) && /oude versies? verborgen/.test(await page.locator('.md-oud-hint').innerText()));
 await page.getByLabel('Toon ook oude versies die niet meer gelden').check();
 await sleep(300);
@@ -1889,7 +2139,9 @@ const rtOpslag = (p, groep) => p.evaluate((g) => {
   const stand = () => schakelaar.locator('button').evaluateAll((l) => Object.fromEntries(l.map((b) => [b.textContent.trim(), b.getAttribute('aria-pressed')])));
   const voorKlik = await stand();
   check('(11) Doelendekking: de schakelaar "Leerplan" / "Minimumdoelen" heeft aria-pressed, en "Leerplan" staat aan', voorKlik['Leerplan'] === 'true' && voorKlik['Minimumdoelen'] === 'false');
-  check('(11) Doelendekking, weergave "Leerplan": "N doelen staan alleen op secties die nog leeg zijn: die zijn gepland, nog niet uitgewerkt."', /\d+ doelen staan alleen op secties die nog leeg zijn: die zijn gepland, nog niet uitgewerkt\./.test(await p.getByRole('dialog').innerText()));
+  // Was: "N doelen staan alleen op secties die nog leeg zijn: die zijn gepland, nog niet uitgewerkt." (een aparte regel onder de zin). Die
+  // regel is weg: de zin zelf zegt nu "uitgewerkt", "gepland" en "nog niet" (pakket Q1, docs/NIEUWE-CURSUS.md § 2.2).
+  check('(11) Doelendekking, weergave "Leerplan": "0 van de N doelen zijn uitgewerkt. M staan gepland (de sectie is nog leeg)." (een geraamte is gepland, niet dekkend)', /\b0 van de \d+ doelen zijn uitgewerkt\. \d+ staan gepland \(de sectie is nog leeg\)/.test(await p.getByRole('dialog').innerText()) && !/Dekkend:/.test(await p.getByRole('dialog').innerText()));
   await schakelaar.getByRole('button', { name: 'Minimumdoelen' }).click();
   await p.waitForSelector('.dk-samenvatting', { timeout: 20000 });
   const naKlik = await stand();
@@ -2330,6 +2582,53 @@ console.log('20f. Fase 2: gaten dichten, mijn richtingen, klas en richting');
   await sleep(500);
   check('(5) editor: de sectie toont haar doelcodes en de callout "Doelen in deze sectie"', (await p.evaluate(() => [...document.querySelectorAll('input')].some((e) => e.value === 'Doelen in deze sectie'))) && /\d\d\.\d\d\.\d\d\s+De leerlingen/.test(await p.evaluate(() => document.body.innerText)));
 
+  // Q2 (a) en (b): het geraamte dat "Plan ze in deze cursus" zette heeft volledige zinnen en bruikbare namen
+  const q2Zin = (t) => String(t ?? '').trim().replace(/\s+/g, ' ');
+  const q2Leerplan = (await lees()).leerplannen.find((l) => l.id === na5?.curriculumId);
+  const q2Tekst = (code) => q2Zin(q2Leerplan?.goals.find((g) => q2Zin(g.code).toUpperCase() === code)?.text);
+  const q2Regels = (na5?.chapters ?? []).flatMap((h) => h.sections).flatMap((s) => (s.blocks ?? []).filter((b) => b.type === 'callout' && b.title === 'Doelen in deze sectie').flatMap((b) => b.text.split('\n')));
+  const q2Lang = (q2Leerplan?.goals ?? []).filter((g) => q2Zin(g.text).length > 90).length;
+  check(`(Q2a) kadertjes: elke regel is "<code> — <volledige doeltekst>" zoals in het leerplan, niets afgekapt (${q2Regels.length} regels, ${q2Lang} doelteksten langer dan 90 tekens)`, q2Regels.length === aantalBio && q2Lang > 0 && q2Regels.every((r) => { const i = r.indexOf(' — '); return i > 0 && r.slice(i + 3) === q2Tekst(r.slice(0, i)) && !r.endsWith('…'); }));
+  const q2Hoofdstukken = (na5?.chapters ?? []).filter((h) => h.sections.some((s) => (s.goalCodes ?? []).length > 0));
+  console.log(`    namen: ${q2Hoofdstukken.map((h) => `${h.title} [${h.sections.map((s) => s.title).join(' | ')}]`).join('; ')}`);
+  check('(Q2b) namen: geen hoofdstuk of sectie heet "Doelen", geen hoofdstuk noemt een graad, stroom of set-nummer, en geen titel is leeg', q2Hoofdstukken.length > 0 && q2Hoofdstukken.every((h) => h.title.trim() !== '' && !/graad|stroom|ODS_/i.test(h.title) && h.sections.every((s) => s.title.trim() !== '' && s.title !== 'Doelen')));
+
+  // Q2 (c): een doel loskoppelen of toevoegen werkt het kadertje bij; een kadertje dat de leerkracht aanpaste, blijft
+  {
+    const sec = metCallout[0];
+    const codes = [...(sec?.goalCodes ?? [])];
+    const regel = (c) => `${c} — ${q2Tekst(c)}`;
+    const kadertje = async () => {
+      const c = (await lees()).cursussen.find((x) => x.id === edId);
+      const s = (c?.chapters ?? []).flatMap((h) => h.sections).find((x) => x.id === sec?.id);
+      return { sectie: s, tekst: (s?.blocks ?? []).find((b) => b.type === 'callout' && b.title === 'Doelen in deze sectie')?.text };
+    };
+    const wachtOp = async (verwacht) => {
+      for (let i = 0; i < 40; i++) {
+        if ((await kadertje()).tekst === verwacht) return true;
+        await sleep(250);
+      }
+      return false;
+    };
+    check(`(Q2c) vooraf: de sectie heeft ${codes.length} doelcode(s) en een kadertje met precies die regels`, codes.length >= 1 && (await kadertje()).tekst === codes.map(regel).join('\n'));
+    await p.getByRole('button', { name: `Doel ${codes[0]} loskoppelen` }).click();
+    check(`(Q2c) doel ${codes[0]} loskoppelen: het verdwijnt uit het kadertje, de andere doelen blijven (in volledige zinnen)`, await wachtOp(codes.slice(1).map(regel).join('\n')));
+    const na1 = await kadertje();
+    check('(Q2c) en de doelcodes van de sectie zijn bijgewerkt', JSON.stringify(na1.sectie?.goalCodes ?? []) === JSON.stringify(codes.slice(1)));
+    await p.getByLabel('Leerplandoelen (codes)').fill(codes[0]);
+    await p.keyboard.press('Enter');
+    check(`(Q2c) doel ${codes[0]} weer toevoegen: het staat terug in het kadertje (achteraan, in de volgorde van de sectie)`, await wachtOp([...codes.slice(1), codes[0]].map(regel).join('\n')));
+    // De leerkracht past het kadertje zelf aan: daarna blijft het zoals ze het schreef
+    const eigen = `${(await kadertje()).tekst}\nMijn eigen opmerking voor de leerlingen.`;
+    await p.locator('main textarea').first().fill(eigen);
+    check('(Q2c) de leerkracht past het kadertje zelf aan en dat wordt bewaard', await wachtOp(eigen));
+    const huidig = (await kadertje()).sectie?.goalCodes ?? [];
+    await p.getByRole('button', { name: `Doel ${huidig[0]} loskoppelen` }).click();
+    await sleep(2000);
+    const naEigen = await kadertje();
+    check('(Q2c) een zelf aangepast kadertje blijft ongemoeid als er een doel losgekoppeld wordt (de doelcodes veranderen wel)', naEigen.tekst === eigen && (naEigen.sectie?.goalCodes ?? []).length === huidig.length - 1);
+  }
+
   // (6) F2.1: "Keuze aanpassen" zonder richting geeft geen valse melding meer over de koppeling
   const kies = (await lees());
   const lpHeleRichting = kies.leerplannen.find((l) => l.id === leerplanLeeg?.id);
@@ -2474,8 +2773,8 @@ console.log('20f. Fase 2: gaten dichten, mijn richtingen, klas en richting');
   check('(7) Mijn richtingen: de rij van Natuurwetenschappen toont "1 klas"', /(?<!\d)1 klas(?!sen)/.test(await p.locator('section.mr a[href="#/cursussen/richtingen/G-0193?jaar=4"]').innerText()));
   // De klaslink: het pakket draagt de richting, zonder vak
   await go(`/#/klas/${klasId}`);
-  await p.getByRole('button', { name: /Klaslink & pakket/ }).click();
-  const link = p.locator('[aria-label="Klaspakketlink"]');
+  await p.getByRole('button', { name: /Link voor je leerlingen/ }).click();
+  const link = p.locator('[aria-label="Link voor je leerlingen"]');
   await link.waitFor({ timeout: 20000 });
   const pakketUrl = await link.inputValue();
   const pakket = (() => {
@@ -4090,6 +4389,63 @@ const smokeCourse = await page.evaluate(() => {
 });
 check('koppen → secties, tabel → tabelblok', !!smokeCourse && smokeCourse.secties === 2 && smokeCourse.tabel === true);
 
+// Word met de stijl "Titel": de cursus heet naar de titelregel en die regel wordt geen extra hoofdstuk.
+// Een klein .docx (zip zonder compressie), met de stijlen zoals Nederlandstalig Word ze bewaart.
+function zipZonderCompressie(bestanden) {
+  const crcTabel = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc32 = (b) => { let c = 0xffffffff; for (const x of b) c = crcTabel[(c ^ x) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const delen = [];
+  const centraal = [];
+  let plek = 0;
+  for (const [naam, inhoud] of Object.entries(bestanden)) {
+    const n = Buffer.from(naam);
+    const data = Buffer.from(inhoud);
+    const crc = crc32(data);
+    const lokaal = Buffer.alloc(30);
+    lokaal.writeUInt32LE(0x04034b50, 0); lokaal.writeUInt16LE(20, 4); lokaal.writeUInt32LE(crc, 14);
+    lokaal.writeUInt32LE(data.length, 18); lokaal.writeUInt32LE(data.length, 22); lokaal.writeUInt16LE(n.length, 26);
+    const kop = Buffer.alloc(46);
+    kop.writeUInt32LE(0x02014b50, 0); kop.writeUInt16LE(20, 4); kop.writeUInt16LE(20, 6); kop.writeUInt16LE(0x21, 14);
+    kop.writeUInt32LE(crc, 16); kop.writeUInt32LE(data.length, 20); kop.writeUInt32LE(data.length, 24);
+    kop.writeUInt16LE(n.length, 28); kop.writeUInt32LE(plek, 42);
+    delen.push(lokaal, n, data);
+    centraal.push(kop, n);
+    plek += 30 + n.length + data.length;
+  }
+  const einde = Buffer.alloc(22);
+  const aantal = Object.keys(bestanden).length;
+  einde.writeUInt32LE(0x06054b50, 0); einde.writeUInt16LE(aantal, 8); einde.writeUInt16LE(aantal, 10);
+  einde.writeUInt32LE(centraal.reduce((s, b) => s + b.length, 0), 12); einde.writeUInt32LE(plek, 16);
+  return Buffer.concat([...delen, ...centraal, einde]);
+}
+const wordNs = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+const wordXml = (inhoud) => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>${inhoud}`;
+const wordRel = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const wordAlinea = (tekst, stijl) => `<w:p>${stijl ? `<w:pPr><w:pStyle w:val="${stijl}"/></w:pPr>` : ''}<w:r><w:t>${tekst}</w:t></w:r></w:p>`;
+const wordMetTitel = zipZonderCompressie({
+  '[Content_Types].xml': wordXml('<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>'),
+  '_rels/.rels': wordXml(`<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${wordRel}/officeDocument" Target="word/document.xml"/></Relationships>`),
+  'word/_rels/document.xml.rels': wordXml(`<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${wordRel}/styles" Target="styles.xml"/></Relationships>`),
+  'word/styles.xml': wordXml(`<w:styles ${wordNs}><w:style w:type="paragraph" w:default="1" w:styleId="Standaard"><w:name w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Titel"><w:name w:val="Title"/></w:style><w:style w:type="paragraph" w:styleId="Kop1"><w:name w:val="heading 1"/></w:style><w:style w:type="paragraph" w:styleId="Kop2"><w:name w:val="heading 2"/></w:style></w:styles>`),
+  'word/document.xml': wordXml(`<w:document ${wordNs}><w:body>${[
+    wordAlinea('Smoke bodem en landschap', 'Titel'),
+    wordAlinea('Smoke hoofdstuk A: Bodem', 'Kop1'), wordAlinea('Een bodem bestaat uit lagen.'),
+    wordAlinea('Gesteenten', 'Kop2'), wordAlinea('Er zijn drie soorten gesteenten.'),
+    wordAlinea('Smoke hoofdstuk B: Landschap', 'Kop1'), wordAlinea('Landschappen veranderen voortdurend.'),
+  ].join('')}</w:body></w:document>`),
+});
+await go('/#/importeren');
+await page.setInputFiles('input[type=file][accept*="docx"]', { name: 'bodem-en-landschap.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: wordMetTitel });
+await page.locator('input.input[value="Smoke bodem en landschap"]').waitFor({ timeout: 10000 }).catch(() => {});
+check('Word met de stijl Titel: "Titel van deze bron" is de titelregel, niet "Smoke hoofdstuk A: Bodem"', (await page.locator('input.input[value="Smoke bodem en landschap"]').count()) === 1);
+await page.getByRole('button', { name: /Omzetten naar cursus/ }).first().click();
+await sleep(900);
+const wordCursus = await page.evaluate(() => {
+  const c = JSON.parse(localStorage.getItem('wf.courses.v1') || '[]').find((x) => x.title === 'Smoke bodem en landschap');
+  return c ? c.chapters.map((h) => h.title) : null;
+});
+check('Word met de stijl Titel: de cursus heet naar de titel en de titelregel is geen extra hoofdstuk', JSON.stringify(wordCursus) === JSON.stringify(['Smoke hoofdstuk A: Bodem', 'Smoke hoofdstuk B: Landschap']));
+
 // ── 22. Klassen (leerkracht) ────────────────────────────────────────────────
 console.log('22. Klassen');
 await go('/#/klassen');
@@ -4099,16 +4455,81 @@ const klasId = await page.evaluate(() => JSON.parse(localStorage.getItem('wf.cla
 check('voorbeeldklas in opslag', !!klasId);
 await go(`/#/klas/${klasId}`);
 check('klasoverzicht rendert', await page.getByRole('heading', { name: /Voorbeeldklas/ }).first().isVisible());
+check('klasoverzicht: de kop zegt "code XXXXXX (werkt alleen op dit toestel)" (pakket Q3: één begrip, niet "klascode")', /· code\s+\S{6}\s+\(werkt alleen op dit toestel\)/.test(await page.locator('main p.sub').first().innerText()));
 check('opdrachten aanwezig', (await page.evaluate(() => JSON.parse(localStorage.getItem('wf.assignments.v1') || '[]').length)) >= 1);
 check('matrix leerlingen × opdrachten', (await page.locator('table').count()) >= 1);
-await page.getByRole('button', { name: /Klaslink/ }).first().click();
+await page.getByRole('button', { name: /Link voor je leerlingen/ }).first().click();
 await page.waitForFunction(() => {
-  const el = document.querySelector('[aria-label="Klaspakketlink"]');
+  const el = document.querySelector('input[aria-label="Link voor je leerlingen"]');
   return el && /#\/klas\/open\?d=/.test(el.value || el.textContent || '');
 }, null, { timeout: 15000 }).catch(() => {});
-const klaslink = await page.evaluate(() => { const el = document.querySelector('[aria-label="Klaspakketlink"]'); return el ? (el.value || el.textContent || '') : ''; });
+const klaslink = await page.evaluate(() => { const el = document.querySelector('input[aria-label="Link voor je leerlingen"]'); return el ? (el.value || el.textContent || '') : ''; });
 check('klaslink gegenereerd', /#\/klas\/open\?d=/.test(klaslink));
+{
+  // Pakket Q3 (a): bovenaan "Link voor je leerlingen" met "Kopieer de link"; daaronder, kleiner, "Code (werkt alleen op dit toestel)".
+  const venster = page.getByRole('dialog');
+  const gemeten = await venster.evaluate((m) => {
+    const kop = (t) => [...m.querySelectorAll('h3')].find((h) => h.textContent.trim() === t);
+    const code = m.querySelector('.dl-code');
+    return {
+      link: kop('Link voor je leerlingen')?.getBoundingClientRect().top ?? -1,
+      code: kop('Code (werkt alleen op dit toestel)')?.getBoundingClientRect().top ?? -1,
+      kopieer: [...m.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Kopieer de link')?.getBoundingClientRect().top ?? -1,
+      codeGrootte: code ? parseFloat(getComputedStyle(code).fontSize) : 0,
+    };
+  });
+  const tekst = await venster.innerText();
+  check('klas delen: eerst de kop "Link voor je leerlingen" met de knop "Kopieer de link", pas daaronder de kop "Code (werkt alleen op dit toestel)"', gemeten.link > 0 && gemeten.kopieer > gemeten.link && gemeten.code > gemeten.kopieer);
+  check(`klas delen: de code staat kleiner (${gemeten.codeGrootte} px, voorheen 38 px) en de zin "Plak hem in Smartschool of je klasplatform." staat erbij`, gemeten.codeGrootte > 0 && gemeten.codeGrootte <= 28 && /Plak hem in Smartschool of je klasplatform\./.test(tekst));
+  check('klas delen: één begrip: geen "Klaslink kopiëren", "Klaspakket (elk toestel", "zelfde toestel" of "In de klas" meer; de QR is die van de link voor je leerlingen of er staat dat hij te lang is', !/Klaslink kopiëren|Klaspakket \(|zelfde toestel|In de klas \(/.test(tekst) && ((await venster.locator('img[alt="QR-code van de link voor je leerlingen"]').count()) === 1 || /De link is te lang voor een QR-code/.test(tekst)));
+  // De bevestiging "Gekopieerd", en de terugval als het klembord niet mag (een geselecteerde link met uitleg)
+  await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.resolve() } }));
+  await venster.getByRole('button', { name: 'Kopieer de link' }).click();
+  check('klas delen: na "Kopieer de link" staat er "Gekopieerd" in een meldingsregel (role=status)', await venster.getByRole('status').filter({ hasText: 'Gekopieerd' }).isVisible());
+  await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.reject(new Error('geweigerd')) } }));
+  await venster.getByRole('button', { name: 'Kopieer de link' }).click();
+  await sleep(200);
+  const terugval = await venster.locator('input[aria-label="Link voor je leerlingen"]').evaluate((el) => ({ actief: el === document.activeElement, van: el.selectionStart, tot: el.selectionEnd, lengte: el.value.length }));
+  check('klas delen: mag het klembord niet, dan staat de link geselecteerd in het veld met de uitleg "Kopiëren lukt hier niet." (en geen "Gekopieerd")', terugval.actief && terugval.van === 0 && terugval.tot === terugval.lengte && terugval.lengte > 100 && (await venster.getByRole('status').filter({ hasText: 'Kopiëren lukt hier niet.' }).isVisible()) && (await venster.getByRole('status').filter({ hasText: 'Gekopieerd' }).count()) === 0);
+  await page.evaluate(() => { delete navigator.clipboard; });
+}
 await page.keyboard.press('Escape');
+{
+  // Pakket Q3 (e): op 390 px staan de statuskolommen naast de namen in beeld, en het delenvenster past. Eigen context (vers toestel, eigen zaaisel).
+  const ctxM = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const gsm = await ctxM.newPage();
+  gsm.on('pageerror', (e) => errors.push(`pageerror(gsm): ${e.message}`));
+  gsm.on('console', (m) => { if (m.type() === 'error' && !/ERR_CERT_AUTHORITY_INVALID/.test(m.text())) errors.push(`console(gsm): ${m.text()}`); });
+  await gsm.goto(BASE + '/#/', { waitUntil: 'networkidle' });
+  await sleep(500);
+  await gsm.goto(BASE + '/#/klassen', { waitUntil: 'networkidle' });
+  await sleep(800);
+  const gsmKlas = await gsm.evaluate(() => JSON.parse(localStorage.getItem('wf.classes.v1') || '[]')[0]?.id);
+  await gsm.goto(BASE + `/#/klas/${gsmKlas}`, { waitUntil: 'networkidle' });
+  await gsm.locator('.klas-matrix').waitFor({ timeout: 15000 });
+  const tabel = await gsm.evaluate(() => {
+    const kader = document.querySelector('[aria-label="Status per leerling en per opdracht"]').getBoundingClientRect();
+    const rij = document.querySelector('.klas-matrix tbody tr');
+    const naamRechts = rij.querySelector('th').getBoundingClientRect().right;
+    const badges = [...rij.querySelectorAll('td .badge')].map((b) => { const r = b.getBoundingClientRect(); return { l: Math.round(r.left), r: Math.round(r.right) }; });
+    return {
+      paginaBreed: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      kaderLinks: Math.round(kader.left), kaderRechts: Math.round(kader.right), naamRechts: Math.round(naamRechts), badges,
+      kolommen: document.querySelectorAll('.klas-matrix thead th').length - 1,
+    };
+  });
+  check(`390 px: de statuskolom per leerling staat naast de naam in beeld (${tabel.kolommen} opdrachten, de badges liggen tussen ${tabel.naamRechts} en ${tabel.kaderRechts} px) en de pagina scrolt niet horizontaal`, !tabel.paginaBreed && tabel.kolommen >= 2 && tabel.badges.length === tabel.kolommen && tabel.badges.every((b) => b.l >= tabel.naamRechts - 1 && b.r <= tabel.kaderRechts));
+  await gsm.getByRole('button', { name: /Link voor je leerlingen/ }).first().click();
+  await gsm.locator('input[aria-label="Link voor je leerlingen"]').waitFor({ timeout: 20000 });
+  await sleep(500);
+  const venster390 = await gsm.evaluate(() => {
+    const d = document.querySelector('[role="dialog"]');
+    const knop = [...d.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Kopieer de link').getBoundingClientRect();
+    return { paginaBreed: document.documentElement.scrollWidth > document.documentElement.clientWidth, vensterBreed: d.scrollWidth > d.clientWidth, knopLinks: Math.round(knop.left), knopRechts: Math.round(knop.right), knopHoogte: Math.round(knop.height) };
+  });
+  check(`390 px: het delenvenster past (geen horizontaal scrollen) en "Kopieer de link" ligt volledig in beeld (${venster390.knopLinks} tot ${venster390.knopRechts} px, ${venster390.knopHoogte} px hoog)`, !venster390.paginaBreed && !venster390.vensterBreed && venster390.knopLinks >= 0 && venster390.knopRechts <= 390);
+  await ctxM.close();
+}
 
 // ── 23. Leerlingflow via klaslink (vers toestel) ────────────────────────────
 console.log('23. Leerlingflow');
@@ -4814,7 +5235,8 @@ check('juiste optie verwijderen: geen andere optie stil juist gemaakt', qf[0].co
 check('juiste optie verwijderen: melding in de editor', await qfixMc.locator('text=Nog geen juist antwoord aangeduid').isVisible());
 check('juiste optie verwijderen: vraag-check meldt het', await page.locator('aside li', { hasText: 'Geen juist antwoord aangeduid' }).first().isVisible());
 // W2: hint toevoegen en typen met spaties
-await qfixMc.locator('summary', { hasText: 'Extra: afbeelding' }).click();
+check('(Q2g) quiz-editor: het kopje van "Extra" noemt het doel: "Extra: doel, afbeelding, punten & feedback"', (await qfixMc.locator('summary', { hasText: 'Extra: doel, afbeelding, punten & feedback' }).count()) === 1);
+await qfixMc.locator('summary', { hasText: 'Extra: doel, afbeelding' }).click();
 await qfixMc.getByRole('button', { name: '+ Hint toevoegen' }).click();
 const hint1 = qfixMc.getByLabel('Hint 1', { exact: true });
 check('hint toevoegen: er verschijnt een invulveld', await hint1.isVisible().catch(() => false));

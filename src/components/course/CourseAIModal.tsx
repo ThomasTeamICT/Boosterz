@@ -58,6 +58,13 @@ const TITLES: Record<Mode, string> = {
   exercises: 'Oefeningen voorstellen',
 };
 
+/**
+ * Wat het venster "Oefeningen voorstellen" zonder AI-sleutel erbij zegt: de weg zonder AI. Het blok heet in het palet
+ * van "Blok toevoegen" nog "Widget", met als uitleg "Een oefening of toets uit Boosterz": we wijzen naar die uitleg.
+ */
+const ZONDER_AI_OEFENINGEN =
+  'Zonder AI voeg je zelf een oefening toe: klik onder aan de sectie op ‘Blok toevoegen’ en kies het blok met ‘Een oefening of toets uit Boosterz’.';
+
 interface PreviewState {
   course: Course;
   /** Uitgelijnd op de hoofdstukken; null = quiz voor dat hoofdstuk viel af. */
@@ -490,7 +497,7 @@ export function CourseAIModal({
 
   return (
     <Modal title={TITLES[mode]} onClose={onClose} wide>
-      <AIGate>
+      <AIGate wegZonderAi={mode === 'exercises' ? ZONDER_AI_OEFENINGEN : undefined}>
         {originNote && !preview && (
           <p className="callout" style={{ marginTop: 0 }}><ImportIcon size={16} aria-hidden /> {originNote}</p>
         )}

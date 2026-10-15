@@ -1,14 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { hasAIKey } from '../lib/ai';
-import { AIIcon, SettingsIcon, WarningIcon } from './icons';
+import { AIIcon, InfoIcon, SettingsIcon, WarningIcon } from './icons';
 
 /**
  * Poortje voor AI-functies: toont de kinderen alleen als er een API-sleutel
  * is; anders een vriendelijke uitleg met link naar de instellingen. `uitleg` vervangt de standaardtekst (over widgets
- * en cursussen) door een zin die bij de plek past, bv. bij de leerplannen.
+ * en cursussen) door een zin die bij de plek past, bv. bij de leerplannen. `wegZonderAi` zegt, onder die uitleg, hoe
+ * de leerkracht hetzelfde zonder AI doet. Zonder die prop verandert er niets.
  */
-export function AIGate({ children, uitleg }: { children: React.ReactNode; uitleg?: React.ReactNode }) {
+export function AIGate({ children, uitleg, wegZonderAi }: { children: React.ReactNode; uitleg?: React.ReactNode; wegZonderAi?: React.ReactNode }) {
   if (hasAIKey()) return <>{children}</>;
   return (
     <div className="card" style={{ padding: 18, textAlign: 'center', display: 'grid', gap: 8, justifyItems: 'center' }}>
@@ -23,6 +24,12 @@ export function AIGate({ children, uitleg }: { children: React.ReactNode; uitleg
           </>
         )}
       </p>
+      {wegZonderAi && (
+        <p className="callout ai-gate-zonder" style={{ maxWidth: 420, margin: 0, textAlign: 'left', alignItems: 'flex-start' }}>
+          <span aria-hidden style={{ flexShrink: 0, display: 'flex', paddingTop: 2 }}><InfoIcon size={16} /></span>
+          <span>{wegZonderAi}</span>
+        </p>
+      )}
       <Link to="/ai-instellingen" className="btn btn-primary"><SettingsIcon size={18} aria-hidden /> AI instellen</Link>
     </div>
   );

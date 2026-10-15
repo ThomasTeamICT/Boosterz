@@ -890,7 +890,7 @@ export function QuizEditor({ config, onChange }: EditorProps<QuizConfig>) {
             <QuestionBodyEditor q={q} onChange={(nq) => update(i, nq)} />
             <details style={{ marginTop: 10 }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-soft)' }}>
-                Extra: afbeelding, punten & feedback
+                Extra: doel, afbeelding, punten & feedback
               </summary>
               <div style={{ paddingTop: 10 }}>
                 <ImagePicker value={q.imageUrl} onChange={(imageUrl) => update(i, { ...q, imageUrl })} />

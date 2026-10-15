@@ -32,6 +32,7 @@ import {
   bkNietMeerInBron,
   bkNietMeetellendeTekst,
   bkNietNagekeken,
+  bkNogNietGedektZin,
   bkNogNodig,
   bkPassendTekst,
   bkPlanKnopTekst,
@@ -42,6 +43,7 @@ import {
   bkSoortVoorvoegsel,
   bkStaartTekst,
   bkStatusTekst,
+  bkTelStatussen,
   bkTeller,
   bkToastCursus,
   bkToekomstTekst,
@@ -434,9 +436,67 @@ describe('de dekking', () => {
 
   it('bkNietMeetellendeTekst: 0, 1 en 2', () => {
     expect(bkNietMeetellendeTekst(0)).toBe('');
-    expect(bkNietMeetellendeTekst(1)).toBe('1 cursus van deze richting volgt geen beroepskwalificatie en telt hier niet mee.');
-    expect(bkNietMeetellendeTekst(2)).toBe('2 cursussen van deze richting volgen geen beroepskwalificatie en tellen hier niet mee.');
-    expect(bkNietMeetellendeTekst(4)).toBe('4 cursussen van deze richting volgen geen beroepskwalificatie en tellen hier niet mee.');
+    expect(bkNietMeetellendeTekst(1)).toBe('1 cursus van deze richting volgt geen beroepskwalificatie. Daarom staat ze niet in deze telling; bij de cursus lees je waarom.');
+    expect(bkNietMeetellendeTekst(2)).toBe('2 cursussen van deze richting volgen geen beroepskwalificatie. Daarom staan ze niet in deze telling; bij elke cursus lees je waarom.');
+    expect(bkNietMeetellendeTekst(4)).toBe('4 cursussen van deze richting volgen geen beroepskwalificatie. Daarom staan ze niet in deze telling; bij elke cursus lees je waarom.');
+  });
+
+  it('de kop boven die cursussen zegt wat ze zijn en is geen verwijt: niet "niet meetellen"', () => {
+    expect(W.BK_ANDERE_CURSUSSEN_KOP).toBe('Andere cursussen van deze richting');
+    for (const tekst of [W.BK_ANDERE_CURSUSSEN_KOP, bkNietMeetellendeTekst(1), bkNietMeetellendeTekst(3)]) {
+      expect(tekst).not.toMatch(/niet meetell|tellen? hier niet mee|telt niet mee/i);
+    }
+  });
+
+  it('bkTelStatussen: telt per status, gedekte rijen niet, en kapotte invoer niet', () => {
+    const rijen = [
+      { status: 'open' }, { status: 'open' }, { status: 'gepland' }, { status: 'verdieping' }, { status: 'gedekt' }, { status: 'gedekt' },
+    ] as const;
+    expect(bkTelStatussen(rijen)).toEqual({ open: 2, gepland: 1, verdieping: 1 });
+    expect(bkTelStatussen([])).toEqual({ open: 0, gepland: 0, verdieping: 0 });
+    expect(bkTelStatussen(undefined as unknown as [])).toEqual({ open: 0, gepland: 0, verdieping: 0 });
+    expect(bkTelStatussen([null, { status: 'raar' }] as unknown as [])).toEqual({ open: 0, gepland: 0, verdieping: 0 });
+  });
+
+  describe('bkNogNietGedektZin: het getal bij "Nog niet gedekt" legt zelf uit waaruit het bestaat', () => {
+    it('zonder uitsplitsing, of als alles "nog nergens" is: de zin van altijd', () => {
+      expect(bkNogNietGedektZin(20, 2)).toBe('20 competenties in 2 beroepskwalificaties zijn nog niet gedekt. Open een beroepskwalificatie om ze te zien.');
+      expect(bkNogNietGedektZin(5, 1)).toBe('5 competenties in 1 beroepskwalificatie zijn nog niet gedekt. Open de beroepskwalificatie om ze te zien.');
+      expect(bkNogNietGedektZin(1, 1)).toBe('1 competentie in 1 beroepskwalificatie is nog niet gedekt. Open de beroepskwalificatie om ze te zien.');
+      expect(bkNogNietGedektZin(5, 1, { open: 5, gepland: 0, verdieping: 0 })).toBe('5 competenties in 1 beroepskwalificatie zijn nog niet gedekt. Open de beroepskwalificatie om ze te zien.');
+    });
+
+    it('24 tegenover 19: de zin zegt dat 19 nog nergens aan bod komen en dat de rest gepland staat of in verdieping zit', () => {
+      const zin = bkNogNietGedektZin(24, 3, { open: 19, gepland: 3, verdieping: 2 });
+      expect(zin).toBe('24 competenties in 3 beroepskwalificaties zijn nog niet gedekt: 19 komen nog nergens aan bod, 3 staan gepland (de sectie is nog leeg) en 2 komen alleen in verdieping aan bod. Open een beroepskwalificatie om ze te zien.');
+      // Dezelfde drie aantallen als de staart van de samenvatting erboven.
+      expect(bkStaartTekst({ gepland: 3, verdieping: 2, open: 19 })).toBe('3 competenties staan al gepland op een sectie die nog leeg is, 2 komen alleen in verdieping aan bod, 19 nog niet.');
+    });
+
+    it('enkelvoud, en wat 0 is valt weg', () => {
+      expect(bkNogNietGedektZin(3, 1, { open: 1, gepland: 1, verdieping: 1 })).toBe('3 competenties in 1 beroepskwalificatie zijn nog niet gedekt: 1 komt nog nergens aan bod, 1 staat gepland (de sectie is nog leeg) en 1 komt alleen in verdieping aan bod. Open de beroepskwalificatie om ze te zien.');
+      expect(bkNogNietGedektZin(4, 2, { open: 3, gepland: 1, verdieping: 0 })).toBe('4 competenties in 2 beroepskwalificaties zijn nog niet gedekt: 3 komen nog nergens aan bod en 1 staat gepland (de sectie is nog leeg). Open een beroepskwalificatie om ze te zien.');
+      expect(bkNogNietGedektZin(6, 1, { open: 0, gepland: 6, verdieping: 0 })).toBe('6 competenties in 1 beroepskwalificatie zijn nog niet gedekt: 6 staan gepland (de sectie is nog leeg). Open de beroepskwalificatie om ze te zien.');
+      expect(bkNogNietGedektZin(1, 1, { open: 0, gepland: 0, verdieping: 1 })).toBe('1 competentie in 1 beroepskwalificatie is nog niet gedekt: 1 komt alleen in verdieping aan bod. Open de beroepskwalificatie om ze te zien.');
+    });
+
+    it('aantallen die niet optellen tot het totaal: geen tegenstrijdige uitleg, alleen de gewone zin', () => {
+      expect(bkNogNietGedektZin(24, 3, { open: 19, gepland: 3, verdieping: 1 })).toBe('24 competenties in 3 beroepskwalificaties zijn nog niet gedekt. Open een beroepskwalificatie om ze te zien.');
+      expect(bkNogNietGedektZin(2, 1, { open: -1, gepland: Number.NaN, verdieping: 0 })).toBe('2 competenties in 1 beroepskwalificatie zijn nog niet gedekt. Open de beroepskwalificatie om ze te zien.');
+    });
+
+    it('niets meer open: alles is gedekt (ook bij rare aantallen)', () => {
+      expect(bkNogNietGedektZin(0, 0)).toBe('Alle competenties zijn gedekt.');
+      expect(bkNogNietGedektZin(-1, 1, { open: 0, gepland: 0, verdieping: 0 })).toBe('Alle competenties zijn gedekt.');
+      expect(bkNogNietGedektZin(Number.NaN, 1)).toBe('Alle competenties zijn gedekt.');
+    });
+
+    it('geen verboden aanduiding in de zinnen', () => {
+      schermVeilig(
+        bkNogNietGedektZin(24, 3, { open: 19, gepland: 3, verdieping: 2 }), bkNogNietGedektZin(1, 1, { open: 0, gepland: 1, verdieping: 0 }),
+        bkNogNietGedektZin(20, 2),
+      );
+    });
   });
 
   it('bkRedenTekst: de redenen waarom een cursus niet meetelt', () => {

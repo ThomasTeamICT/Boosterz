@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState, type ComponentType } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  ArrowRight, Calendar, Clock, ClipboardCheck, ClipboardList, FileText, Globe, Inbox, Puzzle, School, Search,
+  ArrowRight, Calendar, Clock, ClipboardCheck, ClipboardList, FileText, Inbox, Puzzle, Search,
 } from 'lucide-react';
 import type { Assignment, ClassGroup, ClassStudent } from '../lib/classTypes';
 import type { Course } from '../lib/courseTypes';
@@ -30,7 +30,7 @@ import type { KlasRichtingProps } from '../components/klas/KlasRichting';
 import type { RichtingKiezerModalProps } from '../components/richting/RichtingKiezerModal';
 import { ConfirmModal, CopyButton, EmptyState, Field, Modal, useToast } from '../components/ui';
 import {
-  AddIcon, AssignIcon, BackIcon, CheckIcon, CourseIcon, DeleteIcon, EditIcon, ExportIcon,
+  AddIcon, AssignIcon, BackIcon, CheckIcon, CopyIcon, CourseIcon, DeleteIcon, EditIcon, ExportIcon,
   GoalIcon, LinkIcon, PrivacyIcon, RichtingIcon, StudentIcon, WarningIcon,
 } from '../components/icons';
 import {
@@ -39,12 +39,7 @@ import {
 } from './klasWeergave';
 import '../styles/klasrichting.css';
 import '../styles/opvolgen.css';
-
-/** Leerlinglink van een klas (de hub waar de leerling zijn opdrachten ziet). */
-function studentHubUrl(code: string): string {
-  const base = typeof location !== 'undefined' ? location.origin + location.pathname : '';
-  return `${base}#/leerling/${code}`;
-}
+import '../styles/delen.css';
 
 /** Cursus (lezen) of oefening (maken)? Zelfde icoon overal in het klasdashboard. */
 function AssignmentKindIcon({ kind }: { kind: Assignment['kind'] }) {
@@ -152,15 +147,15 @@ export function ClassDashboardPage() {
           <h1 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><AssignIcon size={24} /> {cls.name}</h1>
           <p className="sub">
             {cls.schoolYear ? `${cls.schoolYear} · ` : ''}
-            {cls.students.length} leerling{cls.students.length === 1 ? '' : 'en'} · klascode{' '}
-            <strong style={{ fontFamily: 'monospace', letterSpacing: '0.12em' }}>{cls.code}</strong>
+            {cls.students.length} leerling{cls.students.length === 1 ? '' : 'en'} · code{' '}
+            <strong style={{ fontFamily: 'monospace', letterSpacing: '0.12em' }}>{cls.code}</strong> (werkt alleen op dit toestel)
           </p>
         </div>
         <div className="page-head-actions">
           <button className="btn btn-ghost" onClick={() => setEditList(true)}><EditIcon size={18} /> Klaslijst</button>
           <button className="btn btn-ghost" onClick={exportCsv} disabled={students.length === 0}><ExportIcon size={18} /> CSV</button>
           <Link to="/inleverpunt" className="btn btn-ghost"><Inbox size={18} /> Inleverpunt</Link>
-          <button className="btn btn-primary" onClick={() => setShareOpen(true)}><LinkIcon size={18} /> Klaslink & pakket</button>
+          <button className="btn btn-primary" onClick={() => setShareOpen(true)}><LinkIcon size={18} /> Link voor je leerlingen</button>
         </div>
       </div>
 
@@ -186,7 +181,7 @@ export function ClassDashboardPage() {
         </div>
         {assignments.length === 0 ? (
           <p className="hint" style={{ marginBottom: 0 }}>
-            Nog geen opdrachten. Voeg een cursus of oefening toe — je leerlingen zien ze meteen in hun klaslink.
+            Nog geen opdrachten. Voeg een cursus of oefening toe — je leerlingen zien ze meteen, via de link voor je leerlingen.
           </p>
         ) : (
           <ul style={{ listStyle: 'none', padding: 0, margin: '10px 0 0', display: 'grid', gap: 8 }}>
@@ -277,15 +272,13 @@ export function ClassDashboardPage() {
           role="region"
           aria-label="Status per leerling en per opdracht"
         >
-          <table className="data" style={{ minWidth: 520, borderCollapse: 'collapse', width: '100%' }}>
+          <table className="data klas-matrix">
             <caption className="sr-only">Status per leerling en per opdracht</caption>
             <thead>
               <tr>
-                <th scope="col" style={{ position: 'sticky', left: 0, background: 'var(--bg-raised)', zIndex: 1, textAlign: 'left', padding: '8px 12px' }}>
-                  Leerling
-                </th>
+                <th scope="col">Leerling</th>
                 {assignments.map((a) => (
-                  <th key={a.id} scope="col" style={{ padding: '8px 10px', fontSize: '0.82rem', maxWidth: 160 }}>
+                  <th key={a.id} scope="col">
                     <AssignmentKindIcon kind={a.kind} /> {titleOf(a)}
                   </th>
                 ))}
@@ -294,17 +287,14 @@ export function ClassDashboardPage() {
             <tbody>
               {students.map((s) => (
                 <tr key={s.id} style={{ borderTop: '1px solid var(--line)', cursor: 'default' }}>
-                  <th
-                    scope="row"
-                    style={{ position: 'sticky', left: 0, background: 'var(--bg-raised)', textAlign: 'left', fontWeight: 600, padding: '7px 12px', whiteSpace: 'nowrap' }}
-                  >
+                  <th scope="row">
                     {s.number !== undefined && <span className="hint" style={{ marginRight: 6 }}>{s.number}</span>}
                     {s.name}
                   </th>
                   {assignments.map((a) => {
                     const st = statuses.get(`${s.id}|${a.id}`) ?? statusForAssignment(a, s, ctx);
                     return (
-                      <td key={a.id} style={{ textAlign: 'center', padding: '6px 8px' }}>
+                      <td key={a.id}>
                         <StateBadge status={st} />
                         {st.state !== 'niet gestart' && (
                           <span className="hint" style={{ display: 'block' }}>{statusSummaryProvisional(st)}</span>
@@ -568,13 +558,66 @@ function StudentPanel({
   );
 }
 
-// ── Delen: klaslink, QR en klaspakket ───────────────────────────────────────
+// ── Delen: de link voor je leerlingen en de code ────────────────────────────
+
+/**
+ * De link die op het eigen toestel van de leerling werkt (het klaspakket zit in de link zelf), met één duidelijke
+ * kopieerknop. Mag het klembord niet (geen beveiligde verbinding, of geweigerd), dan staat de link geselecteerd in het
+ * veld en zegt het scherm hoe je hem zelf kopieert. De bevestiging staat in een vaste meldingsregel (role="status"),
+ * zodat een schermlezer ze voorleest.
+ */
+function LeerlingLink({ url }: { url: string }) {
+  const veldRef = useRef<HTMLInputElement>(null);
+  const timer = useRef<number | undefined>(undefined);
+  const [stand, setStand] = useState<'' | 'gekopieerd' | 'zelf'>('');
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  // Een andere link (de opdrachten veranderden): de oude bevestiging geldt niet meer.
+  useEffect(() => { setStand(''); }, [url]);
+
+  const kopieer = async () => {
+    window.clearTimeout(timer.current);
+    try {
+      await navigator.clipboard.writeText(url);
+      setStand('gekopieerd');
+      timer.current = window.setTimeout(() => setStand(''), 4000);
+    } catch {
+      setStand('zelf');
+      const veld = veldRef.current;
+      if (veld) { veld.focus(); veld.select(); veld.setSelectionRange(0, veld.value.length); }
+    }
+  };
+
+  // De knop staat vóór het veld: de focus van het venster komt zo op de knop (en niet op een veld met een heel lange link
+  // die een schermlezer dan voorleest). De bevestiging staat naast de knop.
+  return (
+    <div>
+      <div className="dl-linkrij">
+        <button type="button" className="btn btn-primary" onClick={() => { void kopieer(); }}>
+          <CopyIcon size={16} /> Kopieer de link
+        </button>
+        <p className="dl-melding" role="status">
+          {stand === 'gekopieerd' && <><CheckIcon size={16} className="dl-melding-ok" /> Gekopieerd</>}
+          {stand === 'zelf' && 'Kopiëren lukt hier niet. De link hieronder is geselecteerd: kopieer hem met Ctrl+C (op een gsm: houd de link ingedrukt) en plak hem dan.'}
+        </p>
+      </div>
+      <input
+        ref={veldRef}
+        className="input input-sm dl-linkveld"
+        readOnly
+        value={url}
+        aria-label="Link voor je leerlingen"
+        onFocus={(e) => e.target.select()}
+      />
+    </div>
+  );
+}
 
 function ClassShareModal({
   cls, assignments, onClose,
 }: { cls: ClassGroup; assignments: Assignment[]; onClose: () => void }) {
   const toast = useToast();
-  const hubUrl = studentHubUrl(cls.code);
+  const linkKopId = useId();
+  const codeKopId = useId();
   const [pack, setPack] = useState<{ url: string; unresolved: number; length: number } | null>(null);
   const [busy, setBusy] = useState(true);
 
@@ -592,101 +635,89 @@ function ClassShareModal({
     try {
       const res = await encodeClassPackToUrl(cls, assignments);
       downloadFile(classPackFileName(cls), classPackToJson(res.pack));
-      toast('Klaspakket gedownload', 'ok');
+      toast('Bestand gedownload', 'ok');
     } catch {
-      toast('Het klaspakket kon niet gemaakt worden', 'err');
+      toast('Het bestand kon niet gemaakt worden', 'err');
     }
   };
 
   return (
     <Modal title={`“${cls.name}” delen met je leerlingen`} onClose={onClose} wide>
-      <div className="callout">
-        <span aria-hidden><School size={18} /></span>
-        <div>
-          <strong>In de klas (zelfde toestel of browser):</strong> je leerlingen surfen naar de app,
-          klikken op <em>Ik ben leerling</em> en typen de klascode. Daarna kiezen ze hun naam uit de lijst.
-        </div>
-      </div>
-      <div style={{ textAlign: 'center', margin: '10px 0 16px' }}>
-        <div style={{ fontSize: '2.4rem', fontWeight: 800, letterSpacing: '0.3em', fontFamily: 'monospace' }}>
-          {cls.code}
-        </div>
-        <CopyButton text={cls.code} label="Code kopiëren" />
-        <CopyButton text={hubUrl} label="Klaslink kopiëren" />
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
-        <CodeQr value={hubUrl} label="de klaslink" size={170} copyLabel="Klaslink kopiëren" hint="Laat je leerlingen deze QR scannen: ze komen meteen bij hun opdrachten. Werkt alleen op toestellen waar de opdrachten al staan — anders het klaspakket hieronder." />
-      </div>
+      {/* Eerst de link: die werkt op het eigen toestel van je leerlingen, ook thuis. */}
+      <section aria-labelledby={linkKopId}>
+        <h3 id={linkKopId} className="dl-kop">Link voor je leerlingen</h3>
+        <p className="dl-uitleg">
+          Werkt op het eigen toestel van je leerlingen, ook thuis. De klaslijst, de opdrachten en hun inhoud
+          zitten in de link zelf; je leerling opent hem één keer. Plak hem in Smartschool of je klasplatform.
+        </p>
+        {busy && !pack ? (
+          <p className="dl-uitleg" role="status" aria-busy>Link wordt klaargemaakt (afbeeldingen worden ingevoegd)…</p>
+        ) : !pack ? (
+          <div className="callout err" role="alert">
+            <span aria-hidden><WarningIcon size={18} /></span>
+            <div>De link kon niet gemaakt worden. Probeer het opnieuw, of deel de cursussen apart.</div>
+          </div>
+        ) : (
+          <>
+            <LeerlingLink url={pack.url} />
+            {pack.unresolved > 0 && (
+              <div className="callout warn" style={{ marginBottom: 8 }}>
+                <span aria-hidden><WarningIcon size={18} /></span>
+                <div>
+                  {pack.unresolved === 1 ? 'Eén afbeelding of bijlage' : `${pack.unresolved} afbeeldingen of bijlagen`} staan
+                  niet (meer) op dit toestel en reizen dus niet mee.
+                </div>
+              </div>
+            )}
+            {pack.length > QR_MAX_CHARS ? (
+              <div className="callout">
+                <span aria-hidden><FileText size={18} /></span>
+                <div>
+                  De link is te lang voor een QR-code ({pack.length.toLocaleString('nl-BE')} tekens). Deel hem via
+                  Smartschool of mail, of geef het bestand mee.
+                </div>
+              </div>
+            ) : (
+              <CodeQr
+                value={pack.url}
+                label="de link voor je leerlingen"
+                size={180}
+                copyLabel="Link kopiëren"
+                hint="Laat je leerlingen deze QR scannen met hun eigen toestel."
+                enlarge={false}
+              />
+            )}
+            <div className="dl-bestand">
+              <button className="btn btn-sm btn-ghost" onClick={() => { void downloadPack(); }}>
+                <ExportIcon size={16} /> Download als bestand (.json)
+              </button>
+              <span className="dl-uitleg">
+                Handig als de link te lang is voor je klasplatform: zet het bestand op de schoolserver of een
+                USB-stick. De leerling opent het bij <em>Klaspakket openen</em>.
+              </span>
+            </div>
+          </>
+        )}
+      </section>
 
       <hr className="divider" />
 
-      <div className="callout">
-        <span aria-hidden><Globe size={18} /></span>
-        <div>
-          <strong>Klaspakket (elk toestel, ook thuis):</strong> de klaslijst, de opdrachten én hun
-          inhoud (cursussen met hun oefeningen) zitten in de link zelf. De leerling opent ze één
-          keer; daarna werkt alles op zijn eigen toestel en stuurt hij zijn codes terug.
+      {/* Daaronder, kleiner: de code. Die werkt alleen waar de klas al staat. */}
+      <section aria-labelledby={codeKopId}>
+        <h3 id={codeKopId} className="dl-kop">Code (werkt alleen op dit toestel)</h3>
+        <p className="dl-uitleg">
+          Voor leerlingen die op dit toestel werken (bv. een klaslaptop): ze kiezen <em>Ik ben leerling</em>, typen de
+          code en kiezen hun naam uit de lijst. Op een ander toestel werkt de code niet: daar gebruiken ze de link hierboven.
+        </p>
+        <div className="dl-coderij">
+          <span className="dl-code">{cls.code}</span>
+          <CopyButton text={cls.code} label="Kopieer de code" />
         </div>
-      </div>
-      {busy && !pack ? (
-        <p className="hint" role="status" aria-busy>Pakket wordt klaargemaakt (afbeeldingen worden ingevoegd)…</p>
-      ) : !pack ? (
-        <div className="callout err" role="alert">
-          <span aria-hidden><WarningIcon size={18} /></span>
-          <div>Het pakket kon niet gemaakt worden. Probeer het opnieuw, of deel de cursussen apart.</div>
-        </div>
-      ) : (
-        <>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '10px 0 6px' }}>
-            <input
-              className="input input-sm"
-              readOnly
-              value={pack.url}
-              aria-label="Klaspakketlink"
-              onFocus={(e) => e.target.select()}
-            />
-            <CopyButton text={pack.url} label="Kopiëren" />
-          </div>
-          <p className="hint" style={{ margin: '0 0 8px' }}>
-            Linklengte: {pack.length.toLocaleString('nl-BE')} tekens.
-          </p>
-          {pack.unresolved > 0 && (
-            <div className="callout warn" style={{ marginBottom: 8 }}>
-              <span aria-hidden><WarningIcon size={18} /></span>
-              <div>
-                {pack.unresolved === 1 ? 'Eén afbeelding of bijlage' : `${pack.unresolved} afbeeldingen of bijlagen`} staan
-                niet (meer) op dit toestel en reizen dus niet mee.
-              </div>
-            </div>
-          )}
-          {pack.length > QR_MAX_CHARS ? (
-            <div className="callout">
-              <span aria-hidden><FileText size={18} /></span>
-              <div>
-                Dit pakket is te groot voor een QR-code ({pack.length.toLocaleString('nl-BE')} tekens).
-                Deel de link via je gewone kanaal (Smartschool, mail), of geef het bestand mee.
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <CodeQr value={pack.url} label="het klaspakket" size={180} copyLabel="Pakketlink kopiëren" />
-            </div>
-          )}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 12 }}>
-            <button className="btn btn-sm btn-ghost" onClick={() => { void downloadPack(); }}>
-              <ExportIcon size={16} /> Klaspakket downloaden (.json)
-            </button>
-            <span className="hint">
-              Handig bij een lange link: zet het bestand op de schoolserver of een USB-stick. De
-              leerling opent het bij <em>Klaspakket openen</em>.
-            </span>
-          </div>
-        </>
-      )}
+      </section>
 
       <hr className="divider" />
-      <p className="hint" style={{ marginBottom: 0 }}>
-        <PrivacyIcon size={14} className="icon-inline" /> In het pakket zitten de namen van je leerlingen. Deel het alleen met je eigen klas.
+      <p className="dl-uitleg" style={{ marginBottom: 0 }}>
+        <PrivacyIcon size={14} className="icon-inline" /> In de link zitten de namen van je leerlingen. Deel hem alleen met je eigen klas.
       </p>
     </Modal>
   );

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Accessibility, ArrowRight, Globe, Mail, School } from 'lucide-react';
 import type { Widget } from '../lib/types';
@@ -14,6 +14,7 @@ import {
 } from './icons';
 import { CheckRow, CopyButton, Field, Modal, useToast } from './ui';
 import { CodeQr } from './CodeQr';
+import '../styles/delen.css';
 
 interface Inlined {
   /** Widget met de media als data-URL (null zolang dat nog loopt). */
@@ -68,15 +69,16 @@ export function ShareModal({ widget, onClose }: { widget: Widget; onClose: () =>
       <div className="callout">
         <span aria-hidden><School size={18} /></span>
         <div>
-          <strong>Losse code (zelfde toestel/browser):</strong> leerlingen surfen naar de app, klikken op
-          {' '}<em>Ik ben leerling</em> en typen deze code in — en dus ook zelf hun naam, los van een klaslijst.
+          <strong>Code (werkt alleen op dit toestel):</strong> voor leerlingen die op dit toestel werken (bv. een
+          klaslaptop). Ze kiezen <em>Ik ben leerling</em>, typen de code en vullen zelf hun naam in, los van een klaslijst.
+          Op hun eigen toestel werkt de code niet: gebruik daar de link voor je leerlingen, bij <em>Meer manieren om te delen</em>.
         </div>
       </div>
       <div style={{ textAlign: 'center', margin: '10px 0 18px' }}>
         <div style={{ fontSize: '2.6rem', fontWeight: 800, letterSpacing: '0.3em', fontFamily: 'monospace' }}>
           {widget.code}
         </div>
-        <CopyButton text={widget.code} label="Code kopiëren" />
+        <CopyButton text={widget.code} label="Kopieer de code" />
       </div>
 
       <hr className="divider" />
@@ -87,19 +89,20 @@ export function ShareModal({ widget, onClose }: { widget: Widget; onClose: () =>
         <div style={{ paddingTop: 10 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
             <LinkIcon size={16} className="icon-inline" />
-            <strong>Directe link</strong>
-            <span className="hint">(zelfde toestel) — opent de widget meteen met deze code al ingevuld.</span>
+            <strong>Code als link</strong>
+            <span className="hint">(werkt alleen op dit toestel) — opent de oefening meteen met deze code al ingevuld.</span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
-            <input className="input input-sm" readOnly value={codeUrl} aria-label="Directe link met de code" onFocus={(e) => e.target.select()} />
+            <input className="input input-sm" readOnly value={codeUrl} aria-label="Code als link (werkt alleen op dit toestel)" onFocus={(e) => e.target.select()} />
             <CopyButton text={codeUrl} label="Kopiëren" />
           </div>
 
           <div className="callout">
             <span aria-hidden><Globe size={18} /></span>
             <div>
-              <strong>Draagbare link (elk toestel):</strong> de volledige widget zit in de link zelf,
-              dus deze werkt overal — ook thuis. Resultaten blijven dan wel op het toestel van de leerling.
+              <strong>Link voor je leerlingen (werkt op elk toestel):</strong> de hele oefening zit in de link zelf,
+              dus hij werkt op het eigen toestel van je leerlingen, ook thuis. Plak hem in Smartschool of je
+              klasplatform. Resultaten blijven dan wel op het toestel van de leerling.
             </div>
           </div>
           {inlined.unresolved > 0 && (
@@ -237,8 +240,8 @@ function toDateInputValue(ts: number): string {
 
 /**
  * Van "delen" naar "opgeven": dezelfde cursus of oefening als opdracht in een
- * klas zetten, met een deadline. De leerling ziet ze meteen in zijn klaslink,
- * de leerkracht in zijn klasoverzicht. Ook gebruikt door de cursus-deelmodal.
+ * klas zetten, met een deadline. De leerling ziet ze meteen in zijn klas (via de
+ * link voor je leerlingen), de leerkracht in zijn klasoverzicht. Ook gebruikt door de cursus-deelmodal.
  */
 export function AssignToClassSection({
   kind, targetId, title, doelgroep,
@@ -248,8 +251,8 @@ export function AssignToClassSection({
   title: string;
   /**
    * De studierichting en het jaar van de cursus (de aanroeper rekent ze uit, want dit bestand haalt geen leerplannen binnen).
-   * Met een doelgroep staan de klassen voor die richting bovenaan, in een eigen groep van de keuzelijst. Er wordt niets
-   * vooraf gekozen: dat blijft alleen als er precies één klas is.
+   * Met een doelgroep staan de klassen voor die richting bovenaan, in een eigen groep van de keuzelijst. Er wordt nooit
+   * vooraf een klas gekozen, ook niet als er maar één klas is (vaak is dat de voorbeeldklas): de leerkracht kiest zelf.
    */
   doelgroep?: Doelgroep;
 }) {
@@ -264,7 +267,9 @@ export function AssignToClassSection({
   const klasOptie = (c: (typeof classes)[number]) => (
     <option key={c.id} value={c.id}>{c.name}{c.schoolYear ? ` (${c.schoolYear})` : ''}</option>
   );
-  const [classId, setClassId] = useState(() => (classes.length === 1 ? classes[0].id : ''));
+  const [classId, setClassId] = useState('');
+  const klasRef = useRef<HTMLSelectElement>(null);
+  const nodigId = useId();
   const [due, setDue] = useState('');
   const [note, setNote] = useState('');
   const [melding, setMelding] = useState('');
@@ -275,8 +280,7 @@ export function AssignToClassSection({
     ? assignmentsForClass(classId).find((a) => a.kind === kind && a.targetId === targetId)
     : undefined;
 
-  // Bij het kiezen van een klas (en bij het openen als er maar één klas is,
-  // via de initiële classId hierboven) de al ingevulde deadline en instructie
+  // Bij het kiezen van een klas de al ingevulde deadline en instructie
   // overnemen — anders lijkt het alsof "bijwerken" ze zou wissen.
   useEffect(() => {
     if (!classId) return;
@@ -301,7 +305,8 @@ export function AssignToClassSection({
   }
 
   const toewijzen = () => {
-    if (!classId) return;
+    // Zonder klas blijft de knop klikbaar (aria-disabled) en wijst hij naar wat nog nodig is.
+    if (!classId) { klasRef.current?.focus(); return; }
     const dueAt = due ? new Date(`${due}T23:59:59`).getTime() : null;
     const cls = classes.find((c) => c.id === classId);
     const { assignment, created, ok } = upsertAssignment({
@@ -326,15 +331,15 @@ export function AssignToClassSection({
       <div className="callout">
         <span aria-hidden><AssignIcon size={18} /></span>
         <div>
-          <strong>Toewijzen aan een klas:</strong> je leerlingen zien deze opdracht in hun klaslink en
-          kiezen hun naam uit de klaslijst — geen tikfouten of dubbels, en hun werk komt automatisch
-          onder hun eigen naam in je klasoverzicht terecht.
+          <strong>Toewijzen aan een klas:</strong> je leerlingen zien deze opdracht in hun klas, via de link voor
+          je leerlingen, en kiezen hun naam uit de klaslijst — geen tikfouten of dubbels, en hun werk komt
+          automatisch onder hun eigen naam in je klasoverzicht terecht.
         </div>
       </div>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div style={{ flex: '1 1 200px' }}>
           <Field label="Klas">
-            <select className="select" value={classId} onChange={(e) => { setClassId(e.target.value); setMelding(''); }}>
+            <select ref={klasRef} className="select" value={classId} onChange={(e) => { setClassId(e.target.value); setMelding(''); }}>
               <option value="">— kies een klas —</option>
               {groepen ? (
                 <>
@@ -360,9 +365,16 @@ export function AssignToClassSection({
         />
       </Field>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button className="btn btn-primary btn-sm" disabled={!classId} onClick={toewijzen}>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm dl-knop"
+          aria-disabled={classId ? undefined : 'true'}
+          aria-describedby={classId ? undefined : nodigId}
+          onClick={toewijzen}
+        >
           {bestaande ? <><CheckIcon size={16} /> Opdracht bijwerken</> : <><AddIcon size={16} /> Toewijzen aan deze klas</>}
         </button>
+        {!classId && <span id={nodigId} className="dl-nodig">Nog nodig: een klas.</span>}
         {bestaande && !melding && (
           <span className="hint">Staat al in deze klas — bijwerken past de deadline aan.</span>
         )}

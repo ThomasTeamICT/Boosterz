@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  ImportError, baseName, decodeTextBytes, describeCourseImport, describePackImport, extractFromFile,
+  ImportError, baseName, decodeTextBytes, describeCourseImport, describePackImport, docxToMarkdown, extractFromFile,
   findCourseImportConflicts, fromPastedText, markdownToCourse, mergeSourcesToCourse, normalizeToDefaults,
   prepareImportedWidget, runInToBlock, saveCourseWithWidgets, saveImportedCourse, saveImportedPack,
   saveImportedWidget, type CourseBundle,
 } from './importers';
+import { suggestCourseTitle } from './importTitle';
 import { adoptSharedCourse, getCourse, getCourses, importCourseJson, saveCourse } from './courses';
 import { deleteWidget, getFolders, getWidget, getWidgets, saveWidget } from './storage';
 import { defaultSettings } from '../widgets/registry';
@@ -25,6 +26,16 @@ vi.mock('./pdfStore', async (importOriginal) => ({
     return true;
   },
 }));
+
+// De browser geeft mammoth een `arrayBuffer`; de nodeversie van mammoth (die vitest laadt) wil een `buffer`. Alleen die
+// invoer wordt vertaald: de omzetting zelf, met de stijlen uit lib/mammothDocx.ts, is de echte.
+vi.mock('mammoth', async (importOriginal) => {
+  type Mammoth = typeof import('mammoth');
+  const echt = (await importOriginal<{ default: Mammoth }>()).default;
+  const convertToHtml: Mammoth['convertToHtml'] = (invoer, opties) =>
+    echt.convertToHtml('arrayBuffer' in invoer ? { buffer: Buffer.from(invoer.arrayBuffer) } : invoer, opties);
+  return { default: { ...echt, convertToHtml } };
+});
 
 // ── Nep-localStorage met een instelbare "volle opslag" ──────────────────────
 
@@ -1163,5 +1174,182 @@ describe('saveCourseWithWidgets (cursus zonder AI, eerlijk bewaren)', () => {
     expect(res.saved).toBe(false);
     expect(getWidgets()).toHaveLength(0);
     expect(getCourses()).toHaveLength(0);
+  });
+});
+
+// ── Word-document met de stijl "Titel" ──────────────────────────────────────
+//
+// Een klein, nagemaakt .docx (een zip zonder compressie met de vijf bestanden die mammoth nodig heeft). Zo loopt de
+// test door de echte omzetting: mammoth, htmlToMarkdown en markdownToCourse.
+
+const CRC_TABEL = (() => {
+  const tabel = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    tabel[n] = c >>> 0;
+  }
+  return tabel;
+})();
+
+function crc32(bytes: Uint8Array): number {
+  let c = 0xffffffff;
+  for (const b of bytes) c = CRC_TABEL[(c ^ b) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+/** Een zipbestand zonder compressie. */
+function zipZonderCompressie(bestanden: Record<string, string>): Uint8Array<ArrayBuffer> {
+  const tekst = new TextEncoder();
+  const delen: Uint8Array[] = [];
+  const centraal: Uint8Array[] = [];
+  let plek = 0;
+  for (const [naam, inhoud] of Object.entries(bestanden)) {
+    const n = tekst.encode(naam);
+    const data = tekst.encode(inhoud);
+    const crc = crc32(data);
+    const lokaal = new DataView(new ArrayBuffer(30));
+    lokaal.setUint32(0, 0x04034b50, true);
+    lokaal.setUint16(4, 20, true);
+    lokaal.setUint32(14, crc, true);
+    lokaal.setUint32(18, data.length, true);
+    lokaal.setUint32(22, data.length, true);
+    lokaal.setUint16(26, n.length, true);
+    const kop = new DataView(new ArrayBuffer(46));
+    kop.setUint32(0, 0x02014b50, true);
+    kop.setUint16(4, 20, true);
+    kop.setUint16(6, 20, true);
+    kop.setUint16(14, 0x21, true); // een geldige datum (1 januari 1980)
+    kop.setUint32(16, crc, true);
+    kop.setUint32(20, data.length, true);
+    kop.setUint32(24, data.length, true);
+    kop.setUint16(28, n.length, true);
+    kop.setUint32(42, plek, true);
+    delen.push(new Uint8Array(lokaal.buffer), n, data);
+    centraal.push(new Uint8Array(kop.buffer), n);
+    plek += 30 + n.length + data.length;
+  }
+  const grootteCentraal = centraal.reduce((som, d) => som + d.length, 0);
+  const einde = new DataView(new ArrayBuffer(22));
+  einde.setUint32(0, 0x06054b50, true);
+  einde.setUint16(8, Object.keys(bestanden).length, true);
+  einde.setUint16(10, Object.keys(bestanden).length, true);
+  einde.setUint32(12, grootteCentraal, true);
+  einde.setUint32(16, plek, true);
+  const alles = [...delen, ...centraal, new Uint8Array(einde.buffer)];
+  const uit = new Uint8Array(alles.reduce((som, d) => som + d.length, 0));
+  let aan = 0;
+  for (const d of alles) {
+    uit.set(d, aan);
+    aan += d.length;
+  }
+  return uit;
+}
+
+interface DocxStijl {
+  id: string;
+  /** De naam die Word in het bestand bewaart (de ingebouwde stijlen heten daar Engels). */
+  naam: string;
+}
+
+const WORD_NL = {
+  standaard: { id: 'Standaard', naam: 'Normal' },
+  titel: { id: 'Titel', naam: 'Title' },
+  kop1: { id: 'Kop1', naam: 'heading 1' },
+  kop2: { id: 'Kop2', naam: 'heading 2' },
+} satisfies Record<string, DocxStijl>;
+
+/** Een .docx met deze alinea's: [tekst, stijl, of niets voor een gewone alinea]. */
+function maakDocx(alineas: [string, DocxStijl?][], stijlen: DocxStijl[] = Object.values(WORD_NL)): Blob {
+  const ns = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+  const xml = (inhoud: string) => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>${inhoud}`;
+  const rel = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const bytes = zipZonderCompressie({
+    '[Content_Types].xml': xml(
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+        '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' +
+        '</Types>',
+    ),
+    '_rels/.rels': xml(
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        `<Relationship Id="rId1" Type="${rel}/officeDocument" Target="word/document.xml"/></Relationships>`,
+    ),
+    'word/_rels/document.xml.rels': xml(
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        `<Relationship Id="rId1" Type="${rel}/styles" Target="styles.xml"/></Relationships>`,
+    ),
+    'word/styles.xml': xml(
+      `<w:styles ${ns}>` +
+        stijlen.map((s) => `<w:style w:type="paragraph" w:styleId="${s.id}"><w:name w:val="${s.naam}"/></w:style>`).join('') +
+        '</w:styles>',
+    ),
+    'word/document.xml': xml(
+      `<w:document ${ns}><w:body>` +
+        alineas
+          .map(([tekst, stijl]) => `<w:p>${stijl ? `<w:pPr><w:pStyle w:val="${stijl.id}"/></w:pPr>` : ''}<w:r><w:t>${tekst}</w:t></w:r></w:p>`)
+          .join('') +
+        '</w:body></w:document>',
+    ),
+  });
+  return new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+
+const WORD_CURSUS: [string, DocxStijl?][] = [
+  ['Bodem en landschap', WORD_NL.titel],
+  ['Hoofdstuk 1: Bodem', WORD_NL.kop1],
+  ['Een bodem bestaat uit lagen.'],
+  ['Gesteenten', WORD_NL.kop2],
+  ['Er zijn drie soorten gesteenten.'],
+  ['Hoofdstuk 2: Landschap', WORD_NL.kop1],
+  ['Landschappen veranderen voortdurend.'],
+];
+
+describe('Word-document: de stijl "Titel" is de titel van de cursus', () => {
+  it('de titelregel wordt een kop van niveau 1, vóór de hoofdstukken', async () => {
+    const md = await docxToMarkdown(maakDocx(WORD_CURSUS));
+    expect(md.split('\n\n').slice(0, 3)).toEqual(['# Bodem en landschap', '# Hoofdstuk 1: Bodem', 'Een bodem bestaat uit lagen.']);
+  });
+
+  it('de cursus heet naar de titel en de titelregel is geen extra hoofdstuk', async () => {
+    const md = await docxToMarkdown(maakDocx(WORD_CURSUS));
+    expect(suggestCourseTitle(md, 'bodem-en-landschap')).toBe('Bodem en landschap');
+    const cursus = markdownToCourse(md, 'bodem-en-landschap');
+    expect(cursus.title).toBe('Bodem en landschap');
+    expect(cursus.chapters.map((h) => h.title)).toEqual(['Hoofdstuk 1: Bodem', 'Hoofdstuk 2: Landschap']);
+    expect(cursus.chapters[0].sections.map((s) => s.title)).toEqual(['Inleiding', 'Gesteenten']);
+  });
+
+  it('zonder stijl Titel blijft het zoals het was: de cursus heet naar het eerste hoofdstuk', async () => {
+    const md = await docxToMarkdown(maakDocx(WORD_CURSUS.slice(1)));
+    expect(md.startsWith('# Hoofdstuk 1: Bodem')).toBe(true);
+    const cursus = markdownToCourse(md, 'bodem-en-landschap');
+    expect(cursus.title).toBe('Hoofdstuk 1: Bodem');
+    expect(cursus.chapters).toHaveLength(2);
+  });
+
+  it('een gewone alinea vóór de eerste kop wordt geen titel', async () => {
+    const md = await docxToMarkdown(maakDocx([['Bodem en landschap'], ...WORD_CURSUS.slice(1)]));
+    expect(md.startsWith('Bodem en landschap')).toBe(true);
+    expect(suggestCourseTitle(md, 'bodem-en-landschap')).toBe('Hoofdstuk 1: Bodem');
+  });
+
+  it('ook een stijl die "Titel" heet, of die het id "Title" heeft, is de titel', async () => {
+    const opNaam: DocxStijl = { id: 'MijnTitel', naam: 'Titel' };
+    const opId: DocxStijl = { id: 'Title', naam: 'Mijn eigen stijl' };
+    for (const titelstijl of [opNaam, opId]) {
+      const stijlen = [...Object.values(WORD_NL).filter((s) => s !== WORD_NL.titel), titelstijl];
+      const md = await docxToMarkdown(maakDocx([['Bodem en landschap', titelstijl], ...WORD_CURSUS.slice(1)], stijlen));
+      expect(md.startsWith('# Bodem en landschap\n\n# Hoofdstuk 1: Bodem'), titelstijl.id).toBe(true);
+    }
+  });
+
+  it('een ondertitel onder de titel blijft gewone tekst en gaat niet verloren', async () => {
+    const ondertitel: DocxStijl = { id: 'Ondertitel', naam: 'Subtitle' };
+    const stijlen = [...Object.values(WORD_NL), ondertitel];
+    const md = await docxToMarkdown(maakDocx([WORD_CURSUS[0], ['Voor de 2de graad', ondertitel], ...WORD_CURSUS.slice(1)], stijlen));
+    expect(md.split('\n\n').slice(0, 2)).toEqual(['# Bodem en landschap', 'Voor de 2de graad']);
   });
 });

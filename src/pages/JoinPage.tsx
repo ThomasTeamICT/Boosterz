@@ -36,8 +36,9 @@ export function JoinPage() {
       navigate(`/leerling/${c}`);
       return;
     }
+    // Een code werkt alleen waar de opdracht, cursus of klas al staat; op een ander toestel werkt de link van de leerkracht.
     setError(
-      `Geen opdracht, cursus of klas gevonden met code ${c} op dit toestel. Werk je thuis? Vraag dan de draagbare link of het klaspakket aan je leerkracht.`
+      `Geen opdracht, cursus of klas gevonden met code ${c} op dit toestel. Een code werkt alleen op het toestel van je leerkracht. Vraag je leerkracht om de link.`
     );
   };
 
@@ -57,7 +58,7 @@ export function JoinPage() {
           <div className="card card-pad" style={{ textAlign: 'center' }}>
             <h1 style={{ fontSize: '1.45rem' }}>Meedoen met een opdracht</h1>
             <p style={{ color: 'var(--text-soft)' }}>
-              Typ de code die je van je leerkracht kreeg: van een oefening, een cursus of van je klas.
+              Typ de code die je van je leerkracht kreeg. Werkt hij niet? Open dan de link van je leerkracht.
             </p>
             <form onSubmit={(e) => { e.preventDefault(); void go(); }}>
               <input

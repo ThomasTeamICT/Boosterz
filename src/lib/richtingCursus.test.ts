@@ -877,11 +877,12 @@ describe('geraamteHoofdstukken', () => {
     expect(ch.map((c) => c.title)).toEqual(['Biologie', 'Chemie']);
     expect(ch[0].sections.map((s) => s.title)).toEqual(['Leven › Cel', 'Leven › Organisme']);
     expect(ch[0].sections.map((s) => s.goalCodes)).toEqual([['B1', 'B3'], ['B2']]);
-    expect(ch[1].sections.map((s) => s.title)).toEqual(['Doelen', 'Stoffen']);
+    // Een doel zonder rubriek naast een sectie met rubriek: "Andere doelen" (niet "Doelen").
+    expect(ch[1].sections.map((s) => s.title)).toEqual(['Andere doelen', 'Stoffen']);
     expect(ch[1].sections.map((s) => s.goalCodes)).toEqual([['C1'], ['C2']]);
   });
 
-  it("terugval 'Doelen': zonder thema is het hoofdstuk en de sectie 'Doelen', en een thema zonder rubriek geeft de sectie 'Doelen'", () => {
+  it("neutrale namen: zonder thema heet het hoofdstuk 'Hoofdstuk <nummer>', en een doel zonder rubriek geeft de sectie 'Deel 1'", () => {
     const lp = leerplanMet([
       { code: 'A1', text: 'Een.' },
       { code: 'A2', text: 'Twee.', theme: '   ' },
@@ -889,9 +890,9 @@ describe('geraamteHoofdstukken', () => {
       { code: 'G2', text: 'Vier.', theme: 'Getallenleer › ' },
     ]);
     const ch = geraamteHoofdstukken(lp);
-    expect(ch.map((c) => c.title)).toEqual(['Doelen', 'Getallenleer']);
-    expect(ch[0].sections.map((s) => [s.title, s.goalCodes])).toEqual([['Doelen', ['A1', 'A2']]]);
-    expect(ch[1].sections.map((s) => [s.title, s.goalCodes])).toEqual([['Doelen', ['G1', 'G2']]]);
+    expect(ch.map((c) => c.title)).toEqual(['Hoofdstuk 1', 'Getallenleer']);
+    expect(ch[0].sections.map((s) => [s.title, s.goalCodes])).toEqual([['Deel 1', ['A1', 'A2']]]);
+    expect(ch[1].sections.map((s) => [s.title, s.goalCodes])).toEqual([['Deel 1', ['G1', 'G2']]]);
   });
 
   it('een leerplan van een net groepeert op het eigen thema', () => {
@@ -906,7 +907,7 @@ describe('geraamteHoofdstukken', () => {
     expect(ch[0].sections[0].goalCodes).toEqual(['WIS 1.1', 'WIS 1.2']);
   });
 
-  it("elke sectie heeft één callout van het soort 'goal' met per regel '<code> — <korte tekst>', en is niet optioneel", () => {
+  it("elke sectie heeft één callout van het soort 'goal' met per regel '<code> — <volledige zin>', en is niet optioneel", () => {
     const lang = 'x'.repeat(200);
     const lp = leerplanMet([
       { code: 'B1', text: 'Eerste regel.\nTweede   regel.', theme: 'Biologie › Cel' },
@@ -919,7 +920,8 @@ describe('geraamteHoofdstukken', () => {
     if (blok.type !== 'callout') return;
     expect(blok.kind).toBe('goal');
     expect(blok.title).toBe('Doelen in deze sectie');
-    expect(blok.text.split('\n')).toEqual([`B1 — Eerste regel. Tweede regel.`, `B2 — ${'x'.repeat(89)}…`]);
+    // Volledige zinnen: niets wordt afgekapt, witruimte wordt één spatie.
+    expect(blok.text.split('\n')).toEqual([`B1 — Eerste regel. Tweede regel.`, `B2 — ${lang}`]);
     expect(sectie.optional).toBeFalsy();
   });
 
@@ -944,7 +946,7 @@ describe('geraamteHoofdstukken', () => {
     expect(ch.map((c) => c.title)).toEqual(['Biologie', 'Chemie', 'Wiskunde, exacte wetenschappen en technologie', 'Competenties in het Nederlands']);
     expect(ch[0].sections.map((s) => s.title)).toEqual(['Leven › Cel', 'Leven › Organisme']);
     expect(ch[0].sections.map((s) => s.goalCodes?.length)).toEqual([2, 2]);
-    expect(ch[1].sections.map((s) => s.title)).toEqual(['Doelen']);
+    expect(ch[1].sections.map((s) => s.title)).toEqual(['Deel 1']);
     expect(ch[2].sections.map((s) => s.title)).toEqual(['Wiskunde', 'Natuurwetenschappen']);
     expect(ch[3].sections.map((s) => s.title)).toEqual(['Lezen', 'Schrijven']);
   });
@@ -987,12 +989,12 @@ describe('geraamteHoofdstukken', () => {
       expect(sectieCodes(ch)).toHaveLength(400);
     });
 
-    it("bij meer dan 400 doelen: één sectie per hoofdstuk ('Doelen'), met nog altijd elke code één keer", () => {
+    it("bij meer dan 400 doelen: één sectie per hoofdstuk ('Deel 1'), met nog altijd elke code één keer", () => {
       const ch = geraamteHoofdstukken(leerplanMet(doelen(401)));
       expect(ch.map((c) => c.title)).toEqual(['Set 0', 'Set 1', 'Set 2']);
       for (const c of ch) {
         expect(c.sections).toHaveLength(1);
-        expect(c.sections[0].title).toBe('Doelen');
+        expect(c.sections[0].title).toBe('Deel 1');
       }
       const alle = sectieCodes(ch);
       expect(alle).toHaveLength(401);
@@ -1020,6 +1022,114 @@ describe('geraamteHoofdstukken', () => {
     const ch = geraamteHoofdstukken(r.leerplan);
     const ids = ch.flatMap((c) => [c.id, ...c.sections.flatMap((s) => [s.id, ...s.blocks.map((b) => b.id)])]);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  describe('volledige zinnen in het kadertje (punt a)', () => {
+    const LANG = 'De leerlingen passen technieken voor levensreddend handelen toe in een gesimuleerde leeromgeving en lichten hun keuzes toe aan de hand van de aangeleerde protocollen.';
+
+    it('een lange doeltekst staat er helemaal in, ook bij precies 90 tekens en bij meer dan 90 tekens', () => {
+      expect(LANG.length).toBeGreaterThan(90);
+      const t90 = 'y'.repeat(90);
+      const lp = leerplanMet([
+        { code: '01.01', text: LANG, theme: 'Lichamelijke opvoeding › Reddend handelen' },
+        { code: '01.02', text: t90, theme: 'Lichamelijke opvoeding › Reddend handelen' },
+      ]);
+      const blok = geraamteHoofdstukken(lp)[0].sections[0].blocks[0];
+      expect(blok.type === 'callout' && blok.text.split('\n')).toEqual([`01.01 — ${LANG}`, `01.02 — ${t90}`]);
+    });
+
+    it('geen enkele regel eindigt op een afkapteken, ook niet bij een heel lange doeltekst', () => {
+      const heel = `${LANG} `.repeat(30).trim();
+      const lp = leerplanMet([{ code: 'L1', text: heel, theme: 'Vak › Rubriek' }]);
+      const blok = geraamteHoofdstukken(lp)[0].sections[0].blocks[0];
+      expect(blok.type === 'callout' && blok.text).toBe(`L1 — ${heel}`);
+    });
+
+    it('de tekst van een doel zonder inhoud geeft alleen de code', () => {
+      const lp = leerplanMet([{ code: 'L1', text: '  ', theme: 'Vak › Rubriek' }]);
+      const blok = geraamteHoofdstukken(lp)[0].sections[0].blocks[0];
+      expect(blok.type === 'callout' && blok.text).toBe('L1');
+    });
+  });
+
+  describe('bruikbare namen (punt b)', () => {
+    /** Een set met een eigen graad en stroom, zodat `setLabels` ze in de naam zet. */
+    function metNiveau(b: MinimumdoelenSetBestand, graad: string, stroom?: string): MinimumdoelenSetBestand {
+      return { ...b, set: { ...b.set, graad, ...(stroom ? { stroom } : {}) } };
+    }
+    const NL_EEN = metNiveau(maakBestand('ODS_9201', `${NAAM_BEGIN} - Nederlands - Eindtermen`, 'Nederlands', reeks('a', 'A', 2, () => ['Lezen'])), '1ste graad', 'A-stroom');
+    const WIS_TWEE = metNiveau(maakBestand('ODS_9202', `${NAAM_BEGIN} - Wiskunde - Eindtermen`, 'Wiskunde', reeks('w', 'W', 2)), '2de graad');
+    const samen = (...b: MinimumdoelenSetBestand[]) => leerplanUitSelectie(b.map((bestand) => ({ bestand, doelen: 'alle' as const })), { titel: 'Test' }).leerplan;
+
+    it('een hoofdstuk heet de korte naam van het vak, zonder graad en stroom (ook als de setnaam ze bevat)', () => {
+      const lp = samen(NL_EEN, WIS_TWEE);
+      // Bewijs dat het thema van de samengestelde lijst de graad en de stroom wel bevat.
+      expect(lp.goals[0].theme).toContain('1ste graad A-stroom');
+      expect(lp.goals[2].theme).toContain('2de graad');
+      const ch = geraamteHoofdstukken(lp);
+      expect(ch.map((c) => c.title)).toEqual(['Nederlands', 'Wiskunde']);
+      expect(ch[0].sections.map((s) => s.title)).toEqual(['Lezen']);
+      expect(ch[1].sections.map((s) => s.title)).toEqual(['Deel 1']);
+    });
+
+    it('twee versies van dezelfde set (set-nummer in de naam) worden twee hoofdstukken zonder nummer: de tweede krijgt " (2)"', () => {
+      const a = maakBestand('ODS_9301', `${NAAM_BEGIN} - Nederlands - Eindtermen`, 'Nederlands', reeks('a', 'A', 2));
+      const b = maakBestand('ODS_9302', `${NAAM_BEGIN} - Nederlands - Eindtermen`, 'Nederlands', reeks('b', 'B', 2));
+      const lp = samen(a, b);
+      expect(lp.goals[0].theme).toContain('(ODS_9301)');
+      const ch = geraamteHoofdstukken(lp);
+      expect(ch.map((c) => c.title)).toEqual(['Nederlands', 'Nederlands (2)']);
+      expect(ch.map((c) => c.title).join('|')).not.toMatch(/ODS_/);
+    });
+
+    it('wat sets met dezelfde korte naam nog onderscheidt (de soort onderwijs), blijft tussen haakjes staan', () => {
+      const aso = maakBestand('ODS_9401', 'Secundair onderwijs 2de graad aso - Nederlands - Eindtermen', 'Nederlands', reeks('a', 'A', 1));
+      const bso = maakBestand('ODS_9402', 'Secundair onderwijs 2de graad bso - Nederlands - Eindtermen', 'Nederlands', reeks('b', 'B', 1));
+      const ch = geraamteHoofdstukken(samen(aso, bso));
+      expect(ch.map((c) => c.title)).toEqual(['Nederlands (aso)', 'Nederlands (bso)']);
+    });
+
+    it('een leerplan van een net (zonder verwijzingen naar sets) houdt zijn eigen themanamen, ook als ze " · " bevatten', () => {
+      const lp = leerplanMet([
+        { code: 'W1', text: 'Een.', theme: 'Getallen · 2de graad › Optellen' },
+        { code: 'W2', text: 'Twee.', theme: 'Getallen · 2de graad › Aftrekken' },
+      ]);
+      const ch = geraamteHoofdstukken(lp);
+      expect(ch.map((c) => c.title)).toEqual(['Getallen · 2de graad']);
+      expect(ch[0].sections.map((s) => s.title)).toEqual(['Optellen', 'Aftrekken']);
+    });
+
+    it('twee netthema\'s die alleen in hoofdletters verschillen blijven twee hoofdstukken met hun eigen naam (samenvoegen is voor gatenCursus)', () => {
+      const lp = leerplanMet([
+        { code: 'A1', text: 'a', theme: 'Alfa › Eerste' },
+        { code: 'A2', text: 'b', theme: 'alfa › Tweede' },
+      ]);
+      expect(geraamteHoofdstukken(lp).map((c) => c.title)).toEqual(['Alfa', 'alfa']);
+    });
+
+    it('doelen zonder thema: het vak van het leerplan is de naam van het hoofdstuk, anders "Hoofdstuk <volgnummer>"', () => {
+      const goals = [
+        { code: 'G1', text: 'Een.', theme: 'Getallenleer' },
+        { code: 'G2', text: 'Twee.' },
+      ];
+      const metVak = createCurriculum({ title: 'T', net: 'minimumdoelen', subject: ' Wiskunde ', level: '', goals: goals.map((g, i) => ({ id: `g${i}`, ...g })) });
+      expect(geraamteHoofdstukken(metVak).map((c) => c.title)).toEqual(['Getallenleer', 'Wiskunde']);
+      expect(geraamteHoofdstukken(leerplanMet(goals)).map((c) => c.title)).toEqual(['Getallenleer', 'Hoofdstuk 2']);
+    });
+
+    it('nergens in het geraamte staat nog de naam "Doelen" als hoofdstuk of sectie', () => {
+      const r = leerplanVoorRichting(testKader(), BESTANDEN, DOELGROEP);
+      const titels = geraamteHoofdstukken(r.leerplan).flatMap((c) => [c.title, ...c.sections.map((s) => s.title)]);
+      expect(titels).not.toContain('Doelen');
+      expect(titels.every((t) => t.trim() !== '')).toBe(true);
+    });
+
+    it('zelfde hoofdstukken, secties en codes als vroeger: alleen de namen en de tekst van het kadertje zijn anders', () => {
+      const r = leerplanVoorRichting(testKader(), BESTANDEN, DOELGROEP);
+      const ch = geraamteHoofdstukken(r.leerplan);
+      expect(ch.map((c) => c.sections.map((s) => s.goalCodes?.length))).toEqual([[2, 2], [5], [4, 4], [3, 3]]);
+      expect(sectieCodes(ch)).toEqual(codesVan(r.leerplan));
+    });
   });
 });
 

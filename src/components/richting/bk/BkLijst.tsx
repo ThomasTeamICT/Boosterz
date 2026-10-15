@@ -5,22 +5,24 @@
 
 import { useId, useMemo, useState } from 'react';
 import { DoelStatus } from '../../course/MinimumdoelenDekking';
-import { BK_TOON_ALLE, BK_TOON_OPEN, BK_ZONDER_BESTAND, bkCompetentieRegel, bkSetSamenvatting } from '../../../lib/bkWeergave';
+import {
+  BK_TOON_ALLE, BK_TOON_OPEN, BK_ZONDER_BESTAND, bkCompetentieRegel, bkNogNietGedektZin, bkSetSamenvatting, bkTelStatussen,
+} from '../../../lib/bkWeergave';
 import type { MdDekking, MdRij } from '../../../lib/dekkingMinimumdoelen';
-import { enkelOfMeer, groepeerPerSet, zichtbareSets, type SetGroep, type Toon } from '../../../lib/dekkingWeergave';
+import { groepeerPerSet, zichtbareSets, type SetGroep, type Toon } from '../../../lib/dekkingWeergave';
 import '../../../styles/dekking.css';
 
 /**
  * De zin boven de beroepskwalificaties bij "Nog niet gedekt": ze staan dicht, dus de zin zegt ook wat er te doen valt.
- * Enkelvoud en meervoud.
+ * Enkelvoud en meervoud. Met `uitsplitsing` zegt de zin hoe het getal is opgebouwd (nergens, gepland, alleen in verdieping),
+ * zodat het getal niet tegenspreekt wat de samenvatting erboven met "nog niet" telt: zie `bkNogNietGedektZin`.
  */
-export function nogNietGedektZin(competenties: number, beroepskwalificaties: number): string {
-  if (competenties <= 0) return 'Alle competenties zijn gedekt.';
-  const inBks = enkelOfMeer(beroepskwalificaties, 'beroepskwalificatie', 'beroepskwalificaties');
-  const open = beroepskwalificaties === 1 ? 'de beroepskwalificatie' : 'een beroepskwalificatie';
-  return competenties === 1
-    ? `1 competentie in ${inBks} is nog niet gedekt. Open ${open} om ze te zien.`
-    : `${competenties} competenties in ${inBks} zijn nog niet gedekt. Open ${open} om ze te zien.`;
+export function nogNietGedektZin(
+  competenties: number,
+  beroepskwalificaties: number,
+  uitsplitsing?: { open: number; gepland: number; verdieping: number },
+): string {
+  return bkNogNietGedektZin(competenties, beroepskwalificaties, uitsplitsing);
 }
 
 /**
@@ -87,7 +89,11 @@ export function PerBk({ dekking, toon, namen }: { dekking: MdDekking; toon: Toon
   // De beroepskwalificaties staan dicht: zonder deze zin zou "Nog niet gedekt" niets zichtbaar of hoorbaar veranderen. De regel
   // staat er altijd (ook leeg), want een live-gebied moet er al staan voor de tekst verandert.
   const zin = toon === 'open' && dekking.rijen.length > 0
-    ? nogNietGedektZin(groepen.reduce((n, g) => n + g.rijen.length, 0), groepen.length)
+    ? nogNietGedektZin(
+      groepen.reduce((n, g) => n + g.rijen.length, 0),
+      groepen.length,
+      bkTelStatussen(groepen.flatMap((g) => g.rijen)),
+    )
     : '';
   return (
     <>

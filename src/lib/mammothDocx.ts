@@ -28,9 +28,24 @@ function imageOptions(): Record<string, unknown> | undefined {
   }
 }
 
+/**
+ * Word-stijlen die mammoth zelf niet kent. De stijl "Titel" (in het bestand heet hij "Title") is de titel van het
+ * document: ze wordt een kop van niveau 1, zodat de cursus ernaar heet. Zonder deze regels is het een gewone alinea
+ * vóór de eerste kop: dan wordt de titelregel een extra hoofdstuk en krijgt de cursus de naam van het eerste
+ * hoofdstuk ("Hoofdstuk 1: …"). De stijl wordt herkend op naam (zoals Word hem bewaart) en op id.
+ */
+export const TITELSTIJLEN: readonly string[] = [
+  "p[style-name='Title'] => h1:fresh",
+  "p[style-name='title'] => h1:fresh",
+  "p[style-name='Titel'] => h1:fresh",
+  "p[style-name='titel'] => h1:fresh",
+  'p.Title => h1:fresh',
+  'p.Titel => h1:fresh',
+];
+
 /** Zet een .docx om naar html. Gooit door als het bestand onleesbaar is. */
 export async function docxToHtml(file: Blob): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
-  const result = await mammoth.convertToHtml({ arrayBuffer }, imageOptions());
+  const result = await mammoth.convertToHtml({ arrayBuffer }, { ...imageOptions(), styleMap: [...TITELSTIJLEN] });
   return result?.value ?? '';
 }
