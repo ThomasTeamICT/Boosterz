@@ -9,6 +9,7 @@ Boosterz is een volledig client-side leerplatform: React 18 en TypeScript strict
 - De grondige debugronde van oktober 2026 (bevindingen, uitspraken, herstelpakketten): stand van zaken bovenaan `docs/DEBUGRONDE-2026-10.md`.
 - API's van Onderwijs (matrix van de studierichtingen via de API Structuuronderdelen, filter op studierichting in de doelen-API, aanbod, kwalificaties): bevindingen, stand van zaken en voorstel voor de import in `docs/ONDERWIJS-API.md`.
 - Studierichtingen (import van de matrix en van de doelen per richting, cursushulp per richting en jaar, dekking over cursussen heen; fase 2 gaten dichten, mijn richtingen, klas; fase 3 beroepskwalificaties per richting, alle drie klaar en live): ontwerp, bouwplan in pakketten en stand van zaken bovenaan `docs/STUDIERICHTINGEN.md`. Fase 3b (dekking op competenties overal, competenties plannen) is klaar en live sinds 14 oktober 2026: § 24 en bijlage F; het blok "Hervatten" bovenaan geeft wat nog wacht.
+- Eenvoudige ingang "Nieuwe cursus" (de app moet eenvoudiger voor de gemiddelde leerkracht: proefleerkrachten, voorstellen, AI-cursusbouwer in etappes): stand van zaken en de synthese van de proef bovenaan `docs/NIEUWE-CURSUS.md`.
 - Niveaumodel (vaardigheidsniveaus E tot A van de Vlaamse toetsen, eerste toepassing basisgeletterdheid): opdracht voor later, nog niet begonnen. Opdracht en stand van zaken in `docs/NIVEAUS.md`; pas starten op teken van de eigenaar.
 
 ## Kwaliteitspoort
