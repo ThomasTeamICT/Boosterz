@@ -3107,6 +3107,8 @@ const rtBkRegel = (p, titel) => p.evaluate((t) => {
   await sleep(300);
   const hVenster = await hoogtes('[role="dialog"] button:not(.btn-icon), [role="dialog"] summary, [role="dialog"] label.gt-vak, [role="dialog"] .gt-keuze-rij');
   check(`(10) 390 px, venster: niets scrolt horizontaal, één main en één h1, en elke knop, uitklapper, vakje en keuze is minstens 44 px hoog (laagste: ${Math.min(...hVenster)} px, ${hVenster.length} stuks)`, (await rtSmal(p)) && (await eenMainEenH1()) && hVenster.length >= 8 && hVenster.every((h) => h >= 44));
+  const sluitKnop390 = await venster.locator('.modal-header button[aria-label="Sluiten"]').boundingBox();
+  check(`(10) 390 px, venster: de sluitknop van het venster is minstens 44 × 44 px (${Math.round(sluitKnop390?.width ?? 0)} × ${Math.round(sluitKnop390?.height ?? 0)} px)`, !!sluitKnop390 && sluitKnop390.width >= 44 && sluitKnop390.height >= 44);
   await p.setViewportSize({ width: 1360, height: 900 });
   await sleep(300);
   await venster.locator('label.gt-vak', { hasText: 'Recreatief medewerker' }).locator('input').uncheck();

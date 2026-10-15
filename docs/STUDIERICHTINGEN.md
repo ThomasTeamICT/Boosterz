@@ -21,7 +21,9 @@ De eigenaar pauzeerde het werk op 11 oktober 2026 (tokens nodig voor een ander p
 | 5 | ~~Fase 3b (W14)~~ **Klaar en live** (14 oktober 2026, commit ed9bbf6): de dekking op competenties in de editor, Mijn richtingen en de klas, en competenties plannen; § 24 en bijlage F | | |
 | 6 | Een licentie voor de repo zelf, vóór een brede uitrol (LEERPLANNEN.md § 12, punt 3) | eigenaar | beslissing |
 
-**Bij de eigenaar:** het antwoord van TechLoket (dan § 23.10 en `licentie` bijwerken); de takken van de gesloten proef-PR's #7, #8 en #9 verwijderen (deze sessie mocht dat niet); de open werkkeuzes W1 tot W15 (§ 23.12) en V1 tot V10 (§ 22). Het niveaumodel (`docs/NIVEAUS.md`) start pas op teken van de eigenaar.
+**Bij de eigenaar:** het antwoord van TechLoket (dan § 23.10 en `licentie` bijwerken); de takken van de gesloten proef-PR's #7, #8 en #9 verwijderen (deze sessie mocht dat niet); de open werkkeuzes W1 tot W15 (§ 23.12), V1 tot V10 (§ 22) en X1 tot X11 (§ 24.11). Het niveaumodel (`docs/NIVEAUS.md`) start pas op teken van de eigenaar.
+
+**Daarna (afgesproken op 15 oktober 2026):** de eigenaar test zelf uitvoerig, met het oog op een echte demo voor vakleerkrachten. Pas daarna kiest hij de volgende stap, bijvoorbeeld samenwerken in de vakgroep (de dekking telt nu alleen het eigen toestel, zie `docs/KLASKANAAL.md`), het netleerplan laten meetellen voor de competenties (X10), een lessentabel van de school (vak kiezen in plaats van sets), of het niveaumodel. Opruimronde van 15 oktober 2026 klaar: de sluitknop van vensters is 44 px op een telefoon, versiemerken op één manier (`bkMerk`), "Zet ze in deze cursus" blijft niet hangen na een onverwachte fout, en KP7 volgt de matrix zoals KP3 (R7).
 
 **Werkwijze bij het hervatten:** lees CLAUDE.md en dit blok; `git pull`; de kwaliteitspoort uit CLAUDE.md (de rooktest duurt nu ±6 minuten per run, twee keer na elkaar). De gedeelde regels voor bouwagents stonden in de scratchpad van deze sessie en zijn weg: geef elke agent opnieuw de regels mee (eigen worktree met een symlink naar `node_modules`, geen git stash/checkout/reset/commit, alleen de genoemde bestanden, poorten groen vóór opleveren, verslag in het Nederlands).
 
@@ -2330,11 +2332,11 @@ De kern is één functie in het testbestand: `controleerKwalificatieMap(uit, str
 |---|---|---|
 | KP1 | Kop, `aantalOnderdelen` en sha256 van de koppeling kloppen; `valideerKoppelingBestand` geeft [] | streng |
 | KP2 | Gesorteerd en uniek; elk onderdeel staat in de matrix (de matrix wist niets) | streng |
-| KP3 | Dezelfde groep als in de matrix, en precies één record per onderdeel van de matrix | streng bij een gelijke `matrixSha256`, anders info (een run met alleen de studierichtingen) |
+| KP3 | Dezelfde groep als in de matrix, en precies één record per onderdeel van de matrix | streng bij een gelijke `matrixSha256`, anders info (een run met alleen de studierichtingen of `zonder-beroepskwalificaties`) |
 | KP4 | Status geldig; `opgehaald` heeft `erkenningen`; datums geldig; elke `bk` op `BK_VERSIE`, elke `dbk` op `DBK_NUMMER`; lijsten gesorteerd | streng |
 | KP5 | Elke BK van een erkenning die nu geldt of later begint, staat in de index (met bestand, of `nietGevonden`/`onbruikbaar`) | streng |
 | KP6 | Elk geldig gewoon onderdeel van de 3de graad A, geen aanloop, met status `opgehaald`, heeft een BK nu (`BK_A3_STRENG`) | mild tot G1, daarna streng als de telling 0 is |
-| KP7 | ADV-nummers van het record tegenover de matrix (`ERKENNING_KRUIS_STRENG`) | mild tot G1, idem |
+| KP7 | ADV-nummers van het record tegenover de matrix (`ERKENNING_KRUIS_STRENG`) | streng sinds G1 stap 4, maar alleen bij een gelijke `matrixSha256`; anders info (een run met alleen de studierichtingen of `zonder-beroepskwalificaties`, R7), zoals KP3 (opruimronde van 15 oktober 2026) |
 | BX1 | Kop en sha256 van de index; `valideerBkIndex` geeft [] | streng |
 | BX2 | Gesorteerd met `vergelijkBkVersie`, uniek; `nummer` en `versie` horen bij `bk` | streng |
 | BX3 | Met `bestand`: het bestand bestaat, en `sha256`, `aantal`, `titel` en `opgehaald` zijn gelijk; zonder `bestand`: `nietGevonden` of `onbruikbaar` | streng |
@@ -3380,7 +3382,7 @@ Wordt het budget toch overschreden, dan verplaatst de hoofdsessie eerst code. Pa
 - "Gepland" in `computeCoverage` (O1); het percentage op de cursuskaart blijft dat van het leerplan.
 - Een BK-regel per cursus in "Cursussen voor deze richting" (budget van RichtingenPage).
 - De cache in localStorage. Nieuwe API-gegevens of een wijziging aan de workflow.
-- De twee manieren om merken te lezen gelijkmaken (BkSectie.tsx r. 310, BkKeuze.tsx r. 105). Dat is een opruimtaak na K8; richtingBk.test.ts zit nu in de werkboom van K8.
+- ~~De twee manieren om merken te lezen gelijkmaken (BkSectie.tsx r. 310, BkKeuze.tsx r. 105).~~ **Gedaan** in de opruimronde van 15 oktober 2026: `bkMerk` en `bkMerkenVanIndex` in `bkLeerplan.ts`, gebruikt in BkSectie, BkKeuze, bkGatenHulp en `merkVanBestand`; met geldige data exact hetzelfde gedrag.
 
 ### 24.13 Nagekeken: wat de voorstellen verkeerd lazen of misten
 

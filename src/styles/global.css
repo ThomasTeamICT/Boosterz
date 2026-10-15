@@ -380,6 +380,10 @@ input[type='color'] {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px 10px; gap: 12px;
 }
+/* Op een telefoon is de sluitknop van het venster een tikdoel van minstens 44 × 44 px. */
+@media (max-width: 640px) {
+  .modal-header .btn-icon { min-width: 44px; min-height: 44px; }
+}
 .modal-body { padding: 6px 20px 16px; overflow-y: auto; }
 .modal-footer {
   display: flex; justify-content: flex-end; gap: 10px;

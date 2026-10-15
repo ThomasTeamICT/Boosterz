@@ -25,7 +25,7 @@
 //   ("van 14 oktober 2026") blijven altijd staan; ingekort wordt telkens het langste andere stuk. Nooit een competentiecode.
 
 import type { BkBestand } from '../../../lib/beroepskwalificaties';
-import { leerplanUitBk, selectieVanBkLeerplan, titelVoorBkLeerplan, vindBkLeerplan, type BkKeuze } from '../../../lib/bkLeerplan';
+import { bkMerk, leerplanUitBk, selectieVanBkLeerplan, titelVoorBkLeerplan, vindBkLeerplan, type BkKeuze } from '../../../lib/bkLeerplan';
 import type { Curriculum } from '../../../lib/curriculumTypes';
 import { aantalCompetentiesMetTekst, bkKaderVanVersies } from '../../../lib/dekkingBk';
 import { doelgroepVoorLeerplan, graadTekst } from '../../../lib/doelgroep';
@@ -284,11 +284,6 @@ function zonderPunt(w: string | undefined): string {
   return tekstOfLeeg(w).replace(/[.\s]+$/, '');
 }
 
-/** Het versiemerk van een bestand: de eerste 16 tekens van zijn sha256, zoals in de index (`merkVanBestand` in bkLeerplan.ts). */
-function merkVanBestand(b: BkBestand): string {
-  return typeof b.sha256 === 'string' ? b.sha256.slice(0, 16) : '';
-}
-
 /**
  * Bij `hergebruik` de waarschuwing die `leerplanUitBk` zonder te blokkeren geeft (bkLeerplan.ts): één zin per gekozen
  * versie waarvan het bestand `nietMeerInBron` heeft, letterlijk dezelfde, in de volgorde van de keuze. `hergebruik` roept
@@ -335,7 +330,8 @@ export function leerplanVoorBkGaten(o: BkGatenLeerplanIn): BkGatenLeerplan {
     const merk = merken.get(versie);
     const bestaan = metTekst.get(versie);
     if (!bestand || typeof merk !== 'string' || merk.trim() === '' || !bestaan || ids.some((id) => !bestaan.has(id))) return VERANDERD;
-    if (merkVanBestand(bestand) !== merk) andereUpdate = true;
+    // Een bestand zonder bruikbaar merk (`undefined`) is nooit gelijk aan het merk van de index: dan een andere update.
+    if (bkMerk(bestand.sha256) !== merk) andereUpdate = true;
     keuzes.push({ bestand, competenties: ids });
   }
 

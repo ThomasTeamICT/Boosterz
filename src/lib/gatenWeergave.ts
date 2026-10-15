@@ -33,6 +33,9 @@ export const GEEN_OPEN_TEKST = 'Er zijn geen verplichte minimumdoelen meer die n
 /** Het venster of het onderdeel erin laadde niet (de verbinding viel weg). */
 export const FOUT_LADEN_GATEN = 'Dit kon niet geladen worden. Controleer je verbinding en probeer opnieuw.';
 
+/** Het zetten van de doelen in de cursus liep onverwacht mis; de cursus werd niet aangepast. */
+export const FOUT_ONVERWACHT_GATEN = 'Er ging iets mis. Er is niets veranderd.';
+
 // ── Het venster ─────────────────────────────────────────────────────────────
 
 export const VENSTER_TITEL = 'Plan wat nog nergens aan bod komt';

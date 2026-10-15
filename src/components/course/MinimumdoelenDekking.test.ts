@@ -22,7 +22,7 @@ import { bkVerwijzingen, dekkingBk } from '../../lib/dekkingBk';
 import { dekkingMinimumdoelen, setsAlsKader, type KaderDoel, type MdDekking } from '../../lib/dekkingMinimumdoelen';
 import { voegGeplandeSectiesToe } from '../../lib/gatenCursus';
 import { openPerSet } from '../../lib/gatenDichten';
-import { FOUT_LADEN_GATEN, MD_PLAN_TEKSTEN, type PlanTeksten } from '../../lib/gatenWeergave';
+import { FOUT_LADEN_GATEN, FOUT_ONVERWACHT_GATEN, MD_PLAN_TEKSTEN, type PlanTeksten } from '../../lib/gatenWeergave';
 import type { Minimumdoel, MinimumdoelenSetBestand } from '../../lib/minimumdoelen';
 import { GatenSetsKeuze, MD_PLAN, MinimumdoelenDekking, PlanInCursus, planVan, type Plan, type PlanSmaak } from './MinimumdoelenDekking';
 
@@ -632,6 +632,8 @@ interface Klik {
   toasts: [string, string | undefined][];
   /** De cursus zoals `onEdit` hem kreeg te zien na de bewerking, of `undefined` als `onEdit` niet werd aangeroepen. */
   bewerkt: Course | undefined;
+  /** Klikt nog eens op dezelfde knop (dezelfde render, dus hetzelfde `bezig`) en wacht tot er een nieuwe melding is; stopt na ongeveer een seconde. */
+  opnieuw: () => Promise<void>;
 }
 
 /** Zoekt in een React-boom het eerste element dat aan de test voldoet (op de server bestaat van een knop alleen de `onClick`-prop). */
@@ -665,7 +667,7 @@ async function klikOpZet(o: {
   mock.leerplannen = new Map();
   const inOpslag = o.inOpslag === undefined ? o.curriculum : o.inOpslag;
   if (inOpslag) mock.leerplannen.set(o.curriculum.id, inOpslag);
-  const uit: Klik = { toasts: mock.toasts, bewerkt: undefined };
+  const uit: Klik = { toasts: mock.toasts, bewerkt: undefined, opnieuw: async () => {} };
   let boom: unknown;
   // De aanroep gebeurt binnen de render van `Houder`: de hooks van `PlanInCursus` horen dan bij die render.
   const Houder = () => {
@@ -680,6 +682,11 @@ async function klikOpZet(o: {
   expect(knop, 'de knop "Zet ze …"').toBeDefined();
   (knop!.props.onClick as () => void)();
   await wacht(() => mock.toasts.length > 0);
+  uit.opnieuw = async () => {
+    const eerder = mock.toasts.length;
+    (knop!.props.onClick as () => void)();
+    await wacht(() => mock.toasts.length > eerder);
+  };
   return uit;
 }
 
@@ -768,5 +775,43 @@ describe('de klik op "Zet ze in deze cursus"', () => {
     const klik = await klikOpZet({ plan: PLAN_TWEE, dekking: DEKKING, curriculum: LEERPLAN, course: CURSUS, smaak });
     expect(klik.toasts).toEqual([[FOUT_LADEN_GATEN, 'err']]);
     expect(klik.bewerkt).toBeUndefined();
+  });
+
+  it('gooit `voegToe`, dan meldt de editor dat er iets misging, verandert de cursus niet en werkt een tweede klik weer', async () => {
+    let aanroepen = 0;
+    const smaak: PlanSmaak = {
+      teksten: MD_PLAN_TEKSTEN,
+      laadVoegToe: async () => (c, _l, codes) => {
+        aanroepen++;
+        if (aanroepen === 1) throw new Error('voegToe viel om');
+        return { course: { ...c, title: 'Tweede poging' }, toegevoegd: codes };
+      },
+    };
+    const klik = await klikOpZet({ plan: PLAN_TWEE, dekking: DEKKING, curriculum: LEERPLAN, course: CURSUS, smaak });
+    expect(klik.toasts).toEqual([[FOUT_ONVERWACHT_GATEN, 'err']]);
+    expect(FOUT_ONVERWACHT_GATEN).toBe('Er ging iets mis. Er is niets veranderd.');
+    expect(klik.bewerkt).toBeUndefined();
+    expect(aanroepen).toBe(1);
+    // `bezig` is weer vrij: de tweede klik loopt tot het einde en zet de doelen.
+    await klik.opnieuw();
+    expect(aanroepen).toBe(2);
+    expect(klik.toasts).toEqual([[FOUT_ONVERWACHT_GATEN, 'err'], ['3 doelen staan nu gepland in deze cursus.', 'ok']]);
+    expect(klik.bewerkt?.title).toBe('Tweede poging');
+  });
+
+  it('gooit de verwijzing van de smaak, dan gaat het net zo: melding, geen bewerking en de knop reageert nog', async () => {
+    let aanroepen = 0;
+    const smaak: PlanSmaak = {
+      teksten: MD_PLAN_TEKSTEN,
+      verwijzingen: () => { aanroepen++; throw new Error('verwijzing viel om'); },
+      laadVoegToe: async () => (c) => ({ course: c, toegevoegd: ['X'] }),
+    };
+    const klik = await klikOpZet({ plan: PLAN_TWEE, dekking: DEKKING, curriculum: LEERPLAN, course: CURSUS, smaak });
+    expect(klik.toasts).toEqual([[FOUT_ONVERWACHT_GATEN, 'err']]);
+    expect(klik.bewerkt).toBeUndefined();
+    const eerder = aanroepen;
+    await klik.opnieuw();
+    expect(aanroepen).toBeGreaterThan(eerder);
+    expect(klik.toasts).toEqual([[FOUT_ONVERWACHT_GATEN, 'err'], [FOUT_ONVERWACHT_GATEN, 'err']]);
   });
 });

@@ -252,7 +252,6 @@ export function PdfViewer({
       host.removeEventListener('scroll', onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc, zoom]);
 
   // ── Markeringen tonen ─────────────────────────────────────────────────────

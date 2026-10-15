@@ -13,7 +13,7 @@
 import { useMemo } from 'react';
 import { doelcodesVanBestand, type BkBestand } from '../../../lib/beroepskwalificaties';
 import { laadBk, laadBkIndex } from '../../../lib/beroepskwalificatiesBron';
-import { leerplanUitBk, selectieVanBkLeerplan, tekstVanCompetentie, titelVoorBkLeerplan, vindBkLeerplan, type BkKeuze as BkKeuzeBestand } from '../../../lib/bkLeerplan';
+import { bkMerkenVanIndex, leerplanUitBk, selectieVanBkLeerplan, tekstVanCompetentie, titelVoorBkLeerplan, vindBkLeerplan, type BkKeuze as BkKeuzeBestand } from '../../../lib/bkLeerplan';
 import { cursusVoorBk } from '../../../lib/bkCursus';
 import { aantalCompetentiesMetTekst } from '../../../lib/dekkingBk';
 import { BK_VENSTER_FOUT, BK_ZONDER_BESTAND, bkAlleCompetenties, bkKiesZelf, bkLegende, bkNietNagekeken } from '../../../lib/bkWeergave';
@@ -101,9 +101,7 @@ export async function laadBkGegevens(versies: readonly string[], metMerken = tru
     if (b) uit.bestanden.set(v, b);
     else uit.ontbreekt.push(v);
   });
-  for (const r of index?.bks ?? []) {
-    if (typeof r.sha256 === 'string' && r.sha256.length >= 16) uit.merken.set(r.bk, r.sha256.slice(0, 16));
-  }
+  for (const [bk, merk] of bkMerkenVanIndex(index)) uit.merken.set(bk, merk);
   return uit;
 }
 

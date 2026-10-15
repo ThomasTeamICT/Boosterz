@@ -143,9 +143,35 @@ function isBruikbaarBestand(b: unknown): b is BkBestand {
   return isObject(b) && typeof b.bk === 'string' && valideerBkBestand(b, b.bk).length === 0;
 }
 
-/** Het versiemerk van een bestand: de eerste 16 tekens van zijn sha256 (gelijk aan die in de index). */
-function merkVanBestand(b: BkBestand): string {
-  return b.sha256.slice(0, 16);
+/** Een sha256 zoals de validators ze eisen (kleine hex-tekens), met ruimte voor de 16 tekens van het merk. */
+const MERK_PATROON = /^[0-9a-f]{16,}$/;
+
+/**
+ * Het versiemerk van een beroepskwalificatie: de eerste 16 tekens van haar sha256, in de index en in het bestand
+ * hetzelfde. Dit is de enige plaats waar een merk gelezen wordt (index, bestand en scherm). Geen string, te kort of niet
+ * uit kleine hex-tekens (ook hoofdletters niet): `undefined`. Een ontbrekend merk is nooit gelijk aan een ander merk,
+ * dus een ongeldige waarde leidt nooit tot hergebruik of tot "ongewijzigd".
+ */
+export function bkMerk(sha256: unknown): string | undefined {
+  return typeof sha256 === 'string' && MERK_PATROON.test(sha256) ? sha256.slice(0, 16) : undefined;
+}
+
+/**
+ * De versiemerken van de regels van de index: BK-versie → merk. Een regel zonder bruikbaar merk (geen bestand, of een
+ * ongeldige sha256) staat er niet in; de laatste regel met dezelfde versie telt, zoals bij elke Map.
+ */
+export function bkMerkenVanIndex(index: { readonly bks?: readonly { readonly bk: string; readonly sha256?: unknown }[] } | null | undefined): Map<string, string> {
+  const uit = new Map<string, string>();
+  for (const r of Array.isArray(index?.bks) ? index.bks : []) {
+    const merk = isObject(r) && typeof r.bk === 'string' ? bkMerk(r.sha256) : undefined;
+    if (merk !== undefined) uit.set(r.bk, merk);
+  }
+  return uit;
+}
+
+/** Het versiemerk van een bestand (gelijk aan dat in de index); een bruikbaar bestand heeft altijd een merk. */
+function merkVanBestand(b: BkBestand): string | undefined {
+  return bkMerk(b.sha256);
 }
 
 /** "‘Onthaalmedewerker’ (BK-0390-2)": de titel, met het officiële nummer erachter. */
@@ -661,7 +687,8 @@ export function leerplanUitBk(keuzes: readonly BkKeuze[], o: BkLeerplanOpties): 
     kind: 'leerplan' as const,
     source: bronTekst(bestanden),
     herkomst,
-    bkVersies: gekozen.map((g): BkVersieMerk => ({ bk: g.bestand.bk, sha: merkVanBestand(g.bestand), ...(g.alle ? { alle: true as const } : {}) })),
+    // `voegKeuzesSamen` liet alleen bruikbare bestanden toe, en die hebben een sha256 van 64 hex-tekens: het merk ontbreekt hier nooit.
+    bkVersies: gekozen.map((g): BkVersieMerk => ({ bk: g.bestand.bk, sha: merkVanBestand(g.bestand) ?? '', ...(g.alle ? { alle: true as const } : {}) })),
     ...(doelgroep ? { doelgroep } : {}),
     ...(bestaand ? { id: bestaand.id, createdAt: bestaand.createdAt } : {}),
     updatedAt: nu,

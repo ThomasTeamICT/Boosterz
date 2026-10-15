@@ -55,6 +55,7 @@ import { codesVoorDoelen, openPerSet, openVerplichteDoelen, type OpenSet, type V
 import {
   ANNULEREN_TEKST,
   FOUT_LADEN_GATEN,
+  FOUT_ONVERWACHT_GATEN,
   MD_PLAN_TEKSTEN,
   PANEEL_TITEL,
   PLAN_BIJ_RICHTING_TEKST,
@@ -377,29 +378,40 @@ export function PlanInCursus({ plan, dekking, curriculum, namen, onEdit, samenva
     bezig.current = true;
     void smaak.laadVoegToe().then(
       (voegToe) => {
-        // De editor kent het leerplan van toen het paneel opende: lees het opnieuw, het kan intussen in een ander tabblad veranderd
-        // of verdwenen zijn (het laden hierboven duurt even). Is het weg of bevat het geen gekozen doel meer, dan verandert er niets.
-        const leerplan = getCurriculum(curriculum.id);
-        if (!leerplan) {
-          bezig.current = false;
-          toast(t.leerplanWeg, 'err');
-          return;
-        }
-        const vers = codesVoorDoelen(leerplan, gekozen, smaak.verwijzingen);
-        if (vers.inLeerplan.length === 0) {
-          bezig.current = false;
-          toast(t.nietMeerInLeerplan, 'err');
-          return;
-        }
+        let gezet = 0;
         let toegevoegd = 0;
-        onEdit((c) => {
-          const r = voegToe(c, leerplan, vers.codes);
-          toegevoegd = r.toegevoegd.length;
-          return r.course;
-        });
+        // De foutfunctie van `.then(a, b)` vangt geen fouten uit `a`: gooit de verwijzing, `voegToe` of `onEdit`, dan zou `bezig`
+        // blijven staan en reageerde de knop niet meer. `onEdit` rekent de nieuwe cursus uit vóór hij haar overneemt: wie hier
+        // gooit, laat de cursus ongemoeid.
+        try {
+          // De editor kent het leerplan van toen het paneel opende: lees het opnieuw, het kan intussen in een ander tabblad veranderd
+          // of verdwenen zijn (het laden hierboven duurt even). Is het weg of bevat het geen gekozen doel meer, dan verandert er niets.
+          const leerplan = getCurriculum(curriculum.id);
+          if (!leerplan) {
+            bezig.current = false;
+            toast(t.leerplanWeg, 'err');
+            return;
+          }
+          const vers = codesVoorDoelen(leerplan, gekozen, smaak.verwijzingen);
+          if (vers.inLeerplan.length === 0) {
+            bezig.current = false;
+            toast(t.nietMeerInLeerplan, 'err');
+            return;
+          }
+          gezet = vers.inLeerplan.length;
+          onEdit((c) => {
+            const r = voegToe(c, leerplan, vers.codes);
+            toegevoegd = r.toegevoegd.length;
+            return r.course;
+          });
+        } catch {
+          bezig.current = false;
+          toast(FOUT_ONVERWACHT_GATEN, 'err');
+          return;
+        }
         bezig.current = false;
         if (toegevoegd > 0) {
-          toast(t.toast(vers.inLeerplan.length), 'ok');
+          toast(t.toast(gezet), 'ok');
           setOpen(false);
           setFocusNa(dekking);
         } else {

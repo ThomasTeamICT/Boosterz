@@ -78,7 +78,10 @@ const TEKST_STRENG = true;
  */
 const BK_A3_STRENG = true;
 
-/** KP7, de ADV-nummers van een record tegenover de matrix. */
+/**
+ * KP7, de ADV-nummers van een record tegenover de matrix. Streng alleen bij dezelfde matrix als die van de koppeling
+ * (`matrixSha256`), net als KP3: is de matrix nieuwer, dan is een verschil info (R7, de noodinvoer).
+ */
 const ERKENNING_KRUIS_STRENG = true;
 
 // Elke controle leest tientallen bestanden; op een trage machine of onder last heeft 5 seconden niet altijd genoeg.
@@ -226,7 +229,7 @@ interface Opties {
   vandaag?: string;
   /** Standaard false; de echte map gebruikt `BK_A3_STRENG`. */
   a3Streng?: boolean;
-  /** Standaard false; de echte map gebruikt `ERKENNING_KRUIS_STRENG`. */
+  /** Standaard false; de echte map gebruikt `ERKENNING_KRUIS_STRENG`. Geldt alleen bij een gelijke `matrixSha256`. */
   kruisStreng?: boolean;
   /** Standaard false; de echte map gebruikt `NR_STRENG`. */
   nrStreng?: boolean;
@@ -427,8 +430,13 @@ function controleerKoppeling(uit: string, matrix: MatrixInfo | undefined, f: Mel
     }
   }
 
+  // Hoort de koppeling bij deze matrix (`matrixStandVan`)? Eén waarde voor KP3 en KP7, zodat ze nooit uiteenlopen.
+  const stand = matrixStandVan(k.matrixSha256, matrix);
+  const zelfdeMatrix = stand === 'zelfde';
+
   // KP3: dezelfde groep als in de matrix, en één record per onderdeel van de matrix. Streng bij een gelijke
-  // matrixSha256; anders is de matrix sindsdien bijgewerkt (een run met alleen de studierichtingen) en is het info.
+  // matrixSha256; anders is de matrix sindsdien bijgewerkt (een run met alleen de studierichtingen of zonder de
+  // beroepskwalificaties) en is het info.
   if (matrix !== undefined) {
     const gezien = new Set(nummers);
     const anderGroep: string[] = [];
@@ -437,7 +445,7 @@ function controleerKoppeling(uit: string, matrix: MatrixInfo | undefined, f: Mel
       if (m !== undefined && r.groep !== m.groep) anderGroep.push(`onderdeel ${String(r.onderdeel)}: de groep is ${toon(r.groep)}, maar de matrix zegt ${m.groep}.`);
     }
     const zonderRecord = [...matrix.onderdelen.keys()].filter((nr) => !gezien.has(nr)).sort((a, b) => a - b);
-    if (k.matrixSha256 === matrix.sha256) {
+    if (zelfdeMatrix) {
       for (const t of anderGroep) f.voeg('KP3', t);
       if (zonderRecord.length > 0) {
         f.voeg('KP3', `${meervoud(zonderRecord.length, 'onderdeel van de matrix heeft', 'onderdelen van de matrix hebben')} geen record in de koppeling (${zonderRecord.slice(0, 5).join(', ')}).`);
@@ -457,8 +465,27 @@ function controleerKoppeling(uit: string, matrix: MatrixInfo | undefined, f: Mel
   i.voeg('KP1', `${meervoud(records.length, 'onderdeel', 'onderdelen')} in de koppeling: ${perStatus('opgehaald')} opgehaald, ${perStatus('niet-gevonden')} niet gevonden, ${perStatus('nog-niet-opgehaald')} nog niet opgehaald; ${metBk} met een beroepskwalificatie in een erkenning van nu (op ${o.vandaag}).`);
 
   controleerDerdeGraadA(records, matrix, f, i, o);
-  controleerErkenningenTegenMatrix(records, matrix, f, i, o);
+  controleerErkenningenTegenMatrix(records, matrix, stand, f, i, o);
   return records;
+}
+
+/**
+ * Hoort de koppeling bij de matrix? Het script zet `matrixSha256` op de sha256 van de matrix die het las.
+ * - `zelfde`: gelijk. KP3 en KP7 zijn streng.
+ * - `nieuwer`: een geldige sha256, maar een andere. De matrix is sindsdien bijgewerkt in een run zonder de
+ *   beroepskwalificaties (`studierichtingen` of `zonder-beroepskwalificaties`): KP3 en KP7 zijn info, geen fout (R7).
+ * - `onbekend`: `matrixSha256` ontbreekt of is geen sha256. Ook dan zijn KP3 en KP7 info, zoals KP3 het altijd deed
+ *   (alleen een gelijke waarde is streng). Dat is veilig: KP1 maakt van die kop zelf al een harde fout
+ *   (`valideerKoppelingBestand`), dus de controle blijft rood, en KP3 en KP7 stapelen er geen gevolgfouten op die de echte
+ *   oorzaak verbergen. Zonder matrix is het ook `onbekend`, maar dan vallen KP3 en KP7 helemaal weg (KP2 is dan rood).
+ * Missen beide de sha256, dan is dat `zelfde` (streng), net als de vergelijking van KP3 altijd deed; KP1 is dan ook rood.
+ */
+type MatrixStand = 'zelfde' | 'nieuwer' | 'onbekend';
+
+function matrixStandVan(matrixSha256: unknown, matrix: MatrixInfo | undefined): MatrixStand {
+  if (matrix === undefined) return 'onbekend';
+  if (matrixSha256 === matrix.sha256) return 'zelfde';
+  return typeof matrixSha256 === 'string' && /^[0-9a-f]{64}$/.test(matrixSha256) ? 'nieuwer' : 'onbekend';
 }
 
 /**
@@ -501,16 +528,25 @@ function oorzaakOntbrekend(dag: string | undefined): string {
 }
 
 /**
- * KP7: de ADV-nummers van een opgehaald record tegenover de matrix, in beide richtingen. Mild tot G1. Sinds K8 bewaart de
- * koppeling geen erkenning die al afgelopen was bij het ophalen: een erkenning die volgens de matrix vóór de ophaaldatum
- * van het record afliep, hoeft er dus niet in te staan. Noemt de matrix een latere of geen einddatum, dan blijft het een
- * fout (zoals een ADV-nummer dat de matrix nog niet kent): de matrix en het detail verschillen dan, en een run `alles`
- * ververst de matrix. De melding zegt waar de oorzaak staat (`oorzaakOntbrekend`).
+ * KP7: de ADV-nummers van een opgehaald record tegenover de matrix, in beide richtingen. Streng sinds G1 stap 4
+ * (`ERKENNING_KRUIS_STRENG`). Sinds K8 bewaart de koppeling geen erkenning die al afgelopen was bij het ophalen: een
+ * erkenning die volgens de matrix vóór de ophaaldatum van het record afliep, hoeft er dus niet in te staan. Noemt de
+ * matrix een latere of geen einddatum, dan blijft het een fout (zoals een ADV-nummer dat de matrix nog niet kent): de
+ * matrix en het detail verschillen dan, en een run `alles` ververst de matrix. De melding zegt waar de oorzaak staat
+ * (`oorzaakOntbrekend`).
+ *
+ * Net als KP3 is dat alleen streng bij dezelfde matrix (`matrixStandVan`: `matrixSha256` van de koppeling is de sha256 van
+ * de matrix). Is de matrix nieuwer (een run met alleen de studierichtingen of zonder de beroepskwalificaties), dan zegt een
+ * verschil niets over de koppeling: het wordt info, met een telling en een paar voorbeelden, zodat zo'n noodrun niet
+ * strandt op de beroepskwalificaties (R7). Zonder geldige `matrixSha256` ook, met een eigen zin (KP1 is dan al rood).
  */
-function controleerErkenningenTegenMatrix(records: Json[], matrix: MatrixInfo | undefined, f: Meldingen, i: Meldingen, o: Required<Opties>): void {
+function controleerErkenningenTegenMatrix(records: Json[], matrix: MatrixInfo | undefined, stand: MatrixStand, f: Meldingen, i: Meldingen, o: Required<Opties>): void {
   if (matrix === undefined) return;
+  const zelfdeMatrix = stand === 'zelfde';
   let totaal = 0;
   const verschil = new Telling();
+  /** Streng, maar een andere matrix: de ADV-verschillen die anders een fout waren. */
+  const nieuwereMatrix = new Telling();
   for (const r of records) {
     if (r.status !== 'opgehaald' || !isGeheel(r.onderdeel)) continue;
     const m = matrix.onderdelen.get(r.onderdeel);
@@ -525,10 +561,21 @@ function controleerErkenningenTegenMatrix(records: Json[], matrix: MatrixInfo | 
     if (alleenKoppeling.length === 0 && alleenMatrix.length === 0) continue;
     verschil.tel(`onderdeel ${r.onderdeel}`);
     if (!o.kruisStreng) continue;
+    if (!zelfdeMatrix) {
+      for (const a of alleenKoppeling) nieuwereMatrix.tel(`onderdeel ${r.onderdeel}: ${a} alleen in de koppeling`);
+      for (const a of alleenMatrix) nieuwereMatrix.tel(`onderdeel ${r.onderdeel}: ${a} alleen in de matrix`);
+      continue;
+    }
     for (const a of alleenKoppeling) f.voeg('KP7', `onderdeel ${r.onderdeel}: ${a} staat in de koppeling, maar niet in de matrix.`);
     for (const a of alleenMatrix) f.voeg('KP7', `onderdeel ${r.onderdeel}: ${a} staat in de matrix, maar niet in de koppeling. ${oorzaakOntbrekend(dag)}`);
   }
   i.voeg('KP7', `opgehaalde onderdelen met andere ADV-nummers dan de matrix: ${verschil.n} van de ${totaal}${verschil.tekst()}.`);
+  if (nieuwereMatrix.n > 0) {
+    const reden = stand === 'nieuwer'
+      ? 'matrixSha256 in de koppeling is niet gelijk aan de sha256 van de matrix: de matrix is nieuwer dan de koppeling (een run met alleen de studierichtingen of zonder de beroepskwalificaties).'
+      : 'de koppeling noemt geen geldige matrixSha256 (zie KP1): het is niet te zeggen bij welke matrix ze hoort.';
+    i.voeg('KP7', `${reden} ${meervoud(nieuwereMatrix.n, 'ADV-verschil is', 'ADV-verschillen zijn')} daarom geen fout${nieuwereMatrix.tekst()}; een run met onderdelen = alles zet de koppeling en de matrix weer gelijk.`);
+  }
 }
 
 /**
@@ -2151,6 +2198,70 @@ describe('zelftest: wat geen fout mag zijn', () => {
     expect(controleerKwalificatieMap(k.uit, k.structuur, FIXTURE_OPTIES).fouten.some((t) => /^KP2: onderdeel 8 staat niet in de matrix/.test(t))).toBe(true);
   });
 
+  /**
+   * Een kopie met een nieuwere matrix, zoals na een run met alleen de studierichtingen of `zonder-beroepskwalificaties`:
+   * onderdeel 129 kreeg er de erkenning ADV-2000 bij (een nieuw schooljaar), de koppeling bleef zoals ze was. De
+   * matrix zelf is in orde; alleen `matrixSha256` van de koppeling hoort nog bij de oude matrix.
+   */
+  function metNieuwereMatrix(): Kopie {
+    const k = maakKopie();
+    const m = leesMatrixKopie(k);
+    const o = (m.onderdelen as Json[]).find((x) => x.nummer === 129);
+    if (o === undefined) throw new Error('De matrix van de fixtures heeft geen onderdeel 129.');
+    (o.erkenningen as Json[]).push({ nummer: 'ADV-2000', status: 'ERKEND', begindatum: '2026-09-01' });
+    ((o.extra as Json).structuuronderdeel_details as Json[]).push({ status: { omschrijving: 'Erkend' } });
+    m.sha256 = sha256Van({ groepen: m.groepen, onderdelen: m.onderdelen });
+    schrijf(k.structuur, ['studierichtingen.json'], m);
+    expect(valideerMatrixBestand(m)).toEqual([]);
+    expect(leesKoppeling(k).matrixSha256).not.toBe(m.sha256);
+    return k;
+  }
+
+  it('een andere matrix (matrixSha256 verschilt) geeft ook bij KP7 streng geen fout, maar wel info met de reden; bij dezelfde matrix blijft hetzelfde ADV-verschil een fout', () => {
+    const k = metNieuwereMatrix();
+    const anders = controleerKwalificatieMap(k.uit, k.structuur, { ...FIXTURE_OPTIES, kruisStreng: true });
+    // ADV-1999 (onderdeel 10, de fixtures) en ADV-2000 (onderdeel 129, de nieuwere matrix) zijn bij dezelfde matrix een fout.
+    expect(anders.fouten).toEqual([]);
+    const kp7 = anders.info.filter((t) => t.startsWith('KP7:'));
+    expect(kp7).toHaveLength(2);
+    expect(kp7[0]).toMatch(/^KP7: opgehaalde onderdelen met andere ADV-nummers dan de matrix: 2 van de \d+ \(bv\. onderdeel 10; onderdeel 129\)\.$/);
+    expect(kp7[1]).toBe(
+      'KP7: matrixSha256 in de koppeling is niet gelijk aan de sha256 van de matrix: de matrix is nieuwer dan de koppeling (een run met alleen de studierichtingen of zonder de beroepskwalificaties). 2 ADV-verschillen zijn daarom geen fout (bv. onderdeel 10: ADV-1999 alleen in de koppeling; onderdeel 129: ADV-2000 alleen in de matrix); een run met onderdelen = alles zet de koppeling en de matrix weer gelijk.',
+    );
+    expect(anders.info.some((t) => t.startsWith('KP3: matrixSha256 in de koppeling is niet gelijk'))).toBe(true);
+    // Mild zegt de telling het al: de uitleg hoort alleen bij wat streng een fout zou zijn.
+    const mild = controleerKwalificatieMap(k.uit, k.structuur, FIXTURE_OPTIES);
+    expect(mild.fouten).toEqual([]);
+    expect(mild.info.filter((t) => t.startsWith('KP7:'))).toEqual([kp7[0]]);
+
+    // Dezelfde bestanden, maar de koppeling hoort nu bij deze matrix (alleen matrixSha256 verandert): weer streng.
+    const kop = leesKoppeling(k);
+    kop.matrixSha256 = leesMatrixKopie(k).sha256;
+    herstelKoppeling(k, kop);
+    const zelfde = controleerKwalificatieMap(k.uit, k.structuur, { ...FIXTURE_OPTIES, kruisStreng: true });
+    expect(zelfde.fouten).toEqual([
+      'KP7: onderdeel 10: ADV-1999 staat in de koppeling, maar niet in de matrix.',
+      `KP7: onderdeel 129: ADV-2000 staat in de matrix, maar niet in de koppeling. ${oorzaakOntbrekend('2026-10-10')}`,
+    ]);
+    expect(zelfde.info.filter((t) => t.startsWith('KP7:'))).toEqual([kp7[0]]);
+    expect(zelfde.info.some((t) => t.startsWith('KP3: matrixSha256'))).toBe(false);
+  });
+
+  it('zonder matrixSha256 in de koppeling doet KP7 wat KP3 doet (info), en blijft de controle rood door KP1', () => {
+    // Bij de fixtures zelf, met de matrix waar ze bij horen: alleen het veld ontbreekt.
+    const k = maakKopie();
+    const kop = leesKoppeling(k);
+    delete kop.matrixSha256;
+    herstelKoppeling(k, kop);
+    const { fouten, info } = controleerKwalificatieMap(k.uit, k.structuur, { ...FIXTURE_OPTIES, kruisStreng: true });
+    expect(fouten).toEqual(['KP1: Kop: "matrixSha256" is geen sha256 (64 hex-tekens).']);
+    expect(info.some((t) => t.startsWith('KP3: matrixSha256 in de koppeling is niet gelijk'))).toBe(true);
+    // De zin zegt niet dat de matrix nieuwer is: dat is zonder matrixSha256 niet te weten.
+    expect(info.filter((t) => t.startsWith('KP7:')).slice(1)).toEqual([
+      'KP7: de koppeling noemt geen geldige matrixSha256 (zie KP1): het is niet te zeggen bij welke matrix ze hoort. 1 ADV-verschil is daarom geen fout (bv. onderdeel 10: ADV-1999 alleen in de koppeling); een run met onderdelen = alles zet de koppeling en de matrix weer gelijk.',
+    ]);
+  });
+
   it('de strenge regels KP6, KP7, BB4 en BB5 geven zonder schakelaar alleen een melding', () => {
     for (const naam of [
       'KP6 streng: een gewoon onderdeel van de 3de graad A zonder BK',
@@ -2438,6 +2549,17 @@ describe('hulpfuncties van de datatest', () => {
     expect(lijst).toHaveLength(1 + MAX_PER_CODE + 1 + 1);
     expect(lijst[MAX_PER_CODE + 1]).toBe('BB1: … en nog 5 van dezelfde soort');
     expect(lijst[lijst.length - 1]).toBe('ZZ9: onbekende code, achteraan');
+  });
+
+  it('matrixStandVan: alleen een gelijke waarde is "zelfde"; een andere sha256 is "nieuwer"; de rest "onbekend"', () => {
+    const sha = 'a'.repeat(64);
+    const matrix = (sha256: unknown): MatrixInfo => ({ sha256, onderdelen: new Map() });
+    expect(matrixStandVan(sha, matrix(sha))).toBe('zelfde');
+    expect(matrixStandVan('b'.repeat(64), matrix(sha))).toBe('nieuwer');
+    for (const x of [undefined, null, 5, '', 'abc', 'A'.repeat(64), `${'a'.repeat(63)}g`]) expect(matrixStandVan(x, matrix(sha)), String(x)).toBe('onbekend');
+    expect(matrixStandVan(sha, undefined)).toBe('onbekend');
+    // Zoals KP3 altijd vergeleek: missen beide de sha256, dan is het "zelfde" (streng); KP1 is dan al rood.
+    expect(matrixStandVan(undefined, matrix(undefined))).toBe('zelfde');
   });
 
   it('Telling bewaart hoogstens drie voorbeelden', () => {

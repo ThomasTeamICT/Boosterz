@@ -21,6 +21,7 @@ import type { BkBestand } from '../../../lib/beroepskwalificaties';
 import { splitsBk } from '../../../lib/beroepskwalificaties';
 import { FOUT_BK, FOUT_BK_BESCHADIGD, laadBk, laadBkIndex, laadBkKoppeling } from '../../../lib/beroepskwalificatiesBron';
 import {
+  bkMerkenVanIndex,
   leerplanUitBk,
   selectieVanBkLeerplan,
   vergelijkMetBk,
@@ -304,10 +305,9 @@ export function BkSectie({ context, vandaag, opnieuw }: BkSectieProps) {
   const { stand: extraStand } = useLaadstand<Extra | null>(extraSleutel, async () => {
     if (!bk) return null;
     const [koppeling, index] = await Promise.all([laadBkKoppeling(), laadBkIndex()]);
-    const merken = new Map<string, string>();
+    const merken = bkMerkenVanIndex(index);
     const titels = new Map<string, string>();
     for (const r of index?.bks ?? []) {
-      if (typeof r.sha256 === 'string' && /^[0-9a-f]{16,}$/.test(r.sha256)) merken.set(r.bk, r.sha256.slice(0, 16));
       if (typeof r.titel === 'string' && r.titel.trim() !== '') titels.set(r.bk, r.titel.trim());
     }
     const zonderVariant = { groep: keuze.groep, soort: keuze.soort, ...(keuze.jaar !== undefined ? { jaar: keuze.jaar } : {}) };

@@ -13,6 +13,8 @@ import {
   type KoppelingBestand,
 } from './beroepskwalificaties';
 import {
+  bkMerk,
+  bkMerkenVanIndex,
   controleerBkLeerplan,
   leerplanUitBk,
   selectieVanBkLeerplan,
@@ -151,6 +153,134 @@ describe('de fixtures en hulpbestanden', () => {
       expect(MERKEN.get(b.bk)).toBe(merkVan(b));
     }
     expect(ONTHAAL.competenties).toHaveLength(12);
+  });
+});
+
+// ── bkMerk en bkMerkenVanIndex ──────────────────────────────────────────────
+
+describe('bkMerk: de enige lezer van een versiemerk (§ 24.12)', () => {
+  const HEX64 = '75ed8f70bba4cc76' + '0123456789abcdef'.repeat(3);
+
+  it('een geldige sha256 van 64 tekens: de eerste 16 tekens', () => {
+    expect(HEX64).toHaveLength(64);
+    expect(bkMerk(HEX64)).toBe('75ed8f70bba4cc76');
+    expect(bkMerk(sha256Hex('iets'))).toBe(sha256Hex('iets').slice(0, 16));
+  });
+
+  it('precies 16 of meer dan 16 maar minder dan 64 kleine hex-tekens: nog steeds de eerste 16 (zoals het oude BkSectie)', () => {
+    expect(bkMerk('0123456789abcdef')).toBe('0123456789abcdef');
+    expect(bkMerk('0123456789abcdef0')).toBe('0123456789abcdef');
+    expect(bkMerk(`${HEX64}0`)).toBe('75ed8f70bba4cc76');
+  });
+
+  it('hoofdletters: geen merk (ook niet gedeeltelijk)', () => {
+    expect(bkMerk(HEX64.toUpperCase())).toBeUndefined();
+    expect(bkMerk('0123456789ABCDEF')).toBeUndefined();
+    expect(bkMerk(`${HEX64.slice(0, 40)}A${HEX64.slice(41)}`)).toBeUndefined();
+  });
+
+  it('te kort: geen merk', () => {
+    expect(bkMerk('')).toBeUndefined();
+    expect(bkMerk('0123456789abcde')).toBeUndefined();
+    expect(bkMerk('abc')).toBeUndefined();
+  });
+
+  it('geen hex-tekens, of rommel rond de hex-tekens: geen merk', () => {
+    expect(bkMerk('0123456789abcdeg')).toBeUndefined();
+    expect(bkMerk(` ${HEX64}`)).toBeUndefined();
+    expect(bkMerk(`${HEX64}\n`)).toBeUndefined();
+    expect(bkMerk(`${HEX64}\nabc`)).toBeUndefined();
+    expect(bkMerk('0123456789abcdef\u0000')).toBeUndefined();
+  });
+
+  it('geen string: geen merk, en het gooit nooit', () => {
+    for (const v of [undefined, null, 0, 1234567890123456, true, {}, [], [HEX64], { toString: () => HEX64 }, Symbol('x'), () => HEX64]) {
+      expect(bkMerk(v)).toBeUndefined();
+    }
+    // Een String-object is geen string: de validators eisen een echte string.
+    expect(bkMerk(new String(HEX64))).toBeUndefined();
+  });
+
+  it('geeft voor elk geldig bestand en elke geldige indexregel van de fixtures hetzelfde als de oude "eerste 16 tekens"', () => {
+    for (const b of [ONTHAAL, RECREATIEF, NAGEBOOTST_1, NAGEBOOTST_2]) expect(bkMerk(b.sha256)).toBe(b.sha256.slice(0, 16));
+    for (const r of INDEX.bks.filter((x) => x.sha256 !== undefined)) expect(bkMerk(r.sha256)).toBe((r.sha256 as string).slice(0, 16));
+  });
+});
+
+describe('bkMerkenVanIndex', () => {
+  it('geeft voor de index van de fixtures precies de merken van de regels met een bestand', () => {
+    const m = bkMerkenVanIndex(INDEX);
+    expect(m).toEqual(MERKEN);
+    expect(m.size).toBeGreaterThan(0);
+    expect(m.size).toBe(INDEX.bks.filter((r) => r.sha256 !== undefined).length);
+  });
+
+  it('met geldige data gelijk aan de drie oude lezers van de index (BkSectie, BkKeuze en bkGatenHulp)', () => {
+    const oudBkSectie = new Map<string, string>();
+    const oudBkKeuze = new Map<string, string>();
+    for (const r of INDEX.bks) {
+      if (typeof r.sha256 === 'string' && /^[0-9a-f]{16,}$/.test(r.sha256)) oudBkSectie.set(r.bk, r.sha256.slice(0, 16));
+      if (typeof r.sha256 === 'string' && r.sha256.length >= 16) oudBkKeuze.set(r.bk, r.sha256.slice(0, 16));
+    }
+    expect([...bkMerkenVanIndex(INDEX)]).toEqual([...oudBkSectie]);
+    expect([...bkMerkenVanIndex(INDEX)]).toEqual([...oudBkKeuze]);
+    // De index is door de validator gekomen: dat is de aanname waarop de gelijkheid rust.
+    expect(INDEX.bks.every((r) => r.sha256 === undefined || /^[0-9a-f]{64}$/.test(r.sha256))).toBe(true);
+  });
+
+  it('slaat regels zonder bruikbaar merk over (geen bestand, ongeldige sha256) en laat de rest staan', () => {
+    const goed = sha256Hex('goed');
+    const m = bkMerkenVanIndex({
+      bks: [
+        { bk: 'BK-0001-1', sha256: goed },
+        { bk: 'BK-0002-1' },
+        { bk: 'BK-0003-1', sha256: goed.toUpperCase() },
+        { bk: 'BK-0004-1', sha256: 'te kort' },
+        { bk: 'BK-0005-1', sha256: 12345 },
+        { bk: 'BK-0006-1', sha256: null },
+      ],
+    });
+    expect([...m]).toEqual([['BK-0001-1', goed.slice(0, 16)]]);
+  });
+
+  it('de laatste regel met dezelfde versie telt, zoals bij elke Map; ook een latere regel zonder merk wist het niet', () => {
+    const a = sha256Hex('a');
+    const b = sha256Hex('b');
+    expect(bkMerkenVanIndex({ bks: [{ bk: 'BK-0001-1', sha256: a }, { bk: 'BK-0001-1', sha256: b }] }).get('BK-0001-1')).toBe(b.slice(0, 16));
+    expect(bkMerkenVanIndex({ bks: [{ bk: 'BK-0001-1', sha256: a }, { bk: 'BK-0001-1' }] }).get('BK-0001-1')).toBe(a.slice(0, 16));
+  });
+
+  it('geen index, geen lijst of rommel: een lege Map, en het gooit nooit', () => {
+    for (const v of [null, undefined, {}, { bks: undefined }, { bks: null }, { bks: 'tekst' }, { bks: {} }]) {
+      expect(bkMerkenVanIndex(v as never).size).toBe(0);
+    }
+    const m = bkMerkenVanIndex({ bks: [null, undefined, 'tekst', 5, [], { sha256: sha256Hex('x') }, { bk: 7, sha256: sha256Hex('x') }] as never });
+    expect(m.size).toBe(0);
+  });
+
+  it('geeft telkens een nieuwe Map (de aanroeper mag er in schrijven)', () => {
+    const een = bkMerkenVanIndex(INDEX);
+    een.set('BK-9999-9', '0123456789abcdef');
+    expect(bkMerkenVanIndex(INDEX).has('BK-9999-9')).toBe(false);
+  });
+});
+
+describe('een ongeldig merk in de index leidt nooit tot hergebruik van een verkeerd leerplan', () => {
+  const vier = ids(ONTHAAL).slice(2, 6);
+  const sel = new Map([['BK-0390-2', vier]]);
+
+  it('een leerplan met een merk van hoofdletters en een index met dezelfde (ongeldige) sha256: niet gevonden', () => {
+    const l = structuredClone(nagekeken([{ bestand: ONTHAAL, competenties: vier }]));
+    l.bkVersies = [{ bk: 'BK-0390-2', sha: 'ABCDEF0123456789' }];
+    expect(effectieveStatus(l)).toBe('gecontroleerd');
+    const kapot = bkMerkenVanIndex({ bks: [{ bk: 'BK-0390-2', sha256: 'ABCDEF0123456789ABCDEF' }] });
+    expect(kapot.has('BK-0390-2')).toBe(false);
+    expect(vindBkLeerplan([l], sel, DG, kapot)).toBeUndefined();
+  });
+
+  it('dezelfde selectie met het geldige merk uit de index: wel gevonden (de keerzijde)', () => {
+    const l = nagekeken([{ bestand: ONTHAAL, competenties: vier }]);
+    expect(vindBkLeerplan([l], sel, DG, bkMerkenVanIndex(INDEX))).toBe(l);
   });
 });
 
