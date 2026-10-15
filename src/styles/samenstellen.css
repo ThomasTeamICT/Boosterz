@@ -12,12 +12,34 @@
 .sam-stap { min-width: 0; }
 .sam-page p.hint { color: var(--text-soft); font-size: 0.88rem; }
 .sam-kop { margin: 18px 0 8px; font-size: 1.05rem; }
+.sam-kop:focus { outline: none; }
+.sam-kop:focus-visible { outline: 3px solid var(--brand); outline-offset: 4px; }
 .sam-teller { margin: 2px 0 10px; font-weight: 700; color: var(--text-soft); font-size: 0.92rem; }
 .sam-leeg { padding: 18px; border: 2px dashed var(--line-strong); border-radius: var(--radius-m); color: var(--text-soft); }
 .sam-leeg p { margin: 0 0 10px; }
 .sam-leeg strong { color: var(--text); }
 
-/* ── Stap 1: gekozen sets, filters en de lijst ─────────────────────────── */
+/* ── Stap 1: voor welke leerlingen, gekozen sets, filters en de lijst ───── */
+
+.sam-leerlingen {
+  margin: 0 0 12px; padding: 14px 16px 6px; border: 1px solid var(--line-strong); border-radius: var(--radius-m);
+  background: var(--bg-raised);
+}
+.sam-leerlingen h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.sam-leerlingen-uitleg { margin: 0 0 12px; max-width: 72ch; color: var(--text-soft); font-size: 0.92rem; }
+.sam-fieldset { border: 0; margin: 0 0 12px; padding: 0; min-width: 0; }
+.sam-fieldset legend { padding: 0; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: var(--text-soft); }
+.sam-radios { display: flex; flex-wrap: wrap; gap: 6px 8px; }
+.sam-keuze {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; max-width: 100%; padding: 6px 12px; cursor: pointer;
+  border: 1.5px solid var(--line-strong); border-radius: var(--radius-s); background: var(--bg-raised); font-weight: 600;
+}
+.sam-keuze span { min-width: 0; overflow-wrap: break-word; }
+.sam-keuze input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--brand-fill); cursor: pointer; }
+.sam-keuze:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.sam-keuze:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; }
+.sam-leerlingen .sam-selecten { grid-template-columns: minmax(0, 340px); }
+.sam-leerlingen .field { margin-bottom: 12px; }
 
 .sam-gekozen {
   margin: 0 0 6px; padding: 14px 16px; border: 1px solid var(--line-strong); border-radius: var(--radius-m);
@@ -28,15 +50,26 @@
 .sam-gekozen h3:focus-visible { outline: 3px solid var(--brand); outline-offset: 4px; }
 .sam-gekozen .sam-teller { margin-bottom: 8px; }
 .sam-gekozen .hint { margin: 8px 0 0; }
+.sam-meldingen:not(:empty) { margin-top: 10px; display: grid; gap: 6px; }
+.sam-melding { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-weight: 600; color: var(--warn-text); }
+.sam-melding svg { flex: none; margin-top: 2px; }
+.sam-melding span { min-width: 0; overflow-wrap: break-word; }
 
 .sam-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .sam-chip {
   display: inline-flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; padding: 3px 3px 3px 12px;
   border: 1px solid var(--brand); border-radius: 999px; background: var(--brand-soft); color: var(--text);
 }
+/* Met een waarschuwingsregel erbij is de chip te hoog voor een volledig ronde vorm. */
+.sam-chip:has(.sam-chip-waarschuwing) { border-radius: var(--radius-m); }
 .sam-chip-tekst { display: grid; min-width: 0; padding: 2px 0; line-height: 1.25; }
 .sam-chip-naam { font-weight: 700; overflow-wrap: anywhere; }
 .sam-chip-meta { font-size: 0.8rem; color: var(--text-soft); overflow-wrap: anywhere; }
+.sam-chip-waarschuwing {
+  display: flex; align-items: flex-start; gap: 5px; margin-top: 2px; font-size: 0.8rem; font-weight: 600; color: var(--warn-text);
+  overflow-wrap: anywhere;
+}
+.sam-chip-waarschuwing svg { flex: none; margin-top: 2px; }
 .sam-chip-weg {
   display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; padding: 0; cursor: pointer;
   border: 0; border-radius: 999px; background: transparent; color: var(--text);
@@ -69,6 +102,8 @@
 .sam-set-geldig { font-weight: 700; }
 .sam-set-geldig.oud { color: var(--warn-text); }
 .sam-meer { display: flex; justify-content: center; margin: 12px 0 4px; }
+.sam-verborgen { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 14px 0 4px; color: var(--text-soft); }
+.sam-verborgen p { margin: 0; font-weight: 600; }
 
 /* ── Stap 2: totaal, zoeken en een blok per set ────────────────────────── */
 
@@ -126,6 +161,10 @@
 .sam-velden { display: grid; gap: 0 14px; max-width: 720px; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); }
 .sam-voorstel { margin: -6px 0 12px; }
 .sam-waarschuwing { margin: 4px 0 8px; }
+.sam-sturing { margin: 4px 0 8px; }
+.sam-sturing-knoppen { display: flex; flex-wrap: wrap; gap: 6px 8px; }
+.sam-status { margin: 4px 0 8px; font-weight: 600; color: var(--ok-text); }
+.sam-status:empty { margin: 0; }
 .sam-gewijzigd { margin-bottom: 14px; }
 .sam-nagekeken { margin: 0 0 12px; max-width: 72ch; font-weight: 600; color: var(--ok-text); }
 
@@ -137,6 +176,11 @@
   .il-stappen.sam-stappen .il-stap { flex-direction: column; justify-content: flex-start; gap: 4px; padding: 8px 4px; text-align: center; }
   .sam-chip-weg { width: 44px; height: 44px; }
   .sam-oud-label { min-height: 44px; }
+  .sam-keuze { min-height: 44px; }
+  .sam-radios { gap: 8px; }
+  .sam-leerlingen { padding: 12px 12px 4px; }
+  .sam-sturing-knoppen .btn, .sam-verborgen .btn, .sam-leeg .btn { min-height: 44px; }
+  .sam-sturing-knoppen .btn { flex: 1 1 100%; }
   .sam-hele { min-height: 44px; }
   /* Het selectievakje links; de code boven de tekst, zodat de tekst de volle breedte krijgt. */
   .sam-doel { grid-template-columns: 20px minmax(0, 1fr); padding: 10px 4px; }

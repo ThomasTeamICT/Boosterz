@@ -27,7 +27,7 @@ import {
 import { controleerLeerplan, type ControleRapport } from './curriculumCheck';
 import { doelgroepVoorLeerplan, type Doelgroep } from './doelgroep';
 import { htmlNaarTekst, NAAMSVERMELDING, type Minimumdoel, type MinimumdoelenSetBestand, type MinimumdoelenSetKop } from './minimumdoelen';
-import { contextVanSet, datumLeesbaar, zonderAccenten } from './minimumdoelenBron';
+import { contextVanSet, datumLeesbaar, setKenmerken, soortVanSet, zijnTweeling, zonderAccenten } from './minimumdoelenBron';
 import { NAGEKEKEN_DOOR_BRON, isOptioneel, themaVanDoel, uniekeCodes } from './minimumdoelenLeerplan';
 import { geldigheidVanBestand } from './setKeuze';
 import { uid } from './utils';
@@ -71,9 +71,15 @@ export interface Samengesteld {
   /**
    * In gewone taal: overgeslagen doelen (zonder vast nummer of tekst), gekozen doelen die niet (meer) in de set staan,
    * oude versies, minimumdoelen die via twee gekozen sets in de lijst komen, en (bij `bestaand`) doelen die uit de
-   * bewaarde lijst wegvallen.
+   * bewaarde lijst wegvallen. Een set heet in een waarschuwing "korte naam (kenmerken)", zonder set-id (zie `setNamen`).
    */
   waarschuwingen: string[];
+  /**
+   * De waarschuwingen (zinnen uit `waarschuwingen`) over hetzelfde minimumdoel in een SO-set en zijn BuSO-tweeling. In stap 3
+   * van de wizard vervangt de eenklikmelding "Je koos dezelfde doelen twee keer" ze, zodat dezelfde boodschap er niet twee
+   * keer staat; wie "Allebei houden" kiest, ziet ze weer. Altijd een deel van `waarschuwingen`.
+   */
+  tweelingWaarschuwingen: string[];
 }
 
 export interface SamengesteldBevestigd {
@@ -132,9 +138,38 @@ function gedeeldNiveau(sets: readonly { graad?: string; stroom?: string }[]): st
   return [graden.size === 1 ? [...graden][0] : '', stromen.size === 1 ? [...stromen][0] : ''].filter(Boolean).join(' ');
 }
 
-/** "Nederlands (ODS_3343)": hoe een set in een waarschuwing heet. */
-function setInBericht(set: MinimumdoelenSetKop): string {
-  return `${korteNaam(set) || 'Set'} (${set.id})`;
+/** Hoe een set in een waarschuwing heet. */
+interface SetNaam {
+  /** "Nederlands (Buitengewoon secundair onderwijs · 1ste graad · A-stroom · Opleidingsvorm 4 · Eindtermen basisgeletterdheid)". */
+  tekst: string;
+  /** "‘Nederlands’ (…)", zoals in de zin over doelen die in twee sets staan. */
+  aangehaald: string;
+}
+
+/**
+ * Hoe elke set (per set-id) in een waarschuwing heet: de korte naam, gevolgd door de kenmerken tussen haakjes (`setKenmerken`:
+ * soort, graad, stroom en context), nooit een set-id. Alleen als twee sets er daarna nog hetzelfde uitzien (bv. twee versies
+ * van dezelfde set), komt het set-id bij beide achter de kenmerken: anders kan niemand ze nog uit elkaar houden.
+ */
+function setNamen(koppen: readonly MinimumdoelenSetKop[]): Map<string, SetNaam> {
+  const basis = koppen.map((k) => ({ id: k.id, naam: korteNaam(k) || 'Set', kenmerken: setKenmerken(k) }));
+  const sleutel = (b: { naam: string; kenmerken: string }) => zonderAccenten(`${b.naam} ${b.kenmerken}`).replace(/\s+/g, ' ').trim();
+  const telling = new Map<string, number>();
+  for (const b of basis) telling.set(sleutel(b), (telling.get(sleutel(b)) ?? 0) + 1);
+  const uit = new Map<string, SetNaam>();
+  for (const b of basis) {
+    const kenmerken = (telling.get(sleutel(b)) ?? 0) > 1 ? [b.kenmerken, b.id].filter(Boolean).join(' · ') : b.kenmerken;
+    uit.set(b.id, {
+      tekst: kenmerken ? `${b.naam} (${kenmerken})` : b.naam,
+      aangehaald: kenmerken ? `‘${b.naam}’ (${kenmerken})` : `‘${b.naam}’`,
+    });
+  }
+  return uit;
+}
+
+/** De naam van een set in een waarschuwing; een set die niet in `namen` staat, heet gewoon "Set". */
+function naamVan(namen: ReadonlyMap<string, SetNaam>, set: MinimumdoelenSetKop): SetNaam {
+  return namen.get(set.id) ?? { tekst: korteNaam(set) || 'Set', aangehaald: `‘${korteNaam(set) || 'Set'}’` };
 }
 
 function isBruikbaarBestand(b: unknown): b is MinimumdoelenSetBestand {
@@ -187,9 +222,8 @@ interface GekozenDoel {
  * precies zoals in `leerplanUitSet`; de codes worden over al die doelen berekend, zodat een code dezelfde is als in
  * "Gebruik als leerplan".
  */
-function kiesUitSet(keuze: Keuze): { doelen: GekozenDoel[]; waarschuwingen: string[] } {
+function kiesUitSet(keuze: Keuze, naam: string): { doelen: GekozenDoel[]; waarschuwingen: string[] } {
   const { bestand, alle, ids } = keuze;
-  const naam = setInBericht(bestand.set);
   const bruikbaar: { doel: Minimumdoel; id: string; tekst: string }[] = [];
   let zonderId = 0;
   const zonderTekst: string[] = [];
@@ -553,7 +587,8 @@ function bronTekst(koppen: readonly MinimumdoelenSetKop[]): string {
 /**
  * Een titel als voorstel, bv. "Basisgeletterdheid · 1ste graad A-stroom" of "Eigen selectie minimumdoelen · 1ste graad
  * A-stroom". Hebben alle sets dezelfde korte naam (één set, of dezelfde set in twee stromen): "<korte naam> (eigen
- * selectie)", of "Basisgeletterdheid <korte naam>". Graad en stroom staan erachter voor zover alle sets ze delen.
+ * selectie)", of "Basisgeletterdheid <korte naam>". Graad en stroom staan erachter voor zover alle sets ze delen. Zijn alle
+ * sets van het buitengewoon onderwijs, dan sluit " · BuSO" af: "Basisgeletterdheid · 1ste graad A-stroom · BuSO".
  */
 export function voorstelTitel(sets: readonly { naam: string; korteNaam?: string; graad?: string; stroom?: string }[]): string {
   const lijst = (Array.isArray(sets) ? sets : []).filter((s) => typeof s === 'object' && s !== null);
@@ -566,12 +601,14 @@ export function voorstelTitel(sets: readonly { naam: string; korteNaam?: string;
   else if (enigeNaam) naam = `${enigeNaam} (eigen selectie)`;
   else naam = 'Eigen selectie minimumdoelen';
   const niveau = gedeeldNiveau(lijst);
-  return niveau ? `${naam} · ${niveau}` : naam;
+  const titel = niveau ? `${naam} · ${niveau}` : naam;
+  const alleBuso = lijst.length > 0 && lijst.every((s) => soortVanSet(tekstOfLeeg(s.naam)) === 'buso');
+  return alleBuso ? `${titel} · BuSO` : titel;
 }
 
 /** Hoeveel doelen een selectie telt (met 'alle' = alle doelen met vast nummer en tekst). Zoveel doelen krijgt de lijst. */
 export function telSelectie(keuzes: readonly SetKeuze[]): number {
-  return voegKeuzesSamen(keuzes).reduce((som, k) => som + kiesUitSet(k).doelen.length, 0);
+  return voegKeuzesSamen(keuzes).reduce((som, k) => som + kiesUitSet(k, '').doelen.length, 0);
 }
 
 // ── Bevestigen ──────────────────────────────────────────────────────────────
@@ -613,11 +650,16 @@ export function bevestigSamengesteld(
  * Minimumdoelen die via meer dan één gekozen set in de lijst komen: hetzelfde vaste nummer staat vaak in meer sets
  * (gewoon naast buitengewoon secundair, bv. ODS_3283 en ODS_3300), met dezelfde tekst en code. Dat mag (een doel is
  * set + vast nummer, dus niet ontdubbelen), maar de leerkracht moet het weten. Per vast nummer telt de eerste set; per
- * latere set en per eerdere set waarmee ze doelen deelt één waarschuwing, in de volgorde van de sets.
+ * latere set en per eerdere set waarmee ze doelen deelt één waarschuwing, in de volgorde van de sets. `tweeling` zijn de
+ * waarschuwingen van paren die elkaars SO/BuSO-tweeling zijn (`zijnTweeling`): ook die staan in `alle`.
  */
-function waarschuwingenDubbelOverSets(gekozenSets: readonly { bestand: MinimumdoelenSetBestand; doelen: readonly GekozenDoel[] }[]): string[] {
+function waarschuwingenDubbelOverSets(
+  gekozenSets: readonly { bestand: MinimumdoelenSetBestand; doelen: readonly GekozenDoel[] }[],
+  namen: ReadonlyMap<string, SetNaam>,
+): { alle: string[]; tweeling: string[] } {
   const eersteSet = new Map<string, number>();
-  const uit: string[] = [];
+  const alle: string[] = [];
+  const tweeling: string[] = [];
   gekozenSets.forEach(({ bestand, doelen: gekozen }, i) => {
     const perEerdereSet = new Map<number, number>();
     for (const { id } of gekozen) {
@@ -626,13 +668,16 @@ function waarschuwingenDubbelOverSets(gekozenSets: readonly { bestand: Minimumdo
       else if (eerder !== i) perEerdereSet.set(eerder, (perEerdereSet.get(eerder) ?? 0) + 1);
     }
     for (const [eerder, n] of [...perEerdereSet].sort((a, b) => a[0] - b[0])) {
-      const ander = setInBericht(gekozenSets[eerder].bestand.set);
-      uit.push(n === 1
-        ? `${setInBericht(bestand.set)}: 1 doel staat ook in ${ander}; het is hetzelfde minimumdoel. Het staat nu twee keer in je lijst. Wil je het maar één keer, haal dan een van beide sets weg.`
-        : `${setInBericht(bestand.set)}: ${n} doelen staan ook in ${ander}; het zijn dezelfde minimumdoelen. Ze staan nu twee keer in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg.`);
+      const ander = gekozenSets[eerder].bestand.set;
+      const eigen = naamVan(namen, bestand.set).aangehaald;
+      const zin = n === 1
+        ? `${eigen} heeft 1 doel dat ook in ${naamVan(namen, ander).aangehaald} staat. Het komt nu twee keer in je lijst. Wil je het maar één keer, haal dan een van beide sets weg.`
+        : `${eigen} heeft ${n} doelen die ook in ${naamVan(namen, ander).aangehaald} staan. Ze komen nu twee keer in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg.`;
+      alle.push(zin);
+      if (zijnTweeling(bestand.set, ander)) tweeling.push(zin);
     }
   });
-  return uit;
+  return { alle, tweeling };
 }
 
 /** Dezelfde selectie: dezelfde sets, met per set dezelfde vaste nummers (de volgorde en dubbels tellen niet). */
@@ -707,19 +752,23 @@ export function leerplanUitSelectie(keuzes: readonly SetKeuze[], opties: Samenst
   }
   const waarschuwingen: string[] = [];
   const gekozenSets: { bestand: MinimumdoelenSetBestand; doelen: GekozenDoel[] }[] = [];
-  for (const keuze of voegKeuzesSamen(keuzes)) {
-    const r = kiesUitSet(keuze);
+  const samengevoegd = voegKeuzesSamen(keuzes);
+  const namen = setNamen(samengevoegd.map((k) => k.bestand.set));
+  for (const keuze of samengevoegd) {
+    const r = kiesUitSet(keuze, naamVan(namen, keuze.bestand.set).tekst);
     waarschuwingen.push(...r.waarschuwingen);
     if (r.doelen.length > 0) gekozenSets.push({ bestand: keuze.bestand, doelen: r.doelen });
   }
   for (const { bestand } of gekozenSets) {
     if (geldigheidVanBestand(bestand) === 'N') {
-      waarschuwingen.push(`${setInBericht(bestand.set)} geldt niet meer. Gebruik liever de minimumdoelen die nu gelden.`);
+      waarschuwingen.push(`${naamVan(namen, bestand.set).tekst} geldt niet meer. Gebruik liever de minimumdoelen die nu gelden.`);
     } else if (opties?.oudeVersies?.has(bestand.set.id)) {
-      waarschuwingen.push(`${setInBericht(bestand.set)} is een oudere versie. Gebruik liever de versie die nu geldt.`);
+      waarschuwingen.push(`${naamVan(namen, bestand.set).tekst} is een oudere versie. Gebruik liever de versie die nu geldt.`);
     }
   }
-  waarschuwingen.push(...waarschuwingenDubbelOverSets(gekozenSets));
+  const dubbel = waarschuwingenDubbelOverSets(gekozenSets, namen);
+  waarschuwingen.push(...dubbel.alle);
+  const tweelingWaarschuwingen = dubbel.tweeling;
 
   const bestaandeCodes = codesVanBestaand(bestaand);
   // Een lijst zonder doelen (de grenzen hieronder) laat niets weg uit de reservering: alle oude codes blijven bewaard.
@@ -755,7 +804,7 @@ export function leerplanUitSelectie(keuzes: readonly SetKeuze[], opties: Samenst
   const zonderDoelen = (waarom: string): Samengesteld => {
     waarschuwingen.push(waarom);
     const leeg = createCurriculum({ ...kop, ...weggelatenVeld(new Set(), new Set()), goals: [] });
-    return { leerplan: leeg, rapport: controleerLeerplan(leeg, { sets: bestanden }), bevestigd: false, waarschuwingen };
+    return { leerplan: leeg, rapport: controleerLeerplan(leeg, { sets: bestanden }), bevestigd: false, waarschuwingen, tweelingWaarschuwingen };
   };
   if (totaal === 0) return zonderDoelen('Kies minstens één doel.');
   if (gekozenSets.length > MAX_SETS) {
@@ -800,7 +849,7 @@ export function leerplanUitSelectie(keuzes: readonly SetKeuze[], opties: Samenst
       ? `${doelen(weg)} ${weg === 1 ? 'viel' : 'vielen'} weg bij het bewaren. De lijst kon niet als nagekeken bevestigd worden.`
       : 'Niet alle gekozen doelen bleven ongewijzigd bij het bewaren. De lijst kon niet als nagekeken bevestigd worden.');
     const leerplan = gesaneerd ?? ruw;
-    return { leerplan, rapport: controleerLeerplan(leerplan, { sets: bestanden }), bevestigd: false, waarschuwingen };
+    return { leerplan, rapport: controleerLeerplan(leerplan, { sets: bestanden }), bevestigd: false, waarschuwingen, tweelingWaarschuwingen };
   }
 
   const n = koppen.length;
@@ -812,7 +861,7 @@ export function leerplanUitSelectie(keuzes: readonly SetKeuze[], opties: Samenst
     const eerste = rapport.bevindingen.find((b) => b.ernst === 'fout')?.bericht ?? '';
     waarschuwingen.push(`De lijst kon niet als nagekeken bevestigd worden, want het nakijken vond een probleem: ${eerste}`);
   }
-  return { leerplan, rapport, bevestigd, waarschuwingen };
+  return { leerplan, rapport, bevestigd, waarschuwingen, tweelingWaarschuwingen };
 }
 
 /**

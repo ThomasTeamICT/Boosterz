@@ -14,7 +14,7 @@ import {
 } from './doelenSamenstellen';
 import { effectieveStatus, isOfficieel, isSamengesteld, uitOfficieleBron } from './leerplanStatus';
 import type { Minimumdoel, MinimumdoelenIndex, MinimumdoelenIndexSet, MinimumdoelenSetBestand, MinimumdoelenSetKop } from './minimumdoelen';
-import { soortVanSet } from './minimumdoelenBron';
+import { setKenmerken, soortVanSet } from './minimumdoelenBron';
 import { NAGEKEKEN_DOOR_BRON, leerplanUitSet } from './minimumdoelenLeerplan';
 import { vergelijkMetKader } from './richtingCursus';
 import { afdrukkenPerSet, kaderAfdrukken, kaderVingerafdruk, volledigeSetsVingerafdruk, type RichtingKader } from './richtingKader';
@@ -417,18 +417,20 @@ describe.runIf(ECHT)('opnieuw samenstellen over meer aanpassingen heen: weggelat
 
 describe.runIf(ECHT)('hetzelfde minimumdoel via twee sets: een waarschuwing, niet ontdubbeld (C3, echte sets)', () => {
   const stem = 'Wiskunde – natuurwetenschappen – technologie – STEM';
+  const gewoon = `‘${stem}’ (1ste graad · A-stroom)`;
+  const buitengewoon = `‘${stem}’ (Buitengewoon secundair onderwijs · 1ste graad · A-stroom · Opleidingsvorm 4)`;
 
   it('ODS_3283 (gewoon) en ODS_3300 (buitengewoon) delen hun 44 doelen: 88 doelen, nagekeken, met een waarschuwing', () => {
     const r = leerplanUitSelectie([{ bestand: laad('ODS_3283'), doelen: 'alle' }, { bestand: laad('ODS_3300'), doelen: 'alle' }], { titel: 'T' });
     expect(r.leerplan.goals).toHaveLength(88);
     expect(r.bevestigd).toBe(true);
     expect(r.waarschuwingen).toEqual([
-      `${stem} (ODS_3300): 44 doelen staan ook in ${stem} (ODS_3283); het zijn dezelfde minimumdoelen. Ze staan nu twee keer in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg.`,
+      `${buitengewoon} heeft 44 doelen die ook in ${gewoon} staan. Ze komen nu twee keer in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg.`,
     ]);
     // De volgorde van de sets bepaalt welke set "eerst" is.
     const omgekeerd = leerplanUitSelectie([{ bestand: laad('ODS_3300'), doelen: 'alle' }, { bestand: laad('ODS_3283'), doelen: 'alle' }], { titel: 'T' });
     expect(omgekeerd.waarschuwingen).toEqual([
-      `${stem} (ODS_3283): 44 doelen staan ook in ${stem} (ODS_3300); het zijn dezelfde minimumdoelen. Ze staan nu twee keer in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg.`,
+      `${gewoon} heeft 44 doelen die ook in ${buitengewoon} staan. Ze komen nu twee keer in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg.`,
     ]);
   });
 
@@ -439,10 +441,50 @@ describe.runIf(ECHT)('hetzelfde minimumdoel via twee sets: een waarschuwing, nie
     expect(r.bevestigd).toBe(true);
     expect(r.leerplan.goals).toHaveLength(4);
     expect(r.waarschuwingen).toEqual([
-      `${stem} (ODS_3300): 1 doel staat ook in ${stem} (ODS_3283); het is hetzelfde minimumdoel. Het staat nu twee keer in je lijst. Wil je het maar één keer, haal dan een van beide sets weg.`,
+      `${buitengewoon} heeft 1 doel dat ook in ${gewoon} staat. Het komt nu twee keer in je lijst. Wil je het maar één keer, haal dan een van beide sets weg.`,
     ]);
     // Geen gedeeld doel gekozen: geen waarschuwing.
     expect(leerplanUitSelectie([{ bestand: a, doelen: ['92134'] }, { bestand: b, doelen: ['92136'] }], { titel: 'T' }).waarschuwingen).toEqual([]);
+  });
+});
+
+describe.runIf(ECHT)('basisgeletterdheid 1ste graad: alle twaalf sets (A en B, gewoon en buitengewoon; echte sets)', () => {
+  // ODS_3343-3345 SO A, ODS_3346/3347/3350 BuSO A, ODS_3351/3353/3355 SO B, ODS_3352/3354/3356 BuSO B.
+  const SO_A = ['ODS_3343', 'ODS_3344', 'ODS_3345'];
+  const BUSO_A = ['ODS_3346', 'ODS_3347', 'ODS_3350'];
+  const SO_B = ['ODS_3351', 'ODS_3353', 'ODS_3355'];
+  const BUSO_B = ['ODS_3352', 'ODS_3354', 'ODS_3356'];
+  const alle = (ids: string[]): SetKeuze[] => ids.map((id) => ({ bestand: laad(id), doelen: 'alle' as const }));
+  const r = leerplanUitSelectie(alle([...SO_A, ...BUSO_A, ...SO_B, ...BUSO_B]), { titel: '' });
+
+  it('40 doelen, nagekeken, met zes dubbelzinnen: elke BuSO-set heeft dezelfde doelen als zijn SO-tweeling', () => {
+    expect(r.leerplan.goals).toHaveLength(40);
+    expect(r.bevestigd).toBe(true);
+    expect(r.waarschuwingen).toHaveLength(6);
+    expect(r.tweelingWaarschuwingen).toEqual(r.waarschuwingen);
+  });
+
+  it('geen enkele waarschuwing noemt een set-nummer; elke noemt wel de kenmerken van de BuSO-set', () => {
+    for (const w of r.waarschuwingen) {
+      expect(w).not.toMatch(/ODS_\d+|G-\d{4}/);
+      expect(w).toMatch(/^‘[^’]+’ \(Buitengewoon secundair onderwijs · 1ste graad · [AB]-stroom · Opleidingsvorm 4 · Eindtermen basisgeletterdheid\) heeft \d+ doelen die ook in ‘[^’]+’ \(1ste graad · [AB]-stroom · Eindtermen basisgeletterdheid\) staan\./);
+    }
+  });
+
+  it('het voorstel voor de naam van de BuSO-sets sluit af met " · BuSO"; titel en voorstel komen overeen', () => {
+    const buso = leerplanUitSelectie(alle([...BUSO_A]), { titel: '' });
+    expect(buso.waarschuwingen).toEqual([]);
+    expect(buso.leerplan.title).toBe('Basisgeletterdheid · 1ste graad A-stroom · BuSO');
+    expect(leerplanUitSelectie(alle([...SO_A]), { titel: '' }).leerplan.title).toBe('Basisgeletterdheid · 1ste graad A-stroom');
+    expect(r.leerplan.title).toBe('Basisgeletterdheid · 1ste graad');
+  });
+
+  it('alleen de SO-sets (A en B): 20 doelen, nagekeken, zonder waarschuwing', () => {
+    const so = leerplanUitSelectie(alle([...SO_A, ...SO_B]), { titel: '' });
+    expect(so.leerplan.goals).toHaveLength(20);
+    expect(so.bevestigd).toBe(true);
+    expect(so.waarschuwingen).toEqual([]);
+    expect(so.tweelingWaarschuwingen).toEqual([]);
   });
 });
 
@@ -528,7 +570,8 @@ describe.runIf(ECHT)('met veel echte sets', () => {
     const oud = index().sets.find((s) => s.geldigheid === 'Niet meer geldig' && /Eindtermen basisgeletterdheid$/.test(s.naam.trim()))!;
     const r = leerplanUitSelectie([{ bestand: laad(oud.id), doelen: 'alle' }], { titel: '' });
     expect(r.bevestigd).toBe(true);
-    expect(r.waarschuwingen).toEqual([`${oud.korteNaam} (${oud.id}) geldt niet meer. Gebruik liever de minimumdoelen die nu gelden.`]);
+    expect(r.waarschuwingen).toEqual([`${oud.korteNaam} (${setKenmerken(oud)}) geldt niet meer. Gebruik liever de minimumdoelen die nu gelden.`]);
+    expect(r.waarschuwingen[0]).not.toMatch(/ODS_\d+/);
   });
 });
 
@@ -567,15 +610,18 @@ describe('leerplanUitSelectie: volgorde en keuze', () => {
     ]);
     const alle = leerplanUitSelectie([{ bestand: s, doelen: 'alle' }], { titel: 'T' });
     expect(refIds(alle.leerplan)).toEqual(['ODS_9003:1', 'ODS_9003:4']);
-    expect(alle.waarschuwingen).toEqual(['Testvak (ODS_9003): 1 doel zonder vast nummer is overgeslagen.', 'Testvak (ODS_9003): 1 doel zonder tekst is overgeslagen.']);
+    expect(alle.waarschuwingen).toEqual([
+      'Testvak (1ste graad · A-stroom): 1 doel zonder vast nummer is overgeslagen.',
+      'Testvak (1ste graad · A-stroom): 1 doel zonder tekst is overgeslagen.',
+    ]);
     expect(alle.bevestigd).toBe(true);
     expect(alle.leerplan.goals.map((g) => g.note)).toEqual([undefined, 'Optioneel']);
 
     const los = leerplanUitSelectie([{ bestand: s, doelen: ['4', '3', 'weg', 'ook-weg', ' 1 '] }], { titel: 'T' });
     expect(refIds(los.leerplan)).toEqual(['ODS_9003:1', 'ODS_9003:4']);
     expect(los.waarschuwingen).toEqual([
-      'Testvak (ODS_9003): 1 doel zonder tekst is overgeslagen.',
-      'Testvak (ODS_9003): 2 gekozen doelen staan niet (meer) in de set en zijn weggelaten.',
+      'Testvak (1ste graad · A-stroom): 1 doel zonder tekst is overgeslagen.',
+      'Testvak (1ste graad · A-stroom): 2 gekozen doelen staan niet (meer) in de set en zijn weggelaten.',
     ]);
     expect(telSelectie([{ bestand: s, doelen: ['4', '3', 'weg', ' 1 '] }])).toBe(2);
   });
@@ -671,7 +717,7 @@ describe('leerplanUitSelectie: kop van de lijst', () => {
 
   it('de oude versies uit `oudeVersies` geven een waarschuwing', () => {
     const r = leerplanUitSelectie([{ bestand: s1, doelen: 'alle' }], { titel: 'T', oudeVersies: new Set(['ODS_9001']) });
-    expect(r.waarschuwingen).toEqual(['Testvak (ODS_9001) is een oudere versie. Gebruik liever de versie die nu geldt.']);
+    expect(r.waarschuwingen).toEqual(['Testvak (1ste graad · A-stroom) is een oudere versie. Gebruik liever de versie die nu geldt.']);
     expect(r.bevestigd).toBe(true);
   });
 });
@@ -1152,6 +1198,13 @@ describe('leerplanUitSelectie: codes bij opnieuw samenstellen (nagemaakte sets)'
     expect(codes(r.leerplan)).toEqual(['1.01 (ODS_9003)']);
   });
 
+  it('een setbestand zonder de sleutel `naam` gooit niet (de laadpoort laat het door) en geeft zijn doelen', () => {
+    const zonderNaam = drieDoelen('ODS_9004', 'd');
+    delete (zonderNaam.set as { naam?: string }).naam;
+    const r = leerplanUitSelectie([{ bestand: zonderNaam, doelen: 'alle' }], { titel: 'T' });
+    expect(r.leerplan.goals).toHaveLength(3);
+  });
+
   it('is ook het onderscheid al een oude code van een ander doel, dan komt er "-2" achter', () => {
     const b = drieDoelen('ODS_9003', 'c', { stroom: 'B-stroom' });
     const eerst = leerplanUitSelectie([{ bestand: zonder, doelen: ['a1', 'a2'] }], { titel: 'T' }).leerplan;
@@ -1260,9 +1313,9 @@ describe('leerplanUitSelectie: hetzelfde minimumdoel via meer sets (C3, nagemaak
     expect(r.leerplan.goals).toHaveLength(9);
     expect(r.bevestigd).toBe(true);
     expect(r.waarschuwingen).toEqual([
-      'Bee (ODS_9002): 2 doelen staan ook in Testvak (ODS_9001); het zijn dezelfde minimumdoelen. Ze staan nu twee keer in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg.',
-      'Cee (ODS_9003): 1 doel staat ook in Testvak (ODS_9001); het is hetzelfde minimumdoel. Het staat nu twee keer in je lijst. Wil je het maar één keer, haal dan een van beide sets weg.',
-      'Cee (ODS_9003): 1 doel staat ook in Bee (ODS_9002); het is hetzelfde minimumdoel. Het staat nu twee keer in je lijst. Wil je het maar één keer, haal dan een van beide sets weg.',
+      '‘Bee’ (1ste graad · A-stroom) heeft 2 doelen die ook in ‘Testvak’ (1ste graad · A-stroom) staan. Ze komen nu twee keer in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg.',
+      '‘Cee’ (1ste graad · A-stroom) heeft 1 doel dat ook in ‘Testvak’ (1ste graad · A-stroom) staat. Het komt nu twee keer in je lijst. Wil je het maar één keer, haal dan een van beide sets weg.',
+      '‘Cee’ (1ste graad · A-stroom) heeft 1 doel dat ook in ‘Bee’ (1ste graad · A-stroom) staat. Het komt nu twee keer in je lijst. Wil je het maar één keer, haal dan een van beide sets weg.',
     ]);
   });
 
@@ -1270,6 +1323,113 @@ describe('leerplanUitSelectie: hetzelfde minimumdoel via meer sets (C3, nagemaak
     const s = metIds('ODS_9001', ['x1', 'x1']);
     const r = leerplanUitSelectie([{ bestand: s, doelen: 'alle' }], { titel: 'T' });
     expect(r.waarschuwingen.filter((w) => /twee keer in je lijst/.test(w))).toEqual([]);
+  });
+});
+
+describe('waarschuwingen in gewone taal: geen set-nummers (LEERPLANNEN.md § 16.3)', () => {
+  const NL_SO = 'Secundair onderwijs 1ste graad A-stroom -  Competenties in het Nederlands - Eindtermen basisgeletterdheid';
+  const NL_BUSO = 'Buitengewoon Secundair onderwijs 1ste graad A-stroom Opleidingsvorm 4 -  Competenties in het Nederlands - Eindtermen basisgeletterdheid';
+  const nl = (id: string, naam: string, kop: Partial<MinimumdoelenSetKop> = {}, ids = ['x1', 'x2', 'x3']) =>
+    maakSet(id, ids.map((d, i) => doel(d, `1.0${i + 1}`, `Doel ${d}.`)), { naam, korteNaam: 'Nederlands', ...kop });
+  const alle = (...b: MinimumdoelenSetBestand[]): SetKeuze[] => b.map((bestand) => ({ bestand, doelen: 'alle' as const }));
+  const tweelingZin = 'heeft 3 doelen die ook in ‘Nederlands’ (1ste graad · A-stroom · Eindtermen basisgeletterdheid) staan. Ze komen nu twee keer in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg.';
+
+  it('een set heet de korte naam met zijn kenmerken tussen haakjes, zonder set-id', () => {
+    const r = leerplanUitSelectie(alle(nl('ODS_9101', NL_SO, { geldigheid: 'Niet meer geldig' })), { titel: 'T' });
+    expect(r.waarschuwingen).toEqual(['Nederlands (1ste graad · A-stroom · Eindtermen basisgeletterdheid) geldt niet meer. Gebruik liever de minimumdoelen die nu gelden.']);
+    const oud = leerplanUitSelectie(alle(nl('ODS_9102', NL_BUSO)), { titel: 'T', oudeVersies: new Set(['ODS_9102']) });
+    expect(oud.waarschuwingen).toEqual([
+      'Nederlands (Buitengewoon secundair onderwijs · 1ste graad · A-stroom · Opleidingsvorm 4 · Eindtermen basisgeletterdheid) is een oudere versie. Gebruik liever de versie die nu geldt.',
+    ]);
+  });
+
+  it('een set zonder kenmerken heet gewoon zijn korte naam', () => {
+    const kaal = maakSet('ODS_9103', [doel('1', '1', 'Een.'), doel('2', '2', ' ')], { naam: 'Secundair onderwijs - Vak - Kaal - Eindtermen', korteNaam: 'Kaal', graad: undefined, stroom: undefined });
+    const r = leerplanUitSelectie(alle(kaal), { titel: 'T' });
+    expect(r.waarschuwingen).toEqual(['Kaal: 1 doel zonder tekst is overgeslagen.']);
+  });
+
+  it('twee sets die er hetzelfde uitzien krijgen allebei hun set-id; een andere set krijgt er geen', () => {
+    const a = maakSet('ODS_9201', [doel('1', '1', 'Een.'), doel('2', '2', ' ')]);
+    const b = maakSet('ODS_9202', [doel('3', '1', 'Drie.'), doel('4', '2', ' ')]);
+    const c = maakSet('ODS_9203', [doel('5', '1', 'Vijf.'), doel('6', '2', ' ')], { korteNaam: 'Bee' });
+    const r = leerplanUitSelectie(alle(a, b, c), { titel: 'T' });
+    expect(r.waarschuwingen).toEqual([
+      'Testvak (1ste graad · A-stroom · ODS_9201): 1 doel zonder tekst is overgeslagen.',
+      'Testvak (1ste graad · A-stroom · ODS_9202): 1 doel zonder tekst is overgeslagen.',
+      'Bee (1ste graad · A-stroom): 1 doel zonder tekst is overgeslagen.',
+    ]);
+    // Zonder de naamgenoot is het id weer weg.
+    expect(leerplanUitSelectie(alle(a, c), { titel: 'T' }).waarschuwingen).toEqual([
+      'Testvak (1ste graad · A-stroom): 1 doel zonder tekst is overgeslagen.',
+      'Bee (1ste graad · A-stroom): 1 doel zonder tekst is overgeslagen.',
+    ]);
+  });
+
+  it('sets met dezelfde naam maar verschillende kenmerken (SO en BuSO) hebben geen id nodig', () => {
+    const r = leerplanUitSelectie(alle(nl('ODS_9101', NL_SO, { geldigheid: 'Niet meer geldig' }), nl('ODS_9102', NL_BUSO, { geldigheid: 'Niet meer geldig' }, ['y1', 'y2', 'y3'])), { titel: 'T' });
+    expect(r.waarschuwingen).toHaveLength(2);
+    for (const w of r.waarschuwingen) expect(w).not.toMatch(/ODS_\d+/);
+  });
+
+  it('de zin over doelen die in twee sets staan, in het meervoud en het enkelvoud', () => {
+    const so = nl('ODS_9101', NL_SO);
+    const buso = nl('ODS_9102', NL_BUSO);
+    const r = leerplanUitSelectie(alle(so, buso), { titel: 'T' });
+    expect(r.waarschuwingen).toEqual([
+      `‘Nederlands’ (Buitengewoon secundair onderwijs · 1ste graad · A-stroom · Opleidingsvorm 4 · Eindtermen basisgeletterdheid) ${tweelingZin}`,
+    ]);
+    const een = leerplanUitSelectie([{ bestand: so, doelen: ['x1', 'x2'] }, { bestand: buso, doelen: ['x2', 'x3'] }], { titel: 'T' });
+    expect(een.waarschuwingen).toEqual([
+      '‘Nederlands’ (Buitengewoon secundair onderwijs · 1ste graad · A-stroom · Opleidingsvorm 4 · Eindtermen basisgeletterdheid) heeft 1 doel dat ook in ‘Nederlands’ (1ste graad · A-stroom · Eindtermen basisgeletterdheid) staat. Het komt nu twee keer in je lijst. Wil je het maar één keer, haal dan een van beide sets weg.',
+    ]);
+  });
+
+  it('een SO-set en zijn BuSO-tweeling: de dubbelzin staat ook in `tweelingWaarschuwingen`', () => {
+    const r = leerplanUitSelectie(alle(nl('ODS_9101', NL_SO), nl('ODS_9102', NL_BUSO)), { titel: 'T' });
+    expect(r.waarschuwingen).toHaveLength(1);
+    expect(r.tweelingWaarschuwingen).toEqual(r.waarschuwingen);
+    // In de omgekeerde volgorde staat de tweeling ook in beide sets, en de zin hoort er nog bij.
+    const omgekeerd = leerplanUitSelectie(alle(nl('ODS_9102', NL_BUSO), nl('ODS_9101', NL_SO)), { titel: 'T' });
+    expect(omgekeerd.tweelingWaarschuwingen).toEqual(omgekeerd.waarschuwingen);
+    expect(omgekeerd.waarschuwingen).toEqual([
+      '‘Nederlands’ (1ste graad · A-stroom · Eindtermen basisgeletterdheid) heeft 3 doelen die ook in ‘Nederlands’ (Buitengewoon secundair onderwijs · 1ste graad · A-stroom · Opleidingsvorm 4 · Eindtermen basisgeletterdheid) staan. Ze komen nu twee keer in je lijst. Wil je ze maar één keer, haal dan een van beide sets weg.',
+    ]);
+  });
+
+  it('twee SO-sets met dezelfde doelen zijn geen tweeling: de dubbelzin blijft bij de gewone waarschuwingen', () => {
+    const r = leerplanUitSelectie(alle(nl('ODS_9101', NL_SO), nl('ODS_9104', NL_SO.replace('Nederlands', 'Frans'), { korteNaam: 'Frans' })), { titel: 'T' });
+    expect(r.waarschuwingen).toHaveLength(1);
+    expect(r.tweelingWaarschuwingen).toEqual([]);
+  });
+
+  it('een SO-set en een BuSO-set met dezelfde naam in een andere versie zijn geen tweeling', () => {
+    const r = leerplanUitSelectie(alle(nl('ODS_9101', NL_SO, { versie: '2.0' }), nl('ODS_9102', NL_BUSO, { versie: '2.1' })), { titel: 'T' });
+    expect(r.waarschuwingen).toHaveLength(1);
+    expect(r.tweelingWaarschuwingen).toEqual([]);
+  });
+
+  it('een gemengde lijst: alleen de dubbelzin van het tweelingpaar staat in `tweelingWaarschuwingen`', () => {
+    const so = nl('ODS_9101', NL_SO);
+    const buso = nl('ODS_9102', NL_BUSO);
+    const frans = nl('ODS_9104', NL_SO.replace('Nederlands', 'Frans'), { korteNaam: 'Frans' });
+    const r = leerplanUitSelectie(alle(so, buso, frans), { titel: 'T' });
+    // Per vast nummer telt de eerste set: ODS_9102 en ODS_9104 delen hun doelen allebei met ODS_9101. Twee dubbelzinnen, één van een tweeling.
+    expect(r.waarschuwingen).toHaveLength(2);
+    expect(r.tweelingWaarschuwingen).toHaveLength(1);
+    expect(r.tweelingWaarschuwingen[0]).toContain('Buitengewoon secundair onderwijs');
+    expect(r.tweelingWaarschuwingen.every((w) => r.waarschuwingen.includes(w))).toBe(true);
+  });
+
+  it('zonder dubbele doelen geen tweelingwaarschuwingen', () => {
+    const r = leerplanUitSelectie(alle(nl('ODS_9101', NL_SO), nl('ODS_9102', NL_BUSO, {}, ['y1', 'y2', 'y3'])), { titel: 'T' });
+    expect(r.waarschuwingen).toEqual([]);
+    expect(r.tweelingWaarschuwingen).toEqual([]);
+  });
+
+  it('ook een lijst zonder doelen heeft het veld', () => {
+    const r = leerplanUitSelectie([], { titel: 'T' });
+    expect(r.tweelingWaarschuwingen).toEqual([]);
   });
 });
 
@@ -1411,6 +1571,27 @@ describe('voorstelTitel', () => {
     expect(voorstelTitel([{ naam: 'Basisonderwijs - Vak - X' }, { naam: 'Y' }])).toBe('Eigen selectie minimumdoelen');
     expect(voorstelTitel([])).toBe('Eigen selectie minimumdoelen');
     expect(voorstelTitel([{ naam: 'Lange naam zonder korte naam' }])).toBe('Lange naam zonder korte naam (eigen selectie)');
+  });
+
+  it('alleen sets van het buitengewoon onderwijs: " · BuSO" achteraan, na het niveau', () => {
+    const buso = (korteNaam: string, stroom = 'A-stroom') => ({
+      naam: `Buitengewoon Secundair onderwijs 1ste graad ${stroom} Opleidingsvorm 4 -  Competenties - Eindtermen basisgeletterdheid`, korteNaam, graad: '1ste graad', stroom,
+    });
+    expect(voorstelTitel([buso('Nederlands'), buso('STEM'), buso('Digitale competenties')])).toBe('Basisgeletterdheid · 1ste graad A-stroom · BuSO');
+    expect(voorstelTitel([buso('Nederlands'), buso('Nederlands', 'B-stroom')])).toBe('Basisgeletterdheid Nederlands · 1ste graad · BuSO');
+    expect(voorstelTitel([buso('Nederlands')])).toBe('Basisgeletterdheid Nederlands · 1ste graad A-stroom · BuSO');
+    expect(voorstelTitel([{ naam: 'Buitengewoon Secundair onderwijs Opleidingsvorm 3 - Domein - Burgerzin - Ontwikkelingsdoelen' }]))
+      .toBe('Buitengewoon Secundair onderwijs Opleidingsvorm 3 - Domein - Burgerzin - Ontwikkelingsdoelen (eigen selectie) · BuSO');
+    expect(voorstelTitel([{ naam: 'Buitengewoon Secundair onderwijs Opleidingsvorm 3 - Domein - X - Y' }, { naam: 'Buitengewoon Secundair onderwijs Opleidingsvorm 3 - Domein - Z - Y' }]))
+      .toBe('Eigen selectie minimumdoelen · BuSO');
+  });
+
+  it('gemengd gewoon en buitengewoon, of alleen gewoon: geen " · BuSO"', () => {
+    const so = { naam: 'Secundair onderwijs 1ste graad A-stroom -  Competenties - Eindtermen basisgeletterdheid', korteNaam: 'Nederlands', graad: '1ste graad', stroom: 'A-stroom' };
+    const buso = { naam: 'Buitengewoon Secundair onderwijs 1ste graad A-stroom Opleidingsvorm 4 -  Competenties - Eindtermen basisgeletterdheid', korteNaam: 'Nederlands', graad: '1ste graad', stroom: 'A-stroom' };
+    expect(voorstelTitel([so])).toBe('Basisgeletterdheid Nederlands · 1ste graad A-stroom');
+    expect(voorstelTitel([so, buso])).toBe('Basisgeletterdheid Nederlands · 1ste graad A-stroom');
+    expect(voorstelTitel([])).not.toMatch(/BuSO/);
   });
 });
 

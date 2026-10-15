@@ -14,8 +14,8 @@
 
 import { MAX_SETS } from './curriculum';
 import type { SetKeuze } from './doelenSamenstellen';
-import { htmlNaarTekst, type MinimumdoelenSetBestand } from './minimumdoelen';
-import { SOORT_LABEL, contextVanSet, doelPastBijZoek, isGeldigSetId, soortVanSet } from './minimumdoelenBron';
+import { htmlNaarTekst, type MinimumdoelenIndexSet, type MinimumdoelenSetBestand } from './minimumdoelen';
+import { doelPastBijZoek, isGeldigSetId, setKenmerken, soortVanSet, zijnTweeling, type SoortOnderwijs, type StroomFilter } from './minimumdoelenBron';
 import { isAttitude, isOptioneel, themaVanDoel } from './minimumdoelenLeerplan';
 
 /** Hoeveel sets één lijst hoogstens bevat (een grens van het bewaren, zie `MAX_SETS`). */
@@ -134,14 +134,9 @@ export function setNaam(set: { naam: string; korteNaam?: string }): string {
   return (set.korteNaam ?? '').trim() || set.naam.trim();
 }
 
-/**
- * Wat een set onderscheidt van andere sets met dezelfde korte naam: de soort onderwijs (niet bij het gewone secundair),
- * de graad, de stroom en de context uit de volledige naam ("aso", "Pool", …), zoals op de pagina "Officiële minimumdoelen".
- */
-export function setKenmerken(set: { naam: string; graad?: string; stroom?: string }): string {
-  const soort = soortVanSet(set.naam);
-  return [soort === 'so' ? '' : SOORT_LABEL[soort], set.graad, set.stroom, contextVanSet(set.naam)].filter(Boolean).join(' · ');
-}
+// `setKenmerken` staat in minimumdoelenBron.ts (ook de waarschuwingen in doelenSamenstellen.ts gebruiken het); hier opnieuw
+// aangeboden, want het scherm haalt het van hier.
+export { setKenmerken };
 
 export function isSetGekozen(k: SamenstelKeuze, setId: string): boolean {
   return k.selectie.has(setId);
@@ -339,6 +334,171 @@ export function bouwSetKeuzes(k: SamenstelKeuze, bestanden: ReadonlyMap<string, 
     uit.push({ bestand, doelen: alles ? 'alle' : [...sel] });
   }
   return uit;
+}
+
+// ── Sturen: voor welke leerlingen is de lijst? (docs/LEERPLANNEN.md § 16.2 en § 16.3) ──
+//
+// Veel sets bestaan in meer versies: voor de A- en de B-stroom (1ste graad) en voor het gewoon en het buitengewoon onderwijs
+// (de "tweeling" van een SO-set, op naam herkend: `zijnTweeling`). Het scherm vraagt eerst voor welke leerlingen de lijst is,
+// laat de rest weg, en waarschuwt (met één klik om het op te lossen) als de keuze toch meer dan één groep mengt. Dit stuurt
+// alleen; de echte controle op vaste nummers blijft die van `leerplanUitSelectie`.
+
+/** De graad waarin sets in stromen bestaan: alleen daar toont het scherm de keuze van de stroom. */
+export const GRAAD_MET_STROMEN = '1ste graad';
+
+/** Het deel van de filterstaat van stap 1 dat bij "Voor welke leerlingen is deze lijst?" hoort. */
+export interface LeerlingenFilter {
+  soort: SoortOnderwijs | 'alle';
+  graad: string;
+  stroom: StroomFilter;
+}
+
+/** Wat de sturing van een set nodig heeft (een indexregel volstaat). */
+export type SetVoorSturing = Pick<MinimumdoelenIndexSet, 'naam' | 'versie' | 'graad' | 'stroom'>;
+
+const ZONDER_SETS: LeerlingenFilter = { soort: 'so', graad: '', stroom: '' };
+
+/**
+ * De beginwaarden van het blok. Een nieuwe lijst zonder sets (in de link of bewaard): gewoon secundair onderwijs, alle graden,
+ * beide stromen. Zijn er sets, dan volgt het blok die sets, zodat er geen set uit beeld verdwijnt: allemaal buitengewoon →
+ * "buso", allemaal gewoon → "so" (idem volwassenenonderwijs), gemengd → "alle"; één gemeenschappelijke graad en (in de 1ste
+ * graad) stroom worden overgenomen. Een set die de index niet kent, telt niet mee.
+ */
+export function beginLeerlingen(setIds: readonly string[], perId: ReadonlyMap<string, SetVoorSturing>): LeerlingenFilter {
+  const sets = setIds.map((id) => perId.get(id)).filter((s): s is SetVoorSturing => s !== undefined);
+  if (sets.length === 0) return { ...ZONDER_SETS };
+  const soorten = new Set(sets.map((s) => soortVanSet(s.naam)));
+  const enige = soorten.size === 1 ? [...soorten][0] : undefined;
+  const soort: SoortOnderwijs | 'alle' = enige === 'so' || enige === 'buso' || enige === 'vwo' ? enige : 'alle';
+  const graden = new Set(sets.map((s) => (s.graad ?? '').trim()));
+  const graad = graden.size === 1 ? [...graden][0] : '';
+  // Een set zonder stroom valt nooit weg door de stroomfilter; de stroom van de andere sets telt dus.
+  const stromen = new Set(sets.map((s) => (s.stroom ?? '').trim()).filter((st) => st !== ''));
+  const enigeStroom = stromen.size === 1 ? [...stromen][0] : '';
+  const stroom: StroomFilter = graad === GRAAD_MET_STROMEN && (enigeStroom === 'A-stroom' || enigeStroom === 'B-stroom') ? enigeStroom : '';
+  return { soort, graad, stroom };
+}
+
+/**
+ * Een wijziging in de filterstaat. Alleen in de 1ste graad bestaat er een stroom: een andere graad (of alle graden) zet de
+ * stroom terug op "allebei".
+ */
+export function pasLeerlingenToe<T extends LeerlingenFilter>(huidig: T, patch: Partial<T>): T {
+  const volgende = { ...huidig, ...patch };
+  return volgende.graad === GRAAD_MET_STROMEN ? volgende : { ...volgende, stroom: '' };
+}
+
+/** Een SO-set en zijn BuSO-tweeling, allebei in dezelfde keuze (`zijnTweeling`). */
+export interface TweelingPaar {
+  so: string;
+  buso: string;
+}
+
+/** De SO/BuSO-paren onder deze sets, in de volgorde van de SO-sets (dan van de BuSO-sets). Een set die de index niet kent, telt niet mee. */
+export function tweelingParen(setIds: readonly string[], perId: ReadonlyMap<string, SetVoorSturing>): TweelingPaar[] {
+  const kennen = setIds.flatMap((id) => {
+    const set = perId.get(id);
+    return set ? [{ id, set, soort: soortVanSet(set.naam) }] : [];
+  });
+  const uit: TweelingPaar[] = [];
+  for (const a of kennen.filter((k) => k.soort === 'so')) {
+    for (const b of kennen.filter((k) => k.soort === 'buso')) {
+      if (zijnTweeling(a.set, b.set)) uit.push({ so: a.id, buso: b.id });
+    }
+  }
+  return uit;
+}
+
+/** De sets die in een paar zitten (voor de zin bij een gekozen set). */
+export function setsMetTweeling(paren: readonly TweelingPaar[]): Set<string> {
+  return new Set(paren.flatMap((p) => [p.so, p.buso]));
+}
+
+/** Hoeveel sets van elke soort in de paren zitten ("{k} sets van elk"): het aantal verschillende SO-sets. */
+export function aantalPerSoort(paren: readonly TweelingPaar[]): number {
+  return new Set(paren.map((p) => p.so)).size;
+}
+
+/** Welke stromen onder deze sets voorkomen; een set zonder stroom telt niet mee. */
+export function stromenIn(setIds: readonly string[], perId: ReadonlyMap<string, SetVoorSturing>): Set<'A-stroom' | 'B-stroom'> {
+  const uit = new Set<'A-stroom' | 'B-stroom'>();
+  for (const id of setIds) {
+    const stroom = perId.get(id)?.stroom?.trim();
+    if (stroom === 'A-stroom' || stroom === 'B-stroom') uit.add(stroom);
+  }
+  return uit;
+}
+
+/** Zitten onder deze sets zowel sets van het gewoon als van het buitengewoon secundair onderwijs? */
+export function mengtGewoonEnBuitengewoon(setIds: readonly string[], perId: ReadonlyMap<string, SetVoorSturing>): boolean {
+  const soorten = new Set(setIds.flatMap((id) => {
+    const set = perId.get(id);
+    return set ? [soortVanSet(set.naam)] : [];
+  }));
+  return soorten.has('so') && soorten.has('buso');
+}
+
+/** Zitten onder deze sets zowel sets van de A- als van de B-stroom? */
+export function mengtStromen(setIds: readonly string[], perId: ReadonlyMap<string, SetVoorSturing>): boolean {
+  return stromenIn(setIds, perId).size === 2;
+}
+
+/**
+ * Haalt de tweelingen van de andere soort weg: houd je het gewoon onderwijs ('so'), dan gaan de BuSO-sets weg die een
+ * SO-tweeling in de keuze hebben, en omgekeerd. Een set zonder tweeling blijft.
+ */
+export function haalTweelingenWeg(
+  k: SamenstelKeuze,
+  perId: ReadonlyMap<string, SetVoorSturing>,
+  behoud: 'so' | 'buso',
+  /**
+   * De sets waarover de melding de paren telde (in stap 3: de sets met minstens één doel in de lijst). Zonder deze lijst
+   * tellen alle sets van de keuze. Zo gaat een set nooit weg omdat haar tweeling er staat zonder één gekozen doel.
+   */
+  binnen?: readonly string[],
+): SamenstelKeuze {
+  const weg = new Set(tweelingParen(binnen ?? k.sets, perId).map((p) => (behoud === 'so' ? p.buso : p.so)));
+  return k.sets.reduce((acc, id) => (weg.has(id) ? haalSetWeg(acc, id) : acc), k);
+}
+
+/** Haalt de sets van de andere stroom weg. Een set zonder stroom blijft. */
+export function haalStroomWeg(k: SamenstelKeuze, perId: ReadonlyMap<string, SetVoorSturing>, behoud: 'A-stroom' | 'B-stroom'): SamenstelKeuze {
+  const andere = behoud === 'A-stroom' ? 'B-stroom' : 'A-stroom';
+  return k.sets.reduce((acc, id) => (perId.get(id)?.stroom?.trim() === andere ? haalSetWeg(acc, id) : acc), k);
+}
+
+// De zinnen van het sturen staan hier, zodat ze samen met de logica getest worden.
+
+/** Onder de kenmerken van een gekozen set waarvan de tweeling ook gekozen is. */
+export const ZIN_TWEELING_GEKOZEN = 'Dezelfde doelen als een andere set die je koos. Je hebt er maar één nodig.';
+/** Onder de gekozen sets, als ze van het gewoon én het buitengewoon onderwijs zijn. */
+export const ZIN_GEWOON_EN_BUITENGEWOON = 'Je koos sets voor het gewoon én het buitengewoon onderwijs. Een lijst is meestal voor één groep leerlingen.';
+/** Onder de gekozen sets, als ze van de A- én de B-stroom zijn. */
+export const ZIN_A_EN_B = 'Je koos sets voor de A-stroom én de B-stroom. Een lijst is meestal voor één stroom.';
+/** In stap 3, als de lijst sets van de A- én de B-stroom mengt. */
+export const ZIN_LIJST_MENGT_STROMEN = 'Je lijst mengt sets voor de A-stroom en de B-stroom. Voor welke stroom is ze?';
+
+function aantalSets(n: number): string {
+  return `${n} ${n === 1 ? 'set' : 'sets'}`;
+}
+
+/** Onder de resultaten van stap 1, als de keuze van het blok sets verbergt. */
+export function zinVerborgenSets(n: number): string {
+  return n === 1 ? '1 set voor andere leerlingen staat niet in de lijst.' : `${n} sets voor andere leerlingen staan niet in de lijst.`;
+}
+
+/** In stap 3, als de lijst dezelfde doelen voor het gewoon en het buitengewoon onderwijs bevat; `k` = het aantal sets van elk. */
+export function zinTweelingenInLijst(k: number): string {
+  return `Je koos dezelfde doelen twee keer: voor het gewoon en voor het buitengewoon secundair onderwijs (${aantalSets(k)} van elk). Een lijst is meestal voor één groep leerlingen. Voor wie is deze lijst?`;
+}
+
+/** Wat een van de eenklikknoppen van stap 3 houdt. */
+export type Behoud = 'so' | 'buso' | 'A-stroom' | 'B-stroom';
+
+/** De statusregel na het weghalen: welke sets weg zijn en hoeveel doelen de lijst nu telt. */
+export function zinNaWeghalen(behoud: Behoud, doelen: number): string {
+  const weg = behoud === 'so' ? 'het buitengewoon onderwijs' : behoud === 'buso' ? 'het gewoon onderwijs' : behoud === 'A-stroom' ? 'de B-stroom' : 'de A-stroom';
+  return `De sets voor ${weg} zijn weggehaald. Je lijst telt nu ${doelen} ${doelen === 1 ? 'doel' : 'doelen'}.`;
 }
 
 // ── Wat ontbreekt ───────────────────────────────────────────────────────────

@@ -41,6 +41,7 @@ import {
 import { DEEL_HINT, effectieveStatus, isBkLeerplan, isOfficieel, isSamengesteld, nagekekenTekst, uitOfficieleBron } from '../lib/leerplanStatus';
 import { BK_EDITOR_GEWIJZIGD, BK_EDITOR_NAAR_RICHTING, BK_EDITOR_NIET_NAGEKEKEN } from '../lib/bkLabels';
 import { ControleLabel, OfficieelLabel, officieelSoort } from '../components/curriculum/ControleLabel';
+import { GebruikInCursus, toonGebruikInCursus } from '../components/curriculum/cursusbrug/GebruikInCursus';
 import { LeerplanOpSlot } from '../components/curriculum/LeerplanOpSlot';
 import { LeerplanWegwijzer } from '../components/curriculum/LeerplanWegwijzer';
 import { MinimumdoelKiezer } from '../components/curriculum/MinimumdoelKiezer';
@@ -699,13 +700,17 @@ function CurriculumEditor({
 
       <button className="btn btn-ghost" style={{ width: '100%', marginTop: 12 }} onClick={add}><AddIcon size={18} /> Doel toevoegen</button>
 
-      <p className="hint" style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-        <TipIcon size={16} style={{ flex: 'none', marginTop: 3 }} />
-        <span>
-          Koppel deze doelen daarna aan je cursussen via <Link to="/cursussen">Cursussen</Link>,
-          of laat de AI-cursusbouwer een dekkende cursus opzetten vanuit deze lijst.
-        </span>
-      </p>
+      {toonGebruikInCursus(curriculum) ? (
+        <GebruikInCursus leerplan={curriculum} />
+      ) : (
+        <p className="hint" style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <TipIcon size={16} style={{ flex: 'none', marginTop: 3 }} />
+          <span>
+            Koppel deze doelen daarna aan je cursussen via <Link to="/cursussen">Cursussen</Link>,
+            of laat de AI-cursusbouwer een dekkende cursus opzetten vanuit deze lijst.
+          </span>
+        </p>
+      )}
 
       {kiezerVoor !== null && goals[kiezerVoor] && (
         <MinimumdoelKiezer

@@ -394,7 +394,7 @@ describe('leerplanVoorGaten: het nieuwe leerplan', () => {
     const goedLeerplan = maak(new Map([['ODS_9101', ['b5']]]), [], KADER, bestanden);
     if (goedLeerplan.soort !== 'nieuw') throw new Error('verwacht een nieuw leerplan');
     const r = maak(new Map([['ODS_9101', ['b2', 'b5']]]), [goedLeerplan.leerplan], KADER, bestanden);
-    expect(r).toEqual({ soort: 'niet-nagekeken', waarschuwing: 'Biologie: 1 doel zonder tekst is overgeslagen' });
+    expect(r).toEqual({ soort: 'niet-nagekeken', waarschuwing: 'Biologie (2de graad · Cesuurdoelen): 1 doel zonder tekst is overgeslagen' });
   });
 
   it('geeft "niet-nagekeken" als een hele gekozen set geen doel met tekst heeft, naast een goede set, en hergebruikt dan geen leerplan zonder die set', () => {
@@ -405,7 +405,7 @@ describe('leerplanVoorGaten: het nieuwe leerplan', () => {
     const alleenChemie = maak(new Map([['ODS_9103', ['c1']]]), [], KADER, bestanden);
     if (alleenChemie.soort !== 'nieuw') throw new Error('verwacht een nieuw leerplan');
     const selectie = new Map([['ODS_9101', ['b2']], ['ODS_9103', ['c1']]]);
-    const verwacht = { soort: 'niet-nagekeken', waarschuwing: 'Biologie: 1 doel zonder tekst is overgeslagen' };
+    const verwacht = { soort: 'niet-nagekeken', waarschuwing: 'Biologie (2de graad · Cesuurdoelen): 1 doel zonder tekst is overgeslagen' };
     expect(maak(selectie, [], KADER, bestanden)).toEqual(verwacht);
     expect(maak(selectie, [alleenChemie.leerplan], KADER, bestanden)).toEqual(verwacht);
   });
@@ -417,9 +417,9 @@ describe('leerplanVoorGaten: het nieuwe leerplan', () => {
     bestanden.set('ODS_9101', bio);
     bestanden.set('ODS_9103', che);
     expect(maak(new Map([['ODS_9101', ['b2', 'b5']], ['ODS_9103', ['c1', 'c2']]]), [], KADER, bestanden))
-      .toEqual({ soort: 'niet-nagekeken', waarschuwing: 'Biologie: 1 doel zonder tekst is overgeslagen' });
+      .toEqual({ soort: 'niet-nagekeken', waarschuwing: 'Biologie (2de graad · Cesuurdoelen): 1 doel zonder tekst is overgeslagen' });
     expect(maak(new Map([['ODS_9103', ['c1', 'c2']], ['ODS_9101', ['b2', 'b5']]]), [], KADER, bestanden))
-      .toEqual({ soort: 'niet-nagekeken', waarschuwing: 'Chemie: 1 doel zonder tekst is overgeslagen' });
+      .toEqual({ soort: 'niet-nagekeken', waarschuwing: 'Chemie (2de graad · Cesuurdoelen): 1 doel zonder tekst is overgeslagen' });
   });
 
   it('geeft een oude versie van een set ook door als het leerplan niet bevestigd wordt: dan is dat de waarschuwing', () => {
@@ -429,7 +429,7 @@ describe('leerplanVoorGaten: het nieuwe leerplan', () => {
     const metOudeVersie = leerplanVoorGaten({
       info: INFO, kader, selectie, bestanden, curricula: [], oudeVersies: new Set(['ODS_8000', 'ODS_8001']),
     });
-    expect(metOudeVersie).toEqual({ soort: 'niet-nagekeken', waarschuwing: 'Vak 0 is een oudere versie. Gebruik liever de versie die nu geldt' });
+    expect(metOudeVersie).toEqual({ soort: 'niet-nagekeken', waarschuwing: 'Vak 0 (2de graad · Cesuurdoelen) is een oudere versie. Gebruik liever de versie die nu geldt' });
   });
 
   it('geeft een oude versie van een set door aan het samenstellen zonder het leerplan te blokkeren', () => {

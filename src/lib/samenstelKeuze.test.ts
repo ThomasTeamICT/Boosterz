@@ -4,10 +4,13 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { leerplanUitSelectie, selectieVanLeerplan, telSelectie } from './doelenSamenstellen';
 import type { Minimumdoel, MinimumdoelenIndex, MinimumdoelenSetBestand, MinimumdoelenSetKop } from './minimumdoelen';
-import { zoekTermen } from './minimumdoelenBron';
+import { filterSets, zoekTermen } from './minimumdoelenBron';
 import { naarSetKeuzes } from './richtingKader';
 import {
-  MAX_GEKOZEN_SETS, aantalGekozen, aantalGevraagdeSets, beginUitKeuze, beginUitSelectie, beginUitSets, bouwSetKeuzes, haalSetWeg, isDoelGekozen, isSetGekozen, kanSetToevoegen,
+  GRAAD_MET_STROMEN, MAX_GEKOZEN_SETS, ZIN_A_EN_B, ZIN_GEWOON_EN_BUITENGEWOON, ZIN_LIJST_MENGT_STROMEN, ZIN_TWEELING_GEKOZEN, aantalPerSoort, beginLeerlingen,
+  haalStroomWeg, haalTweelingenWeg, mengtGewoonEnBuitengewoon, mengtStromen, pasLeerlingenToe, setsMetTweeling, stromenIn, tweelingParen, zinNaWeghalen,
+  zinTweelingenInLijst, zinVerborgenSets, type LeerlingenFilter, type SetVoorSturing,
+  aantalGekozen, aantalGevraagdeSets, beginUitKeuze, beginUitSelectie, beginUitSets, bouwSetKeuzes, haalSetWeg, isDoelGekozen, isSetGekozen, kanSetToevoegen,
   kiesbareDoelen, leegKeuze, ontbreektInStap1, ontbreektInStap2, ontbreektInStap3, setKenmerken, setNaam, setsUitParam, telGekozen, telGevonden, toestandVanSet,
   vindDoelen, voegSetToe, wisselSet, zegOntbreekt, zetDoel, zetDoelen, zetGevonden, zetHeleSet, type KiesbaarDoel, type SamenstelKeuze,
 } from './samenstelKeuze';
@@ -616,5 +619,324 @@ describe.runIf(ECHT)('echte sets', () => {
     const r = leerplanUitSelectie(bouwSetKeuzes(k, new Map([['ODS_3283', bestand]])), { titel: 'NW uit STEM' });
     expect(r.bevestigd).toBe(true);
     expect(r.leerplan.goals).toHaveLength(n);
+  });
+});
+
+// ── Sturen: voor welke leerlingen is de lijst? (LEERPLANNEN.md § 16.2 en § 16.3) ──
+
+/** Een nagemaakte indexregel; de naam bepaalt soort onderwijs en tweeling. */
+function sturingSet(naam: string, extra: Partial<SetVoorSturing> = {}): SetVoorSturing {
+  return { naam, versie: '2.1', graad: '1ste graad', ...extra };
+}
+
+const NL_SO_A = 'Secundair onderwijs 1ste graad A-stroom -  Competenties in het Nederlands - Eindtermen basisgeletterdheid';
+const NL_BUSO_A = 'Buitengewoon Secundair onderwijs 1ste graad A-stroom Opleidingsvorm 4 -  Competenties in het Nederlands - Eindtermen basisgeletterdheid';
+const FR_SO_A = 'Secundair onderwijs 1ste graad A-stroom - Vak - Frans - Eindtermen';
+const FR_BUSO_A = 'Buitengewoon Secundair onderwijs 1ste graad A-stroom Opleidingsvorm 4 - Vak - Frans - Eindtermen';
+const NL_SO_B = NL_SO_A.replace('A-stroom', 'B-stroom');
+const NL_BUSO_B = NL_BUSO_A.replace('A-stroom', 'B-stroom');
+const CHEMIE_SO = 'Secundair onderwijs 2de graad aso - Vak - Chemie - Eindtermen';
+const CHEMIE_BUSO = 'Buitengewoon Secundair onderwijs 2de graad aso Opleidingsvorm 4 - Vak - Chemie - Eindtermen';
+const ICT_VWO = 'Secundair Volwassenenonderwijs Aanvullende Algemene Vorming Minimum - Vak - Ict - Eindtermen';
+const DOMEIN_BUSO3 = 'Buitengewoon Secundair onderwijs Opleidingsvorm 3 - Domein - Burgerzin - Ontwikkelingsdoelen';
+
+const STUUR = new Map<string, SetVoorSturing>([
+  ['so_a', sturingSet(NL_SO_A, { stroom: 'A-stroom' })],
+  ['buso_a', sturingSet(NL_BUSO_A, { stroom: 'A-stroom' })],
+  ['so_b', sturingSet(NL_SO_B, { stroom: 'B-stroom' })],
+  ['buso_b', sturingSet(NL_BUSO_B, { stroom: 'B-stroom' })],
+  ['fr_so', sturingSet(FR_SO_A, { stroom: 'A-stroom' })],
+  ['fr_buso', sturingSet(FR_BUSO_A, { stroom: 'A-stroom' })],
+  ['chemie_so', sturingSet(CHEMIE_SO, { graad: '2de graad' })],
+  ['chemie_buso', sturingSet(CHEMIE_BUSO, { graad: '2de graad' })],
+  ['ict_vwo', sturingSet(ICT_VWO, { graad: '3de graad' })],
+  ['domein_buso', sturingSet(DOMEIN_BUSO3, { graad: undefined })],
+]);
+
+describe('sturen: de beginwaarden van het blok "Voor welke leerlingen"', () => {
+  it('een nieuwe lijst zonder sets: gewoon secundair onderwijs, alle graden, beide stromen', () => {
+    expect(beginLeerlingen([], STUUR)).toEqual({ soort: 'so', graad: '', stroom: '' });
+  });
+
+  it('sets die de index niet kent, tellen niet mee: dan is het een nieuwe lijst', () => {
+    expect(beginLeerlingen(['bestaat_niet', 'ook_niet'], STUUR)).toEqual({ soort: 'so', graad: '', stroom: '' });
+    expect(beginLeerlingen(['bestaat_niet', 'buso_a'], STUUR)).toEqual({ soort: 'buso', graad: '1ste graad', stroom: 'A-stroom' });
+  });
+
+  it('allemaal BuSO: buitengewoon, met de gemeenschappelijke graad en stroom', () => {
+    expect(beginLeerlingen(['buso_a', 'fr_buso'], STUUR)).toEqual({ soort: 'buso', graad: '1ste graad', stroom: 'A-stroom' });
+    expect(beginLeerlingen(['chemie_buso'], STUUR)).toEqual({ soort: 'buso', graad: '2de graad', stroom: '' });
+  });
+
+  it('allemaal SO: gewoon, met de gemeenschappelijke graad en stroom', () => {
+    expect(beginLeerlingen(['so_a', 'fr_so'], STUUR)).toEqual({ soort: 'so', graad: '1ste graad', stroom: 'A-stroom' });
+    expect(beginLeerlingen(['so_b'], STUUR)).toEqual({ soort: 'so', graad: '1ste graad', stroom: 'B-stroom' });
+  });
+
+  it('gemengd gewoon en buitengewoon: alle sets', () => {
+    expect(beginLeerlingen(['so_a', 'buso_a'], STUUR)).toEqual({ soort: 'alle', graad: '1ste graad', stroom: 'A-stroom' });
+  });
+
+  it('volwassenenonderwijs: dat onderwijs; gemengd met iets anders: alle sets', () => {
+    expect(beginLeerlingen(['ict_vwo'], STUUR)).toEqual({ soort: 'vwo', graad: '3de graad', stroom: '' });
+    expect(beginLeerlingen(['ict_vwo', 'chemie_so'], STUUR).soort).toBe('alle');
+  });
+
+  it('verschillende graden: geen graad en dus ook geen stroom', () => {
+    expect(beginLeerlingen(['so_a', 'chemie_so'], STUUR)).toEqual({ soort: 'so', graad: '', stroom: '' });
+  });
+
+  it('A- en B-stroom samen: beide stromen', () => {
+    expect(beginLeerlingen(['so_a', 'so_b'], STUUR)).toEqual({ soort: 'so', graad: '1ste graad', stroom: '' });
+  });
+
+  it('een stroom bestaat alleen in de 1ste graad', () => {
+    expect(beginLeerlingen(['chemie_so'], new Map([['chemie_so', sturingSet(CHEMIE_SO, { graad: '2de graad', stroom: 'A-stroom' })]])).stroom).toBe('');
+  });
+
+  it('een set zonder stroom in de 1ste graad laat de stroom van de andere sets gelden', () => {
+    const sets = new Map<string, SetVoorSturing>([['a', sturingSet(NL_SO_A, { stroom: 'A-stroom' })], ['z', sturingSet(FR_SO_A)]]);
+    expect(beginLeerlingen(['a', 'z'], sets)).toEqual({ soort: 'so', graad: '1ste graad', stroom: 'A-stroom' });
+  });
+
+  it('een set zonder graad: geen gemeenschappelijke graad', () => {
+    expect(beginLeerlingen(['so_a', 'domein_buso'], STUUR).graad).toBe('');
+  });
+});
+
+describe('sturen: wijzigingen in het blok', () => {
+  type Staat = LeerlingenFilter & { zoek: string; toonOud: boolean };
+  const begin: Staat = { soort: 'so', graad: GRAAD_MET_STROMEN, stroom: 'A-stroom', zoek: 'x', toonOud: false };
+
+  it('een stroom kiezen in de 1ste graad blijft staan', () => {
+    expect(pasLeerlingenToe<Staat>({ ...begin, stroom: '' }, { stroom: 'B-stroom' }).stroom).toBe('B-stroom');
+  });
+
+  it('een andere graad zet de stroom terug op "allebei"; de rest blijft', () => {
+    expect(pasLeerlingenToe(begin, { graad: '2de graad' })).toEqual({ ...begin, graad: '2de graad', stroom: '' });
+    expect(pasLeerlingenToe(begin, { graad: '' })).toEqual({ ...begin, graad: '', stroom: '' });
+  });
+
+  it('dezelfde graad kiezen laat de stroom staan; terug naar de 1ste graad geeft "allebei"', () => {
+    expect(pasLeerlingenToe(begin, { graad: GRAAD_MET_STROMEN }).stroom).toBe('A-stroom');
+    const andere = pasLeerlingenToe(begin, { graad: '2de graad' });
+    expect(pasLeerlingenToe(andere, { graad: GRAAD_MET_STROMEN }).stroom).toBe('');
+  });
+
+  it('een stroom buiten de 1ste graad kan niet', () => {
+    expect(pasLeerlingenToe<Staat>({ ...begin, graad: '', stroom: '' }, { stroom: 'A-stroom' }).stroom).toBe('');
+  });
+
+  it('verandert de oude staat niet', () => {
+    const kopie = { ...begin };
+    pasLeerlingenToe(begin, { graad: '2de graad' });
+    expect(begin).toEqual(kopie);
+  });
+});
+
+describe('sturen: tweelingen en stromen in een keuze', () => {
+  it('een SO-set en zijn BuSO-tweeling vormen een paar; de volgorde van kiezen maakt niet uit', () => {
+    expect(tweelingParen(['so_a', 'buso_a'], STUUR)).toEqual([{ so: 'so_a', buso: 'buso_a' }]);
+    expect(tweelingParen(['buso_a', 'so_a'], STUUR)).toEqual([{ so: 'so_a', buso: 'buso_a' }]);
+  });
+
+  it('A- en B-stroom, of een andere set, zijn geen paar; een set zonder tweeling ook niet', () => {
+    expect(tweelingParen(['so_a', 'buso_b'], STUUR)).toEqual([]);
+    expect(tweelingParen(['so_a', 'fr_buso'], STUUR)).toEqual([]);
+    expect(tweelingParen(['so_a', 'domein_buso', 'ict_vwo'], STUUR)).toEqual([]);
+    expect(tweelingParen(['so_a', 'so_b'], STUUR)).toEqual([]);
+    expect(tweelingParen([], STUUR)).toEqual([]);
+  });
+
+  it('een set die de index niet kent, telt niet mee', () => {
+    expect(tweelingParen(['so_a', 'bestaat_niet', 'buso_a'], STUUR)).toEqual([{ so: 'so_a', buso: 'buso_a' }]);
+  });
+
+  it('meer paren: de sets in een paar, en hoeveel sets van elk', () => {
+    const paren = tweelingParen(['so_a', 'fr_so', 'buso_a', 'fr_buso', 'chemie_so'], STUUR);
+    expect(paren).toEqual([{ so: 'so_a', buso: 'buso_a' }, { so: 'fr_so', buso: 'fr_buso' }]);
+    expect(setsMetTweeling(paren)).toEqual(new Set(['so_a', 'buso_a', 'fr_so', 'fr_buso']));
+    expect(aantalPerSoort(paren)).toBe(2);
+    expect(aantalPerSoort([])).toBe(0);
+  });
+
+  it('gewoon en buitengewoon gemengd: ook zonder tweeling', () => {
+    expect(mengtGewoonEnBuitengewoon(['so_a', 'buso_a'], STUUR)).toBe(true);
+    expect(mengtGewoonEnBuitengewoon(['so_a', 'domein_buso'], STUUR)).toBe(true);
+    expect(mengtGewoonEnBuitengewoon(['so_a', 'so_b', 'chemie_so'], STUUR)).toBe(false);
+    expect(mengtGewoonEnBuitengewoon(['buso_a', 'buso_b'], STUUR)).toBe(false);
+    expect(mengtGewoonEnBuitengewoon(['so_a', 'ict_vwo'], STUUR)).toBe(false);
+    expect(mengtGewoonEnBuitengewoon([], STUUR)).toBe(false);
+  });
+
+  it('A- en B-stroom gemengd; een set zonder stroom telt niet mee', () => {
+    expect(stromenIn(['so_a', 'chemie_so'], STUUR)).toEqual(new Set(['A-stroom']));
+    expect(mengtStromen(['so_a', 'buso_b'], STUUR)).toBe(true);
+    expect(mengtStromen(['so_a', 'buso_a', 'fr_so'], STUUR)).toBe(false);
+    expect(mengtStromen(['so_a', 'chemie_so', 'ict_vwo'], STUUR)).toBe(false);
+    expect(mengtStromen([], STUUR)).toBe(false);
+  });
+});
+
+describe('sturen: één klik om sets van de andere groep weg te halen', () => {
+  const alles = beginUitSets(['so_a', 'buso_a', 'so_b', 'buso_b', 'chemie_so', 'domein_buso']);
+
+  it('"Gewoon secundair onderwijs": de BuSO-sets met een tweeling gaan weg; een BuSO-set zonder tweeling en sets zonder paar blijven', () => {
+    const k = haalTweelingenWeg(alles, STUUR, 'so');
+    expect(k.sets).toEqual(['so_a', 'so_b', 'chemie_so', 'domein_buso']);
+    expect([...k.selectie.keys()]).toEqual(k.sets);
+  });
+
+  it('"Buitengewoon secundair onderwijs": de SO-sets met een tweeling gaan weg; de rest blijft', () => {
+    const k = haalTweelingenWeg(alles, STUUR, 'buso');
+    expect(k.sets).toEqual(['buso_a', 'buso_b', 'chemie_so', 'domein_buso']);
+  });
+
+  it('met `binnen` (de sets van de lijst): een set blijft als haar tweeling geen enkel gekozen doel heeft', () => {
+    // buso_a staat in de keuze, maar zonder één gekozen doel: de melding telde dat paar niet, dus so_a blijft.
+    let k = beginUitSets(['so_a', 'buso_a', 'so_b', 'buso_b']);
+    k = { sets: k.sets, selectie: new Map(k.selectie).set('buso_a', new Set<string>()) };
+    const na = haalTweelingenWeg(k, STUUR, 'buso', ['so_a', 'so_b', 'buso_b']);
+    expect(na.sets).toEqual(['so_a', 'buso_a', 'buso_b']);
+    // Zonder `binnen` telt de hele keuze, zoals vroeger.
+    expect(haalTweelingenWeg(k, STUUR, 'buso').sets).toEqual(['buso_a', 'buso_b']);
+  });
+
+  it('de keuze van doelen van de sets die blijven, verandert niet; de oude staat blijft zoals ze was', () => {
+    let k = beginUitSets(['so_a', 'buso_a']);
+    k = { sets: k.sets, selectie: new Map(k.selectie).set('so_a', new Set(['x1', 'x2'])) };
+    const na = haalTweelingenWeg(k, STUUR, 'so');
+    expect(na.sets).toEqual(['so_a']);
+    expect(na.selectie.get('so_a')).toEqual(new Set(['x1', 'x2']));
+    expect(k.sets).toEqual(['so_a', 'buso_a']);
+  });
+
+  it('zonder tweelingen verandert er niets', () => {
+    const k = beginUitSets(['so_a', 'fr_buso', 'chemie_so']);
+    expect(haalTweelingenWeg(k, STUUR, 'so').sets).toEqual(k.sets);
+    expect(haalTweelingenWeg(k, STUUR, 'buso').sets).toEqual(k.sets);
+  });
+
+  it('"A-stroom": de sets van de B-stroom gaan weg; sets zonder stroom blijven', () => {
+    const k = haalStroomWeg(alles, STUUR, 'A-stroom');
+    expect(k.sets).toEqual(['so_a', 'buso_a', 'chemie_so', 'domein_buso']);
+  });
+
+  it('"B-stroom": de sets van de A-stroom gaan weg; sets zonder stroom blijven', () => {
+    const k = haalStroomWeg(alles, STUUR, 'B-stroom');
+    expect(k.sets).toEqual(['so_b', 'buso_b', 'chemie_so', 'domein_buso']);
+  });
+
+  it('beide acties na elkaar geven één groep', () => {
+    const k = haalStroomWeg(haalTweelingenWeg(alles, STUUR, 'so'), STUUR, 'A-stroom');
+    expect(k.sets).toEqual(['so_a', 'chemie_so', 'domein_buso']);
+  });
+});
+
+describe('sturen: de zinnen op het scherm', () => {
+  it('onder de resultaten: enkelvoud en meervoud', () => {
+    expect(zinVerborgenSets(1)).toBe('1 set voor andere leerlingen staat niet in de lijst.');
+    expect(zinVerborgenSets(2)).toBe('2 sets voor andere leerlingen staan niet in de lijst.');
+    expect(zinVerborgenSets(9)).toBe('9 sets voor andere leerlingen staan niet in de lijst.');
+  });
+
+  it('de melding bij tweelingen in stap 3: 1 set en 6 sets van elk', () => {
+    expect(zinTweelingenInLijst(1)).toBe('Je koos dezelfde doelen twee keer: voor het gewoon en voor het buitengewoon secundair onderwijs (1 set van elk). Een lijst is meestal voor één groep leerlingen. Voor wie is deze lijst?');
+    expect(zinTweelingenInLijst(6)).toBe('Je koos dezelfde doelen twee keer: voor het gewoon en voor het buitengewoon secundair onderwijs (6 sets van elk). Een lijst is meestal voor één groep leerlingen. Voor wie is deze lijst?');
+  });
+
+  it('de statusregel na het weghalen, voor elke soort en elke stroom; 1 doel in het enkelvoud', () => {
+    expect(zinNaWeghalen('so', 18)).toBe('De sets voor het buitengewoon onderwijs zijn weggehaald. Je lijst telt nu 18 doelen.');
+    expect(zinNaWeghalen('buso', 18)).toBe('De sets voor het gewoon onderwijs zijn weggehaald. Je lijst telt nu 18 doelen.');
+    expect(zinNaWeghalen('A-stroom', 10)).toBe('De sets voor de B-stroom zijn weggehaald. Je lijst telt nu 10 doelen.');
+    expect(zinNaWeghalen('B-stroom', 10)).toBe('De sets voor de A-stroom zijn weggehaald. Je lijst telt nu 10 doelen.');
+    expect(zinNaWeghalen('so', 1)).toBe('De sets voor het buitengewoon onderwijs zijn weggehaald. Je lijst telt nu 1 doel.');
+  });
+
+  it('de vaste zinnen letterlijk zoals in het ontwerp', () => {
+    expect(ZIN_TWEELING_GEKOZEN).toBe('Dezelfde doelen als een andere set die je koos. Je hebt er maar één nodig.');
+    expect(ZIN_GEWOON_EN_BUITENGEWOON).toBe('Je koos sets voor het gewoon én het buitengewoon onderwijs. Een lijst is meestal voor één groep leerlingen.');
+    expect(ZIN_A_EN_B).toBe('Je koos sets voor de A-stroom én de B-stroom. Een lijst is meestal voor één stroom.');
+    expect(ZIN_LIJST_MENGT_STROMEN).toBe('Je lijst mengt sets voor de A-stroom en de B-stroom. Voor welke stroom is ze?');
+  });
+
+  it('geen enkele zin noemt een set-id', () => {
+    const zinnen = [ZIN_TWEELING_GEKOZEN, ZIN_GEWOON_EN_BUITENGEWOON, ZIN_A_EN_B, ZIN_LIJST_MENGT_STROMEN, zinVerborgenSets(3), zinTweelingenInLijst(2), zinNaWeghalen('so', 4)];
+    for (const z of zinnen) expect(z).not.toMatch(/ODS_|G-\d/);
+  });
+});
+
+describe.runIf(ECHT)('sturen met echte sets: basisgeletterdheid in de 1ste graad', () => {
+  const index = JSON.parse(readFileSync(join(MAP, 'index.json'), 'utf8')) as MinimumdoelenIndex;
+  const perId = new Map(index.sets.map((s) => [s.id, s] as const));
+  // SO A, BuSO A, SO B, BuSO B: drie sets elk (Nederlands, STEM, digitale competenties).
+  const SO_A = ['ODS_3343', 'ODS_3344', 'ODS_3345'];
+  const BUSO_A = ['ODS_3346', 'ODS_3347', 'ODS_3350'];
+  const SO_B = ['ODS_3351', 'ODS_3353', 'ODS_3355'];
+  const BUSO_B = ['ODS_3352', 'ODS_3354', 'ODS_3356'];
+  const twaalf = beginUitSets([...SO_A, ...BUSO_A, ...SO_B, ...BUSO_B]);
+
+  it('de twaalf sets zijn 3 + 3 + 3 + 3', () => {
+    expect([...SO_A, ...SO_B].every((id) => /^Secundair onderwijs/.test(perId.get(id)!.naam))).toBe(true);
+    expect([...BUSO_A, ...BUSO_B].every((id) => /^Buitengewoon/.test(perId.get(id)!.naam))).toBe(true);
+    expect([...SO_A, ...BUSO_A].every((id) => perId.get(id)!.stroom === 'A-stroom')).toBe(true);
+    expect([...SO_B, ...BUSO_B].every((id) => perId.get(id)!.stroom === 'B-stroom')).toBe(true);
+  });
+
+  it('de twaalf sets geven zes paren (elke SO-set met zijn BuSO-tweeling van dezelfde stroom en dezelfde korte naam)', () => {
+    const paren = tweelingParen(twaalf.sets, perId);
+    expect(paren).toHaveLength(6);
+    expect(aantalPerSoort(paren)).toBe(6);
+    for (const p of paren) {
+      expect(perId.get(p.buso)!.korteNaam).toBe(perId.get(p.so)!.korteNaam);
+      expect(perId.get(p.buso)!.stroom).toBe(perId.get(p.so)!.stroom);
+    }
+    expect(mengtGewoonEnBuitengewoon(twaalf.sets, perId)).toBe(true);
+    expect(mengtStromen(twaalf.sets, perId)).toBe(true);
+  });
+
+  it('"Gewoon secundair onderwijs": de zes BuSO-sets gaan weg, de zes SO-sets blijven', () => {
+    expect(haalTweelingenWeg(twaalf, perId, 'so').sets).toEqual([...SO_A, ...SO_B]);
+  });
+
+  it('"Buitengewoon secundair onderwijs": de zes SO-sets gaan weg, de zes BuSO-sets blijven', () => {
+    expect(haalTweelingenWeg(twaalf, perId, 'buso').sets).toEqual([...BUSO_A, ...BUSO_B]);
+  });
+
+  it('daarna "A-stroom": drie sets over, en geen paar of menging meer', () => {
+    const k = haalStroomWeg(haalTweelingenWeg(twaalf, perId, 'so'), perId, 'A-stroom');
+    expect(k.sets).toEqual(SO_A);
+    expect(tweelingParen(k.sets, perId)).toEqual([]);
+    expect(mengtGewoonEnBuitengewoon(k.sets, perId)).toBe(false);
+    expect(mengtStromen(k.sets, perId)).toBe(false);
+  });
+
+  it('na "Gewoon …" geeft de lijst 20 doelen (A en B), zonder dubbele minimumdoelen', () => {
+    const k = haalTweelingenWeg(twaalf, perId, 'so');
+    const bestanden = new Map(k.sets.map((id) => [id, laad(id)] as const));
+    const r = leerplanUitSelectie(bouwSetKeuzes(k, bestanden), { titel: '' });
+    expect(r.bevestigd).toBe(true);
+    expect(r.leerplan.goals).toHaveLength(20);
+    expect(r.waarschuwingen).toEqual([]);
+  });
+
+  it('de beginwaarden van elke groep sets houden elke set in beeld', () => {
+    const groepen = [SO_A, BUSO_A, SO_B, BUSO_B, [...SO_A, ...BUSO_A], [...SO_A, ...SO_B], [...BUSO_A, ...BUSO_B], twaalf.sets, ['ODS_3343', 'ODS_3283', 'ODS_3300']];
+    for (const ids of groepen) {
+      const w = beginLeerlingen(ids, perId);
+      const zichtbaar = new Set(filterSets(index.sets, { zoek: '', geldigheid: 'alle', graad: w.graad, soort: w.soort, stroom: w.stroom }).map((s) => s.id));
+      for (const id of ids) expect(zichtbaar.has(id), `${id} bij ${JSON.stringify(w)}`).toBe(true);
+    }
+    expect(beginLeerlingen(BUSO_B, perId)).toEqual({ soort: 'buso', graad: '1ste graad', stroom: 'B-stroom' });
+    expect(beginLeerlingen(twaalf.sets, perId)).toEqual({ soort: 'alle', graad: '1ste graad', stroom: '' });
+    expect(beginLeerlingen([], perId)).toEqual({ soort: 'so', graad: '', stroom: '' });
+  });
+
+  it('het nieuwe blok verbergt van de twaalf sets alleen wat niet bij de leerlingen hoort', () => {
+    const zoek = (soort: 'so' | 'buso' | 'alle', stroom: '' | 'A-stroom' | 'B-stroom') => filterSets(index.sets, { zoek: 'basisgeletterdheid', geldigheid: 'actueel', graad: '1ste graad', soort, stroom }).map((s) => s.id);
+    expect(zoek('so', '')).toEqual([...SO_A, ...SO_B].sort());
+    expect(zoek('so', 'A-stroom')).toEqual(SO_A);
+    expect(zoek('buso', 'B-stroom')).toEqual([...BUSO_B].sort());
+    expect(zoek('alle', '')).toHaveLength(12);
   });
 });

@@ -1,29 +1,48 @@
-// Stap 1 van "Stel je eigen doelenlijst samen": sets kiezen. Zoeken en filteren werken zoals op de pagina "Officiële
-// minimumdoelen"; elke set heeft een selectievakje. Bovenaan staan de gekozen sets, in de volgorde van kiezen, met een knop
-// om een set weg te halen en een teller die een schermlezer voorleest.
+// Stap 1 van "Stel je eigen doelenlijst samen": sets kiezen. Bovenaan staat de vraag voor welke leerlingen de lijst is (gewoon of
+// buitengewoon onderwijs, graad, stroom): Boosterz toont dan alleen de sets voor die leerlingen (docs/LEERPLANNEN.md § 16.2).
+// Zoeken en filteren werken verder zoals op de pagina "Officiële minimumdoelen"; elke set heeft een selectievakje. Daaronder
+// staan de gekozen sets, in de volgorde van kiezen, met een knop om een set weg te halen en een teller die een schermlezer
+// voorleest. Kiest de leerkracht sets die niet bij elkaar horen (een set en zijn tweeling, de A- en de B-stroom), dan zegt een
+// melding onder de gekozen sets het.
 
 import { useEffect, useMemo, useRef } from 'react';
 import type { MinimumdoelenIndexSet } from '../../../lib/minimumdoelen';
 import {
-  SOORT_LABEL, filterSets, geldigheidTekst, geldigheidVan, graadOpties, indexHeeftGeldigheid, oudeVersieIds, soortVanSet, type SoortOnderwijs,
+  filterSets, geldigheidTekst, geldigheidVan, graadOpties, indexHeeftGeldigheid, oudeVersieIds, type SoortOnderwijs, type StroomFilter,
 } from '../../../lib/minimumdoelenBron';
-import { MAX_GEKOZEN_SETS, isSetGekozen, kanSetToevoegen, setKenmerken, setNaam, type SamenstelKeuze } from '../../../lib/samenstelKeuze';
-import { CloseIcon } from '../../icons';
+import {
+  GRAAD_MET_STROMEN, MAX_GEKOZEN_SETS, ZIN_A_EN_B, ZIN_GEWOON_EN_BUITENGEWOON, ZIN_TWEELING_GEKOZEN, isSetGekozen, kanSetToevoegen,
+  mengtGewoonEnBuitengewoon, mengtStromen, setKenmerken, setNaam, setsMetTweeling, tweelingParen, zinVerborgenSets, type LeerlingenFilter,
+  type SamenstelKeuze,
+} from '../../../lib/samenstelKeuze';
+import { CloseIcon, WarningIcon } from '../../icons';
 import { Field } from '../../ui';
 
 /** Zoveel sets staan er per keer in de lijst; "Toon meer" voegt er evenveel bij. */
 export const SETS_PER_KEER = 60;
-const SOORT_VOLGORDE: SoortOnderwijs[] = ['so', 'buso', 'vwo', 'ander'];
 
-export interface SetFilterStaat {
+/** De filterstaat van stap 1: het blok "Voor welke leerlingen" (soort, graad, stroom), de zoektekst en de oude versies. */
+export interface SetFilterStaat extends LeerlingenFilter {
   zoek: string;
   /** Oude versies die niet meer gelden: standaard verborgen. */
   toonOud: boolean;
-  graad: string;
-  soort: SoortOnderwijs | 'alle';
 }
 
-export const BEGIN_FILTER: SetFilterStaat = { zoek: '', toonOud: false, graad: '', soort: 'alle' };
+/** Een nieuwe lijst: gewoon secundair onderwijs, alle graden, beide stromen. */
+export const BEGIN_FILTER: SetFilterStaat = { zoek: '', toonOud: false, graad: '', soort: 'so', stroom: '' };
+
+const ONDERWIJS_KEUZES: readonly { waarde: SoortOnderwijs | 'alle'; label: string }[] = [
+  { waarde: 'so', label: 'Gewoon secundair onderwijs' },
+  { waarde: 'buso', label: 'Buitengewoon secundair onderwijs' },
+  { waarde: 'vwo', label: 'Volwassenenonderwijs' },
+  { waarde: 'alle', label: 'Alle sets' },
+];
+
+const STROOM_KEUZES: readonly { waarde: StroomFilter; label: string }[] = [
+  { waarde: 'A-stroom', label: 'A-stroom' },
+  { waarde: 'B-stroom', label: 'B-stroom' },
+  { waarde: '', label: 'Allebei' },
+];
 
 function aantalSets(n: number): string {
   return `${n} ${n === 1 ? 'set' : 'sets'}`;
@@ -47,22 +66,29 @@ export function StapSets({
   const heeftGeldigheid = useMemo(() => indexHeeftGeldigheid(sets), [sets]);
   const geldigheid = heeftGeldigheid && !filter.toonOud ? 'actueel' : 'alle';
   const graden = useMemo(() => graadOpties(sets), [sets]);
-  const soorten = useMemo(() => {
-    const aanwezig = new Set(sets.map((s) => soortVanSet(s.naam)));
-    return SOORT_VOLGORDE.filter((s) => aanwezig.has(s));
-  }, [sets]);
   const oud = useMemo(() => oudeVersieIds(sets), [sets]);
   const perId = useMemo(() => new Map(sets.map((s) => [s.id, s] as const)), [sets]);
   const gefilterd = useMemo(
-    () => filterSets(sets, { zoek: filter.zoek, geldigheid, graad: filter.graad, soort: filter.soort }),
-    [sets, filter.zoek, geldigheid, filter.graad, filter.soort],
+    () => filterSets(sets, { zoek: filter.zoek, geldigheid, graad: filter.graad, soort: filter.soort, stroom: filter.stroom }),
+    [sets, filter.zoek, geldigheid, filter.graad, filter.soort, filter.stroom],
   );
   // Hoeveel oude versies er bij deze filters verborgen zijn: dat zeggen we bij het vinkje.
   const verborgenOud = useMemo(
-    () => (geldigheid === 'actueel' ? filterSets(sets, { zoek: filter.zoek, geldigheid: 'alle', graad: filter.graad, soort: filter.soort }).length - gefilterd.length : 0),
-    [sets, geldigheid, filter.zoek, filter.graad, filter.soort, gefilterd.length],
+    () => (geldigheid === 'actueel'
+      ? filterSets(sets, { zoek: filter.zoek, geldigheid: 'alle', graad: filter.graad, soort: filter.soort, stroom: filter.stroom }).length - gefilterd.length
+      : 0),
+    [sets, geldigheid, filter.zoek, filter.graad, filter.soort, filter.stroom, gefilterd.length],
+  );
+  // Hoeveel sets alleen wegvallen door het blok "Voor welke leerlingen" (soort onderwijs en stroom): dat zeggen we onder de resultaten.
+  const verborgenLeerlingen = useMemo(
+    () => filterSets(sets, { zoek: filter.zoek, geldigheid, graad: filter.graad, soort: 'alle', stroom: '' }).length - gefilterd.length,
+    [sets, filter.zoek, geldigheid, filter.graad, gefilterd.length],
   );
   const vol = !kanSetToevoegen(keuze);
+  // Sturen bij de gekozen sets: welke sets hebben hun tweeling ook gekozen, en mengt de keuze groepen leerlingen?
+  const tweelingGekozen = useMemo(() => setsMetTweeling(tweelingParen(keuze.sets, perId)), [keuze.sets, perId]);
+  const mengtSoort = useMemo(() => mengtGewoonEnBuitengewoon(keuze.sets, perId), [keuze.sets, perId]);
+  const mengtStroom = useMemo(() => mengtStromen(keuze.sets, perId), [keuze.sets, perId]);
 
   const weg = (id: string) => {
     onWeg(id);
@@ -72,7 +98,14 @@ export function StapSets({
 
   // "Toon alle sets" in de lege toestand: de knop verdwijnt, dus de focus gaat naar het zoekveld.
   const toonAlle = () => {
-    onFilter({ ...BEGIN_FILTER, toonOud: true });
+    onFilter({ ...BEGIN_FILTER, toonOud: true, soort: 'alle' });
+    document.getElementById('sam-zoek')?.focus();
+  };
+
+  // "Toon alle sets" onder de resultaten: de sets voor andere leerlingen komen erbij (alleen soort en stroom veranderen).
+  // De knop verdwijnt, dus de focus gaat naar het zoekveld.
+  const toonAlleLeerlingen = () => {
+    onFilter({ soort: 'alle', stroom: '' });
     document.getElementById('sam-zoek')?.focus();
   };
 
@@ -93,6 +126,46 @@ export function StapSets({
 
   return (
     <div className="il-stap-inhoud sam-stap">
+      <section className="sam-leerlingen" aria-labelledby="sam-leerlingen-kop">
+        <h3 id="sam-leerlingen-kop">Voor welke leerlingen is deze lijst?</h3>
+        <p className="sam-leerlingen-uitleg">
+          Boosterz toont dan alleen de sets voor die leerlingen. Veel sets bestaan in meer versies: voor de A- en de B-stroom, en voor het gewoon
+          en het buitengewoon onderwijs.
+        </p>
+        <fieldset className="sam-fieldset">
+          <legend>Onderwijs</legend>
+          <div className="sam-radios">
+            {ONDERWIJS_KEUZES.map((k) => (
+              <label key={k.waarde} className="sam-keuze">
+                <input type="radio" name="sam-onderwijs" checked={filter.soort === k.waarde} onChange={() => onFilter({ soort: k.waarde })} />
+                <span>{k.label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="sam-selecten">
+          <Field label="Graad">
+            <select className="select" value={filter.graad} onChange={(e) => onFilter({ graad: e.target.value })}>
+              <option value="">Alle graden</option>
+              {graden.map((g) => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </Field>
+        </div>
+        {filter.graad === GRAAD_MET_STROMEN && (
+          <fieldset className="sam-fieldset">
+            <legend>Stroom</legend>
+            <div className="sam-radios">
+              {STROOM_KEUZES.map((k) => (
+                <label key={k.label} className="sam-keuze">
+                  <input type="radio" name="sam-stroom" checked={filter.stroom === k.waarde} onChange={() => onFilter({ stroom: k.waarde })} />
+                  <span>{k.label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+      </section>
+
       <section className="sam-gekozen" aria-labelledby="sam-gekozen-kop">
         <h3 id="sam-gekozen-kop" tabIndex={-1} ref={gekozenKopRef}>Gekozen sets</h3>
         <p className="sam-teller" aria-live="polite" aria-atomic="true">
@@ -109,6 +182,12 @@ export function StapSets({
                   <span className="sam-chip-tekst">
                     <span className="sam-chip-naam">{naam}</span>
                     {kenmerk && <span className="sam-chip-meta">{kenmerk}</span>}
+                    {tweelingGekozen.has(id) && (
+                      <span className="sam-chip-waarschuwing">
+                        <WarningIcon size={14} aria-hidden="true" />
+                        <span>{ZIN_TWEELING_GEKOZEN}</span>
+                      </span>
+                    )}
                   </span>
                   <button type="button" className="sam-chip-weg" onClick={() => weg(id)} aria-label={`Haal ${naam}${kenmerk ? ` (${kenmerk})` : ''} weg`}>
                     <CloseIcon size={16} />
@@ -118,6 +197,14 @@ export function StapSets({
             })}
           </ul>
         )}
+        <div className="sam-meldingen" aria-live="polite">
+          {mengtSoort && (
+            <p className="sam-melding"><WarningIcon size={18} aria-hidden="true" /><span>{ZIN_GEWOON_EN_BUITENGEWOON}</span></p>
+          )}
+          {mengtStroom && (
+            <p className="sam-melding"><WarningIcon size={18} aria-hidden="true" /><span>{ZIN_A_EN_B}</span></p>
+          )}
+        </div>
         {vol && <p className="hint">Je kan hoogstens {MAX_GEKOZEN_SETS} sets kiezen. Haal er eerst een weg om een andere te kiezen.</p>}
       </section>
 
@@ -134,20 +221,6 @@ export function StapSets({
             autoComplete="off" spellCheck={false} onChange={(e) => onFilter({ zoek: e.target.value })}
           />
         </Field>
-        <div className="sam-selecten">
-          <Field label="Graad">
-            <select className="select" value={filter.graad} onChange={(e) => onFilter({ graad: e.target.value })}>
-              <option value="">Alle graden</option>
-              {graden.map((g) => <option key={g} value={g}>{g}</option>)}
-            </select>
-          </Field>
-          <Field label="Soort onderwijs">
-            <select className="select" value={filter.soort} onChange={(e) => onFilter({ soort: e.target.value as SoortOnderwijs | 'alle' })}>
-              <option value="alle">Alle soorten</option>
-              {soorten.map((s) => <option key={s} value={s}>{SOORT_LABEL[s]}</option>)}
-            </select>
-          </Field>
-        </div>
         {heeftGeldigheid && (
           <div className="sam-oud">
             <label className="sam-oud-label">
@@ -172,8 +245,8 @@ export function StapSets({
       {gefilterd.length === 0 ? (
         <div className="sam-leeg">
           <p><strong>Geen sets die hierbij passen.</strong></p>
-          <p>Probeer een kortere zoekterm, een andere graad of soort, of toon ook de oude versies.</p>
-          <button type="button" className="btn btn-sm btn-ghost" onClick={toonAlle}>Toon alle sets</button>
+          <p>Probeer een kortere zoekterm, een andere graad of ander onderwijs, of toon ook de oude versies.</p>
+          {verborgenLeerlingen === 0 && <button type="button" className="btn btn-sm btn-ghost" onClick={toonAlle}>Toon alle sets</button>}
         </div>
       ) : (
         <>
@@ -209,6 +282,13 @@ export function StapSets({
             </div>
           )}
         </>
+      )}
+
+      {verborgenLeerlingen > 0 && (
+        <div className="sam-verborgen">
+          <p>{zinVerborgenSets(verborgenLeerlingen)}</p>
+          <button type="button" className="btn btn-sm btn-ghost" onClick={toonAlleLeerlingen}>Toon alle sets</button>
+        </div>
       )}
     </div>
   );

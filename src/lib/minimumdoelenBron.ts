@@ -231,7 +231,62 @@ export function contextVanSet(naam: string): string {
   return [structuur, soort, doelen].filter((t) => t !== '' && !standaard(t)).join(' · ');
 }
 
+/**
+ * Wat een set onderscheidt van andere sets met dezelfde korte naam: de soort onderwijs (niet bij het gewone secundair),
+ * de graad, de stroom en de context uit de volledige naam ("aso", "Pool", …), zoals op de pagina "Officiële minimumdoelen".
+ */
+export function setKenmerken(set: { naam: string; graad?: string; stroom?: string }): string {
+  // Een setbestand zonder naam komt door de laadpoort (die eist alleen id, aantal en sha256): dan geen kenmerken uit de naam.
+  const naam = typeof set?.naam === 'string' ? set.naam : '';
+  const soort = soortVanSet(naam);
+  return [soort === 'so' ? '' : SOORT_LABEL[soort], set.graad, set.stroom, contextVanSet(naam)].filter(Boolean).join(' · ');
+}
+
+// ── Tweelingen: dezelfde set voor het gewoon en het buitengewoon onderwijs ──
+
+/** Kleine letters, zonder accenten, elke reeks spaties één spatie. */
+function naamVergelijking(naam: string): string {
+  return zonderAccenten(naam).replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * De naam waaronder een set en zijn tweeling samenvallen, of `undefined` als de set geen tweeling kan hebben. Een set van
+ * het gewoon secundair is zijn eigen naam; een set van het buitengewoon secundair (opleidingsvorm 4) is zijn naam zonder
+ * "Buitengewoon " vooraan en zonder " Opleidingsvorm 4". Hoofdletters, accenten en dubbele spaties tellen niet mee. In de
+ * echte gegevens hebben alle 180 geldige BuSO-sets van opleidingsvorm 4 zo een SO-tweeling met exact dezelfde vaste nummers.
+ */
+export function tweelingSleutel(naam: string): string | undefined {
+  if (typeof naam !== 'string') return undefined;
+  const soort = soortVanSet(naam);
+  const n = naamVergelijking(naam);
+  if (soort === 'so') return n;
+  if (soort === 'buso' && / opleidingsvorm 4\b/.test(n)) {
+    return n.replace(/^buitengewoon /, '').replace(/ opleidingsvorm 4\b/, '').replace(/\s+/g, ' ').trim();
+  }
+  return undefined;
+}
+
+/**
+ * Zijn dit een SO-set en zijn BuSO-tweeling? Dat zegt alleen de naam (zie `tweelingSleutel`) en, als beide sets een versie
+ * hebben, dat de versie gelijk is: een oude versie en een nieuwe heten hetzelfde maar hebben andere doelen. Dit is een
+ * hulp om de leerkracht te sturen; de echte controle op vaste nummers is die van de nakijkpoort en de dubbelwaarschuwing.
+ */
+export function zijnTweeling(a: { naam: string; versie?: string }, b: { naam: string; versie?: string }): boolean {
+  if (typeof a?.naam !== 'string' || typeof b?.naam !== 'string') return false;
+  const sa = soortVanSet(a.naam);
+  const sb = soortVanSet(b.naam);
+  if (!((sa === 'so' && sb === 'buso') || (sa === 'buso' && sb === 'so'))) return false;
+  const ka = tweelingSleutel(a.naam);
+  if (ka === undefined || ka !== tweelingSleutel(b.naam)) return false;
+  const va = (a.versie ?? '').trim();
+  const vb = (b.versie ?? '').trim();
+  return va === '' || vb === '' || va === vb;
+}
+
 // ── Zoeken en filteren ──────────────────────────────────────────────────────
+
+/** De stroom waarop je sets filtert (alleen de 1ste graad kent stromen); leeg = allebei. */
+export type StroomFilter = '' | 'A-stroom' | 'B-stroom';
 
 export interface SetFilter {
   /** Zoektekst: naam, korte naam of id, zonder accenten en hoofdletterongevoelig. */
@@ -241,6 +296,8 @@ export interface SetFilter {
   /** Leeg = alle graden. */
   graad: string;
   soort: SoortOnderwijs | 'alle';
+  /** Leeg of weggelaten = allebei. Een set zonder stroom valt nooit weg door deze filter. */
+  stroom?: StroomFilter;
 }
 
 export function zonderAccenten(tekst: string): string {
@@ -262,6 +319,7 @@ export function filterSets(sets: readonly MinimumdoelenIndexSet[], filter: SetFi
     } else if (filter.geldigheid !== 'alle' && geldigheidVan(s) !== filter.geldigheid) return false;
     if (filter.graad !== '' && s.graad !== filter.graad) return false;
     if (filter.soort !== 'alle' && soortVanSet(s.naam) !== filter.soort) return false;
+    if (filter.stroom && s.stroom && s.stroom !== filter.stroom) return false;
     if (termen.length === 0) return true;
     const hooi = zonderAccenten(`${s.naam} ${s.korteNaam ?? ''} ${s.id}`);
     return termen.every((t, i) => hooi.includes(t) || alternatieven[i].some((f) => bevatFrase(hooi, f)));

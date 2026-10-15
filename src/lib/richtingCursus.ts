@@ -6,7 +6,8 @@
 // - een voorstel van sets bij een vak (`vakVoorstel`), met STEM-sets apart en nooit vooraf aangevinkt (ook de STEM-sets
 //   van de 2de en 3de graad, die niet de sleutelcompetentie zelf zijn maar "STEM" heten);
 // - een cursus met een geraamte: een hoofdstuk per set, een sectie per rubriek en de doelcodes al op de secties
-//   (`cursusVoorRichting`);
+//   (`cursusVoorRichting`, ook voor een leerplan zonder richting: de brug van een doelenlijst naar een cursus, LEERPLANNEN.md § 16);
+// - een bestaande cursus aan een leerplan hangen (`koppelCursusAanLeerplan`, met de opslag van de aanroeper);
 // - de vergelijking met het kader na een maandelijkse update (`vergelijkMetKader`) en de hulpjes voor de schermen.
 //
 // Een deel van een set blijft een deel (§ 9.5): `naarSetKeuzes` geeft voor een deelset altijd de vaste nummers van de
@@ -15,7 +16,7 @@
 //
 // Puur en zonder netwerk: bewaren (`saveCurriculum`, `saveCourse`) doet de aanroeper. Geen React, geen DOM.
 
-import { createCourse } from './courses';
+import { createCourse, type GuardedSaveResult } from './courses';
 import type { Course, CourseChapter, CourseSection } from './courseTypes';
 import { allSections } from './courseTypes';
 import { normalizeGoalCode, normalizeGoalCodes, shortGoalText } from './curriculum';
@@ -536,11 +537,15 @@ export function geraamteHoofdstukken(leerplan: Curriculum, codes?: readonly stri
  * `hoofdstukken` (optioneel, alleen bij `geraamte`): een eigen geraamte in plaats van dat van `geraamteHoofdstukken`, zoals
  * `bkGeraamte` het maakt voor de competenties van een beroepskwalificatie. Zijn het er geen, dan blijft het lege hoofdstuk
  * staan: er valt dan niet terug op `geraamteHoofdstukken`. Zonder dit veld is het gedrag zoals altijd.
+ *
+ * `doelgroep` is optioneel (de brug van een doelenlijst naar een cursus, docs/LEERPLANNEN.md § 16.5): een leerplan dat niet
+ * bij een studierichting hoort, geeft een cursus zonder doelgroep en zonder ondertitel. Een ongeldige doelgroep wordt zo
+ * behandeld als geen doelgroep.
  */
 export function cursusVoorRichting(o: {
   titel: string;
   auteur: string;
-  doelgroep: Doelgroep;
+  doelgroep?: Doelgroep;
   leerplan: Curriculum;
   codes?: readonly string[];
   start: Startvorm;
@@ -573,4 +578,84 @@ export function passendeCodes(course: Course, leerplan: Curriculum): { passend: 
   let passend = 0;
   for (const code of vanCursus) if (vanLeerplan.has(code)) passend++;
   return { passend, totaal: vanCursus.size };
+}
+
+// ── Een bestaande cursus aan een leerplan hangen ────────────────────────────
+
+/** Een cursus in het venster "Gebruik deze doelen in een cursus", met wat eronder staat. */
+export interface KoppelRij {
+  course: Course;
+  /** De cursus hangt al aan deze lijst. */
+  dezeLijst: boolean;
+  /** De titel van het andere leerplan waar de cursus nu aan hangt; alleen als dat leerplan op dit toestel staat. */
+  oud?: string;
+  /** Hoeveel van de doelcodes op de secties van de cursus in de lijst staan; alleen als de cursus doelcodes heeft. */
+  codes?: { passend: number; totaal: number };
+}
+
+/**
+ * De cursussen op dit toestel voor het venster "Gebruik deze doelen in een cursus", nieuwste eerst (aanmaakdatum, dan
+ * laatste wijziging, dan titel). Een cursus die aan een leerplan hangt dat niet meer op dit toestel staat, telt als zonder
+ * leerplan. Verandert niets aan de invoer.
+ */
+export function koppelRijen(cursussen: readonly Course[], leerplannen: readonly Curriculum[], leerplan: Curriculum): KoppelRij[] {
+  const perId = new Map(leerplannen.map((l) => [l.id, l] as const));
+  return [...cursussen]
+    .sort((a, b) => (b.createdAt - a.createdAt) || (b.updatedAt - a.updatedAt) || a.title.localeCompare(b.title, 'nl'))
+    .map((course): KoppelRij => {
+      const dezeLijst = course.curriculumId === leerplan.id;
+      const oud = !dezeLijst && course.curriculumId !== undefined ? perId.get(course.curriculumId) : undefined;
+      const codes = passendeCodes(course, leerplan);
+      return {
+        course,
+        dezeLijst,
+        ...(oud ? { oud: oud.title } : {}),
+        ...(codes.totaal > 0 ? { codes } : {}),
+      };
+    });
+}
+
+/**
+ * De opslag die `koppelCursusAanLeerplan` nodig heeft: de cursus lezen en bewaakt schrijven (`getCourse` en
+ * `saveCourseGuarded` uit `courses.ts`). In een test een nagebootste opslag, zoals `GatenOpslag` in `gatenCursus.ts`.
+ */
+export interface KoppelOpslag {
+  getCourse(id: string): Course | undefined;
+  saveCourseGuarded(c: Course, verwacht: number): GuardedSaveResult;
+}
+
+/** Waarom koppelen niet lukte: de cursus veranderde intussen (`gewijzigd`), bestaat niet meer (`verwijderd`) of schrijven mislukte (`mislukt`). */
+export type KoppelReden = 'gewijzigd' | 'verwijderd' | 'mislukt';
+
+/**
+ * Hangt een bestaande cursus aan een leerplan (docs/LEERPLANNEN.md § 16.5, het venster "Gebruik deze doelen in een cursus").
+ * De cursus wordt opnieuw gelezen (nooit uit een kopie van toen het venster openging), alleen `curriculumId` verandert en het
+ * bewaren is bewaakt met `saveCourseGuarded(nieuw, vers.updatedAt)`: een cursus die intussen elders veranderde, wordt nooit
+ * overschreven. Verder verandert er niets aan de cursus (diep gelijk buiten `curriculumId` en `updatedAt`); de doelcodes op
+ * de secties blijven ook als ze niet in het leerplan staan, de doelendekking laat dat zien.
+ *
+ * Hangt de cursus al aan dit leerplan, dan wordt er niets geschreven en is `course` de cursus zoals ze is. Een opslag die
+ * gooit, telt als `mislukt`. `course` in het resultaat is de bewaarde cursus, met de nieuwe versie (`updatedAt`).
+ */
+export function koppelCursusAanLeerplan(
+  o: { courseId: string; leerplanId: string },
+  opslag: KoppelOpslag,
+): { ok: true; course: Course } | { ok: false; reden: KoppelReden } {
+  let vers: Course | undefined;
+  try {
+    vers = opslag.getCourse(o.courseId);
+  } catch {
+    return { ok: false, reden: 'mislukt' };
+  }
+  if (!vers) return { ok: false, reden: 'verwijderd' };
+  if (vers.curriculumId === o.leerplanId) return { ok: true, course: vers };
+  const nieuw: Course = { ...vers, curriculumId: o.leerplanId };
+  let r: GuardedSaveResult;
+  try {
+    r = opslag.saveCourseGuarded(nieuw, vers.updatedAt);
+  } catch {
+    return { ok: false, reden: 'mislukt' };
+  }
+  if (!r.ok) return { ok: false, reden: r.reason };
+  return { ok: true, course: { ...nieuw, updatedAt: r.updatedAt } };
 }

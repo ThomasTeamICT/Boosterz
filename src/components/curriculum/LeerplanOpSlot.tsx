@@ -12,6 +12,7 @@ import { formatDateShort } from '../../lib/utils';
 import { BackIcon, DuplicateIcon, EditIcon, ExportIcon, TipIcon } from '../icons';
 import { DEEL_HINT, isSamengesteld, nagekekenTekst, uitOfficieleBron } from '../../lib/leerplanStatus';
 import { ControleLabel, OfficieelLabel, officieelSoort } from './ControleLabel';
+import { GebruikInCursus, toonGebruikInCursus } from './cursusbrug/GebruikInCursus';
 import { DoelenPerRubriek, type DoelRij } from './DoelenPerRubriek';
 import { VerwijzingLabels } from './VerwijzingLabels';
 import '../../styles/leerplan.css';
@@ -170,13 +171,17 @@ export function LeerplanOpSlot({
         ? <p className="hint">Dit leerplan heeft geen doelen.</p>
         : <DoelenPerRubriek rijen={rijen} />}
 
-      <p className="hint lp-tip">
-        <TipIcon size={16} className="lp-tip-icoon" />
-        <span>
-          Koppel deze doelen daarna aan je cursussen via <Link to="/cursussen">Cursussen</Link>,
-          of laat de AI-cursusbouwer een dekkende cursus opzetten vanuit deze lijst.
-        </span>
-      </p>
+      {toonGebruikInCursus(curriculum) ? (
+        <GebruikInCursus leerplan={curriculum} />
+      ) : (
+        <p className="hint lp-tip">
+          <TipIcon size={16} className="lp-tip-icoon" />
+          <span>
+            Koppel deze doelen daarna aan je cursussen via <Link to="/cursussen">Cursussen</Link>,
+            of laat de AI-cursusbouwer een dekkende cursus opzetten vanuit deze lijst.
+          </span>
+        </p>
+      )}
     </div>
   );
 }

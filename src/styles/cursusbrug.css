@@ -1,0 +1,56 @@
+/* ── De brug van een doelenlijst naar een cursus ────────────────────────────── */
+/*
+ * Het paneel "Je lijst is bewaard" (NaBewaren), het blok "Gebruik in een cursus" op de pagina Leerplannen (GebruikInCursus) en de
+ * keuze van de cursus in het venster "Gebruik deze doelen in een cursus" (KoppelAanCursus), docs/LEERPLANNEN.md § 16.4 en
+ * § 16.5. Voorvoegsel cb-. De keuzerondjes "Hoe begin je?" en de voet van de vensters komen uit richtingcursus.css (rc-). Alleen
+ * tokens uit global.css; nooit witte tekst op --brand (gebruik --brand-fill). Een status staat altijd ook in tekst. Werkt op 390
+ * px zonder horizontaal scrollen: lange titels breken af en tikdoelen zijn op smalle schermen 44 px hoog.
+ */
+
+/* Het paneel na het bewaren */
+.cb-paneel { max-width: 46rem; min-width: 0; margin-top: 8px; }
+.cb-kop { margin: 0 0 8px; font-size: 1.3rem; line-height: 1.3; overflow-wrap: break-word; }
+.cb-kop:focus { outline: none; }
+.cb-kop:focus-visible { outline: 3px solid var(--brand); outline-offset: 4px; border-radius: var(--radius-s); }
+.cb-zin { margin: 0; max-width: 64ch; overflow-wrap: break-word; }
+
+/* Het blok op de pagina Leerplannen */
+.cb-gebruik { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); min-width: 0; }
+.cb-gebruik-kop { margin: 0 0 6px; font-size: 1.05rem; }
+.cb-gebruik-zin { margin: 0; color: var(--text-soft); max-width: 64ch; overflow-wrap: break-word; }
+
+/* De twee knoppen en de melding als het venster niet laadt */
+.cb-knoppen { min-width: 0; margin: 14px 0 4px; }
+.cb-knoppen-rij { display: flex; flex-wrap: wrap; gap: 10px; }
+.cb-knoppen-rij .btn { min-height: 44px; }
+.cb-melding { align-items: flex-start; margin: 12px 0 0; }
+.cb-melding > svg { flex: none; margin-top: 2px; }
+.cb-melding > div { min-width: 0; }
+.cb-melding p { margin: 0 0 8px; overflow-wrap: break-word; }
+
+/* Links onder het paneel */
+.cb-links { display: flex; flex-wrap: wrap; gap: 0 20px; margin: 10px 0 0; }
+.cb-links a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; overflow-wrap: anywhere; }
+
+/* Het venster "Gebruik deze doelen in een cursus": een keuzerondje per cursus */
+.cb-cursussen { list-style: none; margin: 6px 0 12px; padding: 0; display: grid; gap: 6px; }
+.cb-cursussen > li { min-width: 0; }
+.cb-cursus {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 10px 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised);
+}
+.cb-cursus:hover { border-color: var(--line-strong); }
+.cb-cursus:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.cb-cursus:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; }
+.cb-cursus input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--brand-fill); cursor: pointer; }
+.cb-cursus-tekst { display: grid; gap: 2px; min-width: 0; }
+.cb-cursus-titel { font-family: var(--font-display); font-weight: 700; line-height: 1.3; overflow-wrap: break-word; }
+.cb-cursus-meta { font-size: 0.88rem; line-height: 1.4; color: var(--text-soft); overflow-wrap: break-word; }
+.cb-leeg { margin: 0 0 12px; }
+/* De melding onder de gekozen cursus: ze staat tegen die cursus aan, zodat ze ook op een smal scherm meteen in beeld is. */
+.cb-melding-rij .rc-melding { margin: 6px 0 4px; }
+
+@media (max-width: 640px) {
+  .cb-knoppen-rij .btn { flex: 1 1 100%; white-space: normal; text-align: center; }
+  .cb-links a { min-height: 44px; }
+}

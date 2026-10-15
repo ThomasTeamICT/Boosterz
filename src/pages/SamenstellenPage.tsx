@@ -19,7 +19,7 @@
 // stap terug niets kwijtraakt, en zet bij elke stapwissel de focus op de kop van de nieuwe stap.
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Check } from 'lucide-react';
 import type { Curriculum } from '../lib/curriculumTypes';
 import type { MinimumdoelenIndexSet } from '../lib/minimumdoelen';
@@ -34,11 +34,13 @@ import {
   richtingTekst, VERDER_ZONDER_RICHTING, type GenegeerdParam, type RichtingLink, type RichtingParams,
 } from '../lib/richtingLink';
 import {
-  aantalGevraagdeSets, beginUitSelectie, beginUitSets, bouwSetKeuzes, haalSetWeg, kiesbareDoelen, leegKeuze, ontbreektInStap1, ontbreektInStap2,
-  ontbreektInStap3, setsUitParam, telGekozen, wisselSet, zegOntbreekt, type Ontbreekt, type SamenstelKeuze,
+  aantalGevraagdeSets, aantalPerSoort, beginLeerlingen, beginUitSelectie, beginUitSets, bouwSetKeuzes, haalSetWeg, haalStroomWeg,
+  haalTweelingenWeg, kiesbareDoelen, leegKeuze, mengtStromen, ontbreektInStap1, ontbreektInStap2, ontbreektInStap3, pasLeerlingenToe,
+  setsUitParam, telGekozen, tweelingParen, wisselSet, zegOntbreekt, zinNaWeghalen, type Behoud, type Ontbreekt, type SamenstelKeuze,
 } from '../lib/samenstelKeuze';
 import { useLaadstand } from '../lib/useLaadstand';
 import { FoutBericht, LaadBericht } from '../components/curriculum/LaadStatus';
+import { NaBewaren } from '../components/curriculum/cursusbrug/NaBewaren';
 import { StapBewaren } from '../components/curriculum/samenstellen/StapBewaren';
 import { StapDoelen } from '../components/curriculum/samenstellen/StapDoelen';
 import { BEGIN_FILTER, SETS_PER_KEER, StapSets, type SetFilterStaat } from '../components/curriculum/samenstellen/StapSets';
@@ -59,10 +61,6 @@ const STAPPEN: readonly { nr: Stap; kort: string; titel: string }[] = [
   { nr: 3, kort: 'Naam en bewaren', titel: 'Naam en bewaren' },
 ];
 
-function aantalDoelen(n: number): string {
-  return `${n} ${n === 1 ? 'doel' : 'doelen'}`;
-}
-
 // ── De pagina: een nieuwe lijst of een bewaarde lijst aanpassen ─────────────
 
 export function SamenstellenPage() {
@@ -79,6 +77,16 @@ export function SamenstellenPage() {
       curriculumId={curriculumId} setsParam={setsParam} zelfParam={zelfParam} leeg={leeg} richting={richting}
     />
   );
+}
+
+/**
+ * Het id van de lijst die net bewaard werd, uit de state van de geschiedenis. Na het bewaren zet de wizard die state (met
+ * `replace`, de url blijft gelijk): herladen of één keer "Terug" vanuit de editor toont dan weer het paneel "Je lijst is
+ * bewaard", in plaats van een verse wizard waarin een tweede bewaring een dubbele lijst zou maken.
+ */
+function bewaardeLijstUitState(state: unknown): string | undefined {
+  const id = typeof state === 'object' && state !== null ? (state as { bewaard?: unknown }).bewaard : undefined;
+  return typeof id === 'string' && id !== '' ? id : undefined;
 }
 
 type Probleem = 'ontbreekt' | 'niet-samengesteld' | 'eigen-kopie';
@@ -107,6 +115,8 @@ function Samenstellen({
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
   const terugNaar = bestaand ? `/leerplannen?open=${encodeURIComponent(bestaand.id)}` : '/leerplannen';
+  // Na het bewaren staat het paneel "Je lijst is bewaard" (§ 16.4): dan hoort de uitleg over het kiezen er niet meer bij.
+  const naBewarenId = bewaardeLijstUitState(useLocation().state);
 
   return (
     <div className="page mat-page il-page sam-page">
@@ -116,13 +126,13 @@ function Samenstellen({
       <div className="page-head">
         <div className="il-intro">
           <h1>{bewerken ? 'Doelenlijst aanpassen' : 'Stel je eigen doelenlijst samen'}</h1>
-          <p className="sub">
+          {!naBewarenId && <p className="sub">
             {bewerken && bestaand && !probleem
               ? `Pas de keuze van “${bestaand.title}” aan. `
               : ''}
             De doelen blijven letterlijk zoals in de officiële bron, dus je lijst is meteen nagekeken. Kies hele sets of losse doelen,
             uit één of meer sets.
-          </p>
+          </p>}
         </div>
       </div>
 
@@ -370,7 +380,6 @@ function Wizard({
   /** Wat de link nog vroeg en niet bruikbaar was (jaar, soort); alleen met een richting. */
   genegeerd?: readonly GenegeerdParam[];
 }) {
-  const navigate = useNavigate();
   const toast = useToast();
 
   const [begin] = useState(() => beginKeuze({ bestaand, setsParam, zelfParam, leeg, bekend: new Set(sets.map((s) => s.id)), richting, onbekendeRichting }));
@@ -378,8 +387,11 @@ function Wizard({
   const [stap, setStap] = useState<Stap>(begin.keuze.sets.length > 0 ? 2 : 1);
   const linkOvergeslagen = begin.overgeslagen;
 
-  // Stap 1
-  const [filter, setFilter] = useState<SetFilterStaat>(BEGIN_FILTER);
+  // Stap 1: het blok "Voor welke leerlingen" volgt de sets uit de link of van de bewaarde lijst (anders: gewoon secundair onderwijs).
+  const [filter, setFilter] = useState<SetFilterStaat>(() => ({
+    ...BEGIN_FILTER,
+    ...beginLeerlingen(begin.keuze.sets, new Map(sets.map((s) => [s.id, s] as const))),
+  }));
   const [zichtbaar, setZichtbaar] = useState(SETS_PER_KEER);
   // Stap 2
   const [zoekDoel, setZoekDoel] = useState('');
@@ -440,7 +452,8 @@ function Wizard({
 
   // ── Wijzigingen ──
   const wijzigFilter = (patch: Partial<SetFilterStaat>) => {
-    setFilter((f) => ({ ...f, ...patch }));
+    // Alleen in de 1ste graad bestaat er een stroom: een andere graad zet hem terug op "allebei".
+    setFilter((f) => pasLeerlingenToe(f, patch));
     setZichtbaar(SETS_PER_KEER);
   };
   const wijzigTitel = (t: string) => {
@@ -451,6 +464,48 @@ function Wizard({
   const weg = (id: string) => {
     setKeuze((k) => haalSetWeg(k, id));
     kopRef.current?.focus();
+  };
+
+  // ── Sturen in stap 3: dezelfde doelen voor het gewoon en het buitengewoon onderwijs, of de A- en de B-stroom gemengd ──
+  // "Allebei houden" verbergt de melding voor deze lijst van sets, tot de keuze van sets verandert.
+  const [negeerTweeling, setNegeerTweeling] = useState<string | null>(null);
+  const [negeerStroom, setNegeerStroom] = useState<string | null>(null);
+  const [sturingStatus, setSturingStatus] = useState('');
+  const bewaarKopRef = useRef<HTMLHeadingElement>(null);
+  const lijstSets = useMemo(() => resultaat?.leerplan.minimumdoelenSets ?? [], [resultaat]);
+  const lijstSleutel = useMemo(() => [...lijstSets].sort().join(','), [lijstSets]);
+  const tweelingen = useMemo(() => tweelingParen(lijstSets, indexSets), [lijstSets, indexSets]);
+  const toonTweeling = tweelingen.length > 0 && negeerTweeling !== lijstSleutel;
+  const toonStroom = mengtStromen(lijstSets, indexSets) && negeerStroom !== lijstSleutel;
+  // De statusregel hoort bij stap 3: wie terugkeert, ziet hem niet nog eens.
+  useEffect(() => {
+    if (stap !== 3) setSturingStatus('');
+  }, [stap]);
+  // De knoppen verdwijnen: de focus gaat naar de kop "Zo wordt je lijst bewaard".
+  const naSturing = (volgende: SamenstelKeuze | undefined, behoud: Behoud | undefined) => {
+    if (volgende && behoud) {
+      setKeuze(volgende);
+      setSturingStatus(zinNaWeghalen(behoud, telSelectie(bouwSetKeuzes(volgende, bestanden))));
+    }
+    bewaarKopRef.current?.focus();
+  };
+  const kiesTweeling = (welke: 'so' | 'buso' | 'allebei') => {
+    if (welke === 'allebei') {
+      setNegeerTweeling(lijstSleutel);
+      naSturing(undefined, undefined);
+      return;
+    }
+    wijzigFilter({ soort: welke });
+    naSturing(haalTweelingenWeg(keuze, indexSets, welke, lijstSets), welke);
+  };
+  const kiesStroom = (welke: 'A-stroom' | 'B-stroom' | 'allebei') => {
+    if (welke === 'allebei') {
+      setNegeerStroom(lijstSleutel);
+      naSturing(undefined, undefined);
+      return;
+    }
+    wijzigFilter({ stroom: welke });
+    naSturing(haalStroomWeg(keuze, indexSets, welke), welke);
   };
 
   // ── Van stap naar stap ──
@@ -476,6 +531,15 @@ function Wizard({
     setStap((s) => (s < 3 ? ((s + 1) as Stap) : s));
   };
 
+  /** De lijst die net bewaard is: dan staat het paneel "Je lijst is bewaard" in plaats van de stappen (docs/LEERPLANNEN.md § 16.4). */
+  const locatie = useLocation();
+  const navigeer = useNavigate();
+  const [naBewaren, setNaBewaren] = useState<{ leerplan: Curriculum; nagekeken: boolean } | null>(() => {
+    const id = bewaardeLijstUitState(locatie.state);
+    const lijst = id ? getCurriculum(id) : undefined;
+    return lijst ? { leerplan: lijst, nagekeken: effectieveStatus(lijst) === 'gecontroleerd' } : null;
+  });
+
   const bewaar = () => {
     if (ontbreekt.length > 0) {
       focusOpVeld();
@@ -499,13 +563,10 @@ function Wizard({
       // Lukt het bewaren niet (opslag vol), dan meldt de opslaglaag dat zelf: dan blijven we hier.
       if (!saveCurriculum(r.leerplan)) return;
       bewaard.current = true;
-      if (richting) {
-        toast('Leerplan bewaard en nagekeken. Maak er nu een cursus mee.', 'ok');
-        navigate(richtingPad(richting.info, richting.kader));
-        return;
-      }
-      toast(`Lijst bewaard: ${r.leerplan.title} (${aantalDoelen(r.leerplan.goals.length)}, ${r.bevestigd ? 'nagekeken' : 'nog niet nagekeken'})`, 'ok');
-      navigate(`/leerplannen?open=${encodeURIComponent(r.leerplan.id)}`);
+      // Met en zonder richting blijft de leerkracht hier: het paneel zegt dat de lijst bewaard is en brengt haar naar een cursus.
+      setNaBewaren({ leerplan: r.leerplan, nagekeken: r.bevestigd });
+      // In de geschiedenis zetten (zelfde url): herladen of "Terug" toont dan weer dit paneel.
+      navigeer({ pathname: locatie.pathname, search: locatie.search }, { replace: true, state: { bewaard: r.leerplan.id } });
     } catch {
       toast('Bewaren is niet gelukt. Probeer het opnieuw.', 'err');
     }
@@ -513,6 +574,15 @@ function Wizard({
 
   const huidig = STAPPEN[stap - 1];
   const bestaandeStatus = bestaand ? effectieveStatus(bestaand) : undefined;
+
+  if (naBewaren) {
+    return (
+      <NaBewaren
+        leerplan={naBewaren.leerplan} nagekeken={naBewaren.nagekeken}
+        richtingPad={richting ? richtingPad(richting.info, richting.kader) : undefined}
+      />
+    );
+  }
 
   return (
     <>
@@ -582,7 +652,15 @@ function Wizard({
       {stap === 3 && resultaat && (
         <StapBewaren
           resultaat={resultaat} titel={titel} voorstel={voorstel} onTitel={wijzigTitel} onVoorstel={() => setTitelEigen(false)}
-          vak={vak} onVak={setVak} alleenNagekeken={richting !== undefined}
+          vak={vak} onVak={setVak} alleenNagekeken={richting !== undefined} kopRef={bewaarKopRef}
+          sturing={{
+            tweelingen: toonTweeling ? aantalPerSoort(tweelingen) : undefined,
+            mengtStromen: toonStroom,
+            onTweeling: kiesTweeling,
+            onStroom: kiesStroom,
+            status: sturingStatus,
+            verberg: toonTweeling ? resultaat.tweelingWaarschuwingen : [],
+          }}
         />
       )}
 

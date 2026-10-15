@@ -21,10 +21,13 @@ import {
   laadSet,
   opvolgersVan,
   oudeVersieIds,
+  setKenmerken,
   soortVanSet,
+  tweelingSleutel,
   vakSetsBijStem,
   veiligeLink,
   wisMinimumdoelenCache,
+  zijnTweeling,
   zoekTermen,
   zoekVoorbeelden,
   zonderAccenten,
@@ -315,6 +318,136 @@ describe('filterSets', () => {
 
   it('zonderAccenten haalt accenten weg', () => {
     expect(zonderAccenten('Één Café Ça')).toBe('een cafe ca');
+  });
+});
+
+describe('filterSets: stroom', () => {
+  const sets: MinimumdoelenIndexSet[] = [
+    indexSet('ODS_A', { naam: 'Secundair onderwijs 1ste graad A-stroom -  Competenties in het Nederlands - Eindtermen basisgeletterdheid', korteNaam: 'Nederlands', graad: '1ste graad', stroom: 'A-stroom' }),
+    indexSet('ODS_B', { naam: 'Secundair onderwijs 1ste graad B-stroom -  Competenties in het Nederlands - Eindtermen basisgeletterdheid', korteNaam: 'Nederlands', graad: '1ste graad', stroom: 'B-stroom' }),
+    indexSet('ODS_BA', { naam: 'Buitengewoon Secundair onderwijs 1ste graad A-stroom Opleidingsvorm 4 -  Competenties in het Nederlands - Eindtermen basisgeletterdheid', korteNaam: 'Nederlands', graad: '1ste graad', stroom: 'A-stroom' }),
+    indexSet('ODS_Z', { naam: 'Secundair onderwijs 2de graad aso - Vak - Chemie - Eindtermen', korteNaam: 'Chemie', graad: '2de graad' }),
+  ];
+  const alles: SetFilter = { zoek: '', geldigheid: 'alle', graad: '', soort: 'alle' };
+  const ids = (f: Partial<SetFilter>) => filterSets(sets, { ...alles, ...f }).map((s) => s.id);
+
+  it('zonder stroom of met "allebei" (leeg) blijft alles over', () => {
+    expect(ids({})).toEqual(['ODS_A', 'ODS_B', 'ODS_BA', 'ODS_Z']);
+    expect(ids({ stroom: '' })).toEqual(['ODS_A', 'ODS_B', 'ODS_BA', 'ODS_Z']);
+  });
+
+  it('de A-stroom laat de sets van de B-stroom weg, en omgekeerd', () => {
+    expect(ids({ stroom: 'A-stroom' })).toEqual(['ODS_A', 'ODS_BA', 'ODS_Z']);
+    expect(ids({ stroom: 'B-stroom' })).toEqual(['ODS_B', 'ODS_Z']);
+  });
+
+  it('een set zonder stroom valt nooit weg door de stroom', () => {
+    expect(ids({ stroom: 'A-stroom' })).toContain('ODS_Z');
+    expect(ids({ stroom: 'B-stroom' })).toContain('ODS_Z');
+  });
+
+  it('werkt samen met soort onderwijs, graad en zoektekst', () => {
+    expect(ids({ stroom: 'A-stroom', soort: 'so' })).toEqual(['ODS_A', 'ODS_Z']);
+    expect(ids({ stroom: 'A-stroom', soort: 'buso' })).toEqual(['ODS_BA']);
+    expect(ids({ stroom: 'B-stroom', soort: 'buso' })).toEqual([]);
+    expect(ids({ stroom: 'A-stroom', graad: '1ste graad' })).toEqual(['ODS_A', 'ODS_BA']);
+    expect(ids({ stroom: 'B-stroom', zoek: 'nederlands' })).toEqual(['ODS_B']);
+  });
+});
+
+describe('tweelingen op naam', () => {
+  const so = 'Secundair onderwijs 1ste graad A-stroom -  Competenties in het Nederlands - Eindtermen basisgeletterdheid';
+  const buso = 'Buitengewoon Secundair onderwijs 1ste graad A-stroom Opleidingsvorm 4 -  Competenties in het Nederlands - Eindtermen basisgeletterdheid';
+
+  it('de sleutel van een BuSO-set is zijn naam zonder "Buitengewoon " en zonder " Opleidingsvorm 4", gelijk aan die van de SO-set', () => {
+    expect(tweelingSleutel(so)).toBe('secundair onderwijs 1ste graad a-stroom - competenties in het nederlands - eindtermen basisgeletterdheid');
+    expect(tweelingSleutel(buso)).toBe(tweelingSleutel(so));
+  });
+
+  it('hoofdletters, accenten en dubbele spaties tellen niet mee', () => {
+    expect(tweelingSleutel('BUITENGEWOON   secundair ONDERWIJS 2de graad aso Opleidingsvorm 4 - Vak - Géographie - Eindtermen'))
+      .toBe(tweelingSleutel('Secundair onderwijs 2de graad aso - Vak - Geographie - Eindtermen'));
+  });
+
+  it('sets die geen tweeling kunnen hebben, hebben geen sleutel: andere opleidingsvormen, volwassenenonderwijs, ander onderwijs', () => {
+    expect(tweelingSleutel('Buitengewoon Secundair onderwijs Opleidingsvorm 3 - Domein - Burgerzin - Ontwikkelingsdoelen')).toBeUndefined();
+    expect(tweelingSleutel('Buitengewoon Secundair onderwijs Opleidingsvorm 1 - Ontwikkelingsdoelen')).toBeUndefined();
+    expect(tweelingSleutel('Secundair Volwassenenonderwijs Aanvullende Algemene Vorming Minimum - Vak - Ict - Eindtermen')).toBeUndefined();
+    expect(tweelingSleutel('Basisonderwijs - Vak - Wiskunde')).toBeUndefined();
+    expect(tweelingSleutel('')).toBeUndefined();
+  });
+
+  it('een SO-set en zijn BuSO-tweeling, in beide richtingen', () => {
+    expect(zijnTweeling({ naam: so }, { naam: buso })).toBe(true);
+    expect(zijnTweeling({ naam: buso }, { naam: so })).toBe(true);
+  });
+
+  it('geen tweeling: A- tegenover B-stroom, twee SO-sets, twee BuSO-sets, een set met zichzelf, een andere set', () => {
+    const b = so.replace('A-stroom', 'B-stroom');
+    const busoB = buso.replace('A-stroom', 'B-stroom');
+    expect(zijnTweeling({ naam: so }, { naam: busoB })).toBe(false);
+    expect(zijnTweeling({ naam: b }, { naam: buso })).toBe(false);
+    expect(zijnTweeling({ naam: so }, { naam: b })).toBe(false);
+    expect(zijnTweeling({ naam: buso }, { naam: busoB })).toBe(false);
+    expect(zijnTweeling({ naam: so }, { naam: so })).toBe(false);
+    expect(zijnTweeling({ naam: so }, { naam: buso.replace('Nederlands', 'Frans') })).toBe(false);
+  });
+
+  it('een andere versie is geen tweeling; zonder versie op een van beide telt alleen de naam', () => {
+    expect(zijnTweeling({ naam: so, versie: '2.1' }, { naam: buso, versie: '2.1' })).toBe(true);
+    expect(zijnTweeling({ naam: so, versie: '2.0' }, { naam: buso, versie: '2.1' })).toBe(false);
+    expect(zijnTweeling({ naam: so }, { naam: buso, versie: '2.1' })).toBe(true);
+    expect(zijnTweeling({ naam: so, versie: '2.1' }, { naam: buso, versie: ' ' })).toBe(true);
+  });
+
+  describe('met de meegeleverde index en sets', () => {
+    const map = join(fileURLToPath(new URL('../../', import.meta.url)), 'public', 'leerplannen', 'minimumdoelen');
+    const pad = join(map, 'index.json');
+    const index = existsSync(pad) ? (JSON.parse(readFileSync(pad, 'utf8')) as { sets: MinimumdoelenIndexSet[] }).sets : [];
+    const heeft = index.length > 0 && indexHeeftGeldigheid(index);
+    const geldig = index.filter((s) => s.geldigheid === 'Geldig');
+    const buso4 = geldig.filter((s) => soortVanSet(s.naam) === 'buso' && /Opleidingsvorm 4/i.test(s.naam));
+    const paren = geldig.flatMap((b) => geldig.filter((a) => a.id !== b.id && soortVanSet(b.naam) === 'buso' && soortVanSet(a.naam) === 'so' && zijnTweeling(a, b)).map((a) => [a, b] as const));
+    const doelIds = (f: MinimumdoelenIndexSet) => (JSON.parse(readFileSync(join(map, `${f.id}.json`), 'utf8')) as { doelen: { id?: string }[] }).doelen.map((d) => d.id ?? '').sort();
+
+    it.runIf(heeft)('alle 180 geldige BuSO-sets van opleidingsvorm 4 hebben precies één SO-tweeling', () => {
+      expect(buso4).toHaveLength(180);
+      expect(paren).toHaveLength(180);
+      for (const b of buso4) expect(paren.filter(([, x]) => x.id === b.id), b.id).toHaveLength(1);
+      // Elke SO-set heeft hoogstens één BuSO-tweeling.
+      const perSo = new Map<string, number>();
+      for (const [a] of paren) perSo.set(a.id, (perSo.get(a.id) ?? 0) + 1);
+      expect([...perSo.values()].every((n) => n === 1)).toBe(true);
+    });
+
+    it.runIf(heeft)('geen vals paar: een tweeling heeft dezelfde graad, stroom, korte naam en versie, en exact dezelfde vaste nummers', () => {
+      for (const [a, b] of paren) {
+        expect([b.graad, b.stroom, b.korteNaam, b.versie, b.aantal], `${a.id} en ${b.id}`).toEqual([a.graad, a.stroom, a.korteNaam, a.versie, a.aantal]);
+        expect(doelIds(b), `${a.id} en ${b.id}`).toEqual(doelIds(a));
+      }
+    });
+
+    it.runIf(heeft)('A- en B-stroom, of een andere set, worden nooit aan elkaar gekoppeld', () => {
+      const so1 = (stroom: string, kort: string) => geldig.find((s) => soortVanSet(s.naam) === 'so' && s.graad === '1ste graad' && s.stroom === stroom && s.korteNaam === kort)!;
+      const buso1 = (stroom: string, kort: string) => geldig.find((s) => soortVanSet(s.naam) === 'buso' && s.graad === '1ste graad' && s.stroom === stroom && s.korteNaam === kort)!;
+      expect(zijnTweeling(so1('A-stroom', 'Nederlands'), buso1('A-stroom', 'Nederlands'))).toBe(true);
+      expect(zijnTweeling(so1('A-stroom', 'Nederlands'), buso1('B-stroom', 'Nederlands'))).toBe(false);
+      expect(zijnTweeling(so1('B-stroom', 'Nederlands'), buso1('A-stroom', 'Nederlands'))).toBe(false);
+      expect(zijnTweeling(so1('A-stroom', 'Nederlands'), buso1('A-stroom', 'Digitale competenties'))).toBe(false);
+    });
+
+    it.runIf(heeft)('sets die in de index dezelfde naam hebben in een andere versie, zijn geen tweeling', () => {
+      const anderVersie = index.filter((b) => soortVanSet(b.naam) === 'buso').flatMap((b) => index.filter((a) => soortVanSet(a.naam) === 'so'
+        && tweelingSleutel(a.naam) === tweelingSleutel(b.naam) && a.versie !== b.versie).map((a) => [a, b] as const));
+      expect(anderVersie.length).toBeGreaterThan(0);
+      for (const [a, b] of anderVersie) expect(zijnTweeling(a, b), `${a.id} en ${b.id}`).toBe(false);
+    });
+
+    it.runIf(heeft)('de kenmerken van een BuSO-tweeling noemen de soort en de opleidingsvorm; die van een SO-set niet', () => {
+      const nl = (id: string) => index.find((s) => s.id === id)!;
+      expect(setKenmerken(nl('ODS_3343'))).toBe('1ste graad · A-stroom · Eindtermen basisgeletterdheid');
+      expect(setKenmerken(nl('ODS_3346'))).toBe('Buitengewoon secundair onderwijs · 1ste graad · A-stroom · Opleidingsvorm 4 · Eindtermen basisgeletterdheid');
+    });
   });
 });
 

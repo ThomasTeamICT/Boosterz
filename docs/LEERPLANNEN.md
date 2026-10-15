@@ -495,9 +495,9 @@ nog niet duidelijk waar de brug met de cursus naartoe gaat."
 |---|---|---|
 | Verkenning (wizard, sets, dubbels; wegen van een leerplan naar een cursus) | **Klaar** (15 oktober 2026) | twee verkenners |
 | Ontwerp (deze paragraaf) | **Klaar** (15 oktober 2026) | hoofdsessie |
-| S-A Sturen in de wizard (16.2 en 16.3) | Wacht | bouwer |
-| S-B De brug naar een cursus (16.4 en 16.5) | Wacht | bouwer |
-| Review, rechter, integratie, uitrol | Wacht | reviewers, rechter, hoofdsessie |
+| S-A Sturen in de wizard (16.2 en 16.3) | **Klaar** (15 oktober 2026): blok "Voor welke leerlingen is deze lijst?" met filter op stroom, tweelingen op naam (alle 180 SO/BuSO-paren van de echte index, geen vals paar), meldingen bij de chips, één-klikmeldingen in stap 3, geen set-nummers meer in de waarschuwingen, " · BuSO" in het naamvoorstel. Review en rechter: twee punten bevestigd en hersteld (de één-klik haalt alleen weg wat de melding telde; een set zonder naam gooit niet meer) | bouwer, reviewers, rechter |
+| S-B De brug naar een cursus (16.4 en 16.5) | **Klaar** (15 oktober 2026): paneel "Je lijst is bewaard", vensters "Nieuwe cursus met deze doelen" en "Gebruik deze doelen in een cursus" (lui geladen), blok "Gebruik in een cursus" op de pagina Leerplannen, rooktest 20j. Review en rechter: twee punten bevestigd en hersteld (twee snelle klikken maken geen tweede cursus; herladen of "Terug" toont het paneel weer in plaats van een verse wizard) | bouwer, reviewers, rechter |
+| Review, rechter, integratie, uitrol | **Bezig** (15 oktober 2026): samengevoegd, volledige poort loopt | hoofdsessie |
 
 ### 16.1 Wat de verkenning vond
 
