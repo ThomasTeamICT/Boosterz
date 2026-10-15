@@ -16,7 +16,7 @@ Afgesproken werkwijze: (1) proefleerkrachten in de echte app, (2) voorstellen vo
 | Snelle verbeteringen uit § 2.5 | **Bezig** (15 oktober 2026, akkoord van de eigenaar); de telling van code 0000 apart (eerst nakijken) | bouwers, reviewers, rechter |
 | Voorstellen voor de ingang "Nieuwe cursus" (met schetsen) | Wacht op de eigenaar | hoofdsessie |
 | Beslissing: "widget" of "oefening" in de schermen van de leerkracht (§ 2.3) | **Beslist** (15 oktober 2026): "oefening" overal; CLAUDE.md aangepast. Omzetting van de schermteksten: na de snelle verbeteringen | eigenaar; bouwers |
-| Sturender samenstellen en de brug naar een cursus (LEERPLANNEN.md § 16) | Bezig | bouwers |
+| Sturender samenstellen en de brug naar een cursus (LEERPLANNEN.md § 16) | **Klaar en live** (15 oktober 2026) | bouwers, hoofdsessie |
 
 ## 1. Waarom
 
