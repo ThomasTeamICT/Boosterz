@@ -27,6 +27,11 @@
 // zijn code: binnen één set kan dezelfde code bij verschillende doelen horen (de nummering begint
 // opnieuw per rubriek of pakket). Zulke codes staan ter info in rapport.dubbeleCodes.
 //
+// Hetzelfde doel (zelfde id, zelfde tekst) dat alleen in zijn rubrieken (`extra.titels`) verschilt,
+// hangt in de bron onder meer dan één rubriek (gezien in wiskunde van het basisonderwijs). Dat is
+// geen probleem: het doel komt één keer in het bestand, met de eerste rubriek in `extra.titels` en
+// de andere in `ookOnder`. Zulke doelen staan ter info in rapport.meerdereRubrieken.
+//
 // Problemen per soort (rapport.problemen): conflict (zelfde doel, andere tekst), variant (zelfde doel
 // en tekst, andere metagegevens), overgeslagen (geen code of omschrijving, of een code die een
 // JSON-getal is) en meerwaardig (set, structuur of sleutelcompetentie met meer dan één waarde).
@@ -345,7 +350,19 @@ function nieuweSet(sleutel) {
     info: { apiId: new Map(), korteNaam: new Map(), versie: new Map() },
     doelen: new Map(), // doelsleutel (id, anders code) -> Map(canoniek doel -> doel)
     problemen: { conflict: [], variant: [], overgeslagen: [], meerwaardig: [] },
+    meerdereRubrieken: [],
   };
+}
+
+/**
+ * Varianten van één doel die alleen in hun rubrieken (`extra.titels`) verschillen, elk met een
+ * object als rubrieken: één doel met de eerste rubriek in `extra.titels` en de andere, op volgorde,
+ * in `ookOnder`. Anders `null` (dan blijft het een probleem).
+ */
+function voegRubriekenSamen(lijst, verschil) {
+  if (verschil.length !== 1 || verschil[0] !== 'extra.titels') return null;
+  if (!lijst.every((d) => isObject(d.extra) && isObject(d.extra.titels))) return null;
+  return { ...lijst[0], ookOnder: lijst.slice(1).map((d) => d.extra.titels) };
 }
 
 /**
@@ -401,12 +418,19 @@ function groepeer(records, rapport) {
       if (waarden.length > 0) set.setInfo[veld] = waarden[0];
       if (waarden.length > 1) set.andereInfo[veld] = waarden.slice(1);
     }
-    for (const varianten of set.doelen.values()) {
+    for (const [doelSleutel, varianten] of set.doelen) {
       if (varianten.size < 2) continue;
       const lijst = [...varianten.entries()].sort((a, b) => vergelijkTekst(a[0], b[0])).map(([, doel]) => doel);
-      const soort = new Set(lijst.map((d) => d.tekst)).size > 1 ? 'conflict' : 'variant';
+      const verschil = verschilVan(lijst);
       const { code, id } = lijst[0];
-      set.problemen[soort].push({ set: set.sleutel, code, ...(id !== undefined ? { id } : {}), verschil: verschilVan(lijst), varianten: lijst });
+      const samen = voegRubriekenSamen(lijst, verschil);
+      if (samen) {
+        set.doelen.set(doelSleutel, new Map([[M.canoniek(samen), samen]]));
+        set.meerdereRubrieken.push({ set: set.sleutel, code, ...(id !== undefined ? { id } : {}), rubrieken: lijst.length });
+        continue;
+      }
+      const soort = new Set(lijst.map((d) => d.tekst)).size > 1 ? 'conflict' : 'variant';
+      set.problemen[soort].push({ set: set.sleutel, code, ...(id !== undefined ? { id } : {}), verschil, varianten: lijst });
     }
     set.aantalProblemen = SOORTEN.reduce((som, soort) => som + set.problemen[soort].length, 0);
   }
@@ -455,6 +479,14 @@ function dubbeleCodesVan(sets) {
   return { aantal: lijst.length, sets: new Set(lijst.map((d) => d.set)).size, voorbeelden: lijst.slice(0, MAX_VOORBEELDEN) };
 }
 
+/** Doelen die de bron onder meer dan één rubriek zet (zie `voegRubriekenSamen`), voor het rapport. */
+function meerdereRubriekenVan(sets) {
+  const lijst = [...sets]
+    .sort((a, b) => vergelijk(a.sleutel, b.sleutel))
+    .flatMap((set) => [...set.meerdereRubrieken].sort(opCodeEnId));
+  return { aantal: lijst.length, sets: new Set(lijst.map((d) => d.set)).size, voorbeelden: lijst.slice(0, MAX_VOORBEELDEN) };
+}
+
 function structuurWaarden(set) {
   const waarden = new Set();
   for (const doel of doelenVan(set)) {
@@ -475,6 +507,7 @@ function maakDoel(doel, setNiveau) {
     if (doel[veld] !== undefined && doel[veld] !== setNiveau[veld]) uit[veld] = doel[veld];
   }
   if (doel.extra !== undefined) uit.extra = doel.extra;
+  if (doel.ookOnder !== undefined) uit.ookOnder = doel.ookOnder;
   return uit;
 }
 
@@ -689,6 +722,7 @@ async function main() {
   rapport.problemen = verzameld.problemen;
   rapport.conflicten = verzameld.conflicten;
   rapport.dubbeleCodes = dubbeleCodesVan(gekozen.values());
+  rapport.meerdereRubrieken = meerdereRubriekenVan(gekozen.values());
 
   // Volledigheid: zonder totalItems valt niet vast te stellen of er pagina's ontbreken.
   const aantalUniek = new Set(bron.records.map((r) => M.canoniek(r))).size;
@@ -782,6 +816,8 @@ async function main() {
   log(`Sets in de bron: ${sets.size}, gekozen: ${gekozen.size}.`);
   const dc = rapport.dubbeleCodes;
   if (dc.aantal > 0) log(`Codes die binnen een set bij meer dan één doel horen (elk met een eigen id, bv. per rubriek): ${dc.aantal} in ${dc.sets} ${dc.sets === 1 ? 'set' : 'sets'}; zie dubbeleCodes in het rapport.`);
+  const mr = rapport.meerdereRubrieken;
+  if (mr.aantal > 0) log(`Doelen die de bron onder meer dan één rubriek zet (één keer bewaard, de andere rubrieken in ookOnder): ${mr.aantal} in ${mr.sets} ${mr.sets === 1 ? 'set' : 'sets'}; zie meerdereRubrieken in het rapport.`);
   log(`Nieuw: ${rapport.nieuw.length ? lijst(rapport.nieuw, aantallen) : 'geen'}.`);
   log(`Gewijzigd: ${rapport.gewijzigd.length ? lijst(rapport.gewijzigd, aantallen) : 'geen'}.`);
   log(`Ongewijzigd: ${rapport.ongewijzigd.length ? lijst(rapport.ongewijzigd, aantallen) : 'geen'}.`);

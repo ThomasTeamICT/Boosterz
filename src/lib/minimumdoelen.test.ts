@@ -1227,6 +1227,51 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
     expect(rapport.problemen.conflict.aantal + rapport.problemen.variant.aantal).toBe(0);
   });
 
+  it('hetzelfde doel onder twee rubrieken: één keer bewaard, de andere rubriek in ookOnder, geen probleem', () => {
+    // Zoals in wiskunde van het basisonderwijs: één doel (zelfde id en tekst) onder twee rubrieken.
+    const bewerkingen = { 1: { titel: 'Getallen', nr: '2.' }, 2: { titel: 'Bewerkingen', nr: '2.3.' } };
+    const hoofdrekenen = { 1: { titel: 'Getallen', nr: '2.' }, 2: { titel: 'Hoofdrekenen', nr: '2.1.' } };
+    const records = [
+      rec('53.', 'Zelfde doel', SET_SO, { '@id': 79008, titels: bewerkingen }),
+      rec('53.', 'Zelfde doel', SET_SO, { '@id': 79008, titels: hoofdrekenen }),
+      rec('54.', 'Ander doel', SET_SO, { '@id': 79009, titels: bewerkingen }),
+    ];
+    const uit = join(tmp, 'uit-rubrieken');
+    const rapportPad = join(tmp, 'r-rubrieken.json');
+    const run = draai(['--bron', schrijfBron('rubrieken.json', records), '--uit', uit, '--rapport', rapportPad]);
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.stdout).toMatch(/Doelen die de bron onder meer dan één rubriek zet .*: 1 in 1 set;/);
+
+    const bestand = leesJson<MinimumdoelenSetBestand>(join(uit, `${SO_ID}.json`));
+    expect(bestand.set.aantal).toBe(2);
+    // Vaste volgorde, los van de invoer: de rubriek die canoniek eerst komt (2.1.), staat in extra.titels.
+    expect(bestand.doelen[0]).toMatchObject({ id: '79008', code: '53.', extra: { titels: hoofdrekenen }, ookOnder: [bewerkingen] });
+    expect(bestand.doelen[1].ookOnder).toBeUndefined();
+    expect(valideerSetBestand(bestand)).toEqual([]);
+    expect(controleerMap(uit)).toEqual([]);
+
+    const rapport = leesJson<ProbleemRapport & { meerdereRubrieken: unknown }>(rapportPad);
+    expect(rapport.meerdereRubrieken).toEqual({ aantal: 1, sets: 1, voorbeelden: [{ set: SO_ID, code: '53.', id: '79008', rubrieken: 2 }] });
+    for (const soort of SOORTEN) expect(rapport.problemen[soort].aantal, soort).toBe(0);
+  });
+
+  it('verschilt een doel in zijn rubrieken én in iets anders, of heeft één variant geen rubriek, dan blijft het een variant', () => {
+    const a = { 1: { titel: 'Getallen', nr: '2.' } };
+    const b = { 1: { titel: 'Meten', nr: '3.' } };
+    const gevallen = [
+      [rec('7.', 'Zelfde', SET_SO, { '@id': 5, titels: a }), rec('7.', 'Zelfde', SET_SO, { '@id': 5, titels: b, optioneel: true })],
+      [rec('7.', 'Zelfde', SET_SO, { '@id': 5, titels: a }), rec('7.', 'Zelfde', SET_SO, { '@id': 5 })],
+    ];
+    gevallen.forEach((records, i) => {
+      const rapportPad = join(tmp, `r-rubrieken-variant-${i}.json`);
+      const run = draai(['--bron', schrijfBron(`rubrieken-variant-${i}.json`, records), '--uit', join(tmp, `uit-rubrieken-variant-${i}`), '--rapport', rapportPad]);
+      expect(run.status, run.stdout).toBe(3);
+      const rapport = leesJson<ProbleemRapport & { meerdereRubrieken: { aantal: number } }>(rapportPad);
+      expect(rapport.problemen.variant.aantal).toBe(1);
+      expect(rapport.meerdereRubrieken.aantal).toBe(0);
+    });
+  });
+
   it('een probleem verandert niets aan een bestaande uitmap', () => {
     const uit = join(tmp, 'uit-probleem-bestaand');
     const goed = draai(['--bron', schrijfBron('goed.json', [goedDoel]), '--uit', uit, '--rapport', join(tmp, 'r-goed.json')]);

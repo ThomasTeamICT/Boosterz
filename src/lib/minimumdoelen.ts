@@ -31,6 +31,11 @@ export interface Minimumdoel {
    * (`titels`), geldigheid, `optioneel`, enzovoort. Zo gaat niets verloren.
    */
   extra?: Record<string, unknown>;
+  /**
+   * Andere rubrieken (elk zoals `extra.titels`) waaronder de bron hetzelfde doel nog eens zet, op
+   * vaste volgorde. Gezien in wiskunde van het basisonderwijs; meestal afwezig.
+   */
+  ookOnder?: Record<string, unknown>[];
 }
 
 export interface MinimumdoelenSetKop {

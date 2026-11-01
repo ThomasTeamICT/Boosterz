@@ -156,6 +156,11 @@ gelijk; een sleutel uit de naam viel in de eerste echte run samen voor verschill
   Fysica heeft 11.17.01 in "bouwkunde pakket 1" en "pakket 2". De rubriek staat in `extra.titels`.
   Het script meldt zulke codes in `rapport.dubbeleCodes`; laag 2 toont daarom altijd code én
   rubriek, en verwijst intern naar het `id`.
+- Hetzelfde doel (zelfde id en tekst) kan onder meer dan één rubriek hangen: in de proefrun van
+  1 november 2026 met de sets van het basisonderwijs stond doel 53. van wiskunde (id 79008) twee keer
+  in de bron, met een andere `extra.titels`. Het script bewaart zo'n doel één keer, met de eerste
+  rubriek in `extra.titels` en de andere in `ookOnder`, en meldt het in `rapport.meerdereRubrieken`.
+  Verschilt het doel ook in iets anders, dan blijft het een probleem dat de ophaling stopt.
 - Sommige STEM-sets bevatten verwijzingen: code "zie eindterm", tekst "6.15". Ze blijven letterlijk
   staan; laag 2 moet ze als verwijzing naar een ander doel lezen, niet als eigen doel.
 - In de volwassenenonderwijsset Moderne Talen heeft code "BC AAV MVT 032" twee verschillende
