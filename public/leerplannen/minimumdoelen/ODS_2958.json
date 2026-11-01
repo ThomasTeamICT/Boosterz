@@ -1,0 +1,26 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2958",
+    "naam": "Buitengewoon Kleuteronderwijs Type 3 - Leergebied - Alle leergebieden - Ontwikkelingsdoelen",
+    "apiId": "2958",
+    "korteNaam": "Alle leergebieden",
+    "versie": "1.0",
+    "geldigheid": "Geldig",
+    "geldigVan": "2018-09-01",
+    "geldigTot": "2027-08-31",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-11-01T15:05:28Z",
+    "aantal": 1,
+    "sha256": "0a77544a81f0948d4ecc8cef07b71c2de35b3331f868e1357de03221fee56d66"
+  },
+  "doelen": [
+{"id":"90245","code":"INFO","tekst":"<p>Voor de groep leerlingen die onderwijs volgen in het buitengewoon kleuteronderwijs type 3 zijn geen specifieke ontwikkelingsdoelen vastgelegd. In de uitgangspunten vindt u onder andere informatie over de ontwikkelingsdoelen die gebruikt kunnen worden.</p>","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2018-09-01T00:00:00Z","geldig_tot_dt":"2027-08-31T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_3401",
+    "naam": "Kleuteronderwijs -  Nederlands - Te bereiken minimumdoelen op populatieniveau",
+    "apiId": "3401",
+    "korteNaam": "Nederlands",
+    "versie": "2.0",
+    "geldigheid": "Geldig",
+    "geldigVan": "2025-09-01",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-11-01T15:05:28Z",
+    "aantal": 7,
+    "sha256": "28b5e4eec2378b706792be2294a9f7e7bce55467a5e5e1ea951f0cae5bca9d66"
+  },
+  "doelen": [
+{"id":"93027","code":"1.3.1","tekst":"<p>De kleuters kunnen met aandacht luisteren.</p>","type":"Te bereiken minimumdoelen op populatieniveau","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2025-08-05T13:33:55Z"},"optioneel":false,"titels":{"1":{"titel":"Mondeling taalgebruik","ordeningskader":{"type":"onderwerp"}},"2":{"titel":"Luisterbegrip","ordeningskader":{"type":"subthema"}}}}},
+{"id":"93028","code":"1.3.2","tekst":"<p>De kleuters kunnen gepast reageren op vragen en instructies.</p>","type":"Te bereiken minimumdoelen op populatieniveau","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2025-08-05T13:33:55Z"},"optioneel":false,"titels":{"1":{"titel":"Mondeling taalgebruik","ordeningskader":{"type":"onderwerp"}},"2":{"titel":"Luisterbegrip","ordeningskader":{"type":"subthema"}}}}},
+{"id":"93029","code":"1.3.3","tekst":"<p>De kleuters kunnen vragen stellen om meer informatie te krijgen en om te controleren of ze de boodschap begrepen hebben.</p>","type":"Te bereiken minimumdoelen op populatieniveau","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2025-08-05T13:33:55Z"},"optioneel":false,"titels":{"1":{"titel":"Mondeling taalgebruik","ordeningskader":{"type":"onderwerp"}},"2":{"titel":"Luisterbegrip","ordeningskader":{"type":"subthema"}}}}},
+{"id":"93030","code":"1.3.4","tekst":"<p>De kleuters kunnen op een voorgelezen verhaal reageren door voorspellingen te maken, vragen te stellen of verbanden te leggen met hun vakspecifieke kennis en voorkennis.</p>","type":"Te bereiken minimumdoelen op populatieniveau","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2025-08-05T13:33:55Z"},"optioneel":false,"titels":{"1":{"titel":"Mondeling taalgebruik","ordeningskader":{"type":"onderwerp"}},"2":{"titel":"Luisterbegrip","ordeningskader":{"type":"subthema"}}}}},
+{"id":"93031","code":"1.4.1","tekst":"<p>De kleuters kunnen basiswoordenschat en eenvoudige betekenisrelaties inzetten met betrekking tot de leefomgeving en de school.</p>","type":"Te bereiken minimumdoelen op populatieniveau","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2025-08-05T13:33:55Z"},"optioneel":false,"titels":{"1":{"titel":"Taalsysteem en taalgebruik","ordeningskader":{"type":"onderwerp"}},"2":{"titel":"Woordenschat","ordeningskader":{"type":"subthema"}}}}},
+{"id":"93032","code":"1.4.2","tekst":"<p>De kleuters kunnen aangeboden inhoudelijke en functionele school- en instructietaal inzetten binnen de context van de activiteiten en hun vakspecifieke kennis, voorkennis en ervaring.</p>","type":"Te bereiken minimumdoelen op populatieniveau","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2025-08-05T13:33:55Z"},"optioneel":false,"titels":{"1":{"titel":"Taalsysteem en taalgebruik","ordeningskader":{"type":"onderwerp"}},"2":{"titel":"Woordenschat","ordeningskader":{"type":"subthema"}}}}},
+{"id":"93033","code":"1.4.3","tekst":"<p>De kleuters kunnen onder begeleiding hun woordenschat uitbreiden.</p>","type":"Te bereiken minimumdoelen op populatieniveau","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2025-09-01T00:00:00Z","publicatie_dt":"2025-08-05T13:33:55Z"},"optioneel":false,"titels":{"1":{"titel":"Taalsysteem en taalgebruik","ordeningskader":{"type":"onderwerp"}},"2":{"titel":"Woordenschat","ordeningskader":{"type":"subthema"}}}}}
+  ]
+}

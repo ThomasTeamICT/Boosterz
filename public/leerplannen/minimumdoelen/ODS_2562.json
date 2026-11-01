@@ -1,0 +1,33 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2562",
+    "naam": "Buitengewoon Lager Onderwijs Basisaanbod - Leergebied - Ict - Ontwikkelingsdoelen",
+    "apiId": "2562",
+    "korteNaam": "Ict",
+    "versie": "1.0",
+    "geldigheid": "Geldig",
+    "geldigVan": "2020-09-01",
+    "geldigTot": "2030-08-31",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-11-01T15:05:28Z",
+    "aantal": 8,
+    "sha256": "eb14afa6e32dc9cd69404e4863066bca0f65491f3216aef3bc4d3d7ed6a7bf75"
+  },
+  "doelen": [
+{"id":"82207","code":"HD 1","tekst":"De leerlingen kunnen tijdens het leren, met een positieve houding, ICT gebruiken","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2020-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"82208","code":"HD 2","tekst":"De leerlingen kunnen ICT op een veilige, verantwoorde en doelmatige manier gebruiken","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2020-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"82209","code":"HD 3","tekst":"De leerlingen kunnen zelfstandig in een door ICT ondersteunde leeromgeving oefenen","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2020-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"82210","code":"HD 4","tekst":"De leerlingen kunnen zelfstandig in een door ICT ondersteunde leeromgeving leren","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2020-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"82211","code":"HD 5","tekst":"De leerlingen kunnen ICT gebruiken om eigen ideeën creatief vorm te geven","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2020-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"82212","code":"HD 6","tekst":"De leerlingen kunnen met behulp van ICT voor hen bestemde digitale informatie opzoeken, verwerken en bewaren","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2020-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"82213","code":"HD 7","tekst":"De leerlingen kunnen ICT gebruiken bij het voorstellen van informatie aan anderen.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2020-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"82214","code":"HD 8","tekst":"De leerlingen kunnen ICT gebruiken om op een veilige, verantwoorde en doelmatige manier te communiceren","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2020-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

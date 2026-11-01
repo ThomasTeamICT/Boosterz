@@ -1,0 +1,39 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2306",
+    "naam": "Buitengewoon Kleuteronderwijs Type 7 - Leergebied - Wereldoriëntatie: dovencultuur - Aanvullende - Ontwikkelingsdoelen",
+    "apiId": "2306",
+    "korteNaam": "Wereldoriëntatie: dovencultuur",
+    "versie": "1.0",
+    "geldigheid": "Geldig",
+    "geldigVan": "2003-09-01",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-11-01T15:05:28Z",
+    "aantal": 15,
+    "sha256": "b8fdef32086d6496dbc454f55d3c3cd168d740f2efe6b44c4c717a00c5d2020d"
+  },
+  "doelen": [
+{"id":"78492","code":"1","tekst":"De leerling reflecteert over eigen doofheid / Doofheid en contacten met horenden.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Mens","nr":"1"}}}},
+{"id":"78493","code":"2","tekst":"De leerling drukt eigen positieve en negatieve ervaringen, gevoelens, verlangens, gedachten en waarderingen in verband met hun doofheid / Doofheid uit.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Mens","nr":"1"}}}},
+{"id":"78494","code":"3","tekst":"De leerling toont bereidheid om in een eenvoudige conflictsituatie met betrekking tot hun handicap te zoeken naar een oplossing.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Mens","nr":"1"}}}},
+{"id":"78495","code":"4","tekst":"De leerling kent het verschil tussen de socio-culturele visie op Doofheid en de medische visie op doofheid en kan hier op een respectvolle manier mee omgaan.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Sociaal-culturele verschijnselen","nr":"2"}}}},
+{"id":"78496","code":"5","tekst":"De leerling kan contacten leggen met horende mensen, is zich bewust van de verschillende communicatievormen, kan zijn noden en verwachtingen duidelijk maken en kan omgaan met alle aspecten van het tolkproces.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Sociaal-culturele verschijnselen","nr":"2"}}}},
+{"id":"78497","code":"6","tekst":"De leerling ziet in dat onaangepaste maatschappelijke reacties tegenover doofheid meestal niet vijandig bedoeld zijn en vaak gebaseerd op onbekendheid met en vrees voor het vreemde.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Sociaal-culturele verschijnselen","nr":"2"}}}},
+{"id":"78498","code":"7","tekst":"De leerling kan gewoontes, gedragsregels en gebruiken in de Vlaamse Dovencultuur en de gelijkenissen en verschillen met de horende samenleving illustreren.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Sociaal-culturele verschijnselen","nr":"2"}}}},
+{"id":"78499","code":"8","tekst":"De leerling kan Dovencultuur plaatsen in de huidige multiculturele samenleving.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Sociaal-culturele verschijnselen","nr":"2"}}}},
+{"id":"78500","code":"9","tekst":"De leerling is zich bewust van de diversiteit van verschillende gezinssituaties.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Sociaal-culturele verschijnselen","nr":"2"}}}},
+{"id":"78501","code":"10","tekst":"De leerling kan omgaan met de mogelijkheden die in onze samenleving bestaan voor de zorg en opvang van dove mensen en hulpmiddelen m.b.t. doofheid.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Sociaal-culturele verschijnselen","nr":"2"}}}},
+{"id":"78502","code":"11","tekst":"De leerling weet dat er verenigingen van en voor slechthorende en dove mensen in Vlaanderen zijn.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Sociaal-culturele verschijnselen","nr":"2"}}}},
+{"id":"78503","code":"12","tekst":"De leerling kent de belangenorganisaties van doven in Vlaanderen en kan de verschillende visies en klemtonen illustreren.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Politieke en juridische verschijnselen","nr":"3"}}}},
+{"id":"78504","code":"13","tekst":"De leerling kan illustreren op welke wijze de belangen van Vlaamse doven internationaal worden behartigd.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Politieke en juridische verschijnselen","nr":"3"}}}},
+{"id":"78505","code":"14","tekst":"De leerling kent de grote periodes uit de dovengeschiedenis en situeert belangrijke historische figuren en gebeurtenissen waarmee ze kennis maken in de juiste tijdsperiode aan de hand van een tijdsband.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Historische tijd","nr":"4"}}}},
+{"id":"78506","code":"15","tekst":"De leerling illustreert technologische en sociale ontwikkelingen die het leven van doven en slechthorenden beïnvloed hebben.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z"},"optioneel":false,"titels":{"1":{"titel":"Wereldoriëntatie: dovencultuur"},"2":{"titel":"Historische tijd","nr":"4"}}}}
+  ]
+}
