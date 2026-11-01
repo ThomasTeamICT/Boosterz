@@ -29,7 +29,9 @@ Wat het moet doen, in de volgorde van de eigenaar:
 | Ontwerp: hoe een interactieve omgeving aan een eindterm hangt (§ "Ontwerp: een oefening aan een eindterm hangen") | **Klaar** (1 november 2026) | hoofdsessie |
 | Werkend voorbeeld "Lichtkamer" (W&T, leerlijn licht, drie momenten, 8 oefeningen in 3D-diorama's). Review met 43 bevestigde bevindingen, allemaal opgelost en nagekeken. Bron in `tools/prototypes/lichtkamer/` | **Klaar** (1 november 2026), ter beoordeling bij de eigenaar | eigenaar |
 | Tweede ronde antwoorden: overal 3D (op Chromebooks lichter); stijl "diorama met details, zonder te veel afleiding, mag opvallen op een groot digibord"; de zaklamp wijst waar het licht heen gaat; proefklas **3de leerjaar, schaduwles** | **Klaar** (1 november 2026) | eigenaar |
-| Open vragen (§ "Open vragen voor de eigenaar"): accounts op de Chromebooks en werk inleveren, wat met het bewijs per kind, openbaarheid van de pakketten en de inhoud van het GO! | **Wacht** | eigenaar |
+| Derde ronde antwoorden: een **eigen account pas vanaf de 2de graad** (3de leerjaar), daaronder hangt het af van de leeftijd; de pakketten **mogen openbaar** | **Klaar** (1 november 2026) | eigenaar |
+| Ontwerp: hoe een kind zich aanmeldt en hoe zijn werk bij de leerkracht komt, per leeftijd, met wat de app al heeft (klassen, inleveren, QR) | **Bezig** | hoofdsessie |
+| Nog open: wat met het bewijs per kind (alleen in de klas, of ook naar buiten); dekt "openbaar" ook de lesplannen van het GO!; oordeel over het voorbeeld; teken voor PR #11 | **Wacht** | eigenaar |
 | Bouw in de app (§ "Bouwstappen"): begint pas na het oordeel over het voorbeeld en het teken voor PR #11 | **Wacht** | eigenaar, daarna hoofdsessie |
 
 ## Wat de bron bevat (proefrun van 1 november 2026)
@@ -108,12 +110,13 @@ van de eigenaar; de eigenaar beslist met wie het gedeeld wordt.
 
 ### Open vragen voor de eigenaar
 
-- **Chromebooks**: werken de kinderen met een eigen account, of via een QR-code of klascode? Hoe komt hun werk bij de
-  leerkracht?
+- **Chromebooks** (beantwoord, 1 november 2026): "Afhankelijk van de leeftijd, pas vanaf 2 graad eigen account." Kleuters
+  en de 1ste graad hebben dus geen eigen account; vanaf het 3de leerjaar wel. Hoe het werk bij de leerkracht komt, werkt de
+  hoofdsessie uit (zie de stand van zaken).
+- **Openbaarheid** (beantwoord, 1 november 2026): "ja mag openbaar". Na te vragen: geldt dat ook voor de inhoud van de
+  lesplannen van het GO!, of alleen voor de pakketten van de scholengroep?
 - **Bewijs per kind**: blijft het bij bekijken in de klas, of moet het ook naar buiten (een export, het rapport, een
-  leerlingvolgsysteem)?
-- **Openbaarheid**: mogen de pakketten van de scholengroep in de openbare repo en op de openbare site? En dekt het akkoord
-  met het GO! ook de inhoud van de lesplannen op een openbare site?
+  leerlingvolgsysteem)? Nog niet beantwoord.
 
 ## Randvoorwaarden (uit de bestaande afspraken)
 
