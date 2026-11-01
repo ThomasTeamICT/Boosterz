@@ -30,7 +30,7 @@ Wat het moet doen, in de volgorde van de eigenaar:
 | Werkend voorbeeld "Lichtkamer" (W&T, leerlijn licht, drie momenten, 8 oefeningen in 3D-diorama's). Review met 43 bevestigde bevindingen, allemaal opgelost en nagekeken. Bron in `tools/prototypes/lichtkamer/` | **Klaar** (1 november 2026), ter beoordeling bij de eigenaar | eigenaar |
 | Tweede ronde antwoorden: overal 3D (op Chromebooks lichter); stijl "diorama met details, zonder te veel afleiding, mag opvallen op een groot digibord"; de zaklamp wijst waar het licht heen gaat; proefklas **3de leerjaar, schaduwles** | **Klaar** (1 november 2026) | eigenaar |
 | Derde ronde antwoorden: een **eigen account pas vanaf de 2de graad** (3de leerjaar), daaronder hangt het af van de leeftijd; de pakketten **mogen openbaar** | **Klaar** (1 november 2026) | eigenaar |
-| Ontwerp: hoe een kind zich aanmeldt en hoe zijn werk bij de leerkracht komt, per leeftijd, met wat de app al heeft (klassen, inleveren, QR) | **Bezig** | hoofdsessie |
+| Ontwerp: hoe een kind zich aanmeldt en hoe zijn werk bij de leerkracht komt, per leeftijd (§ "Aanmelden en inleveren per leeftijd"): drie ontwerpen, twee rechters, één model met 16 bouwpakketten | **Klaar** (1 november 2026), vier vragen wachten | eigenaar |
 | Nog open: wat met het bewijs per kind (alleen in de klas, of ook naar buiten); dekt "openbaar" ook de lesplannen van het GO!; oordeel over het voorbeeld; teken voor PR #11 | **Wacht** | eigenaar |
 | Bouw in de app (§ "Bouwstappen"): begint pas na het oordeel over het voorbeeld en het teken voor PR #11 | **Wacht** | eigenaar, daarna hoofdsessie |
 
@@ -117,6 +117,89 @@ van de eigenaar; de eigenaar beslist met wie het gedeeld wordt.
   lesplannen van het GO!, of alleen voor de pakketten van de scholengroep?
 - **Bewijs per kind**: blijft het bij bekijken in de klas, of moet het ook naar buiten (een export, het rapport, een
   leerlingvolgsysteem)? Nog niet beantwoord.
+
+## Aanmelden en inleveren per leeftijd (ontwerp, 1 november 2026)
+
+Vertrekpunt is het antwoord van de eigenaar: een eigen account pas vanaf de 2de graad, en de pakketten mogen openbaar. Dit ontwerp gebruikt wat de app al heeft (klaslijst, Inleverpunt, scanner, QR-code) en bouwt alleen bij wat nodig is. Twee rechters kozen het uit drie ontwerpen: het "hoektoestel", met de beste delen van de andere twee erbij.
+
+**De kern.** De laptop van de leerkracht is de bron: daar staan de namen, al het bewijs en het overzicht per doel. Elk ander toestel is een buffer. Het kent een kind alleen als kindcode (2 tekens, vast voor het hele jaar, niet het klasnummer) met een prentje. Het levert zijn bewijs in met één korte bewijscode op het bestaande Inleverpunt. Er is geen server en geen account in Boosterz.
+
+**Per leeftijd.** De leerkracht kiest de stand van een toestel met de link die ze uitdeelt; de app raadt geen leeftijd. Of er voorgelezen wordt en of er voornamen staan, hangt af van de klasinstelling "leest nog niet" of "leest". Zo kan ook het buitengewoon lager mee.
+
+| | Kleuter en 1ste graad | Vanaf het 3de leerjaar | Digibord |
+|---|---|---|---|
+| Toestel | gedeeld klastoestel in een hoek | eigen Chromebook met eigen account | laptop van de leerkracht |
+| Wie werkt? | prentje aantikken op de muur (tegels van minstens 96 px, opgenomen geluid) en dan "Ja, dat ben ik": 2 tikken, 3 in duo | één keer de eigen naam tikken | "Wie komt?" en het prentje, alleen voor een beurt |
+| Hoe lang | alleen in het geheugen: terug naar de muur na elke oefening, na "Ik ben klaar", na herladen en na "Ben je er nog?" (2 + 1 min, instelbaar) | het profiel onthoudt het; "Niet jij?" gaat naar de muur, nooit naar een vrije naam | één oefening |
+| Namen op het toestel | bij de kleuters nooit; in de 1ste graad alleen bij "leest" en als de leerkracht ze aanzet | voornamen van de klas | nooit |
+| Inleveren | "Voor de juf of meester" na elke hoekenronde, ook door de klasdienst (±20 s per toestel) | "Lever in" op het einde van de les (±6 s per kind) | niet nodig |
+
+**De bewijscode WB1.** De code bevat alleen hoofdletters, cijfers en `. / - *`, en nooit een naam. Erin staan de klascode, het toestel, de bundel, het deel en de dag, en per kind de kindcode, het uur en per bewijs een nummer met de uitkomst. Op het einde staat een controle van 2 tekens.
+
+Een QR-code is hoogstens versie 10 (395 tekens bij foutcorrectie L, zoals in CodeQr) en staat op 8 px per module. Wat groter is, wordt opgesplitst in delen die elk op zich geldig zijn. Gemeten met qrcode 1.5.4:
+
+- 1 kind met 7 bewijzen: 55 tekens, versie 3;
+- 8 kinderen: 221 tekens, versie 7;
+- 12 kinderen: 341 tekens, versie 10;
+- een klas van 25 op één toestel: 2 delen.
+
+De toestelkaart WK1 (zonder namen) is 127 tekens voor 25 kinderen, versie 5. Voornamen reizen alleen in de link, nooit in een QR-code.
+
+**Er gaat niets stil verloren.**
+
+- Een code bevat alles wat de leerkracht nog niet ontving. Opnieuw scannen geeft "al aanwezig", en een gemiste scan komt met de volgende code mee.
+- Het Inleverpunt toont als ontvangstteken twee prentjes, en het toestel vraagt welke (gokken lukt 1 keer op 16). Pas dan valt dat bewijs uit de volgende code. Gewist wordt er niets.
+- Wissen en afsluiten staan achter een drempel (de klascode typen) en kunnen pas als alles ontvangen is.
+- Elke schrijfactie wordt nagekeken.
+- Op een gedeeld toestel staat altijd "Nog niet bij de juf of meester: N kinderen". Duidde de leerkracht aan dat het toestel alles vergeet bij afmelden, dan verschijnt die melding groot na elke beurt.
+- Zonder camera kan het met kopiëren en plakken, of met een bestand.
+
+**Digibord.** Standaard staat "Op het bord" aan: geen namen, geen inleverknop, en niets bewaard (ook niet in cursusblokken en leesvoortgang). Een beurt aan het bord gaat meteen naar de leerkracht, met een badge in beeld. Het overzicht met namen opent pas na de vraag of het scherm geprojecteerd wordt.
+
+**Privacy.** Namen staan alleen bij de leerkracht: een voornaam, nooit een achternaam of foto. De pakketten zijn openbaar en staan los van de klaslijst. three.js komt in de eigen bundel (bouwstap 5), niet van een CDN. Bij de leerkracht komen een klasbestand als back-up (met een herinnering elke week), "Wis deze klas" en een bewaartermijn tot het einde van het schooljaar (voorstel). Er komt ook een korte tekst voor de GEB van de school. De school blijft verwerkingsverantwoordelijke.
+
+**Bouwpakketten.** Eerst wat de proefklas van het 3de leerjaar nodig heeft, daarna de gedeelde toestellen. De volledige spec per pakket, de harde eisen van de rechters en de risico's staan in `docs/basisonderwijs/AANMELDEN-BOUWPAKKETTEN.md`.
+
+1. Toestelproef: een losse proefpagina met QR-codes van versie 3, 6 en 10 op 6 en 8 px, een scanner met camerakeuze, de stemmen en een opslagmerkje (bouwer).
+2. Proef op echte schooltoestellen met de ICT-coördinator; de uitkomst legt de grenzen van de codes vast (hoofdsessie).
+3. Het bewijsmodel als geteste code (bouwstap 4): regels, samenvoegen, status per doel en pakketversies (kernbouwer).
+4. De klaslijst voor het basisonderwijs: kindcode, prentje, kleur, klasinstelling en de prentenset (bouwer).
+5. De codes WB1 en WK1, met controle, delen en grenzen (bouwer).
+6. Scanner en QR-code voor een webcam: camerakeuze, gespiegeld beeld, groot kader en 8 px per module (bouwer).
+7. Het Inleverpunt neemt bewijs aan; bewijsopslag bij de leerkracht, met het ontvangstteken (kernbouwer).
+8. De buffer en de stand van het toestel, en één functie die zegt of er bewaard mag worden (kernbouwer).
+9. Toestellinks en klasinstellingen bij de leerkracht (bouwer).
+10. Eigen toestel vanaf het 3de leerjaar: naam kiezen, "Lever in" en "Wat ik al kan" (bouwer).
+11. Een bordweergave die niets bewaart, en een beurt aan het bord (bouwer).
+12. Het overzicht per doel, verplaatsen en "Ik zag het" (bouwer).
+13. Klasbestand, wissen, bewaartermijn en privacytekst (kernbouwer).
+14. Het gedeelde klastoestel voor de kleuters en de 1ste graad (bouwer).
+15. De inspreeklijst: prentnamen en vaste zinnen in kindertaal (inhoudschrijver).
+16. Voorlezen met opgenomen geluid (bouwer).
+
+Na pakket 13 kan de proefklas starten, samen met bouwstap 5 (de Lichtkamer als oefeningsoort).
+
+**Open vragen voor de eigenaar:**
+
+- Welk toestel is het toestel van de leerkracht? Voorstel: haar eigen laptop met webcam.
+- Mag er eerst een proef met de ICT-coördinator komen? Voorstel: ja, een halve dag.
+- Mogen voornamen op de gedeelde toestellen van de 1ste graad? Voorstel: alleen bij "leest" en als de leerkracht ze aanzet; bij de kleuters nooit.
+- Wie spreekt de geluidjes in? Voorstel: één stem uit de scholengroep, openbaar.
+
+**Wat we vonden over Chromebooks** (webonderzoek, 1 november 2026; de hulppagina's van Google voor beheerders waren vanuit
+de sessie niet bereikbaar, dus de proef van pakket 2 bevestigt dit):
+
+- Een **beheerde gastsessie** wist bij het afmelden alle lokale gegevens, ook die van websites (zeker). Wat daar niet
+  ingeleverd is, is weg.
+- Met een **eigen account** blijft de opslag van een website standaard staan, tenzij de beheerder de "ephemeral mode" of het
+  wissen van sitegegevens aanzette (zeker). Raakt de schijf vol, dan ruimt ChromeOS de oudste profielen op (waarschijnlijk).
+- **Digisprong**: voor de kleuters en het 1ste tot 4de leerjaar koos Vlaanderen enkele gedeelde toestellen per klas, pas
+  vanaf het 5de leerjaar een toestel per leerling (waarschijnlijk). Gedeelde toestellen in hoeken zijn dus de regel.
+- **LeerID** (Onderwijs Vlaanderen) geeft kinderen in het basisonderwijs al een kaartje met een QR-code en een
+  afbeeldingswachtwoord (zeker). Een kaartje voor de camera houden is voor hen dus een bekend gebaar.
+- De meeste onderwijs-Chromebooks hebben een webcam aan de kant van het scherm, en BarcodeDetector werkt op ChromeOS
+  (waarschijnlijk). De scanner van de app valt elders terug op jsqr.
+- Of er op een Chromebook een Nederlandse of Vlaamse stem is, ook offline, is onzeker. Daarom opgenomen geluid.
 
 ## Randvoorwaarden (uit de bestaande afspraken)
 
