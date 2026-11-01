@@ -26,7 +26,11 @@ Wat het moet doen, in de volgorde van de eigenaar:
 | Wat de bron bevat (§ "Wat de bron bevat") | **Nagekeken** (1 november 2026) | hoofdsessie |
 | Beslissingen: kleuter, lager en buitengewoon lager (**ja**); content voor de scholengroep en haar scholen (**ja**); lesplannen van het GO!: de eigenaar heeft een akkoord; na te gaan of dat ook een openbare website en repo dekt | Grotendeels **klaar**; de reikwijdte van het akkoord **wacht** | eigenaar |
 | Antwoorden voor het ontwerp: digibord en vooral Chromebooks; resultaten per kind, alleen lokaal; eerste proef **wetenschap en techniek**; eerste gebruikers zowel de klasleerkracht als de makers in de scholengroep. Het voxeldorp is niet de richting | **Klaar** (1 november 2026) | eigenaar |
-| Ontwerp: hoe een interactieve omgeving aan een eindterm hangt, met een werkend voorbeeld rond licht (W&T) | **Bezig** | hoofdsessie |
+| Ontwerp: hoe een interactieve omgeving aan een eindterm hangt (§ "Ontwerp: een oefening aan een eindterm hangen") | **Klaar** (1 november 2026) | hoofdsessie |
+| Werkend voorbeeld "Lichtkamer" (W&T, leerlijn licht, drie momenten, 8 oefeningen in 3D-diorama's). Review met 43 bevestigde bevindingen, allemaal opgelost en nagekeken. Bron in `tools/prototypes/lichtkamer/` | **Klaar** (1 november 2026), ter beoordeling bij de eigenaar | eigenaar |
+| Tweede ronde antwoorden: overal 3D (op Chromebooks lichter); stijl "diorama met details, zonder te veel afleiding, mag opvallen op een groot digibord"; de zaklamp wijst waar het licht heen gaat; proefklas **3de leerjaar, schaduwles** | **Klaar** (1 november 2026) | eigenaar |
+| Open vragen (§ "Open vragen voor de eigenaar"): accounts op de Chromebooks en werk inleveren, wat met het bewijs per kind, openbaarheid van de pakketten en de inhoud van het GO! | **Wacht** | eigenaar |
+| Bouw in de app (§ "Bouwstappen"): begint pas na het oordeel over het voorbeeld en het teken voor PR #11 | **Wacht** | eigenaar, daarna hoofdsessie |
 
 ## Wat de bron bevat (proefrun van 1 november 2026)
 
@@ -52,6 +56,64 @@ Wat het moet doen, in de volgorde van de eigenaar:
   (waarschijnlijk, berichten van het GO!).
 - Open: de officiële invoeringstabel per leerjaar (vlaanderen.be was niet bereikbaar vanuit de sessie), de licentie van de API,
   en de reikwijdte van het akkoord met het GO!.
+
+## Ontwerp: een oefening aan een eindterm hangen (1 november 2026)
+
+**Bewijs eerst.** Per minimumdoel leggen we eerst vast welke handeling een kind toont als het doel bereikt is (de
+kernhandeling), welke fouten typisch zijn en hoe de oefening dat bewijs vastlegt, met het id van het doel erbij. De
+3D-omgeving maakt die handeling mogelijk (voorspellen, verzetten, meten, sorteren); ze is geen versiering. Op het
+digibord voorspelt de klas eerst en ziet ze pas daarna de uitkomst. Geen punten, geen mascotte, wel voorlezen en een
+prikkelarme stand.
+
+**Het voorbeeld: Lichtkamer** (W&T, leerlijn licht, dezelfde rubriek op de drie momenten). Elk moment heeft een eigen
+diorama: een poppenhuis voor de kleuters, een schaduwtheater voor het 4de, een labo voor het 6de.
+
+| Moment | Oefening | Doelen (code, id) | Bewijs |
+|---|---|---|---|
+| Einde kleuter | Wie maakt licht? | 3.5.2 (92730), 3.5.1 (92729) | lichtbronnen aanzetten, spiegel en bal niet |
+| Einde kleuter | Breng licht bij de beer | 3.5.2 (92730), 3.6.2 (92735) | spiegel draaien tot het licht bij de beer komt; kringgesprek (de leerkracht duidt aan) |
+| Einde kleuter | Grote en kleine schaduw | 3.6.1 (92734), 3.5.1 (92729) | schaduw groot en daarna klein maken |
+| 4de leerjaar | Drie kaartjes met een gaatje | 3.5.4 (92767) | gaatjes en lamp op één rechte lijn zetten |
+| 4de leerjaar | Waar valt de schaduw? | 3.5.4 (92767) | in drie rondes voorspellen, daarna de stralen tonen |
+| 4de leerjaar | Onderzoek: lamp dichterbij, schaduw groter? | 3.6.3 (92775), 3.6.4 (92777) | hypothese, drie metingen op de meetlat, conclusie |
+| 6de leerjaar | Stoffen in de lichtstraal | 3.5.4 (92833) | voorspellen met 10 lichtbolletjes, meten, sorteren |
+| 6de leerjaar | Welk gordijn houdt het meeste licht tegen? | 3.5.7 (92836), 3.6.4 (92849) | onderzoek opzetten (één ding veranderen), meten, herhalen, besluiten |
+
+Elk pakket heeft dezelfde vaste delen:
+
+- **Doel**: de letterlijke doeltekst met code en id, een zin in kindertaal, "zo zie je dat het lukt" en dezelfde
+  leerlijn op de andere momenten. Bij het 4de staat erbij dat een 3de leerjaar naar deze doelen toe werkt.
+- **Oefeningen** in 3D, altijd ook te bedienen met knoppen en het toetsenbord. Elke stand van de scène wordt in tekst
+  beschreven.
+- **Digibordstand**: groter, met een klasvraag (stemmen per letter of nummer). Het bord toont geen namen en bewaart niets.
+- **Check** met korte vragen en een **klasoverzicht** per kind: per doel "toont het", "nog wankel" of "nog niet", alleen in
+  de browser.
+- **Lesverloop** voor de leerkracht, met de lesduur en de verwijzing naar de oefeningen.
+
+**Techniek van het voorbeeld.** three.js r128 van de CDN, met gloed alleen op het digibord en lichter op Chromebooks (geen
+gloed, geen stofjes in de lichtbundel). Werkt de 3D niet, dan blijven de doelen, de check, het klasoverzicht en het
+lesverloop bruikbaar. Bron en rooktest: `tools/prototypes/lichtkamer/`. Het voorbeeld is gepubliceerd als privé artifact
+van de eigenaar; de eigenaar beslist met wie het gedeeld wordt.
+
+### Bouwstappen (voorstel, wacht op de eigenaar)
+
+1. PR #11 samenvoegen (teken van de eigenaar): de doelen van het basisonderwijs in de app.
+2. De volledige doeltekst (met `extra.uitbreiding_op_doelzin`) en een momentmodel: kleuter, 4de, 6de, en welke doelen nu
+   gelden per leerjaar (de invoering in twee golven).
+3. Een aparte ingang voor het basisonderwijs met een eigen vormgeving.
+4. Het lichtmodel en het bewijsmodel als geteste code (schaduwpunt, kaartjes, stoffen; bewijs per doel-id).
+5. Een oefeningsoort "lichtkamer" in de app, met de digibordstand.
+6. De proefklas: 3de leerjaar, de schaduwles, met een spiekkaart voor de leerkracht.
+7. Een controlepoort voor nieuw materiaal van de scholengroep, zoals bij de leerplannen.
+
+### Open vragen voor de eigenaar
+
+- **Chromebooks**: werken de kinderen met een eigen account, of via een QR-code of klascode? Hoe komt hun werk bij de
+  leerkracht?
+- **Bewijs per kind**: blijft het bij bekijken in de klas, of moet het ook naar buiten (een export, het rapport, een
+  leerlingvolgsysteem)?
+- **Openbaarheid**: mogen de pakketten van de scholengroep in de openbare repo en op de openbare site? En dekt het akkoord
+  met het GO! ook de inhoud van de lesplannen op een openbare site?
 
 ## Randvoorwaarden (uit de bestaande afspraken)
 

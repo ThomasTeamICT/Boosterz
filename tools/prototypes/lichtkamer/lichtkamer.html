@@ -1,0 +1,1117 @@
+<title>Lichtkamer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Fredoka:wght@500;600&display=swap">
+<style>
+/* Layout: een kijkdoos (3D) links, een lessenpaneel rechts; op smalle schermen onder elkaar. Rustig, veel lucht, één accent: lamplicht. */
+:root{
+  --bg:#eef2fa; --surface:#ffffff; --surface-2:#f5f7fc; --ink:#16203a; --muted:#4f5b76; --line:#d5dcec;
+  --lamp:#ffc53d; --lamp-soft:#fff3cf; --on-lamp:#16203a;
+  --sky:#2b5bd0; --on-sky:#ffffff; --sky-soft:#e3ebff;
+  --ok:#17784a; --ok-soft:#e1f5ea; --warn:#8a5300; --warn-soft:#fff0d6; --err:#b02a1f; --err-soft:#fde5e2;
+  --focus:#2b5bd0;
+  --f-display:"Fredoka","Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible","Verdana",system-ui,sans-serif;
+  --r-s:10px; --r-m:16px; --r-l:24px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1322; --surface:#161f35; --surface-2:#1b2540; --ink:#e9eefb; --muted:#aab4cc; --line:#2b3757;
+  --lamp:#ffcf5c; --lamp-soft:#3a3016; --on-lamp:#16203a;
+  --sky:#8fb0ff; --on-sky:#0d1322; --sky-soft:#1e2c52;
+  --ok:#71d6a3; --ok-soft:#123326; --warn:#ffc46b; --warn-soft:#3a2a10; --err:#ff9a8f; --err-soft:#3d1714;
+  --focus:#8fb0ff; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1322; --surface:#161f35; --surface-2:#1b2540; --ink:#e9eefb; --muted:#aab4cc; --line:#2b3757;
+  --lamp:#ffcf5c; --lamp-soft:#3a3016; --on-lamp:#16203a;
+  --sky:#8fb0ff; --on-sky:#0d1322; --sky-soft:#1e2c52;
+  --ok:#71d6a3; --ok-soft:#123326; --warn:#ffc46b; --warn-soft:#3a2a10; --err:#ff9a8f; --err-soft:#3d1714;
+  --focus:#8fb0ff; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+/* lettergrootte: 100 % volgt de instelling van het toestel; de digibordstand vergroot alles (rem) */
+html{font-size:100%}
+html.bord{font-size:135%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:1rem;line-height:1.5;margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 32px}
+/* wat alleen op het digibord of alleen op de Chromebook hoort (wisselen zonder het paneel opnieuw op te bouwen) */
+html:not(.bord) .alleen-bord{display:none!important}
+html.bord .niet-bord{display:none!important}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:1.6rem} h2{font-size:1.25rem} h3{font-size:1.05rem}
+p{margin:0}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.wrap{max-width:1320px;margin:0 auto;display:grid;gap:12px}
+html.bord .wrap{max-width:none}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.brand{display:flex;flex-direction:column;gap:2px;min-width:0;margin-right:auto}
+.eyebrow{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.seg{display:inline-flex;flex-wrap:wrap;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+.seg button{border:0;background:transparent;border-radius:999px;padding:8px 14px;min-height:44px;cursor:pointer;font-weight:700}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.tools{display:flex;flex-wrap:wrap;gap:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 14px;border-radius:var(--r-s);
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;font-weight:700;text-align:left}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--sky);border-color:var(--sky);color:var(--on-sky)}
+.btn.lamp{background:var(--lamp);border-color:var(--lamp);color:var(--on-lamp)}
+.btn[aria-pressed="true"]{background:var(--sky-soft);border-color:var(--sky)}
+.btn.big{min-height:64px;font-size:1.1rem;padding:10px 18px;border-radius:var(--r-m)}
+.btn svg{width:22px;height:22px;flex:none}
+.icon-btn{width:44px;padding:0}
+.grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,1fr);gap:12px;align-items:start}
+/* digibord: de kijkdoos zo groot mogelijk, het paneel smal ernaast */
+html.bord .grid{grid-template-columns:minmax(0,2.2fr) minmax(340px,1fr)}
+html.bord .view{aspect-ratio:16/9;max-height:80vh}
+/* smal digibord met twee kolommen (901-1000px): een hogere kijkdoos, zodat de klasvraag eronder plaats heeft */
+@media (min-width:901px) and (max-width:1000px){ html.bord .view{aspect-ratio:4/3} }
+html.bord .brand h1{font-size:2.2rem}
+/* brede schermen: de kijkdoos blijft in beeld terwijl het paneel scrolt (beeld en uitleg samen) */
+@media (min-width:901px){ main.grid > section:first-child{position:sticky;top:8px} }
+@media (max-width:900px){.grid,html.bord .grid{grid-template-columns:minmax(0,1fr)}}
+.stage{position:relative;background:#0c1022;box-shadow:0 18px 50px rgba(8,12,30,.35);border-radius:var(--r-l);overflow:hidden;width:100%;max-width:100%}
+.view{position:relative;aspect-ratio:16/10;max-height:72vh;width:100%;max-width:100%}
+@media (max-width:600px){.view{aspect-ratio:4/3}.overlay{position:static!important;padding:8px}.stage-label .chip+.chip{display:none}}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.stage canvas:focus-visible{outline:4px solid var(--lamp);outline-offset:-4px}
+.overlay{position:absolute;inset:auto 10px 10px 10px;display:flex;flex-wrap:wrap;gap:6px;justify-content:space-between;pointer-events:none}
+.overlay > *{pointer-events:auto}
+.ov-group{display:flex;flex-wrap:wrap;gap:6px;background:rgba(15,20,34,.72);padding:6px;border-radius:14px}
+.ov-group .btn{background:#ffffff;color:#16203a;border-color:#ffffff;min-width:44px}
+.ov-group .btn[aria-pressed="true"]{background:#ffc53d;border-color:#ffc53d}
+.ov-group .btn svg{width:20px;height:20px}
+/* op donkere vlakken een lichte focusring (de blauwe haalt daar geen 3:1) */
+.vote :focus-visible, .ov-group :focus-visible{outline-color:#ffc53d}
+.stage-label{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;gap:8px;pointer-events:none}
+.chip{display:inline-flex;align-items:center;gap:6px;background:rgba(15,20,34,.72);color:#fff;border-radius:999px;padding:4px 12px;font-size:.85rem}
+.snap{position:absolute;top:44px;right:10px;width:30%;max-width:260px;border:3px solid #fff;border-radius:12px;overflow:hidden;background:#000;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.snap img{display:block;width:100%}
+.snap span{position:absolute;left:6px;top:6px;background:#fff;color:#16203a;font-size:.75rem;font-weight:700;border-radius:6px;padding:1px 6px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);overflow:hidden;min-width:0}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:8px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.tabs button{border:0;background:transparent;padding:8px 12px;border-radius:10px;min-height:44px;cursor:pointer;font-weight:700;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:inset 0 -3px 0 var(--lamp)}
+.pane{padding:16px;display:grid;gap:14px;min-width:0}
+.card{border:1px solid var(--line);border-radius:var(--r-m);padding:14px;display:grid;gap:8px;background:var(--surface)}
+.card.soft{background:var(--surface-2)}
+.doel{border-left:6px solid var(--lamp)}
+.lit{font-size:.95rem}
+.lit q{quotes:none;font-style:normal}
+.meta{display:flex;flex-wrap:wrap;gap:6px}
+.tag{display:inline-flex;align-items:center;border-radius:999px;padding:2px 10px;font-size:.8rem;font-weight:700;background:var(--surface-2);border:1px solid var(--line);color:var(--muted)}
+.tag.lamp{background:var(--lamp-soft);border-color:transparent;color:var(--ink)}
+.kidline{font-family:var(--f-display);font-weight:500;font-size:1.2rem;line-height:1.3}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+.steps{display:grid;gap:8px;counter-reset:s;padding:0;margin:0;list-style:none}
+.steps li{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start}
+.steps li::before{counter-increment:s;content:counter(s);display:grid;place-items:center;width:1.75rem;height:1.75rem;border-radius:50%;background:var(--sky-soft);font-weight:700;font-size:.9rem}
+.taken{display:grid;gap:8px}
+.taak{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;text-align:left;width:100%;padding:10px 12px;border-radius:var(--r-m);border:1px solid var(--line);background:var(--surface);cursor:pointer;min-height:56px}
+.taak[aria-current="true"]{border-color:var(--sky);background:var(--sky-soft)}
+.taak .num{display:grid;place-items:center;width:2.1rem;height:2.1rem;border-radius:50%;background:var(--lamp-soft);font-family:var(--f-display);font-weight:600}
+.taak .done{font-size:.8rem;font-weight:700;color:var(--ok)}
+.feedback{border-radius:var(--r-m);padding:12px 14px;font-weight:700;display:flex;gap:10px;align-items:flex-start}
+.feedback.ok{background:var(--ok-soft);color:var(--ok)}
+.feedback.warn{background:var(--warn-soft);color:var(--warn)}
+.feedback.info{background:var(--sky-soft)}
+.feedback p{font-weight:400;color:var(--ink)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.opt{display:grid;gap:6px;justify-items:center;text-align:center;padding:12px;border-radius:var(--r-m);border:2px solid var(--line);background:var(--surface);cursor:pointer;min-height:64px;font-weight:700}
+.opt svg{width:100%;max-width:150px;height:auto}
+.opt[aria-pressed="true"]{border-color:var(--sky);background:var(--sky-soft)}
+.opt.juist{border-color:var(--ok);background:var(--ok-soft)}
+.opt.fout{border-color:var(--err);background:var(--err-soft)}
+.opt .letter{font-family:var(--f-display);font-size:1.4rem}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}
+th{font-size:.82rem;color:var(--muted);font-weight:700}
+.tbl{overflow-x:auto}
+input[type=number]{width:6.5em;min-height:44px;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+select{min-height:44px;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+.st{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px;font-size:.8rem;font-weight:700;white-space:nowrap}
+.st.ja{background:var(--ok-soft);color:var(--ok)} .st.bijna{background:var(--warn-soft);color:var(--warn)} .st.nee{background:var(--err-soft);color:var(--err)} .st.leeg{background:var(--surface-2);color:var(--muted)}
+.st::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor}
+.st.bijna::before{border-radius:2px}
+.st.nee::before{border-radius:0;transform:rotate(45deg)}
+.st.leeg::before{background:transparent;border:2px solid currentColor}
+.legend{display:flex;flex-wrap:wrap;gap:8px}
+/* klasvraag: een paneel onderaan de kijkdoos, zodat de klas de opstelling blijft zien */
+.vote{position:absolute;left:0;right:0;bottom:0;max-height:55%;z-index:2;overflow:auto;padding:8px 14px 10px;
+  background:linear-gradient(to bottom,rgba(10,14,26,.86),rgba(10,14,26,.95));border-top:3px solid #ffc53d;box-shadow:0 -10px 30px rgba(0,0,0,.35)}
+.vote-in{display:grid;gap:6px;color:#fff}
+.vote-kop{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 14px}
+.vote-in h2{font-size:1.45rem}
+.vote-in .uitleg{font-size:.82rem;color:#dfe5f3}
+.vote-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px}
+.vote-opts button{min-height:60px;border-radius:16px;border:4px solid #fff;background:#fff;color:#16203a;font-family:var(--f-display);font-size:1.1rem;line-height:1.15;cursor:pointer;padding:4px 10px;display:flex;align-items:center;justify-content:center;gap:10px;text-align:left}
+.vote-opts button .l{font-size:1.9rem;line-height:1;flex:none}
+/* smalle schermen: het paneel staat onder de kijkdoos in plaats van erover */
+@media (max-width:600px){ .vote{position:static;max-height:none} }
+.vote-opts button[aria-pressed="true"]{border-color:#ffc53d;background:#fff3cf}
+.vote-opts button.juist{border-color:#17784a;background:#e1f5ea}
+.vote-opts button:disabled{cursor:default}
+.vote-opts button:disabled:not(.juist){opacity:.7}
+.vote .row .btn{min-height:52px}
+.vote .btn:disabled{opacity:.5;cursor:default}
+/* tijdens de klasvraag vallen de cameraknoppen weg (ze schemerden door het paneel) */
+.stage.stemt .overlay{visibility:hidden}
+html.bord .vote-in h2{font-size:1.75rem}
+html.bord .vote-opts button .l{font-size:2.5rem}
+html.bord .vote-opts button{min-height:64px}
+/* de rij met Toon de uitkomst en Sluiten blijft onderaan in de balk staan, ook als de keuzes moeten scrollen */
+@media (min-width:601px){
+  .vote{scroll-padding-bottom:76px}
+  .vote .row{position:sticky;bottom:-10px;z-index:1;margin:0 -14px -10px;padding:0 14px 10px}
+  /* alleen als de keuzes onder de knoppen door schuiven, krijgt de rij een eigen achtergrond (anders een zichtbare naad) */
+  .vote.scrolt .row{background:#0a0e1a;box-shadow:0 -8px 12px #0a0e1a}
+}
+/* digibord met weinig plaats (XGA-projector van 1024x768, of een laag venster): alles kleiner, zodat de balk niet hoeft te scrollen */
+@media (max-width:1260px),(max-height:620px){
+  html.bord .vote{padding:6px 12px 8px}
+  html.bord .vote-in{gap:4px}
+  html.bord .vote-kop{gap:0 10px}
+  html.bord .vote-in .eyebrow{font-size:.68rem;letter-spacing:.04em}
+  html.bord .vote-in h2{font-size:1.2rem}
+  html.bord .vote-in .uitleg{font-size:.75rem;line-height:1.35}
+  html.bord .vote-opts button{min-height:48px;font-size:.9rem;line-height:1.05;border-width:3px;padding:2px 8px;gap:8px}
+  html.bord .vote-opts button .l{font-size:1.6rem}
+  html.bord .vote .row{margin:0 -12px -8px;padding:0 12px 8px;bottom:-8px}
+  html.bord .vote .row .btn{min-height:46px;font-size:1rem;padding:6px 14px}
+}
+/* geen 3D: de melding bedekt de hele kijkdoos */
+.geen3d{position:absolute;inset:0;display:grid;place-items:center;padding:16px;background:#0c1022;color:#fff;text-align:left}
+.geen3d > div{max-width:640px;display:grid;gap:10px}
+/* juist en fout niet alleen met kleur: een teken en een woord */
+.markering{display:inline-flex;align-items:center;gap:4px;font-size:.85rem;font-weight:700;font-family:var(--f-body)}
+.markering svg{width:18px;height:18px}
+.opt.juist .markering{color:var(--ok)} .opt.fout .markering{color:var(--err)}
+.vote-opts .markering{color:#17784a;font-size:1rem}
+/* de markering neemt geen breedte in: het nummer van de keuze blijft altijd zichtbaar */
+.vote-opts button{position:relative} .vote-opts button .markering{position:absolute;top:-.7em;right:8px;background:#e1f5ea;border:2px solid #17784a;border-radius:999px;padding:0 6px}
+.hoor{width:100%;justify-content:center}
+.hoor svg{width:30px;height:30px}
+.naam-melding{color:var(--warn);font-weight:700}
+.leerkracht{border-style:dashed}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.cyclus{display:flex;flex-wrap:wrap;gap:6px}
+.cyclus span{padding:4px 10px;border-radius:999px;border:1px solid var(--line);font-size:.82rem;font-weight:700;color:var(--muted)}
+.cyclus span.nu{background:var(--lamp);color:var(--on-lamp);border-color:var(--lamp)}
+.cyclus span.klaar{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.check-q{display:grid;gap:10px}
+.nb{border:1px dashed var(--line);border-radius:var(--r-m);padding:10px 12px;font-size:.9rem;color:var(--muted)}
+details summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center}
+.bar{height:14px;border-radius:7px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--lamp)}
+.meters{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-size:.92rem}
+.foot{font-size:.82rem;color:var(--muted);display:grid;gap:4px}
+/* prikkelarm: geen labels over het beeld (het beeld zelf wordt effen en zonder gloed in de code) */
+.calm .stage{background:#1d2436}
+.calm .stage-label{display:none}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow">Boosterz basisonderwijs · voorbeeldpakket wetenschap en techniek</span>
+      <h1>Lichtkamer</h1>
+    </div>
+    <div class="seg" role="group" aria-label="Moment">
+      <button type="button" data-moment="k" aria-pressed="false">Einde kleuter</button>
+      <button type="button" data-moment="4" aria-pressed="true">4de leerjaar</button>
+      <button type="button" data-moment="6" aria-pressed="false">6de leerjaar</button>
+    </div>
+    <div class="seg" role="group" aria-label="Toestel">
+      <button type="button" data-mode="bord" aria-pressed="false">Digibord</button>
+      <button type="button" data-mode="boek" aria-pressed="true">Chromebook</button>
+    </div>
+    <div class="tools">
+      <button type="button" class="btn" id="btnCalm" aria-pressed="false" title="Minder prikkels: effen beeld zonder versiering, gloed en labels, niets wordt vanzelf voorgelezen en niets gaat vanzelf verder">Prikkelarm</button>
+      <button type="button" class="btn" id="btnVoice" aria-pressed="false" title="Lees de oefening voor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
+        Voorlezen</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section aria-labelledby="stageTitle">
+      <h2 id="stageTitle" class="sr">De lichtkamer</h2>
+      <div class="stage" id="stage">
+        <div class="view" id="view">
+        <canvas id="cv" tabindex="0" role="application" aria-roledescription="3D-kijkdoos" aria-label="Lichtkamer." aria-describedby="sceneDesc"></canvas>
+        <div class="stage-label"><span class="chip" id="stageChip">4de leerjaar</span><span class="chip" id="stageHint"></span></div>
+        <div class="snap" id="snap" hidden><span>Foto</span><img id="snapImg" alt="Foto van een vorige proef"></div>
+        </div>
+        <div class="overlay" id="overlay"></div>
+        <div class="vote" id="vote" role="dialog" aria-modal="true" aria-labelledby="voteTitel" hidden></div>
+      </div>
+      <p id="sceneDesc" class="sr" aria-live="polite"></p>
+    </section>
+
+    <section class="panel" aria-label="Les en oefeningen">
+      <div class="tabs" role="tablist" aria-label="Onderdelen">
+        <button role="tab" id="t-doel" aria-controls="p-doel" aria-selected="false">Doel</button>
+        <button role="tab" id="t-taak" aria-controls="p-taak" aria-selected="true">Oefeningen</button>
+        <button role="tab" id="t-check" aria-controls="p-check" aria-selected="false">Check</button>
+        <button role="tab" id="t-klas" class="niet-bord" aria-controls="p-klas" aria-selected="false">Klasoverzicht</button>
+        <button role="tab" id="t-les" aria-controls="p-les" aria-selected="false">Lesverloop</button>
+        <button role="tab" id="t-maak" aria-controls="p-maak" aria-selected="false">Achter de schermen</button>
+      </div>
+      <div class="pane" role="tabpanel" id="p-doel" aria-labelledby="t-doel" hidden></div>
+      <div class="pane" role="tabpanel" id="p-taak" aria-labelledby="t-taak"></div>
+      <div class="pane" role="tabpanel" id="p-check" aria-labelledby="t-check" hidden></div>
+      <div class="pane" role="tabpanel" id="p-klas" aria-labelledby="t-klas" hidden></div>
+      <div class="pane" role="tabpanel" id="p-les" aria-labelledby="t-les" hidden></div>
+      <div class="pane" role="tabpanel" id="p-maak" aria-labelledby="t-maak" hidden></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>Doelteksten letterlijk uit de Onderwijsdoelen-API van de Vlaamse overheid (sets versie 2.0, geldig vanaf 1 september 2025), opgehaald op 1 november 2026. De zin in kindertaal staat ernaast en vervangt de doeltekst niet.</p>
+    <p>Prototype om te tonen hoe een pakket rond een eindterm werkt. De voorbeeldklas is verzonnen. Resultaten die je hier invult, blijven in deze browser.</p>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/GammaCorrectionShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/RoundedBoxGeometry.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/environments/RoomEnvironment.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/objects/Reflector.js"></script>
+<script src="lk-wereld.js"></script>
+<script src="lk-kleuter.js"></script>
+<script src="lk-labo.js"></script>
+<script>
+(function(){
+'use strict';
+// ───────────────────────── Gegevens ─────────────────────────
+const MOMENTEN = {
+  k:{naam:'Einde kleuter', lang:'Einde derde kleuterklas', set:'ODS_3410', setNaam:'Kleuteronderwijs – Wetenschap en techniek', soort:'Na te streven op populatieniveau'},
+  4:{naam:'4de leerjaar', lang:'Einde 4de leerjaar', set:'ODS_3408', setNaam:'Lager onderwijs 4de leerjaar – Wetenschap en techniek', soort:'Te bereiken op populatieniveau'},
+  6:{naam:'6de leerjaar', lang:'Einde 6de leerjaar', set:'ODS_3409', setNaam:'Lager onderwijs 6de leerjaar – Wetenschap en techniek', soort:'Te bereiken op populatieniveau'}
+};
+const SOORT_UITLEG = {
+  'Na te streven op populatieniveau':'De school streeft dit na voor de kinderen als groep. Het hoeft niet door elk kind bereikt te zijn.',
+  'Te bereiken op populatieniveau':'De leerlingen als groep moeten dit bereiken. Het is geen eis voor elk kind afzonderlijk.'
+};
+const DOELEN = {
+  k:[
+    {code:'3.5.2', id:'92730', tekst:'De kleuters kennen licht: de lichtbron, de reflectie.', kind:'Ik weet welke dingen licht maken. Ik weet dat een spiegel licht terugkaatst.', zie:'Het kind zet alleen de lichtbronnen aan en brengt met een spiegel licht bij de beer.'},
+    {code:'3.5.1', id:'92729', tekst:'De kleuters kennen de volgende begrippen met betrekking tot natuurkundige verschijnselen: de zon, de lamp, licht, donker, de schaduw, de spiegel; het stopcontact, de batterij; aantrekken, afstoten, de magneet, magnetisch.', kind:'Ik ken de woorden licht, donker, lamp, schaduw en spiegel.', zie:'Het kind gebruikt de woorden licht, donker, lamp, schaduw en spiegel bij wat het ziet. (Deze oefening dekt alleen dat deel van het doel.)'},
+    {code:'3.6.1', id:'92734', tekst:'De kleuters kennen de relatie tussen oorzaak en gevolg.', kind:'Als ik de lamp dichterbij zet, dan wordt de schaduw groter.', zie:'Het kind maakt de schaduw groter of kleiner wanneer je het vraagt, en zegt waarom.'},
+    {code:'3.6.2', id:'92735', tekst:'De kleuters kunnen aangeleerde woordenschat inzetten om te redeneren over een wetenschappelijke vraag.', kind:'Ik vertel met de woorden licht, schaduw en spiegel hoe het komt.', zie:'In het kringgesprek: "De spiegel kaatst het licht naar de beer."'}
+  ],
+  4:[
+    {code:'3.5.4', id:'92767', tekst:'De leerlingen kennen licht: rechtlijnige beweging.', kind:'Ik weet dat licht in een rechte lijn gaat. Zo kan ik voorspellen waar een schaduw komt.', zie:'Het kind voorspelt waar een schaduw valt en zet de gaatjes van drie kaartjes op één rechte lijn met de lamp.'},
+    {code:'3.6.3', id:'92775', tekst:'De leerlingen kunnen een voorafgaand opgezet eerlijk onderzoek uitvoeren.', kind:'Ik voer een onderzoek uit en verander maar één ding.', zie:'Het kind voert het klaargezette onderzoek uit en verandert alleen de afstand.'},
+    {code:'3.6.4', id:'92777', tekst:'De leerlingen kunnen systematisch waarnemingen noteren en conclusies trekken.', kind:'Ik noteer wat ik meet en zeg wat ik ontdekt heb.', zie:'Het kind vult de meettabel juist in en kiest de conclusie die bij de metingen past.'}
+  ],
+  6:[
+    {code:'3.5.4', id:'92833', tekst:'De leerlingen kennen licht: reflecteren, absorberen en doorlaten van licht.', kind:'Ik weet welke stoffen licht doorlaten, reflecteren (terugkaatsen) of absorberen (opslorpen).', zie:'Het kind test stoffen in de lichtstraal en sorteert ze juist.'},
+    {code:'3.5.7', id:'92836', tekst:'De leerlingen kunnen natuurkundige verschijnselen onderzoeken met behulp van de onderzoekscyclus.', kind:'Ik onderzoek licht stap voor stap: verkennen, opzetten, uitvoeren, concluderen, presenteren.', zie:'Het kind doorloopt de vijf fasen bij de vraag welk gordijn het meeste licht tegenhoudt.'},
+    {code:'3.6.4', id:'92849', tekst:'De leerlingen kunnen de volgende basisprincipes van eerlijk onderzoek toepassen: gecontroleerde omstandigheden, reproduceerbaarheid.', kind:'Ik verander maar één ding en ik herhaal mijn proef.', zie:'Het kind houdt de afstand en de zaklamp gelijk en herhaalt de meting.'}
+  ]
+};
+const VOORBEELDKLAS = ['Amira','Bram','Chloë','Daan','Elif','Finn','Hanne','Ilias'];
+
+// ───────────────────────── Toestand ─────────────────────────
+// kind begint leeg: zonder naam werken de oefeningen, maar er wordt niets bewaard
+const S = { moment:'4', mode:'boek', taak:0, tab:'taak', calm:false, voice:false, kind:'', voorwerp:'boom', stralenStandaard:false };
+const opslag = {
+  lees(){ try{ return JSON.parse(localStorage.getItem('lichtkamer.v1')||'{}'); }catch(e){ return {}; } },
+  schrijf(d){ try{ localStorage.setItem('lichtkamer.v1', JSON.stringify(d)); }catch(e){} }
+};
+let RES = opslag.lees(); if(!RES || typeof RES!=='object' || !RES.kinderen || typeof RES.kinderen!=='object') RES = {kinderen:{}};
+// bewaart bewijs per kind; in de digibordstand en zonder gekozen naam wordt niets bewaard (wie aan het bord staat, is niet de klas)
+function bewijs(kind, sleutel, waarde, eersteTelt){ if(S.mode==='bord' || !kind) return false; RES.kinderen[kind] = RES.kinderen[kind]||{}; if(eersteTelt && RES.kinderen[kind][sleutel]) return false; RES.kinderen[kind][sleutel] = Object.assign({t:Date.now()}, waarde); opslag.schrijf(RES); return true; }
+// sleutel voor wat in deze sessie gedaan is: per kind, of voor het bord, of zonder naam
+function werkSleutel(){ return S.mode==='bord' ? '@bord' : (S.kind || '@zonder'); }
+
+// ───────────────────────── Hulp ─────────────────────────
+const $ = (s, el=document) => el.querySelector(s);
+const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(v==null||v===false) continue; if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v===true?'':v); } for(const c of kids.flat()){ if(c==null||c===false) continue; e.append(c.nodeType?c:document.createTextNode(String(c))); } return e; };
+const ICON = {
+  left:'<path d="m15 18-6-6 6-6"/>', right:'<path d="m9 18 6-6-6-6"/>', up:'<path d="m18 15-6-6-6 6"/>', down:'<path d="m6 9 6 6 6-6"/>',
+  ccw:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>', cw:'<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+  eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>', eyeoff:'<path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+  cam:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+  ray:'<path d="M2 12h14"/><path d="m12 8 4 4-4 4"/><circle cx="20" cy="12" r="2"/>', users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
+  view:'<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>',
+  speaker:'<path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>', x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'
+};
+const ico = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
+// de toegankelijke naam begint met het zichtbare woord (spraakbesturing), tenzij dat woord al in de naam staat
+const ibtn = (icon, label, on, extra={}) => { const naam = (extra.short && !label.toLowerCase().includes(extra.short.toLowerCase())) ? `${extra.short}: ${label.charAt(0).toLowerCase()+label.slice(1)}` : label;
+  return h('button', Object.assign({type:'button', class:'btn'+(extra.cls?' '+extra.cls:''), 'aria-label':naam, title:naam, html:ico(icon)+`<span class="${extra.short?'':'sr'}">${extra.short||label}</span>`, onclick:on}, extra.attrs||{})); };
+// teken en woord bij juist of fout, zodat het niet alleen in de kleur zit
+const markering = (juist) => h('span',{class:'markering', html: ico(juist?'check':'x') + (juist?'juist':'niet juist')});
+
+// altijd=true: ook als Voorlezen uit staat (de knop 'Hoor het nog eens')
+function spreek(tekst, altijd){
+  if((!S.voice && !altijd) || !('speechSynthesis' in window)) return;
+  try{ window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(tekst); u.lang='nl-BE'; u.rate=.95;
+    const v = window.speechSynthesis.getVoices().find(v=>/^nl(-|_)BE/i.test(v.lang)) || window.speechSynthesis.getVoices().find(v=>/^nl/i.test(v.lang)); if(v) u.voice=v; window.speechSynthesis.speak(u); }catch(e){}
+}
+function zeg(tekst){ $('#sceneDesc').textContent = tekst; }
+
+// ───────────────────────── 3D-wereld ─────────────────────────
+let W = {};
+const HAS3D = typeof THREE !== 'undefined' && window.LK && typeof LK.init === 'function';
+const BEWEGING_UIT = (()=>{ try{ return matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } })();
+function geen3D(reden){ W = {}; $('#cv').setAttribute('aria-label','De 3D-kijkdoos kon niet laden.'); $('#view').append(h('div',{class:'geen3d',role:'note'},h('div',{},h('h2',{},'De 3D-kijkdoos kon niet laden'),h('p',{}, reden),h('p',{},'Wat wel werkt: de doelen, de check, het klasoverzicht en het lesverloop. Probeer een andere verbinding of een ander toestel, of vraag de ICT-coördinator om three.js en WebGL toe te laten.')))); }
+function init3D(){
+  const cv = $('#cv');
+  if(!HAS3D){ geen3D('De 3D-bestanden konden niet geladen worden. Misschien is er geen internet, of blokkeert de school de bron.'); return; }
+  try{ W = LK.init(cv); if(!W || !W.r) throw new Error('geen renderer'); }
+  catch(e){ console.warn('Lichtkamer zonder 3D:', e && e.message); geen3D('Dit toestel kan geen 3D tonen (WebGL staat uit of wordt niet ondersteund).'); return; }
+  W.achtergrond = W.scene.background;
+  W.view = {yaw:0, pitch:0.3, dist:7.2, target:new THREE.Vector3(0,0.85,1.8)};
+  zetKwaliteit();
+  const ro = new ResizeObserver(()=>resize()); ro.observe($('#view')); resize();
+  // bediening: slepen draait de kijkhoek (beperkt), of verplaatst de zaklamp
+  let drag=null; const ray = new THREE.Raycaster(); const ndc = new THREE.Vector2();
+  const pick = (ev) => { const b = cv.getBoundingClientRect(); ndc.set(((ev.clientX-b.left)/b.width)*2-1, -((ev.clientY-b.top)/b.height)*2+1); ray.setFromCamera(ndc, W.cam); return ray; };
+  const zoekPick = (o) => { while(o && o!==W.root){ if(o.userData && o.userData.pick) return o; o = o.parent; } return null; };
+  // lichtbundels, stofjes en labels zijn geen voorwerpen: een tik gaat erdoor naar wat erachter staat
+  const vast = (o) => { if(o.isPoints || o.isSprite || o.isLine) return false; const m = o.material; if(!m || Array.isArray(m)) return true; return !(m.blending===THREE.AdditiveBlending || (m.transparent && m.depthWrite===false)); };
+  cv.addEventListener('pointerdown', ev => {
+    cv.focus({preventScroll:true});
+    const rr = pick(ev);
+    const hits = rr.intersectObjects(W.root.children, true).filter(hh=>vast(hh.object));
+    for(const hh of hits){ const o = zoekPick(hh.object); if(!o) continue; const p = o.userData.pick; if(p.tap){ p.tap(); return; } if(p.drag){ drag={kind:'obj', p, plane:new THREE.Plane(new THREE.Vector3(0,1,0), -p.y)}; cv.setPointerCapture(ev.pointerId); cv.style.cursor='grabbing'; return; } }
+    drag={kind:'view', x:ev.clientX, y:ev.clientY, yaw:W.view.yaw, pitch:W.view.pitch}; cv.setPointerCapture(ev.pointerId); cv.style.cursor='grabbing';
+  });
+  cv.addEventListener('pointermove', ev => {
+    if(!drag) return;
+    if(drag.kind==='obj'){ const rr = pick(ev); const pt = new THREE.Vector3(); if(rr.ray.intersectPlane(drag.plane, pt)) drag.p.drag(pt.x, pt.z); }
+    else { const b = cv.getBoundingClientRect(); W.view.yaw = clamp(drag.yaw - (ev.clientX-drag.x)/b.width*1.6, -0.8, 0.8); W.view.pitch = clamp(drag.pitch + (ev.clientY-drag.y)/b.height*1.2, 0.05, 1.35); camUpdate(); }
+  });
+  const end = () => { drag=null; cv.style.cursor='grab'; };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+  // alleen de schaduwopstellingen krijgen hier een beschrijving; het onderzoek, de kaartjes en de spiegel zeggen het zelf
+  cv.addEventListener('keydown', ev => { if(actief && actief.key && actief.key(ev.key)){ ev.preventDefault(); if(typeof actief.schaduwHoogteCm==='function' && !actief.zetAfstand) zeg(beschrijfSchaduw(actief)); } });
+  requestAnimationFrame(lus);
+}
+// prikkelarm: effen achtergrond en geen gloed; anders de kwaliteit van de stand
+function zetKwaliteit(){ if(!W.r) return; W.zetKwaliteit(S.mode==='bord' ? 'hoog' : 'midden'); if(S.calm) W.gloed = false; W.scene.background = S.calm ? new THREE.Color(0x1d2436) : W.achtergrond;
+  (LK._stof||[]).forEach(p=>{ p.visible = !S.calm; }); } // ook geen stofjes in de bundel
+// stofjes in de lichtbundel bewegen alleen op het digibord, zonder prikkelarm en zonder 'minder beweging'
+let laatste = 0;
+function lus(t){ requestAnimationFrame(lus); if(!W.r) return; const anim = S.mode==='bord' && !S.calm && !BEWEGING_UIT && document.visibilityState==='visible' && (LK._stof||[]).some(p=>p.parent && p.visible);
+  if(!anim || t - laatste < 40) return; laatste = t; (LK._stof||[]).forEach(p=>{ if(p.parent) p.userData.tik(t); }); W.render(); }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function resize(){ if(!W.r) return; const st = $('#view'); W.resize(st.clientWidth, st.clientHeight); render(); }
+function camUpdate(){ const v = W.view; const c = Math.cos(v.pitch); W.cam.position.set(v.target.x + Math.sin(v.yaw)*c*v.dist, v.target.y + Math.sin(v.pitch)*v.dist, v.target.z + Math.cos(v.yaw)*c*v.dist); W.cam.lookAt(v.target); render(); }
+const PRESETS = { voor:{yaw:0,pitch:.26,dist:7.4,t:[0,.95,1.9]}, schuin:{yaw:.6,pitch:.4,dist:7.6,t:[0,.75,1.9]}, opzij:{yaw:1.42,pitch:.14,dist:6.9,t:[0,.6,1.9]}, boven:{yaw:0,pitch:1.3,dist:7.8,t:[0,0,2.0]} };
+function zetZicht(n){ const p = PRESETS[n]; W.view.yaw=p.yaw; W.view.pitch=p.pitch; W.view.dist=p.dist; W.view.target.set(...p.t); camUpdate(); }
+let renderPending=false;
+function render(){ if(!W.r || renderPending) return; renderPending=true; requestAnimationFrame(()=>{ renderPending=false; W.render(); }); }
+// ruimt ook de schaduwkaart van elk licht op (2048x2048 per lamp, anders blijft die in het videogeheugen)
+// geeft een materiaal en zijn texturen vrij; de omgevingskaart (envMap) is gedeeld en blijft. Een gedeelde textuur die
+// toch nog gebruikt wordt, laadt three.js gewoon opnieuw op.
+const KAARTEN_MAT = ['map','alphaMap','bumpMap','normalMap','roughnessMap','metalnessMap','emissiveMap','aoMap'];
+function vrijMat(m){ KAARTEN_MAT.forEach(k=>{ if(m[k] && m[k].dispose && !m[k].isRenderTargetTexture) m[k].dispose(); }); m.dispose(); }
+function vrijObject(c){ c.traverse(o=>{ if(o.isLight && o.shadow && o.shadow.dispose) o.shadow.dispose(); if(o.type==='Reflector' || o.type==='Refractor'){ if(typeof o.dispose==='function') o.dispose(); else if(typeof o.getRenderTarget==='function') o.getRenderTarget().dispose(); } if(o.geometry && !o.isSprite) o.geometry.dispose(); if(o.material){ (Array.isArray(o.material)?o.material:[o.material]).forEach(vrijMat); } }); }
+function leegScene(){ W.hemi.color.set(0xdfe6ff); W.hemi.groundColor.set(0x3b2b20); while(W.root.children.length){ const c = W.root.children.pop(); vrijObject(c); } LK._stof = []; }
+// haalt tijdelijke objecten (stralen, labels) uit de scène en geeft geometrie, texturen en eigen materialen vrij
+function weg(lijst, ookMateriaal){ lijst.forEach(o=>{ W.root.remove(o); if(o.geometry && !o.isSprite) o.geometry.dispose(); if(ookMateriaal && o.material) vrijMat(o.material); }); lijst.length = 0; }
+const mat = (c, o={}) => new THREE.MeshStandardMaterial(Object.assign({color:c, roughness:.8}, o));
+function mesh(geo, m, pos, opts={}){ const x = new THREE.Mesh(geo, m); if(pos) x.position.set(...pos); x.castShadow = opts.cast!==false; x.receiveShadow = !!opts.receive; W.root.add(x); return x; }
+function pijl(a, b, m, r=.045){ const d = new THREE.Vector3().subVectors(b,a); const c = new THREE.Mesh(new THREE.ConeGeometry(r,r*2.9,14), m); c.position.copy(a).addScaledVector(d,.55); c.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d.clone().normalize()); c.castShadow=false; return c; }
+function cilinder(a, b, r, m){ const d = new THREE.Vector3().subVectors(b,a); const L = d.length(); const g = new THREE.CylinderGeometry(r, r, L, 12, 1, true); const x = new THREE.Mesh(g, m); x.position.copy(a).addScaledVector(d, .5); x.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d.clone().normalize()); x.castShadow=false; return x; }
+const straalMat = () => new THREE.MeshBasicMaterial({color:0xffd84d, toneMapped:false});
+function label(tekst, kleur='#16203a', bg='#ffffff', size=.48){ const c = document.createElement('canvas'); c.width=128; c.height=128; const g=c.getContext('2d'); g.fillStyle=bg; g.beginPath(); g.arc(64,64,58,0,Math.PI*2); g.fill(); g.lineWidth=8; g.strokeStyle=kleur; g.stroke(); g.fillStyle=kleur; g.font='bold 70px Fredoka, Verdana, sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(tekst,64,70); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; const s = new THREE.Sprite(new THREE.SpriteMaterial({map:t, depthTest:false, toneMapped:false})); s.scale.set(size,size,1); s.renderOrder=10; return s; }
+function meetlat(x){ const m = LK.props.meetlat(); m.position.set(x, 0, .012); W.root.add(m); return m; }
+// decor per moment; zonder module een eenvoudige vloer en een scherm
+let versiering = null;
+function decor(moment, taak){
+  const f = LK.decor[moment]; let d = null;
+  if(f){ try{ d = f({root:W.root, taak, voorwerp:S.voorwerp}); }catch(e){ console.warn('decor', moment, e); d = null; } }
+  if(!d){ const v = mesh(new THREE.BoxGeometry(7.0,.14,4.9), mat(0xc9a77c), [0,-.07,2.35], {cast:false, receive:true}); const s = mesh(new THREE.PlaneGeometry(6.3,2.55), mat(0xeeeae0,{roughness:1}), [0,1.275,0], {cast:false, receive:true}); d = {scherm:s}; }
+  versiering = d.versiering || null; if(versiering) versiering.visible = !S.calm;
+  return d;
+}
+function viaProp(naam, ouder, reserve){ if(window.LK && LK.props[naam]){ try{ const o = LK.props[naam](); ouder.add(o); return o; }catch(e){ console.warn('prop', naam, e); } } const g = new THREE.Group(); const api = reserve(g) || {}; g.userData = Object.assign(g.userData||{}, api); ouder.add(g); return g; }
+// zaklamp: kijkt langs −z, met statief tot op de vloer
+function zaklamp(opts={}){ const g = LK.props.zaklamp(Object.assign({stofjes:true}, opts)); W.root.add(g); const zet = g.userData.zet.bind(g.userData); g.userData.zet = (a)=>{ zet(a); render(); }; return g; }
+function figuur(soort, x, z){ const g = LK.props.figuur(soort); g.position.set(x,0,z); W.root.add(g); return g; }
+const SIL_TOP = (window.LK && window.LK.SIL_TOP) ? window.LK.SIL_TOP : {boom:[[0,1.0],[-.32,.3],[.32,.3]], huis:[[0,1.0],[-.3,.55],[.3,.55]], kind:[[0,.98],[-.17,.81],[.17,.81]]};
+function schaduwPunt(lamp, px, py, pz){ const f = lamp.z/(lamp.z - pz); return {x: lamp.x + (px-lamp.x)*f, y: lamp.y + (py-lamp.y)*f}; }
+
+// ───────────────────────── Opdrachten ─────────────────────────
+// Elke opdracht: titel, doelIds, uitleg (stappen), bouw(), paneel(el), key()
+let actief = null; // toestand van de huidige opdracht
+const TAKEN = {k:[], 4:[], 6:[]};
+function huidigeTaak(){ return TAKEN[S.moment][S.taak]; }
+
+// gemeenschappelijk: schaduwopstelling
+function schaduwOpstelling(o){
+  leegScene(); W.hemi.intensity = o.donker?(o.decor==='k'?0.16:0.12):0.28; if(o.decor==='k'){ W.hemi.color.set(0xa9b8ff); W.hemi.groundColor.set(0x2e2a40); } decor(o.decor||'4', o.taak||'schaduw');
+  const lamp = {x:o.x||0, y:.5, z:o.z||2.6};
+  const zl = zaklamp({angle:.98, y:.5, bundelLengte:1.1, bundelSterkte:.32}); const fig = figuur(S.voorwerp, 0, 1.0);
+  const st = {lamp, zl, fig, rays:[], toonStralen:S.stralenStandaard, verbergSchaduw:false, markers:[]};
+  st.update = () => {
+    { // de zaklamp kijkt naar het voorwerp: lijf, lichtkegel en lichtvlek wijzen dezelfde kant op; de lens (waar het licht vertrekt) blijft op (x, y, z−0,23)
+      const lx = lamp.x, lz = lamp.z-.23, dx = 0-lx, dz = 1.0-lz, Lh = Math.hypot(dx,dz)||1, yaw = Math.atan2(-dx,-dz);
+      zl.rotation.y = yaw; zl.position.set(lx + Math.sin(yaw)*.23, lamp.y, lz + Math.cos(yaw)*.23); zl.userData.sp.target.position.set(0, (.55-lamp.y)/Lh*4.77, -5); }
+    fig.traverse(c=>{ if(c.userData.silhouet) c.castShadow = !st.verbergSchaduw; });
+    weg(st.rays, true);
+    if(st.toonStralen && zl.userData.aan){ const lens = new THREE.Vector3(lamp.x, lamp.y, lamp.z-.23); const m = straalMat();
+      for(const [px,py] of SIL_TOP[S.voorwerp]){ const s = schaduwPunt({x:lens.x,y:lens.y,z:lens.z}, px, py, 1.0); const end = new THREE.Vector3(s.x, s.y, .01); if(s.y>2.6||Math.abs(s.x)>3.2) continue; const c = cilinder(lens, end, .012, m); W.root.add(c); st.rays.push(c); const pj = pijl(lens, end, m); W.root.add(pj); st.rays.push(pj); const dot = new THREE.Mesh(new THREE.SphereGeometry(.03,10,10), m); dot.position.set(px,py,1.0); W.root.add(dot); st.rays.push(dot); } }
+    zetStralenKnop(st); render(); if(o.onUpdate) o.onUpdate(st);
+  };
+  zl.userData.pick = {y:lamp.y, drag:(x,z)=>{ if(o.vast) return; lamp.x = clamp(x, o.xmin??-1.6, o.xmax??1.6); lamp.z = clamp(z, o.zmin??1.63, o.zmax??4.2); st.update(); }};
+  st.key = (k) => { if(o.vast) return false; const d=o.stap||.1; if(k==='ArrowLeft'&&!o.alleenAfstand) lamp.x=clamp(lamp.x-d, o.xmin??-1.6, o.xmax??1.6); else if(k==='ArrowRight'&&!o.alleenAfstand) lamp.x=clamp(lamp.x+d, o.xmin??-1.6, o.xmax??1.6); else if(k==='ArrowUp') lamp.z=clamp(lamp.z-d, o.zmin??1.63, o.zmax??4.2); else if(k==='ArrowDown') lamp.z=clamp(lamp.z+d, o.zmin??1.63, o.zmax??4.2); else return false; st.update(); return true; };
+  st.schaduwHoogteCm = () => { const s = schaduwPunt({x:lamp.x,y:lamp.y,z:lamp.z-.23}, 0, SIL_TOP[S.voorwerp][0][1], 1.0); return s.y*10; };
+  st.update(); return st;
+}
+function beschrijfSchaduw(st){ const l = st.lamp; const kant = l.x < -.15 ? 'links van' : (l.x > .15 ? 'rechts van' : 'recht voor'); const af = Math.round((l.z-.23-1.0)*10); const sh = st.verbergSchaduw ? 'De schaduw is verborgen.' : `De schaduw valt ${l.x < -.15 ? 'rechts' : (l.x > .15 ? 'links' : 'recht achter het voorwerp')} op het scherm en is ongeveer ${Math.round(st.schaduwHoogteCm())} centimeter hoog.`; return `De zaklamp staat ${kant} het ${naamVoorwerp()}, op ${af} centimeter ervan. ${sh}`; }
+function naamVoorwerp(){ return {boom:'boompje', huis:'huisje', kind:'kartonnen kind'}[S.voorwerp]; }
+function camKnoppen(extra=[]){ return [ibtn('view','Zicht van voor',()=>zetZicht('voor'),{short:'Voor'}), ibtn('view','Zicht schuin',()=>zetZicht('schuin'),{short:'Schuin'}), ibtn('view','Zicht van opzij',()=>zetZicht('opzij'),{short:'Opzij'}), ibtn('view','Zicht van boven',()=>zetZicht('boven'),{short:'Boven'}), ...extra]; }
+function lampKnoppen(st, alleenAfstand){ const k = (key)=>()=>{ st.key(key); zeg(beschrijfSchaduw(st)); }; const b=[]; if(!alleenAfstand){ b.push(ibtn('left','Zaklamp naar links',k('ArrowLeft'))); b.push(ibtn('right','Zaklamp naar rechts',k('ArrowRight'))); } b.push(ibtn('down','Zaklamp verder van het voorwerp',k('ArrowDown'),{short:alleenAfstand?'Verder':''})); b.push(ibtn('up','Zaklamp dichter bij het voorwerp',k('ArrowUp'),{short:alleenAfstand?'Dichterbij':''})); return b; }
+function zetOverlay(links, rechts){ const ov = $('#overlay'); ov.innerHTML=''; if(links&&links.length) ov.append(h('div',{class:'ov-group',role:'group','aria-label':'Zaklamp'},...links)); if(rechts&&rechts.length) ov.append(h('div',{class:'ov-group',role:'group','aria-label':'Kijken'},...rechts)); }
+// #taakFb is zelf de live-regio (bestaat al vóór de tekst komt); de uitleg schuift in beeld als ze eronder valt
+// (pas na de layout: 'Volgende ronde' verschijnt soms net erna en duwt de uitleg naar beneden)
+function fb(el, soort, titel, tekst){ if(!el) return; el.innerHTML=''; el.append(h('div',{class:'feedback '+soort}, h('div',{}, h('strong',{},titel), tekst?h('p',{},tekst):null))); spreek(titel+'. '+(tekst||''));
+  requestAnimationFrame(()=>{ if(el.isConnected && !el.closest('[hidden]')) try{ el.scrollIntoView({block:'nearest'}); }catch(_){} }); }
+function foto(){ if(!W.r) return; W.r.render(W.scene, W.cam); const url = $('#cv').toDataURL('image/png'); $('#snapImg').src=url; $('#snap').hidden=false; }
+function stralenKnop(st){ return ibtn('ray','Lichtstralen tonen',()=>{ st.toonStralen=!st.toonStralen; st.update(); },{short:'Stralen', cls:'stralen-knop', attrs:{'aria-pressed':String(!!st.toonStralen)}}); }
+function zetStralenKnop(st){ document.querySelectorAll('.stralen-knop').forEach(b=>b.setAttribute('aria-pressed', String(!!st.toonStralen))); }
+
+// ── Kleuter ──
+TAKEN.k.push({
+  titel:'Wie maakt licht?', hint:'Tik op wat licht maakt', doel:['92730','92729'], bewijzen:['k-bronnen'],
+  canvasLabel:'Lichtkamer. Op de tafel staan een lamp, een kaars, een spiegel, een zaklamp en een glimmende bal. Tik op een voorwerp, of gebruik de knoppen bij de oefening.',
+  stappen:['Het is donker in de kamer.','Tik op de dingen die licht maken.','Kijk naar de spiegel en de bal als de lampen branden.'],
+  zeg:'Het is donker. Tik op de dingen die licht maken.',
+  bouw(){ leegScene(); W.hemi.intensity=.18; W.hemi.color.set(0xa9b8ff); W.hemi.groundColor.set(0x2e2a40); LK.envSterkte=.25; decor('k','licht'); LK.envSterkte=1; zetZicht('schuin'); W.view.yaw=.42; W.view.pitch=.4; W.view.dist=6.0; W.view.target.set(.1,.4,2.3); camUpdate();
+    const st = {aan:{}, fout:[]};
+    const items = [
+      {id:'lamp', naam:'de lamp', bron:true, x:-2.0, prop:'lampje', maak(g){ const voet=new THREE.Mesh(new THREE.CylinderGeometry(.22,.26,.06,24),mat(0x55607a)); voet.position.y=.03; g.add(voet); const paal=new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,.7,10),mat(0x55607a)); paal.position.y=.4; g.add(paal); const kap=new THREE.Mesh(new THREE.ConeGeometry(.28,.3,24,1,true),mat(0xf0e6d0,{side:THREE.DoubleSide})); kap.position.y=.85; g.add(kap); const lampje=new THREE.Mesh(new THREE.SphereGeometry(.08,16,16),new THREE.MeshBasicMaterial({color:0x6b7286})); lampje.position.y=.76; g.add(lampje); const pl=new THREE.PointLight(0xffd58a,0,7,1.2); pl.position.y=.7; g.add(pl); return {zet(a){ pl.intensity=a?1.4:0; lampje.material.color.set(a?0xfff2b0:0x6b7286); }}; }},
+      {id:'kaars', naam:'de kaars', bron:true, x:-1.0, prop:'kaars', maak(g){ const k=new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,.4,16),mat(0xf3efe6)); k.position.y=.2; g.add(k); const vlam=new THREE.Mesh(new THREE.ConeGeometry(.045,.14,12),new THREE.MeshBasicMaterial({color:0x6b7286})); vlam.position.y=.5; g.add(vlam); const pl=new THREE.PointLight(0xffa64d,0,4,1.4); pl.position.y=.52; g.add(pl); return {zet(a){ pl.intensity=a?.9:0; vlam.material.color.set(a?0xffb347:0x6b7286); vlam.visible=a; }}; }},
+      {id:'spiegel', naam:'de spiegel', bron:false, x:0.05, prop:'spiegelKlein', maak(g){ const r=new THREE.Mesh(new THREE.BoxGeometry(.5,.62,.05),mat(0x8a6b4a)); r.position.y=.38; g.add(r); const sp=new THREE.Mesh(new THREE.PlaneGeometry(.42,.54),new THREE.MeshStandardMaterial({color:0xcfe0f2,metalness:.25,roughness:.08})); sp.position.set(0,.38,.027); g.add(sp); g.rotation.y=-.35; return {}; }},
+      {id:'zaklamp', naam:'de zaklamp', bron:true, x:1.05, prop:'zaklampKlein', maak(g){ const l=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,.36,16),mat(0x2b5bd0)); l.rotation.z=Math.PI/2; l.position.y=.09; g.add(l); const kop=new THREE.Mesh(new THREE.CylinderGeometry(.11,.075,.12,16),mat(0x22324f)); kop.rotation.z=Math.PI/2; kop.position.set(-.22,.09,0); g.add(kop); const sp=new THREE.SpotLight(0xfff1c9,0,0,.5,.4,1); sp.position.set(-.3,.09,0); const tg=new THREE.Object3D(); tg.position.set(-3,.3,-1.2); g.add(tg); sp.target=tg; g.add(sp); const lens=new THREE.Mesh(new THREE.CircleGeometry(.1,20),new THREE.MeshBasicMaterial({color:0x6b7286})); lens.position.set(-.285,.09,0); lens.rotation.y=-Math.PI/2; g.add(lens); return {zet(a){ sp.intensity=a?1.4:0; lens.material.color.set(a?0xfff2b0:0x6b7286); }}; }},
+      {id:'bal', naam:'de glimmende bal', bron:false, x:2.0, prop:'bal', maak(g){ const b=new THREE.Mesh(new THREE.SphereGeometry(.2,32,24),new THREE.MeshStandardMaterial({color:0xd8dde8,metalness:.35,roughness:.12})); b.position.y=.2; g.add(b); return {}; }}
+    ];
+    st.items = items.map(it => { const g = viaProp(it.prop, W.root, (gg)=>it.maak(gg)); g.position.set(it.x,0,2.2); const api = g.userData; if(api.zet) api.zet(false); g.userData.pick={tap:()=>tik(it)};
+      // onzichtbaar, ruimer tikgebied rond elk voorwerp (de raycaster raakt ook onzichtbaar materiaal)
+      const hit = new THREE.Mesh(new THREE.CylinderGeometry(.34,.34,1.1,12), new THREE.MeshBasicMaterial({visible:false})); hit.position.y=.5; hit.castShadow=false; hit.userData.pick={tap:()=>tik(it)}; g.add(hit);
+      return Object.assign({g, api}, it); });
+    const tik = (it) => { const el = $('#taakFb');
+      if(it.bron){ const nu = !st.aan[it.id]; st.aan[it.id]=nu; st.items.find(x=>x.id===it.id).api.zet(nu); render(); if(nu) fb(el,'ok',`Ja, ${it.naam} maakt licht.`, `${cap(it.naam)} is een lichtbron.`); }
+      else { if(!st.klaar) st.fout.push(it.id); fb(el,'warn',`${cap(it.naam)} maakt zelf geen licht.`, it.id==='spiegel' ? 'Een spiegel kaatst licht terug, als er een lamp brandt.' : 'De bal glimt, maar alleen als er licht op valt.'); }
+      const aantal = ['lamp','kaars','zaklamp'].filter(x=>st.aan[x]).length;
+      // de afronding gebeurt één keer; een tik op de spiegel of de bal daarna toont alleen de uitleg
+      if(aantal===3 && !st.klaar){ st.klaar=true; fb(el,'ok','Alle lichtbronnen branden.', 'Kijk naar de spiegel en de bal. Maken die nu licht? Nee: ze kaatsen het licht van de lampen terug.'); bewijs(S.kind,'k-bronnen',{juist: st.fout.length===0, fout: st.fout.length?'verwart glimmen met zelf licht maken':null}, true); markeerKlaar(); }
+      zeg(`Er branden ${aantal} van de 3 lichtbronnen.`);
+    };
+    actief = st; zetOverlay([], camKnoppen()); zeg('Het is donker. Op de tafel staan een lamp, een kaars, een spiegel, een zaklamp en een glimmende bal. Tik op de dingen die licht maken.');
+  },
+  paneel(el){ el.append(h('div',{class:'row'}, h('span',{class:'muted small'},'Tik in de kijkdoos, of gebruik deze knoppen:'))); const r = h('div',{class:'opts'}); ['lamp','kaars','spiegel','zaklamp','bal'].forEach(id=>{ const it = actief.items.find(x=>x.id===id); r.append(h('button',{type:'button',class:'opt',onclick:()=>it.g.userData.pick.tap()}, cap(it.naam))); }); el.append(r); }
+});
+TAKEN.k.push({
+  titel:'Breng licht bij de beer', hint:'Draai de spiegel', doel:['92730','92735'], bewijzen:['k-spiegel','k-kring'],
+  canvasLabel:'Lichtkamer. Een zaklamp schijnt op een spiegel. De beer zit in het donker. Pijltje links en rechts draaien de spiegel.',
+  stappen:['De beer zit in het donker.','Draai de spiegel tot het licht bij de beer komt.','Vertel: hoe komt het licht bij de beer?'],
+  zeg:'De beer zit in het donker. Draai de spiegel, tot het licht bij de beer komt.',
+  bouw(){ leegScene(); W.hemi.intensity=.2; W.hemi.color.set(0xa9b8ff); W.hemi.groundColor.set(0x2e2a40); LK.envSterkte=.35; decor('k','spiegel'); LK.envSterkte=1; zetZicht('boven'); W.view.pitch=1.05; W.view.dist=7.2; W.view.target.set(.3,0,1.7); camUpdate();
+    const st = {beta:30, ronde:0, pogingen:0};
+    const BEREN = [{x:.6,z:.55},{x:2.6,z:1.25}];
+    const lampPos = new THREE.Vector3(-2.2,.35,2.4), spPos = new THREE.Vector3(.6,.35,2.4);
+    const zl = zaklamp({angle:.08, penumbra:.2, intensity:1.8, shadow:false, y:.35, bundel:false}); zl.position.copy(lampPos); zl.rotation.y = -Math.PI/2;
+    const kast = viaProp('kast', W.root, (g)=>{ const m = new THREE.Mesh(new THREE.BoxGeometry(.9,.9,.7), mat(0x55607a)); m.position.y=.45; m.castShadow=true; g.add(m); }); kast.position.set(-.7,0,1.2);
+    const spg = viaProp('spiegelDraai', W.root, (g)=>{ const lijst = new THREE.Mesh(new THREE.BoxGeometry(.62,.6,.04), mat(0x8a6b4a)); g.add(lijst); const glas = new THREE.Mesh(new THREE.PlaneGeometry(.54,.52), new THREE.MeshStandardMaterial({color:0xcfe0f2,metalness:.25,roughness:.06,side:THREE.DoubleSide})); glas.position.z=.022; g.add(glas); const glas2=glas.clone(); glas2.position.z=-.022; g.add(glas2); const voet = new THREE.Mesh(new THREE.CylinderGeometry(.28,.28,.05,24), mat(0x55607a)); voet.position.y=-.32; g.add(voet); }); spg.position.copy(spPos);
+    const bm = new THREE.MeshStandardMaterial({color:0x9a6a3c, roughness:.9, emissive:0x000000});
+    const beer = viaProp('beer', W.root, (g)=>{ const lijfB=new THREE.Mesh(new THREE.SphereGeometry(.24,24,18),bm); lijfB.position.y=.24; g.add(lijfB); const kopB=new THREE.Mesh(new THREE.SphereGeometry(.17,24,18),bm); kopB.position.y=.58; g.add(kopB); [-1,1].forEach(s=>{ const o=new THREE.Mesh(new THREE.SphereGeometry(.07,12,10),bm); o.position.set(s*.12,.72,0); g.add(o); }); return {verlicht(a){ bm.emissive.set(a?0x5a3a12:0x000000); }}; });
+    const beerLicht = new THREE.PointLight(0xffe2a0, 0, 1.6, 1.2); W.root.add(beerLicht);
+    const bundelMat = new THREE.MeshBasicMaterial({color:0xffe9a0, transparent:true, opacity:.9, toneMapped:false}); const kernMat = new THREE.MeshBasicMaterial({color:0xfff8e0, toneMapped:false});
+    let stralen = [];
+    // de teruggekaatste straal stopt bij de kast of een muur, en maakt daar een warme lichtvlek
+    const eindLicht = new THREE.PointLight(0xffd27a, 0, 1.1, 1.6); W.root.add(eindLicht);
+    const ray = new THREE.Raycaster(); const binnen = (o, g) => { for(let x=o; x; x=x.parent){ if(x===g) return true; } return false; };
+    const vrijeWeg = (van, dir, max) => { W.root.updateMatrixWorld(true); const lijst = [];
+      W.root.traverseVisible(o=>{ if(!o.isMesh || o.isSprite || o.isPoints) return; const mt = Array.isArray(o.material)?o.material[0]:o.material; if(!mt || mt.visible===false || mt.blending===THREE.AdditiveBlending || mt.depthWrite===false || (mt.transparent && mt.opacity<.5)) return;
+        if(binnen(o,spg) || binnen(o,zl) || binnen(o,beer) || stralen.includes(o)) return; lijst.push(o); });
+      ray.set(van, dir); ray.near=.08; ray.far=max; const hit = ray.intersectObjects(lijst, false)[0]; return hit ? hit.distance : max; };
+    st.update = () => {
+      const b = BEREN[st.ronde]; beer.position.set(b.x,0,b.z); beerLicht.position.set(b.x,.6,b.z+.3);
+      spg.rotation.y = -st.beta*Math.PI/180;
+      weg(stralen, false);
+      const a = new THREE.Vector3(lampPos.x+.25, .35, lampPos.z); const m = new THREE.Vector3(spPos.x,.35,spPos.z);
+      stralen.push(cilinder(a, m, .045, bundelMat), cilinder(a, m, .016, kernMat));
+      const br = st.beta*Math.PI/180; const n = {x:-Math.sin(br), z:Math.cos(br)}; const dn = 1*n.x; const r = {x:1-2*dn*n.x, z:-2*dn*n.z};
+      // raakt de straal de beer? (afstand tot de lijn, alleen vooruit)
+      const vx=b.x-m.x, vz=b.z-m.z; const t = vx*r.x+vz*r.z; const dist = Math.abs(vx*r.z - vz*r.x);
+      const rd = new THREE.Vector3(r.x, 0, r.z).normalize();
+      // binnen de vloer van het poppenhuis blijven (x −3,4 tot 3,4; z 0,05 tot 4,7): de voorkant is open
+      const tx = rd.x>1e-6 ? (3.4-m.x)/rd.x : (rd.x<-1e-6 ? (-3.4-m.x)/rd.x : 99), tz = rd.z>1e-6 ? (4.7-m.z)/rd.z : (rd.z<-1e-6 ? (.05-m.z)/rd.z : 99);
+      const vrij = vrijeWeg(m, rd, Math.min(3.2, tx, tz));
+      const raak = t>0 && dist < .3 && vrij >= t-.25;
+      const L = raak ? t : vrij; const eind = new THREE.Vector3(m.x+r.x*L, .35, m.z+r.z*L);
+      eindLicht.position.set(eind.x-rd.x*.12, .4, eind.z-rd.z*.12); eindLicht.intensity = raak ? 0 : .9;
+      stralen.push(cilinder(m, eind, .045, bundelMat), cilinder(m, eind, .016, kernMat)); stralen.push(pijl(a, m, bundelMat, .07), pijl(m, eind, bundelMat, .07)); stralen.forEach(s=>W.root.add(s));
+      if(beer.userData.verlicht) beer.userData.verlicht(raak); beerLicht.intensity = raak?1.4:0;
+      st.raak = raak; render();
+      zeg(raak ? `De spiegel staat op ${st.beta} graden. Het licht valt op de beer.` : `De spiegel staat op ${st.beta} graden. Het licht gaat ${r.z< -0.3?'naar achter':(r.z>0.3?'naar voor':'opzij')}, niet naar de beer.`);
+    };
+    // tijdens het wachten op de verhuis en na het tweede succes blijft de spiegel staan
+    const draai = (d) => { if((st.verhuist && st.ronde===0) || st.klaar) return; let nb = st.beta + d; if(nb===0) nb += d; if(nb>75||nb<-75) return; st.beta=nb; st.pogingen++; st.update(); const el=$('#taakFb');
+      if(st.raak){ if(st.ronde===0 && !st.verhuist){ st.verhuist=true;
+          if(S.calm){ fb(el,'ok','Het licht is bij de beer!','De spiegel kaatst het licht van de zaklamp naar de beer. Druk op Verder: dan verhuist de beer.'); const nx=$('#beerVerder'); if(nx){ nx.hidden=false; nx.focus(); } }
+          else { fb(el,'ok','Het licht is bij de beer!','De spiegel kaatst het licht van de zaklamp naar de beer. Zo meteen verhuist de beer naar een andere hoek.'); setTimeout(()=>{ if(actief!==st) return; st.verhuis(); }, 2400); } }
+        else if(st.ronde===1){ st.klaar=true; fb(el,'ok','Weer gelukt!','Vraag in de kring: hoe komt het licht bij de beer? Woorden: licht, spiegel, terugkaatsen.'); bewijs(S.kind,'k-spiegel',{juist:true, pogingen:st.pogingen}); markeerKlaar(); const kr=$('#kringKaart'); if(kr) kr.hidden=false; } }
+    };
+    st.verhuis = () => { if(st.ronde!==0) return; st.ronde=1; st.update(); fb($('#taakFb'),'info','De beer is verhuisd.','Draai de spiegel opnieuw, tot het licht bij de beer komt.'); const nx=$('#beerVerder');
+      if(nx){ if(nx===document.activeElement){ const dl=$('#beerLinks'); if(dl) dl.focus(); } nx.hidden=true; } };
+    st.key = (k)=>{ if(k==='ArrowLeft'){ draai(15); return true; } if(k==='ArrowRight'){ draai(-15); return true; } return false; };
+    st.draai = draai; actief = st; st.update();
+    zetOverlay([ibtn('cw','Draai de spiegel naar links',()=>draai(15),{short:'Draai links'}), ibtn('ccw','Draai de spiegel naar rechts',()=>draai(-15),{short:'Draai rechts'})], camKnoppen());
+  },
+  paneel(el){ el.append(h('div',{class:'row'}, h('button',{type:'button',class:'btn big',id:'beerLinks',onclick:()=>actief.draai(15),html:ico('cw')+'Draai links'}), h('button',{type:'button',class:'btn big',onclick:()=>actief.draai(-15),html:ico('ccw')+'Draai rechts'})),
+      h('button',{type:'button',class:'btn primary big',id:'beerVerder',hidden:!(actief.verhuist && actief.ronde===0),onclick:()=>actief.verhuis()},'Verder: de beer verhuist'));
+    // voor de leerkracht: wat het kind zegt, kan geen klik meten (bewijs voor 92735)
+    const meld = h('p',{class:'small',role:'status'});
+    el.append(h('div',{class:'card leerkracht niet-bord',id:'kringKaart',hidden:actief.ronde!==1||!actief.raak}, h('h3',{},'Voor de leerkracht'), h('p',{class:'small'},'Luister in het kringgesprek. Gebruikt het kind de woorden licht, spiegel en terugkaatsen om uit te leggen hoe het licht bij de beer komt?'),
+      h('button',{type:'button',class:'btn',onclick:()=>{ const ok = bewijs(S.kind,'k-kring',{juist:true}); meld.textContent = ok ? `Bewaard bij ${S.kind}.` : (S.kind ? `Dat was al bewaard bij ${S.kind}.` : 'Kies eerst de naam van het kind bij Wie werkt?'); }},'Het kind zei het met licht, spiegel, terugkaatsen'), meld)); }
+});
+TAKEN.k.push({
+  titel:'Grote en kleine schaduw', hint:'Zet de zaklamp dichterbij of verder', doel:['92734','92729'], bewijzen:['k-schaduw'],
+  canvasLabel:()=>`Lichtkamer. Een zaklamp schijnt op het ${naamVoorwerp()} voor een scherm. Pijltje omhoog zet de zaklamp dichterbij, pijltje omlaag verder weg.`,
+  stappen:['Maak de schaduw heel groot.','Maak de schaduw nu heel klein.','Vertel: wat deed je met de zaklamp?'],
+  zeg:'Maak de schaduw heel groot.',
+  bouw(){ let controle = () => {};
+    // stap .35: groot en klein liggen 5 à 6 tikken uit elkaar (in plaats van 17)
+    const st = schaduwOpstelling({z:3.4, stap:.35, alleenAfstand:true, xmin:0, xmax:0, zmin:1.63, zmax:4.2, decor:'k', taak:'schaduw', donker:true, onUpdate:(s)=>controle(s)}); zetZicht('voor'); W.view.yaw=.3; W.view.pitch=.22; W.view.dist=6.6; W.view.target.set(0,.8,2.1); camUpdate();
+    st.doel='groot'; st.groot=false; st.klein=false;
+    controle = (s) => { if(!s.doel) return; const hcm = s.schaduwHoogteCm(); const el = $('#taakFb'); if(!el) return;
+      if(s.doel==='groot' && hcm>19){ s.groot=true; s.doel='klein'; fb(el,'ok','Wat een grote schaduw!',`De zaklamp staat dicht bij het ${naamVoorwerp()}. Maak de schaduw nu heel klein.`); }
+      else if(s.doel==='klein' && hcm<12.2){ s.klein=true; s.doel=null; fb(el,'ok','Nu is de schaduw klein.','De zaklamp staat ver weg. Vraag: wat moet je doen voor een grote schaduw?'); bewijs(S.kind,'k-schaduw',{juist:true}); markeerKlaar(); } };
+    actief = st; zetOverlay(lampKnoppen(st,true), camKnoppen([stralenKnop(st)])); zeg(beschrijfSchaduw(st));
+  },
+  paneel(el){ el.append(h('div',{class:'row'}, h('button',{type:'button',class:'btn big',onclick:()=>{actief.key('ArrowUp'); zeg(beschrijfSchaduw(actief));},html:ico('up')+'Dichterbij'}), h('button',{type:'button',class:'btn big',onclick:()=>{actief.key('ArrowDown'); zeg(beschrijfSchaduw(actief));},html:ico('down')+'Verder weg'}))); }
+});
+
+// ── 4de leerjaar ──
+TAKEN[4].push({
+  titel:'Drie kaartjes met een gaatje', hint:'Verzet de gaatjes in het paneel', doel:['92767'], bewijzen:['4-kaartjes'],
+  canvasLabel:'Lichtkamer, van opzij. Een zaklamp, drie kaartjes met een gaatje en een scherm. Pijltje omhoog en omlaag zetten de zaklamp hoger of lager. De gaatjes verzet je met de knoppen bij de oefening.', vraag:{tekst:'Komt het licht op het scherm?', opties:['Ja','Nee'], antwoord:(st)=>st.door?0:1},
+  stappen:['Zet de gaatjes zo dat het licht op het scherm komt.','Lukt het ook als de zaklamp hoger of lager staat?','Wat moet er waar zijn voor de lamp, de gaatjes en het scherm?'],
+  zeg:'Zet de gaatjes zo, dat het licht op het scherm komt.',
+  bouw(){ leegScene(); W.hemi.intensity=.16; decor('4','kaartjes'); zetZicht('opzij');
+    const H = [.35,.5,.65], LAMP = [.2,.35,.5,.65,.8];
+    const st = {lamp:2, gaten:[0,2,1], door:false, oplossingen:new Set(), stralen:[]};
+    // smalle kegel: geen licht over de bovenrand van de kaartjes; de juiste stralen (helling tot 0,19) blijven volledig belicht
+    const zl = zaklamp({angle:.3, penumbra:.15, intensity:1.5, y:.5, bundelLengte:.62, bundelSterkte:.3});
+    const Z = [1.0,1.8,2.6]; const kaarten=[];
+    const kaartOud = (z, hy) => { const s = new THREE.Shape(); s.moveTo(-.7,0); s.lineTo(.7,0); s.lineTo(.7,1.1); s.lineTo(-.7,1.1); s.closePath(); const p = new THREE.Path(); p.absarc(0,hy,.04,0,Math.PI*2,true); s.holes.push(p); const g = new THREE.ExtrudeGeometry(s,{depth:.02,bevelEnabled:false}); g.translate(0,0,-.01); const m = new THREE.Mesh(g, mat(0xf4f1ea,{roughness:1})); m.position.set(0,0,z); m.castShadow=true; m.receiveShadow=true; W.root.add(m); return m; };
+    st.update = () => {
+      kaarten.forEach(k=>{ W.root.remove(k); vrijObject(k); }); kaarten.length=0;
+      Z.forEach((z,i)=>{ const k = LK.props.kaartje(H[st.gaten[i]], 3-i); k.position.set(0,0,z); W.root.add(k); kaarten.push(k); });
+      const ly = LAMP[st.lamp]; zl.position.set(0, ly, 3.4+.23); zl.userData.hoogte(ly); zl.userData.sp.target.position.set(0, -(.0), -5);
+      // rechte lijn: lamp (z 3.4) en gaatjes op z 2.6, 1.8, 1.0 liggen op één lijn
+      const ys = [H[st.gaten[2]], H[st.gaten[1]], H[st.gaten[0]]]; const stap = ys[0]-ly;
+      st.door = Math.abs((ys[1]-ys[0])-stap)<.001 && Math.abs((ys[2]-ys[1])-stap)<.001;
+      if(st.door) st.oplossingen.add(`${st.lamp}-${st.gaten.join('')}`);
+      weg(st.stralen, true);
+      if(st.toonStralen){ const m = straalMat(); let a = new THREE.Vector3(0,ly,3.4); const b = new THREE.Vector3(0,ys[0],2.6); const dir = new THREE.Vector3().subVectors(b,a).normalize(); let eind = null;
+        for(let i=1;i<3;i++){ const z = Z[2-i]; const t=(z-a.z)/dir.z; const y=a.y+dir.y*t; if(Math.abs(y-ys[i])>.04){ eind = new THREE.Vector3(0,y,z); break; } }
+        if(!eind){ const t=(0-a.z)/dir.z; eind = new THREE.Vector3(0,a.y+dir.y*t,0.01); }
+        const c = cilinder(a, eind, .012, m); W.root.add(c); st.stralen.push(c); const pj = pijl(a, eind, m); W.root.add(pj); st.stralen.push(pj); }
+      zetStralenKnop(st); render(); zeg(beschrijfKaartjes(st));
+    };
+    const beschrijfKaartjes = (s)=>{ const nm=['laag','in het midden','hoog']; return `De zaklamp staat ${['heel laag','laag','in het midden','hoog','heel hoog'][s.lamp]}. Gaatje 1 (bij de lamp) zit ${nm[s.gaten[2]]}, gaatje 2 ${nm[s.gaten[1]]}, gaatje 3 ${nm[s.gaten[0]]}. ${s.door?'Er valt een lichtvlek op het scherm.':'Er komt geen licht op het scherm.'}`; };
+    st.zetGat = (i, d) => { st.gaten[i] = clamp(st.gaten[i]+d, 0, 2); st.update(); evalueer(); };
+    st.zetLamp = (d) => { st.lamp = clamp(st.lamp+d, 0, 4); st.update(); evalueer(); };
+    const evalueer = () => { const el=$('#taakFb'); if(!el) return; if(st.door){ const schuin = [...st.oplossingen].some(k=>!/^2-111$|^1-000$|^3-222$/.test(k));
+        if(schuin){ fb(el,'ok','Ook schuin lukt het!','Het hoeft niet allemaal even hoog. Lamp, gaatjes en scherm moeten op één rechte lijn liggen. Licht gaat rechtdoor.'); bewijs(S.kind,'4-kaartjes',{juist:true, schuin:true}); markeerKlaar(); }
+        else fb(el,'ok','Er komt licht op het scherm.','Zet de zaklamp nu heel hoog of heel laag. Kan je het licht nog op het scherm krijgen?'); }
+      else if(st.oplossingen.size) fb(el,'info','Het licht botst tegen een kaartje.','Kijk van opzij. Waar komt de lichtvlek terecht?'); };
+    st.key = (k)=>{ if(k==='ArrowUp'){ st.zetLamp(1); return true; } if(k==='ArrowDown'){ st.zetLamp(-1); return true; } return false; };
+    st.toonStralen = S.stralenStandaard; actief = st; st.update();
+    zetOverlay([ibtn('up','Zaklamp hoger',()=>st.zetLamp(1),{short:'Lamp hoger'}), ibtn('down','Zaklamp lager',()=>st.zetLamp(-1),{short:'Lamp lager'})], camKnoppen([stralenKnop(st)]));
+  },
+  paneel(el){ const t = h('div',{class:'tbl'}); const tb = h('table',{}, h('thead',{},h('tr',{},h('th',{},'Kaartje'),h('th',{},'Gaatje'),h('th',{},''))));
+    const body = h('tbody'); [[2,'1 (bij de lamp)'],[1,'2'],[0,'3 (bij het scherm)']].forEach(([i,n])=>{ body.append(h('tr',{},h('td',{},n),h('td',{},h('span',{id:'gat'+i},['laag','midden','hoog'][actief.gaten[i]])),h('td',{},h('div',{class:'row'}, h('button',{type:'button',class:'btn','aria-label':`Gaatje ${n} hoger`,onclick:()=>{actief.zetGat(i,1); $('#gat'+i).textContent=['laag','midden','hoog'][actief.gaten[i]];},html:ico('up')}), h('button',{type:'button',class:'btn','aria-label':`Gaatje ${n} lager`,onclick:()=>{actief.zetGat(i,-1); $('#gat'+i).textContent=['laag','midden','hoog'][actief.gaten[i]];},html:ico('down')}))))); });
+    tb.append(body); t.append(tb); el.append(t); }
+});
+TAKEN[4].push({
+  titel:'Waar valt de schaduw?', hint:'Voorspel eerst, toon daarna', doel:['92767'], bewijzen:['4-voorspel'],
+  canvasLabel:()=>`Lichtkamer. Een zaklamp schijnt op het ${naamVoorwerp()} voor een scherm met de letters A, B en C. De zaklamp staat vast.`, vraag:{tekst:'Waar valt de schaduw?', opties:['A','B','C'], antwoord:(st)=>st.juistIdx},
+  stappen:['Kijk waar de zaklamp staat.','Voorspel: valt de schaduw bij A, B of C?','Toon de schaduw en de lichtstralen. Klopte je voorspelling?'],
+  zeg:'Kijk waar de zaklamp staat. Voorspel waar de schaduw valt.',
+  bouw(){ const RONDES=[{x:-1.2,z:2.4},{x:1.0,z:1.8},{x:.5,z:3.4}];
+    const st = schaduwOpstelling({vast:true, x:RONDES[0].x, z:RONDES[0].z}); zetZicht('voor');
+    st.ronde=0; st.juist=0; st.verbergSchaduw=true;
+    const zetRonde = () => { const r = RONDES[st.ronde]; st.lamp.x=r.x; st.lamp.z=r.z; st.verbergSchaduw=true; st.toonStralen=false; st.getoond=false; st.uitkomst=false; weg(st.markers, true); st.update();
+      const top = SIL_TOP[S.voorwerp][0]; const s = schaduwPunt({x:st.lamp.x,y:st.lamp.y,z:st.lamp.z-.23}, 0, top[1]*.6, 1.0);
+      const xs = [s.x, -s.x*.9, 0]; // juist, aan de kant van de lamp, recht achter het voorwerp
+      if(Math.abs(s.x)<.35){ xs[1] = s.x + (st.lamp.x>0? 1.0:-1.0); xs[2] = s.x - (st.lamp.x>0? 1.0:-1.0); }
+      const volg = [[0,1,2],[1,0,2],[2,1,0]][st.ronde]; st.pos = volg.map(i=>xs[i]); st.juistIdx = volg.indexOf(0);
+      ['A','B','C'].forEach((L,i)=>{ const sp = label(L); sp.position.set(st.pos[i], s.y+.1, .05); W.root.add(sp); st.markers.push(sp); }); render(); zeg(beschrijfSchaduw(st)+' '+st.plaatsen()); };
+    // waar de letters staan, in woorden (voor wie het beeld niet ziet)
+    st.plaats = (i) => st.pos[i] < -.35 ? 'links' : (st.pos[i] > .35 ? 'rechts' : 'in het midden');
+    st.plaatsen = () => `Op het scherm staan drie letters: ${['A','B','C'].map((L,i)=>`${L} ${st.plaats(i)}`).join(', ')}.`;
+    st.toon = () => { st.verbergSchaduw=false; st.toonStralen=true; st.getoond=true; st.update(); };
+    st.verberg = () => { if(st.getoond) return; st.verbergSchaduw=true; st.toonStralen=false; st.update(); };
+    st.antwoord = (i) => { const el=$('#taakFb'); st.toon(); const ok = i===st.juistIdx; if(ok) st.juist++; const kantFout = !ok && Math.sign(st.pos[i]) === Math.sign(st.lamp.x);
+      fb(el, ok?'ok':'warn', ok?'Juist voorspeld.':'Kijk naar de lichtstralen.', ok?'Het licht gaat rechtdoor langs het voorwerp. Achter het voorwerp komt geen licht: daar is de schaduw.': (kantFout?'De schaduw valt niet aan de kant van de lamp, maar aan de andere kant. Volg de rechte lijn van de lamp langs het voorwerp.':'Volg de rechte lijn van de lamp langs de top van het voorwerp tot op het scherm.'));
+      st.log = (st.log||[]).concat({ok, fout: ok?null:(kantFout?'schaduw aan de kant van de lamp':'andere fout')});
+      st.beantwoord = st.beantwoord || []; st.beantwoord[st.ronde] = {i, ok};
+      if(st.ronde<2){ const nx=$('#taakVolgende'); if(nx){ nx.hidden=false; nx.focus(); } } else { requestAnimationFrame(()=>{ const r=$('#rondeTekst'); if(r && (!document.activeElement || document.activeElement===document.body || document.activeElement.disabled)) r.focus(); }); bewijs(S.kind,'4-voorspel',{juist: st.juist>=2, score:`${st.juist}/3`, fout: st.log.find(x=>x.fout)?.fout||null}); markeerKlaar(); } };
+    st.volgende = () => { if(st.ronde>=2) return; st.ronde++; const nx=$('#taakVolgende'); if(nx) nx.hidden=true; const f=$('#taakFb'); if(f) f.innerHTML=''; zetRonde(); renderVoorspel(); const o=$('#voorspelWrap .opt'); if(o) o.focus(); };
+    actief = st; zetRonde(); zetOverlay([], camKnoppen([ibtn('eye','Toon de schaduw',()=>{ if(S.mode==='bord') toonUitkomst(); else st.toon(); },{short:'Toon'})]));
+  },
+  paneel(el){ const w = h('div',{id:'voorspelWrap'}); el.append(w, h('button',{type:'button',class:'btn primary',id:'taakVolgende',hidden:true,onclick:()=>actief.volgende()},'Volgende ronde')); renderVoorspel(); }
+});
+function renderVoorspel(){ const w=$('#voorspelWrap'); if(!w || !actief || !actief.pos) return; w.innerHTML=''; const st=actief; const al = st.beantwoord && st.beantwoord[st.ronde];
+  w.append(h('p',{class:'muted small',id:'rondeTekst',tabindex:'-1'},`Ronde ${st.ronde+1} van 3`), h('div',{class:'opts'}, ...['A','B','C'].map((L,i)=>{ const b = h('button',{type:'button',class:'opt','aria-label':`${L}, ${st.plaats(i)}: hier valt de schaduw`,onclick:(e)=>{ const knop=e.currentTarget; w.querySelectorAll('.opt').forEach(x=>x.disabled=true); const ok=i===st.juistIdx; knop.classList.add(ok?'juist':'fout'); knop.append(markering(ok)); if(!ok){ const jb=w.querySelectorAll('.opt')[st.juistIdx]; if(jb){ jb.classList.add('juist'); jb.append(markering(true)); } } st.antwoord(i);} }, h('span',{class:'letter'},L), 'Hier valt de schaduw');
+    if(al || st.uitkomst){ b.disabled=true; if(al && al.i===i){ b.classList.add(al.ok?'juist':'fout'); b.append(markering(al.ok)); } else if(al && !al.ok && i===st.juistIdx){ b.classList.add('juist'); b.append(markering(true)); } }
+    return b; }))); }
+TAKEN[4].push({
+  titel:'Onderzoek: lamp dichterbij, schaduw groter?', hint:'Kies 10, 20 of 30 cm en lees de meetlat', doel:['92775','92777'], bewijzen:['4-meten','4-besluit'],
+  canvasLabel:()=>`Lichtkamer. Een zaklamp, het ${naamVoorwerp()}, een scherm en een meetlat. Pijltje omhoog en omlaag zetten de zaklamp op 10, 20 of 30 centimeter.`,
+  stappen:()=>['Lees de onderzoeksvraag en kies je hypothese.',`Meet drie keer: zet de zaklamp op 30, 20 en 10 cm van het ${naamVoorwerp()} en lees de schaduw af op de meetlat.`,'Noteer de metingen en kies je conclusie.'],
+  zeg:'Lees de onderzoeksvraag. Kies wat jij denkt. Meet daarna drie keer.',
+  bouw(){ const st = schaduwOpstelling({alleenAfstand:true, xmin:0, xmax:0, z:1.0+3.0+.23, zmin:1.0+1.0+.23, zmax:1.0+3.0+.23}); zetZicht('voor'); W.view.target.set(.35,1.0,.9); W.view.dist=4.0; W.view.pitch=.16; camUpdate(); meetlat(.98);
+    st.metingen = {30:'',20:'',10:''}; st.hyp = null; st.concl=null;
+    st.zetAfstand = (cm) => { st.lamp.z = 1.0 + cm/10 + .23; st.update(); zeg(beschrijfSchaduw(st)+' Lees de hoogte af op de meetlat rechts.'); };
+    st.key = (k)=>{ const nu = Math.round((st.lamp.z-1.23)*10); const lijst=[10,20,30]; let i = lijst.indexOf(nu); if(i<0) i=2; if(k==='ArrowUp') i=Math.max(0,i-1); else if(k==='ArrowDown') i=Math.min(2,i+1); else return false; st.zetAfstand(lijst[i]); return true; };
+    actief = st; zetOverlay([10,20,30].map(cm=>h('button',{type:'button',class:'btn',onclick:()=>st.zetAfstand(cm)},`${cm} cm`)), camKnoppen([stralenKnop(st), ibtn('cam','Neem een foto om te vergelijken',()=>foto(),{short:'Foto'})]));
+    zeg(beschrijfSchaduw(st));
+  },
+  paneel(el){ const st = actief;
+    el.append(h('div',{class:'card soft'}, h('h3',{},'Het onderzoek (klaargezet)'), h('p',{},h('strong',{},'Onderzoeksvraag: '),`Wordt de schaduw van het ${naamVoorwerp()} groter als de zaklamp dichterbij staat?`), h('p',{},h('strong',{},'Je verandert: '),`de afstand tussen zaklamp en ${naamVoorwerp()}.`), h('p',{},h('strong',{},'Je houdt gelijk: '),`de zaklamp, de hoogte van de zaklamp, het ${naamVoorwerp()} en het scherm.`)));
+    const hyp = h('div',{class:'opts'}); [['groter','De schaduw wordt groter.'],['kleiner','De schaduw wordt kleiner.'],['gelijk','De schaduw blijft even groot.']].forEach(([k,t])=>hyp.append(h('button',{type:'button',class:'opt','aria-pressed':String(st.hyp===k),onclick:(e)=>{ st.hyp=k; hyp.querySelectorAll('.opt').forEach(b=>b.setAttribute('aria-pressed','false')); e.currentTarget.setAttribute('aria-pressed','true'); }},t)));
+    el.append(h('h3',{},'1. Mijn hypothese'), hyp);
+    const tbl = h('table',{}, h('thead',{},h('tr',{},h('th',{scope:'col'},`Afstand lamp – ${naamVoorwerp()}`),h('th',{scope:'col'},'Hoogte schaduw (cm)'),h('th',{scope:'col'},h('span',{class:'sr'},'Lamp zetten')))));
+    const tb = h('tbody'); [30,20,10].forEach(cm=>{ const inp = h('input',{type:'number',inputmode:'decimal',step:'0.5',min:'0',max:'30',id:'m'+cm,value:st.metingen[cm]||null,'aria-label':`Hoogte van de schaduw bij ${cm} cm`,oninput:(e)=>{ st.metingen[cm]=e.target.value; }}); tb.append(h('tr',{},h('td',{},`${cm} cm`),h('td',{},inp),h('td',{},h('button',{type:'button',class:'btn',onclick:()=>st.zetAfstand(cm)},'Zet de lamp')))); });
+    tbl.append(tb); el.append(h('h3',{},'2. Mijn metingen'), h('div',{class:'tbl'},tbl));
+    const con = h('div',{class:'opts'}); [['dichter-groter','Hoe dichter de zaklamp, hoe groter de schaduw.'],['dichter-kleiner','Hoe dichter de zaklamp, hoe kleiner de schaduw.'],['geen','De afstand maakt niets uit.']].forEach(([k,t])=>con.append(h('button',{type:'button',class:'opt','aria-pressed':String(st.concl===k),onclick:(e)=>{ st.concl=k; con.querySelectorAll('.opt').forEach(b=>b.setAttribute('aria-pressed','false')); e.currentTarget.setAttribute('aria-pressed','true'); }},t)));
+    el.append(h('h3',{},'3. Mijn conclusie'), con, h('button',{type:'button',class:'btn primary',onclick:()=>{
+      const echt = {}; [30,20,10].forEach(cm=>{ const z=1.0+cm/10; echt[cm] = schaduwPunt({x:0,y:.5,z:z}, 0, SIL_TOP[S.voorwerp][0][1], 1.0).y*10; });
+      const m = (cm)=>parseFloat(String(st.metingen[cm]).replace(',','.'));
+      const leeg = [30,20,10].filter(cm=> st.metingen[cm]==='' || isNaN(m(cm)));
+      // binnen 0,75 cm: haalbaar met de streepjes van 0,5 cm, en kleiner dan het verschil tussen 30 en 20 cm
+      const fouten = [30,20,10].filter(cm=> !leeg.includes(cm) && Math.abs(m(cm)-echt[cm])>.75);
+      const elfb=$('#taakFb');
+      if(!st.hyp){ fb(elfb,'warn','Kies eerst je hypothese.','Wat denk jij, vóór je meet?'); return; }
+      if(leeg.length){ fb(elfb,'warn',`Vul de meting bij ${leeg.join(' en ')} cm nog in.`,'Zet de lamp op die afstand en lees de top van de schaduw af op de meetlat.'); return; }
+      if(fouten.length){ fb(elfb,'warn',`Kijk de meting bij ${fouten.join(' en ')} cm nog eens na.`,'Zet de lamp op die afstand en lees de top van de schaduw af op de meetlat.'); bewijs(S.kind,'4-meten',{juist:false, fout:'leest de meetlat niet nauwkeurig af'}); return; }
+      // de eigen metingen moeten bij elkaar passen: hoe dichter de lamp, hoe hoger de schaduw
+      if(!(m(10)>m(20) && m(20)>m(30))){ fb(elfb,'warn','Kijk naar je eigen cijfers.','Vergelijk 30, 20 en 10 cm: past de volgorde bij wat je op de meetlat ziet? Meet die nog eens.'); bewijs(S.kind,'4-meten',{juist:false, fout:'metingen passen niet bij elkaar'}); return; }
+      bewijs(S.kind,'4-meten',{juist:true});
+      if(!st.concl){ fb(elfb,'warn','Je metingen kloppen. Kies nu je conclusie.','Wat zeggen je metingen?'); return; }
+      const ok = st.concl==='dichter-groter';
+      fb(elfb, ok?'ok':'warn', ok?'Je onderzoek is af.':'Kijk naar je metingen.', ok?`Je metingen tonen het: bij 10 cm is de schaduw het grootst. ${st.hyp==='groter'?'Je hypothese klopte.':'Je hypothese klopte niet, en dat is ook een uitkomst.'}`:'Bij 10 cm meet je de grootste schaduw. Welke conclusie past daarbij?');
+      bewijs(S.kind,'4-besluit',{juist:ok, fout: ok?null:'conclusie past niet bij de metingen'}); if(ok) markeerKlaar(); }},'Mijn onderzoek nakijken'));
+  }
+});
+
+TAKEN[4] = [TAKEN[4][1], TAKEN[4][0], TAKEN[4][2]];
+
+// ── 6de leerjaar ──
+const STOFFEN = [
+  {id:'glas', naam:'glas', T:.9, R:.1, wijd:false, kleur:0xbfe6ff, opac:.25},
+  {id:'calque', naam:'calqueerpapier', T:.5, R:.4, wijd:true, kleur:0xf5f5ef, opac:.7},
+  {id:'wit', naam:'wit karton', T:0, R:.8, wijd:true, kleur:0xffffff, opac:1},
+  {id:'zwart', naam:'zwart karton', T:0, R:.1, wijd:true, kleur:0x1a1a1a, opac:1},
+  {id:'alu', naam:'aluminiumfolie', T:0, R:.8, wijd:true, kleur:0xd9dde3, opac:1, metaal:true},
+  {id:'spiegel', naam:'spiegel', T:0, R:.9, wijd:false, kleur:0xffffff, opac:1, metaal:true}
+];
+// vakwoorden naast de kindertaal
+const GEDRAG = {doorlaten:'doorlaten (laat licht door)', terugkaatsen:'reflecteren (kaatst licht terug)', opslorpen:'absorberen (slorpt licht op)'};
+const JUIST6 = {glas:'doorlaten', calque:'doorlaten', wit:'terugkaatsen', zwart:'opslorpen', alu:'terugkaatsen', spiegel:'terugkaatsen'};
+function bolletjes(s){ return {terug:Math.round(s.R*10), door:Math.round(s.T*10), blijft:10-Math.round(s.R*10)-Math.round(s.T*10)}; }
+function niveau(v){ return v>.6?'veel':(v>.25?'wat':(v>.05?'een beetje':'bijna geen')); }
+TAKEN[6].push({
+  titel:'Stoffen in de lichtstraal', hint:'Kies een stof in het paneel', doel:['92833'], bewijzen:['6-stoffen','6-voorspel'],
+  canvasLabel:'Lichtkamer. Een zaklamp schijnt op een stof in een houder. Lichtmeter A staat erachter, lichtmeter B opzij. Kies de stof met de knoppen bij de oefening.', vraag:{tekst:'Wat doet deze stof vooral met het licht?', opties:['Doorlaten','Reflecteren (terugkaatsen)','Absorberen (opslorpen)'], antwoord:(st)=>['doorlaten','terugkaatsen','opslorpen'].indexOf(JUIST6[st.stof.id])},
+  stappen:['Kies een stof. Voorspel: verdeel 10 lichtbolletjes over reflecteren (terugkaatsen), doorlaten en absorberen (opslorpen).','Druk op Meet: de zaklamp gaat aan. Vergelijk met de lichtmeters achter en opzij.','Sorteer elke stof: wat doet ze vooral?'],
+  zeg:'Kies een stof en zet ze in de lichtstraal. Kijk naar de lichtmeters.',
+  bouw(){ leegScene(); W.hemi.intensity=.2; const D = decor('6','stoffen'); zetZicht('schuin'); W.view.target.set(.8,.75,1.8); W.view.yaw=-.42; W.view.pitch=.36; W.view.dist=7.6; camUpdate();
+    // de voorspelling begint leeg: niets is voorgevuld
+    const st = {stof:STOFFEN[0], sortering:{}, gemeten:{}, voorspeld:{}, verdeling:{terug:0,door:0,blijft:0}};
+    const zl = zaklamp({angle:.11, penumbra:.25, intensity:1.6, y:.6, bundelLengte:1.45, bundelSterkte:.55}); zl.position.set(0,.6,3.6); zl.userData.sp.target.position.set(0,0,-5);
+    if(!D.zijscherm){ const zij = new THREE.Mesh(new THREE.PlaneGeometry(2.6,1.6), mat(0xe4e7ee,{roughness:1, side:THREE.DoubleSide})); zij.position.set(2.3,.8,2.0); zij.rotation.y=-Math.PI/2; zij.receiveShadow=true; W.root.add(zij); }
+    let vel = null;
+    const houder = viaProp('houder', W.root, (g)=>{ vel = new THREE.Mesh(new THREE.PlaneGeometry(.8,.8), mat(0xffffff,{side:THREE.DoubleSide})); vel.castShadow=true; g.add(vel); const stok = new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,.5,8), mat(0x6b4f35)); stok.position.y=-.5; g.add(stok); return {zetStof(s){ vel.material.color.set(s.kleur); vel.material.transparent = s.opac<1; vel.material.opacity=s.opac; vel.material.metalness = s.metaal?.6:0; vel.material.roughness = s.metaal?(s.id==='alu'?.35:.08):.9; vel.material.needsUpdate=true; }}; });
+    houder.position.set(0,.6,2.0); houder.rotation.y = Math.PI/4;
+    // zichtbare bundels: doorgelaten (naar achter) en teruggekaatst (opzij)
+    const bDoor = LK.bundel({lengte:1.9, hoek:.07, sterkte:.6}); bDoor.position.set(0,.6,1.98); bDoor.lookAt(0,.6,0); W.root.add(bDoor);
+    const bTerug = LK.bundel({lengte:2.2, hoek:.07, sterkte:.6}); bTerug.position.set(.03,.6,2.0); bTerug.lookAt(2.3,.6,2.0); W.root.add(bTerug);
+    const meterA = viaProp('meter', W.root, ()=>({})); meterA.position.set(-1.15,0,.42); if(meterA.userData.label) meterA.userData.label('A');
+    const meterB = viaProp('meter', W.root, ()=>({})); meterB.position.set(1.95,0,1.0); meterB.rotation.y = -Math.PI/2.6; if(meterB.userData.label) meterB.userData.label('B');
+    // doorgelaten licht (naar het scherm achter) en teruggekaatst licht (naar het zijscherm)
+    const door = new THREE.SpotLight(0xfff1c9, 0, 0, .14, .5, 1); door.position.set(0,.6,1.95); const dT = new THREE.Object3D(); dT.position.set(0,.6,0); W.root.add(dT); door.target=dT; W.root.add(door);
+    const terug = new THREE.SpotLight(0xfff1c9, 0, 0, .14, .5, 1); terug.position.set(.05,.6,2.0); const rT = new THREE.Object3D(); rT.position.set(2.3,.6,2.0); W.root.add(rT); terug.target=rT; W.root.add(terug);
+    // voorspel eerst: tot er gemeten is, blijft de zaklamp uit en verraadt het beeld niets
+    st.update = () => { const s = st.stof; if(houder.userData.zetStof) houder.userData.zetStof(s); const gm = !!st.gemeten[s.id]; zl.userData.zet(gm);
+      bDoor.material.uniforms.sterkte.value = .65*s.T; bTerug.material.uniforms.sterkte.value = .65*s.R; bDoor.visible = gm && s.T>0.02; bTerug.visible = gm && s.R>0.02;
+      const bb0 = bolletjes(s); if(meterA.userData.zet) meterA.userData.zet(gm ? bb0.door/10 : null); if(meterB.userData.zet) meterB.userData.zet(gm ? bb0.terug/10 : null);
+      door.intensity = gm ? s.T*1.6 : 0; door.angle = s.wijd?.5:.12; door.penumbra = s.wijd?1:.3;
+      terug.intensity = gm ? s.R*1.6 : 0; terug.angle = s.wijd?.6:.12; terug.penumbra = s.wijd?1:.3; render();
+      const m = $('#meters'); if(m && !st.gemeten[s.id]){ m.innerHTML=''; m.append(h('p',{class:'small muted',style:'grid-column:1/-1'},'Verdeel eerst je 10 lichtbolletjes en druk dan op Meet.')); } else if(m){ m.innerHTML=''; const bb = bolletjes(s); [['Gereflecteerd (meter B)', bb.terug],['Doorgelaten (meter A)', bb.door],['Geabsorbeerd (rest)', bb.blijft]].forEach(([n,v])=>{ m.append(h('span',{},n), h('div',{class:'bar',role:'img','aria-label':`${n}: ongeveer ${v} van de 10 bolletjes`},h('i',{style:`width:${v*10}%`})), h('span',{class:'small'},`± ${v}`)); }); }
+      zeg(gm ? `In de lichtstraal staat ${s.naam}. Achter de stof komt ${niveau(s.T)} licht. Opzij komt ${niveau(s.R)} licht. Geabsorbeerd (opgeslorpt): ${niveau(Math.max(0,1-s.T-s.R))} licht.` : `In de houder staat ${s.naam}. De zaklamp is nog uit. Verdeel eerst je 10 lichtbolletjes en druk dan op Meet.`); };
+    // de uitkomst tonen zonder te meten (klasvraag of spatie op het digibord)
+    st.toon = () => { st.gemeten[st.stof.id]=true; st.update(); };
+    st.kies = (id) => { st.stof = STOFFEN.find(x=>x.id===id); st.verdeling.terug=0; st.verdeling.door=0; st.verdeling.blijft=0; st.update(); if(window.tekenVerdeling) tekenVerdeling(); $('#stofKeuze') && $('#stofKeuze').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.id===id))); };
+    actief = st; st.update(); zetOverlay([], camKnoppen());
+  },
+  paneel(el){ const st=actief;
+    const vbox = h('div',{class:'card soft',id:'verdeling'});
+    // één vaste live-regio voor de teller; het vak zelf wordt opnieuw getekend en de focus komt terug op dezelfde knop
+    const live = h('p',{class:'sr','aria-live':'polite'});
+    const RIJEN = [['terug','reflecteren (kaatst terug)'],['door','doorlaten (gaat erdoor)'],['blijft','absorberen (blijft in de stof)']];
+    window.tekenVerdeling = (gewijzigd) => { const f = (document.activeElement && vbox.contains(document.activeElement)) ? document.activeElement.getAttribute('aria-label') : null;
+      vbox.innerHTML=''; const v = st.verdeling; const som = v.terug+v.door+v.blijft;
+      vbox.append(h('h3',{},`Voorspel bij ${st.stof.naam}: verdeel 10 lichtbolletjes`));
+      RIJEN.forEach(([k,t])=>vbox.append(h('div',{class:'row'}, h('span',{style:'min-width:12em'},t), h('button',{type:'button',class:'btn icon-btn','aria-label':`Minder bij ${t}`,onclick:()=>{ if(v[k]>0){v[k]--; tekenVerdeling(k);} },html:ico('down')}), h('strong',{style:'min-width:2ch;text-align:center'},String(v[k])), h('button',{type:'button',class:'btn icon-btn','aria-label':`Meer bij ${t}`,onclick:()=>{ if(som<10){v[k]++; tekenVerdeling(k);} },html:ico('up')}), h('span',{class:'small muted','aria-hidden':'true'},'●'.repeat(v[k])))));
+      vbox.append(h('p',{class:'small muted',id:'nogTeVerdelen'},`Nog te verdelen: ${10-som}`), h('button',{type:'button',class:'btn primary','aria-describedby':'nogTeVerdelen',onclick:()=>{ const elfb=$('#taakFb');
+        if(som!==10){ fb(elfb,'warn','Verdeel eerst alle 10 lichtbolletjes.',`Nog te verdelen: ${10-som}. Pas daarna gaat de zaklamp aan.`); return; }
+        const echt = bolletjes(st.stof); const grootste = (o)=>Object.entries(o).sort((a,b)=>b[1]-a[1])[0][0]; const ok = grootste(v)===grootste(echt);
+        // de eerste voorspelling per stof telt
+        if(!st.voorspeld[st.stof.id]) st.voorspeld[st.stof.id]={ok}; st.gemeten[st.stof.id]=true; st.update();
+        fb(elfb, ok?'ok':'warn', ok?'Je voorspelling klopte grotendeels.':'Kijk naar de meters.', ok?'Kijk of er nog bolletjes in een ander bakje zitten: een stof doet vaak meer dan één ding.':`Bij ${st.stof.naam} gaat het meeste licht naar "${{terug:'reflecteren (terugkaatsen)',door:'doorlaten',blijft:'absorberen (in de stof)'}[grootste(echt)]}".`); const n = Object.keys(st.voorspeld).length; if(n>=4){ const goed = Object.values(st.voorspeld).filter(x=>x.ok).length; bewijs(S.kind,'6-voorspel',{juist: goed>=3, score:`${goed}/${n}`}, true); } }},'Meet'));
+      if(gewijzigd){ const rij = RIJEN.find(r=>r[0]===gewijzigd); live.textContent = `${cap(rij[1])}: ${v[gewijzigd]}. Nog te verdelen: ${10-som}.`; }
+      if(f){ const terug = [...vbox.querySelectorAll('[aria-label]')].find(x=>x.getAttribute('aria-label')===f); if(terug) terug.focus(); } };
+    el.append(vbox, live);
+    const k = h('div',{class:'opts',id:'stofKeuze'}); STOFFEN.forEach(s=>k.append(h('button',{type:'button',class:'opt','data-id':s.id,'aria-pressed':String(s.id===st.stof.id),onclick:()=>st.kies(s.id)}, cap(s.naam))));
+    el.prepend(h('h3',{},'Kies een stof'), k); el.append(h('h3',{},'Lichtmeters'), h('div',{class:'meters',id:'meters'}), h('p',{class:'small muted'},'De meters tonen het ongeveer, in lichtbolletjes van de 10.')); tekenVerdeling();
+    const tbl = h('table',{}, h('thead',{},h('tr',{},h('th',{scope:'col'},'Stof'),h('th',{scope:'col'},'Wat doet ze vooral?'))));
+    const tb = h('tbody'); STOFFEN.forEach(s=>{ const sel = h('select',{'aria-label':`Wat doet ${s.naam} vooral?`,onchange:(e)=>{ st.sortering[s.id]=e.target.value; }}, h('option',{value:''},'kies'), ...Object.entries(GEDRAG).map(([k,t])=>h('option',{value:k,selected:st.sortering[s.id]===k?true:null},t))); tb.append(h('tr',{},h('td',{},cap(s.naam)),h('td',{},sel))); });
+    tbl.append(tb); el.append(h('h3',{},'Sorteer'), h('div',{class:'tbl'},tbl), h('button',{type:'button',class:'btn primary',onclick:()=>{
+      const fout = STOFFEN.filter(s=>st.sortering[s.id]!==JUIST6[s.id]); const elfb=$('#taakFb');
+      if(fout.length===0){ fb(elfb,'ok','Alles juist gesorteerd.','Calqueerpapier laat een deel door en reflecteert (kaatst) een deel terug: het laat het licht verstrooid door.'); bewijs(S.kind,'6-stoffen',{juist:true}); markeerKlaar(); }
+      else { const f = fout[0]; const verwar = (f.id==='alu'||f.id==='spiegel') && st.sortering[f.id]==='opslorpen'; fb(elfb,'warn',`Kijk ${f.naam} nog eens na.`, verwar?'Glanzende stoffen absorberen (slorpen) weinig licht: kijk naar lichtmeter B opzij.':'Zet de stof in de lichtstraal en vergelijk meter A en meter B.'); bewijs(S.kind,'6-stoffen',{juist:false, fout: verwar?'verwart reflecteren met absorberen':'sorteert een stof verkeerd'}); } }},'Nakijken'));
+  }
+});
+TAKEN[6].push({
+  titel:'Onderzoek: welk gordijn houdt het meeste licht tegen?', hint:'Volg de stappen in het paneel', doel:['92836','92849'], bewijzen:['6-cyclus','6-plan','6-herhaal'],
+  canvasLabel:'Lichtkamer. Een zaklamp schijnt op een gordijnstaal. Achter het gordijn hangt lichtmeter M. Volg de stappen bij de oefening.',
+  stappen:['Verkennen: wat wil je weten?','Opzetten: wat verander je, wat hou je gelijk?','Uitvoeren: meet en herhaal.','Concluderen en presenteren.'],
+  zeg:'Welk gordijn houdt het meeste licht tegen? Zet je onderzoek op.',
+  bouw(){ leegScene(); W.hemi.intensity=.22; decor('6','gordijn'); zetZicht('schuin');
+    const GORD = {vitrage:{naam:'vitrage', T:.7, kleur:0xf3f0e6, op:.45}, katoen:{naam:'katoen', T:.32, kleur:0x7fa7d9, op:.85}, verduister:{naam:'verduisteringsstof', T:.02, kleur:0x2f3447, op:1}};
+    const st = {fase:0, plan:{verander:null, gelijk:new Set()}, gordijn:'vitrage', afstand:30, lamp:'sterk', metingen:[], gord:GORD};
+    const zl = zaklamp({angle:.3, penumbra:.4, intensity:1.3, y:.6, bundelLengte:1.6, bundelSterkte:.35});
+    let stof = null;
+    const staal = viaProp('gordijnstaal', W.root, (g)=>{ stof = new THREE.Mesh(new THREE.PlaneGeometry(1.2,1.1), mat(0xffffff,{side:THREE.DoubleSide})); stof.position.set(0,.6,0); stof.castShadow=true; g.add(stof); const stang = new THREE.Mesh(new THREE.CylinderGeometry(.02,.02,1.4,8), mat(0x6b4f35)); stang.position.set(0,1.17,0); stang.rotation.z=Math.PI/2; g.add(stang); return {zetStof(gd){ stof.material.color.set(gd.kleur); stof.material.transparent=gd.op<1; stof.material.opacity=gd.op; stof.material.needsUpdate=true; }}; });
+    staal.position.set(0,0,1.2);
+    const meterM = viaProp('meter', W.root, ()=>({})); meterM.position.set(1.55,0,.5); meterM.rotation.y=-.35; if(meterM.userData.label) meterM.userData.label('M');
+    const door = new THREE.SpotLight(0xfff1c9,0,0,.5,.8,1); door.position.set(0,.6,1.15); const dT=new THREE.Object3D(); dT.position.set(0,.6,0); W.root.add(dT); door.target=dT; W.root.add(door);
+    st.meet = () => { const g = GORD[st.gordijn]; const sterk = st.lamp==='sterk'?1:.5; const af = 30/st.afstand; return Math.round(100*g.T*sterk*af*af); };
+    st.update = () => { const g = GORD[st.gordijn]; if(staal.userData.zetStof) staal.userData.zetStof(g);
+      zl.position.set(0,.6,1.2+st.afstand/10+.23); zl.userData.sp.intensity = st.lamp==='sterk'?1.3:.65; zl.userData.sp.target.position.set(0,0,-5);
+      const v = st.meet(); door.intensity = Math.min(1.6, v/100*1.6); if(meterM.userData.zet) meterM.userData.zet(v/100); render(); zeg(`Gordijn: ${g.naam}. Zaklamp ${st.lamp}, op ${st.afstand} cm. De lichtmeter achter het gordijn wijst ${v} aan.`); };
+    actief = st; st.update(); zetOverlay([], camKnoppen());
+  },
+  paneel(el){ const st = actief; const fasen=['Verkennen','Onderzoek opzetten','Onderzoek uitvoeren','Concluderen','Presenteren'];
+    const cy = h('div',{class:'cyclus','aria-label':'Onderzoekscyclus'}); const teken = ()=>{ cy.innerHTML=''; fasen.forEach((f,i)=>cy.append(h('span',{class: i<st.fase?'klaar':(i===st.fase?'nu':'')}, f))); }; teken();
+    const box = h('div',{class:'card soft'}); el.append(cy, box);
+    // rij: het gordijn waarvan net de knop Meet of Herhaal ingedrukt werd
+    const toon = (rij) => { const hadFocus = box.contains(document.activeElement); teken(); box.innerHTML='';
+      if(st.fase===0){ box.append(h('h3',{},'Verkennen'), h('p',{},'Juf Lies wil een gordijn voor de klas dat het zonlicht goed tegenhoudt. Er zijn drie stoffen: vitrage, katoen en verduisteringsstof.'), h('p',{},h('strong',{},'Onderzoeksvraag: '),'Welk gordijn houdt het meeste licht tegen?'), h('button',{type:'button',class:'btn primary',onclick:()=>{st.fase=1; toon();}},'Verder: onderzoek opzetten')); }
+      if(st.fase===1){ const v = h('div',{class:'opts'}); [['stof','De stof van het gordijn'],['afstand','De afstand van de zaklamp'],['lamp','De sterkte van de zaklamp']].forEach(([k,t])=>v.append(h('button',{type:'button',class:'opt','aria-pressed':String(st.plan.verander===k),onclick:(e)=>{ st.plan.verander=k; v.querySelectorAll('.opt').forEach(b=>b.setAttribute('aria-pressed','false')); e.currentTarget.setAttribute('aria-pressed','true'); }},t)));
+        const g = h('div',{class:'row'}); [['stof','de stof'],['afstand','de afstand (30 cm)'],['lamp','dezelfde zaklamp, even sterk'],['meter','de plaats van de lichtmeter']].forEach(([k,t])=>{ const id='g-'+k; g.append(h('label',{class:'btn',for:id}, h('input',{type:'checkbox',id, checked:st.plan.gelijk.has(k)?true:null, onchange:(e)=>{ e.target.checked?st.plan.gelijk.add(k):st.plan.gelijk.delete(k); }}), ' '+t)); });
+        box.append(h('h3',{},'Wat verander je?'), v, h('h3',{},'Wat hou je gelijk?'), g, h('button',{type:'button',class:'btn primary',onclick:()=>{ const elfb=$('#taakFb');
+          const p = st.plan; const goedeVerander = p.verander==='stof'; const gelijkOk = p.gelijk.has('afstand') && p.gelijk.has('lamp') && !p.gelijk.has('stof');
+          if(!goedeVerander){ fb(elfb,'warn','Wat wil je te weten komen?','De vraag gaat over de gordijnen. Dan verander je de stof, en niets anders.'); return; }
+          if(p.gelijk.has('stof')){ fb(elfb,'warn','Je kan de stof niet gelijk houden.','De stof is net wat je verandert.'); return; }
+          if(!gelijkOk){ fb(elfb,'warn','Het is nog geen eerlijk onderzoek.','Als de afstand of de zaklamp verandert, weet je niet of het verschil van de stof komt. Hou ze gelijk.'); bewijs(S.kind,'6-plan',{juist:false, fout:'verandert meer dan één ding'}); return; }
+          fb(elfb,'ok','Een eerlijk onderzoek.','Je verandert alleen de stof. De afstand en de zaklamp blijven gelijk.'); bewijs(S.kind,'6-plan',{juist:true}); st.fase=2; toon(); }},'Mijn plan nakijken')); }
+      if(st.fase===2){ const tbl = h('table',{}, h('thead',{},h('tr',{},h('th',{scope:'col'},'Gordijn'),h('th',{scope:'col'},'Meting 1'),h('th',{scope:'col'},'Meting 2'),h('th',{scope:'col'},h('span',{class:'sr'},'Meten'))))); const tb=h('tbody');
+        Object.entries(st.gord).forEach(([k,g])=>{ const r = st.metingen.filter(m=>m.g===k); tb.append(h('tr',{},h('td',{},cap(g.naam)),h('td',{},r[0]?String(r[0].v):'–'),h('td',{},r[1]?String(r[1].v):'–'),h('td',{},h('button',{type:'button',class:'btn','data-rij':k,disabled:r.length>=2?true:null,onclick:()=>{ st.gordijn=k; st.afstand=30; st.lamp='sterk'; st.update(); st.metingen.push({g:k, v:st.meet()}); toon(k); }}, r.length?'Herhaal':'Meet')))); });
+        tbl.append(tb); const klaar = Object.keys(st.gord).every(k=>st.metingen.filter(m=>m.g===k).length>=2);
+        box.append(h('h3',{},'Meten en herhalen'), h('p',{class:'small'},'De lichtmeter M hangt achter het gordijn. Hoe minder licht hij meet, hoe beter het gordijn licht tegenhoudt. Meet elk gordijn twee keer.'), h('div',{class:'tbl'},tbl), klaar?h('p',{class:'small'},'Je kreeg twee keer hetzelfde: je proef is herhaalbaar.'):null, h('button',{type:'button',class:'btn primary',disabled:klaar?null:true,onclick:()=>{ st.fase=3; toon(); bewijs(S.kind,'6-herhaal',{juist:true}); }},'Verder: concluderen')); }
+      if(st.fase===3){ const c = h('div',{class:'opts'}); Object.entries(st.gord).forEach(([k,g])=>c.append(h('button',{type:'button',class:'opt',onclick:()=>{ const ok = k==='verduister'; const elfb=$('#taakFb'); fb(elfb, ok?'ok':'warn', ok?'Juist besloten.':'Kijk naar je metingen.', ok?'Bij verduisteringsstof meet je bijna geen licht meer.':'Het beste gordijn laat het minst licht door: welke meting is het laagst?'); if(ok){ st.fase=4; toon(); } }}, cap(g.naam))));
+        box.append(h('h3',{},'Welk gordijn houdt het meeste licht tegen?'), c); }
+      if(st.fase===4){ box.append(h('h3',{},'Presenteren'), h('p',{},'Zeg het in één zin aan de klas, bijvoorbeeld:'), h('p',{class:'kidline'},'"Verduisteringsstof houdt het meeste licht tegen. We veranderden alleen de stof en we maten twee keer."'), h('p',{class:'small muted'},'Vraag in de nabespreking: wat zou er gebeuren als je bij het tweede gordijn de zaklamp dichterbij zet?')); bewijs(S.kind,'6-cyclus',{juist:true}); markeerKlaar(); }
+      // de focus stond in de box die net herbouwd is: naar de knop van dezelfde rij, anders de volgende rij of Verder, anders de nieuwe kop
+      const kop = box.querySelector('h3'); if(kop) kop.setAttribute('tabindex','-1');
+      if(hadFocus){ let doel = null;
+        if(rij){ const rijen = [...box.querySelectorAll('button[data-rij]')]; const i = rijen.findIndex(b=>b.dataset.rij===rij);
+          for(let n=0; n<rijen.length && !doel; n++){ const b = rijen[(i+n+rijen.length)%rijen.length]; if(!b.disabled) doel = b; }
+          if(!doel) doel = box.querySelector('.btn.primary:not([disabled])'); }
+        (doel || kop || box).focus(); }
+    }; toon();
+  }
+});
+
+// ───────────────────────── Check (per kind) ─────────────────────────
+const svg = (inner, vb='0 0 200 120') => `<svg viewBox="${vb}" role="img" aria-hidden="true">${inner}</svg>`;
+const S_LAMP = (x,y)=>`<g transform="translate(${x} ${y})"><rect x="-14" y="-7" width="22" height="14" rx="3" fill="#2b5bd0"/><path d="M8 -10 L16 -12 L16 12 L8 10 Z" fill="#22324f"/><circle cx="19" cy="0" r="3" fill="#ffc53d"/></g>`;
+const S_STRAAL = `${S_LAMP(26,62)}<path d="M48 62 L88 62" stroke="#ffc53d" stroke-width="7" stroke-linecap="round"/><path d="M80 54 L92 62 L80 70Z" fill="#ffc53d"/>`;
+const KAARTEN = '<rect x="60" y="10" width="6" height="100" fill="#9aa4bd"/><rect x="100" y="10" width="6" height="100" fill="#9aa4bd"/><rect x="140" y="10" width="6" height="100" fill="#9aa4bd"/><rect x="186" y="5" width="8" height="110" fill="#c9cfdd"/>';
+const CHECKS = {
+  k:[
+    {id:'kc1', doel:'92730', vraag:'Welk ding maakt licht?', opties:[
+      {t:'De spiegel', s:svg('<rect x="70" y="20" width="60" height="80" rx="6" fill="#8a6b4a"/><rect x="78" y="28" width="44" height="64" fill="#cfe3ff"/><path d="M84 40 l14 -8 M84 56 l26 -16" stroke="#fff" stroke-width="4"/>'), fout:'verwart glimmen met zelf licht maken'},
+      {t:'De kaars', s:svg('<rect x="88" y="45" width="24" height="60" rx="3" fill="#f3efe6" stroke="#c9c2b0"/><path d="M100 18 C110 32 108 42 100 44 C92 42 90 32 100 18Z" fill="#ffb347"/>'), juist:true},
+      {t:'De bal', s:svg('<circle cx="100" cy="62" r="36" fill="#d8dde8"/><circle cx="88" cy="50" r="9" fill="#fff"/>'), fout:'verwart glimmen met zelf licht maken'}]},
+    {id:'kc2', doel:'92734', vraag:'De lamp staat links van de boom. Waar komt de schaduw?', opties:[
+      {t:'Links', s:svg(`${S_LAMP(30,80)}<path d="M100 104 L100 60 M86 72 L100 40 L114 72Z" stroke="#3f9a5b" stroke-width="6" fill="#3f9a5b"/><path d="M40 108 L80 108" stroke="#16203a" stroke-width="10" stroke-linecap="round" opacity=".55"/>`), fout:'schaduw aan de kant van de lamp'},
+      {t:'Rechts', s:svg(`${S_LAMP(30,80)}<path d="M100 104 L100 60 M86 72 L100 40 L114 72Z" stroke="#3f9a5b" stroke-width="6" fill="#3f9a5b"/><path d="M120 108 L180 108" stroke="#16203a" stroke-width="10" stroke-linecap="round" opacity=".55"/>`), juist:true}]},
+    // de lichtbron staat in de vraag en in elke prent: de spiegel maakt zelf geen licht, ze kaatst het licht van de zaklamp
+    {id:'kc3', doel:'92730', vraag:'De zaklamp schijnt. De beer zit in het donker achter de kast. Waarmee breng je het licht bij de beer?', opties:[
+      {t:'Met een spiegel', s:svg(S_STRAAL+'<rect x="104" y="26" width="40" height="70" rx="5" fill="#8a6b4a"/><rect x="110" y="32" width="28" height="58" fill="#cfe3ff"/><path d="M116 44 l10 -6 M116 58 l18 -11" stroke="#fff" stroke-width="3"/>'), juist:true},
+      {t:'Met een bal', s:svg(S_STRAAL+'<circle cx="126" cy="62" r="32" fill="#e35d5b"/>'), fout:'kiest niet de spiegel om licht terug te kaatsen'},
+      {t:'Met een boek', s:svg(S_STRAAL+'<rect x="94" y="36" width="72" height="54" rx="4" fill="#2b5bd0"/><rect x="100" y="42" width="60" height="42" fill="#e3ebff"/>'), fout:'kiest niet de spiegel om licht terug te kaatsen'}]}
+  ],
+  4:[
+    {id:'4c1', doel:'92767', vraag:'Van boven gezien: de zaklamp staat links voor het boompje. Waar valt de schaduw op het scherm?', opties:[
+      {t:'A', s:svg('<rect x="10" y="10" width="180" height="8" fill="#9aa4bd"/><circle cx="100" cy="60" r="7" fill="#3f9a5b"/>'+S_LAMP(40,100)+'<rect x="30" y="8" width="34" height="12" fill="#16203a" opacity=".6"/><text x="47" y="36" font-size="16" text-anchor="middle" fill="currentColor">A</text>'), label:'A: de schaduw valt links op het scherm', fout:'schaduw aan de kant van de lamp'},
+      {t:'B', s:svg('<rect x="10" y="10" width="180" height="8" fill="#9aa4bd"/><circle cx="100" cy="60" r="7" fill="#3f9a5b"/>'+S_LAMP(40,100)+'<rect x="83" y="8" width="34" height="12" fill="#16203a" opacity=".6"/><text x="100" y="36" font-size="16" text-anchor="middle" fill="currentColor">B</text>'), label:'B: de schaduw valt recht achter het boompje', fout:'schaduw altijd recht achter het voorwerp'},
+      {t:'C', s:svg('<rect x="10" y="10" width="180" height="8" fill="#9aa4bd"/><circle cx="100" cy="60" r="7" fill="#3f9a5b"/>'+S_LAMP(40,100)+'<rect x="136" y="8" width="34" height="12" fill="#16203a" opacity=".6"/><text x="153" y="36" font-size="16" text-anchor="middle" fill="currentColor">C</text>'), label:'C: de schaduw valt rechts op het scherm', juist:true}]},
+    {id:'4c2', doel:'92767', vraag:'Je zet de zaklamp dichter bij het boompje. De schaduw op het scherm wordt …', opties:[
+      {t:'groter', juist:true}, {t:'kleiner', fout:'verwacht een kleinere schaduw als de lamp dichterbij staat'}, {t:'even groot', fout:'verwacht dat de afstand niets uitmaakt'}]},
+    {id:'4c3', doel:'92767', vraag:'Van opzij gezien. Bij welke opstelling komt er licht op het scherm?', uitleg:'De zaklamp staat links, hoog. Kaartje 1 staat het dichtst bij de lamp, kaartje 3 het dichtst bij het scherm.', opties:[
+      {t:'A', s:svg(`${S_LAMP(22,40)}${KAARTEN}<rect x="59" y="45" width="8" height="10" fill="#fff"/><rect x="99" y="63" width="8" height="10" fill="#fff"/><rect x="139" y="81" width="8" height="10" fill="#fff"/>`), label:'A: gaatje 1 hoog, gaatje 2 in het midden, gaatje 3 laag', juist:true},
+      {t:'B', s:svg(`${S_LAMP(22,40)}${KAARTEN}<rect x="59" y="81" width="8" height="10" fill="#fff"/><rect x="99" y="81" width="8" height="10" fill="#fff"/><rect x="139" y="81" width="8" height="10" fill="#fff"/>`), label:'B: de drie gaatjes zitten laag, even hoog', fout:'zet de gaatjes even hoog, niet op één lijn met de lamp'},
+      {t:'C', s:svg(`${S_LAMP(22,40)}${KAARTEN}<rect x="59" y="35" width="8" height="10" fill="#fff"/><rect x="99" y="75" width="8" height="10" fill="#fff"/><rect x="139" y="35" width="8" height="10" fill="#fff"/>`), label:'C: gaatje 1 hoog, gaatje 2 laag, gaatje 3 hoog', fout:'verwacht dat licht een bocht maakt'}]}
+  ],
+  6:[
+    {id:'6c1', doel:'92833', vraag:'Je houdt een ruit van glas in de lichtstraal. Wat doet het glas vooral?', opties:[{t:'Het laat licht door (doorlaten)', juist:true},{t:'Het reflecteert licht (kaatst het terug)', fout:'verwacht dat glas vooral reflecteert'},{t:'Het absorbeert licht (slorpt het op)', fout:'verwacht dat glas licht absorbeert'}]},
+    {id:'6c2', doel:'92833', vraag:'Welke stof absorbeert het meeste licht (slorpt het meeste licht op)?', opties:[{t:'Aluminiumfolie', fout:'verwart reflecteren met absorberen'},{t:'Zwart karton', juist:true},{t:'Calqueerpapier', fout:'verwart doorlaten met absorberen'}]},
+    {id:'6c3', doel:'92849', vraag:'Lotte wil weten welk gordijn het meeste licht tegenhoudt. Welke proef is eerlijk?', opties:[{t:'Twee gordijnen, dezelfde zaklamp, allebei op 30 cm', juist:true},{t:'Twee gordijnen, maar bij het tweede staat de zaklamp op 10 cm', fout:'verandert meer dan één ding'},{t:'Hetzelfde gordijn, eerst op 30 cm en dan op 10 cm', fout:'onderzoekt een andere vraag'}]}
+  ]
+};
+let checkIdx = 0;
+// antwoorden zonder naam of op het bord: alleen in deze sessie, zodat een vraag niet opnieuw beantwoord kan worden na een tabwissel
+const sessieAntw = {};
+function vorigAntwoord(q){ if(S.mode!=='bord' && S.kind){ const r = RES.kinderen[S.kind] && RES.kinderen[S.kind][q.id]; if(r) return r; } return sessieAntw[werkSleutel()+'|'+q.id] || null; }
+// de naamkeuze: twee lijsten (Oefeningen en Check) die altijd gelijk staan
+function naamKeuze(id, label){
+  const sel = h('select',{id, 'data-kind':'', onchange:(e)=>kiesKind(e.target.value, id)}, h('option',{value:'', selected:!S.kind?true:null},'Kies je naam'), ...VOORBEELDKLAS.map(n=>h('option',{value:n, selected:n===S.kind?true:null}, n)));
+  return h('div',{class:'row niet-bord'}, h('label',{for:id,class:'small'},label), sel, h('span',{class:'small muted'},'(voorbeeldklas)'), h('span',{class:'small naam-melding', hidden:S.kind?true:null},'Kies je naam om je werk te bewaren.'));
+}
+function kiesKind(naam, vanId){
+  S.kind = naam; document.querySelectorAll('select[data-kind]').forEach(x=>{ x.value = S.kind; });
+  document.querySelectorAll('.naam-melding').forEach(x=>{ x.hidden = !!S.kind; });
+  zetGedaan();
+  // een ander kind begint de check vooraan
+  checkIdx = 0; paneelCheck($('#p-check')); if(vanId==='kindKies'){ const k=$('#kindKies'); if(k) k.focus(); }
+}
+// bij kleuters ook de antwoordopties: 'De spiegel, de kaars of de bal?'
+function spreekCheck(q){ if(S.moment!=='k') return q.vraag; const t = q.opties.map((o,i)=>i? o.t.charAt(0).toLowerCase()+o.t.slice(1) : o.t); return `${q.vraag} ${t.length>1 ? t.slice(0,-1).join(', ')+' of '+t[t.length-1] : t[0]}?`; }
+function paneelCheck(el, focusKop){
+  const lijst = CHECKS[S.moment]; el.innerHTML='';
+  el.append(naamKeuze('kindKies','Wie maakt de check?'), h('p',{class:'small muted niet-bord'},'In de echte app kiest het kind zijn naam of nummer. Het resultaat komt bij de leerkracht, niet op een server.'),
+    h('p',{class:'small muted alleen-bord'},'Digibordstand: de klas antwoordt samen. Er wordt niets per kind bewaard.'));
+  if(checkIdx>=lijst.length){
+    const opnieuw = h('button',{type:'button',class:'btn',onclick:()=>{ Object.keys(sessieAntw).filter(k=>k.startsWith(werkSleutel()+'|')).forEach(k=>delete sessieAntw[k]); checkIdx=0; paneelCheck(el, true); }},'Opnieuw (ander kind)');
+    const bewaard = S.mode!=='bord' && S.kind;
+    el.append(h('div',{class:'feedback ok',role:'status'},h('div',{},h('strong',{}, 'Klaar met de check.'), h('p',{}, S.mode==='bord' ? 'In de digibordstand wordt niets bewaard.' : (bewaard ? `Je antwoorden zijn bewaard bij ${S.kind}. De leerkracht ziet ze per doel in het klasoverzicht.` : 'Er is niets bewaard: kies je naam om je werk te bewaren.')))), opnieuw);
+    if(focusKop) opnieuw.focus(); return; }
+  const q = lijst[checkIdx]; const al = vorigAntwoord(q); const juistIdx = q.opties.findIndex(x=>x.juist);
+  const kop = h('h3',{class:'kidline',tabindex:'-1'},q.vraag);
+  const box = h('div',{class:'check-q'}, h('p',{class:'muted small'},`Vraag ${checkIdx+1} van ${lijst.length}`), kop, q.uitleg?h('p',{class:'small'},q.uitleg):null);
+  if(S.moment==='k') box.append(h('button',{type:'button',class:'btn lamp big hoor',onclick:()=>spreek(spreekCheck(q), true),html:ico('speaker')+'Hoor het nog eens'}));
+  const o = h('div',{class:'opts'});
+  const fbx = h('div',{role:'status'}); // vaste live-regio
+  const volgende = () => h('button',{type:'button',class:'btn primary',onclick:()=>{checkIdx++; paneelCheck(el, true);}}, checkIdx+1<lijst.length?'Volgende vraag':'Klaar');
+  const toonUitslag = (keuze, juist, eerder) => { [...o.children].forEach(b=>{ b.disabled=true; }); const jb = o.children[juistIdx];
+    if(keuze!=null && o.children[keuze]){ const kb=o.children[keuze]; kb.classList.add(juist?'juist':'fout'); kb.append(markering(juist)); }
+    if(!juist || keuze==null){ jb.classList.add('juist'); if(keuze!==juistIdx) jb.append(markering(true)); }
+    const tJuist = q.opties[juistIdx].label ? q.opties[juistIdx].label : q.opties[juistIdx].t;
+    fbx.innerHTML=''; fbx.append(h('div',{class:'feedback '+(juist?'ok':'warn')},h('div',{},h('strong',{}, (eerder?'Je eerste antwoord telt: ':'') + (juist?'juist.':'nog niet.')), juist?null:h('p',{},`Het juiste antwoord is: ${tJuist}.`))));
+    const nx = volgende(); box.append(nx); return nx; };
+  q.opties.forEach((op,i)=>o.append(h('button',{type:'button',class:'opt','aria-label':op.label||null,onclick:()=>{
+    const r = {juist:!!op.juist, fout:op.fout||null, doel:q.doel, keuze:i};
+    bewijs(S.kind, q.id, r, true); sessieAntw[werkSleutel()+'|'+q.id] = r;
+    const nx = toonUitslag(i, !!op.juist, false); nx.focus(); spreek(op.juist?'Juist':'Nog niet. Het juiste antwoord is: '+(q.opties[juistIdx].t)); }}, op.s?h('span',{html:op.s,style:'display:block;width:100%'}):null, h('span',{},op.t))));
+  box.append(o, fbx); el.append(box);
+  if(al) toonUitslag(al.keuze, !!al.juist, true);
+  if(focusKop) kop.focus();
+  // prikkelarm: niets vanzelf voorlezen (de knop 'Hoor het nog eens' blijft werken)
+  if(S.tab==='check' && !al && !S.calm) spreek(spreekCheck(q));
+}
+
+// ───────────────────────── Klasoverzicht ─────────────────────────
+function voorbeeldResultaten(){
+  // vaste, verzonnen voorbeeldgegevens (geen echte kinderen)
+  // 1 = juist, 0 = fout, null = nog geen bewijs (k-schaduw en k-kring worden alleen als juist bewaard)
+  const v = {}; const _ = null; const patroon = {
+    k:{kc1:[1,1,0,1,1,1,0,1], kc2:[1,0,1,1,0,1,1,1], kc3:[1,1,1,1,1,0,1,1], 'k-spiegel':[1,1,1,0,1,1,1,1], 'k-bronnen':[1,1,0,1,1,1,0,1], 'k-schaduw':[1,1,1,_,1,1,1,_], 'k-kring':[1,_,1,1,1,_,1,1]},
+    4:{'4c1':[1,0,1,1,0,1,1,1], '4c2':[1,1,1,0,1,1,1,1], '4c3':[1,0,0,1,1,0,1,1], '4-meten':[1,1,0,1,1,1,1,1], '4-besluit':[1,1,_,1,1,1,0,1], '4-kaartjes':[1,0,0,1,1,1,1,1]},
+    6:{'6c1':[1,1,1,1,0,1,1,1], '6c2':[1,0,1,1,1,1,0,1], '6c3':[1,1,0,1,0,1,1,1], '6-plan':[1,1,0,1,0,1,1,1], '6-cyclus':[1,1,1,1,0,1,1,0]}};
+  const fouten = {kc1:'verwart glimmen met zelf licht maken', kc2:'schaduw aan de kant van de lamp', 'k-bronnen':'verwart glimmen met zelf licht maken', '4c1':'schaduw aan de kant van de lamp', '4c3':'zet de gaatjes even hoog, niet op één lijn met de lamp', '4-meten':'metingen passen niet bij elkaar', '4-besluit':'conclusie past niet bij de metingen', '6c2':'verwart reflecteren met absorberen', '6c3':'verandert meer dan één ding', '6-plan':'verandert meer dan één ding'};
+  for(const m of Object.keys(patroon)) for(const [id, rij] of Object.entries(patroon[m])) rij.forEach((x,i)=>{ if(x==null) return; const n=VOORBEELDKLAS[i]; v[n]=v[n]||{}; v[n][id]={juist:!!x, fout:x?null:(fouten[id]||null)}; });
+  return v;
+}
+// welk bewijs telt voor welk doel. 92735 (redeneren met woorden) komt uit de observatie van de leerkracht (k-kring), niet uit een klik.
+const BEWIJS_PER_DOEL = {
+  '92730':['kc1','kc3','k-bronnen','k-spiegel'], '92729':['k-bronnen','k-schaduw'], '92734':['kc2','k-schaduw'], '92735':['k-kring'],
+  '92767':['4c1','4c2','4c3','4-kaartjes','4-voorspel'], '92775':['4-meten'], '92777':['4-meten','4-besluit'],
+  '92833':['6c1','6c2','6-stoffen','6-voorspel'], '92836':['6-cyclus'], '92849':['6c3','6-plan','6-herhaal']
+};
+// korte naam per doel voor de kolomkop van het klasoverzicht
+const KORT = {'92730':'lichtbron en spiegel','92729':'woorden over licht','92734':'oorzaak en gevolg','92735':'redeneren met woorden','92767':'licht gaat rechtdoor','92775':'eerlijk onderzoek uitvoeren','92777':'noteren en besluiten','92833':'doorlaten, reflecteren, absorberen','92836':'onderzoekscyclus','92849':'eerlijk en herhaalbaar'};
+// toont het: alle bewijzen juist, en minstens twee (of het enige bewijs als er maar één is)
+function statusVoor(res, doelId){ const ids = BEWIJS_PER_DOEL[doelId]||[]; const b = ids.map(i=>res&&res[i]).filter(Boolean); if(!b.length) return {k:'leeg', t:'nog geen bewijs'}; const j=b.filter(x=>x.juist).length; const nodig = Math.min(2, ids.length); if(j>=nodig && j===b.length) return {k:'ja',t:'toont het'}; if(j>0) return {k:'bijna',t:'nog wankel'}; return {k:'nee',t:'nog niet'}; }
+// zelfcontrole van de gegevens: elk doel van een oefening of checkvraag heeft bewijs van die oefening, en elk bewijs heeft een bron
+function controleerBewijs(){ const fouten = []; const bronnen = new Set();
+  for(const m of Object.keys(TAKEN)) TAKEN[m].forEach(t=>{ (t.bewijzen||[]).forEach(b=>bronnen.add(b)); t.doel.forEach(d=>{ const ids = BEWIJS_PER_DOEL[d]||[]; if(!(t.bewijzen||[]).some(b=>ids.includes(b))) fouten.push(`oefening "${t.titel}" draagt doel ${d} maar levert er geen bewijs voor`); }); });
+  for(const m of Object.keys(CHECKS)) CHECKS[m].forEach(q=>{ bronnen.add(q.id); if(!(BEWIJS_PER_DOEL[q.doel]||[]).includes(q.id)) fouten.push(`checkvraag ${q.id} telt niet mee voor doel ${q.doel}`); });
+  for(const [d, ids] of Object.entries(BEWIJS_PER_DOEL)) ids.forEach(b=>{ if(!bronnen.has(b)) fouten.push(`bewijs ${b} bij doel ${d} komt uit geen enkele oefening`); });
+  fouten.forEach(f=>console.error('Lichtkamer, bewijs per doel: '+f)); return fouten; }
+function paneelKlas(el){
+  el.innerHTML=''; const vb = voorbeeldResultaten(); const doelen = DOELEN[S.moment];
+  const merge = {}; VOORBEELDKLAS.forEach(n=>{ merge[n] = Object.assign({}, vb[n], RES.kinderen[n]||{}); });
+  el.append(h('p',{class:'small muted'},'Voorbeeldklas met verzonnen namen. Wat je zelf in de check of de oefeningen doet, komt erbij onder de gekozen naam.'),
+    h('div',{class:'legend'}, ...[['ja','toont het'],['bijna','nog wankel'],['nee','nog niet'],['leeg','nog geen bewijs']].map(([k,t])=>h('span',{class:'st '+k},t))), h('p',{class:'small muted'},'Toont het: alle bewijzen bij dit doel juist, en minstens twee (waar er maar één bewijs is, dat ene). Telt alleen het eerste antwoord per checkvraag.'));
+  const tbl = h('table',{}, h('thead',{}, h('tr',{}, h('th',{scope:'col'},'Kind'), ...doelen.map(d=>h('th',{scope:'col',title:d.tekst}, d.code, ' ', h('span',{style:'font-weight:400'}, KORT[d.id]||''), h('br'), h('span',{class:'small muted'},'id '+d.id))))));
+  const tb = h('tbody'); VOORBEELDKLAS.forEach(n=>tb.append(h('tr',{}, h('th',{scope:'row'},n), ...doelen.map(d=>{ const s = statusVoor(merge[n], d.id); return h('td',{},h('span',{class:'st '+s.k},s.t)); }))));
+  const tf = h('tfoot',{}, h('tr',{}, h('th',{scope:'row'},'Klas'), ...doelen.map(d=>{ const n = VOORBEELDKLAS.filter(k=>statusVoor(merge[k], d.id).k==='ja').length; return h('td',{class:'small'}, `${n} van ${VOORBEELDKLAS.length} tonen het`); })));
+  tbl.append(tb, tf); el.append(h('div',{class:'tbl'},tbl));
+  // foutpatronen tellen
+  const ids = new Set(doelen.flatMap(d=>BEWIJS_PER_DOEL[d.id]||[])); const tel = {}; VOORBEELDKLAS.forEach(n=>Object.entries(merge[n]).forEach(([id,r])=>{ if(ids.has(id) && r && r.fout && !r.juist) tel[r.fout]=(tel[r.fout]||0)+1; }));
+  const relevant = Object.entries(tel).sort((a,b)=>b[1]-a[1]);
+  el.append(h('h3',{},'Wat de fouten vertellen'), relevant.length? h('ul',{}, ...relevant.map(([f,c])=>h('li',{}, cap(f)+' ', h('span',{class:'tag'}, `${c} ${c===1?'kind':'kinderen'}`)))) : h('p',{class:'muted'},'Nog geen foutpatronen.'),
+    h('div',{class:'nb'}, S.moment==='4' ? `Tip voor de volgende les: wie denkt dat de schaduw aan de kant van de lamp valt, doet ${oef('4','Waar valt de schaduw')} opnieuw met de lichtstralen aan, in duo met een kind dat het al toont.` : (S.moment==='6' ? 'Tip voor de volgende les: wie meer dan één ding verandert, maakt in duo een plan met de vraag: wat verander je, en wat hou je gelijk?' : 'Tip voor de kring: laat de kinderen een zaklamp op een spiegel richten. Maakt de spiegel nu zelf licht?')));
+}
+
+// ───────────────────────── Doel en lesverloop ─────────────────────────
+function paneelDoel(el){
+  el.innerHTML=''; const m = MOMENTEN[S.moment];
+  el.append(h('div',{class:'meta'}, h('span',{class:'tag lamp'}, m.lang), h('span',{class:'tag'}, 'Wetenschap en techniek'), h('span',{class:'tag'}, m.soort)),
+    h('p',{class:'small muted'}, SOORT_UITLEG[m.soort]+' Buitengewoon basisonderwijs: dezelfde doelen, daar telkens "na te streven".'));
+  if(String(S.moment)==='4') el.append(h('p',{class:'card soft small'}, h('strong',{},'Werk je met een 3de leerjaar? '), 'Dan werk je naar deze doelen toe. Ze moeten bereikt zijn op het einde van het 4de leerjaar. De tussenstappen per leerjaar staan in het leerplan van je net.'));
+  DOELEN[S.moment].forEach(d=>el.append(h('article',{class:'card doel'},
+    h('p',{class:'kidline'}, d.kind),
+    h('p',{class:'lit'}, h('span',{class:'small muted'},'Doeltekst (letterlijk): '), h('q',{}, d.tekst)),
+    h('div',{class:'meta'}, h('span',{class:'tag'}, 'Code '+d.code), h('span',{class:'tag'}, 'id '+d.id), h('span',{class:'tag'}, m.set)),
+    h('p',{class:'small'}, h('strong',{},'Zo zie je dat het lukt: '), d.zie))));
+  el.append(h('details',{}, h('summary',{},'Dezelfde leerlijn op de andere momenten'), h('div',{class:'pane',style:'padding:8px 0'}, ...Object.entries(MOMENTEN).filter(([k])=>k!==S.moment).map(([k,mm])=>h('p',{}, h('strong',{}, mm.lang+': '), DOELEN[k][0].tekst, ' ', h('span',{class:'small muted'},`(${DOELEN[k][0].code}, id ${DOELEN[k][0].id})`))))));
+}
+// verwijzing naar een oefening met nummer én titel, opgebouwd uit TAKEN (blijft juist als de volgorde verandert)
+function oef(m, deel, kort){ const i = TAKEN[m].findIndex(t=>t.titel.includes(deel)); return i<0 ? (kort||deel) : `oefening ${i+1} (${kort||TAKEN[m][i].titel})`; }
+const LESSEN = {
+  k:[['5 min','Kring met echt materiaal','Een zaklamp, een spiegel en een knuffelbeer. Maak de klas donker. Wat geeft licht?'],['10 min','Digibord, samen',`${cap(oef('k','Wie maakt'))} en ${oef('k','beer')}. De kinderen voorspellen met duim omhoog of omlaag; één kind tikt of draait.`],['15 min','Hoeken',`In de ontdekhoek met echte zaklampen en spiegels; aan de Chromebook in duo ${oef('k','schaduw','grote en kleine schaduw')}.`],['5 min','Check','De drie prentvragen, met voorlezen. Het resultaat staat per kind in het overzicht.'],['5 min','Terugblik','"Hoe kwam het licht bij de beer?" Woorden: licht, spiegel, terugkaatsen.']],
+  4:[['5 min','Start met echt materiaal','Een zaklamp en een kartonnen boompje voor het bord. Waar komt de schaduw?'],['15 min','Digibord: voorspellen, waarnemen, verklaren',`${cap(oef('4','Waar valt'))}. Alle kinderen stemmen A, B of C met hun vingers; daarna toon je de schaduw en de lichtstralen.`],['20 min','Chromebook in duo',`${cap(oef('4','kaartjes','drie kaartjes'))} en ${oef('4','Onderzoek','het onderzoek met de meetlat')}. Wie klaar is, test met echte kaartjes.`],['5 min','Check','Drie vragen per kind.'],['5 min','Nabespreking','Scharniervraag: waarom valt de schaduw aan de andere kant dan de lamp?']],
+  6:[['5 min','Start','Een ruit, aluminiumfolie en zwart karton voor de zaklamp. Wat gebeurt er met het licht?'],['10 min','Digibord: samen testen',`${cap(oef('6','Stoffen'))}: test elke stof en laat de klas eerst voorspellen.`],['25 min','Chromebook in duo',`${cap(oef('6','gordijn','de onderzoekscyclus bij de gordijnen'))}. Daarna met echte stoffen nadoen.`],['5 min','Check','Drie vragen per kind.'],['5 min','Presenteren','Elk duo zegt zijn conclusie in één zin, met wat het gelijk hield.']]
+};
+function paneelLes(el){
+  el.innerHTML='';
+  el.append(h('div',{class:'card soft'}, h('h3',{},'Klaar in 5 minuten'), h('ol',{class:'steps'}, h('li',{},h('span',{},'Open de Lichtkamer op de laptop aan het digibord en kies het moment.')), h('li',{},h('span',{},'Zet Digibord aan. Er staan dan geen namen in beeld en er wordt niets per kind bewaard. Met een presenter: PageDown gaat naar de volgende oefening, spatie toont de uitkomst (als er geen knop geselecteerd is; klik anders eerst in de kijkdoos).')), h('li',{},h('span',{},'Leg het echte materiaal klaar (zie onderaan).')), h('li',{},h('span',{},'Start met de klasvraag: iedereen voorspelt, pas dan toon je.')))));
+  const totaal = LESSEN[S.moment].reduce((som,[t])=>som+parseInt(t,10),0);
+  el.append(h('p',{},`Een les van ${totaal} minuten, ${MOMENTEN[S.moment].lang.toLowerCase()}.`));
+  const ol = h('ol',{class:'steps'}); LESSEN[S.moment].forEach(([t,n,d])=>ol.append(h('li',{}, h('div',{}, h('strong',{}, `${n} `), h('span',{class:'tag'},t), h('p',{class:'small'}, d))))); el.append(ol);
+  el.append(h('div',{class:'nb'}, h('strong',{},'Lesplan van het GO! '), 'Hier komt de koppeling met het lesplan van het GO! bij dit doel, zodra de eerste reeks wetenschap en techniek verschijnt (aangekondigd vanaf 9 november 2026) en de rechten voor de app geregeld zijn.'));
+  el.append(h('div',{class:'card soft'}, h('h3',{},'Materiaal'), h('p',{class:'small'}, S.moment==='k'?'Zaklampen, een spiegel, een knuffelbeer, een kartonnen boompje.':(S.moment==='4'?'Zaklampen, kartonnen boompjes, drie kaartjes met een gaatje per duo, een meetlat, wit karton als scherm.':'Zaklampen, een glasplaatje, calqueerpapier, wit en zwart karton, aluminiumfolie, een spiegeltje, drie stukjes gordijnstof.'))));
+}
+function paneelMaak(el){
+  el.innerHTML='';
+  el.append(h('p',{},'Zo zit een pakket rond een eindterm in elkaar. Makers in de scholengroep vullen dit sjabloon in; een klasleerkracht past alleen kleine dingen aan.'));
+  const rows = [['Sjabloon','Lichtkamer: een kijkdoos met een zaklamp, voorwerpen en een scherm, om met licht te onderzoeken'],['Doelen (id)', Object.values(DOELEN).flat().map(d=>d.id).join(', ')],['Per moment','een doelkaart, 2 tot 3 oefeningen, een check van 3 vragen en een lesverloop van 40 tot 50 minuten'],['Bewijs per doel','elke oefening en elke checkvraag hangt aan een doel-id; foutpatronen zijn vooraf benoemd'],['Digibord','voorspel eerst (uitkomst verborgen), klasstemming A/B/C, lichtstralen, foto om te vergelijken; geen namen in beeld en niets per kind bewaard'],['Chromebook','dezelfde kijkdoos in duo, met toetsenbord te bedienen, en voorlezen'],['Resultaten','per kind, alleen op het toestel van de leerkracht. Een Chromebook geeft een resultaatcode of QR, de leerkracht leest die in (zoals nu al in Boosterz bij Inleverpunt). Geen server.']];
+  el.append(h('div',{class:'tbl'}, h('table',{}, h('tbody',{}, ...rows.map(([a,b])=>h('tr',{},h('th',{scope:'row'},a),h('td',{},b)))))));
+  el.append(h('h3',{},'Aanpassen door de leerkracht'));
+  const v = h('select',{id:'voorwerpKies',onchange:(e)=>{ S.voorwerp=e.target.value; laadTaak(); const x=$('#voorwerpKies'); if(x) x.focus(); }}, h('option',{value:'boom',selected:S.voorwerp==='boom'?true:null},'Boompje'), h('option',{value:'huis',selected:S.voorwerp==='huis'?true:null},'Huisje'), h('option',{value:'kind',selected:S.voorwerp==='kind'?true:null},'Kartonnen kind'));
+  el.append(h('div',{class:'row'}, h('label',{for:'voorwerpKies'},'Voorwerp in de schaduwoefeningen'), v));
+  el.append(h('label',{class:'btn',for:'stralenKies'}, h('input',{type:'checkbox',id:'stralenKies',checked:S.stralenStandaard?true:null,onchange:(e)=>{ S.stralenStandaard=e.target.checked; laadTaak(); const x=$('#stralenKies'); if(x) x.focus(); }}), ' Lichtstralen meteen tonen (meer hulp)'));
+  el.append(h('p',{class:'small muted'},'Namen of nummers van de kinderen stelt de leerkracht in bij de klas. Ze verlaten het toestel niet.'));
+}
+
+// ───────────────────────── Opbouw van het paneel ─────────────────────────
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+// 'gedaan' hoort bij wie werkt (een kind, het bord, of zonder naam), niet bij de oefening
+function markeerKlaar(){ const t = huidigeTaak(); (t.klaar = t.klaar || new Set()).add(werkSleutel()); zetGedaan(); }
+function zetGedaan(){ const lijst = TAKEN[S.moment]; document.querySelectorAll('.taak[data-i]').forEach(b=>{ const t = lijst[+b.dataset.i]; const d = b.querySelector('.done'); if(t && d) d.textContent = (t.klaar && t.klaar.has(werkSleutel())) ? 'gedaan' : ''; }); }
+const tekst = (x) => typeof x==='function' ? x() : x;
+function paneelTaak(el){
+  el.innerHTML=''; const lijst = TAKEN[S.moment]; const t = lijst[S.taak];
+  const nav = h('div',{class:'taken'}); lijst.forEach((x,i)=>nav.append(h('button',{type:'button',class:'taak','data-i':String(i),'aria-current':String(i===S.taak),onclick:()=>{ S.taak=i; laadTaak(); const b=$('.taak[aria-current="true"]'); if(b) b.focus(); }}, h('span',{class:'num'},String(i+1)), h('span',{}, x.titel), h('span',{class:'done'}, ''))));
+  el.append(nav);
+  // de klasvraag staat er altijd en is alleen in de digibordstand zichtbaar (wisselen zonder opnieuw op te bouwen)
+  if(t.vraag && W.r) el.append(h('button',{type:'button',class:'btn lamp big alleen-bord',id:'klasvraagKnop',onclick:()=>klasvraag(t),html:ico('users')+'Klasvraag: '+t.vraag.tekst}));
+  el.append(naamKeuze('kindTaak','Wie werkt?'));
+  const doelen = t.doel.map(id=>Object.values(DOELEN).flat().find(d=>d.id===id)).filter(Boolean);
+  const kaart = h('div',{class:'card'}, h('h2',{}, t.titel), h('ol',{class:'steps'}, ...tekst(t.stappen).map(s=>h('li',{},h('span',{},s)))), h('div',{class:'meta'}, ...doelen.map(d=>h('span',{class:'tag',title:d.tekst}, `Doel ${d.code} · id ${d.id}`))));
+  // kleuters: een grote knop die altijd voorleest, ook als Voorlezen uit staat
+  if(S.moment==='k') kaart.append(h('button',{type:'button',class:'btn lamp big hoor',onclick:()=>spreek(t.zeg, true),html:ico('speaker')+'Hoor het nog eens'}));
+  el.append(kaart);
+  const extra = h('div',{class:'pane',style:'padding:0'}); el.append(extra);
+  if(t.paneel && W.r) t.paneel(extra); else if(!W.r) extra.append(h('p',{class:'muted'},'Deze oefening heeft de 3D-kijkdoos nodig. De doelen, de check, het klasoverzicht en het lesverloop werken wel.'));
+  el.append(h('div',{id:'taakFb',role:'status'}));
+  zetGedaan();
+}
+// ── klasvraag: paneel onderaan de kijkdoos, als dialoog ──
+let voteTimer = null;
+function sluitKlasvraag(focusTerug){ clearTimeout(voteTimer); voteTimer=null; $('#stage').classList.remove('stemt'); const v=$('#vote'); if(!v || v.hidden) return; const hadFocus = v.contains(document.activeElement); v.hidden=true; v.innerHTML=''; if(focusTerug || hadFocus){ const k=$('#klasvraagKnop'); if(k && k.offsetParent) k.focus(); } }
+// de uitkomst tonen voor de klas: schaduw en stralen aan, de keuzes uit en 'Volgende ronde' zichtbaar
+function toonUitkomst(){ const st = actief; if(!st || !st.toon) return; st.toon(); st.uitkomst = true;
+  document.querySelectorAll('#voorspelWrap .opt').forEach(b=>b.disabled=true);
+  const nx=$('#taakVolgende'); if(nx && typeof st.ronde==='number' && st.ronde<2) nx.hidden=false; }
+function klasvraag(t){ const v = $('#vote'); clearTimeout(voteTimer); v.hidden=false; v.innerHTML=''; $('#stage').classList.add('stemt');
+  const st = actief; if(st && st.verberg) st.verberg();
+  // de echte keuzes: de letters, of de nummers op de knoppen (met het woord erbij als dat kort is)
+  const kort = t.vraag.opties.every(o=>o.length<=8); const keuzes = t.vraag.opties.map((o,i)=> o.length===1 ? o : (kort ? `${i+1} (${o.toLowerCase()})` : String(i+1))); const lijstTekst = keuzes.length>1 ? keuzes.slice(0,-1).join(', ')+' of '+keuzes[keuzes.length-1] : keuzes[0];
+  const wrap = h('div',{class:'vote-in'}, h('div',{class:'vote-kop'}, h('p',{class:'eyebrow',style:'color:#ffc53d'},'Klasvraag'), h('h2',{id:'voteTitel'}, t.vraag.tekst)), h('p',{class:'uitleg'},`Iedereen kiest eerst: ${lijstTekst}. Tik dan aan wat de klas het meest koos.`));
+  const opts = h('div',{class:'vote-opts'}); t.vraag.opties.forEach((o,i)=>opts.append(h('button',{type:'button','aria-pressed':'false',onclick:(e)=>{ opts.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed','false')); e.currentTarget.setAttribute('aria-pressed','true'); }}, o.length===1 ? h('span',{class:'l'},o) : [h('span',{class:'l'},String(i+1)), h('span',{},o)])));
+  const heeftRondes = st && typeof st.ronde==='number' && st.volgende;
+  const volgendeKnop = h('button',{type:'button',class:'btn primary big',hidden:true,onclick:()=>{ sluitKlasvraag(); if(actief && actief.volgende){ actief.volgende(); klasvraag(t); } }},'Volgende ronde');
+  const toonKnop = h('button',{type:'button',class:'btn lamp big',onclick:()=>{ const j = t.vraag.antwoord(actief); const jb = opts.children[j]; if(jb && !jb.classList.contains('juist')){ jb.classList.add('juist'); jb.append(markering(true)); }
+      opts.querySelectorAll('button').forEach(b=>b.disabled=true); toonUitkomst(); toonKnop.disabled=true; toonKnop.hidden=true;
+      if(heeftRondes && actief.ronde<2){ volgendeKnop.hidden=false; volgendeKnop.focus(); } else sluitKnop.focus(); voteScrolt();
+      // prikkelarm: niets sluit vanzelf; anders sluit het paneel na een tijd zodat de klas de hele opstelling ziet
+      clearTimeout(voteTimer); if(!S.calm) voteTimer = setTimeout(()=>sluitKlasvraag(true), 4500); }},'Toon de uitkomst');
+  const sluitKnop = h('button',{type:'button',class:'btn big',onclick:()=>sluitKlasvraag(true)},'Sluiten');
+  wrap.append(opts, h('div',{class:'row'}, toonKnop, volgendeKnop, sluitKnop));
+  v.append(wrap); spreek(t.vraag.tekst);
+  // smal (tot 600px): de balk staat onder de kijkdoos, dus de balk in beeld; breder ligt hij over de kijkdoos, dus de kijkdoos in beeld
+  try{ (matchMedia('(max-width:600px)').matches ? v : $('#stage')).scrollIntoView({block:'nearest'}); }catch(_){}
+  // focus op de eerste keuze, zonder het paneel te verschuiven: de vraag bovenaan blijft zichtbaar
+  const eerste = opts.querySelector('button'); if(eerste) eerste.focus({preventScroll:true}); v.scrollTop = 0; voteScrolt(); }
+// past de inhoud niet in de balk, dan schuiven de keuzes onder de vaste rij met knoppen door
+function voteScrolt(){ const v=$('#vote'); if(v && !v.hidden) v.classList.toggle('scrolt', v.scrollHeight > v.clientHeight + 1); }
+addEventListener('resize', voteScrolt);
+// focus binnen de dialoog houden; Escape sluit
+$('#vote').addEventListener('keydown',(e)=>{ const v=e.currentTarget; if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); sluitKlasvraag(true); return; }
+  if(e.key==='Tab'){ const f=[...v.querySelectorAll('button')].filter(b=>!b.disabled && !b.hidden && b.offsetParent); if(!f.length) return; const i=f.indexOf(document.activeElement);
+    if(e.shiftKey && (i<=0)){ e.preventDefault(); f[f.length-1].focus(); } else if(!e.shiftKey && (i===f.length-1 || i<0)){ e.preventDefault(); f[0].focus(); } } });
+
+function laadTaak(){ const t = huidigeTaak(); sluitKlasvraag(); $('#stageHint').textContent = t.hint || ''; if(W.zetPlaatje) W.zetPlaatje(MOMENTEN[S.moment].lang); $('#snap').hidden=true;
+  if(W.r){ t.bouw(); zetKwaliteit(); } else actief = {};
+  if(W.r) $('#cv').setAttribute('aria-label', tekst(t.canvasLabel) || 'Lichtkamer.');
+  tekenPanelen(); if(W.r && actief && actief.update && actief.stof) actief.update(); if(!S.calm) spreek(t.zeg); $('#stageChip').textContent = `${MOMENTEN[S.moment].naam} · ${t.titel}`; }
+// elk paneel apart: een fout in één paneel laat de andere staan
+function tekenPanelen(){ [['p-doel',paneelDoel],['p-taak',paneelTaak],['p-check',paneelCheck],['p-klas',paneelKlas],['p-les',paneelLes],['p-maak',paneelMaak]].forEach(([id,f])=>{ try{ f($('#'+id)); }catch(e){ console.error('paneel '+id, e); } }); }
+function kiesTab(id){ if(S.mode==='bord' && id==='klas') id='taak'; S.tab=id; document.querySelectorAll('[role=tab]').forEach(b=>{ const on = b.id==='t-'+id; b.setAttribute('aria-selected',String(on)); b.tabIndex = on?0:-1; $('#'+b.getAttribute('aria-controls')).hidden=!on; }); if(id==='klas') paneelKlas($('#p-klas')); if(id==='check'){ paneelCheck($('#p-check')); } }
+// pijltjes tussen de tabbladen slaan verborgen tabbladen over (Klasoverzicht op het bord)
+document.querySelectorAll('[role=tab]').forEach((b)=>{ b.addEventListener('click',()=>kiesTab(b.id.slice(2))); b.addEventListener('keydown',(e)=>{ if(e.key==='ArrowRight'||e.key==='ArrowLeft'){ const all=[...document.querySelectorAll('[role=tab]')].filter(x=>x.offsetParent); const i=all.indexOf(b); const n = all[(i+(e.key==='ArrowRight'?1:all.length-1))%all.length]; n.focus(); kiesTab(n.id.slice(2)); } }); });
+document.querySelectorAll('[data-moment]').forEach(b=>b.addEventListener('click',()=>{ S.moment=b.dataset.moment; S.taak=0; checkIdx=0; document.querySelectorAll('[data-moment]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+  // kleuters lezen niet: Voorlezen gaat aan (de klik op het moment is de handeling van de gebruiker)
+  if(S.moment==='k' && !S.voice){ S.voice=true; $('#btnVoice').setAttribute('aria-pressed','true'); }
+  laadTaak(); }));
+// standwissel: alleen klassen en de check; het oefeningenpaneel en de toestand van de oefening blijven staan
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{ S.mode=b.dataset.mode; const bord = S.mode==='bord';
+  document.documentElement.classList.toggle('bord', bord); document.body.classList.toggle('bord', bord);
+  document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+  if(!bord) sluitKlasvraag(); if(bord && S.tab==='klas') kiesTab('taak');
+  zetGedaan(); checkIdx=0; try{ paneelCheck($('#p-check')); }catch(e){ console.error(e); }
+  zetKwaliteit(); render(); setTimeout(resize,60); }));
+$('#btnCalm').addEventListener('click',(e)=>{ S.calm=!S.calm; e.currentTarget.setAttribute('aria-pressed',String(S.calm)); document.documentElement.classList.toggle('calm',S.calm); document.body.classList.toggle('calm',S.calm); if(versiering){ versiering.visible=!S.calm; } zetKwaliteit(); render(); if(S.calm) clearTimeout(voteTimer); });
+$('#btnVoice').addEventListener('click',(e)=>{ S.voice=!S.voice; e.currentTarget.setAttribute('aria-pressed',String(S.voice)); if(S.voice) { const t=huidigeTaak(); spreek(t.zeg); } else { try{speechSynthesis.cancel();}catch(_){} } });
+
+// presenter op het digibord: PageDown/PageUp werken ook als een knop focus heeft; spatie alleen als er geen knop geselecteerd is
+document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && !$('#vote').hidden){ sluitKlasvraag(true); return; }
+  if(S.mode!=='bord') return; const tag = (e.target.tagName||'').toLowerCase();
+  if(['input','select','textarea'].includes(tag) || e.target.isContentEditable) return;
+  if(e.key===' '){ if(tag==='button' || tag==='summary' || e.target.getAttribute('role')==='tab') return; if(actief && actief.toon){ e.preventDefault(); toonUitkomst(); } }
+  else if(e.key==='PageDown'||e.key==='PageUp'){ e.preventDefault(); const n = TAKEN[S.moment].length; S.taak = (S.taak + (e.key==='PageDown'?1:n-1)) % n; laadTaak(); } });
+
+controleerBewijs();
+init3D();
+laadTaak();
+kiesTab('taak');
+})();
+</script>
