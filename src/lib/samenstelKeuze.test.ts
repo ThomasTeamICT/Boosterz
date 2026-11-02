@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { leerplanUitSelectie, selectieVanLeerplan, telSelectie } from './doelenSamenstellen';
 import type { Minimumdoel, MinimumdoelenIndex, MinimumdoelenSetBestand, MinimumdoelenSetKop } from './minimumdoelen';
-import { filterSets, zoekTermen } from './minimumdoelenBron';
+import { filterSets, setKenmerken as setKenmerkenVanNaam, zoekTermen } from './minimumdoelenBron';
 import { naarSetKeuzes } from './richtingKader';
 import {
   GRAAD_MET_STROMEN, MAX_GEKOZEN_SETS, ZIN_A_EN_B, ZIN_GEWOON_EN_BUITENGEWOON, ZIN_LIJST_MENGT_STROMEN, ZIN_TWEELING_GEKOZEN, aantalPerSoort, beginLeerlingen,
@@ -701,6 +701,34 @@ describe('sturen: de beginwaarden van het blok "Voor welke leerlingen"', () => {
 
   it('een set zonder graad: geen gemeenschappelijke graad', () => {
     expect(beginLeerlingen(['so_a', 'domein_buso'], STUUR).graad).toBe('');
+  });
+});
+
+describe('sturen: sets van het basisonderwijs', () => {
+  const BUBAO_4 = 'Buitengewoon Lager Onderwijs 4de leerjaar -  Wiskunde - Na te streven minimumdoelen op populatieniveau';
+  const BUBAO_6 = 'Buitengewoon Lager Onderwijs 6de leerjaar -  Wiskunde - Na te streven minimumdoelen op populatieniveau';
+  const BAO_4 = 'Lager Onderwijs 4de leerjaar -  Wiskunde - Te bereiken minimumdoelen op populatieniveau';
+  const basis = new Map<string, SetVoorSturing>([
+    ...STUUR,
+    ['bubao_4', sturingSet(BUBAO_4, { graad: undefined })],
+    ['bubao_6', sturingSet(BUBAO_6, { graad: undefined })],
+    ['bao_4', sturingSet(BAO_4, { graad: undefined })],
+  ]);
+
+  it('alleen sets van het (buitengewoon) basisonderwijs: alle soorten, niet het buitengewoon secundair', () => {
+    expect(beginLeerlingen(['bubao_4', 'bubao_6'], basis)).toEqual({ soort: 'alle', graad: '', stroom: '' });
+    expect(beginLeerlingen(['bao_4'], basis)).toEqual({ soort: 'alle', graad: '', stroom: '' });
+  });
+
+  it('een set van het buitengewoon basisonderwijs mengt niet met het gewoon secundair en is geen tweeling', () => {
+    expect(mengtGewoonEnBuitengewoon(['so_a', 'bubao_4'], basis)).toBe(false);
+    expect(mengtGewoonEnBuitengewoon(['so_a', 'bao_4'], basis)).toBe(false);
+    expect(mengtGewoonEnBuitengewoon(['so_a', 'buso_a'], basis)).toBe(true);
+    expect(tweelingParen(['so_a', 'bubao_4'], basis)).toEqual([]);
+  });
+
+  it('de kenmerken noemen het buitengewoon basisonderwijs', () => {
+    expect(setKenmerkenVanNaam({ naam: BUBAO_4 })).toMatch(/^Buitengewoon basisonderwijs · Lager Onderwijs 4de leerjaar · /);
   });
 });
 

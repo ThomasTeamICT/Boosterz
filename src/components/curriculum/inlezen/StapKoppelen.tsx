@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { MinimumdoelenIndexSet } from '../../../lib/minimumdoelen';
-import { SOORT_LABEL, contextVanSet, filterSets, geldigheidTekst, oudeVersieIds, soortVanSet } from '../../../lib/minimumdoelenBron';
+import { SOORT_LABEL, filterSets, geldigheidTekst, oudeVersieIds, setKenmerken } from '../../../lib/minimumdoelenBron';
 import { beschrijfSetKeuze, gemengdeStromen, niveauTekst, type OnderwijsKeuze } from '../../../lib/leerplanInlezen';
 import { AddIcon, CheckIcon, InfoIcon, SearchIcon, WarningIcon } from '../../icons';
 import { Field } from '../../ui';
@@ -19,11 +19,6 @@ function aantal(n: number, enkel: string, meer: string): string {
   return `${n.toLocaleString('nl-BE')} ${n === 1 ? enkel : meer}`;
 }
 
-function kenmerken(set: MinimumdoelenIndexSet): string {
-  const soort = soortVanSet(set.naam);
-  return [soort === 'so' ? '' : SOORT_LABEL[soort], set.graad, set.stroom, contextVanSet(set.naam)].filter(Boolean).join(' · ');
-}
-
 /**
  * De tekst bij een set in de zoekresultaten: wat er zichtbaar staat (`meta`) en de naam met wat de set onderscheidt van andere
  * sets met dezelfde naam, voor een schermlezer (`sr`, achter "Toevoegen" en "Aanvinken"). Dat onderscheid is het nummer van de
@@ -31,7 +26,7 @@ function kenmerken(set: MinimumdoelenIndexSet): string {
  * versie van een set hebben dezelfde naam, graad en stroom en verschillen enkel in de geldigheid.
  */
 export function zoekresultaatTeksten(set: MinimumdoelenIndexSet, verbergSetId: boolean): { meta: string; sr: string } {
-  const meta = [kenmerken(set), geldigheidTekst(set), verbergSetId ? '' : set.id].filter(Boolean).join(' · ');
+  const meta = [setKenmerken(set), geldigheidTekst(set), verbergSetId ? '' : set.id].filter(Boolean).join(' · ');
   const onderscheid = verbergSetId ? meta : set.id;
   return { meta, sr: `${set.korteNaam || set.naam}${onderscheid ? ` (${onderscheid})` : ''}` };
 }
@@ -166,7 +161,7 @@ export function StapKoppelen({
                   aantalCodes > 0 && !k.mislukt ? `${k.treffers.toLocaleString('nl-BE')} van je verwijzingen` : '',
                   typeof k.set.aantal === 'number' ? aantal(k.set.aantal, 'doel', 'doelen') : '',
                 ].filter(Boolean).join(' · ');
-                const meta = [kenmerken(k.set), k.geldigheidTekst ?? geldigheidTekst(k.set)].filter(Boolean).join(' · ');
+                const meta = [setKenmerken(k.set), k.geldigheidTekst ?? geldigheidTekst(k.set)].filter(Boolean).join(' · ');
                 return (
                   <li key={k.set.id}>
                     <label className={`il-set${k.treffers > 0 ? ' met-treffers' : ''}`}>

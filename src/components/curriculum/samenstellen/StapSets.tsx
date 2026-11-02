@@ -31,6 +31,9 @@ export interface SetFilterStaat extends LeerlingenFilter {
 /** Een nieuwe lijst: gewoon secundair onderwijs, alle graden, beide stromen. */
 export const BEGIN_FILTER: SetFilterStaat = { zoek: '', toonOud: false, graad: '', soort: 'so', stroom: '' };
 
+// 'Alle sets' zijn alle sets behalve die van het (buitengewoon) basisonderwijs en van de lerarenopleiding voor het kleuter- en
+// lager onderwijs (filterSets zonder metBasis). Een set van het basisonderwijs vind je op zijn nummer of via een link; er is hier
+// bewust geen radioknop voor.
 const ONDERWIJS_KEUZES: readonly { waarde: SoortOnderwijs | 'alle'; label: string }[] = [
   { waarde: 'so', label: 'Gewoon secundair onderwijs' },
   { waarde: 'buso', label: 'Buitengewoon secundair onderwijs' },

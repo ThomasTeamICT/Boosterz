@@ -6,6 +6,7 @@ import {
   FOUT_NIET_GELADEN,
   MAX_SETS_IN_CACHE,
   SOORT_LABEL,
+  SOORT_VOLGORDE,
   contextVanSet,
   datumLeesbaar,
   doelPastBijZoek,
@@ -13,12 +14,16 @@ import {
   geldigheidTekst,
   geldigheidVan,
   graadOpties,
+  heeftActueleSets,
+  hoortBijBasis,
   indexHeeftGeldigheid,
+  isBasisSoort,
   isGeldigSetId,
   isOudeVersie,
   isStemSet,
   laadIndex,
   laadSet,
+  momentVanSet,
   opvolgersVan,
   oudeVersieIds,
   setKenmerken,
@@ -201,9 +206,118 @@ describe('soortVanSet', () => {
     expect(soortVanSet('')).toBe('ander');
   });
 
-  it('heeft een label per soort', () => {
-    expect(Object.keys(SOORT_LABEL).sort()).toEqual(['ander', 'buso', 'so', 'vwo']);
+  it('heeft een label per soort, en een volgorde met alle soorten', () => {
+    expect(Object.keys(SOORT_LABEL).sort()).toEqual(['ander', 'bao', 'bubao', 'buso', 'so', 'vwo']);
+    expect(SOORT_LABEL.bao).toBe('Basisonderwijs');
+    expect(SOORT_LABEL.bubao).toBe('Buitengewoon basisonderwijs');
     expect(SOORT_LABEL.buso).toMatch(/^Buitengewoon/);
+    expect([...SOORT_VOLGORDE]).toEqual(['so', 'buso', 'vwo', 'bao', 'bubao', 'ander']);
+    expect([...SOORT_VOLGORDE].sort()).toEqual(Object.keys(SOORT_LABEL).sort());
+  });
+});
+
+// De echte namen uit de officiële bron (de dubbele spatie na het streepje staat ook zo in de bron).
+const NAAM = {
+  ODS_3395: 'Lager Onderwijs 4de leerjaar -  Nederlands - Te bereiken minimumdoelen op populatieniveau',
+  ODS_3397: 'Kleuteronderwijs -  Nederlands - Na te streven minimumdoelen op populatieniveau',
+  ODS_2104: 'Kleuteronderwijs - Leergebied - Nederlands - Ontwikkelingsdoelen',
+  ODS_2110: 'Lager Onderwijs - Leergebied - Nederlands - Eindtermen',
+  ODS_2114: 'Lager Onderwijs - Leergebiedoverschrijdende - Ict - Eindtermen',
+  ODS_3406: 'Lager Onderwijs 4de leerjaar -  Wiskunde - Te bereiken minimumdoelen op populatieniveau',
+  ODS_3465: 'Buitengewoon Lager Onderwijs 4de leerjaar -  Nederlands - Na te streven minimumdoelen op populatieniveau',
+  ODS_3467: 'Buitengewoon Lager Onderwijs 4de leerjaar -  Wiskunde - Na te streven minimumdoelen op populatieniveau',
+  ODS_3485: 'Buitengewoon Kleuteronderwijs -  Nederlands - Na te streven minimumdoelen op populatieniveau',
+  ODS_2297: 'Buitengewoon Kleuteronderwijs Type 2 - Leergebied - Communicatie En Taal - Ontwikkelingsdoelen',
+  ODS_2305: 'Buitengewoon Kleuteronderwijs Type 7 - Leergebied - Muzische Vorming - Aanvullende - Ontwikkelingsdoelen',
+  ODS_2379: 'Buitengewoon Kleuteronderwijs Type 7 - Leergebied - Muzische Vorming - Ontwikkelingsdoelen',
+  ODS_2310: 'Buitengewoon Lager Onderwijs Type 8 - Leergebied - Leren Leren - Bijkomende - Ontwikkelingsdoelen',
+  ODS_2571: 'Buitengewoon Lager Onderwijs Basisaanbod - Leergebied - Nederlands - Ontwikkelingsdoelen',
+  ODS_2958: 'Buitengewoon Kleuteronderwijs Type 3 - Leergebied - Alle leergebieden - Ontwikkelingsdoelen',
+  ODS_2842: 'Lerarenopleiding - Opleiding - Leraar Kleuteronderwijs - Eindtermen',
+  ODS_2843: 'Lerarenopleiding - Opleiding - Leerkracht Lager onderwijs - Eindtermen',
+} as const;
+
+describe('soortVanSet: basisonderwijs', () => {
+  it('deelt het basisonderwijs in als bao', () => {
+    for (const id of ['ODS_3395', 'ODS_3397', 'ODS_2104', 'ODS_2110', 'ODS_2114', 'ODS_3406'] as const) expect(soortVanSet(NAAM[id]), id).toBe('bao');
+  });
+
+  it('deelt het buitengewoon basisonderwijs in als bubao, niet als buso', () => {
+    for (const id of ['ODS_3465', 'ODS_3467', 'ODS_3485', 'ODS_2297', 'ODS_2305', 'ODS_2379', 'ODS_2310', 'ODS_2571', 'ODS_2958'] as const) {
+      expect(soortVanSet(NAAM[id]), id).toBe('bubao');
+    }
+  });
+
+  it('laat de lerarenopleiding ander onderwijs, ook die voor kleuter- en lager onderwijs', () => {
+    expect(soortVanSet(NAAM.ODS_2842)).toBe('ander');
+    expect(soortVanSet(NAAM.ODS_2843)).toBe('ander');
+    expect(soortVanSet('Lerarenopleiding - Opleiding - Leerkracht Secundair onderwijs - Eindtermen')).toBe('ander');
+  });
+
+  it('houdt het buitengewoon secundair bij buso, en het gewone secundair en het volwassenenonderwijs zoals ze waren', () => {
+    expect(soortVanSet('Buitengewoon Secundair onderwijs 2de graad Opleidingsvorm 4 - Chemie - Cesuurdoelen')).toBe('buso');
+    expect(soortVanSet('Buitengewoon Secundair onderwijs Opleidingsvorm 3 - Domein - Lichamelijke Opvoeding - Ontwikkelingsdoelen')).toBe('buso');
+    expect(soortVanSet('Secundair onderwijs 1ste graad A-stroom - Vak - Aardrijkskunde - Eindtermen')).toBe('so');
+    expect(soortVanSet('Secundair Volwassenenonderwijs 2de graad aso - Vak - Wiskunde - Eindtermen')).toBe('vwo');
+  });
+
+  it('vangt dubbele spaties, harde spaties en hoofdletters', () => {
+    expect(soortVanSet('  BUITENGEWOON   lager   onderwijs Type 8 - X')).toBe('bubao');
+    expect(soortVanSet('Buitengewoon\u00a0Lager\u00a0Onderwijs Type 8 - X')).toBe('bubao');
+    expect(soortVanSet('buitengewoon kleuteronderwijs - x')).toBe('bubao');
+    expect(soortVanSet('Buitengewoon Basisonderwijs - X')).toBe('bubao');
+    expect(soortVanSet('LAGER  ONDERWIJS 6de leerjaar -  Frans - Te bereiken minimumdoelen op populatieniveau')).toBe('bao');
+    expect(soortVanSet(' Lager Onderwijs - X')).toBe('bao');
+    expect(soortVanSet('Basisonderwijs - Vak - X')).toBe('bao');
+  });
+
+  it('telt een woord dat er alleen op lijkt niet mee', () => {
+    expect(soortVanSet('Kleuteronderwijsaanbod - X')).toBe('ander');
+    expect(soortVanSet('Lageronderwijs - X')).toBe('ander');
+  });
+});
+
+describe('isBasisSoort en momentVanSet', () => {
+  it('isBasisSoort is alleen waar voor bao en bubao', () => {
+    for (const soort of SOORT_VOLGORDE) expect(isBasisSoort(soort), soort).toBe(soort === 'bao' || soort === 'bubao');
+  });
+
+  it('momentVanSet: kleuter of lager voor het basisonderwijs, ook buitengewoon', () => {
+    for (const id of ['ODS_2104', 'ODS_3397', 'ODS_3485', 'ODS_2305'] as const) expect(momentVanSet(NAAM[id]), id).toBe('kleuter');
+    for (const id of ['ODS_2110', 'ODS_3395', 'ODS_3465', 'ODS_2571'] as const) expect(momentVanSet(NAAM[id]), id).toBe('lager');
+  });
+
+  it('momentVanSet is undefined voor andere soorten, ook voor de lerarenopleiding, en als de naam geen moment noemt', () => {
+    expect(momentVanSet('Secundair onderwijs 1ste graad A-stroom - Vak - Aardrijkskunde - Eindtermen')).toBeUndefined();
+    expect(momentVanSet('Buitengewoon Secundair onderwijs 2de graad Opleidingsvorm 4 - Chemie - Cesuurdoelen')).toBeUndefined();
+    expect(momentVanSet(NAAM.ODS_2842)).toBeUndefined();
+    expect(momentVanSet('Basisonderwijs - Vak - X')).toBeUndefined();
+    expect(momentVanSet('')).toBeUndefined();
+  });
+});
+
+describe('hoortBijBasis', () => {
+  it('is waar voor het (buitengewoon) basisonderwijs en voor de lerarenopleiding kleuter en lager', () => {
+    for (const id of ['ODS_3395', 'ODS_3397', 'ODS_2104', 'ODS_3465', 'ODS_3485', 'ODS_2297', 'ODS_2571', 'ODS_2842', 'ODS_2843'] as const) {
+      expect(hoortBijBasis(NAAM[id]), id).toBe(true);
+    }
+    expect(hoortBijBasis('  LERARENOPLEIDING  -  Opleiding - Leraar  Kleuteronderwijs - Eindtermen')).toBe(true);
+  });
+
+  it('is onwaar voor het secundair, het volwassenenonderwijs en de lerarenopleiding voor het secundair', () => {
+    expect(hoortBijBasis('Lerarenopleiding - Opleiding - Leerkracht Secundair onderwijs - Eindtermen')).toBe(false);
+    expect(hoortBijBasis('Secundair onderwijs 1ste graad A-stroom - Vak - Aardrijkskunde - Eindtermen')).toBe(false);
+    expect(hoortBijBasis('Buitengewoon Secundair onderwijs 2de graad Opleidingsvorm 4 - Chemie - Cesuurdoelen')).toBe(false);
+    expect(hoortBijBasis('Secundair Volwassenenonderwijs 2de graad aso - Vak - Wiskunde - Eindtermen')).toBe(false);
+    expect(hoortBijBasis('Iets anders')).toBe(false);
+    expect(hoortBijBasis('')).toBe(false);
+  });
+
+  it('kijkt niet naar de naam van de opleiding zelf, en een woord dat erop lijkt telt niet mee', () => {
+    // Alleen na de eerste kop ("Lerarenopleiding"), en als heel woord.
+    expect(hoortBijBasis('Lerarenopleiding kleuteronderwijs')).toBe(false);
+    expect(hoortBijBasis('Lerarenopleiding - Opleiding - Leraar Kleuteronderwijsaanbod - Eindtermen')).toBe(false);
+    expect(hoortBijBasis('Opleiding - Leraar Kleuteronderwijs - Eindtermen')).toBe(false);
   });
 });
 
@@ -261,6 +375,27 @@ describe('weergave', () => {
     expect(contextVanSet('Secundair onderwijs - Vakoverschrijdende - Stam - Eindtermen')).toBe('Vakoverschrijdende');
     expect(contextVanSet('Buitengewoon Secundair onderwijs Opleidingsvorm 1 - Ontwikkelingsdoelen')).toBe('Opleidingsvorm 1 · Ontwikkelingsdoelen');
     expect(contextVanSet('')).toBe('');
+  });
+
+  it('contextVanSet en setKenmerken voor het basisonderwijs: moment en soort doelen, zonder leergebied en vak', () => {
+    const ctx = (id: keyof typeof NAAM) => contextVanSet(NAAM[id]);
+    expect(ctx('ODS_3395')).toBe('Lager Onderwijs 4de leerjaar · Te bereiken minimumdoelen op populatieniveau');
+    expect(ctx('ODS_3465')).toBe('Lager Onderwijs 4de leerjaar · Na te streven minimumdoelen op populatieniveau');
+    expect(ctx('ODS_2104')).toBe('Kleuteronderwijs · Ontwikkelingsdoelen');
+    expect(ctx('ODS_2110')).toBe('Lager Onderwijs · Eindtermen');
+    expect(ctx('ODS_2114')).toBe('Lager Onderwijs · Eindtermen');
+    // 'Aanvullende' en 'Bijkomende' maken twee sets met dezelfde korte naam van elkaar te onderscheiden.
+    expect(ctx('ODS_2305')).toBe('Kleuteronderwijs Type 7 · Aanvullende ontwikkelingsdoelen');
+    expect(ctx('ODS_2379')).toBe('Kleuteronderwijs Type 7 · Ontwikkelingsdoelen');
+    expect(ctx('ODS_2310')).toBe('Lager Onderwijs Type 8 · Bijkomende ontwikkelingsdoelen');
+    expect(ctx('ODS_2571')).toBe('Lager Onderwijs Basisaanbod · Ontwikkelingsdoelen');
+
+    const kenmerken = (id: keyof typeof NAAM) => setKenmerken({ naam: NAAM[id] });
+    expect(kenmerken('ODS_3467')).toBe('Buitengewoon basisonderwijs · Lager Onderwijs 4de leerjaar · Na te streven minimumdoelen op populatieniveau');
+    expect(kenmerken('ODS_3406')).toBe('Basisonderwijs · Lager Onderwijs 4de leerjaar · Te bereiken minimumdoelen op populatieniveau');
+    expect(kenmerken('ODS_3485')).toBe('Buitengewoon basisonderwijs · Kleuteronderwijs · Na te streven minimumdoelen op populatieniveau');
+    // De lerarenopleiding blijft zoals ze was.
+    expect(kenmerken('ODS_2842')).toBe('Ander onderwijs · Lerarenopleiding · Opleiding');
   });
 });
 
@@ -352,6 +487,77 @@ describe('filterSets: stroom', () => {
     expect(ids({ stroom: 'B-stroom', soort: 'buso' })).toEqual([]);
     expect(ids({ stroom: 'A-stroom', graad: '1ste graad' })).toEqual(['ODS_A', 'ODS_BA']);
     expect(ids({ stroom: 'B-stroom', zoek: 'nederlands' })).toEqual(['ODS_B']);
+  });
+});
+
+describe('filterSets: basisonderwijs', () => {
+  const sets: MinimumdoelenIndexSet[] = [
+    indexSet('ODS_1', { naam: 'Secundair onderwijs 1ste graad A-stroom - Vak - Wiskunde - Eindtermen', korteNaam: 'Wiskunde', graad: '1ste graad', stroom: 'A-stroom' }),
+    indexSet('ODS_2', { naam: 'Lager Onderwijs 4de leerjaar -  Wiskunde - Te bereiken minimumdoelen op populatieniveau', korteNaam: 'Wiskunde' }),
+    indexSet('ODS_3', { naam: 'Buitengewoon Kleuteronderwijs -  Wiskunde - Na te streven minimumdoelen op populatieniveau', korteNaam: 'Wiskunde' }),
+  ];
+  const alles: SetFilter = { zoek: '', geldigheid: 'alle', graad: '', soort: 'alle' };
+  const ids = (f: Partial<SetFilter>) => filterSets(sets, { ...alles, ...f }).map((s) => s.id);
+
+  it("soort 'alle' laat de sets van het basisonderwijs weg, tenzij metBasis aanstaat", () => {
+    expect(ids({})).toEqual(['ODS_1']);
+    expect(ids({ metBasis: true })).toEqual(['ODS_1', 'ODS_2', 'ODS_3']);
+    expect(ids({ metBasis: false })).toEqual(['ODS_1']);
+  });
+
+  it("met soort 'bao' of 'bubao' werkt de filter gewoon", () => {
+    expect(ids({ soort: 'bao' })).toEqual(['ODS_2']);
+    expect(ids({ soort: 'bubao' })).toEqual(['ODS_3']);
+    expect(ids({ soort: 'buso' })).toEqual([]);
+  });
+
+  it('een zoekterm die precies het nummer van een set is, vindt die set altijd', () => {
+    expect(ids({ zoek: 'ODS_2' })).toEqual(['ODS_2']);
+    expect(ids({ zoek: 'ods_2' })).toEqual(['ODS_2']);
+    expect(ids({ zoek: ' ODS_3 ' })).toEqual(['ODS_3']);
+    // Een deel van het nummer, of een nummer met nog een woord erbij, is geen uitdrukkelijke keuze.
+    expect(ids({ zoek: 'ODS_' })).toEqual(['ODS_1']);
+    expect(ids({ zoek: 'ODS_2 wiskunde' })).toEqual([]);
+    // Met een andere soort dan 'alle' blijft de soort gelden.
+    expect(ids({ zoek: 'ODS_2', soort: 'so' })).toEqual([]);
+  });
+
+  it('een zoekterm op vak vindt geen set van het basisonderwijs', () => {
+    expect(ids({ zoek: 'wiskunde' })).toEqual(['ODS_1']);
+    expect(ids({ zoek: 'wiskunde', metBasis: true })).toEqual(['ODS_1', 'ODS_2', 'ODS_3']);
+  });
+});
+
+describe('filterSets: lerarenopleiding voor kleuter en lager', () => {
+  const sets: MinimumdoelenIndexSet[] = [
+    indexSet('ODS_1', { naam: 'Secundair onderwijs 1ste graad A-stroom - Vak - Wiskunde - Eindtermen', korteNaam: 'Wiskunde', graad: '1ste graad', stroom: 'A-stroom' }),
+    indexSet('ODS_2842', { naam: NAAM.ODS_2842, korteNaam: 'Leraar Kleuteronderwijs' }),
+    indexSet('ODS_2843', { naam: NAAM.ODS_2843, korteNaam: 'Leerkracht Lager onderwijs' }),
+    indexSet('ODS_2844', { naam: 'Lerarenopleiding - Opleiding - Leerkracht Secundair onderwijs - Eindtermen', korteNaam: 'Leerkracht Secundair onderwijs' }),
+  ];
+  const alles: SetFilter = { zoek: '', geldigheid: 'alle', graad: '', soort: 'alle' };
+  const ids = (f: Partial<SetFilter>) => filterSets(sets, { ...alles, ...f }).map((s) => s.id);
+
+  it("soort 'alle' laat de lerarenopleiding voor kleuter en lager weg, die voor het secundair niet", () => {
+    expect(ids({})).toEqual(['ODS_1', 'ODS_2844']);
+    expect(ids({ metBasis: false })).toEqual(['ODS_1', 'ODS_2844']);
+  });
+
+  it('zoeken op kleuter, lager of leraar vindt ze niet zonder metBasis', () => {
+    expect(ids({ zoek: 'kleuteronderwijs' })).toEqual([]);
+    expect(ids({ zoek: 'eindtermen kleuter' })).toEqual([]);
+    expect(ids({ zoek: 'lager onderwijs' })).toEqual([]);
+    expect(ids({ zoek: 'leraar' })).toEqual([]);
+    expect(ids({ zoek: 'lerarenopleiding' })).toEqual(['ODS_2844']);
+    expect(ids({ zoek: 'opleiding' })).toEqual(['ODS_2844']);
+  });
+
+  it("met metBasis, met soort 'ander' of op het nummer van de set blijven ze vindbaar (de pagina Officiële minimumdoelen)", () => {
+    expect(ids({ metBasis: true })).toEqual(['ODS_1', 'ODS_2842', 'ODS_2843', 'ODS_2844']);
+    expect(ids({ zoek: 'kleuteronderwijs', metBasis: true })).toEqual(['ODS_2842']);
+    expect(ids({ soort: 'ander' })).toEqual(['ODS_2842', 'ODS_2843', 'ODS_2844']);
+    expect(ids({ zoek: 'lager onderwijs', soort: 'ander' })).toEqual(['ODS_2843']);
+    expect(ids({ zoek: 'ODS_2842' })).toEqual(['ODS_2842']);
   });
 });
 
@@ -451,6 +657,132 @@ describe('tweelingen op naam', () => {
   });
 });
 
+describe('soorten met de meegeleverde index', () => {
+  const pad = join(fileURLToPath(new URL('../../', import.meta.url)), 'public', 'leerplannen', 'minimumdoelen', 'index.json');
+  const index = existsSync(pad) ? (JSON.parse(readFileSync(pad, 'utf8')) as { sets: MinimumdoelenIndexSet[] }).sets : [];
+  // Met de gegevens van vóór PR #11 (alleen secundair en volwassenenonderwijs) zijn de controles op basissets niet nodig.
+  const heeftBasis = index.some((s) => s.id === 'ODS_3395');
+  const alle: SetFilter = { zoek: '', geldigheid: 'alle', graad: '', soort: 'alle' };
+
+  it.runIf(index.length > 0)('de soort volgt de naam: buso is nooit basisonderwijs en bao en bubao zijn nooit secundair', () => {
+    for (const s of index) {
+      const naam = s.naam.trim();
+      const soort = soortVanSet(s.naam);
+      expect(soort === 'buso', s.id).toBe(/^buitengewoon\s+secundair/i.test(naam));
+      expect(soort === 'bubao', s.id).toBe(/^buitengewoon\s+(kleuteronderwijs|lager\s+onderwijs)\b/i.test(naam));
+      expect(soort === 'bao', s.id).toBe(/^(kleuteronderwijs|lager\s+onderwijs)\b/i.test(naam));
+    }
+  });
+
+  it.runIf(heeftBasis)('de lerarenopleiding blijft ander onderwijs', () => {
+    for (const id of ['ODS_2842', 'ODS_2843', 'ODS_2844']) expect(soortVanSet(index.find((s) => s.id === id)!.naam), id).toBe('ander');
+  });
+
+  it.runIf(heeftBasis)("soort 'alle' bevat geen set van het basisonderwijs, met metBasis wel", () => {
+    expect(filterSets(index, alle).filter((s) => isBasisSoort(soortVanSet(s.naam)))).toEqual([]);
+    const metBasis = filterSets(index, { ...alle, geldigheid: 'actueel', metBasis: true }).map((s) => s.id);
+    expect(metBasis).toEqual(expect.arrayContaining(['ODS_3395', 'ODS_3465', 'ODS_3485']));
+    // Zoeken op het nummer van een set van het basisonderwijs vindt die set ook zonder metBasis.
+    expect(filterSets(index, { ...alle, zoek: 'ODS_3406' }).map((s) => s.id)).toEqual(['ODS_3406']);
+  });
+
+  it.runIf(heeftBasis)('de lerarenopleiding voor kleuter en lager komt niet in lijsten voor het secundair, die voor het secundair blijft', () => {
+    const zonder = (zoek: string, extra: Partial<SetFilter> = {}) => filterSets(index, { ...alle, zoek, ...extra }).map((s) => s.id);
+    expect(filterSets(index, alle).filter((s) => hoortBijBasis(s.naam))).toEqual([]);
+    for (const zoek of ['kleuteronderwijs', 'eindtermen kleuter', 'lager onderwijs', 'leraar', 'leerkracht lager']) {
+      expect(zonder(zoek), zoek).not.toContain('ODS_2842');
+      expect(zonder(zoek), zoek).not.toContain('ODS_2843');
+    }
+    // De lerarenopleiding voor het secundair verandert niet voor wie ze nu vindt.
+    expect(zonder('lerarenopleiding')).toEqual(['ODS_2844']);
+    // Op de pagina "Officiële minimumdoelen" (metBasis) en met soort 'ander' staan alle drie er nog.
+    expect(zonder('lerarenopleiding', { metBasis: true })).toEqual(['ODS_2842', 'ODS_2843', 'ODS_2844']);
+    expect(zonder('', { soort: 'ander' })).toEqual(['ODS_2842', 'ODS_2843', 'ODS_2844']);
+    expect(zonder('ODS_2842')).toEqual(['ODS_2842']);
+  });
+
+  it.runIf(heeftBasis)('heeftActueleSets: niet voor de lerarenopleiding, wel voor een oude set met actuele sets', () => {
+    const set = (id: string) => index.find((s) => s.id === id) as MinimumdoelenIndexSet;
+    for (const id of ['ODS_2842', 'ODS_2843', 'ODS_2844']) expect(heeftActueleSets(set(id), index), id).toBe(false);
+    for (const id of ['ODS_2104', 'ODS_2318', 'ODS_2123']) expect(heeftActueleSets(set(id), index), id).toBe(true);
+    // Voor het secundair verandert er niets: elke oude set buiten de lerarenopleiding heeft nog actuele sets om naar te kijken.
+    const oud = oudeVersieIds(index);
+    const zonderActueel = index.filter((s) => oud.has(s.id) && !heeftActueleSets(s, index)).map((s) => s.id);
+    expect(zonderActueel).toEqual(['ODS_2842', 'ODS_2843', 'ODS_2844']);
+  });
+
+  it.runIf(heeftBasis)('onder de actuele sets van het basisonderwijs is elke combinatie van korte naam en kenmerken uniek', () => {
+    const oud = oudeVersieIds(index);
+    const gezien = new Map<string, string>();
+    for (const s of index.filter((x) => isBasisSoort(soortVanSet(x.naam)) && !oud.has(x.id))) {
+      const sleutel = `${(s.korteNaam ?? '').toLowerCase()}|${setKenmerken(s)}`;
+      expect(gezien.get(sleutel), `${s.id} lijkt op ${gezien.get(sleutel)}`).toBeUndefined();
+      gezien.set(sleutel, s.id);
+    }
+  });
+});
+
+describe('opvolgersVan: het type in het buitengewoon basisonderwijs', () => {
+  const oudNaam = (type: string, vak: string) => `Buitengewoon Lager Onderwijs Type ${type} - Leergebied - ${vak} - Ontwikkelingsdoelen`;
+  const geldig = { geldigheid: 'Geldig' };
+  const oud = { geldigheid: 'Niet meer geldig' };
+  const sets: MinimumdoelenIndexSet[] = [
+    indexSet('ODS_1', { naam: oudNaam('8', 'Nederlands'), korteNaam: 'Nederlands', ...oud }),
+    indexSet('ODS_2', { naam: oudNaam('1', 'Nederlands'), korteNaam: 'Nederlands', ...oud }),
+    indexSet('ODS_3', { naam: oudNaam('7', 'Communicatie en taal: Nederlands'), korteNaam: 'Communicatie en taal: Nederlands', aantal: 233, ...geldig }),
+    indexSet('ODS_4', { naam: 'Buitengewoon Lager Onderwijs Basisaanbod - Leergebied - Nederlands - Ontwikkelingsdoelen', korteNaam: 'Nederlands', aantal: 20, ...geldig }),
+    indexSet('ODS_5', { naam: NAAM.ODS_3465, korteNaam: 'Nederlands', aantal: 10, ...geldig }),
+    indexSet('ODS_6', { naam: oudNaam('2', 'Motorische En Lichamelijke Ontwikkeling'), korteNaam: 'Motorische En Lichamelijke Ontwikkeling', ...geldig }),
+    indexSet('ODS_7', { naam: oudNaam('8', 'Sociaal-Emotionele Ontwikkeling'), korteNaam: 'Sociaal-Emotionele Ontwikkeling', ...oud }),
+  ];
+  const ids = (id: string) => opvolgersVan(sets.find((s) => s.id === id)!, sets).sets.map((s) => s.id);
+
+  it('laat een set van een ander type weg, en houdt sets zonder type (Basisaanbod, de leerjaren van 2025)', () => {
+    // ODS_3 is Type 7: een opvolger van Type 7, niet van Type 8 of Type 1, ook al noemt hij Nederlands.
+    expect(ids('ODS_1')).toEqual(['ODS_4', 'ODS_5']);
+    expect(ids('ODS_2')).toEqual(['ODS_4', 'ODS_5']);
+  });
+
+  it('een set van hetzelfde type blijft een opvolger', () => {
+    const type7: MinimumdoelenIndexSet = indexSet('ODS_8', { naam: oudNaam('7', 'Nederlands'), korteNaam: 'Nederlands', ...oud });
+    const alle = [...sets, type7];
+    expect(opvolgersVan(type7, alle).sets.map((s) => s.id)).toEqual(['ODS_3', 'ODS_4', 'ODS_5']);
+  });
+
+  it('het woord "ontwikkeling" alleen maakt een ander leergebied van een ander type geen opvolger', () => {
+    expect(ids('ODS_7')).toEqual([]);
+    expect(opvolgersVan(sets.find((s) => s.id === 'ODS_7')!, sets).soort).toBe('geen');
+  });
+
+  it('verandert niets voor andere soorten: zonder type in de naam telt het type niet mee', () => {
+    const so = [
+      indexSet('ODS_10', { naam: 'Secundair onderwijs 1ste graad A-stroom - Vak - Latijn type 3 - Eindtermen', korteNaam: 'Latijn', graad: '1ste graad', stroom: 'A-stroom', ...oud }),
+      indexSet('ODS_11', { naam: 'Secundair onderwijs 1ste graad A-stroom - Pool - Latijn type 5 - Eindtermen', korteNaam: 'Latijn', graad: '1ste graad', stroom: 'A-stroom', ...geldig }),
+    ];
+    expect(opvolgersVan(so[0], so).sets.map((s) => s.id)).toEqual(['ODS_11']);
+  });
+});
+
+describe('heeftActueleSets', () => {
+  const sets: MinimumdoelenIndexSet[] = [
+    indexSet('ODS_1', { naam: 'Secundair onderwijs 1ste graad A-stroom - Vak - Wiskunde - Eindtermen', graad: '1ste graad', stroom: 'A-stroom', geldigheid: 'Niet meer geldig' }),
+    indexSet('ODS_2', { naam: 'Secundair onderwijs 2de graad aso - Vak - Wiskunde - Eindtermen', graad: '2de graad', geldigheid: 'Geldig' }),
+    indexSet('ODS_3', { naam: NAAM.ODS_2104, korteNaam: 'Nederlands', geldigheid: 'Niet meer geldig' }),
+    indexSet('ODS_4', { naam: NAAM.ODS_3397, korteNaam: 'Nederlands', geldigheid: 'Geldig' }),
+    indexSet('ODS_5', { naam: NAAM.ODS_2842, korteNaam: 'Leraar Kleuteronderwijs', geldigheid: 'Niet meer geldig' }),
+  ];
+  const heeft = (id: string) => heeftActueleSets(sets.find((s) => s.id === id)!, sets);
+
+  it('kijkt naar dezelfde soort onderwijs en dezelfde graad', () => {
+    expect(heeft('ODS_1')).toBe(false); // wel een actuele set van het secundair, maar in de 2de graad
+    expect(heeft('ODS_3')).toBe(true);
+  });
+
+  it('is onwaar voor de lerarenopleiding: er zijn geen sets van die soort die nu gelden', () => {
+    expect(heeft('ODS_5')).toBe(false);
+  });
+});
+
 describe('opvolgersVan met de meegeleverde index', () => {
   const pad = join(fileURLToPath(new URL('../../', import.meta.url)), 'public', 'leerplannen', 'minimumdoelen', 'index.json');
   const index = existsSync(pad) ? (JSON.parse(readFileSync(pad, 'utf8')) as { sets: MinimumdoelenIndexSet[] }).sets : [];
@@ -494,6 +826,53 @@ describe('opvolgersVan met de meegeleverde index', () => {
     }
     // De meeste oude sets hebben een aanwijsbare opvolger; de rest krijgt "kies een set die nu geldt".
     expect(metOpvolger / oud.length).toBeGreaterThan(0.5);
+  });
+
+  it.runIf(heeft)('een oude set van het secundair wijst niet naar het basisonderwijs en omgekeerd', () => {
+    // BuSO opleidingsvorm 4 (2010–2025): één opvolger, een set van het buitengewoon secundair.
+    expect(ids('ODS_2507').soort).toBe('vak');
+    expect(ids('ODS_2507').sets.map((s) => s.id)).toEqual(['ODS_2268']);
+    // Lerarenopleiding: nooit een opvolger.
+    for (const id of ['ODS_2509', 'ODS_2510', 'ODS_2844']) expect(ids(id).soort, id).toBe('geen');
+  });
+
+  // Alleen met de sets van het basisonderwijs in de index.
+  const heeftBasis = index.some((s) => s.id === 'ODS_3395');
+
+  it.runIf(heeft && heeftBasis)('oude kleutersets wijzen naar kleutersets, niet naar sets van het lager', () => {
+    expect(ids('ODS_2104')).toMatchObject({ soort: 'vak' });
+    expect(ids('ODS_2104').sets.map((s) => s.id)).toEqual(['ODS_3397', 'ODS_3401']);
+  });
+
+  it.runIf(heeft && heeftBasis)('een oude set van het buitengewoon basisonderwijs krijgt geen opvolger van een ander type', () => {
+    const typeVan = (naam: string) => /\btype\s+(\d+)\b/i.exec(naam)?.[1];
+    let metType = 0;
+    for (const id of oudeVersieIds(index)) {
+      const oud = set(id);
+      const type = typeVan(oud.naam);
+      if (soortVanSet(oud.naam) !== 'bubao' || type === undefined) continue;
+      metType++;
+      for (const o of opvolgersVan(oud, index).sets) {
+        expect(typeVan(o.naam) ?? type, `${id} (Type ${type}) naar ${o.id}`).toBe(type);
+      }
+    }
+    expect(metType).toBeGreaterThan(0);
+    // Type 1 en Type 8 (Nederlands) wijzen naar het Basisaanbod en de leerjaren, niet naar Type 7 (ODS_2307).
+    for (const id of ['ODS_2311', 'ODS_2318', 'ODS_2376']) {
+      expect(ids(id).sets.map((s) => s.id), id).toEqual(['ODS_2571', 'ODS_3465', 'ODS_3466']);
+    }
+    // Een ander leergebied telt niet mee omdat het woord "ontwikkeling" past (Type 2 Motorische en lichamelijke ontwikkeling).
+    for (const id of ['ODS_2313', 'ODS_2315']) expect(ids(id), id).toEqual({ soort: 'geen', sets: [] });
+  });
+
+  it.runIf(heeft && heeftBasis)('een opvolger heeft dezelfde soort en hetzelfde moment als de oude set', () => {
+    for (const id of oudeVersieIds(index)) {
+      const oud = set(id);
+      for (const o of opvolgersVan(oud, index).sets) {
+        expect(soortVanSet(o.naam), `${id} naar ${o.id}`).toBe(soortVanSet(oud.naam));
+        expect(momentVanSet(o.naam), `${id} naar ${o.id}`).toBe(momentVanSet(oud.naam));
+      }
+    }
   });
 });
 

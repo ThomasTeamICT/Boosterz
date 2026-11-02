@@ -51,6 +51,22 @@ describe('zoekresultaatTeksten: de tekst bij een set in de zoekresultaten', () =
   });
 });
 
+describe('zoekresultaatTeksten: een set van het buitengewoon basisonderwijs', () => {
+  const BUBAO = set({
+    id: 'ODS_3465', naam: 'Buitengewoon Lager Onderwijs 4de leerjaar -  Nederlands - Na te streven minimumdoelen op populatieniveau', korteNaam: 'Nederlands',
+    graad: undefined, geldigheid: 'Geldig', geldigVan: '2025-09-01',
+  });
+  const KENMERKEN = 'Buitengewoon basisonderwijs · Lager Onderwijs 4de leerjaar · Na te streven minimumdoelen op populatieniveau';
+
+  it('noemt het soort onderwijs en het leerjaar, en het nummer van de set', () => {
+    expect(zoekresultaatTeksten(BUBAO, false).meta).toBe(`${KENMERKEN} · Geldig sinds 2025 · ODS_3465`);
+  });
+
+  it('met een richting: zonder het nummer van de set', () => {
+    expect(zoekresultaatTeksten(BUBAO, true).meta).toBe(`${KENMERKEN} · Geldig sinds 2025`);
+  });
+});
+
 describe('lijstVoorTekst: waarvoor de sets in stap 3 gelden', () => {
   it('zonder richting: het soort onderwijs en het niveau uit stap 1, zoals altijd', () => {
     expect(lijstVoorTekst(undefined, 'so', '2de graad')).toBe('secundair onderwijs, 2de graad');

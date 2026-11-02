@@ -503,7 +503,7 @@ describe.runIf(ECHT)('met veel echte sets', () => {
       }
     }
     expect(problemen).toEqual([]);
-  });
+  }, 30_000); // ruim 1000 sets: vlak bij de standaard van 5 seconden op een trage machine
 
   it('50 geldige sets van de 2de graad samen (veel botsende codes): nagekeken, codes uniek en hoogstens 60 tekens', () => {
     const sets = geldig('2de graad');
@@ -1584,6 +1584,16 @@ describe('voorstelTitel', () => {
       .toBe('Buitengewoon Secundair onderwijs Opleidingsvorm 3 - Domein - Burgerzin - Ontwikkelingsdoelen (eigen selectie) · BuSO');
     expect(voorstelTitel([{ naam: 'Buitengewoon Secundair onderwijs Opleidingsvorm 3 - Domein - X - Y' }, { naam: 'Buitengewoon Secundair onderwijs Opleidingsvorm 3 - Domein - Z - Y' }]))
       .toBe('Eigen selectie minimumdoelen · BuSO');
+  });
+
+  it('alleen sets van het (buitengewoon) basisonderwijs: nooit " · BuSO"', () => {
+    const bubao = (leerjaar: string) => ({
+      naam: `Buitengewoon Lager Onderwijs ${leerjaar} -  Wiskunde - Na te streven minimumdoelen op populatieniveau`, korteNaam: 'Wiskunde',
+    });
+    expect(voorstelTitel([bubao('4de leerjaar'), bubao('6de leerjaar')])).toBe('Wiskunde (eigen selectie)');
+    expect(voorstelTitel([bubao('4de leerjaar')])).toBe('Wiskunde (eigen selectie)');
+    expect(voorstelTitel([{ naam: 'Lager Onderwijs 4de leerjaar -  Wiskunde - Te bereiken minimumdoelen op populatieniveau', korteNaam: 'Wiskunde' }]))
+      .toBe('Wiskunde (eigen selectie)');
   });
 
   it('gemengd gewoon en buitengewoon, of alleen gewoon: geen " · BuSO"', () => {

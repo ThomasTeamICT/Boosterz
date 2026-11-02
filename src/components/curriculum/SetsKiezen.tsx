@@ -2,13 +2,14 @@
 // toevoegen" in de editor van een leerplan: eerst weet het leerplan uit welke sets het kan verwijzen. Zonder
 // zoekterm staan de sets die bij het vak, de graad en de stroom van het leerplan passen bovenaan (zoals in de
 // inleeswizard: sets die het vak noemen eerst, ook de sleutelcompetentie die erbij hoort); met een zoekterm
-// zoek je in alle sets. Bij elke set staat of ze nog geldt. (De inleeswizard heeft een uitgebreidere stap 3; dit is
+// zoek je in alle sets behalve die van het basisonderwijs en van de lerarenopleiding voor kleuter en lager (die vind je op hun nummer).
+// Bij elke set staat of ze nog geldt. (De inleeswizard heeft een uitgebreidere stap 3; dit is
 // de korte weg.)
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from '../../lib/minimumdoelen';
-import { SOORT_LABEL, contextVanSet, filterSets, geldigheidVan, laadIndex, laadSet, oudeVersieIds, soortVanSet } from '../../lib/minimumdoelenBron';
+import type { MinimumdoelenSetBestand } from '../../lib/minimumdoelen';
+import { filterSets, geldigheidVan, laadIndex, laadSet, oudeVersieIds, setKenmerken } from '../../lib/minimumdoelenBron';
 import { geldigheidVoorLijst, kandidaatSets } from '../../lib/setKeuze';
 import { useLaadstand } from '../../lib/useLaadstand';
 import { Field, Modal } from '../ui';
@@ -18,11 +19,6 @@ import '../../styles/kiezer.css';
 const MAX_GETOOND = 40;
 /** Zoveel bestanden tegelijk ophalen om de geldigheid af te leiden (als de index ze niet kent). */
 const LAAD_PER_KEER = 10;
-
-function kenmerken(set: MinimumdoelenIndexSet): string {
-  const soort = soortVanSet(set.naam);
-  return [soort === 'so' ? '' : SOORT_LABEL[soort], set.graad, set.stroom, contextVanSet(set.naam)].filter(Boolean).join(' · ');
-}
 
 export function SetsKiezen({
   graad, stroom, vak, gekozen, wizardLink, onKies, onClose,
@@ -129,7 +125,7 @@ export function SetsKiezen({
               {getoond.map((s) => {
                 const g = geldigheidVoorLijst(s, bestanden.get(s.id));
                 const oud = g.code === 'N' || oudeVersies.has(s.id);
-                const kenmerk = kenmerken(s);
+                const kenmerk = setKenmerken(s);
                 return (
                   <li key={s.id}>
                     <label className="kz-setrij">

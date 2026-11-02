@@ -6,7 +6,7 @@
 
 import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from './minimumdoelen';
 import { geldigheidVanDoelen } from './minimumdoelen';
-import { geldigheidTekst, geldigheidVan, soortVanSet, zonderAccenten, type GeldigheidCode, type SoortOnderwijs } from './minimumdoelenBron';
+import { geldigheidTekst, geldigheidVan, soortVanSet, zonderAccenten, type GeldigheidCode } from './minimumdoelenBron';
 import { stelSetsVoor } from './minimumdoelVerwijzing';
 import { bevatFrase, competentieFrases, vakAlsZoekwoord } from './vakZoektabel';
 
@@ -63,7 +63,8 @@ export function geldigheidVoorLijst(set: MinimumdoelenIndexSet, bestand?: Minimu
 
 // ── Sets voorstellen bij een vak ────────────────────────────────────────────
 
-export type OnderwijsKeuze = Exclude<SoortOnderwijs, 'ander'>;
+/** Het soort onderwijs in de inleeswizard en de editor: alleen het secundair en het volwassenenonderwijs (het basisonderwijs krijgt later een eigen deel). */
+export type OnderwijsKeuze = 'so' | 'buso' | 'vwo';
 
 /**
  * Woorden uit het vak om sets op te herkennen: "Natuurwetenschappen" → ["natuurwetenschappen"]. Een meerwoordige vaknaam of

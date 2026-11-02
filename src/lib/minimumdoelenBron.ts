@@ -133,22 +133,67 @@ export function wisMinimumdoelenCache(): void {
 
 // ── Soort onderwijs ─────────────────────────────────────────────────────────
 
-export type SoortOnderwijs = 'so' | 'buso' | 'vwo' | 'ander';
+/** De soorten onderwijs, in de volgorde waarin ze in lijsten en keuzelijsten staan: eerst het secundair. */
+export const SOORT_VOLGORDE = ['so', 'buso', 'vwo', 'bao', 'bubao', 'ander'] as const;
+
+export type SoortOnderwijs = (typeof SOORT_VOLGORDE)[number];
 
 export const SOORT_LABEL: Record<SoortOnderwijs, string> = {
   so: 'Secundair onderwijs',
   buso: 'Buitengewoon secundair onderwijs',
   vwo: 'Volwassenenonderwijs',
+  bao: 'Basisonderwijs',
+  bubao: 'Buitengewoon basisonderwijs',
   ander: 'Ander onderwijs',
 };
 
-/** Soort onderwijs, afgeleid uit het begin van de naam van de set. */
+/**
+ * Soort onderwijs, afgeleid uit het begin van de naam van de set. De eerste regel die past, wint; de volgorde
+ * doet ertoe: "Buitengewoon Lager Onderwijs …" moet het buitengewoon basisonderwijs worden vóór de brede regel
+ * "begint met buitengewoon" (het buitengewoon secundair) het kan opeisen. De lerarenopleiding blijft 'ander'.
+ * `\s+` vangt dubbele en harde spaties, `\b` voorkomt dat een woord als "Kleuteronderwijsaanbod" meetelt.
+ */
 export function soortVanSet(naam: string): SoortOnderwijs {
   const n = naam.trim().toLowerCase();
+  if (/^buitengewoon\s+(kleuteronderwijs|lager\s+onderwijs|basisonderwijs)\b/.test(n)) return 'bubao';
   if (n.startsWith('buitengewoon')) return 'buso';
   if (n.includes('volwassenenonderwijs')) return 'vwo';
   if (n.startsWith('secundair onderwijs')) return 'so';
+  if (/^(kleuteronderwijs|lager\s+onderwijs|basisonderwijs)\b/.test(n)) return 'bao';
   return 'ander';
+}
+
+/** Is dit het basisonderwijs of het buitengewoon basisonderwijs? Die sets horen niet in lijsten voor het secundair. */
+export function isBasisSoort(soort: SoortOnderwijs): boolean {
+  return soort === 'bao' || soort === 'bubao';
+}
+
+/**
+ * Hoort een set bij het deel voor het basisonderwijs, en dus niet in lijsten voor het secundair? Dat zijn de sets van het
+ * (buitengewoon) basisonderwijs en de eindtermen van de lerarenopleiding voor het kleuter- en het lager onderwijs
+ * ("Lerarenopleiding - Opleiding - Leraar Kleuteronderwijs - Eindtermen"). Die blijven soort 'ander' (zo staan ze ook op de
+ * pagina "Officiële minimumdoelen"), maar leiden op voor dat onderwijs. De lerarenopleiding voor het secundair blijft zoals ze was.
+ */
+export function hoortBijBasis(naam: string): boolean {
+  if (typeof naam !== 'string') return false;
+  if (isBasisSoort(soortVanSet(naam))) return true;
+  const delen = naam.trim().toLowerCase().split(/\s+-\s+/);
+  return /^lerarenopleiding\b/.test(delen[0]) && delen.slice(1).some((d) => /\b(kleuteronderwijs|lager\s+onderwijs)\b/.test(d));
+}
+
+/** Het moment in het basisonderwijs: de kleuterklas of het lager onderwijs. */
+export type MomentBasis = 'kleuter' | 'lager';
+
+/**
+ * Het moment van een set van het (buitengewoon) basisonderwijs, uit de naam; `undefined` voor alle andere soorten
+ * (ook voor de lerarenopleiding "Leraar Kleuteronderwijs") en voor een naam als "Basisonderwijs - …" die geen moment noemt.
+ */
+export function momentVanSet(naam: string): MomentBasis | undefined {
+  if (typeof naam !== 'string' || !isBasisSoort(soortVanSet(naam))) return undefined;
+  const n = naam.trim().toLowerCase().replace(/^buitengewoon\s+/, '');
+  if (/^kleuteronderwijs\b/.test(n)) return 'kleuter';
+  if (/^lager\s+onderwijs\b/.test(n)) return 'lager';
+  return undefined;
 }
 
 // ── Geldigheid ──────────────────────────────────────────────────────────────
@@ -213,7 +258,9 @@ export function datumLeesbaar(iso: string | undefined): string {
  * Wat een set onderscheidt van andere sets met dezelfde korte naam, uit de volledige naam: de
  * onderwijsvorm of finaliteit ("aso", "kso, tso Dubbele finaliteit Opleidingsvorm 4"), de soort
  * ("Pool", "Domein") en de soort doelen ("Specifieke eindtermen"). Graad en stroom staan al apart.
- * De gewone soorten "Vak" en "Eindtermen" blijven weg: die zijn bijna overal hetzelfde.
+ * De gewone soorten "Vak" en "Eindtermen" blijven weg: die zijn bijna overal hetzelfde. In het basisonderwijs is het
+ * anders: daar blijven het moment ("Lager Onderwijs 4de leerjaar") en de soort doelen ("Eindtermen", "Ontwikkelingsdoelen",
+ * "Aanvullende ontwikkelingsdoelen") staan en valt "Leergebied" met het vak weg.
  */
 export function contextVanSet(naam: string): string {
   const delen = naam.split(/\s+-\s+/).map((d) => d.trim()).filter(Boolean);
@@ -225,8 +272,14 @@ export function contextVanSet(naam: string): string {
     .replace(/\b[AB]-stroom\b/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
-  const soort = delen.length >= 4 ? delen[1] : '';
   const doelen = delen.length >= 2 ? delen[delen.length - 1] : '';
+  if (isBasisSoort(soortVanSet(naam))) {
+    // [structuur, Leergebied, vak, (Aanvullende | Bijkomende), doelen] of [structuur, vak, doelen]: alleen structuur en doelen.
+    const extra = delen.length >= 5 ? delen.slice(3, -1) : [];
+    const doelenTekst = extra.length > 0 && doelen ? [...extra, doelen.toLowerCase()].join(' ') : doelen;
+    return [structuur, doelenTekst].filter((t) => t !== '').join(' · ');
+  }
+  const soort = delen.length >= 4 ? delen[1] : '';
   const standaard = (t: string) => /^(vak|eindtermen)$/i.test(t);
   return [structuur, soort, doelen].filter((t) => t !== '' && !standaard(t)).join(' · ');
 }
@@ -298,6 +351,12 @@ export interface SetFilter {
   soort: SoortOnderwijs | 'alle';
   /** Leeg of weggelaten = allebei. Een set zonder stroom valt nooit weg door deze filter. */
   stroom?: StroomFilter;
+  /**
+   * Met soort 'alle' ook de sets van het (buitengewoon) basisonderwijs en de lerarenopleiding voor het kleuter- en het lager
+   * onderwijs (`hoortBijBasis`). Standaard niet, zodat lijsten voor het secundair zonder die sets blijven. Een zoekterm die
+   * precies het nummer van een set is (bv. ODS_3406), vindt die set altijd.
+   */
+  metBasis?: boolean;
 }
 
 export function zonderAccenten(tekst: string): string {
@@ -309,7 +368,9 @@ export function zonderAccenten(tekst: string): string {
  * zoekwoord dat een vak is ("aardrijkskunde"), vindt ook de set van de sleutelcompetentie die erbij hoort
  * ("Ruimtelijk bewustzijn"): dat is een hulp bij het zoeken, geen officiële koppeling (zie vakZoektabel.ts). Een meerwoordige
  * vaknaam of afkorting ("lichamelijke opvoeding", "LO") wordt eerst het hoofdwoord van dat vak, zodat elke lijst die op deze
- * functie zoekt dezelfde sets vindt.
+ * functie zoekt dezelfde sets vindt. Met soort 'alle' blijven de sets van het (buitengewoon) basisonderwijs en van de
+ * lerarenopleiding voor het kleuter- en het lager onderwijs weg (`hoortBijBasis`), tenzij `metBasis` aanstaat of de zoekterm
+ * precies het nummer van de set is; met soort 'bao', 'bubao' of 'ander' werkt de filter gewoon.
  */
 export function filterSets(sets: readonly MinimumdoelenIndexSet[], filter: SetFilter): MinimumdoelenIndexSet[] {
   // "lichamelijke opvoeding" en "LO" zoeken de sets van dat vak (`vakAlsZoekwoord`); een andere tekst blijft zoals ze is.
@@ -322,6 +383,7 @@ export function filterSets(sets: readonly MinimumdoelenIndexSet[], filter: SetFi
     } else if (filter.geldigheid !== 'alle' && geldigheidVan(s) !== filter.geldigheid) return false;
     if (filter.graad !== '' && s.graad !== filter.graad) return false;
     if (filter.soort !== 'alle' && soortVanSet(s.naam) !== filter.soort) return false;
+    if (filter.soort === 'alle' && !filter.metBasis && hoortBijBasis(s.naam) && !(termen.length === 1 && termen[0] === s.id.toLowerCase())) return false;
     if (filter.stroom && s.stroom && s.stroom !== filter.stroom) return false;
     if (termen.length === 0) return true;
     const hooi = zonderAccenten(`${s.naam} ${s.korteNaam ?? ''} ${s.id}`);
@@ -370,8 +432,22 @@ function naamSleutel(naam: string): string {
   return zonderAccenten(naam).replace(/\s+/g, ' ').trim();
 }
 
+/** Het type in de naam van een set van het buitengewoon basisonderwijs ("… Type 8 - …" geeft '8'); `undefined` zonder type (bv. Basisaanbod). */
+function typeVanSet(naam: string): string | undefined {
+  return /\btype\s+(\d+)\b/i.exec(naam)?.[1];
+}
+
+/**
+ * Staan twee sets op dezelfde plaats: dezelfde soort onderwijs, graad, stroom en moment? In het buitengewoon basisonderwijs
+ * telt ook het type mee (Type 1, 2, 3, 7, 8): een set die uitdrukkelijk een ander type noemt, is geen opvolger. Een set zonder
+ * type (het Basisaanbod, de sets van 2025) kan wel een opvolger zijn van elk type.
+ */
 function zelfdePlaats(a: MinimumdoelenIndexSet, b: MinimumdoelenIndexSet): boolean {
-  return soortVanSet(a.naam) === soortVanSet(b.naam) && (a.graad ?? '') === (b.graad ?? '') && (a.stroom ?? '') === (b.stroom ?? '');
+  if (soortVanSet(a.naam) !== soortVanSet(b.naam) || (a.graad ?? '') !== (b.graad ?? '') || (a.stroom ?? '') !== (b.stroom ?? '')) return false;
+  if (momentVanSet(a.naam) !== momentVanSet(b.naam)) return false;
+  const typeA = soortVanSet(a.naam) === 'bubao' ? typeVanSet(a.naam) : undefined;
+  const typeB = soortVanSet(b.naam) === 'bubao' ? typeVanSet(b.naam) : undefined;
+  return typeA === undefined || typeB === undefined || typeA === typeB;
 }
 
 function plaatsEnNaam(s: MinimumdoelenIndexSet): string {
@@ -389,7 +465,8 @@ export interface Opvolgers {
 
 /**
  * Waar vindt een leerkracht de doelen van een oude versie? Alleen sets van dezelfde soort onderwijs, graad en
- * stroom die zelf geen oude versie zijn. Eerst dezelfde set in een nieuwere versie; anders
+ * stroom (en in het basisonderwijs hetzelfde moment: kleuter of lager; in het buitengewoon basisonderwijs ook geen ander
+ * type) die zelf geen oude versie zijn. Eerst dezelfde set in een nieuwere versie; anders
  * de sets die het vak noemen of er volgens de zoektabel bij horen (aardrijkskunde → ruimtelijk bewustzijn),
  * grootste eerst, hoogstens drie. Dit wijst de weg; het koppelt niets.
  */
@@ -415,6 +492,15 @@ export function opvolgersVan(set: MinimumdoelenIndexSet, alle: readonly Minimumd
     })
     .sort((a, b) => b.aantal - a.aantal || a.id.localeCompare(b.id, 'nl', { numeric: true }));
   return passend.length > 0 ? { soort: 'vak', sets: passend.slice(0, 3) } : { soort: 'geen', sets: [] };
+}
+
+/**
+ * Zijn er sets die nu gelden voor dezelfde soort onderwijs (en dezelfde graad) als deze oude set? Precies de lijst die de
+ * knop "Toon de sets die nu gelden" op de pagina "Officiële minimumdoelen" laat zien: zonder zulke sets leidt die knop naar
+ * een lege lijst (zo is het voor de lerarenopleiding, die geen sets heeft die nu gelden), en dan tonen we hem niet.
+ */
+export function heeftActueleSets(set: MinimumdoelenIndexSet, alle: readonly MinimumdoelenIndexSet[]): boolean {
+  return filterSets(alle, { zoek: '', geldigheid: 'actueel', graad: set.graad ?? '', soort: soortVanSet(set.naam), metBasis: true }).length > 0;
 }
 
 

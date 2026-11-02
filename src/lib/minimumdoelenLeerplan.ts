@@ -13,7 +13,7 @@ import {
 } from './curriculum';
 import { controleerLeerplan, type ControleRapport } from './curriculumCheck';
 import { htmlNaarTekst, NAAMSVERMELDING, type Minimumdoel, type MinimumdoelenSetBestand } from './minimumdoelen';
-import { datumLeesbaar } from './minimumdoelenBron';
+import { datumLeesbaar, isBasisSoort, setKenmerken, soortVanSet } from './minimumdoelenBron';
 import { geldigheidVanBestand } from './setKeuze';
 import { uid } from './utils';
 
@@ -192,7 +192,11 @@ function bouwLeerplanUitSet(bestand: MinimumdoelenSetBestand, opties: LeerplanUi
   });
 
   const naam = s.korteNaam?.trim() || s.naam.trim();
-  const niveau = [s.graad, s.stroom].map((t) => t?.trim()).filter(Boolean).join(' ');
+  // Het basisonderwijs kent geen graad of stroom: daar onderscheiden het moment (kleuter, 4de of 6de leerjaar), gewoon of buitengewoon
+  // en de soort doelen de sets van elkaar, zoals bij `setKenmerken`. Anders hebben ze allemaal dezelfde titel en een leeg niveau.
+  const niveau = isBasisSoort(soortVanSet(s.naam))
+    ? setKenmerken(s)
+    : [s.graad, s.stroom].map((t) => t?.trim()).filter(Boolean).join(' ');
   // Een set die niet meer geldt of een oudere versie is, mag je nog gebruiken, maar de titel zegt het en er staat geen
   // "geldig vanaf" bij: dat zou doen alsof ze nog geldt. (De vingerafdruk dekt alleen de doelen; de titel en de
   // herkomst veranderen die niet.)

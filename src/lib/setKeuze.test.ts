@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { MinimumdoelenIndex, MinimumdoelenIndexSet, MinimumdoelenSetBestand } from './minimumdoelen';
+import { isBasisSoort, soortVanSet } from './minimumdoelenBron';
 import { gemengdeStromen, geldigheidJaren, geldigheidTekstVanBestand, geldigheidVanBestand, geldigheidVoorLijst, kandidaatSets, setNoemtVak } from './setKeuze';
 
 function set(id: string, korteNaam: string, naam: string, extra: Partial<MinimumdoelenIndexSet> = {}): MinimumdoelenIndexSet {
@@ -164,6 +165,24 @@ describe.runIf(existsSync(join(process.cwd(), 'public', 'leerplannen', 'minimumd
     expect(ids.indexOf('ODS_3287')).toBeGreaterThanOrEqual(0);
     expect(ids.indexOf('ODS_3287')).toBeLessThan(5);
     expect(ids.indexOf('ODS_2118')).toBeLessThan(5);
+  });
+
+  it('stelt nooit een set van het basisonderwijs voor aan wie het secundair of het volwassenenonderwijs kiest', () => {
+    for (const onderwijs of ['so', 'buso', 'vwo'] as const) {
+      for (const graad of ['', '1ste graad', '2de graad', '3de graad']) {
+        for (const stroom of ['', 'A-stroom', 'B-stroom']) {
+          for (const vak of ['', 'Wiskunde', 'Nederlands', 'Muzische vorming', 'Leren leren']) {
+            const basis = kandidaatSets(index, { graad, stroom, onderwijs, vak, eigen: [] }).filter((s) => isBasisSoort(soortVanSet(s.naam)));
+            expect(basis.map((s) => s.id), `${onderwijs} ${graad} ${stroom} ${vak}`).toEqual([]);
+          }
+        }
+      }
+    }
+  }, 20_000);
+
+  it('het buitengewoon secundair onderwijs zonder graad levert alleen sets van het buitengewoon secundair', () => {
+    const soorten = new Set(kandidaatSets(index, { graad: '', stroom: '', onderwijs: 'buso', vak: '', eigen: [] }).map((s) => soortVanSet(s.naam)));
+    expect([...soorten]).toEqual(['buso']);
   });
 });
 

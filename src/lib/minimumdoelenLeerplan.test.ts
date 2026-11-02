@@ -7,7 +7,9 @@ import {
   maakEigenKopie, normalizeGoalCode, normaliseerDoeltekst,
 } from './curriculum';
 import type { Curriculum } from './curriculumTypes';
+import { leesNiveau } from './leerplanNiveau';
 import { htmlNaarTekst, type Minimumdoel, type MinimumdoelenSetBestand } from './minimumdoelen';
+import { isBasisSoort, soortVanSet } from './minimumdoelenBron';
 import {
   NAGEKEKEN_DOOR_BRON, bevestigUitOfficieleSet, isAttitude, isOptioneel, leerplanUitSet, rubriekenVan, themaVanDoel, uniekeCodes, vindLeerplanVoorSet,
 } from './minimumdoelenLeerplan';
@@ -93,6 +95,39 @@ describe('leerplanUitSet', () => {
     expect(l.title).toBe(b.set.naam);
     expect(l.subject).toBe(b.set.naam);
     expect(l.level).toBe('');
+  });
+
+  it('geeft een set van het basisonderwijs een titel en niveau met moment, soort onderwijs en soort doelen (geen graad of stroom)', () => {
+    const basis = (naam: string, korteNaam: string) => {
+      const b = maakBestand();
+      b.set.naam = naam;
+      b.set.korteNaam = korteNaam;
+      delete b.set.graad;
+      delete b.set.stroom;
+      return leerplanUitSet(b).leerplan;
+    };
+    const gewoon = basis('Lager Onderwijs 4de leerjaar -  Nederlands - Te bereiken minimumdoelen op populatieniveau', 'Nederlands');
+    const buitengewoon = basis('Buitengewoon Lager Onderwijs 4de leerjaar -  Nederlands - Na te streven minimumdoelen op populatieniveau', 'Nederlands');
+    const kleuter = basis('Kleuteronderwijs -  Nederlands - Na te streven minimumdoelen op populatieniveau', 'Nederlands');
+    expect(gewoon.title).toBe('Nederlands · Basisonderwijs · Lager Onderwijs 4de leerjaar · Te bereiken minimumdoelen op populatieniveau');
+    expect(gewoon.level).toBe('Basisonderwijs · Lager Onderwijs 4de leerjaar · Te bereiken minimumdoelen op populatieniveau');
+    expect(buitengewoon.title).toBe('Nederlands · Buitengewoon basisonderwijs · Lager Onderwijs 4de leerjaar · Na te streven minimumdoelen op populatieniveau');
+    expect(kleuter.level).toBe('Basisonderwijs · Kleuteronderwijs · Na te streven minimumdoelen op populatieniveau');
+    // Het vak blijft de korte naam, en de titels van gewoon, buitengewoon en kleuter zijn verschillend.
+    for (const l of [gewoon, buitengewoon, kleuter]) expect(l.subject).toBe('Nederlands');
+    expect(new Set([gewoon.title, buitengewoon.title, kleuter.title]).size).toBe(3);
+    // Het niveau van een set van het basisonderwijs is geen graad of stroom, dus de leerplannenpagina leest er niets uit.
+    for (const l of [gewoon, buitengewoon, kleuter]) expect(leesNiveau(l.level)).toEqual({ graad: '', stroom: '' });
+  });
+
+  it('een oude set van het basisonderwijs zegt het ook in de titel', () => {
+    const b = maakBestand();
+    b.set.naam = 'Kleuteronderwijs - Leergebied - Nederlands - Ontwikkelingsdoelen';
+    b.set.korteNaam = 'Nederlands';
+    b.set.geldigheid = 'Niet meer geldig';
+    delete b.set.graad;
+    delete b.set.stroom;
+    expect(leerplanUitSet(b).leerplan.title).toBe('Nederlands · Basisonderwijs · Kleuteronderwijs · Ontwikkelingsdoelen (niet meer geldig)');
   });
 
   it('neemt de doelen over in de volgorde van het bestand, en slaat een doel zonder id over', () => {
@@ -444,6 +479,21 @@ describe('leerplanUitSet met alle meegeleverde sets', () => {
       }
     }
     expect(fouten).toEqual([]);
+  });
+
+  it.runIf(bestanden.length > 0)('de actuele sets van het basisonderwijs geven elk een eigen titel, ook met dezelfde korte naam', () => {
+    const titels = new Map<string, string>();
+    let basis = 0;
+    for (const f of bestanden) {
+      const bestand = JSON.parse(readFileSync(join(map, f), 'utf8')) as MinimumdoelenSetBestand;
+      if (!isBasisSoort(soortVanSet(bestand.set.naam)) || bestand.set.geldigheid !== 'Geldig') continue;
+      basis++;
+      const titel = leerplanUitSet(bestand).leerplan.title;
+      expect(titels.get(titel), `${bestand.set.id} heeft dezelfde titel als ${titels.get(titel)}: ${titel}`).toBeUndefined();
+      titels.set(titel, bestand.set.id);
+    }
+    // Zonder de sets van het basisonderwijs in de map (gegevens van vóór PR #11) valt hier niets te controleren.
+    if (bestanden.includes('ODS_3395.json')) expect(basis).toBeGreaterThan(0);
   });
 
   it.runIf(bestanden.length > 0)('blijft nagekeken na exporteren en importeren, zonder doelen te verliezen', () => {

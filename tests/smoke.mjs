@@ -775,20 +775,20 @@ check('wegwijzer: links naar de netten openen in een nieuw tabblad', (await page
 await page.getByRole('link', { name: /Officiële minimumdoelen/ }).first().click();
 await page.waitForSelector('.md-sets > li', { timeout: 15000 });
 check('pagina Officiële minimumdoelen: één main en één h1', (await page.locator('main').count()) === 1 && (await page.locator('main h1').count()) === 1);
-check('uitleg over de sets en wat er (nog) niet in zit', /De minimumdoelen zijn verdeeld in sets: per vak of sleutelcompetentie, per graad en per stroom\./.test(await page.locator('.md-intro').innerText()) && /alleen de minimumdoelen van het secundair onderwijs \(ook buitengewoon secundair\) en van het volwassenenonderwijs, niet die van het basisonderwijs\./.test(await page.locator('.md-intro').innerText()));
+check('uitleg over de sets en wat er in zit', /De minimumdoelen zijn verdeeld in sets: per vak of sleutelcompetentie, per graad en per stroom\. In het basisonderwijs zijn ze verdeeld per leergebied, voor het kleuter- en het lager onderwijs\./.test(await page.locator('.md-intro').innerText()) && /Hier staan de minimumdoelen van het secundair onderwijs \(ook buitengewoon secundair\), van het volwassenenonderwijs en van het basisonderwijs \(kleuter- en lager onderwijs, ook buitengewoon\)\./.test(await page.locator('.md-intro').innerText()));
 check('h1 is "Officiële minimumdoelen"', /Officiële minimumdoelen/.test(await page.locator('main h1').innerText()));
 const nSets = await page.locator('.md-sets > li').count();
 check(`lijst met sets (${nSets})`, nSets >= 10);
-// Gewoon secundair onderwijs eerst, dan buitengewoon, volwassenen en ander; de hele lijst, ook na "Toon meer sets".
+// Gewoon secundair onderwijs eerst, dan buitengewoon secundair, volwassenen, basisonderwijs, buitengewoon basisonderwijs en ander; de hele lijst, ook na "Toon meer sets".
 while (await page.getByRole('button', { name: /^Toon meer sets/ }).count() > 0) {
   await page.getByRole('button', { name: /^Toon meer sets/ }).click();
   await sleep(100);
 }
 const soortRang = await page.locator('.md-sets > li').evaluateAll((lijst) => lijst.map((li) => {
   const meta = li.querySelector('.md-set-meta')?.textContent ?? '';
-  return /Buitengewoon secundair onderwijs/.test(meta) ? 1 : /Volwassenenonderwijs/.test(meta) ? 2 : /Ander onderwijs/.test(meta) ? 3 : 0;
+  return /Buitengewoon secundair onderwijs/.test(meta) ? 1 : /Volwassenenonderwijs/.test(meta) ? 2 : /^Basisonderwijs/.test(meta) ? 3 : /^Buitengewoon basisonderwijs/.test(meta) ? 4 : /Ander onderwijs/.test(meta) ? 5 : 0;
 }));
-check(`de lijst begint met het gewoon secundair onderwijs en wisselt daarna niet meer terug (${soortRang.filter((r) => r === 0).length} gewoon, ${soortRang.filter((r) => r === 1).length} buitengewoon, ${soortRang.filter((r) => r === 2).length} volwassenen)`, soortRang.length > 100 && soortRang[0] === 0 && soortRang.filter((r) => r === 0).length > 50 && soortRang.every((r, i) => i === 0 || r >= soortRang[i - 1]) && soortRang.includes(1) && soortRang.includes(2));
+check(`de lijst begint met het gewoon secundair onderwijs en wisselt daarna niet meer terug (${soortRang.filter((r) => r === 0).length} gewoon, ${soortRang.filter((r) => r === 1).length} buitengewoon secundair, ${soortRang.filter((r) => r === 2).length} volwassenen, ${soortRang.filter((r) => r === 3).length} basisonderwijs, ${soortRang.filter((r) => r === 4).length} buitengewoon basisonderwijs)`, soortRang.length > 100 && soortRang[0] === 0 && soortRang.filter((r) => r === 0).length > 50 && soortRang.every((r, i) => i === 0 || r >= soortRang[i - 1]) && soortRang.includes(1) && soortRang.includes(2) && soortRang.includes(3) && soortRang.includes(4));
 check('het aantal sets wordt aangekondigd (aria-live)', (await page.locator('.md-aantal[aria-live="polite"]').innerText()).length > 0);
 check('naamsvermelding en ophaaldatum staan bovenaan', /Vlaamse overheid/.test(await page.locator('.md-bron').innerText()) && /opgehaald op/.test(await page.locator('.md-bron').innerText()));
 // Zoeken (zonder accenten en op nummer), dan de set openen
@@ -883,6 +883,32 @@ await page.evaluate((v) => { if (v === null) localStorage.removeItem('wf.curricu
 
 // ── 20b-2. Een set die niet meer geldt, zoeken op vak, een set die niet bestaat ──
 console.log('20b-2. Verouderde set, zoeken op vak, onbekende set');
+await go('/#/leerplannen/minimumdoelen');
+await page.waitForSelector('.md-sets > li', { timeout: 15000 });
+// Het basisonderwijs heeft zijn eigen soorten; het buitengewoon secundair bevat er niets van.
+await page.getByLabel('Soort onderwijs', { exact: true }).selectOption('bao');
+await sleep(300);
+const baoMeta = await page.locator('.md-sets > li').evaluateAll((lijst) => lijst.map((li) => li.querySelector('.md-set-meta')?.textContent ?? ''));
+check(`soort "Basisonderwijs": een lijst (${baoMeta.length}) waarvan elke set als "Basisonderwijs · " begint`, baoMeta.length > 0 && baoMeta.every((t) => t.startsWith('Basisonderwijs · ')));
+await page.getByLabel('Soort onderwijs', { exact: true }).selectOption('buso');
+await sleep(300);
+const busoMeta = await page.locator('.md-sets > li').evaluateAll((lijst) => lijst.map((li) => li.querySelector('.md-set-meta')?.textContent ?? ''));
+check(`soort "Buitengewoon secundair onderwijs": geen set van het (buitengewoon) kleuter- of lager onderwijs (${busoMeta.length} sets)`, busoMeta.length > 0 && !busoMeta.some((t) => /^Buitengewoon basisonderwijs|Kleuteronderwijs|Lager Onderwijs/.test(t)));
+await page.getByLabel('Soort onderwijs', { exact: true }).selectOption('alle');
+await sleep(300);
+// Een oude set van het basisonderwijs: de neutrale zin (niet die over 2019) en de opvolgers van dezelfde kleuterklas.
+await go('/#/leerplannen/minimumdoelen/ODS_2104');
+await page.waitForSelector('.md-verouderd', { timeout: 15000 });
+const baoNoot = await page.locator('.md-verouderd[role="note"]').innerText();
+check('oude set van het basisonderwijs (ODS_2104): de neutrale zin met de jaren, de soort en de opvolgers van het kleuteronderwijs (ODS_3397)', /^Deze minimumdoelen gelden niet meer \(1998–2026\)\. Sets die nu gelden in het basisonderwijs voor ‘Nederlands’:/.test(baoNoot) && !/sleutelcompetentie/.test(baoNoot) && /Soort onderwijs\s+Basisonderwijs/i.test(await page.locator('.md-feiten').innerText()) && (await page.locator('.md-verouderd a[href$="/ODS_3397"]').count()) === 1);
+// Een oude set van het buitengewoon basisonderwijs (Type 8): geen opvolger van een ander type (Type 7), wel het Basisaanbod.
+await go('/#/leerplannen/minimumdoelen/ODS_2311');
+await page.waitForSelector('.md-verouderd', { timeout: 15000 });
+check('oude set Type 8 (ODS_2311): geen opvolger van een ander type (ODS_2307, Type 7), wel het Basisaanbod (ODS_2571)', (await page.locator('.md-verouderd a[href$="/ODS_2307"]').count()) === 0 && (await page.locator('.md-verouderd a[href$="/ODS_2571"]').count()) === 1);
+// De lerarenopleiding heeft geen sets die nu gelden: dan geen knop die naar een lege lijst leidt.
+await go('/#/leerplannen/minimumdoelen/ODS_2842');
+await page.waitForSelector('.md-verouderd', { timeout: 15000 });
+check('lerarenopleiding (ODS_2842): geen knop "Toon de sets die nu gelden" naar een lege lijst', (await page.getByRole('button', { name: /Toon de sets die nu gelden/ }).count()) === 0);
 await go('/#/leerplannen/minimumdoelen');
 await page.waitForSelector('.md-sets > li', { timeout: 15000 });
 await page.fill('input[type=search]', 'aardrijkskunde');

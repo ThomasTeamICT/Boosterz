@@ -14,9 +14,9 @@ import { ArrowDown, ExternalLink, ListChecks, ListTree, LoaderCircle } from 'luc
 import { controleStatus, getCurricula, saveCurriculum } from '../lib/curriculum';
 import { geldigheidVanDoelen, htmlNaarTekst, type MinimumdoelenIndexSet, type MinimumdoelenSetBestand } from '../lib/minimumdoelen';
 import {
-  FOUT_NIET_GELADEN, SOORT_LABEL, contextVanSet, datumLeesbaar, doelPastBijZoek, filterSets, geldigheidTekst, geldigheidVan, graadOpties,
-  indexHeeftGeldigheid, isGeldigSetId, isStemSet, laadIndex, laadSet, opvolgersVan, oudeVersieIds, soortVanSet, vakSetsBijStem, veiligeLink,
-  zoekTermen, zoekVoorbeelden, type SoortOnderwijs,
+  FOUT_NIET_GELADEN, SOORT_LABEL, SOORT_VOLGORDE, contextVanSet, datumLeesbaar, doelPastBijZoek, filterSets, geldigheidTekst, geldigheidVan,
+  graadOpties, heeftActueleSets, indexHeeftGeldigheid, isBasisSoort, isGeldigSetId, isStemSet, laadIndex, laadSet, opvolgersVan, oudeVersieIds, setKenmerken,
+  soortVanSet, vakSetsBijStem, veiligeLink, zoekTermen, zoekVoorbeelden, type SoortOnderwijs,
 } from '../lib/minimumdoelenBron';
 import { geldigheidJaren } from '../lib/setKeuze';
 import { isAttitude, isOptioneel, leerplanUitSet, themaVanDoel, vindLeerplanVoorSet } from '../lib/minimumdoelenLeerplan';
@@ -32,10 +32,10 @@ const SAMENSTELLEN_ROUTE = '/leerplannen/samenstellen';
 const STAP = 60;
 const SMAL_SCHERM = '(max-width: 899px)';
 
-/** Gewoon secundair onderwijs eerst, dan buitengewoon, volwassenen en ander onderwijs. */
-const SOORT_VOLGORDE: SoortOnderwijs[] = ['so', 'buso', 'vwo', 'ander'];
-
-/** Zet de sets per soort onderwijs in `SOORT_VOLGORDE`; binnen een soort blijft de volgorde van de lijst. */
+/**
+ * Zet de sets per soort onderwijs in `SOORT_VOLGORDE`: gewoon secundair onderwijs eerst, dan buitengewoon secundair, volwassenen,
+ * basisonderwijs, buitengewoon basisonderwijs en ander onderwijs. Binnen een soort blijft de volgorde van de lijst.
+ */
 function gewoonEerst(lijst: MinimumdoelenIndexSet[]): MinimumdoelenIndexSet[] {
   return lijst
     .map((set, plek) => ({ set, plek, rang: SOORT_VOLGORDE.indexOf(soortVanSet(set.naam)) }))
@@ -120,12 +120,12 @@ export function MinimumdoelenPage() {
   }, [sets]);
   // `filterSets` zet "lichamelijke opvoeding" en "LO" zelf om in de sets van dat vak (lib/vakZoektabel.ts).
   const gefilterd = useMemo(
-    () => gewoonEerst(filterSets(sets, { zoek, geldigheid, graad, soort })),
+    () => gewoonEerst(filterSets(sets, { zoek, geldigheid, graad, soort, metBasis: true })),
     [sets, zoek, geldigheid, graad, soort],
   );
   // Hoeveel oude versies er bij deze filters verborgen zijn: dat zeggen we bij het vinkje.
   const verborgenOud = useMemo(
-    () => (geldigheid === 'actueel' ? filterSets(sets, { zoek, geldigheid: 'alle', graad, soort }).length - gefilterd.length : 0),
+    () => (geldigheid === 'actueel' ? filterSets(sets, { zoek, geldigheid: 'alle', graad, soort, metBasis: true }).length - gefilterd.length : 0),
     [sets, zoek, geldigheid, graad, soort, gefilterd.length],
   );
   const laatstOpgehaald = useMemo(() => sets.reduce((m, s) => (s.opgehaald > m ? s.opgehaald : m), ''), [sets]);
@@ -180,14 +180,18 @@ export function MinimumdoelenPage() {
             Minimumdoelen zijn de wettelijke basis van de Vlaamse overheid: voor elk net dezelfde. Hier staan ze
             letterlijk zoals ze in de officiële bron staan. Kies een set en gebruik ze als leerplan.
           </p>
-          <p className="md-toelichting">De minimumdoelen zijn verdeeld in sets: per vak of sleutelcompetentie, per graad en per stroom.</p>
+          <p className="md-toelichting">
+            De minimumdoelen zijn verdeeld in sets: per vak of sleutelcompetentie, per graad en per stroom. In het basisonderwijs zijn ze
+            verdeeld per leergebied, voor het kleuter- en het lager onderwijs.
+          </p>
           <p className="md-toelichting">
             Geef je les in een bepaalde studierichting? Bekijk welke doelen erbij horen bij{' '}
             <Link to="/cursussen/richtingen">Doelen per studierichting</Link>.
           </p>
           <p className="md-toelichting">
-            Voorlopig staan hier alleen de minimumdoelen van het secundair onderwijs (ook buitengewoon secundair) en van het
-            volwassenenonderwijs, niet die van het basisonderwijs.
+            Hier staan de minimumdoelen van het secundair onderwijs (ook buitengewoon secundair), van het volwassenenonderwijs en van
+            het basisonderwijs (kleuter- en lager onderwijs, ook buitengewoon). De sets van het basisonderwijs staan achteraan. Wil je
+            alleen die sets zien? Kies ‘Basisonderwijs’ of ‘Buitengewoon basisonderwijs’ bij ‘Soort onderwijs’.
           </p>
           <p className="md-toelichting">
             Wil je doelen uit meerdere sets, of maar een deel van een set? <Link to={SAMENSTELLEN_ROUTE}>Stel je eigen doelenlijst samen</Link>.
@@ -306,8 +310,7 @@ export function MinimumdoelenPage() {
 // ── Eén set in de lijst ─────────────────────────────────────────────────────
 
 function SetKnop({ set, oud, gekozen, onKies }: { set: MinimumdoelenIndexSet; oud: boolean; gekozen: boolean; onKies: (id: string) => void }) {
-  const soort = soortVanSet(set.naam);
-  const kenmerken = [soort === 'so' ? '' : SOORT_LABEL[soort], set.graad, set.stroom, contextVanSet(set.naam)].filter(Boolean).join(' · ');
+  const kenmerken = setKenmerken(set);
   const geldig = oud && geldigheidVan(set) === 'O' ? OUDERE_VERSIE : geldigheidTekst(set);
   const doelen = typeof set.aantal === 'number' ? `${set.aantal} ${set.aantal === 1 ? 'doel' : 'doelen'}` : '';
   return (
@@ -391,6 +394,8 @@ function SetPaneel({
   const kanZoeken = rijen.length >= ZOEK_IN_DOELEN_VANAF;
 
   const kop = bestand?.set ?? indexSet;
+  const soortKop = kop ? soortVanSet(kop.naam) : undefined;
+  const basis = soortKop !== undefined && isBasisSoort(soortKop);
   // Een set zonder geldigheid in de kop (oudere bestanden): afleiden uit de doelen zelf.
   const geldigheid = bestand ? (bestand.set.geldigheid !== undefined ? bestand.set : geldigheidVanDoelen(bestand.doelen)) : indexSet;
   const bronLink = veiligeLink(bestand?.set.bron);
@@ -400,6 +405,8 @@ function SetPaneel({
   const verouderd = code === 'N' || oudereVersie;
   const jaren = geldigheid ? geldigheidJaren(geldigheid) : undefined;
   const opvolgers = useMemo(() => (verouderd && indexSet ? opvolgersVan(indexSet, alleSets) : undefined), [verouderd, indexSet, alleSets]);
+  // De knop "Toon de sets die nu gelden" alleen als die lijst niet leeg is (niet voor de lerarenopleiding).
+  const kanToonActueel = useMemo(() => verouderd && indexSet !== undefined && heeftActueleSets(indexSet, alleSets), [verouderd, indexSet, alleSets]);
   // Een STEM-set bundelt wiskunde, natuurwetenschappen en techniek: dat zeggen we, met hulp om de eigen doelen te vinden.
   const stem = !verouderd && kop !== undefined && isStemSet(kop);
   const vakSets = useMemo(() => (stem && indexSet ? vakSetsBijStem(indexSet, alleSets) : []), [stem, indexSet, alleSets]);
@@ -471,6 +478,11 @@ function SetPaneel({
               <p>
                 Deze versie geldt niet meer{jaren ? ` (${jaren})` : ''}. Er is een nieuwere versie van deze set: gebruik die.
               </p>
+            ) : opvolgers?.soort === 'vak' && basis && soortKop ? (
+              <p>
+                Deze minimumdoelen gelden niet meer{jaren ? ` (${jaren})` : ''}. Sets die nu gelden in het {SOORT_LABEL[soortKop].toLowerCase()} voor{' '}
+                {kop?.korteNaam ? <strong>‘{kop.korteNaam}’</strong> : 'dit leergebied'}:
+              </p>
             ) : opvolgers?.soort === 'vak' ? (
               <p>
                 Deze minimumdoelen gelden niet meer{jaren ? ` (${jaren})` : ''}. Sinds 2019 zijn de eindtermen niet meer per vak
@@ -500,9 +512,9 @@ function SetPaneel({
                   </li>
                 ))}
               </ul>
-            ) : indexSet ? (
+            ) : indexSet && kanToonActueel ? (
               <button type="button" className="btn btn-sm btn-ghost" onClick={() => onToonActueel(indexSet)}>
-                Toon de sets die nu gelden{indexSet.graad ? ` voor de ${indexSet.graad}` : ''}
+                Toon de sets die nu gelden{indexSet.graad ? ` voor de ${indexSet.graad}` : basis && soortKop ? ` in het ${SOORT_LABEL[soortKop].toLowerCase()}` : ''}
               </button>
             ) : null}
           </div>
