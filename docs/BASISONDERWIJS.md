@@ -30,11 +30,13 @@ Wat het moet doen, in de volgorde van de eigenaar:
 | Werkend voorbeeld "Lichtkamer" (W&T, leerlijn licht, drie momenten, 8 oefeningen in 3D-diorama's). Review met 43 bevestigde bevindingen, allemaal opgelost en nagekeken. Bron in `tools/prototypes/lichtkamer/` | **Klaar** (1 november 2026), ter beoordeling bij de eigenaar | eigenaar |
 | Tweede ronde antwoorden: overal 3D (op Chromebooks lichter); stijl "diorama met details, zonder te veel afleiding, mag opvallen op een groot digibord"; de zaklamp wijst waar het licht heen gaat; proefklas **3de leerjaar, schaduwles** | **Klaar** (1 november 2026) | eigenaar |
 | Derde ronde antwoorden: een **eigen account pas vanaf de 2de graad** (3de leerjaar), daaronder hangt het af van de leeftijd; de pakketten **mogen openbaar** | **Klaar** (1 november 2026) | eigenaar |
-| Ontwerp: hoe een kind zich aanmeldt en hoe zijn werk bij de leerkracht komt, per leeftijd (§ "Aanmelden en inleveren per leeftijd"): drie ontwerpen, twee rechters, één model met 16 bouwpakketten | **Klaar** (1 november 2026), vier vragen wachten | eigenaar |
+| Ontwerp: hoe een kind zich aanmeldt en hoe zijn werk bij de leerkracht komt, per leeftijd (§ "Aanmelden en inleveren per leeftijd"): drie ontwerpen, twee rechters, één model met 16 bouwpakketten | **Klaar** (1 november 2026); de vier vragen zijn beantwoord (2 november 2026) | eigenaar |
 | Vierde ronde antwoorden: bewijs per kind naar buiten **mag later**, maar is nu niet cruciaal; "openbaar" geldt **ook voor de lesplannen van het GO!**; PR #11 **samenvoegen**; de Lichtkamer is goed qua detail en opzet en is **het minimum** voor nieuwe pakketten | **Klaar** (2 november 2026) | eigenaar |
 | Vóór PR #11: de app deelde "Buitengewoon Lager/Kleuteronderwijs" in bij het buitengewoon secundair, zodat die sets in de keuzelijsten van het secundair zouden opduiken. Hersteld (1c1c032): twee eigen soorten, "Basisonderwijs" en "Buitengewoon basisonderwijs", alleen te zien op de pagina "Officiële minimumdoelen" (of op hun nummer); samenstellen, de inleeswizard en de keuzes in de editor blijven voor het secundair zoals ze waren. Opvolgers van oude basissets houden rekening met het moment en het type; een leerplan uit een basisset krijgt moment en soort doelen in de titel | **Klaar** (2 november 2026), nagekeken door twee reviewers en de rechter | hoofdsessie |
 | De maandelijkse ophaling (de 3de van de maand) filtert standaard nog op "secundair": de 146 basissets worden wel bijgewerkt, maar een nieuwe set van het basisonderwijs (de tweede golf van de minimumdoelen) komt er niet vanzelf bij. De standaardfilter verruimen hoort bij bouwstap 2 | **Wacht** | hoofdsessie |
-| Nog open: de vier vragen bij "Aanmelden en inleveren per leeftijd" (toestel van de leerkracht, proef met de ICT-coördinator, voornamen in de 1ste graad, wie de geluidjes inspreekt) | **Wacht** | eigenaar |
+| Vijfde ronde antwoorden: het toestel van de leerkracht is een **Windows-laptop**, naast het digibord; de proef met de ICT-coördinator **mag**; voornamen op de gedeelde toestellen van de 1ste graad **mogen**; voor de geluidjes **zorgt de eigenaar** zodra de rest klaar is | **Klaar** (2 november 2026) | eigenaar |
+| Toestelproef (bouwpakket 1): een losse proefpagina voor de proef met de ICT-coördinator. Op de Windows-laptop leest de scanner met jsqr, want Chrome en Edge op Windows hebben geen BarcodeDetector (waarschijnlijk; de proef bevestigt het) | **Bezig** | hoofdsessie |
+| Proef op echte schooltoestellen (bouwpakket 2): een Chromebook van de 1ste graad, een Chromebook van het 3de leerjaar, de Windows-laptop van de leerkracht en het digibord | **Wacht** op de toestelproef, daarna op een afspraak met de ICT-coördinator | eigenaar en hoofdsessie |
 | Bouw in de app (§ "Bouwstappen"): het voorbeeld is goedgekeurd en PR #11 mag samengevoegd worden | **Bezig**: stap 1 is klaar; van stap 2 is de volledige doeltekst klaar, het momentmodel is de volgende | hoofdsessie |
 
 ## Wat de bron bevat (proefrun van 1 november 2026)
@@ -141,7 +143,7 @@ Vertrekpunt is het antwoord van de eigenaar: een eigen account pas vanaf de 2de 
 | Toestel | gedeeld klastoestel in een hoek | eigen Chromebook met eigen account | laptop van de leerkracht |
 | Wie werkt? | prentje aantikken op de muur (tegels van minstens 96 px, opgenomen geluid) en dan "Ja, dat ben ik": 2 tikken, 3 in duo | één keer de eigen naam tikken | "Wie komt?" en het prentje, alleen voor een beurt |
 | Hoe lang | alleen in het geheugen: terug naar de muur na elke oefening, na "Ik ben klaar", na herladen en na "Ben je er nog?" (2 + 1 min, instelbaar) | het profiel onthoudt het; "Niet jij?" gaat naar de muur, nooit naar een vrije naam | één oefening |
-| Namen op het toestel | bij de kleuters nooit; in de 1ste graad alleen bij "leest" en als de leerkracht ze aanzet | voornamen van de klas | nooit |
+| Namen op het toestel | bij de kleuters nooit; in de 1ste graad mag het (eigenaar, 2 november 2026): de leerkracht zet ze aan, standaard aan bij "leest" | voornamen van de klas | nooit |
 | Inleveren | "Voor de juf of meester" na elke hoekenronde, ook door de klasdienst (±20 s per toestel) | "Lever in" op het einde van de les (±6 s per kind) | niet nodig |
 
 **De bewijscode WB1.** De code bevat alleen hoofdletters, cijfers en `. / - *`, en nooit een naam. Erin staan de klascode, het toestel, de bundel, het deel en de dag, en per kind de kindcode, het uur en per bewijs een nummer met de uitkomst. Op het einde staat een controle van 2 tekens.
@@ -189,12 +191,17 @@ De toestelkaart WK1 (zonder namen) is 127 tekens voor 25 kinderen, versie 5. Voo
 
 Na pakket 13 kan de proefklas starten, samen met bouwstap 5 (de Lichtkamer als oefeningsoort).
 
-**Open vragen voor de eigenaar:**
+**Antwoorden van de eigenaar (2 november 2026):** "Toestel lkr is Windows laptop en digibord, proef ja, voornamen ja,
+geluidjes zorgen we verder voor eens we rond zijn."
 
-- Welk toestel is het toestel van de leerkracht? Voorstel: haar eigen laptop met webcam.
-- Mag er eerst een proef met de ICT-coördinator komen? Voorstel: ja, een halve dag.
-- Mogen voornamen op de gedeelde toestellen van de 1ste graad? Voorstel: alleen bij "leest" en als de leerkracht ze aanzet; bij de kleuters nooit.
-- Wie spreekt de geluidjes in? Voorstel: één stem uit de scholengroep, openbaar.
+- Het toestel van de leerkracht is een **Windows-laptop**, naast het digibord. De scanner van het Inleverpunt leest daar met
+  jsqr, want Chrome en Edge op Windows hebben geen BarcodeDetector (waarschijnlijk; de toestelproef bevestigt het). De proef
+  kijkt ook of de laptop het digibord aanstuurt of dat er een apart toestel aan het bord hangt, en of de webcam vlot leest.
+- De **proef met de ICT-coördinator** mag. Eerst komt de toestelproef (bouwpakket 1).
+- **Voornamen** op de gedeelde toestellen van de 1ste graad mogen. De leerkracht zet ze aan per klas (standaard aan bij
+  "leest"). Bij de kleuters blijven ze weg; in codes staan nooit namen.
+- Voor de **geluidjes** zorgt de eigenaar zodra de rest klaar is. Wij leveren de inspreeklijst (bouwpakket 15); tot de
+  opnames er zijn, dient de stem van het toestel of blijft het stil (bouwpakket 16).
 
 **Wat we vonden over Chromebooks** (webonderzoek, 1 november 2026; de hulppagina's van Google voor beheerders waren vanuit
 de sessie niet bereikbaar, dus de proef van pakket 2 bevestigt dit):

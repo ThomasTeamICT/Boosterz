@@ -204,7 +204,7 @@ Test: Draai node tools/prototypes/toestelproef/maak-proef.mjs. Elke ingebedde QR
 
 Agent: `hoofdsessie`. Hangt af van: 1.
 
-Samen met de ICT-coördinator van de proefschool, op drie toestellen: een Chromebook van de kleuters of de 1ste graad (gastsessie of klasaccount), een Chromebook van het 3de leerjaar (eigen account) en het toestel aan het digibord. We gaan vier dingen na.
+Samen met de ICT-coördinator van de proefschool (de eigenaar gaf zijn akkoord op 2 november 2026), op vier toestellen: een Chromebook van de kleuters of de 1ste graad (gastsessie of klasaccount), een Chromebook van het 3de leerjaar (eigen account), de Windows-laptop van de leerkracht (het toestel van de leerkracht) en het digibord. We gaan vier dingen na.
 (1) Hoe de toestellen ingesteld zijn, en of afmelden de opslag wist (de opslagproef).
 (2) Of de camera voor het adres van Boosterz zonder vraag mag (VideoCaptureAllowedUrls), en of een webcam van 720p de codes van versie 3, 6 en 10 leest op 6 en 8 px: met BarcodeDetector op ChromeOS en met jsqr op Windows.
 (3) Of er een Nederlandse stem is, ook offline.
@@ -545,7 +545,7 @@ src/lib/basis/voorlezen.ts kiest in deze volgorde:
 1. het opgenomen fragment (public/basis/geluid/<id>.mp3 of .ogg);
 2. is dat er niet, de stem van het toestel (nl-BE, dan nl-NL). Die dient vooral voor een voornaam;
 3. anders blijft het stil, zonder fout.
-De muur en de vragen krijgen een knop 'Hoor het nog eens'. In de prikkelarme stand leest niets vanzelf voor, en het tempo volgt de voorleesinstelling van A11yMenu. De fragmenten komen in de precache van de service worker, zodat ze ook offline werken (sw.js wordt niet hernoemd). Het inspreken zelf doen mensen (vraag 4).
+De muur en de vragen krijgen een knop 'Hoor het nog eens'. In de prikkelarme stand leest niets vanzelf voor, en het tempo volgt de voorleesinstelling van A11yMenu. De fragmenten komen in de precache van de service worker, zodat ze ook offline werken (sw.js wordt niet hernoemd). Voor het inspreken zorgt de eigenaar zodra de rest klaar is (antwoord van 2 november 2026); tot dan dient de stem van het toestel, of blijft het stil.
 
 Bestanden: `/home/user/Bookwidgetzzz/src/lib/basis/voorlezen.ts`, `/home/user/Bookwidgetzzz/src/lib/basis/voorlezen.test.ts`, `/home/user/Bookwidgetzzz/src/pages/basis/Muur.tsx`, `/home/user/Bookwidgetzzz/src/offline/serviceWorker.js`, `/home/user/Bookwidgetzzz/public/basis/geluid/`
 
