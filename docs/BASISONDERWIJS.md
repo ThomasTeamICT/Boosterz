@@ -31,8 +31,10 @@ Wat het moet doen, in de volgorde van de eigenaar:
 | Tweede ronde antwoorden: overal 3D (op Chromebooks lichter); stijl "diorama met details, zonder te veel afleiding, mag opvallen op een groot digibord"; de zaklamp wijst waar het licht heen gaat; proefklas **3de leerjaar, schaduwles** | **Klaar** (1 november 2026) | eigenaar |
 | Derde ronde antwoorden: een **eigen account pas vanaf de 2de graad** (3de leerjaar), daaronder hangt het af van de leeftijd; de pakketten **mogen openbaar** | **Klaar** (1 november 2026) | eigenaar |
 | Ontwerp: hoe een kind zich aanmeldt en hoe zijn werk bij de leerkracht komt, per leeftijd (§ "Aanmelden en inleveren per leeftijd"): drie ontwerpen, twee rechters, één model met 16 bouwpakketten | **Klaar** (1 november 2026), vier vragen wachten | eigenaar |
-| Nog open: wat met het bewijs per kind (alleen in de klas, of ook naar buiten); dekt "openbaar" ook de lesplannen van het GO!; oordeel over het voorbeeld; teken voor PR #11 | **Wacht** | eigenaar |
-| Bouw in de app (§ "Bouwstappen"): begint pas na het oordeel over het voorbeeld en het teken voor PR #11 | **Wacht** | eigenaar, daarna hoofdsessie |
+| Vierde ronde antwoorden: bewijs per kind naar buiten **mag later**, maar is nu niet cruciaal; "openbaar" geldt **ook voor de lesplannen van het GO!**; PR #11 **samenvoegen**; de Lichtkamer is goed qua detail en opzet en is **het minimum** voor nieuwe pakketten | **Klaar** (2 november 2026) | eigenaar |
+| Vóór PR #11: de app deelde "Buitengewoon Lager/Kleuteronderwijs" in bij het buitengewoon secundair, zodat die sets in de keuzelijsten van het secundair zouden opduiken. Eerst herstellen, dan samenvoegen | **Bezig** | hoofdsessie |
+| Nog open: de vier vragen bij "Aanmelden en inleveren per leeftijd" (toestel van de leerkracht, proef met de ICT-coördinator, voornamen in de 1ste graad, wie de geluidjes inspreekt) | **Wacht** | eigenaar |
+| Bouw in de app (§ "Bouwstappen"): het voorbeeld is goedgekeurd en PR #11 mag samengevoegd worden | **Kan starten** na het herstel hierboven | hoofdsessie |
 
 ## Wat de bron bevat (proefrun van 1 november 2026)
 
@@ -113,10 +115,13 @@ van de eigenaar; de eigenaar beslist met wie het gedeeld wordt.
 - **Chromebooks** (beantwoord, 1 november 2026): "Afhankelijk van de leeftijd, pas vanaf 2 graad eigen account." Kleuters
   en de 1ste graad hebben dus geen eigen account; vanaf het 3de leerjaar wel. Hoe het werk bij de leerkracht komt, werkt de
   hoofdsessie uit (zie de stand van zaken).
-- **Openbaarheid** (beantwoord, 1 november 2026): "ja mag openbaar". Na te vragen: geldt dat ook voor de inhoud van de
-  lesplannen van het GO!, of alleen voor de pakketten van de scholengroep?
-- **Bewijs per kind**: blijft het bij bekijken in de klas, of moet het ook naar buiten (een export, het rapport, een
-  leerlingvolgsysteem)? Nog niet beantwoord.
+- **Openbaarheid** (beantwoord, 1 en 2 november 2026): "ja mag openbaar", "ja ook voor lesplannen". De pakketten van de
+  scholengroep én de lesplannen van het GO! mogen in de openbare repo en op de openbare site.
+- **Bewijs per kind** (beantwoord, 2 november 2026): "Ja per kind mogelijk maar nog niet cruciaal nu". Een export per kind
+  komt later; het ontwerp houdt er rekening mee (klasbestand, geen namen in codes), maar bouwt het nu niet.
+- **Kwaliteit** (2 november 2026): "detail en opzet [Lichtkamer] is goed, dit moet zowat de minimum zijn". De Lichtkamer
+  is de ondergrens voor nieuwe pakketten: een diorama met details, voorspel eerst, bewijs per doel, digibordstand,
+  voorlezen, prikkelarm en bediening zonder muis.
 
 ## Aanmelden en inleveren per leeftijd (ontwerp, 1 november 2026)
 
@@ -206,9 +211,9 @@ de sessie niet bereikbaar, dus de proef van pakket 2 bevestigt dit):
 - **De officiële doelen** komen uit de Onderwijsdoelen-API, letterlijk en met hun bron, maandelijks bijgewerkt via de bestaande
   workflow (`.github/workflows/minimumdoelen.yml`, `tools/leerplannen/haal-minimumdoelen.mjs`). Niets verzinnen; de eerste echte
   run bevestigt de vorm (werkwijze, regel 11).
-- **De lesfiches van het GO!** zijn inhoud van het net. De app en de repo zijn openbaar (GitHub Pages). Zonder uitdrukkelijke
-  toestemming van het GO! komen lesfiches dus niet in de repo; dan laadt een school of leerkracht ze zelf in op het eigen toestel,
-  zoals de leerplannen van de netten (`docs/LEERPLANNEN.md`, § 4 en § 13). Eerst de rechten vragen.
+- **De lesplannen (vroeger lesfiches) van het GO!** zijn inhoud van het net. De eigenaar heeft een akkoord met het GO! en
+  bevestigde op 2 november 2026 dat het ook een openbare site en repo dekt ("ja ook voor lesplannen"). Vermeld bij elk
+  lesplan de bron (GO!) en neem het letterlijk over.
 - **AI blijft optioneel**, met de eigen sleutel van de leerkracht of de school; alles werkt ook zonder.
 - **Bouwstenen die er al zijn:** 38 soorten oefeningen (o.a. whiteboard, hotspot, tijdlijn, mindmap, memory, quiz met veel
   vraagtypes), cursussen met secties en blokken, delen met een klas, de dekking op doelen, en de lessen uit de proefleerkrachten
