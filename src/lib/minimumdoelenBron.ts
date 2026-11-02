@@ -6,6 +6,7 @@
 // voor offline gebruik ("andere eigen bestanden: netwerk eerst, cache als terugval").
 
 import {
+  metUitbreidingOpDoelzin,
   valideerSetBestand,
   type MinimumdoelenIndex,
   type MinimumdoelenIndexSet,
@@ -99,7 +100,8 @@ async function haalSetOp(id: string): Promise<MinimumdoelenSetBestand> {
   if (fouten.length > 0) {
     throw new Error(`De set ${id} kon niet gelezen worden: het bestand is beschadigd. Probeer het later opnieuw. (${fouten[0]})`);
   }
-  return bestand;
+  // De uitbreiding op de doelzin (basisonderwijs) hoort bij het doel: overal de volledige tekst.
+  return metUitbreidingOpDoelzin(bestand);
 }
 
 /**

@@ -35,7 +35,7 @@ Wat het moet doen, in de volgorde van de eigenaar:
 | Vóór PR #11: de app deelde "Buitengewoon Lager/Kleuteronderwijs" in bij het buitengewoon secundair, zodat die sets in de keuzelijsten van het secundair zouden opduiken. Hersteld (1c1c032): twee eigen soorten, "Basisonderwijs" en "Buitengewoon basisonderwijs", alleen te zien op de pagina "Officiële minimumdoelen" (of op hun nummer); samenstellen, de inleeswizard en de keuzes in de editor blijven voor het secundair zoals ze waren. Opvolgers van oude basissets houden rekening met het moment en het type; een leerplan uit een basisset krijgt moment en soort doelen in de titel | **Klaar** (2 november 2026), nagekeken door twee reviewers en de rechter | hoofdsessie |
 | De maandelijkse ophaling (de 3de van de maand) filtert standaard nog op "secundair": de 146 basissets worden wel bijgewerkt, maar een nieuwe set van het basisonderwijs (de tweede golf van de minimumdoelen) komt er niet vanzelf bij. De standaardfilter verruimen hoort bij bouwstap 2 | **Wacht** | hoofdsessie |
 | Nog open: de vier vragen bij "Aanmelden en inleveren per leeftijd" (toestel van de leerkracht, proef met de ICT-coördinator, voornamen in de 1ste graad, wie de geluidjes inspreekt) | **Wacht** | eigenaar |
-| Bouw in de app (§ "Bouwstappen"): het voorbeeld is goedgekeurd en PR #11 mag samengevoegd worden | **Kan starten**: stap 1 is klaar, stap 2 is de volgende | hoofdsessie |
+| Bouw in de app (§ "Bouwstappen"): het voorbeeld is goedgekeurd en PR #11 mag samengevoegd worden | **Bezig**: stap 1 is klaar; van stap 2 is de volledige doeltekst klaar, het momentmodel is de volgende | hoofdsessie |
 
 ## Wat de bron bevat (proefrun van 1 november 2026)
 
@@ -105,7 +105,10 @@ van de eigenaar; de eigenaar beslist met wie het gedeeld wordt.
 1. PR #11 samenvoegen: de doelen van het basisonderwijs in de app. **Klaar** (2 november 2026). Bewust nog niet gedaan, voor
    het eigen deel: een filter per moment, een tweelingregel voor gewoon en buitengewoon op doel-id, en "Geldig tot".
 2. De volledige doeltekst (met `extra.uitbreiding_op_doelzin`) en een momentmodel: kleuter, 4de, 6de, en welke doelen nu
-   gelden per leerjaar (de invoering in twee golven).
+   gelden per leerjaar (de invoering in twee golven). De volledige doeltekst is **klaar** (2 november 2026): bij 546 doelen
+   in 49 sets staat een deel van het doel apart in de bron (de lijst achter "kennen de volgende begrippen:", voorbeelden
+   tussen "< bv. … >"). `laadSet` zet die letterlijk achter de doelzin, zodat elk scherm, het leerplan en het nakijken
+   dezelfde volledige tekst hebben. Het momentmodel wacht nog.
 3. Een aparte ingang voor het basisonderwijs met een eigen vormgeving.
 4. Het lichtmodel en het bewijsmodel als geteste code (schaduwpunt, kaartjes, stoffen; bewijs per doel-id).
 5. Een oefeningsoort "lichtkamer" in de app, met de digibordstand.

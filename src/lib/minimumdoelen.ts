@@ -19,7 +19,10 @@ export interface Minimumdoel {
   /** Vast nummer van het doel in de API (`@id`), als tekst. */
   id?: string;
   code: string;
-  /** Letterlijk uit de bron; enkel begin- en eindwitruimte zijn weggehaald. */
+  /**
+   * Letterlijk uit de bron; enkel begin- en eindwitruimte zijn weggehaald. In het bestand is het de doelzin. In de app
+   * (`laadSet`) staat de uitbreiding op de doelzin er al achter (`metUitbreidingOpDoelzin`).
+   */
   tekst: string;
   type?: string;
   sleutelcompetentie?: Sleutelcompetentie;
@@ -679,6 +682,27 @@ function beperk(fouten: string[]): string[] {
 
 function isTekst(v: unknown): v is string {
   return typeof v === 'string' && v.trim() !== '';
+}
+
+/**
+ * In het basisonderwijs staat een deel van het doel apart in de bron: de uitbreiding op de doelzin
+ * (`extra.uitbreiding_op_doelzin`). Dat is bijvoorbeeld de lijst achter "De kleuters kennen de volgende begrippen:", of
+ * voorbeelden tussen "< bv. … >". Zonder die uitbreiding is het doel onvolledig. Deze functie zet ze letterlijk achter de
+ * doelzin, zodat elk scherm, elke lijst en het nakijken dezelfde volledige tekst krijgt. `extra` blijft ongewijzigd. Het
+ * bestand zelf verandert niet (een nieuwe kopie; de sha256 van de bron blijft gelden). Een doel waarvan de tekst de
+ * uitbreiding al bevat, blijft zoals het is, dus twee keer toepassen geeft hetzelfde.
+ */
+export function metUitbreidingOpDoelzin(bestand: MinimumdoelenSetBestand): MinimumdoelenSetBestand {
+  let gewijzigd = false;
+  const doelen = bestand.doelen.map((doel) => {
+    const u = doel.extra?.uitbreiding_op_doelzin;
+    if (typeof u !== 'string' || u.trim() === '' || typeof doel.tekst !== 'string') return doel;
+    const uitbreiding = u.trim();
+    if (doel.tekst.includes(uitbreiding)) return doel;
+    gewijzigd = true;
+    return { ...doel, tekst: `${doel.tekst}\n${uitbreiding}` };
+  });
+  return gewijzigd ? { ...bestand, doelen } : bestand;
 }
 
 /**

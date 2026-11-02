@@ -38,9 +38,12 @@ import {
   zonderAccenten,
   type SetFilter,
 } from './minimumdoelenBron';
-import type { MinimumdoelenIndexSet } from './minimumdoelen';
+import { htmlNaarTekst, metUitbreidingOpDoelzin, type MinimumdoelenIndexSet, type MinimumdoelenSetBestand } from './minimumdoelen';
 
 // ── Hulpmiddelen ────────────────────────────────────────────────────────────
+
+/** De echte gegevens in de repo. */
+const DATA_MAP_ECHT = join(fileURLToPath(new URL('../../', import.meta.url)), 'public', 'leerplannen', 'minimumdoelen');
 
 function indexSet(id: string, extra: Partial<MinimumdoelenIndexSet> = {}): MinimumdoelenIndexSet {
   return { id, naam: `Secundair onderwijs 1ste graad A-stroom - Vak - Set ${id} - Eindtermen`, aantal: 2, sha256: 'x', opgehaald: '2026-10-05T10:00:00Z', bestand: `${id}.json`, ...extra };
@@ -164,6 +167,32 @@ describe('laadSet', () => {
     const gelukt = await laadSet('ODS_5');
     expect(gelukt.set.id).toBe('ODS_5');
     expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('zet de uitbreiding op de doelzin (basisonderwijs) achter de doelzin, letterlijk, en laat extra ongemoeid', async () => {
+    const json = setJson('ODS_3405');
+    const uitbreiding = '<ul><li>bijdoen, erbij, samen(tellen), samenvoegen;</li><li>splitsen;</li></ul>';
+    json.doelen[0] = { id: '1', code: '01.01', tekst: '<p>De kleuters kennen de volgende begrippen [F]:</p>', extra: { uitbreiding_op_doelzin: `${uitbreiding} ` } } as (typeof json.doelen)[number];
+    stubFetch(() => antwoord(json));
+    const bestand = await laadSet('ODS_3405');
+    expect(bestand.doelen[0].tekst).toBe(`<p>De kleuters kennen de volgende begrippen [F]:</p>\n${uitbreiding}`);
+    expect(bestand.doelen[0].extra?.uitbreiding_op_doelzin).toBe(`${uitbreiding} `);
+    expect(htmlNaarTekst(bestand.doelen[0].tekst)).toBe('De kleuters kennen de volgende begrippen [F]:\n• bijdoen, erbij, samen(tellen), samenvoegen;\n• splitsen;');
+    expect(bestand.doelen[1].tekst).toBe('Tweede.');
+    // Twee keer toepassen geeft hetzelfde; een set zonder uitbreiding blijft hetzelfde object.
+    expect(metUitbreidingOpDoelzin(bestand)).toBe(bestand);
+    const zonder = setJson('ODS_1') as unknown as MinimumdoelenSetBestand;
+    expect(metUitbreidingOpDoelzin(zonder)).toBe(zonder);
+  });
+
+  it.runIf(existsSync(join(DATA_MAP_ECHT, 'ODS_3405.json')))('de echte set ODS_3405 (wiskunde, kleuters): elk doel met een uitbreiding krijgt de volledige tekst', () => {
+    const ruw = JSON.parse(readFileSync(join(DATA_MAP_ECHT, 'ODS_3405.json'), 'utf8')) as MinimumdoelenSetBestand;
+    const volledig = metUitbreidingOpDoelzin(ruw);
+    const met = ruw.doelen.filter((d) => typeof d.extra?.uitbreiding_op_doelzin === 'string');
+    expect(met.length).toBeGreaterThan(0);
+    const doel = volledig.doelen.find((d) => d.code === '2.2.1');
+    expect(htmlNaarTekst(doel!.tekst)).toMatch(/^De kleuters kennen de volgende begrippen \[F\]:\n• bijdoen, erbij, samen\(tellen\), samenvoegen;\n• weg\(nemen\), eraf;/);
+    expect(ruw.doelen.find((d) => d.code === '2.2.1')!.tekst).toBe('<p>De kleuters kennen de volgende begrippen [F]:</p>');
   });
 
   it('weigert een bestand dat bij een andere set hoort', async () => {
