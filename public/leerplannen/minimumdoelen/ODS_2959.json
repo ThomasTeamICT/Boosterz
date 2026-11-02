@@ -1,0 +1,26 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2959",
+    "naam": "Buitengewoon Lager Onderwijs Type 3 - Leergebied - Alle leergebieden - Ontwikkelingsdoelen",
+    "apiId": "2959",
+    "korteNaam": "Alle leergebieden",
+    "versie": "1.0",
+    "geldigheid": "Geldig",
+    "geldigVan": "2018-09-01",
+    "geldigTot": "2030-08-31",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-11-01T15:05:28Z",
+    "aantal": 1,
+    "sha256": "a4618aff14110f70c364bd40d01fae150f6f4b935fd5d1c4c62b553a2d7498b0"
+  },
+  "doelen": [
+{"id":"90246","code":"INFO","tekst":"<p>Voor de groep leerlingen die onderwijs volgen in het buitengewoon lager onderwijs type 3 zijn geen specifieke ontwikkelingsdoelen vastgelegd. In de uitgangspunten vindt u onder andere informatie over de ontwikkelingsdoelen die gebruikt kunnen worden. Als er verwezen wordt naar type 1 en type 8, raadpleegt u best de informatie en onderwijsdoelen opgenomen onder het type basisaanbod.</p>","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2018-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

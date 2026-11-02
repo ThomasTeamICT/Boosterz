@@ -1,0 +1,32 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2305",
+    "naam": "Buitengewoon Kleuteronderwijs Type 7 - Leergebied - Muzische Vorming - Aanvullende - Ontwikkelingsdoelen",
+    "apiId": "2305",
+    "korteNaam": "Muzische Vorming",
+    "versie": "1.0",
+    "geldigheid": "Geldig",
+    "geldigVan": "2003-09-01",
+    "geldigTot": "2027-08-31",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-11-01T15:05:28Z",
+    "aantal": 7,
+    "sha256": "64c29614cd90ca00906c66f33d9957eb4219154182bd9b6aff54af16ed881393"
+  },
+  "doelen": [
+{"id":"78485","code":"1","tekst":"De leerling maakt kennis met de eigen vormen van artistieke expressie.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2027-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"78486","code":"2","tekst":"De leerling ervaart beeldende kunst en staat stil bij het belang van het tactiele en het visuele voor doven.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2027-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"78487","code":"3","tekst":"De leerling voelt muziek aan, ervaart en kijkt naar muzikanten en kunstenaars die werken met muziek en reflecteren over hun eigen muziekbeleving en de verschillen met de muziekbeleving van horenden.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2027-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"78488","code":"4","tekst":"De leerling kijkt geconcentreerd naar een vertelde tekst en geeft die in gebarentaal, schriftelijk, beeldend of dramatisch weer.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2027-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"78489","code":"5","tekst":"De leerling bekijkt en ervaart gebarentaaltheater en gebarentaalpoëzie en uit ervaringen, gevoelens, ideeën en fantasieën in spel.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2027-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"78490","code":"6","tekst":"De leerling bekijkt en ervaart films en videokunst met en door doven en uit zichzelf creatief in spel.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2027-08-31T00:00:00Z"},"optioneel":false,"titels":{}}},
+{"id":"78491","code":"7","tekst":"De leerling reflecteert over de toegankelijkheid van de media voor doven, het eigen mediagebruik en de beeldvorming op doofheid in de media en kan omgaan met ondertiteling op tv.","type":"Ontwikkelingsdoelen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"2003-09-01T00:00:00Z","geldig_tot_dt":"2027-08-31T00:00:00Z"},"optioneel":false,"titels":{}}}
+  ]
+}

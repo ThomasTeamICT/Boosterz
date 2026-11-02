@@ -1,0 +1,31 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2115",
+    "naam": "Lager Onderwijs - Leergebiedoverschrijdende - Leren Leren - Eindtermen",
+    "apiId": "2115",
+    "korteNaam": "Leren Leren",
+    "versie": "1.0",
+    "geldigheid": "Geldig",
+    "geldigVan": "1998-09-01",
+    "geldigTot": "2030-08-31",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-11-01T15:05:28Z",
+    "aantal": 6,
+    "sha256": "e0022e9856a071242392e84eb1e0c740b2594c48c9e443d0f09744ce6233d21c"
+  },
+  "doelen": [
+{"id":"73696","code":"1.","tekst":"De leerlingen kunnen losse gegevens verwerven en gebruiken door ze betekenis te geven en te memoriseren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"leren leren"}}}},
+{"id":"73697","code":"2.","tekst":"De leerlingen kunnen op systematische wijze verschillende informatiebronnen op hun niveau zelfstandig gebruiken.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"leren leren"}}}},
+{"id":"73698","code":"3.","tekst":"De leerlingen kunnen op systematische wijze samenhangende informatie (ook andere dan teksten) verwerven en gebruiken.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"leren leren"}}}},
+{"id":"73699","code":"4.","tekst":"De leerlingen kunnen eenvoudige problemen op systematische en inzichtelijke wijze oplossen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"leren leren"}}}},
+{"id":"73700","code":"5.","tekst":"De leerlingen kunnen, eventueel onder begeleiding: <br/>- hun lessen, taken en opdrachten plannen en organiseren;<br/>- hun eigen leerproces controleren en bijsturen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"leren leren"}}}},
+{"id":"73701","code":"6.","tekst":"Houdingen en overtuigingen<br/>De leerlingen kunnen op hun niveau leren met:<br/>- nauwkeurigheid;<br/>- efficiëntie;<br/>- wil tot zelfstandigheid;<br/>- voldoende zelfvertrouwen;<br/>- voldoende weerbaarheid;<br/>- houding van openheid;<br/>- kritische zin.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"leren leren"}}}}
+  ]
+}

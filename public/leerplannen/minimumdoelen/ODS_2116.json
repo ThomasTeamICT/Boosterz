@@ -1,0 +1,36 @@
+{
+  "app": "boosterz",
+  "kind": "minimumdoelen",
+  "v": 1,
+  "set": {
+    "id": "ODS_2116",
+    "naam": "Lager Onderwijs - Leergebiedoverschrijdende - Sociale Vaardigheden - Eindtermen",
+    "apiId": "2116",
+    "korteNaam": "Sociale Vaardigheden",
+    "versie": "1.0",
+    "geldigheid": "Geldig",
+    "geldigVan": "1998-09-01",
+    "geldigTot": "2030-08-31",
+    "sleutelcompetenties": [],
+    "bron": "https://www.onderwijsdoelen.be/",
+    "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen",
+    "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)",
+    "licentie": "nog te bevestigen",
+    "opgehaald": "2026-11-01T15:05:28Z",
+    "aantal": 11,
+    "sha256": "d1cfe252ffa69abf402c6d789aef759ebf2326abf53fae947ad7fce63fa5dde6"
+  },
+  "doelen": [
+{"id":"73702","code":"1.1","tekst":"De leerlingen kunnen zich op een assertieve wijze voorstellen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"Sociale vaardigheden - Domein relatiewijzen","nr":"1."},"2":{"titel":"Relatiewijzen","nr":"1."}}}},
+{"id":"73703","code":"1.2","tekst":"De leerlingen kunnen in omgang met anderen respect en waardering opbrengen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"Sociale vaardigheden - Domein relatiewijzen","nr":"1."},"2":{"titel":"Relatiewijzen","nr":"1."}}}},
+{"id":"73704","code":"1.3","tekst":"De leerlingen kunnen zorg opbrengen voor iets of iemand anders.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"Sociale vaardigheden - Domein relatiewijzen","nr":"1."},"2":{"titel":"Relatiewijzen","nr":"1."}}}},
+{"id":"73705","code":"1.4","tekst":"De leerlingen kunnen hulp vragen en zich laten helpen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"Sociale vaardigheden - Domein relatiewijzen","nr":"1."},"2":{"titel":"Relatiewijzen","nr":"1."}}}},
+{"id":"73706","code":"1.5","tekst":"De leerlingen kunnen bij groepstaken leiding geven en onder leiding van een medeleerling meewerken.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"Sociale vaardigheden - Domein relatiewijzen","nr":"1."},"2":{"titel":"Relatiewijzen","nr":"1."}}}},
+{"id":"73707","code":"1.6","tekst":"De leerlingen kunnen kritisch zijn en een eigen mening formuleren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"Sociale vaardigheden - Domein relatiewijzen","nr":"1."},"2":{"titel":"Relatiewijzen","nr":"1."}}}},
+{"id":"73708","code":"1.7","tekst":"De leerlingen kunnen zich weerbaar opstellen naar leeftijdsgenoten en volwassenen toe door signalen te geven die voor anderen begrijpelijk en aanvaardbaar zijn.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"Sociale vaardigheden - Domein relatiewijzen","nr":"1."},"2":{"titel":"Relatiewijzen","nr":"1."}}}},
+{"id":"73709","code":"1.8","tekst":"De leerlingen kunnen zich discreet opstellen.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"Sociale vaardigheden - Domein relatiewijzen","nr":"1."},"2":{"titel":"Relatiewijzen","nr":"1."}}}},
+{"id":"73710","code":"1.9","tekst":"De leerlingen kunnen ongelijk of onmacht toegeven, kritiek beluisteren en eruit leren.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"Sociale vaardigheden - Domein relatiewijzen","nr":"1."},"2":{"titel":"Relatiewijzen","nr":"1."}}}},
+{"id":"73711","code":"2.","tekst":"De leerlingen kunnen in functionele situaties een aantal verbale en niet-verbale gespreksconventies naleven.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"Sociale vaardigheden - Domein gespreksconventies","nr":"2."}}}},
+{"id":"73712","code":"3.","tekst":"De leerlingen kunnen samenwerken met anderen, zonder onderscheid van sociale achtergrond, geslacht of etnische origine.","type":"Eindtermen","extra":{"attitude":0,"geldigheid":{"type":"Geldig","geldig_van_dt":"1998-09-01T00:00:00Z","geldig_tot_dt":"2030-08-31T00:00:00Z","publicatie_dt":"2025-07-17T10:18:39Z"},"optioneel":false,"titels":{"1":{"titel":"Sociale vaardigheden - Domein samenwerking","nr":"3."}}}}
+  ]
+}
