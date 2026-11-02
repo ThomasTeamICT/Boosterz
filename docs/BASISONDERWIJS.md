@@ -22,7 +22,7 @@ Wat het moet doen, in de volgorde van de eigenaar:
 |---|---|---|
 | De vraag vastleggen (dit document) | **Klaar** (1 november 2026) | hoofdsessie |
 | Wat Boosterz nu heeft: geen enkele set van het basisonderwijs (het ophaalscript filtert op "secundair"); de app denkt in graden, stromen en studierichtingen | **Nagekeken** (1 november 2026) | hoofdsessie |
-| Proefrun met een ruimere filter. De eerste run stopte op een doel dat onder twee rubrieken hangt; het script bewaart zo'n doel nu één keer (commit 166ef73). De tweede run slaagde: 146 nieuwe sets, data-PR #11 | **Klaar**, PR #11 **niet samenvoegen** zonder teken van de eigenaar | hoofdsessie; eigenaar beslist over PR #11 |
+| Proefrun met een ruimere filter. De eerste run stopte op een doel dat onder twee rubrieken hangt; het script bewaart zo'n doel nu één keer (commit 166ef73). De tweede run slaagde: 146 nieuwe sets, data-PR #11 | **Klaar**; PR #11 **samengevoegd** op 2 november 2026 (dedda2f): 1096 sets in de app | hoofdsessie |
 | Wat de bron bevat (§ "Wat de bron bevat") | **Nagekeken** (1 november 2026) | hoofdsessie |
 | Beslissingen: kleuter, lager en buitengewoon lager (**ja**); content voor de scholengroep en haar scholen (**ja**); lesplannen van het GO!: de eigenaar heeft een akkoord; na te gaan of dat ook een openbare website en repo dekt | Grotendeels **klaar**; de reikwijdte van het akkoord **wacht** | eigenaar |
 | Antwoorden voor het ontwerp: digibord en vooral Chromebooks; resultaten per kind, alleen lokaal; eerste proef **wetenschap en techniek**; eerste gebruikers zowel de klasleerkracht als de makers in de scholengroep. Het voxeldorp is niet de richting | **Klaar** (1 november 2026) | eigenaar |
@@ -32,9 +32,10 @@ Wat het moet doen, in de volgorde van de eigenaar:
 | Derde ronde antwoorden: een **eigen account pas vanaf de 2de graad** (3de leerjaar), daaronder hangt het af van de leeftijd; de pakketten **mogen openbaar** | **Klaar** (1 november 2026) | eigenaar |
 | Ontwerp: hoe een kind zich aanmeldt en hoe zijn werk bij de leerkracht komt, per leeftijd (§ "Aanmelden en inleveren per leeftijd"): drie ontwerpen, twee rechters, één model met 16 bouwpakketten | **Klaar** (1 november 2026), vier vragen wachten | eigenaar |
 | Vierde ronde antwoorden: bewijs per kind naar buiten **mag later**, maar is nu niet cruciaal; "openbaar" geldt **ook voor de lesplannen van het GO!**; PR #11 **samenvoegen**; de Lichtkamer is goed qua detail en opzet en is **het minimum** voor nieuwe pakketten | **Klaar** (2 november 2026) | eigenaar |
-| Vóór PR #11: de app deelde "Buitengewoon Lager/Kleuteronderwijs" in bij het buitengewoon secundair, zodat die sets in de keuzelijsten van het secundair zouden opduiken. Eerst herstellen, dan samenvoegen | **Bezig** | hoofdsessie |
+| Vóór PR #11: de app deelde "Buitengewoon Lager/Kleuteronderwijs" in bij het buitengewoon secundair, zodat die sets in de keuzelijsten van het secundair zouden opduiken. Hersteld (1c1c032): twee eigen soorten, "Basisonderwijs" en "Buitengewoon basisonderwijs", alleen te zien op de pagina "Officiële minimumdoelen" (of op hun nummer); samenstellen, de inleeswizard en de keuzes in de editor blijven voor het secundair zoals ze waren. Opvolgers van oude basissets houden rekening met het moment en het type; een leerplan uit een basisset krijgt moment en soort doelen in de titel | **Klaar** (2 november 2026), nagekeken door twee reviewers en de rechter | hoofdsessie |
+| De maandelijkse ophaling (de 3de van de maand) filtert standaard nog op "secundair": de 146 basissets worden wel bijgewerkt, maar een nieuwe set van het basisonderwijs (de tweede golf van de minimumdoelen) komt er niet vanzelf bij. De standaardfilter verruimen hoort bij bouwstap 2 | **Wacht** | hoofdsessie |
 | Nog open: de vier vragen bij "Aanmelden en inleveren per leeftijd" (toestel van de leerkracht, proef met de ICT-coördinator, voornamen in de 1ste graad, wie de geluidjes inspreekt) | **Wacht** | eigenaar |
-| Bouw in de app (§ "Bouwstappen"): het voorbeeld is goedgekeurd en PR #11 mag samengevoegd worden | **Kan starten** na het herstel hierboven | hoofdsessie |
+| Bouw in de app (§ "Bouwstappen"): het voorbeeld is goedgekeurd en PR #11 mag samengevoegd worden | **Kan starten**: stap 1 is klaar, stap 2 is de volgende | hoofdsessie |
 
 ## Wat de bron bevat (proefrun van 1 november 2026)
 
@@ -99,9 +100,10 @@ gloed, geen stofjes in de lichtbundel). Werkt de 3D niet, dan blijven de doelen,
 lesverloop bruikbaar. Bron en rooktest: `tools/prototypes/lichtkamer/`. Het voorbeeld is gepubliceerd als privé artifact
 van de eigenaar; de eigenaar beslist met wie het gedeeld wordt.
 
-### Bouwstappen (voorstel, wacht op de eigenaar)
+### Bouwstappen (voorstel; stap 1 is klaar)
 
-1. PR #11 samenvoegen (teken van de eigenaar): de doelen van het basisonderwijs in de app.
+1. PR #11 samenvoegen: de doelen van het basisonderwijs in de app. **Klaar** (2 november 2026). Bewust nog niet gedaan, voor
+   het eigen deel: een filter per moment, een tweelingregel voor gewoon en buitengewoon op doel-id, en "Geldig tot".
 2. De volledige doeltekst (met `extra.uitbreiding_op_doelzin`) en een momentmodel: kleuter, 4de, 6de, en welke doelen nu
    gelden per leerjaar (de invoering in twee golven).
 3. Een aparte ingang voor het basisonderwijs met een eigen vormgeving.
