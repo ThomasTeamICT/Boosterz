@@ -7,9 +7,12 @@ name: Leerplangegevens bijwerken
 #   4. de beroepskwalificaties per richting (API Structuuronderdelen en API Beroepskwalificaties)
 #                                                                  → public/leerplannen/kwalificaties/
 # Daarna draait de volledige testsuite (npx vitest run) en opent de taak een pull request als er iets veranderd
-# is. Een mens keurt het verschil goed; niets gaat automatisch live. Ontwerp: docs/LEERPLANNEN.md § 5 en
-# docs/STUDIERICHTINGEN.md § 6 en § 23.5.9. De bestandsnaam blijft minimumdoelen.yml, zodat de geschiedenis en de
-# cron blijven.
+# is. Een mens keurt het verschil goed; niets gaat automatisch live. De tests van het momentmodel van het
+# basisonderwijs tegen de echte gegevens (src/lib/basis/momentmodel.echt.test.ts) houden die ophaling nooit
+# tegen: ze slaan over in de gewone testrun (GEGEVENSRUN=1) en draaien daarna apart, zonder de run te laten
+# falen. Wat ze vinden, komt als deel "Momentmodel basisonderwijs" in de pull request. Ontwerp:
+# docs/LEERPLANNEN.md § 5, docs/STUDIERICHTINGEN.md § 6 en § 23.5.9 en docs/basisonderwijs/MOMENTMODEL.md.
+# De bestandsnaam blijft minimumdoelen.yml, zodat de geschiedenis en de cron blijven.
 #
 # De API-sleutel staat als geheim ONDERWIJSDOELEN_API_KEY (Settings → Secrets and variables →
 # Actions). Hij gaat enkel via de omgeving naar de scripts en komt nooit in een log of in een rapport.
@@ -153,11 +156,29 @@ jobs:
         run: npm ci --ignore-scripts
 
       # De volledige testsuite is de poort: ook de tests met echte gegevens, die anders pas bij de uitrol
-      # (deploy.yml) zouden breken.
+      # (deploy.yml) zouden breken. Met één uitzondering: GEGEVENSRUN=1 laat de tests van het momentmodel van het
+      # basisonderwijs tegen de echte gegevens (src/lib/basis/momentmodel.echt.test.ts) overslaan, zodat een
+      # verschoven einddatum of een nieuwe basisset de ophaling van alle leerplangegevens (ook het secundair, de
+      # richtingen en de kwalificaties) niet tegenhoudt. De volgende stap draait die tests apart. De deploy-workflow
+      # (deploy.yml) zet GEGEVENSRUN niet en draait ze streng.
       - name: Geschreven bestanden en de hele app controleren
+        env:
+          GEGEVENSRUN: '1'
         run: |
           set -euo pipefail
           npx vitest run
+
+      # Het momentmodel van het basisonderwijs tegen de nieuwe gegevens, zonder de run te laten falen
+      # (continue-on-error: een rode stap blijft zichtbaar, maar de stap "Pull request openen" draait gewoon).
+      # De tests schrijven na afloop een kort rapport (Markdown) naar MOMENTMODEL_RAPPORT, ook als ze falen. Het
+      # staat in RUNNER_TEMP, buiten de repository, en komt dus nooit in een commit; de stap "Pull request openen"
+      # zet het als deel "Momentmodel basisonderwijs" in de tekst van de pull request. GEGEVENSRUN staat hier
+      # bewust niet.
+      - name: Momentmodel basisonderwijs tegen de nieuwe gegevens
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          MOMENTMODEL_RAPPORT=${RUNNER_TEMP}/momentmodel-rapport.md npx vitest run src/lib/basis/momentmodel.echt.test.ts
 
       - name: Rapport minimumdoelen bewaren
         if: always()
@@ -570,10 +591,13 @@ jobs:
           git commit -m "$titel" -m "Automatisch opgehaald door de workflow Leerplangegevens bijwerken (run ${RUN_ID})."
           git push origin "$branch"
 
-          # De tekst van de pull request komt uit de rapporten.
+          # De tekst van de pull request komt uit de rapporten. Het rapport van het momentmodel staat in RUNNER_TEMP,
+          # buiten de repository (zie de stap "Momentmodel basisonderwijs tegen de nieuwe gegevens"): de commit hierboven
+          # neemt enkel public/leerplannen mee, dus dat rapport komt nooit in een commit.
           RAPPORT_MINIMUMDOELEN=tools/leerplannen/rapport/laatste-ophaling.json \
             RAPPORT_STUDIERICHTINGEN=tools/leerplannen/rapport/laatste-studierichtingen.json \
             RAPPORT_BEROEPSKWALIFICATIES=tools/leerplannen/rapport/laatste-beroepskwalificaties.json \
+            RAPPORT_MOMENTMODEL=${RUNNER_TEMP}/momentmodel-rapport.md \
             RUN_URL="${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}" \
             node --input-type=module - > "$tekst" <<'JS'
           import fs from 'node:fs';
@@ -848,6 +872,51 @@ jobs:
             return uit;
           };
 
+          // Het rapport van de stap "Momentmodel basisonderwijs tegen de nieuwe gegevens" (src/lib/basis/momentmodel.echt.test.ts):
+          // 'Geen afwijkingen.' of een lijst afwijkingen van de kalender tegen de gegevens. Het deel komt er enkel als het
+          // rapport bestaat. Alles behalve de vaste zinnen van het rapport gaat als codespan de tekst in (de regels over de
+          // sets komen uit de gegevens van de API): één regel per punt, afgekapt op 300 tekens, hoogstens 70 regels. Alles
+          // wat niet precies 'Geen afwijkingen.' is, krijgt de waarschuwing, ook een rapport dat zegt dat de controle niet
+          // afgerond is: de deploy-workflow draait de tests dan toch streng. Dit deel mag de pull request nooit doen
+          // mislukken: de branch is op dat moment al gepusht.
+          const MOMENTMODEL_STAP = 'Momentmodel basisonderwijs tegen de nieuwe gegevens';
+          const MOMENTMODEL_VASTE_ZINNEN = [/^Geen afwijkingen\.$/, /^Er (is|zijn) [0-9]{1,6} afwijking(en)? van de kalender tegen de gegevens:$/];
+          const MOMENTMODEL_MAX_REGELS = 70;
+          const MOMENTMODEL_MAX_TEKENS = 300;
+          const momentmodelCodespan = (t) => {
+            const schoon = t.replace(/[`|]/g, ' ');
+            return '`' + schoon.slice(0, MOMENTMODEL_MAX_TEKENS) + (schoon.length > MOMENTMODEL_MAX_TEKENS ? '…' : '') + '`';
+          };
+          const deelMomentmodel = () => {
+            const pad = process.env.RAPPORT_MOMENTMODEL;
+            if (typeof pad !== 'string' || pad === '' || !fs.existsSync(pad)) return [];
+            const uit = ['## Momentmodel basisonderwijs', '', 'De invoeringskalender van het basisonderwijs is naast de nieuwe gegevens gelegd (stap "' + MOMENTMODEL_STAP + '").', ''];
+            let regels = null;
+            try {
+              regels = fs.readFileSync(pad, 'utf8').slice(0, 100000).split(/\r?\n/).map((r) => r.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim()).filter((r) => r !== '');
+            } catch {
+              regels = null;
+            }
+            if (regels === null) {
+              uit.push('Het rapport van het momentmodel is niet te lezen. Zie het logboek van de stap "' + MOMENTMODEL_STAP + '".', '');
+            } else if (regels.length === 0) {
+              uit.push('Het rapport van het momentmodel is leeg. Zie het logboek van de stap "' + MOMENTMODEL_STAP + '".', '');
+            } else {
+              for (const r of regels.slice(0, MOMENTMODEL_MAX_REGELS)) {
+                const punt = /^[-*] (.*)$/.exec(r);
+                if (punt) uit.push('- ' + momentmodelCodespan(punt[1]));
+                else if (MOMENTMODEL_VASTE_ZINNEN.some((z) => z.test(r))) uit.push(r, '');
+                else uit.push(momentmodelCodespan(r), '');
+              }
+              if (regels.length > MOMENTMODEL_MAX_REGELS) uit.push('- … en ' + (regels.length - MOMENTMODEL_MAX_REGELS) + ' regels meer: zie het logboek van de stap "' + MOMENTMODEL_STAP + '".');
+              if (uit[uit.length - 1] !== '') uit.push('');
+            }
+            if (!(regels !== null && regels.length === 1 && regels[0] === 'Geen afwijkingen.')) {
+              uit.push('**Pas src/lib/basis/kalender.ts aan vóór je samenvoegt; anders faalt na het samenvoegen de uitrol.**', '');
+            }
+            return uit;
+          };
+
           const uit = ['# Leerplangegevens bijgewerkt', ''];
           if (proefrun) {
             uit.push(proefregel(groepen, 'Gebruik deze pull request om de gegevens na te kijken en sluit ze daarna.'), '');
@@ -865,7 +934,9 @@ jobs:
             metBeroepskwalificaties ? '`beroepskwalificaties-rapport`' : null,
           ].filter(Boolean);
           const opgesomd = artifacts.length > 1 ? artifacts.slice(0, -1).join(', ') + ' en ' + artifacts[artifacts.length - 1] : artifacts[0];
+          // Het deel van het momentmodel staat bij het slot en niet bij de lijsten, zodat het niet wegvalt als de tekst ingekort wordt.
           const sluit = [
+            ...deelMomentmodel(),
             '**Kijk het verschil na vóór je samenvoegt.** Controleer of de teksten letterlijk kloppen, of er geen sets of richtingen ontbreken en of de aantallen aannemelijk zijn. Niets gaat automatisch live: na het samenvoegen rolt de deploy-workflow het uit.',
             '',
             'De volledige rapporten (met de veldinventaris van de API) staan als ' + (artifacts.length > 1 ? 'artifacts ' : 'artifact ') + opgesomd + ' bij [deze run](' + process.env.RUN_URL + ').',

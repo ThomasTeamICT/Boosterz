@@ -36,10 +36,10 @@ Wat het moet doen, in de volgorde van de eigenaar:
 | De maandelijkse ophaling (de 3de van de maand) filtert standaard nog op "secundair": de 146 basissets worden wel bijgewerkt, maar een nieuwe set van het basisonderwijs (de tweede golf van de minimumdoelen) komt er niet vanzelf bij. De standaardfilter verruimen hoort bij bouwstap 2 | **Wacht** | hoofdsessie |
 | Vijfde ronde antwoorden: het toestel van de leerkracht is een **Windows-laptop**, naast het digibord; de proef met de ICT-coördinator **mag**; voornamen op de gedeelde toestellen van de 1ste graad **mogen**; voor de geluidjes **zorgt de eigenaar** zodra de rest klaar is | **Klaar** (2 november 2026) | eigenaar |
 | Ontwerp van het momentmodel (bouwstap 2b): welke doelen gelden nu voor welk leerjaar (K1 tot L6) in welk schooljaar, met de invoering in twee golven. Spec in `docs/basisonderwijs/MOMENTMODEL.md`: een kalender als gegevens (36 cellen, met bron en zekerheid per cel), zuivere functies in `src/lib/basis/` en één blok "Wanneer gelden deze doelen?" op de pagina Officiële minimumdoelen. Alleen de kleuterklassen zijn **zeker** (uit de einddata van de API); het lager staat op **waarschijnlijk** (zoekfragmenten; geen officiële pagina was bereikbaar), het buitengewoon lager op **onzeker** | **Klaar** (2 november 2026); twee beslissingen wachten | eigenaar |
-| Bouw van het momentmodel (pakketten P1 tot P6 van de spec, met de rechtzettingen van de criticus) | **Wacht** tot de toestelproef klaar is (zelfde werkmap) | hoofdsessie |
+| Bouw van het momentmodel: kalender, model en het blok "Wanneer gelden deze doelen?" bij elke set van het basisonderwijs op de pagina Officiële minimumdoelen. De maandelijkse ophaling wordt er nooit door tegengehouden: een afwijking van de kalender komt als waarschuwing in de pull request. Nagekeken door een nakijker, drie reviewers en twee rechters | **Klaar** (2 november 2026); stand na de bouw bovenaan `docs/basisonderwijs/MOMENTMODEL.md` | hoofdsessie |
 | Toestelproef (bouwpakket 1): een losse proefpagina voor de proef met de ICT-coördinator. Op de Windows-laptop leest de scanner met jsqr, want Chrome en Edge op Windows hebben geen BarcodeDetector (waarschijnlijk; de proef bevestigt het). Online op https://thomasteamict.github.io/Boosterz/proef/toestelproef.html; bron en checklist in `tools/prototypes/toestelproef/`. Acht QR-codes (versie 3, 6, 7 en 10, op 6 en 8 px), een scanner met camerakeuze, de stemmen, een opslagmerkje en een knop "Kopieer de uitslag". Nagekeken door twee reviewers en de rechter (16 bevindingen, 8 bevestigd en opgelost) | **Klaar** (2 november 2026) | hoofdsessie |
 | Proef op echte schooltoestellen (bouwpakket 2): een Chromebook van de 1ste graad, een Chromebook van het 3de leerjaar, de Windows-laptop van de leerkracht en het digibord | **Wacht** op de toestelproef, daarna op een afspraak met de ICT-coördinator | eigenaar en hoofdsessie |
-| Bouw in de app (§ "Bouwstappen"): het voorbeeld is goedgekeurd en PR #11 mag samengevoegd worden | **Bezig**: stap 1 is klaar; van stap 2 is de volledige doeltekst klaar, het momentmodel is de volgende | hoofdsessie |
+| Bouw in de app (§ "Bouwstappen"): het voorbeeld is goedgekeurd en PR #11 mag samengevoegd worden | **Kan verder**: stap 1 en 2 zijn klaar; stap 3 (de eigen ingang voor het basisonderwijs) is de volgende | hoofdsessie |
 
 ## Wat de bron bevat (proefrun van 1 november 2026)
 
@@ -112,7 +112,7 @@ van de eigenaar; de eigenaar beslist met wie het gedeeld wordt.
    gelden per leerjaar (de invoering in twee golven). De volledige doeltekst is **klaar** (2 november 2026): bij 546 doelen
    in 49 sets staat een deel van het doel apart in de bron (de lijst achter "kennen de volgende begrippen:", voorbeelden
    tussen "< bv. … >"). `laadSet` zet die letterlijk achter de doelzin, zodat elk scherm, het leerplan en het nakijken
-   dezelfde volledige tekst hebben. Het ontwerp van het momentmodel is klaar (`docs/basisonderwijs/MOMENTMODEL.md`); de bouw volgt.
+   dezelfde volledige tekst hebben. Het momentmodel is **klaar** (2 november 2026, `docs/basisonderwijs/MOMENTMODEL.md`).
 3. Een aparte ingang voor het basisonderwijs met een eigen vormgeving.
 4. Het lichtmodel en het bewijsmodel als geteste code (schaduwpunt, kaartjes, stoffen; bewijs per doel-id).
 5. Een oefeningsoort "lichtkamer" in de app, met de digibordstand.

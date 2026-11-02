@@ -1006,6 +1006,127 @@ await go('/#/leerplannen');
 check('390 px: de leerplannenpagina scrollt niet horizontaal', await passtOpSmal());
 await page.setViewportSize({ width: 1360, height: 900 });
 
+// ── 20b-2b. Momentmodel basisonderwijs: "Wanneer gelden deze doelen?" ──────
+// Een eigen context en page per datum, zonder service worker en met een vaste klok vóór de eerste goto: het blok
+// rekent met de datum van vandaag (het schooljaar), en de rooktest mag niet van de echte klok afhangen.
+console.log('20b-2b. Momentmodel basisonderwijs');
+{
+  const openMetKlok = async (tijd, breedte) => {
+    const ctx = await browser.newContext({ serviceWorkers: 'block', viewport: { width: breedte, height: 900 } });
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => errors.push(`pageerror(20b-2b): ${e.message}`));
+    p.on('console', (m) => {
+      if (m.type() !== 'error' || /ERR_CERT_AUTHORITY_INVALID/.test(m.text())) return;
+      errors.push(`console(20b-2b): ${m.text()}`);
+    });
+    await p.clock.setFixedTime(new Date(tijd));
+    const gaNaar = async (hash) => { await p.goto(BASE + hash, { waitUntil: 'networkidle' }); await sleep(500); };
+    const open = async (id) => { await gaNaar(`/#/leerplannen/minimumdoelen/${id}`); await p.waitForSelector('.md-feiten', { timeout: 15000 }); await sleep(300); };
+    const passtOpSmalB = async () => p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+    const feiten = async () => p.locator('.md-feiten dt').allTextContents();
+    const feit = async (naam) => {
+      const rij = p.locator('.md-feiten > div', { has: p.locator('dt', { hasText: new RegExp(`^${naam}$`) }) });
+      return (await rij.count()) === 0 ? undefined : (await rij.first().locator('dd').textContent()).trim();
+    };
+    const blok = () => p.locator('.md-wanneer');
+    return { ctx, p, gaNaar, open, passtOpSmalB, feiten, feit, blok };
+  };
+
+  const b = await openMetKlok('2026-11-02T10:00:00Z', 1360);
+
+  // Nieuwe set van het lager (Nederlands, einde 4de leerjaar), op 2 november 2026: schooljaar 2026-2027.
+  await b.open('ODS_3395');
+  const t3395 = await b.blok().innerText();
+  check('ODS_3395: één blok "Wanneer gelden deze doelen?" met een h3, in het paneel met de h2', (await b.blok().count()) === 1 && (await b.blok().locator('h3').count()) === 1 && /^Wanneer gelden deze doelen\?$/.test((await b.blok().locator('h3').innerText()).trim()) && (await b.p.locator('#md-set-kop').count()) === 1);
+  check('ODS_3395: het blok is gekoppeld aan zijn kop (aria-labelledby) en staat na de feiten', await b.p.evaluate(() => { const s = document.querySelector('.md-wanneer'); const k = document.getElementById('md-wanneer-kop'); const f = document.querySelector('.md-feiten'); return !!s && !!k && s.getAttribute('aria-labelledby') === 'md-wanneer-kop' && k.tagName === 'H3' && !!f && (f.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0; }));
+  check('ODS_3395: "Dit schooljaar (2026-2027): verplicht in het 1ste, 2de en 3de leerjaar" en "mag al in het 4de leerjaar"', t3395.includes('Dit schooljaar (2026-2027): verplicht in het 1ste, 2de en 3de leerjaar') && t3395.includes('mag al in het 4de leerjaar'));
+  check('ODS_3395: de kalender zegt "4de leerjaar: verplicht vanaf 2027-2028", met de zekerheid als tekst ("waarschijnlijk")', t3395.includes('4de leerjaar: verplicht vanaf 2027-2028') && (await b.blok().locator('.badge-warn', { hasText: 'waarschijnlijk' }).count()) >= 2);
+  check('ODS_3395: voor wie, de golf van het vak en de datum van de kalender staan erbij, zonder "nagekeken"', t3395.includes('Doelen voor het einde van het 4de leerjaar.') && t3395.includes('Dit vak hoort bij de eerste golf (Nederlands, wiskunde, wetenschap en techniek).') && /Kalender samengesteld op 2 november 2026/.test(await b.blok().textContent()) && /De officiële tekst is nog niet nagelezen\./.test(await b.blok().textContent()) && !/nagekeken/i.test(await b.blok().textContent()));
+  const dt3395 = await b.feiten();
+  check('ODS_3395: de feiten hebben "Moment" en "Soort doelen" en niet "Leerjaar", met "Einde 4de leerjaar"', dt3395.includes('Moment') && dt3395.includes('Soort doelen') && !dt3395.includes('Leerjaar') && (await b.feit('Moment')) === 'Einde 4de leerjaar' && (await b.feit('Soort doelen')) === 'Te bereiken op populatieniveau');
+  check('ODS_3395: "Moment" staat op de plaats van "Leerjaar" (na de soort onderwijs, vóór de versie) en "Soort doelen" komt direct daarna', JSON.stringify(dt3395) === JSON.stringify(['Soort onderwijs', 'Moment', 'Soort doelen', 'Versie', 'Geldigheid', 'Aantal doelen', 'Nummer van de set']));
+  check('ODS_3395: de geldigheid blijft "Geldig sinds 2025"', (await b.feit('Geldigheid')) === 'Geldig sinds 2025');
+  check('ODS_3395: "Waarop steunt dit?" is een details dat dicht begint, met de bronnen en hoe ze gekend zijn', (await b.blok().locator('details.md-wanneer-bronnen').count()) === 1 && (await b.blok().locator('details.md-wanneer-bronnen').getAttribute('open')) === null && /zoekresultaat \(niet geopend\)/.test(await b.blok().locator('details.md-wanneer-bronnen').textContent()) && /nog te lezen/.test(await b.blok().locator('details.md-wanneer-bronnen').textContent()) && /officiële gegevens/.test(await b.blok().locator('details.md-wanneer-bronnen').textContent()));
+  const linksBron = b.blok().locator('details.md-wanneer-bronnen a');
+  const nLinks = await linksBron.count();
+  const linkOk = await linksBron.evaluateAll((lijst) => lijst.every((a) => a.getAttribute('target') === '_blank' && /noopener/.test(a.getAttribute('rel') ?? '') && /noreferrer/.test(a.getAttribute('rel') ?? '') && a.querySelector('.sr-only')?.textContent === ' (opent in een nieuw tabblad)' && !/^\s*https?:/i.test(a.textContent ?? '')));
+  check(`ODS_3395: alle bronlinks (${nLinks}) openen in een nieuw tabblad met "noopener noreferrer", de sr-only tekst en geen kale url als linktekst`, nLinks >= 6 && linkOk);
+  check('ODS_3395: de tweeling in het buitengewoon basisonderwijs staat als link (ODS_3465), met de zin erbij', (await b.blok().locator('a[href$="/ODS_3465"]').count()) === 1 && /Dezelfde doelen \(zelfde nummers\) staan ook in het buitengewoon basisonderwijs, daar na te streven:/.test(t3395));
+
+  // Oude eindtermen van het lager (Nederlands, tot 31 augustus 2028).
+  await b.open('ODS_2110');
+  const t2110 = await b.blok().innerText();
+  check('ODS_2110: "6de leerjaar: geldt tot en met 2027-2028" en "4de en 5de leerjaar: geldt tot en met 2026-2027"', t2110.includes('6de leerjaar: geldt tot en met 2027-2028') && t2110.includes('4de en 5de leerjaar: geldt tot en met 2026-2027') && t2110.includes('1ste, 2de en 3de leerjaar: geldt tot en met 2025-2026'));
+  check('ODS_2110: het feit "Geldigheid" is "Geldig tot 31 augustus 2028", "Moment" is "Lager onderwijs (één set voor alle leerjaren)" en "Soort doelen" is "Eindtermen (oud)"', (await b.feit('Geldigheid')) === 'Geldig tot 31 augustus 2028' && (await b.feit('Moment')) === 'Lager onderwijs (één set voor alle leerjaren)' && (await b.feit('Soort doelen')) === 'Eindtermen (oud)');
+  check('ODS_2110: "Oude eindtermen voor het hele lager onderwijs", en een zin zonder set te noemen: "Niet meer verplicht voor het 1ste, 2de en 3de leerjaar: daar gelden de nieuwe minimumdoelen."', t2110.includes('Oude eindtermen voor het hele lager onderwijs.') && t2110.includes('Niet meer verplicht voor het 1ste, 2de en 3de leerjaar: daar gelden de nieuwe minimumdoelen.') && !/vervangen door/i.test(t2110) && (await b.blok().locator('a[href*="/leerplannen/minimumdoelen/"]').count()) === 0);
+  check('ODS_2110: een oude set heeft geen golfzin en geen "Mag al sinds"', !/Dit vak hoort bij/.test(t2110) && !/Mag al sinds/.test(t2110));
+
+  // Kleuterset van golf 1: zeker, dus geen enkele badge.
+  await b.open('ODS_3397');
+  const t3397 = await b.blok().innerText();
+  check('ODS_3397: kleuter Nederlands is verplicht en zeker: "verplicht in de 1ste, 2de en 3de kleuterklas" zonder één badge', t3397.includes('Dit schooljaar (2026-2027): verplicht in de 1ste, 2de en 3de kleuterklas') && (await b.blok().locator('.badge').count()) === 0 && (await b.feit('Moment')) === 'Einde kleuteronderwijs (3de kleuterklas)' && (await b.feit('Soort doelen')) === 'Na te streven');
+
+  // Het buitengewoon lager: "nog onzeker", en de link naar de tweeling in het gewoon basisonderwijs.
+  await b.open('ODS_3469');
+  const t3469 = await b.blok().innerText();
+  check('ODS_3469: buitengewoon lager is "nog onzeker" met een uitlegzin, en linkt naar ODS_3408 in het blok', /nog onzeker/.test(t3469) && /Nog onzeker: de oude doelen eindigen op dezelfde dagen/.test(t3469) && (await b.blok().locator('a[href$="/ODS_3408"]').count()) === 1 && /Dezelfde doelen \(zelfde nummers\) staan ook in het basisonderwijs:/.test(t3469));
+  await b.open('ODS_3465');
+  check('ODS_3465: het buitengewoon lager (Nederlands, 4de leerjaar) heeft het blok met "nog onzeker" en de link naar ODS_3395', /nog onzeker/.test(await b.blok().innerText()) && (await b.blok().locator('a[href$="/ODS_3395"]').count()) === 1);
+  await b.open('ODS_3408');
+  check('ODS_3408: wetenschap en techniek, 4de leerjaar: de link naar zijn tweeling ODS_3469', (await b.blok().locator('a[href$="/ODS_3469"]').count()) === 1 && (await b.feit('Moment')) === 'Einde 4de leerjaar');
+
+  // Een lege schijnset: alleen de melding.
+  await b.open('ODS_2959');
+  const t2959 = await b.blok().innerText();
+  check('ODS_2959: een lege set heeft het blok met alleen "geen specifieke ontwikkelingsdoelen", zonder kalender', /geen specifieke ontwikkelingsdoelen/.test(t2959) && (await b.blok().locator('.md-wanneer-lijst').count()) === 0 && (await b.blok().locator('details').count()) === 0);
+
+  // Een oude set die helemaal vervallen is: het blok zegt het op datum.
+  await b.open('ODS_2104');
+  const t2104 = await b.blok().innerText();
+  check('ODS_2104: de oude kleuterset is vervallen: het blok zegt "Deze doelen gelden niet meer sinds 1 september 2026." zonder kalender', (await b.blok().count()) === 1 && t2104.includes('Deze doelen gelden niet meer sinds 1 september 2026.') && (await b.blok().locator('.md-wanneer-lijst').count()) === 0);
+  check('ODS_2104: de bestaande melding en "Soort onderwijs Basisonderwijs" als eerste feit blijven', (await b.p.locator('.md-verouderd').count()) === 1 && (await b.feiten())[0] === 'Soort onderwijs' && (await b.feit('Soort onderwijs')) === 'Basisonderwijs');
+
+  // Secundair: niets verandert.
+  await b.open('ODS_3287');
+  check('ODS_3287 (secundair): geen blok en geen "Moment" in de feiten', (await b.blok().count()) === 0 && !(await b.feiten()).includes('Moment'));
+  await b.open('ODS_3361');
+  check('ODS_3361 (secundair): geen blok, het feit "Leerjaar" blijft, en de feiten zijn ongewijzigd', (await b.blok().count()) === 0 && JSON.stringify(await b.feiten()) === JSON.stringify(['Soort onderwijs', 'Graad', 'Leerjaar', 'Versie', 'Geldigheid', 'Aantal doelen', 'Nummer van de set']) && (await b.feit('Leerjaar')) === '3de leerjaar');
+
+  // De lijst en de opvolgers: "Geldig tot" in plaats van "Geldig sinds" voor oude sets die nog gelden.
+  await b.gaNaar('/#/leerplannen/minimumdoelen');
+  await b.p.waitForSelector('.md-sets > li', { timeout: 15000 });
+  await b.p.fill('.md-filters input[type=search]', 'ODS_2110');
+  await sleep(300);
+  check('de lijst met sets: ODS_2110 toont "Geldig tot 31 augustus 2028"', (await b.p.locator('.md-sets > li').count()) === 1 && /Geldig tot 31 augustus 2028/.test(await b.p.locator('.md-sets .md-set-geldig').first().innerText()));
+  await b.p.fill('.md-filters input[type=search]', 'ODS_3395');
+  await sleep(300);
+  check('de lijst met sets: ODS_3395 blijft "Geldig sinds 2025"', /Geldig sinds 2025/.test(await b.p.locator('.md-sets .md-set-geldig').first().innerText()));
+  await b.open('ODS_2311');
+  await b.p.waitForSelector('.md-verouderd', { timeout: 15000 });
+  check('de opvolgerlijst van ODS_2311 toont het Basisaanbod (ODS_2571) met "Geldig tot 31 augustus 2028" in plaats van "Geldig sinds 2020"', /Geldig tot 31 augustus 2028/.test(await b.p.locator('.md-verouderd li:has(a[href$="/ODS_2571"]) .md-opvolger-info').innerText()));
+
+  // 390 px: geen horizontaal scrollen, één main en één h1, het blok met de details open.
+  await b.p.setViewportSize({ width: 390, height: 844 });
+  await b.open('ODS_3395');
+  await b.p.locator('details.md-wanneer-bronnen > summary').click();
+  await sleep(200);
+  check('390 px: ODS_3395 met "Waarop steunt dit?" open scrollt niet horizontaal, met één main en één h1', (await b.passtOpSmalB()) && (await b.p.locator('main').count()) === 1 && (await b.p.locator('main h1').count()) === 1 && (await b.p.locator('details.md-wanneer-bronnen').getAttribute('open')) !== null);
+  check('390 px: de samenvatting van "Waarop steunt dit?" is minstens 44 px hoog', (await b.p.locator('details.md-wanneer-bronnen > summary').boundingBox()).height >= 44);
+  await b.open('ODS_3469');
+  check('390 px: ODS_3469 (buitengewoon lager, met tweeling) scrolt niet horizontaal', await b.passtOpSmalB());
+  await b.open('ODS_2110');
+  check('390 px: ODS_2110 (oude set) scrolt niet horizontaal', await b.passtOpSmalB());
+  await b.ctx.close();
+
+  // Twee jaar later: het label uit de gegevens zegt nog "Geldig", maar de einddatum is voorbij.
+  const laat = await openMetKlok('2028-10-02T10:00:00Z', 1360);
+  await laat.open('ODS_2110');
+  check('2 oktober 2028: ODS_2110 zegt "Gold tot 31 augustus 2028" en het blok "Deze doelen gelden niet meer sinds 1 september 2028.", ook al zegt het label nog "Geldig"', (await laat.feit('Geldigheid')) === 'Gold tot 31 augustus 2028' && /Deze doelen gelden niet meer sinds 1 september 2028\./.test(await laat.blok().innerText()) && (await laat.p.locator('.md-verouderd').count()) === 0);
+  await laat.open('ODS_3395');
+  check('2 oktober 2028: ODS_3395 is verplicht en zeker (schooljaar 2028-2029), zonder badge in de lijn "Dit schooljaar"', /Dit schooljaar \(2028-2029\): verplicht in het 1ste, 2de, 3de en 4de leerjaar/.test(await laat.blok().innerText()) && (await laat.blok().locator('.md-wanneer-nu .badge').count()) === 0);
+  await laat.ctx.close();
+}
+
 // ── 20b-3. Eigen doelenlijst samenstellen ───────────────────────────────────
 console.log('20b-3. Eigen doelenlijst samenstellen');
 const volgende = () => page.getByRole('button', { name: /^Volgende/ });

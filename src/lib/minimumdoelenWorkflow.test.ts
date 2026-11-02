@@ -11,6 +11,11 @@
 // nagebootste rapporten: de tekst van de samenvatting en van de pull request is geen vrije tekst maar code die niet kan
 // crashen op een onvolledig rapport. Er gaat nooit een verzoek naar de API; alles wat geschreven wordt, staat in een
 // tijdelijke map.
+//
+// Deel 3 bewaakt de koppeling met het momentmodel van het basisonderwijs (docs/basisonderwijs/MOMENTMODEL.md): de gewone
+// testrun slaat de tests tegen de echte gegevens over (GEGEVENSRUN=1), een eigen stap met continue-on-error draait ze
+// apart en schrijft een rapport buiten de repository, en de pull request toont dat rapport. Dezelfde zelftest als in
+// deel 1 past de workflow telkens op één punt aan, en het deel van de pull request draait als echt Node-proces.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -37,6 +42,8 @@ interface Stap {
   naam: string;
   /** De voorwaarde (`if:`) zonder `${{ }}`. */
   als?: string;
+  /** De waarde van `continue-on-error:` (`true` of `false`), als de stap die heeft. */
+  voortgaan?: string;
   env: Record<string, string>;
   /** Het script van `run: |`, zonder de inspringing. */
   run?: string;
@@ -62,8 +69,12 @@ function leesStap(regels: string[]): Stap {
   while (i < r.length) {
     const naam = /^ {8}name: (.*)$/.exec(r[i]);
     const als = /^ {8}if: (.*)$/.exec(r[i]);
+    const voortgaan = /^ {8}continue-on-error: (.*)$/.exec(r[i]);
     if (naam) {
       stap.naam = naam[1].trim();
+      i++;
+    } else if (voortgaan) {
+      stap.voortgaan = voortgaan[1].trim();
       i++;
     } else if (als) {
       stap.als = als[1].trim().replace(/^\$\{\{\s*/, '').replace(/\s*\}\}$/, '');
@@ -718,5 +729,337 @@ describe('workflow minimumdoelen.yml: getallen en ontbrekende velden in de samen
   it('toont in de pull request de getallen met een punt voor de duizendtallen', { timeout: TIJDLIMIET }, () => {
     const tekst = maakPrTekst(rapportBk());
     expect(tekst).toContain('Studiebekrachtigingen: 1.630 (onderwijskwalificatie 410; deelkwalificaties 220, alleen bij naam).');
+  });
+});
+
+// ── Het momentmodel van het basisonderwijs ──────────────────────────────────
+
+const STAP_TESTS = 'Geschreven bestanden en de hele app controleren';
+const STAP_MOMENTMODEL = 'Momentmodel basisonderwijs tegen de nieuwe gegevens';
+const ECHT_TEST = 'src/lib/basis/momentmodel.echt.test.ts';
+const RAPPORT_PAD = '${RUNNER_TEMP}/momentmodel-rapport.md';
+const MOMENTMODEL_OPDRACHT = `MOMENTMODEL_RAPPORT=${RAPPORT_PAD} npx vitest run ${ECHT_TEST}`;
+const PR_RAPPORT_REGEL = `RAPPORT_MOMENTMODEL=${RAPPORT_PAD}`;
+const WAARSCHUWING = 'Pas src/lib/basis/kalender.ts aan vóór je samenvoegt; anders faalt na het samenvoegen de uitrol.';
+const KOP_MOMENTMODEL = '## Momentmodel basisonderwijs';
+
+/**
+ * De regels voor de koppeling met het momentmodel (opdracht B1 van bouwstap 2b):
+ *   (a) de gewone testrun krijgt GEGEVENSRUN=1 en is de enige die dat krijgt;
+ *   (b) direct daarna een eigen stap met continue-on-error, na npm ci, die het rapport naar RUNNER_TEMP schrijft;
+ *   (c) de pull request leest datzelfde rapport en neemt enkel public/leerplannen mee in de commit.
+ */
+function controleerMomentmodel(tekst: string): string[] {
+  const fouten: string[] = [];
+  const stappen = leesStappen(tekst);
+  const code = zonderCommentaar(tekst);
+  const plaats = (naam: string): number => stappen.findIndex((s) => s.naam === naam);
+  const tests = plaats(STAP_TESTS);
+  const moment = plaats(STAP_MOMENTMODEL);
+  const npm = stappen.findIndex((s) => /\bnpm (ci|install|i)\b/.test(s.run ?? ''));
+  const pr = plaats(STAP_PR);
+
+  // (a) GEGEVENSRUN: precies één keer, in de env van de gewone testrun, die verder gewoon de hele suite draait.
+  const regelsGegevensrun = code.filter((r) => /GEGEVENSRUN/.test(r));
+  if (regelsGegevensrun.length !== 1) fouten.push(`GEGEVENSRUN staat ${regelsGegevensrun.length} keer in de workflow; verwacht precies één keer, in de env van "${STAP_TESTS}".`);
+  if (tests < 0) {
+    fouten.push(`De stap "${STAP_TESTS}" ontbreekt.`);
+  } else {
+    const stap = stappen[tests];
+    if (stap.env.GEGEVENSRUN !== "'1'") fouten.push(`De stap "${STAP_TESTS}" zet GEGEVENSRUN niet op '1'.`);
+    if (!/^npx vitest run$/m.test(stap.run ?? '')) fouten.push(`De stap "${STAP_TESTS}" draait niet de hele suite (npx vitest run).`);
+    if (stap.voortgaan !== undefined) fouten.push(`De stap "${STAP_TESTS}" heeft continue-on-error: de poort mag niet vanzelf slagen.`);
+    if (stap.als !== undefined) fouten.push(`De stap "${STAP_TESTS}" heeft een voorwaarde (if:).`);
+  }
+
+  // (b) de eigen stap
+  if (moment < 0) {
+    fouten.push(`De stap "${STAP_MOMENTMODEL}" ontbreekt.`);
+  } else {
+    const stap = stappen[moment];
+    if (tests >= 0 && moment !== tests + 1) fouten.push(`De stap "${STAP_MOMENTMODEL}" staat niet direct na "${STAP_TESTS}".`);
+    if (npm >= 0 && moment < npm) fouten.push(`De stap "${STAP_MOMENTMODEL}" draait vóór npm ci.`);
+    if (stap.voortgaan !== 'true') fouten.push(`De stap "${STAP_MOMENTMODEL}" heeft geen continue-on-error: true.`);
+    if (stap.als !== undefined) fouten.push(`De stap "${STAP_MOMENTMODEL}" heeft een voorwaarde (if:).`);
+    if (!/^set -euo pipefail$/m.test(stap.run ?? '')) fouten.push(`De stap "${STAP_MOMENTMODEL}" mist set -euo pipefail.`);
+    if (!(stap.run ?? '').split('\n').includes(MOMENTMODEL_OPDRACHT)) fouten.push(`De stap "${STAP_MOMENTMODEL}" draait niet precies ${MOMENTMODEL_OPDRACHT} (het rapport hoort in RUNNER_TEMP, buiten de repository).`);
+    if (Object.keys(stap.env).length > 0) fouten.push(`De stap "${STAP_MOMENTMODEL}" heeft een env: ${Object.keys(stap.env).join(', ')}.`);
+  }
+
+  // (c) de pull request
+  if (pr < 0) {
+    fouten.push(`De stap "${STAP_PR}" ontbreekt.`);
+  } else {
+    const stap = stappen[pr];
+    if (stap.als !== 'success()') fouten.push(`De stap "${STAP_PR}" heeft niet if: success() (nu: ${stap.als ?? 'geen voorwaarde'}).`);
+    if (stap.voortgaan !== undefined) fouten.push(`De stap "${STAP_PR}" heeft continue-on-error.`);
+    const run = stap.run ?? '';
+    if (!run.split('\n').some((r) => r.trim().startsWith(PR_RAPPORT_REGEL))) fouten.push(`De stap "${STAP_PR}" leest het rapport niet uit ${PR_RAPPORT_REGEL}.`);
+    // Het rapport mag nooit in een commit komen: er is precies één git add, en die neemt alleen de leerplangegevens mee.
+    const adds = run.split('\n').filter((r) => /\bgit (add|commit)\b/.test(r)).map((r) => r.trim());
+    if (adds.filter((r) => r.startsWith('git add')).join('|') !== 'git add -- public/leerplannen') fouten.push(`De stap "${STAP_PR}" voegt meer toe dan git add -- public/leerplannen: ${adds.join(' / ')}`);
+    const metAlles = (r: string): boolean => r.startsWith('git commit') && r.split(/\s+/).some((t) => t === '--all' || (/^-[a-zA-Z]+$/.test(t) && t.includes('a')));
+    if (adds.some(metAlles)) fouten.push(`De stap "${STAP_PR}" commit met -a/--all.`);
+    // Het script zet het deel erin en kent de waarschuwing.
+    const js = /<<'JS'\n([\s\S]*?)\nJS\n/.exec(run)?.[1] ?? '';
+    if (!js.includes(KOP_MOMENTMODEL)) fouten.push(`Het script van "${STAP_PR}" kent de kop "${KOP_MOMENTMODEL}" niet.`);
+    if (!js.includes(WAARSCHUWING)) fouten.push(`Het script van "${STAP_PR}" kent de waarschuwing niet.`);
+  }
+  return fouten;
+}
+
+const MUTATIES_MOMENTMODEL: { naam: string; maak: (t: string) => string; verwacht: RegExp }[] = [
+  { naam: 'de testrun zonder GEGEVENSRUN', maak: (t) => muteer(t, `        env:\n          GEGEVENSRUN: '1'\n`, ''), verwacht: /GEGEVENSRUN/ },
+  { naam: 'GEGEVENSRUN met een andere waarde', maak: (t) => muteer(t, "GEGEVENSRUN: '1'", "GEGEVENSRUN: '0'"), verwacht: /GEGEVENSRUN niet op '1'/ },
+  { naam: 'GEGEVENSRUN ook in de momentmodelstap', maak: (t) => muteer(t, `      - name: ${STAP_MOMENTMODEL}\n`, `      - name: ${STAP_MOMENTMODEL}\n        env:\n          GEGEVENSRUN: '1'\n`), verwacht: /GEGEVENSRUN staat 2 keer/ },
+  { naam: 'GEGEVENSRUN op jobniveau', maak: (t) => muteer(t, / {4}timeout-minutes: \d+\n/, (g) => `${g}    env:\n      GEGEVENSRUN: '1'\n`), verwacht: /GEGEVENSRUN staat 2 keer/ },
+  { naam: 'een testrun die enkel nog een deel draait', maak: (t) => muteer(t, '          npx vitest run\n\n      # Het momentmodel', '          npx vitest run src/lib\n\n      # Het momentmodel'), verwacht: /hele suite/ },
+  { naam: 'continue-on-error op de testrun', maak: (t) => muteer(t, `      - name: ${STAP_TESTS}\n`, `      - name: ${STAP_TESTS}\n        continue-on-error: true\n`), verwacht: /poort mag niet vanzelf slagen/ },
+  { naam: 'een momentmodelstap die ontbreekt', maak: (t) => muteer(t, `      - name: ${STAP_MOMENTMODEL}\n`, '      - name: Iets anders\n'), verwacht: /ontbreekt/ },
+  { naam: 'een momentmodelstap zonder continue-on-error', maak: (t) => muteer(t, `        continue-on-error: true\n        run: |\n          set -euo pipefail\n          MOMENTMODEL_RAPPORT`, `        run: |\n          set -euo pipefail\n          MOMENTMODEL_RAPPORT`), verwacht: /continue-on-error: true/ },
+  { naam: 'een momentmodelstap met continue-on-error: false', maak: (t) => muteer(t, `      - name: ${STAP_MOMENTMODEL}\n        continue-on-error: true\n`, `      - name: ${STAP_MOMENTMODEL}\n        continue-on-error: false\n`), verwacht: /continue-on-error: true/ },
+  { naam: 'een stap tussen de tests en het momentmodel', maak: (t) => muteer(t, `      - name: ${STAP_MOMENTMODEL}\n`, `      - name: Tussenstap\n        run: echo tussen\n\n      - name: ${STAP_MOMENTMODEL}\n`), verwacht: /niet direct na/ },
+  { naam: 'een momentmodelstap met een voorwaarde', maak: (t) => muteer(t, `      - name: ${STAP_MOMENTMODEL}\n`, `      - name: ${STAP_MOMENTMODEL}\n        if: always()\n`), verwacht: /voorwaarde/ },
+  {
+    naam: 'npm ci na de momentmodelstap',
+    maak: (t) => muteer(muteer(t, `      - name: ${STAP_NPM}\n        run: npm ci --ignore-scripts\n`, ''), '      - name: Rapport minimumdoelen bewaren\n', `      - name: ${STAP_NPM}\n        run: npm ci --ignore-scripts\n\n      - name: Rapport minimumdoelen bewaren\n`),
+    verwacht: /vóór npm ci/,
+  },
+  { naam: 'een rapport in de repository in plaats van in RUNNER_TEMP', maak: (t) => muteer(t, `MOMENTMODEL_RAPPORT=${RAPPORT_PAD}`, 'MOMENTMODEL_RAPPORT=momentmodel-rapport.md'), verwacht: /RUNNER_TEMP, buiten de repository/ },
+  { naam: 'een momentmodelstap die een ander bestand test', maak: (t) => muteer(t, `npx vitest run ${ECHT_TEST}`, 'npx vitest run src/lib/basis'), verwacht: /draait niet precies/ },
+  { naam: 'een momentmodelstap zonder set -euo pipefail', maak: (t) => muteer(t, `          set -euo pipefail\n          MOMENTMODEL_RAPPORT`, '          MOMENTMODEL_RAPPORT'), verwacht: /set -euo pipefail/ },
+  { naam: 'een pull request die een ander rapport leest', maak: (t) => muteer(t, PR_RAPPORT_REGEL, 'RAPPORT_MOMENTMODEL=momentmodel-rapport.md'), verwacht: /leest het rapport niet/ },
+  { naam: 'een commit die alles toevoegt', maak: (t) => muteer(t, 'git add -- public/leerplannen', 'git add -A'), verwacht: /voegt meer toe/ },
+  { naam: 'een commit met -a', maak: (t) => muteer(t, 'git commit -m "$titel"', 'git commit -a -m "$titel"'), verwacht: /commit met -a/ },
+  { naam: 'een pull request die ook opent als de tests falen', maak: (t) => muteer(t, `      - name: ${STAP_PR}\n        if: success()\n`, `      - name: ${STAP_PR}\n        if: always()\n`), verwacht: /if: success\(\)/ },
+  { naam: 'een pull request zonder deel van het momentmodel', maak: (t) => muteer(t, `'${KOP_MOMENTMODEL}'`, "'## Iets anders'"), verwacht: /kent de kop/ },
+  { naam: 'een pull request zonder waarschuwing', maak: (t) => muteer(t, 'Pas src/lib/basis/kalender.ts aan', 'Pas iets aan'), verwacht: /kent de waarschuwing niet/ },
+];
+
+describe('workflow minimumdoelen.yml: het momentmodel van het basisonderwijs, de stappen', () => {
+  it('houdt alle regels aan', () => {
+    expect(controleerMomentmodel(YML)).toEqual([]);
+  });
+
+  it.each(MUTATIES_MOMENTMODEL)('de controle vangt: $naam', ({ maak, verwacht }) => {
+    const fouten = controleerMomentmodel(maak(YML));
+    expect(fouten.length, 'de controle moet de aanpassing vangen').toBeGreaterThan(0);
+    expect(fouten.join('\n')).toMatch(verwacht);
+  });
+
+  it('(a) zet GEGEVENSRUN=1 op de gewone testrun, en nergens anders', () => {
+    expect(stapMet(STAP_TESTS).env).toEqual({ GEGEVENSRUN: "'1'" });
+    expect(stapMet(STAP_MOMENTMODEL).env).toEqual({});
+    expect(zonderCommentaar(YML).filter((r) => /GEGEVENSRUN/.test(r))).toHaveLength(1);
+  });
+
+  it('(b) zet de eigen stap direct na de testrun, na npm ci en vóór de pull request', () => {
+    const namen = STAPPEN.map((s) => s.naam);
+    expect(namen.indexOf(STAP_MOMENTMODEL)).toBe(namen.indexOf(STAP_TESTS) + 1);
+    expect(namen.indexOf(STAP_NPM)).toBeLessThan(namen.indexOf(STAP_TESTS));
+    expect(namen.indexOf(STAP_MOMENTMODEL)).toBeLessThan(namen.indexOf(STAP_PR));
+  });
+
+  it('(b) laat enkel de eigen stap mislukken zonder de run te laten falen', () => {
+    expect(stapMet(STAP_MOMENTMODEL).voortgaan).toBe('true');
+    expect(stapMet(STAP_TESTS).voortgaan).toBeUndefined();
+    expect(stapMet(STAP_PR).voortgaan).toBeUndefined();
+    // De pull request opent enkel als alle stappen zonder continue-on-error geslaagd zijn; een mislukte stap mét continue-on-error telt als geslaagd.
+    expect(stapMet(STAP_PR).als).toBe('success()');
+    // Geen enkele andere stap van de poort mag stil mislukken: continue-on-error staat enkel op de eigen stap en op de stappen die rapporten bewaren of samenvatten.
+    const stil = STAPPEN.filter((s) => s.voortgaan === 'true').map((s) => s.naam);
+    expect(stil).toEqual([STAP_MOMENTMODEL, 'Rapport minimumdoelen bewaren', 'Rapport studierichtingen bewaren', 'Rapport beroepskwalificaties bewaren', STAP_SAMENVATTING]);
+  });
+
+  it('(b) en (c) gebruiken hetzelfde rapport, in RUNNER_TEMP en dus buiten de repository', () => {
+    expect(stapMet(STAP_MOMENTMODEL).run).toContain(`MOMENTMODEL_RAPPORT=${RAPPORT_PAD} `);
+    expect(stapMet(STAP_PR).run).toContain(`${PR_RAPPORT_REGEL} \\\n`);
+    expect(RAPPORT_PAD.startsWith('${RUNNER_TEMP}/')).toBe(true);
+    // Het rapport staat nergens onder de mappen die de commit meeneemt.
+    expect(stapMet(STAP_PR).run).not.toMatch(/git add[^\n]*(momentmodel|RUNNER_TEMP)/);
+  });
+
+  it('wordt gelezen zoals bedoeld: de eigen stap heeft een run en geen verwijzing naar invoer of het geheim', () => {
+    const run = stapMet(STAP_MOMENTMODEL).run ?? '';
+    expect(run).toContain(MOMENTMODEL_OPDRACHT);
+    expect(run).not.toContain('${{');
+    expect(run).not.toContain(GEHEIM);
+  });
+
+  it('(c) deelt zijn naam met de koppeling in de echte test: de omgevingsvariabelen en de overslagregel staan in momentmodel.echt.test.ts', () => {
+    const pad = join(ROOT, ECHT_TEST);
+    expect(existsSync(pad), `${ECHT_TEST} bestaat`).toBe(true);
+    const bron = readFileSync(pad, 'utf8');
+    expect(bron).toContain('process.env.GEGEVENSRUN');
+    expect(bron).toContain('process.env.MOMENTMODEL_RAPPORT');
+    expect(bron).toMatch(/describe\.skipIf\(GEGEVENSRUN\)/);
+  });
+});
+
+describe.skipIf(!HEEFT_BASH)('workflow minimumdoelen.yml: het momentmodel van het basisonderwijs, in echte bash', () => {
+  /** Draait de run van een stap met een nagebootste `npx` die zijn argumenten en twee omgevingsvariabelen bewaart. */
+  function draaiMetNpx(stap: Stap, env: Record<string, string>): { status: number | null; args: string[] | null; rapport: string | null; gegevensrun: string | null } {
+    const map = nieuweMap();
+    const bestand = (naam: string): string => join(map, naam);
+    const nepNpx = [
+      'npx() {',
+      '  : > "$STUB_UIT"',
+      '  for a in "$@"; do printf \'%s\\n\' "$a" >> "$STUB_UIT"; done',
+      '  printf \'%s\' "${MOMENTMODEL_RAPPORT-<niet gezet>}" > "$STUB_RAPPORT"',
+      '  printf \'%s\' "${GEGEVENSRUN-<niet gezet>}" > "$STUB_GEGEVENSRUN"',
+      '  return "${STUB_STATUS:-0}"',
+      '}',
+      '',
+    ].join('\n');
+    writeFileSync(bestand('stap.sh'), nepNpx + (stap.run ?? ''));
+    const omgeving: Record<string, string> = { PATH: process.env.PATH ?? '', STUB_UIT: bestand('args.txt'), STUB_RAPPORT: bestand('rapport.txt'), STUB_GEGEVENSRUN: bestand('gegevensrun.txt'), ...env };
+    const r = spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', bestand('stap.sh')], { cwd: map, env: omgeving, encoding: 'utf8' });
+    const lees = (naam: string): string | null => (existsSync(bestand(naam)) ? readFileSync(bestand(naam), 'utf8') : null);
+    return { status: r.status, args: lees('args.txt')?.split('\n').filter((x) => x !== '') ?? null, rapport: lees('rapport.txt'), gegevensrun: lees('gegevensrun.txt') };
+  }
+
+  it('de eigen stap draait enkel de echte test, met het rapport in RUNNER_TEMP en zonder GEGEVENSRUN', { timeout: TIJDLIMIET }, () => {
+    const r = draaiMetNpx(stapMet(STAP_MOMENTMODEL), { RUNNER_TEMP: '/runner/temp' });
+    expect(r).toEqual({ status: 0, args: ['vitest', 'run', ECHT_TEST], rapport: '/runner/temp/momentmodel-rapport.md', gegevensrun: '<niet gezet>' });
+  });
+
+  it('de eigen stap geeft de uitkomst van vitest door (de run vangt dat op met continue-on-error)', { timeout: TIJDLIMIET }, () => {
+    expect(draaiMetNpx(stapMet(STAP_MOMENTMODEL), { RUNNER_TEMP: '/runner/temp', STUB_STATUS: '1' }).status).toBe(1);
+  });
+
+  it('de gewone testrun draait de hele suite met GEGEVENSRUN=1 en zonder rapport', { timeout: TIJDLIMIET }, () => {
+    const stap = stapMet(STAP_TESTS);
+    const r = draaiMetNpx(stap, { GEGEVENSRUN: (stap.env.GEGEVENSRUN ?? '').replace(/^'|'$/g, ''), RUNNER_TEMP: '/runner/temp' });
+    expect(r).toEqual({ status: 0, args: ['vitest', 'run'], rapport: '<niet gezet>', gegevensrun: '1' });
+  });
+});
+
+describe('workflow minimumdoelen.yml: het deel "Momentmodel basisonderwijs" in de pull request', () => {
+  const rapportBestand = (inhoud: string): string => {
+    const pad = join(nieuweMap(), 'momentmodel-rapport.md');
+    writeFileSync(pad, inhoud);
+    return pad;
+  };
+  const metRapport = (inhoud: string, env: Record<string, string> = {}, andere: { minimumdoelen?: unknown } = {}): string =>
+    maakPrTekst({}, { RAPPORT_MOMENTMODEL: rapportBestand(inhoud), ...env }, andere);
+  /** Het deel zelf: van de kop tot de zin die de pull request afsluit. */
+  const deel = (tekst: string): string => {
+    const begin = tekst.indexOf(KOP_MOMENTMODEL);
+    if (begin < 0) return '';
+    const eind = tekst.indexOf('**Kijk het verschil na', begin);
+    return tekst.slice(begin, eind < 0 ? undefined : eind);
+  };
+  const AFWIJKINGEN = [
+    'Er zijn 2 afwijkingen van de kalender tegen de gegevens:',
+    '',
+    '- ODS_3395: de kalender verwacht een einde op 2028-08-31; de gegevens zeggen: einde 2027-08-31.',
+    '- algemeen: de kalender verwacht een kalender die bij de gegevens past; de gegevens zeggen: nieuwe basisset ODS_9999 zonder vak.',
+    '',
+  ].join('\n');
+
+  it('komt er niet bij als het rapport niet bestaat', { timeout: TIJDLIMIET }, () => {
+    expect(maakPrTekst({})).not.toContain('Momentmodel');
+    expect(maakPrTekst({}, { RAPPORT_MOMENTMODEL: join(nieuweMap(), 'bestaat-niet.md') })).not.toContain('Momentmodel');
+    expect(maakPrTekst({}, { RAPPORT_MOMENTMODEL: '' })).not.toContain('Momentmodel');
+    expect(maakPrTekst({}, { ONDERDELEN: 'minimumdoelen' })).not.toContain(WAARSCHUWING);
+  });
+
+  it('zegt "Geen afwijkingen." zonder waarschuwing', { timeout: TIJDLIMIET }, () => {
+    for (const inhoud of ['Geen afwijkingen.\n', 'Geen afwijkingen.', '\nGeen afwijkingen.\r\n\n']) {
+      const d = deel(metRapport(inhoud));
+      expect(d, JSON.stringify(inhoud)).toContain(`${KOP_MOMENTMODEL}\n`);
+      expect(d).toContain('\nGeen afwijkingen.\n');
+      expect(d).not.toContain('Pas src/lib');
+      expect(d).not.toContain('faalt');
+    }
+  });
+
+  it('toont de afwijkingen met set-id, verwachting en gegevens, en de waarschuwing', { timeout: TIJDLIMIET }, () => {
+    const tekst = metRapport(AFWIJKINGEN);
+    const d = deel(tekst);
+    expect(d).toContain('Er zijn 2 afwijkingen van de kalender tegen de gegevens:');
+    expect(d).toContain('- `ODS_3395: de kalender verwacht een einde op 2028-08-31; de gegevens zeggen: einde 2027-08-31.`');
+    expect(d).toContain('- `algemeen: de kalender verwacht een kalender die bij de gegevens past; de gegevens zeggen: nieuwe basisset ODS_9999 zonder vak.`');
+    expect(d).toContain(WAARSCHUWING);
+    expect(d).not.toContain('Geen afwijkingen.');
+    // De waarschuwing staat voor het slot van de pull request, dat altijd blijft staan.
+    expect(tekst.indexOf(WAARSCHUWING)).toBeLessThan(tekst.indexOf('**Kijk het verschil na'));
+  });
+
+  it('zegt "1 afwijking" in het enkelvoud net zo goed', { timeout: TIJDLIMIET }, () => {
+    const d = deel(metRapport('Er is 1 afwijking van de kalender tegen de gegevens:\n\n- ODS_1: x; y.\n'));
+    expect(d).toContain('\nEr is 1 afwijking van de kalender tegen de gegevens:\n');
+    expect(d).toContain(WAARSCHUWING);
+  });
+
+  it('geeft ook de waarschuwing als de controle niet gedaan of niet afgerond is', { timeout: TIJDLIMIET }, () => {
+    for (const inhoud of ['Niet gecontroleerd: de gegevens van het basisonderwijs ontbreken.\n', 'De controle kon niet worden afgerond: boem\n']) {
+      const d = deel(metRapport(inhoud));
+      expect(d, inhoud).toContain(WAARSCHUWING);
+      expect(d, inhoud).toContain(`\`${inhoud.trim()}\``);
+    }
+  });
+
+  it('houdt tekst uit de gegevens veilig: codespan op één regel, zonder backticks, verticale strepen of stuurtekens', { timeout: TIJDLIMIET }, () => {
+    const vijandig = ['- ODS_1: a`b|c [klik](https://voorbeeld.invalid) @iemand <b>vet</b> <!-- weg -->\tx\u0007y', '# Kop die geen kop mag worden', '![plaatje](https://voorbeeld.invalid/a.png)', '* ODS_2: * - lijst'].join('\n');
+    const d = deel(metRapport(vijandig + '\n'));
+    expect(d).toContain('- `ODS_1: a b c [klik](https://voorbeeld.invalid) @iemand <b>vet</b> <!-- weg --> x y`');
+    expect(d).toContain('\n`# Kop die geen kop mag worden`\n');
+    expect(d).toContain('\n`![plaatje](https://voorbeeld.invalid/a.png)`\n');
+    expect(d).toContain('- `ODS_2: * - lijst`');
+    // Na de kop en de uitleg staat elke regel van het rapport in een codespan.
+    const rapportRegels = d.split('\n').slice(4).filter((r) => r !== '' && !r.startsWith('**'));
+    for (const r of rapportRegels) expect(r, r).toMatch(/^(- )?`[^`\n]*`$/);
+    // Geen enkel stuurteken in de hele tekst, op de regeleinden na.
+    const stuurtekens = [...d].filter((c) => {
+      const n = c.charCodeAt(0);
+      return n <= 9 || (n >= 11 && n <= 31) || (n >= 127 && n <= 159);
+    });
+    expect(stuurtekens).toEqual([]);
+  });
+
+  it('kapt een lange regel af op 300 tekens', { timeout: TIJDLIMIET }, () => {
+    const d = deel(metRapport(`Er is 1 afwijking van de kalender tegen de gegevens:\n\n- ODS_1: ${'x'.repeat(2000)}\n`));
+    const regel = d.split('\n').find((r) => r.startsWith('- `ODS_1: '));
+    expect(regel).toBeTruthy();
+    expect(regel).toBe('- `ODS_1: ' + 'x'.repeat(293) + '…`');
+  });
+
+  it('houdt hoogstens 70 regels en verwijst voor de rest naar het logboek', { timeout: TIJDLIMIET }, () => {
+    const punten = Array.from({ length: 100 }, (_, i) => `- ODS_${i}: verwacht; gegevens.`);
+    const d = deel(metRapport(['Er zijn 100 afwijkingen van de kalender tegen de gegevens:', '', ...punten, ''].join('\n')));
+    // 1 kop van het rapport + 69 punten = 70 regels; de rest (31) staat niet meer in de pull request.
+    expect(d.split('\n').filter((r) => r.startsWith('- `ODS_'))).toHaveLength(69);
+    expect(d).toContain('- … en 31 regels meer: zie het logboek van de stap "Momentmodel basisonderwijs tegen de nieuwe gegevens".');
+    expect(d).toContain(WAARSCHUWING);
+  });
+
+  it('crasht niet op een leeg of onleesbaar rapport en waarschuwt dan', { timeout: TIJDLIMIET }, () => {
+    const leeg = deel(metRapport(''));
+    expect(leeg).toContain('Het rapport van het momentmodel is leeg.');
+    expect(leeg).toContain(WAARSCHUWING);
+    // Een map in plaats van een bestand: lezen faalt.
+    const onleesbaar = deel(maakPrTekst({}, { RAPPORT_MOMENTMODEL: nieuweMap() }));
+    expect(onleesbaar).toContain('Het rapport van het momentmodel is niet te lezen.');
+    expect(onleesbaar).toContain(WAARSCHUWING);
+  });
+
+  it('blijft staan als de rest van de tekst ingekort wordt', { timeout: TIJDLIMIET }, () => {
+    const veel = { nieuw: Array.from({ length: 9000 }, (_, i) => `ODS_${100000 + i}`), alleSets: [] };
+    const tekst = metRapport(AFWIJKINGEN, { ONDERDELEN: 'minimumdoelen' }, { minimumdoelen: veel });
+    expect(tekst).toContain('De lijsten zijn hier ingekort');
+    expect(tekst.length).toBeLessThanOrEqual(65536);
+    expect(tekst).toContain(KOP_MOMENTMODEL);
+    expect(tekst).toContain('- `ODS_3395: de kalender verwacht een einde op 2028-08-31; de gegevens zeggen: einde 2027-08-31.`');
+    expect(tekst).toContain(WAARSCHUWING);
+    expect(tekst.trimEnd().endsWith('bij [deze run](https://github.test/Boosterz/actions/runs/1).')).toBe(true);
+  });
+
+  it('staat ook in de tekst als de andere onderdelen niet meelopen en raakt de gedeelde hulpfuncties niet', { timeout: TIJDLIMIET }, () => {
+    for (const onderdelen of ['alles', 'minimumdoelen', 'studierichtingen', 'beroepskwalificaties', 'zonder-beroepskwalificaties']) {
+      expect(deel(metRapport('Geen afwijkingen.\n', { ONDERDELEN: onderdelen })), onderdelen).toContain('\nGeen afwijkingen.\n');
+    }
+    // De samenvatting kent dit deel niet: het rapport hoort enkel bij de pull request.
+    expect(SAMENVATTING_JS).not.toContain('RAPPORT_MOMENTMODEL');
   });
 });

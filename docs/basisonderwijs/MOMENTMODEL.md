@@ -1,5 +1,26 @@
 # Momentmodel basisonderwijs (bouwstap 2b): spec
 
+## Stand na de bouw (2 november 2026)
+
+**Gebouwd en live.** Code in `src/lib/basis/` (kalender.ts, moment.ts, momentTeksten.ts) en
+`src/components/basis/WanneerGelden.tsx`, met het blok "Wanneer gelden deze doelen?" in het paneel van elke set van het
+basisonderwijs op de pagina Officiële minimumdoelen. Het secundair, Samenstellen, de inleeswizard, de editor, de bewaarde
+formaten en de hoofdbundel zijn niet veranderd. Tests: kalender (63), model (110), echte gegevens (70), blok, de workflow en
+een deel "20b-2b" in de rooktest.
+
+**Beslissingen van de hoofdsessie bij de bouw** (gaan voor op de spec hieronder):
+
+- **B1. De maandelijkse ophaling wordt nooit tegengehouden.** In `.github/workflows/minimumdoelen.yml` slaan de tests op de echte gegevens over in de gewone testrun (`GEGEVENSRUN=1`). Ze draaien daarna in een eigen stap met `continue-on-error`, en hun rapport komt als deel "Momentmodel basisonderwijs" in de pull request. Staat daar een afwijking, pas dan `src/lib/basis/kalender.ts` aan vóór je samenvoegt, anders faalt de uitrol (de deploy draait ze streng).
+- **B2. De golf per vak heeft een eigen zekerheid** (`KalenderVak.zekerheid`, in de plaats van `golfIndeling`). Zeker voor Nederlands, wiskunde, W&T, LO, muzische vorming, ICT en Frans: een oude set met (vrijwel) dezelfde naam eindigt op de einddatum van die golf. Waarschijnlijk voor aardrijkskunde, geschiedenis en attitudes: daar steunt de golf alleen op zoekresultaten. Een invoering krijgt de laagste zekerheid van cel en vak, dus ook de kleuterklassen van ODS_3411, ODS_3414 en ODS_3425 (en ODS_3456, ODS_3461, ODS_3464) zijn **waarschijnlijk**, niet zeker zoals de spec hieronder nog zegt.
+- **B3. Nergens "nagekeken".** `samengesteldOp` en `gevondenOp`. Onderaan het blok staat "Kalender samengesteld op 2 november 2026 uit de einddata in de officiële gegevens en uit zoekresultaten. De officiële tekst is nog niet nagelezen." Elke bron zegt hoe ze gekend is.
+- **B4.** De tekst bij een oude set volgt de soort doelen (eindtermen of ontwikkelingsdoelen), niet het moment.
+- **B5.** Het blok staat er ook als alles vervallen is ("Deze doelen gelden niet meer sinds 1 september …"), ook als het label uit de gegevens nog "Geldig" zegt. "Geldig tot" wordt "Gold tot" na de einddatum. De pagina geeft de datum mee; `src/lib/basis/` leest nooit de klok.
+- **B6 tot B11.** Rooktest "20b-2b"; ook de opvolgerlijst gebruikt `geldigheidTekstBasis`; "nieuw" komt uit de naam, niet uit de versie; geen tekst die een koppeling oud naar nieuw beweert; één zin over de golf bij een nieuwe set; documentatie en commits door de hoofdsessie.
+
+**Wat nog wacht** (zie ook `docs/BASISONDERWIJS.md`): de officiële tabel nalezen (dan worden de lagercellen "zeker"; alleen
+kalender.ts verandert), het buitengewoon lager (nu "nog onzeker"), en alles onder "Bewust niet nu".
+
+
 Ontworpen op 2 november 2026: drie verkenners (gegevens, code, officiële kalender), drie ontwerpen (data eerst, leerkracht eerst, toekomst eerst), een rechter die koos en samenvoegde, en een criticus die narekende. Stand van zaken en beslissingen: `docs/BASISONDERWIJS.md`. **De rechtzettingen van de criticus (onderaan) gaan voor op de spec.**
 
 ## Keuze van de rechter

@@ -14,12 +14,16 @@ import { ArrowDown, ExternalLink, ListChecks, ListTree, LoaderCircle } from 'luc
 import { controleStatus, getCurricula, saveCurriculum } from '../lib/curriculum';
 import { geldigheidVanDoelen, htmlNaarTekst, type MinimumdoelenIndexSet, type MinimumdoelenSetBestand } from '../lib/minimumdoelen';
 import {
-  FOUT_NIET_GELADEN, SOORT_LABEL, SOORT_VOLGORDE, contextVanSet, datumLeesbaar, doelPastBijZoek, filterSets, geldigheidTekst, geldigheidVan,
+  FOUT_NIET_GELADEN, SOORT_LABEL, SOORT_VOLGORDE, contextVanSet, datumLeesbaar, doelPastBijZoek, filterSets, geldigheidVan,
   graadOpties, heeftActueleSets, indexHeeftGeldigheid, isBasisSoort, isGeldigSetId, isStemSet, laadIndex, laadSet, opvolgersVan, oudeVersieIds, setKenmerken,
   soortVanSet, vakSetsBijStem, veiligeLink, zoekTermen, zoekVoorbeelden, type SoortOnderwijs,
 } from '../lib/minimumdoelenBron';
+import { INVOERINGSKALENDER, schooljaarVanDatum } from '../lib/basis/kalender';
+import { basisSet, geldigheidTekstBasis } from '../lib/basis/moment';
+import { EINDMOMENT_LABEL, MOMENT_OUD_LABEL, SOORT_DOELEN_LABEL } from '../lib/basis/momentTeksten';
 import { geldigheidJaren } from '../lib/setKeuze';
 import { isAttitude, isOptioneel, leerplanUitSet, themaVanDoel, vindLeerplanVoorSet } from '../lib/minimumdoelenLeerplan';
+import { WanneerGelden } from '../components/basis/WanneerGelden';
 import { DoelenPerRubriek, type DoelRij } from '../components/curriculum/DoelenPerRubriek';
 import { Field, useToast } from '../components/ui';
 import { BackIcon, InfoIcon, RetryIcon, WarningIcon } from '../components/icons';
@@ -47,6 +51,13 @@ function gewoonEerst(lijst: MinimumdoelenIndexSet[]): MinimumdoelenIndexSet[] {
 const ZOEK_IN_DOELEN_VANAF = 10;
 /** Een set met geldigheid "Onbekend" naast een geldige set met dezelfde naam. */
 const OUDERE_VERSIE = 'Oudere versie';
+
+/** De datum van vandaag als 'JJJJ-MM-DD' in lokale tijd. De bibliotheek van het basisonderwijs leest zelf nooit de klok. */
+function vandaagTekst(nu: Date): string {
+  const maand = String(nu.getMonth() + 1).padStart(2, '0');
+  const dag = String(nu.getDate()).padStart(2, '0');
+  return `${nu.getFullYear()}-${maand}-${dag}`;
+}
 
 // ── Laden met opnieuw proberen ──────────────────────────────────────────────
 
@@ -99,6 +110,10 @@ export function MinimumdoelenPage() {
   const { setId } = useParams();
   const navigate = useNavigate();
   const index = useLaadstand('index', laadIndex);
+  // Vandaag, eenmaal bij het openen: het blok "Wanneer gelden deze doelen?" en de geldigheid in de lijst rekenen ermee.
+  const nu = useMemo(() => new Date(), []);
+  const vandaag = useMemo(() => vandaagTekst(nu), [nu]);
+  const schooljaar = useMemo(() => schooljaarVanDatum(nu) ?? INVOERINGSKALENDER.vrijwilligVanaf, [nu]);
 
   const [zoek, setZoek] = useState('');
   // Standaard geen oude versies (lib/minimumdoelenBron.ts, `oudeVersieIds`); die komen er op vraag bij.
@@ -266,7 +281,7 @@ export function MinimumdoelenPage() {
               ) : (
                 <>
                   <ul className="md-sets" aria-label="Sets minimumdoelen">
-                    {gefilterd.slice(0, zichtbaar).map((s) => <SetKnop key={s.id} set={s} oud={oud.has(s.id)} gekozen={s.id === setId} onKies={kies} />)}
+                    {gefilterd.slice(0, zichtbaar).map((s) => <SetKnop key={s.id} set={s} oud={oud.has(s.id)} gekozen={s.id === setId} vandaag={vandaag} onKies={kies} />)}
                   </ul>
                   {gefilterd.length > zichtbaar && (
                     <div className="md-meer">
@@ -293,7 +308,7 @@ export function MinimumdoelenPage() {
           ) : setId ? (
             <SetPaneel
               key={setId} setId={setId} indexSet={gekozen} alleSets={sets} paneelRef={paneelRef} onNaarLijst={naarLijst}
-              onToonActueel={toonActueel}
+              onToonActueel={toonActueel} vandaag={vandaag} schooljaar={schooljaar}
             />
           ) : (
             <div className="card md-placeholder">
@@ -309,9 +324,11 @@ export function MinimumdoelenPage() {
 
 // ── Eén set in de lijst ─────────────────────────────────────────────────────
 
-function SetKnop({ set, oud, gekozen, onKies }: { set: MinimumdoelenIndexSet; oud: boolean; gekozen: boolean; onKies: (id: string) => void }) {
+function SetKnop({
+  set, oud, gekozen, vandaag, onKies,
+}: { set: MinimumdoelenIndexSet; oud: boolean; gekozen: boolean; vandaag: string; onKies: (id: string) => void }) {
   const kenmerken = setKenmerken(set);
-  const geldig = oud && geldigheidVan(set) === 'O' ? OUDERE_VERSIE : geldigheidTekst(set);
+  const geldig = oud && geldigheidVan(set) === 'O' ? OUDERE_VERSIE : geldigheidTekstBasis(set.naam, set, vandaag);
   const doelen = typeof set.aantal === 'number' ? `${set.aantal} ${set.aantal === 1 ? 'doel' : 'doelen'}` : '';
   return (
     <li>
@@ -370,7 +387,7 @@ function aantalDoelen(n: number): string {
 }
 
 function SetPaneel({
-  setId, indexSet, alleSets, paneelRef, onNaarLijst, onToonActueel,
+  setId, indexSet, alleSets, paneelRef, onNaarLijst, onToonActueel, vandaag, schooljaar,
 }: {
   setId: string;
   /** De regel uit de index, als die al geladen is: dan staat de naam er meteen. */
@@ -380,6 +397,9 @@ function SetPaneel({
   paneelRef: RefObject<HTMLElement>;
   onNaarLijst: () => void;
   onToonActueel: (set: MinimumdoelenIndexSet) => void;
+  /** Vandaag als 'JJJJ-MM-DD' en het schooljaar van vandaag: de pagina geeft ze mee, de bibliotheek leest nooit de klok. */
+  vandaag: string;
+  schooljaar: number;
 }) {
   const navigate = useNavigate();
   const toast = useToast();
@@ -396,6 +416,8 @@ function SetPaneel({
   const kop = bestand?.set ?? indexSet;
   const soortKop = kop ? soortVanSet(kop.naam) : undefined;
   const basis = soortKop !== undefined && isBasisSoort(soortKop);
+  // Alleen voor het basisonderwijs en het buitengewoon basisonderwijs: het momentmodel (src/lib/basis/). Voor elke andere set blijft alles zoals het was.
+  const basisInfo = useMemo(() => (kop ? basisSet(kop) : undefined), [kop]);
   // Een set zonder geldigheid in de kop (oudere bestanden): afleiden uit de doelen zelf.
   const geldigheid = bestand ? (bestand.set.geldigheid !== undefined ? bestand.set : geldigheidVanDoelen(bestand.doelen)) : indexSet;
   const bronLink = veiligeLink(bestand?.set.bron);
@@ -421,9 +443,14 @@ function SetPaneel({
     feiten.push({ naam: 'Soort onderwijs', waarde: SOORT_LABEL[soortVanSet(kop.naam)] });
     if (kop.graad) feiten.push({ naam: 'Graad', waarde: kop.graad });
     if (kop.stroom) feiten.push({ naam: 'Stroom', waarde: kop.stroom });
-    if (kop.leerjaar) feiten.push({ naam: 'Leerjaar', waarde: kop.leerjaar });
+    if (basisInfo) {
+      // Een nieuwe set werkt naar een eindmoment toe; een oude set geldt voor het hele moment.
+      const moment = basisInfo.generatie === 'nieuw' ? (basisInfo.eindmoment ? EINDMOMENT_LABEL[basisInfo.eindmoment] : kop.leerjaar) : MOMENT_OUD_LABEL[basisInfo.moment];
+      if (moment) feiten.push({ naam: 'Moment', waarde: moment });
+      if (basisInfo.soortDoelen) feiten.push({ naam: 'Soort doelen', waarde: SOORT_DOELEN_LABEL[basisInfo.soortDoelen] });
+    } else if (kop.leerjaar) feiten.push({ naam: 'Leerjaar', waarde: kop.leerjaar });
     if (kop.versie) feiten.push({ naam: 'Versie', waarde: kop.versie });
-    const g = oudereVersie ? `${OUDERE_VERSIE} (de bron vermeldt geen geldigheid)` : geldigheid ? geldigheidTekst(geldigheid) : undefined;
+    const g = oudereVersie ? `${OUDERE_VERSIE} (de bron vermeldt geen geldigheid)` : geldigheid ? geldigheidTekstBasis(kop.naam, geldigheid, vandaag) : undefined;
     if (g) feiten.push({ naam: 'Geldigheid', waarde: g });
     if (typeof kop.aantal === 'number') feiten.push({ naam: 'Aantal doelen', waarde: String(kop.aantal) });
     feiten.push({ naam: 'Nummer van de set', waarde: kop.id });
@@ -507,7 +534,7 @@ function SetPaneel({
                         : ''}
                     </Link>
                     <span className="md-opvolger-info">
-                      {[o.graad, o.stroom, contextVanSet(o.naam), `${o.aantal} doelen`, geldigheidTekst(o)].filter(Boolean).join(' · ')}
+                      {[o.graad, o.stroom, contextVanSet(o.naam), `${o.aantal} doelen`, geldigheidTekstBasis(o.naam, o, vandaag)].filter(Boolean).join(' · ')}
                     </span>
                   </li>
                 ))}
@@ -520,6 +547,8 @@ function SetPaneel({
           </div>
         </div>
       )}
+
+      {basisInfo && <WanneerGelden set={basisInfo} alleSets={alleSets} schooljaar={schooljaar} />}
 
       {stem && (
         <div className="callout md-stem" role="note">

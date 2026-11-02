@@ -1,0 +1,57 @@
+/* ── Wanneer gelden deze doelen? (basisonderwijs, momentmodel) ───────────── */
+/*
+ * Het blok in het paneel van een set van het basisonderwijs op de pagina Officiële minimumdoelen
+ * (src/components/basis/WanneerGelden.tsx). Alleen tokens uit global.css; geen vaste breedtes, zodat het blok op
+ * 390 px niet horizontaal scrolt. De zekerheid staat altijd als tekst in een .badge-warn, nooit alleen als kleur.
+ */
+
+.md-wanneer {
+  display: grid; gap: 10px; min-width: 0; margin: 16px 0 0; padding: 14px 16px 16px;
+  border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg);
+}
+.md-wanneer > * { min-width: 0; margin: 0; }
+.md-wanneer h3 { font-size: 1.05rem; line-height: 1.3; overflow-wrap: break-word; }
+.md-wanneer p { overflow-wrap: break-word; }
+.md-wanneer .badge { vertical-align: middle; }
+
+.md-wanneer-voorwie { font-weight: 600; }
+.md-wanneer-nu { font-weight: 700; }
+.md-wanneer-lijst { list-style: disc; padding-left: 1.3em; }
+.md-wanneer-lijst li { margin: 0 0 6px; overflow-wrap: break-word; }
+.md-wanneer-lijst li:last-child { margin-bottom: 0; }
+.md-wanneer-golf { color: var(--text); }
+.md-wanneer-noot { color: var(--text-soft); font-size: 0.92rem; }
+.md-wanneer-uitleg { color: var(--text-soft); font-size: 0.88rem; }
+.md-wanneer-voet { color: var(--text-faint); font-size: 0.85rem; }
+
+.md-wanneer-tweeling { display: grid; gap: 6px; }
+.md-wanneer-tweeling p { margin: 0; }
+.md-wanneer-tweeling ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.md-wanneer-tweeling li { min-width: 0; overflow-wrap: anywhere; }
+
+/* ── "Waarop steunt dit?" ──────────────────────────────────────────────── */
+
+.md-wanneer-bronnen { border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--bg-raised); }
+.md-wanneer-bronnen > summary {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px; cursor: pointer; list-style: none;
+  font-weight: 700; border-radius: var(--radius-s);
+}
+.md-wanneer-bronnen > summary::-webkit-details-marker { display: none; }
+/* Een eigen pijltje, getekend met een rand (geen extra icoon nodig). */
+.md-wanneer-bronnen > summary::after {
+  content: ''; flex: none; margin-left: auto; margin-right: 4px; width: 9px; height: 9px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg);
+}
+.md-wanneer-bronnen[open] > summary::after { transform: rotate(-135deg); }
+.md-wanneer-bronnen-lijst { padding: 0 14px 12px; min-width: 0; }
+.md-wanneer-bronnen-lijst ul { margin: 0; padding-left: 1.3em; }
+.md-wanneer-bronnen-lijst li { margin: 0 0 6px; font-size: 0.9rem; overflow-wrap: anywhere; }
+.md-wanneer-bronnen-lijst li:last-child { margin-bottom: 0; }
+
+@media (max-width: 640px) {
+  .md-wanneer { padding: 12px 12px 14px; }
+  /* Links in een lijst: ruim genoeg om te raken. */
+  .md-wanneer-tweeling a { display: inline-flex; align-items: center; min-height: 44px; }
+  /* De bronnen: ruimte tussen de regels in plaats van een grotere link, zodat "— hoe gekend" naast de titel blijft staan. */
+  .md-wanneer-bronnen-lijst li { padding: 5px 0; margin: 0; }
+}
