@@ -200,6 +200,19 @@ function Dashboard({
           </Link>
         </div>
       </section>
+
+      <BasisKader />
+    </div>
+  );
+}
+
+// Toegang tot het deel voor het basisonderwijs (#/basis); in beide toestanden van de startpagina.
+function BasisKader() {
+  return (
+    <div className="start-basis-box">
+      <School size={22} aria-hidden="true" />
+      <p>Kleuter of lager? Bekijk wat je klas moet kennen, per vak en per leerjaar.</p>
+      <Link to="/basis" className="btn btn-sm btn-ghost">Naar het basisonderwijs</Link>
     </div>
   );
 }
@@ -257,6 +270,8 @@ function FirstVisit() {
         <p>Ben je leerling en heb je een code van je leerkracht gekregen?</p>
         <Link to="/meedoen" className="btn btn-sm btn-ghost">Ik ben leerling en heb een code</Link>
       </div>
+
+      <BasisKader />
 
       <section className="start-section" aria-labelledby="start-types-title">
         <h2 id="start-types-title">{WIDGET_TYPES.length} soorten oefeningen en spelletjes</h2>

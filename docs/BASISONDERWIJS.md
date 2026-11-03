@@ -40,8 +40,9 @@ Wat het moet doen, in de volgorde van de eigenaar:
 | Toestelproef (bouwpakket 1): een losse proefpagina voor de proef met de ICT-coördinator. Op de Windows-laptop leest de scanner met jsqr, want Chrome en Edge op Windows hebben geen BarcodeDetector (waarschijnlijk; de proef bevestigt het). Online op https://thomasteamict.github.io/Boosterz/proef/toestelproef.html; bron en checklist in `tools/prototypes/toestelproef/`. Acht QR-codes (versie 3, 6, 7 en 10, op 6 en 8 px), een scanner met camerakeuze, de stemmen, een opslagmerkje en een knop "Kopieer de uitslag". Nagekeken door twee reviewers en de rechter (16 bevindingen, 8 bevestigd en opgelost) | **Klaar** (2 november 2026) | hoofdsessie |
 | Proef op echte schooltoestellen (bouwpakket 2): een Chromebook van de 1ste graad, een Chromebook van het 3de leerjaar, de Windows-laptop van de leerkracht en het digibord | **Wacht** op de toestelproef, daarna op een afspraak met de ICT-coördinator | eigenaar en hoofdsessie |
 | Ontwerp van de eigen ingang (bouwstap 3): `#/basis` met de vormgeving "Lamplicht", "Wat geldt voor je leerjaar?", doelen per moment en vak, de leerlijn, een vaste doelpagina en zoeken in gewone woorden. Spec in `docs/basisonderwijs/INGANG.md`. Antwoorden van de eigenaar (3 november 2026): Lamplicht met Fredoka; mag nu al online met "waarschijnlijk" erbij; eerst een eigen lijst zoekwoorden, later aangevuld door de proefleerkracht en een maker | **Klaar** (3 november 2026) | hoofdsessie |
-| Bouw van de eigen ingang (pakketten van `docs/basisonderwijs/INGANG.md`, met de beslissingen H1 tot H16) | **Bezig** | hoofdsessie |
-| Bouw in de app (§ "Bouwstappen"): het voorbeeld is goedgekeurd en PR #11 mag samengevoegd worden | **Kan verder**: stap 1 en 2 zijn klaar; stap 3 (de eigen ingang voor het basisonderwijs) is de volgende | hoofdsessie |
+| Bouw van de eigen ingang `#/basis`: "Wat geldt voor je leerjaar?", doelen per moment en vak, de leerlijn, een pagina per doel, zoeken in gewone woorden (met een eigen lijst zoekwoorden, nagekeken), en toegang vanuit de startpagina, het menu Meer en de pagina Officiële minimumdoelen. Nagekeken door een nakijker, twee aparte testschrijvers, drie reviewers en drie rechters. Stand na de bouw bovenaan `docs/basisonderwijs/INGANG.md` | **Klaar** (3 november 2026) | hoofdsessie |
+| Zoekwoorden van leerkrachten: de proefleerkracht van het 3de leerjaar en een maker van de scholengroep vullen elk 10 tot 15 woorden aan waarmee ze een doel zoeken (`src/lib/basis/zoekwoorden.ts`) | **Wacht** | eigenaar |
+| Bouw in de app (§ "Bouwstappen"): het voorbeeld is goedgekeurd en PR #11 mag samengevoegd worden | **Kan verder**: stap 1, 2 en 3 zijn klaar; stap 4 (het bewijsmodel) en 5 (de Lichtkamer als oefeningsoort) zijn de volgende | hoofdsessie |
 
 ## Wat de bron bevat (proefrun van 1 november 2026)
 
@@ -56,7 +57,9 @@ Wat het moet doen, in de volgorde van de eigenaar:
 - **Buitengewoon basisonderwijs**: eigen sets (ODS_3456 tot ODS_3485) met **dezelfde doelen** (zelfde id en tekst), maar
   telkens "na te streven". De oude ontwikkelingsdoelen per type staan er nog, met einddata.
 - **De codes lopen niet door** tussen de momenten: 2.1.1 is in de kleuterklas iets anders dan in het 4de. Een leerlijn
-  volg je via de rubrieken (`extra.titels`: onderwerp en subthema), die per vak op elk moment dezelfde zijn.
+  volg je via de rubrieken (`extra.titels`: onderwerp en subthema). Het onderwerp is per vak op elk moment hetzelfde (35 van
+  35 in de negen vakken met drie momenten); de subthema's lopen deels uiteen (67 van 92 komen op alle drie terug), en ICT
+  (geen kleuterdoelen) en Frans (alleen het 6de) hebben niet alle momenten (nagerekend op 2 november 2026).
 - **Vorm**: de tekst is HTML en loopt soms verder in `extra.uitbreiding_op_doelzin` (de opsomming na een dubbele punt). In
   wiskunde staat [F] (feitelijke kennis) of [I] (inzichtelijke kennis) in de tekst (waarschijnlijk, memorie van toelichting).
 - **Invoering in twee golven** (einddata van de oude sets in de API; de kalender zelf komt uit secundaire bronnen):
@@ -115,7 +118,7 @@ van de eigenaar; de eigenaar beslist met wie het gedeeld wordt.
    in 49 sets staat een deel van het doel apart in de bron (de lijst achter "kennen de volgende begrippen:", voorbeelden
    tussen "< bv. … >"). `laadSet` zet die letterlijk achter de doelzin, zodat elk scherm, het leerplan en het nakijken
    dezelfde volledige tekst hebben. Het momentmodel is **klaar** (2 november 2026, `docs/basisonderwijs/MOMENTMODEL.md`).
-3. Een aparte ingang voor het basisonderwijs met een eigen vormgeving.
+3. Een aparte ingang voor het basisonderwijs met een eigen vormgeving. **Klaar** (3 november 2026, `#/basis`, spec en stand in `docs/basisonderwijs/INGANG.md`).
 4. Het lichtmodel en het bewijsmodel als geteste code (schaduwpunt, kaartjes, stoffen; bewijs per doel-id).
 5. Een oefeningsoort "lichtkamer" in de app, met de digibordstand.
 6. De proefklas: 3de leerjaar, de schaduwles, met een spiekkaart voor de leerkracht.

@@ -46,6 +46,7 @@ import '../../styles/basis-moment.css';
 
 const KOP_ID = 'md-wanneer-kop';
 const SET_ROUTE = '/leerplannen/minimumdoelen';
+const setLinkStandaard = (id: string) => `${SET_ROUTE}/${id}`;
 const TEKST_LEEG = 'De bron legt voor deze groep geen specifieke ontwikkelingsdoelen vast.';
 
 /** De badge bij een zekerheid die niet zeker is. De zekerheid staat dus altijd als tekst, nooit alleen als kleur. */
@@ -114,18 +115,28 @@ function Bronnen({ bronnen }: { bronnen: Invoeringskalender['bronnen'] }) {
 
 export function WanneerGelden({
   set, alleSets, schooljaar, kalender = INVOERINGSKALENDER,
+  kopId = KOP_ID, kopNiveau = 3, setLink = setLinkStandaard, toonTweeling = true,
 }: {
   set: BasisSet;
   alleSets: readonly MinimumdoelenIndexSet[];
   /** Het schooljaar van vandaag (beginjaar), van de pagina. */
   schooljaar: Schooljaar;
   kalender?: Invoeringskalender;
+  /** Het id van de kop (voor aria-labelledby). Zonder deze prop 'md-wanneer-kop'. */
+  kopId?: string;
+  /** Het niveau van de kop: 3 (in het paneel van een set) of 2 (als eigen deel van een pagina). */
+  kopNiveau?: 2 | 3;
+  /** Het pad van de link naar een andere set (de tweelingsets). Zonder deze prop de officiële pagina van de set. */
+  setLink?: (id: string) => string;
+  /** Toon het blok met de tweelingsets. De doelpagina toont de tweeling zelf, per doel. */
+  toonTweeling?: boolean;
 }) {
+  const Kop = kopNiveau === 2 ? 'h2' : 'h3';
   // Een schijnset zonder doelen: niets te plannen, alleen de melding.
   if (set.leeg) {
     return (
-      <section className="md-wanneer" aria-labelledby={KOP_ID}>
-        <h3 id={KOP_ID}>Wanneer gelden deze doelen?</h3>
+      <section className="md-wanneer" aria-labelledby={kopId}>
+        <Kop id={kopId}>Wanneer gelden deze doelen?</Kop>
         <p>{TEKST_LEEG}</p>
       </section>
     );
@@ -137,8 +148,8 @@ export function WanneerGelden({
   // dus het blok zegt het zelf, op datum.
   if (invoeringen.length > 0 && invoeringen.every((i) => i.status === 'vervallen') && set.geldigTotEnMet !== undefined) {
     return (
-      <section className="md-wanneer" aria-labelledby={KOP_ID}>
-        <h3 id={KOP_ID}>Wanneer gelden deze doelen?</h3>
+      <section className="md-wanneer" aria-labelledby={kopId}>
+        <Kop id={kopId}>Wanneer gelden deze doelen?</Kop>
         <p className="md-wanneer-voorwie">{voorWieTekst(set)}</p>
         <p className="md-wanneer-nu">{vervallenTekst(set.geldigTotEnMet)}</p>
       </section>
@@ -157,7 +168,7 @@ export function WanneerGelden({
 
   const opmerkingen = uniek(regels.flatMap((r) => (r.opmerking ? [r.opmerking] : [])));
   const uitleg = uniek(regels.flatMap((r) => zekerheidUitleg(r.zekerheid, r.reden) ?? []));
-  const tweeling = tweelingSets(set, alleSets, kalender);
+  const tweeling = toonTweeling ? tweelingSets(set, alleSets, kalender) : [];
 
   // De bronnen van wat het blok toont, in de volgorde van de kalender. Is er iets dat niet zeker is, dan komen de
   // bronnen die nog te lezen zijn erbij: zo ziet de leerkracht ook wat nog nagelezen moet worden.
@@ -166,8 +177,8 @@ export function WanneerGelden({
   const bronnen = bronIds.size === 0 ? [] : kalender.bronnen.filter((b) => bronIds.has(b.id) || (nietZeker && b.hoe === 'nog-te-lezen'));
 
   return (
-    <section className="md-wanneer" aria-labelledby={KOP_ID}>
-      <h3 id={KOP_ID}>Wanneer gelden deze doelen?</h3>
+    <section className="md-wanneer" aria-labelledby={kopId}>
+      <Kop id={kopId}>Wanneer gelden deze doelen?</Kop>
       <p className="md-wanneer-voorwie">{voorWieTekst(set)}</p>
 
       {delen.length > 0 && (
@@ -219,7 +230,7 @@ export function WanneerGelden({
           <ul>
             {tweeling.map((t) => (
               <li key={t.id}>
-                <Link to={`${SET_ROUTE}/${t.id}`}>‘{t.korteNaam || t.naam}’ ({t.id})</Link>
+                <Link to={setLink(t.id)}>‘{t.korteNaam || t.naam}’ ({t.id})</Link>
               </li>
             ))}
           </ul>

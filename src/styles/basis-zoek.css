@@ -1,0 +1,72 @@
+/* ── Deel basisonderwijs: zoeken in de doelen ──
+   Alleen met de tokens van basis.css. Elke selector begint met .b- of :root[data-deel='basis'].
+   Alles wat je kan aantikken is minstens 44 px hoog (het zoekveld 48 px). Het zoekveld zelf staat in basis-leerjaar.css. */
+
+.b-zoekpagina {
+  max-width: 62rem;
+}
+.b-zoekpagina h1 {
+  margin: 12px 0 8px;
+}
+.b-zoekstatus {
+  margin: 8px 0;
+  font-weight: 700;
+}
+.b-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+.b-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--text);
+  font-weight: 700;
+}
+.b-ookgezocht {
+  max-width: 62ch;
+  margin: 8px 0;
+  color: var(--text-soft);
+}
+.b-zoekgroep {
+  margin-top: 24px;
+}
+.b-zoekgroep h2,
+.b-zoekdeels > h2 {
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 4px solid var(--lamp);
+  font-size: 1.25rem;
+}
+.b-zoekgroep h3 {
+  margin: 0 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid var(--lamp);
+  font-size: 1.1rem;
+}
+.b-zoekdeels {
+  margin-top: 36px;
+}
+.b-tips {
+  max-width: 62ch;
+  margin: 12px 0;
+  padding-left: 1.25rem;
+}
+.b-tips li {
+  margin: 4px 0;
+}
+.b-zoek-vaktegels {
+  margin: 24px 0 0;
+  font-size: 1.25rem;
+}
+.b-zoekbereik {
+  margin-top: 24px;
+}

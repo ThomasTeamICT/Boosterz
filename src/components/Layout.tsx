@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   BookOpen, ChartColumn, Ellipsis, FileUp, GraduationCap, HardDriveDownload, House, Inbox, KeyRound,
-  Library, LifeBuoy, ListTree, Menu as MenuIcon, Moon, Plus, Shapes, ShieldCheck, Sparkles, Sun, SunMoon,
+  Library, LifeBuoy, ListTree, Menu as MenuIcon, Moon, Plus, School, Shapes, ShieldCheck, Sparkles, Sun, SunMoon,
   TriangleAlert, Users, X, type LucideIcon,
 } from 'lucide-react';
 import { cycleTheme, type ThemeMode } from '../lib/theme';
@@ -345,6 +345,7 @@ export function Layout() {
     { label: 'Hulp', hint: 'Aan de slag en veelgestelde vragen', Icon: LifeBuoy, to: '/hulp' },
     { label: 'AI-instellingen', hint: 'Je eigen sleutel en model', Icon: KeyRound, to: '/ai-instellingen' },
     { label: 'Privacy en opslag', hint: 'Back-up, export en opruimen', Icon: ShieldCheck, to: '/privacy' },
+    { label: 'Basisonderwijs', hint: 'Minimumdoelen per leerjaar, kleuter en lager', Icon: School, to: '/basis' },
     {
       label: `Thema: ${THEME_LABEL[theme]}`, Icon: ThemeIcon, keepOpen: true, separator: true,
       onSelect: () => setTheme(cycleTheme()),

@@ -424,3 +424,47 @@ describe('WanneerGelden: leest nergens de klok', () => {
     expect(bron).not.toMatch(/Date\.now\(/);
   });
 });
+
+// ─── De optionele props (doelpagina van het basisdeel) ───────────────────────
+
+describe('WanneerGelden: de vier optionele props', () => {
+  const toonMet = (k: Kop, extra: Record<string, unknown>) => {
+    const info = basisSet(k);
+    if (!info) throw new Error(`geen basisset voor ${k.id}`);
+    return renderToStaticMarkup(
+      createElement(StaticRouter, { location: '/' }, createElement(WanneerGelden, { set: info, alleSets: ALLE, schooljaar: 2026, ...extra })),
+    );
+  };
+
+  it('zonder props is de uitvoer gelijk aan de uitvoer met de standaardwaarden', () => {
+    expect(toonMet(L4_WT, {})).toBe(toonMet(L4_WT, { kopId: 'md-wanneer-kop', kopNiveau: 3, toonTweeling: true }));
+  });
+
+  it('kopNiveau 2 en kopId zetten h2#b-wanneer-kop en laten #md-wanneer-kop weg', () => {
+    const html = toonMet(L4_WT, { kopId: 'b-wanneer-kop', kopNiveau: 2 });
+    expect(html).toContain('<section class="md-wanneer" aria-labelledby="b-wanneer-kop">');
+    expect(html).toContain('<h2 id="b-wanneer-kop">Wanneer gelden deze doelen?</h2>');
+    expect(html).not.toContain('md-wanneer-kop');
+    expect(hoeveel(html, '<h3')).toBe(0);
+  });
+
+  it('de kop volgt de props ook in de korte meldingen (schijnset en vervallen set)', () => {
+    const leeg = toonMet(LEEG, { kopId: 'b-wanneer-kop', kopNiveau: 2 });
+    expect(leeg).toContain('<h2 id="b-wanneer-kop">');
+    const vervallen = toonMet(OUD_K_NL, { kopId: 'b-wanneer-kop', kopNiveau: 2 });
+    expect(vervallen).toContain('<h2 id="b-wanneer-kop">');
+    expect(vervallen).not.toContain('<h3');
+  });
+
+  it('toonTweeling false laat het blok met de tweelingsets weg; zonder de prop staat het er', () => {
+    expect(hoeveel(toonMet(L4_WT, {}), 'class="md-wanneer-tweeling"')).toBe(1);
+    expect(hoeveel(toonMet(L4_WT, { toonTweeling: false }), 'class="md-wanneer-tweeling"')).toBe(0);
+  });
+
+  it('setLink bepaalt het pad van de link naar een tweelingset', () => {
+    expect(toonMet(L4_WT, {})).toContain('href="/leerplannen/minimumdoelen/N_BU_L4_WT"');
+    const eigen = toonMet(L4_WT, { setLink: (id: string) => `/basis/ergens/${id}` });
+    expect(eigen).toContain('href="/basis/ergens/N_BU_L4_WT"');
+    expect(eigen).not.toContain('/leerplannen/minimumdoelen/N_BU_L4_WT');
+  });
+});

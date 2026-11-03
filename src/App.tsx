@@ -66,6 +66,7 @@ const CoursesPage = lazyRetry(() => import('./pages/CoursesPage').then((m) => ({
 const RichtingenPage = lazyRetry(() => import('./pages/RichtingenPage').then((m) => ({ default: m.RichtingenPage })), 'RichtingenPage');
 const CurriculaPage = lazyRetry(() => import('./pages/CurriculaPage').then((m) => ({ default: m.CurriculaPage })), 'CurriculaPage');
 const MinimumdoelenPage = lazyRetry(() => import('./pages/MinimumdoelenPage').then((m) => ({ default: m.MinimumdoelenPage })), 'MinimumdoelenPage');
+const BasisDeel = lazyRetry(() => import('./pages/basis/BasisDeel').then((m) => ({ default: m.BasisDeel })), 'BasisDeel');
 const LeerplanInlezenPage = lazyRetry(() => import('./pages/LeerplanInlezenPage').then((m) => ({ default: m.LeerplanInlezenPage })), 'LeerplanInlezenPage');
 const SamenstellenPage = lazyRetry(() => import('./pages/SamenstellenPage').then((m) => ({ default: m.SamenstellenPage })), 'SamenstellenPage');
 const CourseEditorPage = lazyRetry(() => import('./pages/CourseEditorPage').then((m) => ({ default: m.CourseEditorPage })), 'CourseEditorPage');
@@ -102,6 +103,8 @@ const errorElement = <LoadError />;
 const router = createHashRouter([
   // Leerlingzijde van het klassysteem, buiten de leerkrachtschil. `/klas/open`
   // staat vóór het Layout-blok zodat het niet als `/klas/:id` gelezen wordt.
+  // Het deel basisonderwijs: eigen schil en eigen padlezer (geen <Routes> erin), buiten de leerkrachtschil.
+  { path: '/basis/*', element: lz(<BasisDeel />), errorElement },
   { path: '/klas/open', element: lz(<ClassOpenPage />), errorElement },
   { path: '/leerling/:classCode', element: lz(<ClassStudentPage />), errorElement },
   {

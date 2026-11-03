@@ -1,0 +1,393 @@
+/* ── Deel basisonderwijs: doelen per moment, een vak op een moment en de doelpagina ──
+   Alleen met de tokens van basis.css. Elke selector begint met .b- of :root[data-deel='basis'].
+   Alles wat je kan aantikken is minstens 44 px hoog. Ook de opmaak van de doeltekst (DoeltekstWeergave) staat hier. */
+
+.b-moment,
+.b-vakpagina,
+.b-doelpagina {
+  max-width: 62rem;
+}
+.b-moment h1,
+.b-vakpagina h1 {
+  margin: 12px 0 8px;
+}
+.b-schakelaars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 12px 0 16px;
+}
+
+/* ── Kruimelpad en kop van een vak ───────────────────────────────────────── */
+
+.b-kruimel ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.b-kruimel li + li::before {
+  content: '›';
+  margin-right: 10px;
+  color: var(--text-soft);
+}
+.b-kruimel a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.b-kruimel [aria-current='page'] {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 700;
+}
+.b-vakkop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.b-statusregel {
+  max-width: 62ch;
+  margin: 0 0 8px;
+  padding: 10px 14px;
+  border-left: 6px solid var(--lamp);
+  border-radius: var(--radius-s);
+  background: var(--bg-raised);
+  font-weight: 700;
+}
+
+/* ── Onderwerpen ─────────────────────────────────────────────────────────── */
+
+.b-rubrieken ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.b-rubriek-knop {
+  min-height: 44px;
+  padding: 6px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.b-rubriek-knop:hover {
+  background: var(--bg-sunken);
+}
+.b-rubriek-nr {
+  font-weight: 700;
+}
+.b-rubriek-aantal,
+.b-onderwerp-aantal {
+  color: var(--text-soft);
+  font-weight: 400;
+}
+.b-onderwerp {
+  margin-top: 32px;
+}
+.b-onderwerp > h2 {
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 4px solid var(--lamp);
+  font-size: 1.35rem;
+  scroll-margin-top: 16px;
+}
+.b-onderwerp > h2:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 3px;
+}
+.b-subthema h3 {
+  margin: 20px 0 4px;
+  font-size: 1.1rem;
+}
+.b-doelen {
+  display: grid;
+  gap: 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ── Een doel als kaart op de vakpagina ──────────────────────────────────── */
+
+.b-doelkaart {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+}
+.b-doelkaart-code {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+}
+.b-doelrij-code {
+  font-family: var(--font-display);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.b-doelkaart-open {
+  margin: 8px 0 0;
+}
+.b-lees-meer {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 700;
+}
+.b-vakkoppelingen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  margin: 32px 0 0;
+}
+
+/* ── De tekst van een doel (DoeltekstWeergave) ───────────────────────────── */
+
+.b-doeltekst {
+  overflow-wrap: anywhere;
+}
+.b-doeltekst-alinea {
+  margin: 0 0 8px;
+}
+.b-doeltekst-lijst {
+  margin: 0 0 8px;
+  padding-left: 1.4em;
+}
+.b-doeltekst-lijst li {
+  margin: 2px 0;
+}
+.b-doeltekst-plat .b-doeltekst-alinea {
+  white-space: pre-line;
+}
+.b-uitbreiding {
+  margin-top: 4px;
+}
+.b-breuk {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.b-breuk-teller {
+  font-size: 0.8em;
+  vertical-align: super;
+}
+.b-breuk-noemer {
+  font-size: 0.8em;
+  vertical-align: sub;
+}
+.b-kennis {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--bg-sunken);
+  color: var(--text);
+  font-size: 0.85em;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.b-voorbeeld,
+.b-toelichting {
+  display: block;
+  margin: 4px 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--line-strong);
+  color: var(--text-soft);
+}
+.b-voorbeeld-kop {
+  font-weight: 700;
+}
+.b-beeld {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-s);
+  color: var(--text-soft);
+}
+.b-woordenschat {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-s);
+  background: var(--bg-sunken);
+}
+.b-woordenschat-kop {
+  margin: 0 0 2px;
+  color: var(--text-soft);
+  font-weight: 700;
+}
+.b-doeltekst a {
+  display: inline;
+}
+.b-doeltekst mark,
+.b-doelrij mark {
+  background: var(--lamp-soft);
+  color: var(--text);
+  box-shadow: inset 0 -3px 0 var(--lamp);
+}
+
+/* ── Een doel als rij (leerlijn van een doel, later leerlijn en zoeken) ──── */
+
+.b-doelrijen {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.b-doelrij {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg-raised);
+}
+.b-doelrij-dit {
+  border-left: 6px solid var(--lamp);
+  background: var(--lamp-soft);
+}
+.b-doelrij-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  min-height: 44px;
+  padding: 8px 12px;
+  color: var(--text);
+  text-decoration: none;
+}
+.b-doelrij-link:hover .b-doelrij-tekst {
+  text-decoration: underline;
+}
+.b-doelrij-moment {
+  color: var(--text-soft);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.b-doelrij-tekst {
+  flex: 1 1 14rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.b-dit {
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg-raised);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.b-doelrij-deel {
+  margin: 0 12px 8px;
+}
+.b-doelrij-deel summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--brand);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ── De doelpagina ───────────────────────────────────────────────────────── */
+
+.b-doelkaart-groot {
+  margin-top: 8px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--lamp);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+}
+.b-doelkaart-groot h1 {
+  margin: 2px 0 2px;
+}
+.b-rubriekregel {
+  margin: 0;
+  color: var(--text-soft);
+  font-weight: 700;
+}
+.b-onderregel {
+  margin: 0 0 12px;
+  color: var(--text-soft);
+}
+.b-doeltekst-groot {
+  font-size: 1.35rem;
+  line-height: 1.5;
+}
+.b-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.b-tweeling {
+  max-width: 62ch;
+  margin: 12px 0 0;
+}
+.b-tweeling a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.b-doelvoet {
+  margin: 12px 0 0;
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+.b-doelvoet a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.b-doeldeel {
+  margin-top: 28px;
+}
+.b-doelpagina > .md-wanneer {
+  margin-top: 28px;
+}
+.b-doeldeel h2,
+.b-doelpagina > .md-wanneer h2 {
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 4px solid var(--lamp);
+  font-size: 1.35rem;
+}
+.b-leerlijnkolommen {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.b-leerlijnkolom h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+.b-doelbron {
+  margin-top: 32px;
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+.b-doelbron a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+@media (max-width: 760px) {
+  .b-leerlijnkolommen {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .b-doeltekst-groot {
+    font-size: 1.2rem;
+  }
+}

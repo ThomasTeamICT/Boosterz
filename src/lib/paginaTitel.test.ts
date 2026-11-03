@@ -31,6 +31,16 @@ describe('paginaTitel', () => {
       ['/klas/open', 'Mijn klas'],
       ['/hulp', 'Hulp'],
       ['/privacy', 'Privacy en opslag'],
+      ['/basis', 'Basisonderwijs'],
+      ['/basis/kies', 'Kies je leerjaar · Basisonderwijs'],
+      ['/basis/leerjaar/gewoon/L3', 'Mijn leerjaar · Basisonderwijs'],
+      ['/basis/moment/gewoon/einde-4de', 'Doelen per moment · Basisonderwijs'],
+      ['/basis/vak/gewoon/einde-4de/wetenschap-en-techniek', 'Doelen per vak · Basisonderwijs'],
+      ['/basis/leerlijn/gewoon', 'Leerlijn · Basisonderwijs'],
+      ['/basis/leerlijn/gewoon/ict', 'Leerlijn · Basisonderwijs'],
+      ['/basis/doel/ODS_3408/92767', 'Minimumdoel · Basisonderwijs'],
+      ['/basis/zoek', 'Zoeken · Basisonderwijs'],
+      ['/basis/xyz', 'Basisonderwijs'],
     ];
     for (const [pad, label] of verwacht) expect(paginaTitel(pad), pad).toBe(`${label} · Boosterz`);
   });

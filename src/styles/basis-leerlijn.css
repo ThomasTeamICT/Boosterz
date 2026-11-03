@@ -1,0 +1,140 @@
+/* ── Deel basisonderwijs: de leerlijn van een vak (tabel per onderwerp) ──
+   Alleen met de tokens van basis.css. Elke selector begint met .b- of :root[data-deel='basis'].
+   Alles wat je kan aantikken is minstens 44 px hoog. Op 760 px of smaller wordt elke rij een kaart (LeerlijnTabel zet dan
+   de klasse b-tabel-kaarten): het moment van het leerjaar staat open, de andere momenten zijn een details met hun aantal. */
+
+.b-leerlijnpagina {
+  max-width: 1240px;
+}
+.b-leerlijnpagina h1 {
+  margin: 12px 0 8px;
+}
+.b-leerlijnpagina .b-lead,
+.b-leerlijnpagina .b-noot {
+  max-width: 70ch;
+}
+
+/* De tabel rolt zelf zijdelings als het scherm net te smal is, nooit de hele pagina. */
+.b-tabelrand {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.b-tabel {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+  table-layout: fixed;
+}
+.b-tabel th,
+.b-tabel td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.b-tabel tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.b-tabel thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-sunken);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+.b-tabel .b-tabel-rubriek {
+  width: 12rem;
+  background: var(--bg-sunken);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+.b-tabel tbody .b-tabel-rubriek {
+  font-size: 1rem;
+}
+.b-kolom-noot {
+  color: var(--text);
+}
+.b-kolom-aantal {
+  color: var(--text-soft);
+  font-weight: 400;
+  font-size: 0.92rem;
+}
+
+/* De kolom van het leerjaar van de leerkracht: lamp-soft met een lampstreep boven de kop. */
+.b-tabel thead .b-kolom-eigen {
+  background: var(--lamp-soft);
+  box-shadow: inset 0 4px 0 var(--lamp);
+}
+.b-tabel .b-cel-eigen {
+  background: var(--lamp-soft);
+}
+
+.b-cel .b-doelrijen {
+  gap: 6px;
+}
+.b-cel-leeg {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+/* ── Kaartweergave (760 px of smaller) ───────────────────────────────────── */
+
+.b-tabel-kaarten,
+.b-tabel-kaarten tbody,
+.b-tabel-kaarten tr,
+.b-tabel-kaarten th,
+.b-tabel-kaarten td {
+  display: block;
+}
+.b-tabel-kaarten {
+  border: 0;
+  background: transparent;
+}
+/* De kopregel blijft voor schermlezers, maar niet in beeld: elke cel zegt zelf zijn moment. */
+.b-tabel-kaarten thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.b-tabel-kaarten tbody tr {
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+  overflow: hidden;
+}
+.b-tabel-kaarten th.b-tabel-rubriek,
+.b-tabel-kaarten tbody .b-tabel-rubriek {
+  width: auto;
+  border-bottom: 1px solid var(--line);
+}
+.b-tabel-kaarten td {
+  padding: 8px 12px;
+}
+.b-tabel-kaarten tbody tr > td:last-child {
+  border-bottom: 0;
+}
+.b-cel-details > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+}
+.b-cel-aantal {
+  margin-left: 6px;
+  color: var(--text-soft);
+  font-weight: 400;
+}
+.b-cel-details[open] > summary {
+  margin-bottom: 6px;
+}

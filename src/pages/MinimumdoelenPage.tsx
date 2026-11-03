@@ -211,6 +211,10 @@ export function MinimumdoelenPage() {
           <p className="md-toelichting">
             Wil je doelen uit meerdere sets, of maar een deel van een set? <Link to={SAMENSTELLEN_ROUTE}>Stel je eigen doelenlijst samen</Link>.
           </p>
+          <p className="md-toelichting">
+            Kleuter of lager? Bekijk de minimumdoelen van het basisonderwijs per vak en per leerjaar bij{' '}
+            <Link to="/basis">Basisonderwijs</Link>.
+          </p>
           {index.stand.status === 'klaar' && (
             <p className="md-bron">
               {index.stand.waarde.naamsvermelding}

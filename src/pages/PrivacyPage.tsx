@@ -153,7 +153,7 @@ export function PrivacyPage() {
           <li><strong>Inzendingen</strong> ({subs.length}, van {names.size} {names.size === 1 ? 'naam' : 'verschillende namen'}): naam, antwoorden, score, tijdstip en duur.</li>
           <li><strong>Tussentijds werk</strong>: automatisch opgeslagen antwoorden (ook een ingeleverd bestand dat nog niet ingediend is), zodat leerlingen kunnen hervatten. Na zeven dagen vervalt het.</li>
           <li><strong>Notities, markeringen &amp; deadlines</strong>: privénotities van leerlingen bij cursussen, markeringen in een gesplitst werkblad, voortgang bij flitskaarten en de einddeadline per leerling bij oefeningen met tijdslimiet.</li>
-          <li><strong>Voorkeuren</strong>: thema en weergave-instellingen.</li>
+          <li><strong>Voorkeuren</strong>: thema en weergave-instellingen, en in het deel basisonderwijs het leerjaar dat je koos (gewoon of buitengewoon).</li>
         </ul>
         <h2 style={H2}>En de AI-assistent?</h2>
         <p>

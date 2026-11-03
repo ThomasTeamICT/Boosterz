@@ -17,7 +17,7 @@
 // apart en schrijft een rapport buiten de repository, en de pull request toont dat rapport. Dezelfde zelftest als in
 // deel 1 past de workflow telkens op één punt aan, en het deel van de pull request draait als echt Node-proces.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -736,7 +736,10 @@ describe('workflow minimumdoelen.yml: getallen en ontbrekende velden in de samen
 
 const STAP_TESTS = 'Geschreven bestanden en de hele app controleren';
 const STAP_MOMENTMODEL = 'Momentmodel basisonderwijs tegen de nieuwe gegevens';
-const ECHT_TEST = 'src/lib/basis/momentmodel.echt.test.ts';
+// De stap draait alle tests met echte gegevens van het basisonderwijs (beslissing H4 van de eigen ingang): het momentmodel,
+// de eigen ingang en de woordentabel. De shell breidt de glob uit; er is geen aanhalingsteken omheen.
+const ECHT_TEST = 'src/lib/basis/*.echt.test.ts';
+const MOMENTMODEL_TEST = 'src/lib/basis/momentmodel.echt.test.ts';
 const RAPPORT_PAD = '${RUNNER_TEMP}/momentmodel-rapport.md';
 const MOMENTMODEL_OPDRACHT = `MOMENTMODEL_RAPPORT=${RAPPORT_PAD} npx vitest run ${ECHT_TEST}`;
 const PR_RAPPORT_REGEL = `RAPPORT_MOMENTMODEL=${RAPPORT_PAD}`;
@@ -827,6 +830,8 @@ const MUTATIES_MOMENTMODEL: { naam: string; maak: (t: string) => string; verwach
   },
   { naam: 'een rapport in de repository in plaats van in RUNNER_TEMP', maak: (t) => muteer(t, `MOMENTMODEL_RAPPORT=${RAPPORT_PAD}`, 'MOMENTMODEL_RAPPORT=momentmodel-rapport.md'), verwacht: /RUNNER_TEMP, buiten de repository/ },
   { naam: 'een momentmodelstap die een ander bestand test', maak: (t) => muteer(t, `npx vitest run ${ECHT_TEST}`, 'npx vitest run src/lib/basis'), verwacht: /draait niet precies/ },
+  { naam: 'een momentmodelstap die enkel het momentmodel test', maak: (t) => muteer(t, `npx vitest run ${ECHT_TEST}`, `npx vitest run ${MOMENTMODEL_TEST}`), verwacht: /draait niet precies/ },
+  { naam: 'een momentmodelstap met de glob tussen aanhalingstekens', maak: (t) => muteer(t, `npx vitest run ${ECHT_TEST}`, `npx vitest run '${ECHT_TEST}'`), verwacht: /draait niet precies/ },
   { naam: 'een momentmodelstap zonder set -euo pipefail', maak: (t) => muteer(t, `          set -euo pipefail\n          MOMENTMODEL_RAPPORT`, '          MOMENTMODEL_RAPPORT'), verwacht: /set -euo pipefail/ },
   { naam: 'een pull request die een ander rapport leest', maak: (t) => muteer(t, PR_RAPPORT_REGEL, 'RAPPORT_MOMENTMODEL=momentmodel-rapport.md'), verwacht: /leest het rapport niet/ },
   { naam: 'een commit die alles toevoegt', maak: (t) => muteer(t, 'git add -- public/leerplannen', 'git add -A'), verwacht: /voegt meer toe/ },
@@ -886,13 +891,28 @@ describe('workflow minimumdoelen.yml: het momentmodel van het basisonderwijs, de
     expect(run).not.toContain(GEHEIM);
   });
 
-  it('(c) deelt zijn naam met de koppeling in de echte test: de omgevingsvariabelen en de overslagregel staan in momentmodel.echt.test.ts', () => {
-    const pad = join(ROOT, ECHT_TEST);
-    expect(existsSync(pad), `${ECHT_TEST} bestaat`).toBe(true);
+  it('(c) deelt zijn naam met de koppeling in de echte tests: de omgevingsvariabelen en de overslagregel staan in momentmodel.echt.test.ts', () => {
+    const pad = join(ROOT, MOMENTMODEL_TEST);
+    expect(existsSync(pad), `${MOMENTMODEL_TEST} bestaat`).toBe(true);
     const bron = readFileSync(pad, 'utf8');
     expect(bron).toContain('process.env.GEGEVENSRUN');
     expect(bron).toContain('process.env.MOMENTMODEL_RAPPORT');
     expect(bron).toMatch(/describe\.skipIf\(GEGEVENSRUN\)/);
+  });
+
+  it('(d) de glob raakt elk bestand *.echt.test.ts van src/lib/basis, en elk daarvan slaat over met GEGEVENSRUN=1', () => {
+    const map = join(ROOT, 'src', 'lib', 'basis');
+    const echt = readdirSync(map).filter((n) => n.endsWith('.echt.test.ts')).sort();
+    // minstens het momentmodel, de eigen ingang en de woordentabel van het zoeken
+    for (const n of ['momentmodel.echt.test.ts', 'basisIngang.echt.test.ts', 'zoekwoorden.echt.test.ts']) expect(echt, n).toContain(n);
+    for (const n of echt) {
+      const bron = readFileSync(join(map, n), 'utf8');
+      expect(bron, `${n} leest GEGEVENSRUN`).toContain('process.env.GEGEVENSRUN');
+      expect(bron, `${n} slaat over met GEGEVENSRUN`).toMatch(/describe\.skipIf\(GEGEVENSRUN\)/);
+    }
+    // Een testbestand met echte gegevens dat de naam *.echt.test.ts niet draagt, zou stil buiten de ophaling vallen.
+    const bijna = readdirSync(map).filter((n) => /echt/i.test(n) && !n.endsWith('.echt.test.ts'));
+    expect(bijna).toEqual([]);
   });
 });
 
@@ -921,6 +941,15 @@ describe.skipIf(!HEEFT_BASH)('workflow minimumdoelen.yml: het momentmodel van he
   it('de eigen stap draait enkel de echte test, met het rapport in RUNNER_TEMP en zonder GEGEVENSRUN', { timeout: TIJDLIMIET }, () => {
     const r = draaiMetNpx(stapMet(STAP_MOMENTMODEL), { RUNNER_TEMP: '/runner/temp' });
     expect(r).toEqual({ status: 0, args: ['vitest', 'run', ECHT_TEST], rapport: '/runner/temp/momentmodel-rapport.md', gegevensrun: '<niet gezet>' });
+  });
+
+  it('de glob van de eigen stap breidt in bash uit tot de echte testbestanden van src/lib/basis', { timeout: TIJDLIMIET }, () => {
+    const r = spawnSync('bash', ['--noprofile', '--norc', '-c', `printf '%s\\n' ${ECHT_TEST}`], { cwd: ROOT, encoding: 'utf8' });
+    expect(r.status).toBe(0);
+    const lijst = r.stdout.split('\n').filter((x) => x !== '');
+    expect(lijst).toContain(MOMENTMODEL_TEST);
+    expect(lijst).toContain('src/lib/basis/basisIngang.echt.test.ts');
+    expect(lijst.every((x) => x.endsWith('.echt.test.ts'))).toBe(true);
   });
 
   it('de eigen stap geeft de uitkomst van vitest door (de run vangt dat op met continue-on-error)', { timeout: TIJDLIMIET }, () => {

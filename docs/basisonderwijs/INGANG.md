@@ -1,5 +1,24 @@
 # Eigen ingang basisonderwijs (bouwstap 3): spec
 
+## Stand na de bouw (3 november 2026)
+
+**Gebouwd en live** op `#/basis`. Code in `src/pages/basis/`, `src/components/basis/`, `src/lib/basis/` (basisRoutes,
+leerjaarOverzicht, doelBasis, doeltekst, zoekBasis, zoekwoorden, basisKeuze) en `src/styles/basis*.css`; Fredoka (OFL) in
+`src/assets/fonts/`. Eén luie route `/basis/*` in `src/App.tsx`; het kritieke leerlingpad steeg met 0,7 kB (335,2 kB, budget
+335,7 kB in `vite.config.ts`). Alleen `wf.basis.keuze.v1` wordt bewaard. Tests: unit- en componenttests, tests op de echte
+gegevens (`src/lib/basis/*.echt.test.ts`, die in de maandelijkse ophaling apart draaien), een eigen rooktest
+(`tests/basis/ingang-los.mjs`, 67 checks in ±45 s, ook als sectie 20b-2c in `tests/smoke.mjs`) en een meetscript voor het zoeken
+(`npx vite-node tools/basis/meet-zoeken.ts`).
+
+**Zoeken, rechtgezet door de hoofdsessie na de review.** Bij een vraag met meer woorden telt een woord dat alleen via de
+woordentabel in een voorbeeld of de woordenschat staat, niet als gevonden en maar voor een kwart in de score, en elk woord weegt
+naar hoe zeldzaam het is. Zo komt bij "schaduw maken" het doel over licht vóór een wiskundedoel met "rood licht" in een voorbeeld.
+Meting op de toetsset (66 vragen): recall 0,68 en P@3 0,81 (was 0,68 en 0,80); de vier schaduwvragen geven 92767 op plaats 1
+voor einde 4de.
+
+**Wat nog wacht:** de zoekwoorden van de proefleerkracht en een maker van de scholengroep (E3), de officiële invoeringstabel
+(dan worden de lagercellen "zeker"), en alles onder "Bewust niet nu" en "Later".
+
 Ontworpen op 2 november 2026: drie verkenners (app en code, de doelen als inhoud, vormgeving en gebruikers), drie ontwerpen (mijn klas eerst, leerlijn eerst, later materiaal eerst), een rechter die koos en samenvoegde, en een criticus die narekende. Stand van zaken: `docs/BASISONDERWIJS.md`.
 
 ## Beslissingen (gaan voor op de spec hieronder)

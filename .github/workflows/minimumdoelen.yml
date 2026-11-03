@@ -8,8 +8,8 @@ name: Leerplangegevens bijwerken
 #                                                                  → public/leerplannen/kwalificaties/
 # Daarna draait de volledige testsuite (npx vitest run) en opent de taak een pull request als er iets veranderd
 # is. Een mens keurt het verschil goed; niets gaat automatisch live. De tests van het momentmodel van het
-# basisonderwijs tegen de echte gegevens (src/lib/basis/momentmodel.echt.test.ts) houden die ophaling nooit
-# tegen: ze slaan over in de gewone testrun (GEGEVENSRUN=1) en draaien daarna apart, zonder de run te laten
+# basisonderwijs en van de eigen ingang #/basis tegen de echte gegevens (alle src/lib/basis/*.echt.test.ts)
+# houden die ophaling nooit tegen: ze slaan over in de gewone testrun (GEGEVENSRUN=1) en draaien daarna apart, zonder de run te laten
 # falen. Wat ze vinden, komt als deel "Momentmodel basisonderwijs" in de pull request. Ontwerp:
 # docs/LEERPLANNEN.md § 5, docs/STUDIERICHTINGEN.md § 6 en § 23.5.9 en docs/basisonderwijs/MOMENTMODEL.md.
 # De bestandsnaam blijft minimumdoelen.yml, zodat de geschiedenis en de cron blijven.
@@ -157,7 +157,7 @@ jobs:
 
       # De volledige testsuite is de poort: ook de tests met echte gegevens, die anders pas bij de uitrol
       # (deploy.yml) zouden breken. Met één uitzondering: GEGEVENSRUN=1 laat de tests van het momentmodel van het
-      # basisonderwijs tegen de echte gegevens (src/lib/basis/momentmodel.echt.test.ts) overslaan, zodat een
+      # basisonderwijs tegen de echte gegevens (alle src/lib/basis/*.echt.test.ts) overslaan, zodat een
       # verschoven einddatum of een nieuwe basisset de ophaling van alle leerplangegevens (ook het secundair, de
       # richtingen en de kwalificaties) niet tegenhoudt. De volgende stap draait die tests apart. De deploy-workflow
       # (deploy.yml) zet GEGEVENSRUN niet en draait ze streng.
@@ -170,15 +170,17 @@ jobs:
 
       # Het momentmodel van het basisonderwijs tegen de nieuwe gegevens, zonder de run te laten falen
       # (continue-on-error: een rode stap blijft zichtbaar, maar de stap "Pull request openen" draait gewoon).
-      # De tests schrijven na afloop een kort rapport (Markdown) naar MOMENTMODEL_RAPPORT, ook als ze falen. Het
-      # staat in RUNNER_TEMP, buiten de repository, en komt dus nooit in een commit; de stap "Pull request openen"
+      # De stap draait alle tests met echte gegevens van het basisonderwijs (src/lib/basis/*.echt.test.ts: het
+      # momentmodel, de eigen ingang en de woordentabel van het zoeken). Alleen de tests van het momentmodel
+      # schrijven na afloop een kort rapport (Markdown) naar MOMENTMODEL_RAPPORT, ook als ze falen; de andere
+      # laten hun uitkomst in het logboek van de stap. Het rapport staat in RUNNER_TEMP, buiten de repository, en komt dus nooit in een commit; de stap "Pull request openen"
       # zet het als deel "Momentmodel basisonderwijs" in de tekst van de pull request. GEGEVENSRUN staat hier
       # bewust niet.
       - name: Momentmodel basisonderwijs tegen de nieuwe gegevens
         continue-on-error: true
         run: |
           set -euo pipefail
-          MOMENTMODEL_RAPPORT=${RUNNER_TEMP}/momentmodel-rapport.md npx vitest run src/lib/basis/momentmodel.echt.test.ts
+          MOMENTMODEL_RAPPORT=${RUNNER_TEMP}/momentmodel-rapport.md npx vitest run src/lib/basis/*.echt.test.ts
 
       - name: Rapport minimumdoelen bewaren
         if: always()

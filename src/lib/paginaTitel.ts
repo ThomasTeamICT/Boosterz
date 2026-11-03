@@ -28,6 +28,14 @@ const TITELS: [string, string][] = [
   ['/ai-instellingen', 'AI-instellingen'],
   ['/hulp', 'Hulp'],
   ['/privacy', 'Privacy en opslag'],
+  ['/basis/kies', 'Kies je leerjaar · Basisonderwijs'],
+  ['/basis/leerjaar', 'Mijn leerjaar · Basisonderwijs'],
+  ['/basis/moment', 'Doelen per moment · Basisonderwijs'],
+  ['/basis/vak', 'Doelen per vak · Basisonderwijs'],
+  ['/basis/leerlijn', 'Leerlijn · Basisonderwijs'],
+  ['/basis/doel', 'Minimumdoel · Basisonderwijs'],
+  ['/basis/zoek', 'Zoeken · Basisonderwijs'],
+  ['/basis', 'Basisonderwijs'],
   ['/', 'Start'],
 ];
 

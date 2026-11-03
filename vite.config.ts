@@ -76,7 +76,9 @@ import { fontRefsInCss } from './src/offline/lettertypes';
  *    geladen, maar de preloadlijst in de hoofdbundel groeit met elk nieuw
  *    chunk) op 333,7 kB; fase 2 van de studierichtingen (gaten dichten, mijn
  *    richtingen, klas en richting: alles lui, maar elk nieuw gedeeld chunk
- *    verlengt de preloadlijst) op 334,1 kB (106,2 kB gzip). Het budget ligt ±0,5 kB boven die meting, zodat elke groei meteen opvalt; wie meer nodig heeft,
+ *    verlengt de preloadlijst) op 334,1 kB (106,2 kB gzip); de eigen ingang van het basisonderwijs (okt./nov. 2026: één luie route '/basis/*',
+ *    haar paginatitels en één lazyRetry-regel; de padlezer zit in het luie chunk, zonder <Routes>) op 335,2 kB (106,5 kB gzip), gemeten, +0,7 kB tegenover
+ *    334,5 kB. Het budget ligt ±0,5 kB boven die meting, zodat elke groei meteen opvalt; wie meer nodig heeft,
  *    verhoogt het bewust, hier. Let op: vóór sep. 2026 mat dit budget vóór
  *    Vite de preloadlijst invulde, dus ±9 kB te licht (zie order: 'post').
  *  - vendor: React, React DOM, scheduler, de lucide-basis en de iconen van het
@@ -90,7 +92,7 @@ import { fontRefsInCss } from './src/offline/lettertypes';
  */
 const CRITICAL_PATH = {
   label: 'hoofdbundel (kritieke leerlingpad)',
-  maxKb: 334.6,
+  maxKb: 335.7,
   /** boven 5 % te veel faalt de build */
   hardFactor: 1.05,
   /** wat naast de hoofdbundel in de statische sluiting mag zitten */

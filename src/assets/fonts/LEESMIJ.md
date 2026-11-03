@@ -10,6 +10,7 @@ bewaart ze bij de installatie).
 | `atkinson-hyperlegible-700-latin(-ext).woff2` | Atkinson Hyperlegible | 700 | latin, latin-ext |
 | `atkinson-hyperlegible-400-italic-latin(-ext).woff2` | Atkinson Hyperlegible | 400 cursief | latin, latin-ext |
 | `outfit-latin(-ext).woff2` | Outfit (variabel) | 600, 700, 800 | latin, latin-ext |
+| `fredoka-latin.woff2` | Fredoka (variabel) | 300 tot 700 | latin |
 
 - Bron: Google Fonts (Atkinson Hyperlegible v12, Outfit v15), opgehaald op 6 oktober 2026, met
   dezelfde stijlen en tekenbereiken als de vroegere link in `index.html`.
@@ -17,3 +18,13 @@ bewaart ze bij de installatie).
 - Licentie: SIL Open Font License 1.1, zie `OFL-AtkinsonHyperlegible.txt` (© 2020 Braille Institute
   of America, Inc.) en `OFL-Outfit.txt` (© 2021 The Outfit Project Authors). De lettertypes mogen
   vrij gebruikt en meegeleverd worden, maar niet apart verkocht.
+
+## Fredoka (alleen in het deel basisonderwijs)
+
+- `fredoka-latin.woff2` is het latin-bestand van Fredoka v17 (Google Fonts), opgehaald op 2 november 2026 voor de eigen
+  ingang van het basisonderwijs (`#/basis`). Eén variabel bestand voor gewicht 300 tot 700.
+- De `@font-face`-regel staat alleen in `src/styles/basis.css`, niet in `global.css`: het lettertype laadt pas met het lui
+  geladen basisdeel en zit niet in de voorcache van het leerlingpad. Offline werkt het dus pas na een eerste bezoek aan
+  het deel; tot dan toont de browser Outfit.
+- Licentie: SIL Open Font License 1.1, zie `OFL-Fredoka.txt` (© 2016 The Fredoka Project Authors). Die tekst komt uit het
+  pakket `@fontsource/fredoka` 5.3.0 (licentie OFL-1.1).

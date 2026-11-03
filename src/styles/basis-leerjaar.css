@@ -1,0 +1,345 @@
+/* ── Deel basisonderwijs: de start, de keuze en de pagina van een leerjaar ──
+   Alleen met de tokens van basis.css. Elke selector begint met .b- of :root[data-deel='basis'].
+   Alles wat je kan aantikken is minstens 44 px hoog (de leerjaarknoppen 48 px). */
+
+.b-start,
+.b-leerjaar {
+  max-width: 62rem;
+}
+.b-start h1,
+.b-leerjaar h1 {
+  margin: 12px 0 8px;
+}
+.b-lead {
+  max-width: 62ch;
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+.b-schooljaar {
+  margin: 0 0 12px;
+  color: var(--text-soft);
+  font-weight: 700;
+}
+.b-opmerking {
+  max-width: 62ch;
+  margin: 0 0 8px;
+  padding: 10px 14px;
+  border-left: 6px solid var(--lamp);
+  border-radius: var(--radius-s);
+  background: var(--lamp-soft);
+  color: var(--text);
+}
+.b-noot {
+  max-width: 62ch;
+  color: var(--text-soft);
+}
+
+.b-blok {
+  margin-top: 28px;
+}
+.b-blok h2 {
+  margin: 0 0 4px;
+  padding-bottom: 6px;
+  border-bottom: 4px solid var(--lamp);
+  font-size: 1.35rem;
+}
+.b-blok > p {
+  max-width: 62ch;
+}
+
+/* ── De balk bovenaan een leerjaarpagina ─────────────────────────────────── */
+
+.b-balk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+}
+.b-balk-tekst {
+  margin: 0;
+  flex: 1 1 14rem;
+}
+.b-balk-acties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ── Pillen: de soort en de gekozen stand ────────────────────────────────── */
+
+.b-pillen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.b-pil-knop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.b-pil-knop:hover {
+  background: var(--bg-sunken);
+}
+/* Een gekozen pil: inktvulling met een ring van 3 px in lampgeel. */
+.b-pil-knop[aria-pressed='true'],
+.b-pil-knop[aria-current='true'] {
+  background: var(--text);
+  color: var(--bg-raised);
+  box-shadow: 0 0 0 3px var(--lamp);
+}
+
+/* ── De kiezer: negen leerjaren in drie groepen ──────────────────────────── */
+
+.b-kiezer {
+  display: grid;
+  gap: 16px;
+  margin: 16px 0 24px;
+}
+.b-groep {
+  margin: 0;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+}
+.b-groep legend {
+  float: left;
+  width: 100%;
+  padding: 0 0 8px;
+  color: var(--text-soft);
+  font-weight: 700;
+}
+.b-groep-knoppen {
+  clear: both;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.b-leerjaarknop {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 7.5rem;
+  min-height: 48px;
+  padding: 6px 16px;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius-m);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-family: var(--font-display);
+  font-weight: 600;
+  cursor: pointer;
+}
+.b-leerjaarknop:hover {
+  background: var(--brand-soft);
+}
+.b-leerjaarknop[aria-current='true'] {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+.b-leerjaarknop-noot {
+  color: var(--text-soft);
+  font-family: var(--font);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+/* ── Zoeken ──────────────────────────────────────────────────────────────── */
+
+.b-zoekrij {
+  max-width: 40rem;
+  margin: 16px 0;
+}
+.b-zoeklabel {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+.b-zoekveld {
+  display: flex;
+  gap: 8px;
+}
+.b-zoekinvoer {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 48px;
+}
+.b-zoekknop {
+  flex: none;
+  min-height: 48px;
+  min-width: 44px;
+}
+
+/* ── Vakkaarten ──────────────────────────────────────────────────────────── */
+
+.b-kaarten {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.b-vakkaart {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  height: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+  color: var(--text);
+  text-decoration: none;
+}
+.b-vakkaart:hover {
+  border-color: var(--line-strong);
+  background: var(--bg-sunken);
+}
+/* De lampstreep: 6 px lampgeel links, voor wat verplicht is. */
+.b-vakkaart-lamp {
+  border-left: 6px solid var(--lamp);
+}
+.b-vakkaart-tekst {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.b-vakkaart-naam {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.b-vakkaart-sub {
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+.b-vakkaart-badge {
+  margin-top: 2px;
+}
+
+/* ── Oude doelen die nog gelden ──────────────────────────────────────────── */
+
+.b-oudlijst {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.b-oudlijst li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg-raised);
+}
+.b-oudlink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.b-oudinfo {
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
+/* ── Hoe zeker is dit? ───────────────────────────────────────────────────── */
+
+.b-uitleg {
+  max-width: 62ch;
+  margin-top: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+}
+.b-uitleg summary {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 14px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  cursor: pointer;
+}
+.b-uitleg-inhoud {
+  padding: 0 14px 10px;
+}
+.b-uitleg-inhoud a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* ── Tegels: de eindmomenten en de leerlijnen ────────────────────────────── */
+
+.b-tegels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.b-tegel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: 72px;
+  height: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+  color: var(--text);
+  text-decoration: none;
+}
+.b-tegel:hover {
+  border-color: var(--line-strong);
+  background: var(--bg-sunken);
+}
+.b-tegel-naam {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.b-tegel-sub {
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
+@media (max-width: 479.98px) {
+  .b-leerjaarknop {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 0;
+  }
+  .b-zoekveld {
+    flex-wrap: wrap;
+  }
+}
