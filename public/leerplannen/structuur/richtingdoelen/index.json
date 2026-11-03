@@ -6,7 +6,7 @@
   "api": "https://onderwijs.api.vlaanderen.be/onderwijsdoelen/onderwijsdoel?structuuronderdeel_groep_nummer=",
   "naamsvermelding": "Bron: Vlaamse overheid, Onderwijs en Vorming (onderwijsdoelen.be)",
   "licentie": "nog te bevestigen",
-  "matrixSha256": "c2a5b07ade532eb38af75111edf10e63e38421496c487ca85362bccc1b452f30",
+  "matrixSha256": "f2bd8d51ef2c2356a84f606363f9c7e90efa89b446c5bb0421a2cef4cdb7ec99",
   "groepen": [
 {"groep":"G-0001","status":"gekoppeld","methode":"api","aantal":502,"sets":64,"sha256":"b562400bcf80ac152cc9049ece4c607c28287ea224f99fb9b0359df0179ee8f2","opgehaald":"2026-10-09T16:21:37Z","bestand":"G-0001.json"},
 {"groep":"G-0002","status":"geen","opgehaald":"2026-10-09T16:21:37Z"},
