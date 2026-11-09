@@ -7,8 +7,17 @@ Ontworpen op 9 november 2026, na de aanlevering door de eigenaar (Drive-map "Les
 | Wat | Stand | Op wie |
 |---|---|---|
 | Verkennen, ontwerp en rechter | **Klaar** (9 november 2026) | hoofdsessie |
-| Vragen aan de eigenaar (onderaan) | **Wacht** | eigenaar |
-| Bouw (pakketten G1 tot G13), daarna het aanbod (A1 tot A5) | **Wacht** op de vragen die de publicatie raken | hoofdsessie |
+| Vragen aan de eigenaar (onderaan) | **Beantwoord** (9 november 2026), op de mindmap na: zie "Antwoorden van de eigenaar" | eigenaar |
+| Bouw (pakketten G1 tot G13) | **Bezig** | hoofdsessie |
+| Het aanbod (A1 tot A5): beelden, proefklas | **Wacht** tot G13; vragen 8 en 9 worden dan gesteld | hoofdsessie, eigenaar |
+
+## Antwoorden van de eigenaar (9 november 2026)
+
+- **Het volledige leerplan mag openbaar**, met bronvermelding: alle 3490 leerplandoelen van de 12 vakken, met MIA, begrippen en voorbeelden. Rechtzetting 5 van de rechter (geen tekst in de omgekeerde index) vervalt daardoor.
+- **De mindmap "Mijn lichaam"** (LP0014a en LP0014b, foto's van kinderen): de eigenaar wil hem eerst zien en beslist dan zelf. Tot dan staat hij nergens: niet in public/ en niet in de repo; op zijn plaats staat een korte zin.
+- **Ook bij het buitengewoon basisonderwijs** (zelfde minimumdoelen, zelfde nummer) staan de leerplandoelen en lesplannen van het GO!, zonder iets te beweren over voor welk onderwijs het GO! zijn leerplan schrijft.
+- **De Drive-map "Lesplannen" mag opgelijst worden**, alleen die map, op voorwaarde dat er alleen materiaal van het GO! in staat. Een bijgewerkt bestand vervangt het oude in die map.
+- Niet apart gevraagd; de hoofdsessie volgt het voorstel van het ontwerp: de bronvermelding "Bron: GO! onderwijs van de Vlaamse Gemeenschap, lesplan LPxxxx (GO! studio). Letterlijk overgenomen met toestemming." met een link naar https://studio.g-o.be/ tot de vorm van een lesplanlink gekend is; MV.040 "6.12" wordt getoond als voorstel, gemarkeerd als "voorstel, nog niet bevestigd door het GO!"; de lijst met fouten in de bron komt in `docs/basisonderwijs/go-bronfouten.md`, zodat de eigenaar ze aan het GO! kan bezorgen.
 
 ## De officiële koppeling (nagerekend)
 
