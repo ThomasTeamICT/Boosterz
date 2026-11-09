@@ -44,6 +44,12 @@ function Tegels({ soort, alle }: { soort: SoortBasis; alle?: readonly Minimumdoe
             <span className="b-tegel-sub">de drie eindmomenten naast elkaar</span>
           </Link>
         </li>
+        <li>
+          <Link to={basisPad({ s: 'go' })} className="b-tegel">
+            <span className="b-tegel-naam">Leerplan en lesplannen van het GO!</span>
+            <span className="b-tegel-sub">leerplandoelen en lesplannen, koppeling met de minimumdoelen</span>
+          </Link>
+        </li>
       </ul>
     </section>
   );

@@ -1,0 +1,568 @@
+/* ── Deel basisonderwijs: het leerplan van het GO! (overzicht, leerplandoelen, één leerplandoel) ──
+   Alleen met de tokens van basis.css. Elke selector begint met .b-. Alles wat je kan aantikken is minstens 44 px hoog.
+   Lopende tekst op 16 px, hoogstens 72 tekens per regel; op 390 px breed geen horizontaal scrollen.
+   Contrast en selectors worden bewaakt in src/lib/basis/basisKleuren.test.ts. */
+
+.b-go-pagina {
+  max-width: 62rem;
+}
+.b-go-pagina h1 {
+  margin: 12px 0 8px;
+  overflow-wrap: anywhere;
+}
+
+/* Letterlijke tekst van het GO!: regeleinden uit de bron blijven staan, lange woorden breken. */
+.b-go-tekst {
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+/* ── Bronkader (ook op de overzichten) ──────────────────────────────────── */
+
+.b-go-pagina .b-lp-bron {
+  max-width: 72ch;
+  margin: 24px 0 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--lamp);
+  border-radius: var(--radius-s);
+  background: var(--bg-raised);
+  color: var(--text);
+}
+.b-go-pagina .b-lp-bron a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* ── Delen van een pagina ───────────────────────────────────────────────── */
+
+.b-go-deel {
+  margin: 28px 0 0;
+}
+.b-go-deel > h2 {
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 4px solid var(--lamp);
+  font-size: 1.35rem;
+}
+.b-go-deel h3 {
+  margin: 18px 0 6px;
+  font-size: 1.1rem;
+}
+.b-go-groep {
+  margin: 0 0 12px;
+}
+.b-go-leeftijden {
+  color: var(--text-soft);
+}
+.b-go-voet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 24px;
+  margin: 24px 0 0;
+}
+.b-go-voet a,
+.b-go-lesplanlink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 700;
+}
+
+/* ── Overzicht: de drie lagen ───────────────────────────────────────────── */
+
+.b-go-lagen {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 16px;
+  padding: 0;
+  list-style: none;
+  counter-reset: laag;
+}
+.b-go-lagen li {
+  position: relative;
+  padding: 10px 14px 10px 48px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg-raised);
+  counter-increment: laag;
+}
+.b-go-lagen li::before {
+  content: counter(laag);
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-top: -13px;
+  border-radius: 50%;
+  background: var(--text);
+  color: var(--bg-raised);
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+.b-go-lesplannen {
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.b-go-lesplannen > li {
+  margin: 0;
+}
+
+/* ── De kiezer en de filters ────────────────────────────────────────────── */
+
+.b-go-kiezer {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+.b-go-meestal {
+  margin: 0;
+}
+.b-go-pil-aantal {
+  font-weight: 400;
+  opacity: 0.85;
+}
+.b-go-uitleg {
+  max-width: 72ch;
+  margin: 4px 0;
+}
+.b-go-uitleg summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--brand);
+  cursor: pointer;
+  font-weight: 700;
+}
+/* Een draaiend pijltje, want display: flex haalt het standaardpijltje weg. */
+.b-go-uitleg summary::before {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin: 0 12px 0 4px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+.b-go-uitleg[open] summary::before {
+  transform: rotate(45deg);
+}
+.b-go-uitleg p,
+.b-go-uitleg ul {
+  margin: 0 0 8px;
+}
+.b-go-filters {
+  margin: 0 0 8px;
+}
+.b-go-vink {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.b-go-vink input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  flex: none;
+}
+.b-go-onderwerpen ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+.b-go-pil {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--text);
+  text-decoration: none;
+}
+.b-go-pil:hover {
+  background: var(--bg-sunken);
+}
+.b-go-pil[aria-current='true'] {
+  background: var(--text);
+  color: var(--bg-raised);
+  box-shadow: 0 0 0 3px var(--lamp);
+}
+.b-go-leeftijdregel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+.b-go-leeftijdkop {
+  font-weight: 700;
+}
+.b-go-aantal {
+  margin: 12px 0 0;
+  color: var(--text-soft);
+}
+
+/* ── Een lijst van doelen: koppen en doelen ─────────────────────────────── */
+
+.b-go-kop {
+  margin: 28px 0 8px;
+  padding-bottom: 6px;
+  font-size: 1.15rem;
+}
+.b-go-kop-2 {
+  border-bottom: 4px solid var(--lamp);
+  font-size: 1.35rem;
+}
+.b-go-kop-3 {
+  font-size: 1.15rem;
+}
+.b-go-kop-4 {
+  font-size: 1.05rem;
+}
+.b-go-subrubriek {
+  margin: 16px 0 4px;
+}
+.b-go-doelen {
+  display: grid;
+  gap: 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.b-go-doel {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+}
+.b-go-doel p {
+  margin: 0 0 6px;
+}
+.b-go-doelkop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+.b-go-doelcode {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.b-go-kv {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+.b-go-doeltekst {
+  max-width: 72ch;
+}
+
+/* ── Koppeling: chips in een lijst ──────────────────────────────────────── */
+
+.b-go-koppeling {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.b-go-koppeling-kop {
+  font-weight: 700;
+}
+.b-go-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.b-go-chips li {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.b-go-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+}
+.b-go-chip:hover {
+  text-decoration: underline;
+}
+.b-go-chip-plat {
+  background: var(--bg-sunken);
+  font-weight: 400;
+}
+.b-go-chip-plat:hover {
+  text-decoration: none;
+}
+
+/* ── Koppeling: de volledige weergave op de leerplandoelpagina ──────────── */
+
+.b-go-refs {
+  display: grid;
+  gap: 12px;
+  margin: 8px 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.b-go-ref {
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--lamp);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+}
+.b-go-ref-kop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 0 0 6px;
+}
+.b-go-ref-moment {
+  font-weight: 700;
+}
+.b-go-ref-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 700;
+}
+.b-go-voorstel {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-style: italic;
+}
+.b-go-zonder {
+  max-width: 72ch;
+  margin: 8px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg-sunken);
+  color: var(--text);
+}
+.b-go-via {
+  margin: 16px 0 0;
+}
+.b-go-problemen {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.b-go-minimumtekst {
+  max-width: 72ch;
+}
+
+/* ── Inhoud van een leerplandoel (MIA, begrippen, voorbeelden, voetnoten) ── */
+
+.b-go-inhoud {
+  max-width: 72ch;
+}
+.b-go-titel {
+  margin: 12px 0 4px;
+  font-weight: 700;
+}
+.b-go-items {
+  margin: 0 0 8px;
+  padding-left: 1.4em;
+}
+.b-go-items li {
+  margin: 2px 0;
+}
+.b-go-voetnoot {
+  margin: 8px 0 0;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+}
+
+/* ── Vlaggen, schakels, lesplannen en ik-doelen ─────────────────────────── */
+
+.b-go-verwijzing {
+  margin: 0 0 12px;
+}
+.b-go-ik {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+}
+.b-go-ik li {
+  margin: 2px 0;
+}
+.b-go-kruimel-rubriek {
+  overflow-wrap: anywhere;
+}
+
+/* ── Smal scherm ────────────────────────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  .b-go-doel,
+  .b-go-ref {
+    padding: 12px;
+  }
+  .b-go-doelen {
+    gap: 10px;
+  }
+  .b-go-lagen li {
+    padding-right: 10px;
+  }
+}
+
+/* ── Afdrukken: zwart op wit ────────────────────────────────────────────── */
+
+@media print {
+  .b-kop,
+  .b-voet,
+  .b-kruimel,
+  .b-go-kiezer,
+  .b-go-filters,
+  .b-go-onderwerpen {
+    display: none !important;
+  }
+  .b-go-pagina,
+  .b-go-pagina * {
+    background: transparent !important;
+    color: #000 !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+  }
+  .b-go-doel,
+  .b-go-ref {
+    break-inside: avoid;
+  }
+}
+
+/* ── Bij het minimumdoel, per leerjaar, per lessenlijn en bij het zoeken (pakket G10) ─────────────────────── */
+
+.b-go-bijdoel .b-go-groep {
+  margin: 0 0 16px;
+}
+.b-go-meer {
+  margin: 8px 0 0;
+}
+.b-go-meer summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 700;
+}
+.b-go-reeks {
+  margin: 10px 0 2px;
+  font-size: 1rem;
+}
+.b-vango-vakken {
+  margin: 8px 0 12px;
+}
+.b-zoek-go .b-go-lesplannen {
+  margin: 8px 0 0;
+}
+
+/* De tabel van een lessenlijn: lessenreeksen in de rijen, leeftijden in de kolommen. */
+.b-go-tabelomhulsel {
+  margin: 12px 0 0;
+}
+.b-go-lijntabel {
+  width: 100%;
+  border-collapse: collapse;
+}
+.b-go-lijntabel th,
+.b-go-lijntabel td {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.b-go-lijntabel thead th {
+  background: var(--bg-sunken);
+  color: var(--text);
+  font-family: var(--font-display);
+}
+.b-go-lijntabel tbody th {
+  background: var(--bg-raised);
+  color: var(--text);
+  font-weight: 700;
+}
+.b-go-lijntabel .b-go-eigen {
+  background: var(--lamp-soft);
+  color: var(--text);
+}
+.b-go-lijntabel .b-go-lesplannen {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  /* Elke rij een kaart; de leeftijd staat als label boven de cel. De rollen in de html houden het een tabel. */
+  .b-go-lijntabel,
+  .b-go-lijntabel tbody,
+  .b-go-lijntabel tr,
+  .b-go-lijntabel th,
+  .b-go-lijntabel td {
+    display: block;
+  }
+  .b-go-lijntabel thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .b-go-lijntabel tr {
+    margin: 0 0 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-s);
+    background: var(--bg-raised);
+  }
+  .b-go-lijntabel th,
+  .b-go-lijntabel td {
+    border: 0;
+  }
+  .b-go-lijntabel td + td {
+    border-top: 1px solid var(--line);
+  }
+  .b-go-lijntabel td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--text-soft);
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+}
+
+@media print {
+  .b-voet-go {
+    color: #000 !important;
+  }
+}

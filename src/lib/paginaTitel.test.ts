@@ -40,6 +40,13 @@ describe('paginaTitel', () => {
       ['/basis/leerlijn/gewoon/ict', 'Leerlijn · Basisonderwijs'],
       ['/basis/doel/ODS_3408/92767', 'Minimumdoel · Basisonderwijs'],
       ['/basis/zoek', 'Zoeken · Basisonderwijs'],
+      ['/basis/go', 'Leerplan van het GO! · Basisonderwijs'],
+      ['/basis/lesplannen', 'Lesplannen · Basisonderwijs'],
+      ['/basis/lesplannen/', 'Lesplannen · Basisonderwijs'],
+      ['/basis/lesplan/LP0065', 'Lesplan · Basisonderwijs'],
+      ['/basis/lessenlijn/wt/biologie-van-organismen', 'Lessenlijn · Basisonderwijs'],
+      ['/basis/leerplandoelen/wt', 'Leerplandoelen · Basisonderwijs'],
+      ['/basis/leerplandoel/WT.086', 'Leerplandoel · Basisonderwijs'],
       ['/basis/xyz', 'Basisonderwijs'],
     ];
     for (const [pad, label] of verwacht) expect(paginaTitel(pad), pad).toBe(`${label} · Boosterz`);

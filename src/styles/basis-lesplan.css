@@ -1,0 +1,396 @@
+/* ── Deel basisonderwijs: de pagina van een lesplan van het GO! ──────────────
+   Alleen met de tokens van basis.css. Elke selector begint met .b-. Alles wat je kan aantikken is minstens 44 px hoog.
+   Lopende tekst in Atkinson op 16 px, hoogstens 72 tekens per regel; de tabellen worden op 760 px of smaller kaarten.
+   Contrast en selectors worden bewaakt in src/lib/basis/basisKleuren.test.ts. */
+
+.b-lesplan {
+  max-width: 72rem;
+}
+
+/* ── Kop, onderregel en bronkader ───────────────────────────────────────── */
+
+.b-lp-h1 {
+  margin: 12px 0 8px;
+  padding-bottom: 10px;
+  border-bottom: 4px solid var(--lamp);
+  overflow-wrap: anywhere;
+}
+.b-lesplan .b-onderregel {
+  max-width: 72ch;
+}
+.b-lp-bron {
+  max-width: 72ch;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--lamp);
+  border-radius: var(--radius-s);
+  background: var(--bg-raised);
+  color: var(--text);
+}
+.b-lp-bron a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* ── Ga naar ────────────────────────────────────────────────────────────── */
+
+.b-lp-ganaar ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+}
+.b-lp-ganaar a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+}
+.b-lp-ganaar a:hover {
+  background: var(--brand-soft);
+}
+
+/* ── In het kort ────────────────────────────────────────────────────────── */
+
+.b-lp-kort {
+  margin: 0 0 32px;
+  padding: 4px 16px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+}
+.b-lp-kort h2 {
+  margin: 12px 0 4px;
+}
+.b-lp-kort h3 {
+  margin: 20px 0 6px;
+  font-size: 1.1rem;
+}
+.b-lp-lijst {
+  max-width: 72ch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.b-lp-lijst > li {
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.b-lp-lijst > li:first-child {
+  border-top: 0;
+}
+.b-lp-lijst p {
+  margin: 0 0 4px;
+}
+.b-lp-stappen {
+  padding-left: 0;
+}
+.b-lp-wat {
+  color: var(--text-soft);
+}
+.b-lp-ik {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+.b-lp-ik li {
+  margin: 2px 0;
+}
+.b-lp-code {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+.b-lp-kv {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+.b-lp-leeftijden {
+  color: var(--text-soft);
+}
+.b-lp-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+}
+.b-lp-naarplek {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.b-lp-minimum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  color: var(--text);
+}
+.b-lp-minimum-kop {
+  font-weight: 700;
+}
+.b-lp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.b-lp-chips li {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.b-lp-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+}
+.b-lp-chip:hover {
+  text-decoration: underline;
+}
+.b-lp-twijfel {
+  color: var(--text-soft);
+  font-style: italic;
+}
+
+/* ── De volledige tekst ─────────────────────────────────────────────────── */
+
+.b-lp-tekst {
+  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.b-lp-tekst :is(h2, h3, h4) {
+  scroll-margin-top: 16px;
+}
+.b-lp-tekst h2 {
+  margin: 32px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--line);
+}
+.b-lp-tekst h3 {
+  margin: 24px 0 8px;
+}
+.b-lp-tekst h4 {
+  margin: 20px 0 6px;
+}
+.b-lp-tekst p,
+.b-lp-tekst ul,
+.b-lp-tekst ol {
+  max-width: 72ch;
+  margin: 0 0 10px;
+  overflow-wrap: anywhere;
+}
+.b-lp-tekst ul,
+.b-lp-tekst ol {
+  padding-left: 22px;
+}
+.b-lp-tekst li {
+  margin: 0 0 4px;
+}
+.b-lp-tekst [tabindex='-1']:focus {
+  outline: 3px solid var(--lamp);
+  outline-offset: 3px;
+}
+.b-lp-meta {
+  margin: 0 0 8px;
+}
+.b-lp-meta p {
+  margin: 0 0 4px;
+}
+.b-lp-doelcode {
+  font-weight: 700;
+}
+.b-lp-icoon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: baseline;
+  color: var(--text);
+}
+.b-lp-icoon svg {
+  flex: none;
+}
+.b-lp-icoonwoord {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+/* ── Tabellen ───────────────────────────────────────────────────────────── */
+
+.b-lp-tabelrand {
+  max-width: 100%;
+  margin: 0 0 16px;
+}
+.b-lp-tabel {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+  color: var(--text);
+}
+.b-lp-tabel :is(th, td) {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.b-lp-tabel :is(th, td) + :is(th, td) {
+  border-left: 1px solid var(--line);
+}
+.b-lp-tabel tr:last-child > :is(th, td) {
+  border-bottom: 0;
+}
+.b-lp-tabel :is(th, td) > :last-child {
+  margin-bottom: 0;
+}
+.b-lp-kolomkop {
+  background: var(--bg-sunken);
+  font-weight: 700;
+}
+.b-lp-tabel-rijkop thead th:first-child {
+  width: 8.5rem;
+}
+.b-lp-rijkop {
+  background: var(--bg-sunken);
+  font-weight: 700;
+}
+.b-lp-label {
+  display: none;
+}
+
+/* ── Beeld ──────────────────────────────────────────────────────────────── */
+
+.b-lp-beeld {
+  max-width: 44rem;
+  margin: 8px 0 16px;
+}
+.b-lp-beeld img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg-raised);
+}
+.b-lp-beeld-uitleg summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.b-lp-beeld-uitleg p {
+  max-width: 72ch;
+}
+.b-lp-beeld-weg {
+  padding: 10px 14px;
+  border-left: 6px solid var(--lamp);
+  border-radius: var(--radius-s);
+  background: var(--lamp-soft);
+  color: var(--text);
+}
+
+/* ── Smal scherm: elke rij een kaart ────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  .b-lp-tabel,
+  .b-lp-tabel tbody,
+  .b-lp-tabel thead,
+  .b-lp-tabel tr,
+  .b-lp-tabel :is(th, td) {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    border-left: 0;
+  }
+  .b-lp-tabel {
+    border: 0;
+    background: transparent;
+  }
+  .b-lp-tabel thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .b-lp-tabel tr {
+    margin: 0 0 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-m);
+    background: var(--bg-raised);
+    overflow: hidden;
+  }
+  .b-lp-tabel :is(th, td) {
+    border-bottom: 1px solid var(--line);
+  }
+  .b-lp-tabel tr > :last-child {
+    border-bottom: 0;
+  }
+  .b-lp-rijkop {
+    width: auto;
+  }
+  .b-lp-tabel .b-lp-cel-leeg {
+    display: none;
+  }
+  .b-lp-label {
+    display: block;
+    margin: 0 0 4px;
+    color: var(--text-soft);
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+}
+
+/* ── Afdrukken: alleen het lesplan, zwart op wit ────────────────────────── */
+
+@media print {
+  .b-kop,
+  .b-voet,
+  .b-kruimel,
+  .b-lp-ganaar {
+    display: none !important;
+  }
+  .b-lesplan,
+  .b-lesplan * {
+    background: transparent !important;
+    color: #000 !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+  }
+  .b-lp-tabel tr {
+    break-inside: avoid;
+  }
+  .b-lp-beeld {
+    break-inside: avoid;
+  }
+}

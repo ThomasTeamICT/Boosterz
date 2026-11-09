@@ -2,7 +2,7 @@
 // parameter: 2026, 2027, 2029 en 2031 (geen lege kopjes, H5). De getallen op de echte gegevens staan in
 // src/lib/basis/basisIngang.echt.test.ts; de test leest nergens de klok en geen gegevensbestand.
 
-import { createElement } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -169,6 +169,24 @@ describe('LeerjaarInhoud: geen lege kopjes (H5)', () => {
   });
 });
 
+describe('LeerjaarInhoud: het blok "Van het GO!"', () => {
+  const GO = createElement('section', { 'aria-labelledby': 'b-vango-kop' }, createElement('h2', { id: 'b-vango-kop' }, 'Van het GO!'));
+  const metGo = (go?: ReactNode) =>
+    renderToStaticMarkup(createElement(StaticRouter, { location: '/' }, createElement(LeerjaarInhoud, { alle: INDEX, soort: 'bao', leerjaar: 'L3', schooljaar: 2026, go })));
+
+  it('staat onder de doelen van de overheid en boven "Hoe zeker is dit?"', () => {
+    const html = metGo(GO);
+    expect(kopjes(html)).toContain('Van het GO!');
+    expect(html.indexOf('Van het GO!')).toBeGreaterThan(html.indexOf('Dit schooljaar verplicht'));
+    expect(html.indexOf('Van het GO!')).toBeLessThan(html.indexOf('Hoe zeker is dit?'));
+  });
+
+  it('zonder het blok verandert er niets aan de pagina', () => {
+    expect(metGo(undefined)).toBe(pagina('bao', 'L3', 2026));
+    expect(kopjes(metGo(undefined))).not.toContain('Van het GO!');
+  });
+});
+
 describe('StartInhoud', () => {
   const html = renderToStaticMarkup(createElement(StaticRouter, { location: '/' }, createElement(StartInhoud, { alle: INDEX })));
 
@@ -181,6 +199,13 @@ describe('StartInhoud', () => {
     expect(tekst(html)).toContain('Einde 6de leerjaar 57 doelen');
     expect(html).toContain('href="/basis/leerlijn/gewoon"');
     expect(html).toContain('Leerlijnen per vak');
+  });
+
+  it('heeft een tegel naar het leerplan en de lesplannen van het GO!, ook zonder index', () => {
+    expect(html).toContain('href="/basis/go"');
+    expect(tekst(html)).toContain('Leerplan en lesplannen van het GO!');
+    const zonder = renderToStaticMarkup(createElement(StaticRouter, { location: '/' }, createElement(StartInhoud, {})));
+    expect(zonder).toContain('href="/basis/go"');
   });
 
   it('toont de tegels ook zonder index, zonder aantallen', () => {

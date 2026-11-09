@@ -1,0 +1,43 @@
+{
+ "app": "boosterz",
+ "kind": "go-index",
+ "v": 1,
+ "naamsvermelding": "GO! onderwijs van de Vlaamse Gemeenschap",
+ "ingelezen": "2026-11-09",
+ "leerplan": [
+  {"vak":"AA","naam":"Aardrijkskunde","bestand":"leerplan/AA.json","aantal":276,"zonderMinimumdoel":29,"perLeeftijd":{"2,5-4":17,"4-5":29,"5-6":47,"6-7":32,"7-8":30,"8-9":70,"9-10":78,"10-11":70,"11-12":65},"bronDatum":"2026-09-03T09:38:42Z","sha256":"318d243b687e74e64076953a7688ffd0af0f81b1a64e8df1512573d36ab0530f"},
+  {"vak":"BU","naam":"Burgerschap","bestand":"leerplan/BU.json","aantal":148,"zonderMinimumdoel":36,"perLeeftijd":{"2,5-4":13,"4-5":37,"5-6":44,"6-7":43,"7-8":48,"8-9":66,"9-10":63,"10-11":72,"11-12":72},"bronDatum":"2026-09-03T09:38:08Z","sha256":"f010321283d62184eb8a1dd0dd88f9cf0da6ea04f580b64418cfb73507604455"},
+  {"vak":"FR","naam":"Frans","bestand":"leerplan/FR.json","aantal":112,"zonderMinimumdoel":6,"perLeeftijd":{"2,5-4":0,"4-5":0,"5-6":0,"6-7":0,"7-8":0,"8-9":0,"9-10":0,"10-11":104,"11-12":103},"bronDatum":"2026-09-03T09:36:15Z","sha256":"1d0f3b8c608b14ca7dcd92c4ba706cb73ad572a31516ee240bbfd60a340cfe6c"},
+  {"vak":"GE","naam":"Geschiedenis","bestand":"leerplan/GE.json","aantal":244,"zonderMinimumdoel":54,"perLeeftijd":{"2,5-4":14,"4-5":43,"5-6":54,"6-7":51,"7-8":50,"8-9":66,"9-10":75,"10-11":69,"11-12":66},"bronDatum":"2026-09-03T09:39:15Z","sha256":"66ccad92e400af22464246cf7bc9a3f410254712ab59234fd857e593c2e8fa64"},
+  {"vak":"IT","naam":"ICT","bestand":"leerplan/IT.json","aantal":93,"zonderMinimumdoel":17,"perLeeftijd":{"2,5-4":3,"4-5":6,"5-6":17,"6-7":19,"7-8":20,"8-9":29,"9-10":36,"10-11":40,"11-12":40},"bronDatum":"2026-09-03T09:33:59Z","sha256":"67887eaff51ce07405f554579123694f2a5122df010d85582f3c5b6955de1303"},
+  {"vak":"LL","naam":"Leren leren","bestand":"leerplan/LL.json","aantal":114,"zonderMinimumdoel":53,"perLeeftijd":{"2,5-4":25,"4-5":52,"5-6":66,"6-7":68,"7-8":65,"8-9":58,"9-10":54,"10-11":52,"11-12":52},"bronDatum":"2026-09-03T09:34:54Z","sha256":"7cc8eec8726f634529df0d586627a31df01bd19dd10db98c0660ebf6c829e3d1"},
+  {"vak":"LO","naam":"Lichamelijke opvoeding","bestand":"leerplan/LO.json","aantal":189,"zonderMinimumdoel":26,"perLeeftijd":{"2,5-4":52,"4-5":76,"5-6":91,"6-7":95,"7-8":85,"8-9":82,"9-10":80,"10-11":79,"11-12":79},"bronDatum":"2026-09-03T09:36:52Z","sha256":"7262d7e06249e346f2a2d58194ef8dd191756e5123bf7d5b39433305268ac299"},
+  {"vak":"MV","naam":"Muzische vorming","bestand":"leerplan/MV.json","aantal":98,"zonderMinimumdoel":19,"perLeeftijd":{"2,5-4":23,"4-5":28,"5-6":36,"6-7":37,"7-8":37,"8-9":41,"9-10":41,"10-11":40,"11-12":40},"bronDatum":"2026-09-03T09:37:22Z","sha256":"4dcc51cec50613cc7b6db4990088b806945f44d98e843fc71d37ccb9aa053d60"},
+  {"vak":"NL","naam":"Nederlands","bestand":"leerplan/NL.json","aantal":622,"zonderMinimumdoel":46,"perLeeftijd":{"2,5-4":46,"4-5":128,"5-6":148,"6-7":160,"7-8":183,"8-9":263,"9-10":255,"10-11":244,"11-12":245},"bronDatum":"2026-09-03T09:41:08Z","sha256":"a589df669bb3a74e2a4084f88762070ad725a6a0481200b9ab4d47e1bbf24d3b"},
+  {"vak":"SV","naam":"Sociale vaardigheden","bestand":"leerplan/SV.json","aantal":68,"zonderMinimumdoel":20,"perLeeftijd":{"2,5-4":14,"4-5":24,"5-6":27,"6-7":31,"7-8":32,"8-9":34,"9-10":34,"10-11":33,"11-12":34},"bronDatum":"2026-09-03T09:35:38Z","sha256":"f6eca496f6178f39ffc1a4554e73fac38467d2df262cfae53777c1bd85984e5e"},
+  {"vak":"WI","naam":"Wiskunde","bestand":"leerplan/WI.json","aantal":998,"zonderMinimumdoel":53,"perLeeftijd":{"2,5-4":32,"4-5":61,"5-6":127,"6-7":166,"7-8":141,"8-9":231,"9-10":313,"10-11":322,"11-12":314},"bronDatum":"2026-09-03T09:40:33Z","sha256":"c6852d7ef77f927e21bd7d488cc30e44a6eea4996ce0c2a5f8f7096d40f771e8"},
+  {"vak":"WT","naam":"Wetenschap en techniek","bestand":"leerplan/WT.json","aantal":528,"zonderMinimumdoel":106,"perLeeftijd":{"2,5-4":48,"4-5":102,"5-6":135,"6-7":127,"7-8":123,"8-9":155,"9-10":168,"10-11":195,"11-12":199},"bronDatum":"2026-09-03T09:39:57Z","sha256":"477f3d0103e67d848cc04a3bbf82ee851e2ab450b5839c170a4fb01505997e9c"}
+ ],
+ "bijMinimumdoel": [
+  {"vak":1,"bestand":"bij-minimumdoel/1.json","sha256":"00ab26705f6aaffd426e641b20bf61e2fd1518f3b972139feeaf0ebbfc245c90"},
+  {"vak":2,"bestand":"bij-minimumdoel/2.json","sha256":"2241a9eddd181e49634cec1ff5236a0c6cad6ead742e70ae40ea68b5b31096f8"},
+  {"vak":3,"bestand":"bij-minimumdoel/3.json","sha256":"8efc7f6b4ebfe988824f11cbd82900d8996b38b60d4cc8a3885362d2ba2ea1b3"},
+  {"vak":4,"bestand":"bij-minimumdoel/4.json","sha256":"8507ca31e5ea7d0031b94ab132f5e1d38612577533cd301f3db4513b460c6b62"},
+  {"vak":5,"bestand":"bij-minimumdoel/5.json","sha256":"ae9b2b2a956ad867d6e99defa3f1a9cb704d0e73980cbca91f368112b0eec0e7"},
+  {"vak":6,"bestand":"bij-minimumdoel/6.json","sha256":"0e87d33f78c13bfe839b15f2d0ed79411367d9eeb69f26312999e8a1d8faae42"},
+  {"vak":7,"bestand":"bij-minimumdoel/7.json","sha256":"937cff42f1ab2d9716e7c355e73972914680ecfb070513a85e1ba5cd65e18257"},
+  {"vak":8,"bestand":"bij-minimumdoel/8.json","sha256":"53b6d5d7f5bd8e5ad771bd5902bd9a9cc5c0627ff107464a5ec90839111cea2d"},
+  {"vak":9,"bestand":"bij-minimumdoel/9.json","sha256":"b468dbaf18e38a874047a56b71f9a2c43d513f74acc3e3f60532e268a85bee52"},
+  {"vak":10,"bestand":"bij-minimumdoel/10.json","sha256":"e558d303bb9f7adf3fd4abc69ebd1c31ea8727ea0bb64cc2afc48deef0c2b69c"}
+ ],
+ "lesplannen": [
+  {"code":"LP0001","titel":"Nieuw leven bij de mens","leeftijd":"2,5-4","vak":"WT","lessenlijn":"Biologie van de mens","lessenreeks":"Levenscyclus en lichamelijke veranderingen","doelen":["WT.086"],"bestand":"lesplannen/LP0001.json","sha256":"aa2667d9d0842fbb33d089b16bab9c770cc558ff49571591c7e655088a836c53"},
+  {"code":"LP0014a","titel":"De lichaamsdelen en hun bijhorende functie(s)","leeftijd":"2,5-4","vak":"WT","lessenlijn":"Biologie van de mens","lessenreeks":"Fysieke functies: algemeen","doelen":["WT.176","WT.177","WT.184","WT.190","WT.205"],"bestand":"lesplannen/LP0014a.json","sha256":"f998145f34ffe26a579f607fc0c52d48e2e6e917a0e7fa13ce730a28a2856249"},
+  {"code":"LP0014b","titel":"Zintuigen en hun bijhorende functie(s)","leeftijd":"2,5-4","vak":"WT","lessenlijn":"Biologie van de mens","lessenreeks":"Fysieke functies: algemeen","doelen":["WT.216","WT.229","WT.232","WT.235"],"bestand":"lesplannen/LP0014b.json","sha256":"8be26b54e0780a9a911f63e1c315dee17d3fbb1c314c8521423054819a29dc5f"},
+  {"code":"LP0017","titel":"Onze voedingsmiddelen","leeftijd":"2,5-4","vak":"WT","lessenlijn":"Biologie van de mens","lessenreeks":"Voedingsmiddelen en spijsvertering","doelen":["WT.155"],"bestand":"lesplannen/LP0017.json","sha256":"829e5f0ad89c24bf8995e632e275f2dbfdd344569fbf175790413ed3836f6eac"},
+  {"code":"LP0065","titel":"Dieren classificeren","leeftijd":"2,5-4","vak":"WT","lessenlijn":"Biologie van organismen","lessenreeks":"Fauna: classificeren","doelen":["WT.001","WT.008","WT.028"],"bestand":"lesplannen/LP0065.json","sha256":"a0ae3c36d34e80b4085a274fa286ba4e803c23a0128bc6b92dfce81664791bc0"},
+  {"code":"LP0074","titel":"Planten classificeren","leeftijd":"2,5-4","vak":"WT","lessenlijn":"Biologie van organismen","lessenreeks":"Flora en schimmels: classificeren","doelen":["WT.028","WT.039","WT.057"],"bestand":"lesplannen/LP0074.json","sha256":"fd81f511498c5288d0c28d5b6fe60e2c25860584c7f5674887379355cfbbcad0"},
+  {"code":"LP0087","titel":"Zoogdieren en hun jong","leeftijd":"2,5-4","vak":"WT","lessenlijn":"Biologie van organismen","lessenreeks":"Fauna: levenscyclus","doelen":["WT.021","WT.094"],"bestand":"lesplannen/LP0087.json","sha256":"2648e7a4b1dcff7d8774e9b31670eeaba0ebff6e3c107fee573c8dd8a6b0087f"},
+  {"code":"LP0094","titel":"De levenscyclus van planten","leeftijd":"2,5-4","vak":"WT","lessenlijn":"Biologie van organismen","lessenreeks":"Flora: levenscyclus","doelen":["WT.101"],"bestand":"lesplannen/LP0094.json","sha256":"4ed5b079662095c9d07df04f41475fbc18e492709a9b8bd57843dcdeb82c24bf"}
+ ]
+}

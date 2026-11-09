@@ -2,7 +2,7 @@
 // donker blok met dezelfde sleutels als het lichte, de gescopete selectors en wat verboden is. De tokens worden over de
 // globale gelegd zoals de cascade het doet; de lijst paren volgt src/lib/color.test.ts en breidt ze uit.
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { contrastRatio, oklchToHex } from '../color';
 
@@ -208,5 +208,102 @@ describe('verboden in basis.css', () => {
   it('geen verloop en geen emoji', () => {
     expect(zonderCommentaar).not.toMatch(/gradient\(/);
     expect(zonderCommentaar).not.toMatch(/\p{Extended_Pictographic}/u);
+  });
+});
+
+// ── Alle css van het basisdeel: de schermen naast basis.css ─────────────────
+
+const STIJLEN = new URL('../../styles/', import.meta.url);
+/**
+ * basis-doelen.css, basis-lesplan.css …: elk scherm van het basisdeel heeft een eigen bestand met de tokens van basis.css.
+ * basis-moment.css is de uitzondering: het staat op de pagina Officiële minimumdoelen, buiten het basisdeel, met de
+ * globale tokens en eigen .md-klassen.
+ */
+const BUITEN_HET_BASISDEEL = new Set(['basis-moment.css']);
+const SCHERMBESTANDEN = readdirSync(STIJLEN)
+  .filter((f) => /^basis-.+\.css$/.test(f) && !BUITEN_HET_BASISDEEL.has(f))
+  .sort();
+const ZONDER_COMMENTAAR = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '');
+
+describe('css van de schermen van het basisdeel (basis-*.css)', () => {
+  it('bevat minstens het scherm van het lesplan', () => {
+    expect(SCHERMBESTANDEN).toContain('basis-lesplan.css');
+  });
+
+  describe.each(SCHERMBESTANDEN)('%s', (bestand) => {
+    const css = lees(`../../styles/${bestand}`);
+    const kaal = ZONDER_COMMENTAAR(css);
+
+    it("elke selector begint met :root[data-deel='basis'] of met .b-", () => {
+      const lijst = selectors(css);
+      expect(lijst.length).toBeGreaterThan(0);
+      for (const s of lijst) expect(s, s).toMatch(/^(:root\[data-deel='basis'\]|\.b-)/);
+    });
+
+    it('gebruikt alleen tokens die in het lichte en het donkere blok bestaan', () => {
+      const gebruikt = new Set([...kaal.matchAll(/var\(--([\w-]+)/g)].map((m) => m[1]));
+      // --player-accent en dergelijke horen niet bij dit deel; alleen wat deze css zelf met var() gebruikt telt.
+      for (const naam of gebruikt) {
+        expect(LICHT[naam], `licht: --${naam}`).toBeDefined();
+        expect(DONKER[naam], `donker: --${naam}`).toBeDefined();
+      }
+    });
+
+    it('geen externe adressen, geen verloop, geen emoji, nooit --lamp als tekstkleur', () => {
+      expect(kaal).not.toMatch(/https?:\/\//);
+      expect(kaal).not.toMatch(/gradient\(/);
+      expect(kaal).not.toMatch(/\p{Extended_Pictographic}/u);
+      expect(kaal).not.toMatch(/(^|[;{\s])color:\s*var\(--lamp\)/);
+    });
+
+    it('nooit witte tekst op --brand', () => {
+      for (const m of kaal.matchAll(/\{([^{}]*)\}/g)) {
+        if (/background(-color)?:\s*var\(--brand\)\s*[;}]?/.test(m[1])) expect(m[1]).not.toMatch(/(^|[;\s])color:\s*(#fff(fff)?|white)\b/i);
+      }
+    });
+  });
+
+  it('elke regel met een tekstkleur en een achtergrond uit de tokens haalt 4,5 : 1, licht en donker', () => {
+    // Alleen regels die beide in één blok zetten en allebei met var(--token): wat de cascade elders mengt, valt erbuiten.
+    let gecontroleerd = 0;
+    for (const bestand of SCHERMBESTANDEN) {
+      const kaal = ZONDER_COMMENTAAR(lees(`../../styles/${bestand}`));
+      for (const m of kaal.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const tekst = /(?:^|[;\s])color:\s*var\(--([\w-]+)\)/.exec(m[2]);
+        const vlak = /(?:^|[;\s])background(?:-color)?:\s*var\(--([\w-]+)\)/.exec(m[2]);
+        if (!tekst || !vlak) continue;
+        gecontroleerd++;
+        for (const [naam, tk] of Object.entries(THEMAS)) {
+          expect(contrastRatio(tk[tekst[1]], tk[vlak[1]]), `${bestand} ${m[1].trim()} (${naam}): ${tekst[1]} op ${vlak[1]}`).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    }
+    expect(gecontroleerd).toBeGreaterThan(5);
+  });
+
+  it('de kleurparen van de lesplanpagina', () => {
+    // basis-lesplan.css: tekst, zachte tekst en merk op het kaartvlak; tekst op de zachte vlakken (chip, label, beeldzin).
+    const paren: [string, string, number][] = [
+      ['text', 'bg-raised', 7],
+      ['text-soft', 'bg-raised', 4.5],
+      ['text-soft', 'bg-sunken', 4.5],
+      ['text', 'bg-sunken', 7],
+      ['text', 'brand-soft', 7],
+      ['text', 'lamp-soft', 7],
+      ['brand', 'bg-raised', 4.5],
+    ];
+    for (const [naam, tk] of Object.entries(THEMAS)) {
+      for (const [fg, bg, min] of paren) expect(contrastRatio(tk[fg], tk[bg]), `${naam}: ${fg} op ${bg}`).toBeGreaterThanOrEqual(min);
+    }
+  });
+
+  it('de lesplanpagina heeft een smalle weergave, een printstijl en tikdoelen van 44 pixels', () => {
+    const css = ZONDER_COMMENTAAR(lees('../../styles/basis-lesplan.css'));
+    expect(css).toMatch(/@media \(max-width: 760px\)/);
+    expect(css).toMatch(/@media print/);
+    for (const kl of ['.b-lp-ganaar a', '.b-lp-chip', '.b-lp-naarplek', '.b-lp-bron a', '.b-lp-beeld-uitleg summary']) {
+      const m = new RegExp(`${kl.replace(/[.]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(css);
+      expect(m?.[1], kl).toMatch(/min-height:\s*44px/);
+    }
   });
 });

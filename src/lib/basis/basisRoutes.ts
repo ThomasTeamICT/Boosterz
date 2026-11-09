@@ -15,6 +15,7 @@ import {
   type LeerjaarBasis,
   type SoortBasis,
 } from './kalender';
+import { isGoVak, type GoVak } from './go/types';
 
 export type BasisScherm =
   | { s: 'start' }
@@ -26,6 +27,14 @@ export type BasisScherm =
   | { s: 'leerlijn'; soort: SoortBasis; vak: number; leerjaar?: LeerjaarBasis; onderwerp?: string }
   | { s: 'doel'; setId: string; doelId: string }
   | { s: 'zoek'; soort: SoortBasis; vraag: string; leerjaar?: LeerjaarBasis; bereik: 'leerjaar' | 'alles' }
+  // Het leerplan en de lesplannen van het GO! (docs/basisonderwijs/GO-LEERPLAN.md, "Adressen"). Het vak is hier het
+  // voorvoegsel van het GO! ('WT'), niet het vaknummer van het minimumdoel.
+  | { s: 'go' }
+  | { s: 'lesplannen'; leerjaar?: LeerjaarBasis; vak?: GoVak }
+  | { s: 'lesplan'; code: string; stap?: number }
+  | { s: 'lessenlijn'; vak: GoVak; lijn: string; leerjaar?: LeerjaarBasis }
+  | { s: 'leerplandoelen'; vak: GoVak; leerjaar?: LeerjaarBasis; rubriek?: string }
+  | { s: 'leerplandoel'; code: string }
   | { s: 'onbekend' };
 
 export const SOORT_SLUG: Readonly<Record<SoortBasis, 'gewoon' | 'buitengewoon'>> = {
@@ -75,6 +84,35 @@ const DOEL_ID = /^\d+$/;
 const ONDERWERP = /^\d{1,2}\.\d{1,2}$/;
 /** Een zoekvraag in de url is nooit langer dan dit; langere vragen worden afgekapt (een adres is geen tekstvak). */
 const MAX_VRAAG = 200;
+
+/** Een lesplancode in het adres: 'LP0065', 'LP0014a'; hoofdletters maken niet uit en worden rechtgezet. */
+const LESPLAN_CODE = /^lp(\d{4})([a-z]?)$/i;
+/** Een code van een leerplandoel in het adres: 'WT.086'; het voorvoegsel is een vak van het GO!. */
+const GO_DOELCODE = /^([a-z]{2})\.(\d{3,4})$/i;
+/** Het adresdeel van een lessenlijn: kleine letters, cijfers en streepjes ('biologie-van-organismen'). */
+const LIJN_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const MAX_SLUG = 80;
+/** Het id van een rubriek in een leerplan van het GO!: 'WT-r012'. */
+const GO_RUBRIEK = /^([a-z]{2})-r(\d{3,4})$/i;
+const GO_STAP = /^[1-6]$/;
+
+/** De lesplancode in de vorm van het bestand ('LP0014a'); undefined als het geen lesplancode is. */
+function lesplancodeVan(tekst: string | null | undefined): string | undefined {
+  const m = typeof tekst === 'string' ? LESPLAN_CODE.exec(tekst) : null;
+  return m ? `LP${m[1]}${m[2].toLowerCase()}` : undefined;
+}
+
+/** Het vak van het GO! uit een adresdeel of zoekparameter ('wt' en 'WT' zijn beide WT). */
+function goVakVan(tekst: string | null | undefined): GoVak | undefined {
+  const hoofd = typeof tekst === 'string' ? tekst.toUpperCase() : undefined;
+  return isGoVak(hoofd) ? hoofd : undefined;
+}
+
+/** Het id van een rubriek ('wt-r012' wordt 'WT-r012'), alleen als het voorvoegsel bij het vak hoort. */
+function goRubriekVan(tekst: string | null | undefined, vak: GoVak): string | undefined {
+  const m = typeof tekst === 'string' ? GO_RUBRIEK.exec(tekst) : null;
+  return m && m[1].toUpperCase() === vak ? `${vak}-r${m[2]}` : undefined;
+}
 
 /** Een leerjaar, hoofdletters maken niet uit ('l3' wordt 'L3'). */
 function leerjaarVan(tekst: string | null | undefined): LeerjaarBasis | undefined {
@@ -173,6 +211,51 @@ export function basisRoute(splat: string, zoek: string): BasisScherm {
         : ONBEKEND;
     }
 
+    if (wat === 'go') return a === undefined ? { s: 'go' } : ONBEKEND;
+
+    if (wat === 'lesplannen') {
+      if (a !== undefined) return ONBEKEND;
+      const uit: BasisScherm = { s: 'lesplannen' };
+      if (leerjaar) uit.leerjaar = leerjaar;
+      const vak = goVakVan(p.get('vak'));
+      if (vak) uit.vak = vak;
+      return uit;
+    }
+
+    if (wat === 'lesplan') {
+      const code = lesplancodeVan(a);
+      if (!code || b !== undefined) return ONBEKEND;
+      const uit: BasisScherm = { s: 'lesplan', code };
+      const stap = p.get('stap');
+      if (stap !== null && GO_STAP.test(stap)) uit.stap = Number(stap);
+      return uit;
+    }
+
+    if (wat === 'lessenlijn') {
+      const vak = goVakVan(a);
+      const lijn = b?.toLowerCase();
+      if (!vak || lijn === undefined || lijn.length > MAX_SLUG || !LIJN_SLUG.test(lijn) || c !== undefined) return ONBEKEND;
+      const uit: BasisScherm = { s: 'lessenlijn', vak, lijn };
+      if (leerjaar) uit.leerjaar = leerjaar;
+      return uit;
+    }
+
+    if (wat === 'leerplandoelen') {
+      const vak = goVakVan(a);
+      if (!vak || b !== undefined) return ONBEKEND;
+      const uit: BasisScherm = { s: 'leerplandoelen', vak };
+      if (leerjaar) uit.leerjaar = leerjaar;
+      const rubriek = goRubriekVan(p.get('rubriek'), vak);
+      if (rubriek) uit.rubriek = rubriek;
+      return uit;
+    }
+
+    if (wat === 'leerplandoel') {
+      const m = a === undefined || b !== undefined ? null : GO_DOELCODE.exec(a);
+      const vak = m ? goVakVan(m[1]) : undefined;
+      return m && vak ? { s: 'leerplandoel', code: `${vak}.${m[2]}` } : ONBEKEND;
+    }
+
     if (wat === 'zoek') {
       if (a !== undefined) return ONBEKEND;
       const soortTekst = p.get('soort');
@@ -240,6 +323,24 @@ export function basisPad(s: BasisScherm): string {
         ['leerjaar', s.leerjaar],
         ['bereik', s.bereik === 'leerjaar' && s.leerjaar ? 'leerjaar' : 'alles'],
       ])}`;
+    case 'go':
+      return '/basis/go';
+    case 'lesplannen':
+      return `/basis/lesplannen${query([
+        ['leerjaar', s.leerjaar],
+        ['vak', s.vak?.toLowerCase()],
+      ])}`;
+    case 'lesplan':
+      return `/basis/lesplan/${encodeURIComponent(s.code)}${query([['stap', s.stap === undefined ? undefined : String(s.stap)]])}`;
+    case 'lessenlijn':
+      return `/basis/lessenlijn/${s.vak.toLowerCase()}/${encodeURIComponent(s.lijn)}${query([['leerjaar', s.leerjaar]])}`;
+    case 'leerplandoelen':
+      return `/basis/leerplandoelen/${s.vak.toLowerCase()}${query([
+        ['leerjaar', s.leerjaar],
+        ['rubriek', s.rubriek],
+      ])}`;
+    case 'leerplandoel':
+      return `/basis/leerplandoel/${encodeURIComponent(s.code)}`;
     case 'onbekend':
       return '/basis/onbekend';
   }

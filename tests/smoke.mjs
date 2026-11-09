@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import LZString from 'lz-string';
 import { basisIngang } from './basis/ingang.mjs';
+import { basisGo } from './basis/go.mjs';
 
 const BASE = process.env.SMOKE_BASE || 'http://localhost:4173';
 const errors = [];
@@ -1131,6 +1132,10 @@ console.log('20b-2b. Momentmodel basisonderwijs');
 // ── 20b-2c. Eigen ingang basisonderwijs (#/basis) ──────────────────────────
 // De checks staan in tests/basis/ingang.mjs (eigen contexten, vaste klok); tests/basis/ingang-los.mjs draait ze apart.
 await basisIngang({ browser, BASE, check, errors, sleep });
+
+// ── 20b-2d. Leerplan en lesplannen van het GO! (#/basis/go) ─────────────────
+// De checks staan in tests/basis/go.mjs; tests/basis/go-los.mjs draait ze apart.
+await basisGo({ browser, BASE, check, errors, sleep });
 
 // ── 20b-3. Eigen doelenlijst samenstellen ───────────────────────────────────
 console.log('20b-3. Eigen doelenlijst samenstellen');

@@ -21,6 +21,12 @@ import '../../styles/basis.css';
 const LeerlijnenScherm = lazy(() => import('./LeerlijnScherm').then((m) => ({ default: m.LeerlijnenScherm })));
 const LeerlijnScherm = lazy(() => import('./LeerlijnScherm').then((m) => ({ default: m.LeerlijnScherm })));
 const ZoekScherm = lazy(() => import('./ZoekScherm').then((m) => ({ default: m.ZoekScherm })));
+const LesplanScherm = lazy(() => import('./LesplanScherm').then((m) => ({ default: m.LesplanScherm })));
+const LesplannenScherm = lazy(() => import('./LesplannenScherm').then((m) => ({ default: m.LesplannenScherm })));
+const LessenlijnScherm = lazy(() => import('./LessenlijnScherm').then((m) => ({ default: m.LessenlijnScherm })));
+const GoScherm = lazy(() => import('./GoScherm').then((m) => ({ default: m.GoScherm })));
+const LeerplandoelScherm = lazy(() => import('./LeerplandoelScherm').then((m) => ({ default: m.LeerplandoelScherm })));
+const LeerplandoelenScherm = lazy(() => import('./LeerplandoelenScherm').then((m) => ({ default: m.LeerplandoelenScherm })));
 
 /** Tijdens het laden van zo'n scherm staat er al precies één h1. */
 function Wacht({ titel, children }: { titel: string; children: ReactNode }) {
@@ -81,6 +87,42 @@ function kies(s: BasisScherm): ReactNode {
       return (
         <Wacht titel="Zoeken in de doelen">
           <ZoekScherm soort={s.soort} vraag={s.vraag} leerjaar={s.leerjaar} bereik={s.bereik} />
+        </Wacht>
+      );
+    case 'lesplan':
+      return (
+        <Wacht titel={`Lesplan ${s.code}`}>
+          <LesplanScherm code={s.code} stap={s.stap} />
+        </Wacht>
+      );
+    case 'lesplannen':
+      return (
+        <Wacht titel="Lesplannen van het GO!">
+          <LesplannenScherm leerjaar={s.leerjaar} vak={s.vak} />
+        </Wacht>
+      );
+    case 'lessenlijn':
+      return (
+        <Wacht titel="Lessenlijn">
+          <LessenlijnScherm vak={s.vak} lijn={s.lijn} leerjaar={s.leerjaar} />
+        </Wacht>
+      );
+    case 'go':
+      return (
+        <Wacht titel="Leerplan en lesplannen van het GO!">
+          <GoScherm />
+        </Wacht>
+      );
+    case 'leerplandoelen':
+      return (
+        <Wacht titel="Leerplan van het GO!">
+          <LeerplandoelenScherm vak={s.vak} leerjaar={s.leerjaar} rubriek={s.rubriek} />
+        </Wacht>
+      );
+    case 'leerplandoel':
+      return (
+        <Wacht titel={`Leerplandoel ${s.code}`}>
+          <LeerplandoelScherm code={s.code} />
         </Wacht>
       );
     case 'onbekend':

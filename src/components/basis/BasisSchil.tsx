@@ -1,5 +1,5 @@
 // De schil van het deel basisonderwijs (#/basis): een eigen kop met lamptegel, de navigatie "Mijn leerjaar", "Doelen",
-// "Leerlijnen" en "Zoeken", de themawissel, "Naar Boosterz", precies één main en een voet met de bronvermelding uit de
+// "Leerlijnen", "Zoeken" en "GO!", de themawissel, "Naar Boosterz", precies één main en een voet met de bronvermelding uit de
 // index. Het gebruikt geen leerkrachtschil (Layout). De vormgeving staat in src/styles/basis.css.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -11,12 +11,13 @@ import { getPrefs } from '../../lib/storage';
 import { datumLeesbaar } from '../../lib/minimumdoelenBron';
 import { WERKT_NAAR, type Eindmoment, type SoortBasis } from '../../lib/basis/kalender';
 import { basisPad, type BasisScherm } from '../../lib/basis/basisRoutes';
+import { GO_NAAMSVERMELDING } from '../../lib/basis/go/types';
 import { laatstOpgehaald, useBasisIndex } from './useBasisSets';
 
 const THEMA_LABEL: Record<ThemeMode, string> = { auto: 'automatisch', light: 'licht', dark: 'donker' };
 const THEMA_ICOON = { auto: SunMoon, light: Sun, dark: Moon } as const;
 
-type NavSleutel = 'leerjaar' | 'doelen' | 'leerlijnen' | 'zoeken';
+type NavSleutel = 'leerjaar' | 'doelen' | 'leerlijnen' | 'go' | 'zoeken';
 
 /** In welk deel van de navigatie een scherm hoort. */
 function navVan(s: BasisScherm): NavSleutel | undefined {
@@ -32,6 +33,13 @@ function navVan(s: BasisScherm): NavSleutel | undefined {
     case 'leerlijnen':
     case 'leerlijn':
       return 'leerlijnen';
+    case 'go':
+    case 'lesplannen':
+    case 'lesplan':
+    case 'lessenlijn':
+    case 'leerplandoelen':
+    case 'leerplandoel':
+      return 'go';
     case 'zoek':
       return 'zoeken';
     case 'onbekend':
@@ -75,6 +83,7 @@ export function BasisSchil({ scherm, children }: { scherm: BasisScherm; children
     { sleutel: 'doelen', label: 'Doelen', naar: basisPad({ s: 'moment', soort, eind: eindVan(scherm) }) },
     { sleutel: 'leerlijnen', label: 'Leerlijnen', naar: basisPad({ s: 'leerlijnen', soort }) },
     { sleutel: 'zoeken', label: 'Zoeken', naar: basisPad({ s: 'zoek', soort, vraag: '', bereik: 'alles' }) },
+    { sleutel: 'go', label: 'GO!', naar: basisPad({ s: 'go' }) },
   ];
   const ThemaIcoon = THEMA_ICOON[thema];
   const opgehaald = index.status === 'klaar' ? laatstOpgehaald(index.waarde) : '';
@@ -131,6 +140,11 @@ export function BasisSchil({ scherm, children }: { scherm: BasisScherm; children
               ? <>{index.waarde.naamsvermelding}{opgehaald && <> · opgehaald op {datumLeesbaar(opgehaald)}</>}</>
               : 'Bron: Onderwijsdoelen, Vlaamse overheid'}
           </p>
+          {actief === 'go' && (
+            <p className="b-voet-go">
+              Leerplandoelen en lesplannen: {GO_NAAMSVERMELDING}. Letterlijk overgenomen met toestemming.
+            </p>
+          )}
           <p>
             <Link to="/privacy">Privacy en opslag</Link>
           </p>

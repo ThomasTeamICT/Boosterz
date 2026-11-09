@@ -10,7 +10,7 @@
 // bij twee kandidaten worden beide geladen en telt de set die het doel bevat. De pagina zegt alleen 'dezelfde tekst'
 // als de tekst echt gelijk is.
 
-import { useMemo, type ReactNode } from 'react';
+import { lazy, Suspense, useMemo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { MOMENT_KORT, DoelRij } from '../../components/basis/DoelRij';
 import { VolledigeDoeltekst } from '../../components/basis/DoelKaart';
@@ -111,9 +111,22 @@ function Leerlijn({ doel, vak }: DoelDeelProps): ReactNode {
   );
 }
 
+// Het leerplan van het GO! bij dit minimumdoel laadt lui: zijn gegevens horen niet in de bundel van de doelpagina.
+const GoBijDoelDeel = lazy(() => import('../../components/basis/go/GoBijDoel'));
+const GO_KOP = 'Leerplan van het GO!';
+
+function GoBijDoel({ doel }: DoelDeelProps): ReactNode {
+  return (
+    <Suspense fallback={null}>
+      <GoBijDoelDeel doel={doel} />
+    </Suspense>
+  );
+}
+
 /** De delen van de doelpagina, in volgorde. Een latere fase voegt hier een regel aan toe. */
 export const DOEL_DELEN: readonly { id: string; kop: string; Deel: (p: DoelDeelProps) => ReactNode }[] = [
   { id: 'wanneer', kop: 'Wanneer gelden deze doelen?', Deel: Wanneer },
+  { id: 'go', kop: GO_KOP, Deel: GoBijDoel },
   { id: 'leerlijn', kop: LEERLIJN_KOP, Deel: Leerlijn },
 ];
 

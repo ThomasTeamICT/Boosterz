@@ -35,6 +35,12 @@ const TITELS: [string, string][] = [
   ['/basis/leerlijn', 'Leerlijn · Basisonderwijs'],
   ['/basis/doel', 'Minimumdoel · Basisonderwijs'],
   ['/basis/zoek', 'Zoeken · Basisonderwijs'],
+  ['/basis/go', 'Leerplan van het GO! · Basisonderwijs'],
+  ['/basis/lesplannen', 'Lesplannen · Basisonderwijs'],
+  ['/basis/lesplan', 'Lesplan · Basisonderwijs'],
+  ['/basis/lessenlijn', 'Lessenlijn · Basisonderwijs'],
+  ['/basis/leerplandoelen', 'Leerplandoelen · Basisonderwijs'],
+  ['/basis/leerplandoel', 'Leerplandoel · Basisonderwijs'],
   ['/basis', 'Basisonderwijs'],
   ['/', 'Start'],
 ];

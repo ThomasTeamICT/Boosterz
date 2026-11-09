@@ -16,7 +16,7 @@ import { leesVraag, zoekDoelen, zoekDoelVan, type Uitslag } from '../../lib/basi
 import { ZOEKWOORDEN } from '../../lib/basis/zoekwoorden';
 import type { MinimumdoelenIndexSet } from '../../lib/minimumdoelen';
 import { LeerlijnInhoud, LeerlijnenInhoud, vakInZin } from './LeerlijnScherm';
-import { echtBereik, heeftDoelenNodig, zoekSets } from './ZoekScherm';
+import { GoCodeLinks, echtBereik, goCodesIn, heeftDoelenNodig, zoekSets } from './ZoekScherm';
 
 const toon = (el: ReactElement) => renderToStaticMarkup(createElement(StaticRouter, { location: '/' }, el));
 const tekst = (html: string) => html.replace(/<span class="sr-only">[^<]*<\/span>/g, '').replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim();
@@ -384,5 +384,47 @@ describe('de bronnen van leerlijn en zoeken', () => {
       expect(selectors.length).toBeGreaterThan(5);
       for (const s of selectors) expect(s.trim(), `${css}: ${s}`).toMatch(/^(\.b-|:root\[data-deel='basis'\])/);
     }
+  });
+});
+
+
+describe('codes van het GO! in de zoekvraag', () => {
+  it('herkent een leerplandoel (WT.086) en een lesplan (LP0065, LP0014a), in elke schrijfwijze', () => {
+    expect(goCodesIn('WT.086')).toEqual([{ soort: 'leerplandoel', code: 'WT.086' }]);
+    expect(goCodesIn('wt.086')).toEqual([{ soort: 'leerplandoel', code: 'WT.086' }]);
+    expect(goCodesIn('LP0065')).toEqual([{ soort: 'lesplan', code: 'LP0065' }]);
+    expect(goCodesIn('lp0014A')).toEqual([{ soort: 'lesplan', code: 'LP0014a' }]);
+    expect(goCodesIn('  WT.086, LP0065. ')).toEqual([
+      { soort: 'leerplandoel', code: 'WT.086' },
+      { soort: 'lesplan', code: 'LP0065' },
+    ]);
+  });
+
+  it('herkent niets in gewone woorden, doelnummers of codes van de overheid, en geen onbekend vak', () => {
+    for (const vraag of ['', 'schaduw', '92767', '3.5.4', '3.5', 'licht en schaduw', 'XX.086', 'WT.08', 'WT.12345', 'LP65', 'LP00651', 'WT086']) {
+      expect(goCodesIn(vraag), vraag).toEqual([]);
+    }
+  });
+
+  it('geeft hoogstens drie codes, elke code één keer', () => {
+    expect(goCodesIn('WT.001 WT.001 WT.002 WT.003 WT.004')).toEqual([
+      { soort: 'leerplandoel', code: 'WT.001' },
+      { soort: 'leerplandoel', code: 'WT.002' },
+      { soort: 'leerplandoel', code: 'WT.003' },
+    ]);
+  });
+
+  it('toont meteen de link naar het leerplandoel en het lesplan, onder een h2', () => {
+    const html = toon(createElement(GoCodeLinks, { codes: goCodesIn('WT.086 LP0065') }));
+    expect(html).toContain('<h2 id="b-zoek-go-kop">Gevonden bij het GO!</h2>');
+    expect(html).toContain('href="/basis/leerplandoel/WT.086"');
+    expect(html).toContain('href="/basis/lesplan/LP0065"');
+    expect(tekst(html)).toContain('Leerplandoel WT.086');
+    expect(tekst(html)).toContain('Lesplan LP0065');
+    expect(tel(html, /<h1[\s>]/g)).toBe(0);
+  });
+
+  it('zonder codes staat er niets, ook geen kop', () => {
+    expect(toon(createElement(GoCodeLinks, { codes: [] }))).toBe('');
   });
 });

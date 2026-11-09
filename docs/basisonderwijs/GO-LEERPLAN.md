@@ -8,8 +8,22 @@ Ontworpen op 9 november 2026, na de aanlevering door de eigenaar (Drive-map "Les
 |---|---|---|
 | Verkennen, ontwerp en rechter | **Klaar** (9 november 2026) | hoofdsessie |
 | Vragen aan de eigenaar (onderaan) | **Beantwoord** (9 november 2026): zie "Antwoorden van de eigenaar" | eigenaar |
-| Bouw (pakketten G1 tot G13) | **Bezig** | hoofdsessie |
+| Bouw (pakketten G1 tot G13) | **Klaar en live** (9 november 2026): zie "Stand na de bouw" hieronder | hoofdsessie |
+| Foutenlijst voor het GO! (`docs/basisonderwijs/go-bronfouten.md`) | **Klaar**; doorsturen naar het GO! **wacht** | eigenaar |
+| Visieteksten, minimale materiële vereisten en kenniskaarten (bij het vak en de doelen) | **Wacht**, volgende stap | hoofdsessie |
 | Het aanbod (A1 tot A5): beelden, proefklas | **Wacht** tot G13; vragen 8 en 9 worden dan gesteld | hoofdsessie, eigenaar |
+
+## Stand na de bouw (9 november 2026)
+
+KORT: het volledige GO! leerplan basisonderwijs en de eerste 8 lesplannen staan letterlijk in `#/basis`, gekoppeld aan de minimumdoelen. Gebouwd in één ronde van 22 agents (G1 tot G12), daarna eindcontrole door de hoofdsessie (G13).
+
+- **Gegevens** in `public/basis/go/` (32 bestanden, 4,6 MB, lui geladen per vak, niet in de voorcache van de service worker): `index.json`, `leerplan/<vak>.json` (12 vakken, 3490 leerplandoelen met MIA, begrippen en voorbeelden), `bij-minimumdoel/<vaknummer>.json` (de omgekeerde index, alle 998 minimumdoelen), `lesplannen/LP*.json` (8) en `beelden/` (de vrijgegeven mindmap als WebP).
+- **Import**: `tools/basis/go/` (lezers in Python zonder externe pakketten, `maak.ts` met vite-node; uitleg in `tools/basis/go/LEESMIJ.md`). De import controleert dat elke zin van de bron letterlijk terugkomt (rondgang 8 van 8 lesplannen en 12 van 12 doelensets) en stopt met exit 3 bij elke afwijking die niet in `bekende-afwijkingen.json` staat, of bij een wijziging tegenover de vorige import zonder `--aanvaard-wijzigingen`. Een tweede run verandert niets.
+- **Koppeling**: 4972 van de 4973 verwijzingen vinden precies één minimumdoel; MV.040 "6.12" staat als voorstel (6.1.2), gemarkeerd. 465 leerplandoelen hebben geen minimumdoel (468 min de 3 die alleen via een MIA gekoppeld zijn). 326 verwijzingen bij 286 doelen krijgen de vermelding dat het moment niet bij de leeftijd past; WI.706 verwijst naar een ander vak.
+- **Schermen**: `#/basis/go` (overzicht), `#/basis/lesplannen`, `#/basis/lesplan/LP0065` (met `?stap=3`), `#/basis/lessenlijn/wt/<lijn>`, `#/basis/leerplandoelen/wt?leerjaar=K1`, `#/basis/leerplandoel/WT.086`; "Leerplan van het GO!" op elke doelpagina (ook buitengewoon), "Van het GO!" op de pagina van het leerjaar, GO!-codes in Zoeken. Bronvermelding op elke pagina.
+- **Nagekeken**: twee nakijkrondes tegen de originelen (ronde 1 op de gegevens: cursief in 8 voorbeelden van wiskunde en een valse titel in LP0014a hersteld; ronde 2 op de schermtekst: niets bevestigd), drie reviewers (eerlijk tegenover de bron, toegankelijkheid en taal, leerlingpad en privacy), een rechter per ronde. Hersteld na de review: de inleiding zei ten onrechte dat elk leerplandoel een minimumdoel heeft; een spatie achteraan gaf een vals verschil bij WT.039. De hoofdsessie herstelde nog dat lege cellen op een smal scherm echt verdwijnen.
+- **Poort**: lint 0 fouten (47 waarschuwingen, gelijk), typecheck, vitest 168 bestanden en 7524 tests, build binnen het budget (335,2 van 335,7 kB, het leerlingpad is niet geraakt), `tests/basis/go-los.mjs` (16 checks), `tests/basis/ingang-los.mjs` en de volledige rooktest groen.
+- **Open**: de foutenlijst naar het GO! (eigenaar); een volgende reeks lesplannen gaat door dezelfde import (`maak.ts`); de vormcontrole is streng, dus een lesplan met een andere vorm wordt geweigerd tot de lezer is aangepast. Bekende beperkingen: `WI.json` is 0,9 MB (wordt alleen geladen wie wiskunde opent); de opmaak (doorhaling, superschrift, cursief) van de leerplantekst wordt nog niet getoond.
 
 ## Antwoorden van de eigenaar (9 november 2026)
 
@@ -1258,7 +1272,7 @@ Het volledige leerplan gaat pas in public/ na het antwoord op vraag 1. Tot dan:
 
 De tellingen laat de hoofdsessie nakijken door klusjes (haiku).
 
-Bestanden: `public/basis/go/index.json`, `public/basis/go/leerplan/`, `public/basis/go/bij-minimumdoel/`, `public/basis/go/lesplannen/`, `docs/basisonderwijs/GO-MELDINGEN.md`, `tools/basis/go/bekende-afwijkingen.json`
+Bestanden: `public/basis/go/index.json`, `public/basis/go/leerplan/`, `public/basis/go/bij-minimumdoel/`, `public/basis/go/lesplannen/`, `docs/basisonderwijs/go-bronfouten.md`, `tools/basis/go/bekende-afwijkingen.json`
 
 ### G5. Tests op de meegeleverde gegevens
 

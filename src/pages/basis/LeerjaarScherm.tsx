@@ -3,6 +3,7 @@
 // welke al mogen en welke oude doelen nog gelden. Een kop of zin staat er alleen als het model ze staaft en de lijst
 // eronder niet leeg is. Alleen de index wordt geladen.
 
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { FoutBericht, LaadBericht } from '../../components/curriculum/LaadStatus';
 import { LeerjaarBalk, SnelZoeken } from '../../components/basis/LeerjaarKiezer';
@@ -15,6 +16,9 @@ import { schooljaarTekst, schooljaarVanDatum, type Eindmoment, type LeerjaarBasi
 import { samengesteldTekst, zekerheidUitleg, SOORT_DOELEN_LABEL, leerjarenTekst } from '../../lib/basis/momentTeksten';
 import type { MinimumdoelenIndexSet } from '../../lib/minimumdoelen';
 import '../../styles/basis-leerjaar.css';
+
+// Het blok 'Van het GO!' laadt lui: de gegevens van het GO! horen niet in de bundel van de leerjaarpagina.
+const VanHetGo = lazy(() => import('../../components/basis/go/VanHetGo'));
 
 const EINDE_TEKST: Readonly<Record<Eindmoment, string>> = {
   K3: 'het einde van de kleuterklas',
@@ -103,11 +107,14 @@ export function LeerjaarInhoud({
   soort,
   leerjaar,
   schooljaar,
+  go,
 }: {
   alle: readonly MinimumdoelenIndexSet[];
   soort: SoortBasis;
   leerjaar: LeerjaarBasis;
   schooljaar: Schooljaar;
+  /** Het blok 'Van het GO!' (een eigen sectie met h2, of niets); staat onder de doelen van de overheid. */
+  go?: ReactNode;
 }) {
   const o = leerjaarOverzicht(alle, { soort, leerjaar }, schooljaar);
   const z = leerjaarZinnen(o);
@@ -166,6 +173,8 @@ export function LeerjaarInhoud({
         </>
       )}
 
+      {go}
+
       <details className="b-uitleg">
         <summary>Hoe zeker is dit?</summary>
         <div className="b-uitleg-inhoud">
@@ -188,7 +197,19 @@ export function LeerjaarScherm({ soort, leerjaar }: { soort: SoortBasis; leerjaa
       <h1>Wat geldt voor je {leerjarenTekst([leerjaar])}?</h1>
       {index.status === 'laden' && <LaadBericht tekst="De doelen worden geladen" />}
       {index.status === 'fout' && <FoutBericht fout={index.fout} onOpnieuw={opnieuwIndex} />}
-      {index.status === 'klaar' && <LeerjaarInhoud alle={index.waarde.sets} soort={soort} leerjaar={leerjaar} schooljaar={huidigSchooljaar()} />}
+      {index.status === 'klaar' && (
+        <LeerjaarInhoud
+          alle={index.waarde.sets}
+          soort={soort}
+          leerjaar={leerjaar}
+          schooljaar={huidigSchooljaar()}
+          go={
+            <Suspense fallback={null}>
+              <VanHetGo leerjaar={leerjaar} />
+            </Suspense>
+          }
+        />
+      )}
     </div>
   );
 }

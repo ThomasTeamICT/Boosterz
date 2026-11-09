@@ -35,6 +35,10 @@ const PADEN = [
   '/basis/leerlijn/buitengewoon/ict',
   '/basis/doel/ODS_3408/92767',
   '/basis/zoek?q=schaduw',
+  '/basis/zoek?q=WT.086',
+  '/basis/go',
+  '/basis/lesplannen?leerjaar=K1',
+  '/basis/lessenlijn/wt/biologie-van-organismen',
   '/basis/xyz',
 ];
 
@@ -51,7 +55,7 @@ describe('BasisDeel en BasisSchil', () => {
   it('heeft de navigatie, de themaknop en "Naar Boosterz"', () => {
     const html = pagina('/basis/leerjaar/gewoon/L3');
     expect(html).toContain('aria-label="Basisonderwijs"');
-    for (const tekst of ['Mijn leerjaar', 'Doelen', 'Leerlijnen', 'Zoeken', 'Thema: ', 'Naar Boosterz']) expect(html).toContain(tekst);
+    for (const tekst of ['Mijn leerjaar', 'Doelen', 'Leerlijnen', 'Zoeken', 'GO!', 'Thema: ', 'Naar Boosterz']) expect(html).toContain(tekst);
     expect(html).toContain('href="/"');
     // De voet verwijst naar de pagina Privacy en opslag.
     expect(html).toContain('href="/privacy"');
@@ -65,7 +69,23 @@ describe('BasisDeel en BasisSchil', () => {
     expect(huidig('/basis/vak/gewoon/einde-4de/ict')).toEqual(['Doelen']);
     expect(huidig('/basis/leerlijn/gewoon/ict')).toEqual(['Leerlijnen']);
     expect(huidig('/basis/zoek')).toEqual(['Zoeken']);
+    for (const pad of ['/basis/go', '/basis/lesplannen', '/basis/lesplan/LP0065', '/basis/lessenlijn/wt/x', '/basis/leerplandoelen/wt', '/basis/leerplandoel/WT.086']) {
+      expect(huidig(pad), pad).toEqual(['GO!']);
+    }
     expect(huidig('/basis/xyz')).toEqual([]);
+  });
+
+  it('het item "GO!" is het vijfde van de navigatie en linkt naar het overzicht', () => {
+    const nav = pagina('/basis/leerjaar/gewoon/L3').match(/<nav class="b-nav"[\s\S]*?<\/nav>/)?.[0] ?? '';
+    expect([...nav.matchAll(/<a [^>]*>([^<]*)<\/a>/g)].map((m) => m[1])).toEqual(['Mijn leerjaar', 'Doelen', 'Leerlijnen', 'Zoeken', 'GO!']);
+    expect(nav).toContain('href="/basis/go"');
+  });
+
+  it('op de schermen van het GO! staat de naamsvermelding van het GO! ook in de voet, elders niet', () => {
+    const voet = (pad: string) => pagina(pad).match(/<footer[\s\S]*?<\/footer>/)?.[0] ?? '';
+    expect(voet('/basis/go')).toContain('Leerplandoelen en lesplannen: GO! onderwijs van de Vlaamse Gemeenschap. Letterlijk overgenomen met toestemming.');
+    expect(voet('/basis/lesplan/LP0065')).toContain('GO! onderwijs van de Vlaamse Gemeenschap');
+    expect(voet('/basis/leerjaar/gewoon/L3')).not.toContain('GO! onderwijs van de Vlaamse Gemeenschap');
   });
 
   it('houdt de soort vast in de navigatie', () => {
