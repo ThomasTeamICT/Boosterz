@@ -1,7 +1,8 @@
 // De validator van de bestanden in public/basis/go/ (docs/basisonderwijs/GO-LEERPLAN.md, "Gegevensmodel").
 //
-// Zuiver en zonder crypto, zoals valideerSetBestand in src/lib/minimumdoelen.ts. Dezelfde validator draait in de import
-// (tools/basis/go/maak.ts, vóór het schrijven), in de uitrolpoort (goBestanden.test.ts) en in de app bij het laden.
+// Zuiver en zonder crypto, zoals valideerSetBestand in src/lib/minimumdoelen.ts. Deze strikte validator draait in de
+// import (tools/basis/go/maak.ts, vóór het schrijven) en in de uitrolpoort (goBestanden.test.ts). De app zelf gebruikt
+// bij het laden de lichte controle in lichteControle.ts.
 // Een lege lijst betekent 'in orde'. Een validator gooit nooit: loopt er toch iets vast, dan wordt het bestand
 // geweigerd met één melding.
 //
@@ -31,7 +32,6 @@ import {
   type Cel,
   type GoIcoon,
   type GoLeeftijd,
-  type GoLeerplandoel,
   type GoLesplanBestand,
   type GoMoment,
   type GoRubriekSoort,
@@ -478,7 +478,7 @@ export function vetBegin(r: Regel): string {
 
 /** Staat de code (al nagekeken op RE_LEERPLANDOEL) in de tekst, zonder cijfer erachter? */
 function bevatCode(tekst: string, code: string): boolean {
-  return new RegExp(`(?<![A-Z])${code.replace('.', '\\.')}(?!\\d)`).test(tekst);
+  return new RegExp(`(?:^|[^A-Z])${code.replace('.', '\\.')}(?!\\d)`).test(tekst);
 }
 
 /** Begint `vanaf` niet na het einde van `tot`? Een veld dat bij `tot` ontbreekt, betekent: tot het einde van dat deel. */
@@ -512,13 +512,7 @@ export function splitsVerwijzingen(bron: string): string[] {
     .filter((s) => s !== '');
 }
 
-/**
- * 'Zonder minimumdoel' (rechtzetting 2 van de rechter): noch de doelzin, noch een MIA- of voorbeeldrij van het doel
- * draagt een code. Een doel met alleen een kapotte code is 'kapot', niet 'zonder minimumdoel'.
- */
-export function isZonderMinimumdoel(doel: GoLeerplandoel): boolean {
-  return Object.keys(doel.minimumdoelen.bron).length === 0 && doel.inhoud.every((i) => !('koppeling' in i) || i.koppeling === undefined);
-}
+export { isZonderMinimumdoel } from './goModel';
 
 // ── Persoonsgegevens ─────────────────────────────────────────────────
 const RE_EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/;
@@ -529,13 +523,13 @@ const RE_EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{
  */
 const RE_TELEFOON: readonly RegExp[] = [
   // +32 9 123 45 67, 0032 475 12 34 56, +32 (0)9 …
-  /(?<![\p{L}\p{N}.,/+])(?:\+|00)32[ ./-]?(?:\(0\)[ .]?)?[1-9](?:[ ./-]?\d){7,8}(?![\p{L}\p{N}]|[.,]\d)/u,
+  /(?:^|[^\p{L}\p{N}.,/+])(?:\+|00)32[ ./-]?(?:\(0\)[ .]?)?[1-9](?:[ ./-]?\d){7,8}(?![\p{L}\p{N}]|[.,]\d)/u,
   // gsm: 0475 12 34 56, 0475/12.34.56, 0475123456
-  /(?<![\p{L}\p{N}.,/])04[5-9]\d(?:[ ./-]?\d){6}(?![\p{L}\p{N}]|[.,]\d)/u,
+  /(?:^|[^\p{L}\p{N}.,/])04[5-9]\d(?:[ ./-]?\d){6}(?![\p{L}\p{N}]|[.,]\d)/u,
   // vast, zone van één cijfer: 09 123 45 67, 02/123.45.67
-  /(?<![\p{L}\p{N}.,/])0[2349][ /.]?\d{3}[ .]?\d{2}[ .]?\d{2}(?![\p{L}\p{N}]|[.,]\d)/u,
+  /(?:^|[^\p{L}\p{N}.,/])0[2349][ /.]?\d{3}[ .]?\d{2}[ .]?\d{2}(?![\p{L}\p{N}]|[.,]\d)/u,
   // vast, zone van twee cijfers: 050 12 34 56, 015/12.34.56
-  /(?<![\p{L}\p{N}.,/])0[1-9]\d[ /.]?\d{2}[ .]?\d{2}[ .]?\d{2}(?![\p{L}\p{N}]|[.,]\d)/u,
+  /(?:^|[^\p{L}\p{N}.,/])0[1-9]\d[ /.]?\d{2}[ .]?\d{2}[ .]?\d{2}(?![\p{L}\p{N}]|[.,]\d)/u,
 ];
 
 function persoonsgegeven(s: string): 'e-mail' | 'telefoon' | undefined {

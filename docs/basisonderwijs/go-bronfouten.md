@@ -1,53 +1,75 @@
 # Meldingen voor het GO!: fouten en vragen in de bron
 
-Opgemaakt op 9 november 2026 bij de eerste import van het nieuwe GO! leerplan basisonderwijs en de eerste reeks lesplannen in Boosterz. Deze lijst is voor de eigenaar, om aan het GO! te bezorgen.
+Opgemaakt op 9 november 2026 bij de eerste import van het nieuwe GO! leerplan basisonderwijs en de eerste reeks lesplannen in Boosterz. Aangevuld op 10 november 2026.
 
-**Wat er nagekeken is.** De 12 doelensets ‘Doelenset BaO … .xlsx’ (bestandsdatum 3 september 2026) en de 8 lesplannen wetenschap en techniek voor 2,5-4 jaar (LP0001, LP0014a, LP0014b, LP0017, LP0065, LP0074, LP0087, LP0094). Een script heeft elke rij gelezen en elke verwijzing naar een minimumdoel opgezocht in de officiële minimumdoelen van de Vlaamse overheid (de Onderwijsdoelen-API).
+**Over Boosterz.** Boosterz is een gratis leerplatform dat volledig in de browser werkt. Met toestemming van het GO! staan het nieuwe GO! leerplan basisonderwijs en de eerste lesplannen er letterlijk in, met bronvermelding. Bij elk leerplandoel toont het de minimumdoelen waarnaar het leerplan verwijst.
 
-**Hoe je de lijst leest.**
+**Waarom deze lijst.** Bij het inlezen heeft een script elke rij van de 12 doelensets ‘Doelenset BaO … .xlsx’ (bestandsdatum 3 september 2026) en de 8 lesplannen wetenschap en techniek voor 2,5-4 jaar (LP0001, LP0014a, LP0014b, LP0017, LP0065, LP0074, LP0087, LP0094) gelezen. Elke verwijzing naar een minimumdoel is opgezocht in de officiële minimumdoelen van de Vlaamse overheid (de Onderwijsdoelen-API). Daarbij vielen de fouten en vragen hieronder op. We geven ze door, zodat het GO! ze in een volgende versie kan rechtzetten.
+
+**Hoe de lijst opgebouwd is.** Eerst de vragen waarop we graag een antwoord krijgen. Daarna volgen een kort overzicht met een tabel per vak, de punten die over alle doelensets gaan, alle meldingen per vak en de lesplannen. Alles na de vragen is ter info: fouten die bij een volgende versie rechtgezet kunnen worden.
+
+**Hoe antwoorden.** Een kort antwoord per vraag volstaat, met het nummer van de vraag (bv. ‘vraag 8: ja, 2.4.3 is bedoeld’). Elke melding verderop is terug te vinden met het vak en de rij. Het antwoord gaat naar de afzender van deze lijst. Een verbeterde doelenset of een verbeterd lesplan mag ook gewoon als nieuw bestand komen: Boosterz leest het bij de volgende import opnieuw in.
+
+**Leeswijzer.**
 - *Rij* is het rijnummer in het Excel-blad van die doelenset (rij 1 is de koprij).
 - *Code* is de code van het leerplandoel in de kolom ‘GO! NR.’, bv. WT.086.
 - *KO, L4, L6* zijn de kolommen ‘KO nummer’, ‘L4 nummer’ en ‘L6 nummer’: het minimumdoel voor het einde van het kleuteronderwijs, het 4de en het 6de leerjaar.
+- *Minimumdoel 92562* (tussen haakjes na een code) is het vaste nummer van dat minimumdoel in de Onderwijsdoelen-API.
+- *Onder AA.063* betekent: de rij staat in de Excel na de doelzin van dat leerplandoel en vóór de volgende doelzin (meestal bij zijn MIA, begrippen of voorbeelden).
 - *Officiële tekst* is de tekst van het minimumdoel zoals de overheid hem publiceert.
 
 **Wat Boosterz ermee doet.** Boosterz neemt de tekst van het GO! letterlijk over en verbetert niets, ook geen tikfouten. Een verwijzing die niet bestaat, staat er zonder link. Eén keer tonen we een voorstel, duidelijk gemarkeerd als ‘voorstel, nog niet bevestigd door het GO!’ (MV.040). De tekst van een minimumdoel komt in Boosterz altijd van de overheid, nooit uit de Excel: een afwijkende tekst in de Excel komt dus nergens op het scherm.
 
+## Vragen aan het GO!
+
+1. **Moment en leeftijd.** 326 verwijzingen bij 286 leerplandoelen gaan naar een minimumdoel voor een moment dat niet past bij de leeftijden van het doel (bv. WT.235, 2,5-4 tot 9-10 jaar, naar L6 3.3.2). Zijn die verwijzingen bedoeld, of is het moment of de leeftijd fout? Zie ‘Moment past niet bij de leeftijden’ en de lijst per vak.
+2. **Doorgehaalde tekst.** In 16 rijen van burgerschap, Nederlands en wiskunde staat doorgehaalde tekst in de cellen. Mag die tekst weg? Zie ‘Doorgehaalde tekst en superschrift’.
+3. **AA.070** heeft de leeftijden 5-6, 10-11 en 11-12 jaar, met niets ertussen, en verwijst alleen naar minimumdoelen voor het kleuteronderwijs. Kloppen die leeftijden? Zie Aardrijkskunde.
+4. **FR.090** is voor 11-12 jaar, maar 11 van zijn begrippen ook voor 10-11 jaar. Welke leeftijd is bedoeld? Zie Frans.
+5. **Frans rij 752 en 755** hebben TYPE ‘minimumdoel’, maar zijn verder leeg. Ontbreekt daar een minimumdoel? Zie Frans.
+6. **LL.023** heeft de leeftijden 6-7 en 8-9 tot 11-12 jaar, zonder 7-8. Ontbreekt 7-8? Zie Leren leren.
+7. **MV.040** verwijst naar KO ‘6.12’, een nummer dat niet bestaat. Is 6.1.2 bedoeld? Zie Muzische vorming.
+8. **WI.706** verwijst naar KO 4.2.3, een minimumdoel van aardrijkskunde. Is KO 2.4.3 bedoeld? Zie Wiskunde.
+9. **WI.408, WI.411 en WI.963:** alleen een MIA heeft een code, de doelzin niet. Is dat bedoeld, of mist de doelzin zijn code? Zie Wiskunde.
+10. **WT.288** verwijst in de kolom VLAGGEN naar zichzelf. Welk doel is bedoeld? Zie Wetenschap en techniek.
+11. **WT.008** heeft in lesplan LP0065 een andere tekst dan in de doelenset. Welke versie leidt? Zie Lesplannen.
+
 ## In het kort
 
-- **Verwijzingen naar een minimumdoel:** 4972 van de 4973 verwijzingen op de doelzinnen vinden precies één minimumdoel. Eén verwijzing is geen geldig nummer (MV.040, ‘6.12’). Eén verwijzing wijst naar een minimumdoel van een ander vak (WI.706 naar aardrijkskunde).
+- **Verwijzingen naar een minimumdoel:** 4972 van de 4973 verwijzingen op de doelzinnen vinden precies één minimumdoel. Eén verwijzing is geen geldig nummer (MV.040, ‘6.12’). Eén verwijzing wijst naar een minimumdoel van een ander vak (WI.706 naar aardrijkskunde; waarschijnlijk is 2.4.3 bedoeld).
 - **Moment en leeftijd:** 326 verwijzingen bij 286 leerplandoelen gaan naar een minimumdoel voor een moment dat niet past bij de leeftijden van het doel. Misschien is dat bedoeld (het doel bereidt een later minimumdoel voor); dat is een vraag, geen vaststelling.
 - **Vlaggen en schakels:** 18 waarden in de kolommen VLAGGEN en SCHAKELS (bij 13 doelen) zijn geen bestaande code.
-- **Tekst van de minimumdoelen in de Excel:** van de 1133 minimumdoel-rijen met een bruikbare code is de tekst bij 1060 gelijk aan de officiële tekst. Bij 49 verschillen alleen witruimte, opsommingstekens, leestekens of een hoofdletter. Bij 24 staan er echt andere woorden. Daarnaast hebben 6 minimumdoel-rijen geen bruikbare code.
-- **Andere vormfouten:** verschoven rijen (geschiedenis), een kop in een codekolom (Nederlands), een rij met het verkeerde TYPE (wiskunde), 17 begrippen zonder leeftijd, een rubriek met een leeftijd (Frans), een lege kolomkop (wiskunde) en doorgehaalde tekst die nog in de cellen staat.
+- **Tekst van de minimumdoelen in de Excel:** van de 1133 minimumdoel-rijen met een bruikbare code is de tekst bij 1060 gelijk aan de officiële tekst. Bij 49 verschillen alleen witruimte, opsommingstekens, leestekens of een hoofdletter. Bij 24 staan er echt andere woorden. Daarnaast hebben 6 minimumdoel-rijen geen bruikbare code, en zijn 2 minimumdoel-rijen leeg (Frans).
+- **Andere vormfouten:** verschoven rijen (geschiedenis), een kop in een codekolom (Nederlands), een rij met het verkeerde TYPE (wiskunde), twee lege rijen met TYPE minimumdoel (Frans), 17 begrippen zonder leeftijd, 11 begrippen met een leeftijd buiten die van hun doel (Frans), twee doelen met een gat in de leeftijden (aardrijkskunde, leren leren), een doel dat naar zichzelf verwijst (wetenschap en techniek), een rubriek met een leeftijd (Frans), een lege kolomkop (wiskunde) en doorgehaalde tekst die nog in de cellen staat.
 - **Lesplannen:** WT.008 heeft in LP0065 een andere tekst dan in de doelenset, en er staan een paar tikfouten in.
 
 | Vak | Verwijzing naar een minimumdoel | Moment past niet bij de leeftijd | Vlaggen en schakels | Tekst minimumdoel: andere woorden | Tekst minimumdoel: alleen tekens | Andere |
 |---|---|---|---|---|---|---|
-| Aardrijkskunde (AA) | – | 14 | – | 3 | 4 | 4 |
+| Aardrijkskunde (AA) | – | 14 | – | 3 | 4 | 5 |
 | Burgerschap (BU) | – | 24 | – | – | 1 | 3 |
-| Frans (FR) | – | – | – | 1 | – | 5 |
+| Frans (FR) | – | – | – | 1 | – | 8 |
 | Geschiedenis (GE) | – | 17 | 1 | 1 | 3 | 8 |
 | ICT (IT) | – | 7 | – | – | 8 | – |
-| Leren leren (LL) | – | 18 | – | – | – | – |
+| Leren leren (LL) | – | 18 | – | – | – | 1 |
 | Lichamelijke opvoeding (LO) | – | 24 | – | – | – | 2 |
 | Muzische vorming (MV) | 1 | 6 | – | – | 6 | 1 |
 | Nederlands (NL) | – | 39 | 4 | 3 | 4 | 8 |
 | Sociale vaardigheden (SV) | – | 7 | – | – | – | – |
-| Wiskunde (WI) | 1 | 105 | 13 | 13 | 21 | 28 |
-| Wetenschap en techniek (WT) | – | 65 | – | 3 | 2 | 7 |
+| Wiskunde (WI) | 1 | 105 | 13 | 13 | 21 | 29 |
+| Wetenschap en techniek (WT) | – | 65 | – | 3 | 2 | 8 |
 
-‘Andere’ telt per vak: rijen zonder bruikbare code of met het verkeerde TYPE, dezelfde code met twee teksten, begrippen zonder leeftijd, een rubriek met een leeftijd, een lege kolomkop, doorgehaalde tekst, een codekolom met alleen een spatie en doelen die alleen via een MIA gekoppeld zijn.
+‘Andere’ telt per vak: rijen zonder bruikbare code, met het verkeerde TYPE of met TYPE minimumdoel zonder inhoud; codes die met twee teksten voorkomen; begrippen zonder leeftijd; doelen met een gat in de leeftijden; doelen met begrippen die een leeftijd buiten die van het doel hebben; een doel dat naar zichzelf verwijst; een rubriek met een leeftijd; een lege kolomkop; rijen met doorgehaalde tekst; een codekolom met alleen een spatie; en doelen die alleen via een MIA gekoppeld zijn.
 
 ## Over alle doelensets
 
-### Moment past niet bij de leeftijden (vraag)
+### Moment past niet bij de leeftijden (vraag 1)
 
 Een leerplandoel heeft leeftijden (de kolommen 2,5-4 tot 11-12). Het verwijst naar minimumdoelen voor het einde van het kleuteronderwijs (KO), het 4de leerjaar (L4) of het 6de leerjaar (L6). Wij noemen een verwijzing ‘opvallend’ als:
 - KO: het doel geen leeftijd heeft van 2,5-4, 4-5 of 5-6 jaar;
 - L4: het doel geen leeftijd heeft van 6-7 tot 9-10 jaar;
 - L6: het doel geen leeftijd heeft van 10-11 of 11-12 jaar.
 
-Voorbeeld: WT.235 (2,5-4 tot 9-10 jaar) verwijst naar L6 3.3.2. De volledige lijst staat per vak hieronder. **Vraag aan het GO!:** zijn deze verwijzingen bedoeld (een doel dat een later minimumdoel voorbereidt), of is het moment of de leeftijd fout? Boosterz toont de verwijzing zoals ze in de doelenset staat, met de vermelding dat het moment niet bij de leeftijd past.
+Voorbeeld: WT.235 (2,5-4 tot 9-10 jaar) verwijst naar L6 3.3.2. De volledige lijst staat per vak hieronder. **Vraag 1 aan het GO!:** zijn deze verwijzingen bedoeld (een doel dat een later minimumdoel voorbereidt), of is het moment of de leeftijd fout? Boosterz toont de verwijzing zoals ze in de doelenset staat, met de vermelding dat het moment niet bij de leeftijd past.
 
 | Vak | Verwijzingen | Doelen | KO | L4 | L6 |
 |---|---|---|---|---|---|
@@ -79,7 +101,7 @@ Een deel van de verschillen lijkt een oudere versie van de officiële tekst (de 
 
 ### Doorgehaalde tekst en superschrift
 
-In burgerschap, Nederlands en wiskunde staat doorgehaalde tekst in de cellen, in geschiedenis en wiskunde superschrift. Superschrift is geen fout (bv. cm³, 19e eeuw). Doorgehaalde tekst is wel verwarrend: wie de Excel als gewone tekst leest, krijgt die tekst mee. **Vraag aan het GO!:** mag de doorgehaalde tekst weg? Boosterz bewaart hem nu letterlijk, als doorgehaald. De rijen staan per vak hieronder.
+In burgerschap, Nederlands en wiskunde staat doorgehaalde tekst in de cellen, in geschiedenis en wiskunde superschrift. Superschrift is geen fout (bv. cm³, 19e eeuw). Doorgehaalde tekst is wel verwarrend: wie de Excel als gewone tekst leest, krijgt die tekst mee. **Vraag 2 aan het GO!:** mag de doorgehaalde tekst weg? Boosterz bewaart hem nu letterlijk, als doorgehaald. De rijen staan per vak hieronder.
 
 ## Per vak
 
@@ -109,7 +131,11 @@ In burgerschap, Nederlands en wiskunde staat doorgehaalde tekst in de cellen, in
 Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leeftijd. Deze niet:
 - AA.070, rij 463: “het land”.
 
-**Moment past niet bij de leeftijden (vraag)**
+**Leeftijden met een gat (vraag 3)**
+
+- AA.070 (rij 461) “Benoemen water en land op de globe.” heeft de leeftijden 5-6, 10-11 en 11-12 jaar, met niets van 6-7 tot 9-10, en verwijst alleen naar KO 4.1.2 en 4.2.1. Het begrip “het water” (rij 462) heeft 10-11 en 11-12 jaar, niet 5-6; “het land” (rij 463) heeft geen leeftijd. Kloppen deze leeftijden? Boosterz toont het doel zoals het in de doelenset staat, dus ook bij 10-11 en 11-12 jaar.
+
+**Moment past niet bij de leeftijden (vraag 1)**
 
 14 verwijzingen bij 14 doelen (zie ‘Moment past niet bij de leeftijden’ hierboven):
 - AA.003 (rij 22), 6-7 tot 7-8 jaar: KO 4.1.4
@@ -139,7 +165,7 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 - Rij 896 (MIA - aanklikbaar, onder BU.102): een doorgehaalde spatie.
 - Rij 1086 (voorbeelden - bullet, onder BU.130): een doorgehaalde spatie.
 
-**Moment past niet bij de leeftijden (vraag)**
+**Moment past niet bij de leeftijden (vraag 1)**
 
 24 verwijzingen bij 24 doelen (zie ‘Moment past niet bij de leeftijden’ hierboven):
 - BU.001 (rij 17), 2,5-4 jaar: L4 5.3.1
@@ -172,6 +198,7 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 **Vorm van de doelenset**
 
 - Rij 450 (rubriek ‘Zinnen en zinsdelen’) heeft een 1 bij een leeftijd (10-11 en 11-12 jaar). Een rubriek heeft geen leeftijd; Boosterz neemt die waarde niet over.
+- Rij 752 en 755 hebben TYPE ‘minimumdoel’, maar verder staat er niets in (alleen nullen in de leeftijdskolommen). Rij 752 staat onder het onderwerp ‘Talige diversiteit’, rij 755 onder FR.111. Ontbreekt daar een minimumdoel? (vraag 5)
 
 **Tekst van een minimumdoel: andere woorden dan de officiële tekst**
 
@@ -188,17 +215,21 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 - FR.074, rij 534: “la”.
 - FR.074, rij 535: “les”.
 
+**Begrippen met een leeftijd buiten die van hun doel (vraag 4)**
+
+- FR.090 (rij 639) “Herkennen voorzetsels.” is voor 11-12 jaar. Van zijn 22 begrippen hebben de 11 in rij 651-661 (“loin de”, “entre”, “contre”, “avant”, “pendant”, “après”, “jusqu'à”, “pour”, “de”, “chez”, “sans”) 10-11 en 11-12 jaar. In alle 12 doelensets is dit de enige plaats waar een begrip een leeftijd heeft die zijn doel niet heeft. Hoort 10-11 jaar ook bij het doel, of niet bij deze begrippen?
+
 ### Geschiedenis (GE)
 
 **Vorm van de doelenset**
 
-- Rij 1551 (TYPE minimumdoel) staat één kolom te ver naar rechts: de code en de tekst staan in ‘L4 minimumdoel’, de opsomming in ‘L6 nummer’.
-- Rij 1552 (TYPE minimumdoel) staat één kolom te ver naar rechts: de code en de tekst staan in ‘L4 minimumdoel’, de opsomming in ‘L6 nummer’.
+- Rij 1551 (TYPE minimumdoel) staat één kolom te ver naar rechts: de code (5.3.3) staat in ‘L4 minimumdoel’, de tekst in ‘L4 omschrijving’ en de opsomming in ‘L6 nummer’.
+- Rij 1552 (TYPE minimumdoel) staat één kolom te ver naar rechts: de code (5.3.4) staat in ‘L4 minimumdoel’, de tekst in ‘L4 omschrijving’ en de opsomming in ‘L6 nummer’.
 
 **Vlaggen en schakels**
 
 Deze waarden zijn geen bestaande code (verkeerd leesteken, een spatie, een ontbrekend voorvoegsel, of een nummer dat te hoog is). Boosterz toont ze letterlijk, zonder link.
-- GE.052 (rij 472), kolom SCHAKELS: “GE.316”. Niet in orde: “GE.316”.
+- GE.052 (rij 472), kolom SCHAKELS: “GE.316”. Niet in orde: “GE.316” (geschiedenis heeft 244 doelen, tot GE.244).
 
 **Tekst van een minimumdoel: andere woorden dan de officiële tekst**
 
@@ -220,7 +251,7 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 - GE.118, rij 899: “de audiovisuele bron”.
 - GE.118, rij 900: “de beeldende bron”.
 
-**Moment past niet bij de leeftijden (vraag)**
+**Moment past niet bij de leeftijden (vraag 1)**
 
 17 verwijzingen bij 17 doelen (zie ‘Moment past niet bij de leeftijden’ hierboven):
 - GE.028 (rij 311), 4-5 tot 5-6 jaar: L4 5.2.5
@@ -254,7 +285,7 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 - Rij 504, L6 8.3.3: alleen witruimte, opsommingstekens of leestekens anders.
 - Rij 505, L6 8.3.4: alleen witruimte, opsommingstekens of leestekens anders.
 
-**Moment past niet bij de leeftijden (vraag)**
+**Moment past niet bij de leeftijden (vraag 1)**
 
 7 verwijzingen bij 7 doelen (zie ‘Moment past niet bij de leeftijden’ hierboven):
 - IT.029 (rij 280), 7-8 tot 9-10 jaar: L6 8.2.4
@@ -267,7 +298,11 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 
 ### Leren leren (LL)
 
-**Moment past niet bij de leeftijden (vraag)**
+**Leeftijden met een gat (vraag 6)**
+
+- LL.023 (rij 214) “Gebruiken principes van leren en onthouden tijdens het leerproces.” heeft de leeftijden 6-7 en 8-9 tot 11-12 jaar, niet 7-8. Ontbreekt 7-8?
+
+**Moment past niet bij de leeftijden (vraag 1)**
 
 18 verwijzingen bij 13 doelen (zie ‘Moment past niet bij de leeftijden’ hierboven):
 - LL.002 (rij 34), 6-7 tot 7-8 jaar: L6 9.2.5
@@ -292,7 +327,7 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 - LO.169, rij 935: “(weg)trappen”.
 - LO.169, rij 936: “schoppen”.
 
-**Moment past niet bij de leeftijden (vraag)**
+**Moment past niet bij de leeftijden (vraag 1)**
 
 24 verwijzingen bij 23 doelen (zie ‘Moment past niet bij de leeftijden’ hierboven):
 - LO.076 (rij 431), 2,5-4 tot 5-6 jaar: L4 7.1.10
@@ -321,9 +356,9 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 
 ### Muzische vorming (MV)
 
-**Verwijzingen naar een minimumdoel**
+**Verwijzingen naar een minimumdoel (vraag 7)**
 
-- MV.040 (rij 638), kolom KO nummer: “6.1.1, 6.12”. ‘6.12’ is geen geldig nummer. Waarschijnlijk is 6.1.2 bedoeld (minimumdoel 92439); Boosterz toont dat als voorstel, gemarkeerd ‘voorstel, nog niet bevestigd door het GO!’.
+- MV.040 (rij 638), kolom KO nummer: “6.1.1, 6.12”. ‘6.12’ is geen geldig nummer. Waarschijnlijk is 6.1.2 bedoeld (minimumdoel 92439); Boosterz toont dat als voorstel, gemarkeerd ‘voorstel, nog niet bevestigd door het GO!’. Is 6.1.2 bedoeld?
 
 **Tekst van een minimumdoel: kleine verschillen**
 
@@ -341,7 +376,7 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 - L4 6.1.4: rij 122 en rij 849 verschillen alleen in witruimte, leestekens of een hoofdletter.
 - L4 6.1.4: rij 122 en rij 1085 verschillen alleen in witruimte, leestekens of een hoofdletter.
 
-**Moment past niet bij de leeftijden (vraag)**
+**Moment past niet bij de leeftijden (vraag 1)**
 
 6 verwijzingen bij 3 doelen (zie ‘Moment past niet bij de leeftijden’ hierboven):
 - MV.001 (rij 8), 2,5-4 tot 5-6 jaar: L4 6.1.1
@@ -359,10 +394,10 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 **Vlaggen en schakels**
 
 Deze waarden zijn geen bestaande code (verkeerd leesteken, een spatie, een ontbrekend voorvoegsel, of een nummer dat te hoog is). Boosterz toont ze letterlijk, zonder link.
-- NL.096 (rij 512), kolom VLAGGEN: “NL.3441 BU.146”. Niet in orde: “NL.3441 BU.146”.
-- NL.516 (rij 2669), kolom SCHAKELS: “NL.0610, NL.618”. Niet in orde: “NL.0610”.
-- NL.529 (rij 2742), kolom VLAGGEN: “NL.187, NL.190, NL.624”. Niet in orde: “NL.624”.
-- NL.539 (rij 2780), kolom VLAGGEN: “NL.197, NL.198, NL.199, NL. 200, NL.201, NL.202, NL.203, NL.204, NL.205”. Niet in orde: “NL. 200”.
+- NL.096 (rij 512), kolom VLAGGEN: “NL.3441 BU.146”. Niet in orde: “NL.3441 BU.146” (twee codes zonder komma ertussen, en NL.3441 bestaat niet).
+- NL.516 (rij 2669), kolom SCHAKELS: “NL.0610, NL.618”. Niet in orde: “NL.0610” (vier cijfers na de punt).
+- NL.529 (rij 2742), kolom VLAGGEN: “NL.187, NL.190, NL.624”. Niet in orde: “NL.624” (Nederlands heeft 622 doelen, tot NL.622).
+- NL.539 (rij 2780), kolom VLAGGEN: “NL.197, NL.198, NL.199, NL. 200, NL.201, NL.202, NL.203, NL.204, NL.205”. Niet in orde: “NL. 200” (een spatie in de code).
 
 **Tekst van een minimumdoel: andere woorden dan de officiële tekst**
 
@@ -392,7 +427,7 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 
 - Rij 2326, L6 1.4.2 (minimumdoel-rij): doorgehaald “ent”.
 
-**Moment past niet bij de leeftijden (vraag)**
+**Moment past niet bij de leeftijden (vraag 1)**
 
 39 verwijzingen bij 38 doelen (zie ‘Moment past niet bij de leeftijden’ hierboven):
 - NL.055 (rij 310), 7-8 tot 8-9 jaar: L6 1.1.2
@@ -436,7 +471,7 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 
 ### Sociale vaardigheden (SV)
 
-**Moment past niet bij de leeftijden (vraag)**
+**Moment past niet bij de leeftijden (vraag 1)**
 
 7 verwijzingen bij 7 doelen (zie ‘Moment past niet bij de leeftijden’ hierboven):
 - SV.014 (rij 99), 2,5-4 jaar: L4 9.1.14
@@ -449,9 +484,9 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 
 ### Wiskunde (WI)
 
-**Verwijzingen naar een minimumdoel**
+**Verwijzingen naar een minimumdoel (vraag 8)**
 
-- WI.706 (rij 4402) verwijst naar KO 4.2.3: dat is een minimumdoel van aardrijkskunde (minimumdoel 92500), niet van wiskunde. Is dit bedoeld?
+- WI.706 (rij 4402) verwijst naar KO 4.2.3, een minimumdoel van aardrijkskunde (minimumdoel 92500, begrippen over infrastructuur), niet van wiskunde. Waarschijnlijk is KO 2.4.3 bedoeld (minimumdoel 93005, meetkundige objecten opdelen en samenstellen): het zusterdoel WI.791 (rij 4887) heeft dezelfde MIA “(de)monteren:” / “opdelen en samenstellen” en verwijst naar 2.4.3, en de minimumdoel-rijen bovenaan het onderwerp ‘Meetkunde’ (rij 4365-4368) noemen voor KO 2.4.1, 2.4.2, 2.4.3 en 2.4.18, niet 4.2.3. Is 2.4.3 bedoeld? Boosterz toont de verwijzing naar 4.2.3 zoals ze in de doelenset staat, met de vermelding dat het een minimumdoel van een ander vak is.
 
 **Vorm van de doelenset**
 
@@ -463,16 +498,16 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 **Vlaggen en schakels**
 
 Deze waarden zijn geen bestaande code (verkeerd leesteken, een spatie, een ontbrekend voorvoegsel, of een nummer dat te hoog is). Boosterz toont ze letterlijk, zonder link.
-- WI.262 (rij 1446), kolom VLAGGEN: “WI.993, 994, 995, 996”. Niet in orde: “994”; “995”; “996”.
-- WI.263 (rij 1451), kolom VLAGGEN: “WI.993, 994, 995, 996”. Niet in orde: “994”; “995”; “996”.
-- WI.668 (rij 4089), kolom VLAGGEN: “GE.148, GE. 149”. Niet in orde: “GE. 149”.
-- WI.703 (rij 4390), kolom VLAGGEN: “MV.026, LL/095, LL.096”. Niet in orde: “LL/095”.
-- WI.711 (rij 4436), kolom VLAGGEN: “L.099”. Niet in orde: “L.099”.
-- WI.846 (rij 5215), kolom VLAGGEN: “LL.095, LL.097, AA.041, AA?042, AA.210”. Niet in orde: “AA?042”.
-- WI.852 (rij 5272), kolom VLAGGEN: “L.099”. Niet in orde: “L.099”.
-- WI.987 (rij 6163), kolom VLAGGEN: “LL.051, LL.091, WI,997, WI.998”. Niet in orde: “WI”; “997”.
+- WI.262 (rij 1446), kolom VLAGGEN: “WI.993, 994, 995, 996”. Niet in orde: “994”; “995”; “996” (het voorvoegsel ‘WI.’ ontbreekt).
+- WI.263 (rij 1451), kolom VLAGGEN: “WI.993, 994, 995, 996”. Niet in orde: “994”; “995”; “996” (het voorvoegsel ‘WI.’ ontbreekt).
+- WI.668 (rij 4089), kolom VLAGGEN: “GE.148, GE. 149”. Niet in orde: “GE. 149” (een spatie in de code).
+- WI.703 (rij 4390), kolom VLAGGEN: “MV.026, LL/095, LL.096”. Niet in orde: “LL/095” (een schuine streep in plaats van een punt).
+- WI.711 (rij 4436), kolom VLAGGEN: “L.099”. Niet in orde: “L.099” (het voorvoegsel heeft maar één letter).
+- WI.846 (rij 5215), kolom VLAGGEN: “LL.095, LL.097, AA.041, AA?042, AA.210”. Niet in orde: “AA?042” (een vraagteken in plaats van een punt).
+- WI.852 (rij 5272), kolom VLAGGEN: “L.099”. Niet in orde: “L.099” (het voorvoegsel heeft maar één letter).
+- WI.987 (rij 6163), kolom VLAGGEN: “LL.051, LL.091, WI,997, WI.998”. Niet in orde: “WI”; “997” (een komma in plaats van een punt in ‘WI,997’).
 
-**Koppeling alleen via een MIA (vraag)**
+**Koppeling alleen via een MIA (vraag 9)**
 
 - WI.408 (rij 2566): de doelzin zelf heeft geen code, maar de MIA in rij 2567 wel. Is het doel zo bedoeld (alleen dat onderdeel gekoppeld), of mist de doelzin zijn code? Boosterz zegt: ‘het leerplan koppelt een onderdeel van dit doel aan …’.
 - WI.411 (rij 2592): de doelzin zelf heeft geen code, maar de MIA in rij 2593 wel. Is het doel zo bedoeld (alleen dat onderdeel gekoppeld), of mist de doelzin zijn code? Boosterz zegt: ‘het leerplan koppelt een onderdeel van dit doel aan …’.
@@ -538,16 +573,17 @@ Deze waarden zijn geen bestaande code (verkeerd leesteken, een spatie, een ontbr
 - Rij 2362, L4 2.2.24 (minimumdoel-rij): doorgehaald “of breuken die te vereenvoudigen zijn tot deze breuken”.
 - Rij 2860, KO 2.3.8 (minimumdoel-rij): doorgehaald “(‘gewicht’)”.
 - Rij 2861, KO 2.3.9 (minimumdoel-rij): doorgehaald “(‘gewicht’)”.
+- Rij 5682, L6 2.5.12 (minimumdoel-rij): een doorgehaalde spatie.
 - Rij 586 (MIA - niet aanklikbaar, onder WI.114): een doorgehaalde spatie.
 - Rij 792 (voorbeelden - bullet, onder WI.151): een doorgehaalde spatie.
-- Rij 1006 (doelzin, onder WI.184): een doorgehaalde spatie.
+- Rij 1006 (doelzin van WI.184): een doorgehaalde spatie.
 - Rij 1790 (MIA - aanklikbaar, onder WI.308): een doorgehaalde spatie.
-- Rij 2413 (doelzin, onder WI.386): een doorgehaalde spatie.
-- Rij 3045 (doelzin, onder WI.476): een doorgehaalde spatie.
-- Rij 3662 (doelzin, onder WI.604): doorgehaald “.”.
+- Rij 2413 (doelzin van WI.386): een doorgehaalde spatie.
+- Rij 3045 (doelzin van WI.476): een doorgehaalde spatie.
+- Rij 3662 (doelzin van WI.604): doorgehaald “.”.
 - Rij 5689 (voorbeelden - bullet, onder WI.912): een doorgehaalde spatie.
 
-**Moment past niet bij de leeftijden (vraag)**
+**Moment past niet bij de leeftijden (vraag 1)**
 
 105 verwijzingen bij 93 doelen (zie ‘Moment past niet bij de leeftijden’ hierboven):
 - WI.030 (rij 153), 6-7 jaar: KO 2.1.8
@@ -646,6 +682,10 @@ Deze waarden zijn geen bestaande code (verkeerd leesteken, een spatie, een ontbr
 
 ### Wetenschap en techniek (WT)
 
+**Vorm van de doelenset (vraag 10)**
+
+- WT.288 (rij 2439), kolom VLAGGEN: “WT.288, WT.298, WT.308, WI.549”. WT.288 verwijst naar zichzelf; het is het enige doel in de 12 doelensets dat dat doet. Welk doel is bedoeld?
+
 **Tekst van een minimumdoel: andere woorden dan de officiële tekst**
 
 - Rij 1269, L6 3.1.5 (minimumdoel 92790), onder WT.143: Excel “organismen zich voortplanten.”, officieel “organismen zichzelf voortplanten.”.
@@ -671,7 +711,7 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 - WT.456, rij 3400: “onderhouden”.
 - WT.496, rij 3591: “de hefboom”.
 
-**Moment past niet bij de leeftijden (vraag)**
+**Moment past niet bij de leeftijden (vraag 1)**
 
 65 verwijzingen bij 47 doelen (zie ‘Moment past niet bij de leeftijden’ hierboven):
 - WT.011 (rij 166), 6-7 tot 7-8 jaar: L6 3.1.3
@@ -726,7 +766,7 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 
 Code, kennisverwerking en leeftijden van de 20 doelregels in deel 2 zijn gelijk aan de doelenset. De vlaggen en schakels in deel 3 komen in alle 8 lesplannen precies overeen met de doelenset. Wat wel opvalt:
 
-- **LP0065, deel 2, WT.008:** het lesplan schrijft ‘Herkennen de belangrijkste voedingswijze van dieren.’, de doelenset ‘Herkennen verschillende voedingswijzen van dieren.’ (wetenschap en techniek, rij 142). **Vraag aan het GO!:** welke versie leidt? Boosterz toont in het lesplan de tekst van het lesplan en op de pagina van het leerplandoel de tekst van de doelenset, met de vermelding van het verschil.
+- **LP0065, deel 2, WT.008:** het lesplan schrijft ‘Herkennen de belangrijkste voedingswijze van dieren.’, de doelenset ‘Herkennen verschillende voedingswijzen van dieren.’ (wetenschap en techniek, rij 142). **Vraag 11 aan het GO!:** welke versie leidt? Boosterz toont in het lesplan de tekst van het lesplan en op de pagina van het leerplandoel de tekst van de doelenset, met de vermelding van het verschil.
 - **LP0001, deel 4 (Lesopbouw), Leskern, stap 2 Voorkeursinstructie, kolom Didactiek (Hoe?):** ‘Kjk nu eens naar …’ (bedoeld: ‘Kijk’).
 - **LP0001, deel 4 (Lesopbouw), Vastlegging, kolom Didactiek (Hoe?):** ‘Wanneer een klind de kans krijgt …’ (bedoeld: ‘kind’).
 - **LP0094, deel 2, MIA bij WT.101:** ‘Een plant begint als zaad dat gaat ontkiemt, …’ (bedoeld: ‘ontkiemen’ of ‘dat ontkiemt’). Zo staat het ook in de doelenset wetenschap en techniek, rij 899.

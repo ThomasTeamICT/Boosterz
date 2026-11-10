@@ -8,7 +8,8 @@
 // een leerplandoelpagina staat er alleen als het leerplan van dat vak bestaat. Ook bij het buitengewoon basisonderwijs
 // (zelfde nummer, dus dezelfde doelen) en bij een voorstel (gemarkeerd 'voorstel, nog niet bevestigd door het GO!').
 
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { AFDRUK_ATTRIBUUT } from '../../../lib/basis/afdruk';
 import { basisPad } from '../../../lib/basis/basisRoutes';
 import type { DoelBasis } from '../../../lib/basis/doelBasis';
 import { groepeerBijDoelen, leerplandoelenBijMinimumdoel, vakVanDoelcode, type BijDoelGroep, type GoIndexLesplan } from '../../../lib/basis/go/goModel';
@@ -17,6 +18,7 @@ import { leeftijdenLabel, leeftijdLabel } from '../../../lib/basis/go/leeftijden
 import {
   GO_NAAMSVERMELDING,
   GO_VAKKEN,
+  KENNISVERWERKING_ZIN,
   GO_VOORSTEL_LABEL,
   type GoBijDoel,
   type GoIndex,
@@ -25,12 +27,12 @@ import {
 import { INVOERINGSKALENDER } from '../../../lib/basis/kalender';
 import { FoutBericht } from '../../curriculum/LaadStatus';
 import { useGoBijMinimumdoel, useGoIndex } from '../useGo';
-import { momentKort, twijfelZin } from './KoppelingLijst';
+import { twijfelZin } from './KoppelingLijst';
 import { GoTekstWeergave } from './MiaBlok';
 import '../../../styles/basis-go.css';
 
 export const GO_BIJ_DOEL_KOP = 'Leerplan van het GO!';
-/** Zo veel doelen van een vakdiscipline staan direct zichtbaar; de rest zit in 'Toon alle'. */
+/** Zo veel doelen van een vakdiscipline staan direct zichtbaar; de rest zit in 'Toon de andere leerplandoelen'. */
 export const EERST_GETOOND = 6;
 
 type MinimumDoel = Pick<DoelBasis, 'setId' | 'id' | 'code' | 'vak'>;
@@ -39,22 +41,22 @@ const doelenWoord = (n: number) => `${n} ${n === 1 ? 'leerplandoel' : 'leerpland
 /** 'MIA “Aftrekken:”' of 'voorbeeld “…”': het onderdeel van een leerplandoel dat naar dit minimumdoel verwijst. */
 const onderdeelNaam = (v: { soort: string; tekst: string }) => `${v.soort === 'mia-titel' || v.soort === 'mia' ? 'MIA' : 'voorbeeld'} “${v.tekst.trim()}”`;
 
-function Lesplannen({ codes, index }: { codes: readonly string[]; index?: GoIndex }) {
+function Lesplannen({ codes, index, kop }: { codes: readonly string[]; index?: GoIndex; kop?: string }) {
   if (codes.length === 0) return null;
   const perCode = new Map<string, GoIndexLesplan>((index?.lesplannen ?? []).map((l) => [l.code, l]));
   return (
     <p className="b-go-koppeling">
-      <span className="b-go-koppeling-kop">{codes.length === 1 ? 'Lesplan: ' : `Lesplannen (${codes.length}): `}</span>
+      <span className="b-go-koppeling-kop">{kop ?? (codes.length === 1 ? 'Lesplan: ' : `Lesplannen (${codes.length}): `)}</span>
       {codes.map((c, n) => {
         const l = perCode.get(c);
         return (
           <span key={c}>
-            {n > 0 && ', '}
             <Link to={basisPad({ s: 'lesplan', code: c })} className="b-go-lesplanlink">
               {l ? `${c} ${l.titel}` : c}
               <span className="sr-only"> (lesplan)</span>
             </Link>
             {l && <span className="b-go-leeftijden"> ({leeftijdLabel(l.leeftijd)})</span>}
+            {n < codes.length - 1 && ','}
           </span>
         );
       })}
@@ -89,9 +91,7 @@ function Doel({ d, minimum, index }: { d: GoBijDoel; minimum: MinimumDoel; index
       <p className="b-go-tekst b-go-doeltekst">
         <GoTekstWeergave tekst={d} />
       </p>
-      <p className="b-go-leeftijden">
-        ({leeftijdenLabel(d.leeftijden)}) · gekoppeld aan {momentKort(d.moment).toLowerCase()}
-      </p>
+      <p className="b-go-leeftijden">({leeftijdenLabel(d.leeftijden)})</p>
       {d.status === 'voorstel' && (
         <p className="b-go-voorstel">
           In het leerplan staat “{d.bronCode}”. Waarschijnlijk is {minimum.code} bedoeld.
@@ -117,7 +117,17 @@ function Doel({ d, minimum, index }: { d: GoBijDoel; minimum: MinimumDoel; index
   );
 }
 
+/** De groepen waarvan 'Toon de andere' open stond, bewaard in de geschiedenis (alleen in dit item, nooit in de opslag). */
+interface MeerState {
+  goMeer?: string[];
+}
+
 function Groep({ groep, minimum, index }: { groep: BijDoelGroep; minimum: MinimumDoel; index?: GoIndex }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  // Na 'Terug' staat het blok weer open waar je het liet: de stand zit in het item van de geschiedenis (SB-SB-8).
+  const meer = (location.state as MeerState | null)?.goMeer ?? [];
+  const open = meer.includes(groep.vak);
   const eerst = groep.doelen.slice(0, EERST_GETOOND);
   const rest = groep.doelen.slice(EERST_GETOOND);
   const kopId = `b-go-bij-${groep.vak}`;
@@ -132,8 +142,22 @@ function Groep({ groep, minimum, index }: { groep: BijDoelGroep; minimum: Minimu
         ))}
       </ul>
       {rest.length > 0 && (
-        <details className="b-go-meer">
-          <summary>Toon alle {groep.doelen.length}</summary>
+        <details
+          className="b-go-meer"
+          open={open}
+          onToggle={(e) => {
+            // Een details die de afdruk opent (src/lib/basis/afdruk.ts) is geen keuze van de leerkracht.
+            if (e.currentTarget.hasAttribute(AFDRUK_ATTRIBUUT)) return;
+            const nu = e.currentTarget.open;
+            // React zet open bij de eerste render en de browser meldt dat zelf als toggle: dan is er niets te bewaren.
+            if (nu === open) return;
+            navigate(
+              { pathname: location.pathname, search: location.search },
+              { replace: true, state: { ...(location.state as object | null), goMeer: nu ? [...meer, groep.vak] : meer.filter((v) => v !== groep.vak) } },
+            );
+          }}
+        >
+          <summary>{rest.length === 1 ? 'Toon het andere leerplandoel' : `Toon de ${rest.length} andere leerplandoelen`}</summary>
           <ul className="b-go-doelen">
             {rest.map((d) => (
               <Doel key={d.code} d={d} minimum={minimum} index={index} />
@@ -153,13 +177,21 @@ export function GoBijDoelInhoud({ doelen, doel, index }: { doelen: readonly GoBi
   const groepen = groepeerBijDoelen(doelen);
   if (groepen.length === 0) return null;
   const aantal = groepen.reduce((som, g) => som + g.doelen.length, 0);
+  // Lesplannen bij dit minimumdoel staan altijd bovenaan, ook als hun doel achter 'Toon de andere' zit.
+  const lesplanCodes = (() => {
+    const bij = new Set(doelen.flatMap((d) => d.lesplannen));
+    const volgorde = (index?.lesplannen ?? []).map((l) => l.code).filter((c) => bij.has(c));
+    return [...volgorde, ...[...bij].filter((c) => !volgorde.includes(c)).sort()];
+  })();
   return (
     <section className="b-doeldeel b-go-bijdoel" aria-labelledby="b-go-bij-kop">
       <h2 id="b-go-bij-kop">{GO_BIJ_DOEL_KOP}</h2>
       <p className="b-noot">
         Het leerplan van het GO! koppelt deze leerplandoelen aan dit minimumdoel ({doelenWoord(aantal)} in {groepen.length}{' '}
-        {groepen.length === 1 ? 'vakdiscipline' : 'vakdisciplines'}). De tekst staat er letterlijk, zoals het GO! ze schrijft.
+        {groepen.length === 1 ? 'vak' : 'vakken'}). De tekst staat er letterlijk, zoals het GO! hem schrijft.{' '}
+        {KENNISVERWERKING_ZIN}
       </p>
+      <Lesplannen codes={lesplanCodes} index={index} kop={`Lesplannen bij dit minimumdoel (${lesplanCodes.length}): `} />
       {groepen.map((g) => (
         <Groep key={g.vak} groep={g} minimum={doel} index={index} />
       ))}

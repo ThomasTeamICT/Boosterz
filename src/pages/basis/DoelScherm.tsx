@@ -10,7 +10,7 @@
 // bij twee kandidaten worden beide geladen en telt de set die het doel bevat. De pagina zegt alleen 'dezelfde tekst'
 // als de tekst echt gelijk is.
 
-import { lazy, Suspense, useMemo, type ReactNode } from 'react';
+import { lazy, Suspense, useMemo, type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { MOMENT_KORT, DoelRij } from '../../components/basis/DoelRij';
 import { VolledigeDoeltekst } from '../../components/basis/DoelKaart';
@@ -111,9 +111,27 @@ function Leerlijn({ doel, vak }: DoelDeelProps): ReactNode {
   );
 }
 
-// Het leerplan van het GO! bij dit minimumdoel laadt lui: zijn gegevens horen niet in de bundel van de doelpagina.
-const GoBijDoelDeel = lazy(() => import('../../components/basis/go/GoBijDoel'));
 const GO_KOP = 'Leerplan van het GO!';
+const GO_NIET_GELADEN = 'Het leerplan van het GO! bij dit minimumdoel kon niet geladen worden. Kijk je internetverbinding na en laad de pagina opnieuw.';
+
+/**
+ * Het deel als zijn chunk niet laadt: de kop en een melding, met een knop die de pagina opnieuw laadt (React onthoudt een
+ * mislukte lazy-import tot dan). Stil weglaten zou de leerkracht doen denken dat het GO! niets aan dit doel koppelt.
+ */
+function GoBijDoelNietGeladen() {
+  return (
+    <section className="b-doeldeel b-go-bijdoel" aria-labelledby="b-go-bij-kop">
+      <h2 id="b-go-bij-kop">{GO_KOP}</h2>
+      <FoutBericht fout={GO_NIET_GELADEN} onOpnieuw={() => window.location.reload()} />
+    </section>
+  );
+}
+
+// Het leerplan van het GO! bij dit minimumdoel laadt lui: zijn gegevens horen niet in de bundel van de doelpagina. Laadt
+// de chunk niet (offline, een oud tabblad na een uitrol), dan blijft de pagina staan, met GoBijDoelNietGeladen.
+const GoBijDoelDeel = lazy<ComponentType<{ doel: DoelBasis }>>(() =>
+  import('../../components/basis/go/GoBijDoel').catch(() => ({ default: GoBijDoelNietGeladen })),
+);
 
 function GoBijDoel({ doel }: DoelDeelProps): ReactNode {
   return (

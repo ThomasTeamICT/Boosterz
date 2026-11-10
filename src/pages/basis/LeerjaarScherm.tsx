@@ -3,7 +3,7 @@
 // welke al mogen en welke oude doelen nog gelden. Een kop of zin staat er alleen als het model ze staaft en de lijst
 // eronder niet leeg is. Alleen de index wordt geladen.
 
-import { lazy, Suspense, type ReactNode } from 'react';
+import { lazy, Suspense, type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { FoutBericht, LaadBericht } from '../../components/curriculum/LaadStatus';
 import { LeerjaarBalk, SnelZoeken } from '../../components/basis/LeerjaarKiezer';
@@ -17,8 +17,11 @@ import { samengesteldTekst, zekerheidUitleg, SOORT_DOELEN_LABEL, leerjarenTekst 
 import type { MinimumdoelenIndexSet } from '../../lib/minimumdoelen';
 import '../../styles/basis-leerjaar.css';
 
-// Het blok 'Van het GO!' laadt lui: de gegevens van het GO! horen niet in de bundel van de leerjaarpagina.
-const VanHetGo = lazy(() => import('../../components/basis/go/VanHetGo'));
+// Het blok 'Van het GO!' laadt lui: de gegevens van het GO! horen niet in de bundel van de leerjaarpagina. Een optioneel
+// blok: laadt de chunk niet (offline, een oud tabblad na een uitrol), dan valt alleen het blok weg, niet de pagina.
+const VanHetGo = lazy<ComponentType<{ leerjaar: LeerjaarBasis }>>(() =>
+  import('../../components/basis/go/VanHetGo').catch(() => ({ default: () => null })),
+);
 
 const EINDE_TEKST: Readonly<Record<Eindmoment, string>> = {
   K3: 'het einde van de kleuterklas',

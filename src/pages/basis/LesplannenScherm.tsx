@@ -3,7 +3,6 @@
 // bij de leerplandoelen; de groep van het bewaarde leerjaar staat standaard aan, 'Alle leeftijden' zet dat uit zonder iets te
 // bewaren. Alleen de index wordt geladen. Een kop staat er alleen als er iets onder staat.
 
-import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LeeftijdKiezer } from '../../components/basis/go/LeeftijdKiezer';
 import { useGoIndex } from '../../components/basis/useGo';
@@ -11,7 +10,7 @@ import { useBasisKeuze } from '../../components/basis/useBasisKeuze';
 import { FoutBericht, LaadBericht } from '../../components/curriculum/LaadStatus';
 import { basisPad } from '../../lib/basis/basisRoutes';
 import { aantalLesplannenPerLeeftijd, lessenlijnen, lesplannenFilter } from '../../lib/basis/go/goModel';
-import { leerjaarVanLeeftijd, leeftijdLabel, leeftijdVanLeerjaar } from '../../lib/basis/go/leeftijden';
+import { GO_LEEFTIJDEN, leerjaarVanLeeftijd, leeftijdLabel, leeftijdVanLeerjaar } from '../../lib/basis/go/leeftijden';
 import { GO_NAAMSVERMELDING, GO_STUDIO_URL, GO_VAKKEN, GO_VAK_CODES, type GoIndex, type GoLeeftijd, type GoVak } from '../../lib/basis/go/types';
 import type { LeerjaarBasis } from '../../lib/basis/kalender';
 import { datumLeesbaar } from '../../lib/minimumdoelenBron';
@@ -57,8 +56,11 @@ export function LesplannenInhoud({ index, leeftijd, vak, onLeeftijd, vakPad }: L
   const perLeeftijd = aantalLesplannenPerLeeftijd(index);
   // De vakken met lesplannen in deze leeftijd: alleen daar zijn de keuzes zinvol.
   const vakken = GO_VAK_CODES.filter((v) => lesplannenFilter(index, { leeftijd, vak: v }).length > 0);
-  const aantallen = Object.fromEntries(perLeeftijd.map((p) => [p.leeftijd, p.aantal])) as Partial<Record<GoLeeftijd, number>>;
+  const aantallen = Object.fromEntries(GO_LEEFTIJDEN.map((l) => [l, perLeeftijd.find((p) => p.leeftijd === l)?.aantal ?? 0])) as Record<GoLeeftijd, number>;
   const perVak = GO_VAK_CODES.filter((v) => lijnen.some((l) => l.vak === v));
+  // De leeftijden waar het gekozen vak (of, zonder vak, elk vak) wel lesplannen heeft: alleen die zijn een zinvol alternatief.
+  const elders = GO_LEEFTIJDEN.filter((l) => l !== leeftijd && lesplannenFilter(index, { leeftijd: l, vak }).length > 0);
+  const vakHeeftLesplannen = vak === undefined || lesplannenFilter(index, { vak }).length > 0;
   return (
     <div className="b-doelpagina b-go-pagina b-go-lesplanlijst">
       <nav className="b-kruimel" aria-label="Kruimelpad">
@@ -73,21 +75,21 @@ export function LesplannenInhoud({ index, leeftijd, vak, onLeeftijd, vakPad }: L
       </nav>
       <h1>{KOP}</h1>
       <p className="b-lead">
-        {lesplannenWoord(totaal)} van het GO!, per leeftijd, vakdiscipline, lessenlijn en lessenreeks. Elk lesplan zegt welke leerplandoelen het haalt.
+        {lesplannenWoord(totaal)} van het GO!, per leeftijd, vak, lessenlijn en lessenreeks. Elk lesplan zegt aan welke leerplandoelen het werkt.
       </p>
       <Bron index={index} />
 
       <LeeftijdKiezer waarde={leeftijd} onKies={onLeeftijd} aantallen={aantallen} />
 
-      {vakken.length > 1 && (
-        <nav className="b-go-onderwerpen" aria-label="Vakdiscipline">
+      {(vakken.length > 1 || vak !== undefined) && (
+        <nav className="b-go-onderwerpen" aria-label="Vak">
           <ul>
             <li>
               <Link to={vakPad(undefined)} className="b-go-pil" aria-current={vak === undefined ? 'true' : undefined}>
-                Alle vakdisciplines
+                Alle vakken
               </Link>
             </li>
-            {vakken.map((v) => (
+            {(vak !== undefined && !vakken.includes(vak) ? [...vakken, vak] : vakken).map((v) => (
               <li key={v}>
                 <Link to={vakPad(v)} className="b-go-pil" aria-current={vak === v ? 'true' : undefined}>
                   {GO_VAKKEN[v].naam}
@@ -100,12 +102,20 @@ export function LesplannenInhoud({ index, leeftijd, vak, onLeeftijd, vakPad }: L
 
       <p className="b-go-aantal" role="status">
         {aantal === 0
-          ? `Er zijn nog geen lesplannen${leeftijd ? ` voor ${leeftijdLabel(leeftijd)}` : ''}${vak ? ` in ${GO_VAKKEN[vak].naam.toLowerCase()}` : ''}.`
-          : `${lesplannenWoord(aantal)} van de ${totaal}${leeftijd ? ` voor ${leeftijdLabel(leeftijd)}` : ''}${vak ? `, ${GO_VAKKEN[vak].naam.toLowerCase()}` : ''}.`}
+          ? `Er zijn nog geen lesplannen${leeftijd ? ` voor ${leeftijdLabel(leeftijd)}` : ''}${vak ? ` in ${GO_VAKKEN[vak].doelenset}` : ''}.`
+          : `${lesplannenWoord(aantal)} van de ${totaal}${leeftijd ? ` voor ${leeftijdLabel(leeftijd)}` : ''}${vak ? `, ${GO_VAKKEN[vak].doelenset}` : ''}.`}
       </p>
-      {aantal === 0 && perLeeftijd.length > 0 && (
+      {aantal === 0 && vak !== undefined && !vakHeeftLesplannen && (
         <p className="b-noot">
-          Er zijn lesplannen voor {perLeeftijd.map((p) => leeftijdLabel(p.leeftijd)).join(', ')}. Kies een andere leeftijd om ze te zien.
+          Er zijn voor {GO_VAKKEN[vak].doelenset} in geen enkele leeftijd lesplannen.{' '}
+          <Link to={vakPad(undefined)} className="b-go-lesplanlink">
+            Toon alle vakken
+          </Link>
+        </p>
+      )}
+      {aantal === 0 && elders.length > 0 && (
+        <p className="b-noot">
+          Er zijn lesplannen voor {elders.map((l) => leeftijdLabel(l)).join(', ')}. Kies een andere leeftijd om ze te zien.
         </p>
       )}
 
@@ -146,21 +156,19 @@ export function LesplannenInhoud({ index, leeftijd, vak, onLeeftijd, vakPad }: L
   );
 }
 
-export function LesplannenScherm({ leerjaar, vak }: { leerjaar?: LeerjaarBasis; vak?: GoVak }) {
+export function LesplannenScherm({ leerjaar, alle, vak }: { leerjaar?: LeerjaarBasis; alle?: boolean; vak?: GoVak }) {
   const index = useGoIndex();
   const navigate = useNavigate();
   const { keuze } = useBasisKeuze();
-  const [alle, setAlle] = useState(false);
 
   // Het adres wint; zonder leerjaar in het adres staat de groep van het bewaarde leerjaar aan, tenzij je 'Alle leeftijden' koos.
   const effectief: LeerjaarBasis | undefined = leerjaar ?? (alle ? undefined : keuze?.leerjaar);
   const leeftijd = effectief ? leeftijdVanLeerjaar(effectief) : undefined;
 
   const kiesLeeftijd = (l: GoLeeftijd | undefined) => {
-    setAlle(l === undefined);
-    navigate(basisPad({ s: 'lesplannen', leerjaar: l ? leerjaarVanLeeftijd(l) : undefined, vak }), { replace: true });
+    navigate(basisPad({ s: 'lesplannen', leerjaar: l ? leerjaarVanLeeftijd(l) : undefined, alle: l === undefined || undefined, vak }), { replace: true });
   };
-  const vakPad = (v: GoVak | undefined) => basisPad({ s: 'lesplannen', leerjaar: effectief, vak: v });
+  const vakPad = (v: GoVak | undefined) => basisPad({ s: 'lesplannen', leerjaar: effectief, alle: (!effectief && alle) || undefined, vak: v });
 
   if (index.stand.status === 'laden') {
     return (

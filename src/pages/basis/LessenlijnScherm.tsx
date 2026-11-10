@@ -16,7 +16,6 @@ import { basisPad } from '../../lib/basis/basisRoutes';
 import { lessenlijnTabel, vindLessenlijn, type Lessenlijn } from '../../lib/basis/go/goModel';
 import { leeftijdLabel, leeftijdVanLeerjaar } from '../../lib/basis/go/leeftijden';
 import { GO_NAAMSVERMELDING, GO_STUDIO_URL, GO_VAKKEN, type GoIndex, type GoLeeftijd, type GoVak } from '../../lib/basis/go/types';
-import type { LeerjaarBasis } from '../../lib/basis/kalender';
 import { datumLeesbaar } from '../../lib/minimumdoelenBron';
 import { webUrl } from '../../lib/veiligeUrl';
 import '../../styles/basis-go.css';
@@ -44,14 +43,14 @@ function Kruimel({ vak, laatste }: { vak: GoVak; laatste: string }) {
 }
 
 /** De melding voor een lessenlijn die niet bestaat: een kop, een zin en een link naar alle lesplannen. */
-export function LessenlijnNietGevonden({ vak }: { vak?: GoVak }) {
+export function LessenlijnNietGevonden() {
   return (
     <section className="b-plaats">
       <h1>Deze lessenlijn vonden we niet</h1>
       <p>Misschien is de lessenlijn van naam veranderd of staat het adres niet goed.</p>
       <ul className="b-plaats-links">
         <li>
-          <Link to={basisPad({ s: 'lesplannen', vak })}>Alle lesplannen van het GO!</Link>
+          <Link to={basisPad({ s: 'lesplannen', alle: true })}>Alle lesplannen van het GO!</Link>
         </li>
         <li>
           <Link to={basisPad({ s: 'go' })}>Leerplan en lesplannen van het GO!</Link>
@@ -117,7 +116,10 @@ export function LessenlijnInhoud({ index, lijn, eigen }: { index: GoIndex; lijn:
                 {r.cellen.map((cel, n) => {
                   const k = tabel.kolommen[n];
                   return (
-                    <td key={k} role="cell" data-label={leeftijdLabel(k)} className={k === eigen ? 'b-go-eigen' : undefined}>
+                    <td key={k} role="cell" className={k === eigen ? 'b-go-eigen' : undefined}>
+                      <span className="b-go-label" aria-hidden="true">
+                        {leeftijdLabel(k)}
+                      </span>
                       {cel.length > 0 ? (
                         <ul className="b-go-lesplannen">
                           {cel.map((l) => (
@@ -143,13 +145,13 @@ export function LessenlijnInhoud({ index, lijn, eigen }: { index: GoIndex; lijn:
         </table>
       </div>
       <p className="b-go-voet">
-        <Link to={basisPad({ s: 'lesplannen', vak: lijn.vak })}>Alle lesplannen van {GO_VAKKEN[lijn.vak].naam.toLowerCase()}</Link>
+        <Link to={basisPad({ s: 'lesplannen', alle: true, vak: lijn.vak })}>Alle lesplannen van {GO_VAKKEN[lijn.vak].doelenset}</Link>
       </p>
     </div>
   );
 }
 
-export function LessenlijnScherm({ vak, lijn, leerjaar }: { vak: GoVak; lijn: string; leerjaar?: LeerjaarBasis }) {
+export function LessenlijnScherm({ vak, lijn }: { vak: GoVak; lijn: string }) {
   const index = useGoIndex();
   const { keuze } = useBasisKeuze();
   if (index.stand.status === 'laden') {
@@ -169,7 +171,8 @@ export function LessenlijnScherm({ vak, lijn, leerjaar }: { vak: GoVak; lijn: st
     );
   }
   const gevonden = vindLessenlijn(index.stand.waarde, vak, lijn);
-  if (!gevonden) return <LessenlijnNietGevonden vak={vak} />;
-  const eigenLeerjaar = leerjaar ?? keuze?.leerjaar;
+  if (!gevonden) return <LessenlijnNietGevonden />;
+  // Het leerjaar in het adres is hier een leeftijdsfilter van een andere lijst, niet het leerjaar van de leerkracht.
+  const eigenLeerjaar = keuze?.leerjaar;
   return <LessenlijnInhoud index={index.stand.waarde} lijn={gevonden} eigen={eigenLeerjaar ? leeftijdVanLeerjaar(eigenLeerjaar) : undefined} />;
 }

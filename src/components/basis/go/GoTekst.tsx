@@ -29,13 +29,18 @@ export function wijzerId(w: Wijzer): string {
 
 /**
  * Zet de focus op een plek en scrolt ernaartoe. In een hash-router is een anker een route, dus we doen het zelf. De eerste
- * id die bestaat wint; een element zonder tabindex krijgt er -1 bij om de focus te kunnen krijgen.
+ * id die bestaat wint; een element zonder tabindex krijgt er -1 bij om de focus te kunnen krijgen (tot de focus weggaat).
  */
 export function gaNaarId(...ids: string[]): boolean {
   for (const id of ids) {
     const el = document.getElementById(id);
     if (!el) continue;
-    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+    // De tabindex blijft alleen zolang de focus er staat: anders krijgt een latere muisklik in die (soms 1000 px hoge) cel
+    // opnieuw een focusring rond de hele cel.
+    if (!el.hasAttribute('tabindex')) {
+      el.setAttribute('tabindex', '-1');
+      el.addEventListener('blur', () => el.removeAttribute('tabindex'), { once: true });
+    }
     el.focus({ preventScroll: true });
     el.scrollIntoView?.({ block: 'start' });
     return true;
@@ -141,6 +146,11 @@ export function GoBeeldWeergave({ beeld, id }: { beeld: GoBeeld; id?: string }) 
   return (
     <figure id={id} className="b-lp-beeld">
       <img src={`${GO_MAP}${beeld.bestand}`} alt={beeld.alt} width={beeld.breedte} height={beeld.hoogte} loading="lazy" decoding="async" />
+      <p className="b-lp-beeld-groot">
+        <a href={`${GO_MAP}${beeld.bestand}`} target="_blank" rel="noopener">
+          Toon het beeld groot<span className="sr-only"> (opent in een nieuw tabblad)</span>
+        </a>
+      </p>
       {beeld.uitleg && (
         <figcaption>
           <details className="b-lp-beeld-uitleg">
@@ -239,7 +249,19 @@ export function GoTabel({ rijen, pad }: { rijen: readonly (readonly Cel[])[]; pa
   const metRijkoppen = heeftKoprij && rijen[0][0].blokken.length === 0 && rijen.slice(1).some((r) => r[0]?.rol === 'rijkop');
 
   const cel = (c: Cel, r: number, k: number) => {
-    if (c.samengevoegd === 'vervolg') return null;
+    if (c.samengevoegd === 'vervolg') {
+      // Op een smal scherm is elke rij een kaart en loopt de samengevoegde rijkop (Leskern) niet door: zonder deze herhaling
+      // staan de cellen van de kaart onder de verkeerde kolomkop voor een schermlezer. Breed en op papier is ze verborgen.
+      let b = r - 1;
+      while (b >= 0 && rijen[b]?.[k]?.samengevoegd === 'vervolg') b--;
+      const begin = rijen[b]?.[k];
+      if (!begin || begin.rol !== 'rijkop') return null;
+      return (
+        <th key={k} role="rowheader" scope="row" className="b-lp-rijkop b-lp-vervolg">
+          {celTekst(begin)}
+        </th>
+      );
+    }
     const celPad: Pad = { ...pad, rij: r, kolom: k };
     const id = wijzerId(celPad);
     const rowSpan = c.samengevoegd === 'begin' ? rijenSamengevoegd(rijen, r, k) : undefined;

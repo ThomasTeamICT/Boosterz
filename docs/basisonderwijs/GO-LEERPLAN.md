@@ -9,21 +9,41 @@ Ontworpen op 9 november 2026, na de aanlevering door de eigenaar (Drive-map "Les
 | Verkennen, ontwerp en rechter | **Klaar** (9 november 2026) | hoofdsessie |
 | Vragen aan de eigenaar (onderaan) | **Beantwoord** (9 november 2026): zie "Antwoorden van de eigenaar" | eigenaar |
 | Bouw (pakketten G1 tot G13) | **Klaar en live** (9 november 2026): zie "Stand na de bouw" hieronder | hoofdsessie |
-| Foutenlijst voor het GO! (`docs/basisonderwijs/go-bronfouten.md`) | **Klaar**; doorsturen naar het GO! **wacht** | eigenaar |
+| Doorlichting en verbeterronde: 73 bevestigde punten en 4 gaten, in 9 pakketten | **Klaar en live** (10 november 2026): zie "Stand na de verbeterronde" hieronder | hoofdsessie |
+| Vragen aan de eigenaar uit de doorlichting: (1) volgorde van de vakken op `#/basis/go` (nu de volgorde van de GO!-codes; of die van de rest van `#/basis`?); (2) WI.706 nu al als voorstel 2.4.3 tonen, of het antwoord van het GO! afwachten (advies: wachten); (3) bij het GO! navragen of een leerplandoel zijn code houdt als er doelen bijkomen of wegvallen (IMP-8); (4) een compactere lijst van leerplandoelen op laptop en digibord (GE-15) | **Wacht** | eigenaar |
+| Later uit de doorlichting (terecht, maar groter): zoeken op een woord in het leerplan (SB-SB-5), compactere lijst (GE-15), alleen het nodige deel van een vak laden (P-6), opruimwerk in de code (CT-14), Frans als Frans markeren (A-4, kan nu de lichte controle er is), hernummering herkennen (IMP-8), bekende afwijkingen niet aan rijnummers hangen (IMP-9), een import zonder alle originelen opnieuw (IMP-11), een axe-run in de rooktest (A-13) | **Wacht** | hoofdsessie |
+| Foutenlijst voor het GO! (`docs/basisonderwijs/go-bronfouten.md`) | **Klaar**, aangevuld op 10 november 2026 (11 genummerde vragen bovenaan, leesbaar zonder extra uitleg; het adres voor een antwoord zet de afzender in de mail); doorsturen naar het GO! **wacht** | eigenaar |
 | Visieteksten, minimale materiële vereisten en kenniskaarten (bij het vak en de doelen) | **Wacht**, volgende stap | hoofdsessie |
-| Het aanbod (A1 tot A5): beelden, proefklas | **Wacht** tot G13; vragen 8 en 9 worden dan gesteld | hoofdsessie, eigenaar |
+| Het aanbod (A1 tot A5): beelden, proefklas | **Wacht**: kan starten; vragen 8 en 9 (beelden, proefklas) nog te stellen | hoofdsessie, eigenaar |
+| 11 opmaakbesluiten (doorgehaalde spatie of punt) in `tools/basis/go/bekende-afwijkingen.json` zijn voorlopig: toetsen aan de pdf van de doelenset, of het antwoord van het GO! op vraag 2 van `go-bronfouten.md` afwachten | **Wacht** | hoofdsessie (pdf's in de Drive-map), GO! |
 
 ## Stand na de bouw (9 november 2026)
 
 KORT: het volledige GO! leerplan basisonderwijs en de eerste 8 lesplannen staan letterlijk in `#/basis`, gekoppeld aan de minimumdoelen. Gebouwd in één ronde van 22 agents (G1 tot G12), daarna eindcontrole door de hoofdsessie (G13).
 
-- **Gegevens** in `public/basis/go/` (32 bestanden, 4,6 MB, lui geladen per vak, niet in de voorcache van de service worker): `index.json`, `leerplan/<vak>.json` (12 vakken, 3490 leerplandoelen met MIA, begrippen en voorbeelden), `bij-minimumdoel/<vaknummer>.json` (de omgekeerde index, alle 998 minimumdoelen), `lesplannen/LP*.json` (8) en `beelden/` (de vrijgegeven mindmap als WebP).
+- **Gegevens** in `public/basis/go/` (32 bestanden, 4,8 MB, lui geladen per vak, niet in de voorcache van de service worker): `index.json`, `leerplan/<vak>.json` (12 vakken, 3490 leerplandoelen met MIA, begrippen en voorbeelden), `bij-minimumdoel/<vaknummer>.json` (de omgekeerde index, alle 998 minimumdoelen), `lesplannen/LP*.json` (8) en `beelden/` (de vrijgegeven mindmap als WebP).
 - **Import**: `tools/basis/go/` (lezers in Python zonder externe pakketten, `maak.ts` met vite-node; uitleg in `tools/basis/go/LEESMIJ.md`). De import controleert dat elke zin van de bron letterlijk terugkomt (rondgang 8 van 8 lesplannen en 12 van 12 doelensets) en stopt met exit 3 bij elke afwijking die niet in `bekende-afwijkingen.json` staat, of bij een wijziging tegenover de vorige import zonder `--aanvaard-wijzigingen`. Een tweede run verandert niets.
 - **Koppeling**: 4972 van de 4973 verwijzingen vinden precies één minimumdoel; MV.040 "6.12" staat als voorstel (6.1.2), gemarkeerd. 465 leerplandoelen hebben geen minimumdoel (468 min de 3 die alleen via een MIA gekoppeld zijn). 326 verwijzingen bij 286 doelen krijgen de vermelding dat het moment niet bij de leeftijd past; WI.706 verwijst naar een ander vak.
 - **Schermen**: `#/basis/go` (overzicht), `#/basis/lesplannen`, `#/basis/lesplan/LP0065` (met `?stap=3`), `#/basis/lessenlijn/wt/<lijn>`, `#/basis/leerplandoelen/wt?leerjaar=K1`, `#/basis/leerplandoel/WT.086`; "Leerplan van het GO!" op elke doelpagina (ook buitengewoon), "Van het GO!" op de pagina van het leerjaar, GO!-codes in Zoeken. Bronvermelding op elke pagina.
 - **Nagekeken**: twee nakijkrondes tegen de originelen (ronde 1 op de gegevens: cursief in 8 voorbeelden van wiskunde en een valse titel in LP0014a hersteld; ronde 2 op de schermtekst: niets bevestigd), drie reviewers (eerlijk tegenover de bron, toegankelijkheid en taal, leerlingpad en privacy), een rechter per ronde. Hersteld na de review: de inleiding zei ten onrechte dat elk leerplandoel een minimumdoel heeft; een spatie achteraan gaf een vals verschil bij WT.039. De hoofdsessie herstelde nog dat lege cellen op een smal scherm echt verdwijnen.
 - **Poort**: lint 0 fouten (47 waarschuwingen, gelijk), typecheck, vitest 168 bestanden en 7524 tests, build binnen het budget (335,2 van 335,7 kB, het leerlingpad is niet geraakt), `tests/basis/go-los.mjs` (16 checks), `tests/basis/ingang-los.mjs` en de volledige rooktest groen.
-- **Open**: de foutenlijst naar het GO! (eigenaar); een volgende reeks lesplannen gaat door dezelfde import (`maak.ts`); de vormcontrole is streng, dus een lesplan met een andere vorm wordt geweigerd tot de lezer is aangepast. Bekende beperkingen: `WI.json` is 0,9 MB (wordt alleen geladen wie wiskunde opent); de opmaak (doorhaling, superschrift, cursief) van de leerplantekst wordt nog niet getoond.
+- **Open**: de foutenlijst naar het GO! (eigenaar); een volgende reeks lesplannen gaat door dezelfde import (`maak.ts`); de vormcontrole is streng, dus een lesplan met een andere vorm wordt geweigerd tot de lezer is aangepast. Bekende beperking: `WI.json` is 0,9 MB (wordt alleen geladen wie wiskunde opent). De opmaak (doorhaling, superschrift, cursief) staat op de leerplandoelpagina, in de lijst per vak en bij het minimumdoel.
+
+## Stand na de verbeterronde (10 november 2026)
+
+KORT: een tweede, grondige doorlichting vanuit tien invalshoeken leverde 124 bevindingen op. Na naspelen door een rechter per thema bleven er 95 over: 73 terecht en klein genoeg (gebouwd), 8 terecht maar groter (tabel hierboven, "Later") en 14 weerlegd. Daarbij kwamen 4 gaten (afdrukken, rooktest per lesplan, lessenlijn-varianten, oudere iPads). Gebouwd in 9 pakketten; de beslissingen hieronder gaan voor op het ontwerp verderop.
+
+- **Laden.** De app kijkt een bestand van het GO! na met een lichte controle (`src/lib/basis/go/lichteControle.ts`): soort, versie, het type van elk veld dat een scherm leest, de toegelaten waarden waar een onbekende waarde een scherm laat vastlopen, en het vaste patroon van een link of beeldpad. De strikte validator (`valideer.ts`) draait alleen nog in de import en de uitrolpoort. Een wijziging van de vorm verhoogt `v` (`types.ts`). De chunk `useGo` daalde van 41 naar 15 kB; per scherm 9 tot 14 kB gzip minder. Foutmeldingen in gewone woorden, met "Opnieuw proberen"; een mislukt blok laat de pagina staan. De cache houdt alle 12 leerplannen en gooit het minst recent gebruikte eruit.
+- **Offline.** De service worker bewaart na het eerste bezoek ook de json-bestanden van het GO! en de minimumdoelen (`KNOWN` is de enige poort; nooit `index.html` of `sw.js`). Wat onderweg was toen hij de pagina overnam, geeft `src/offline/register.ts` bij een eerste bezoek alsnog door (PerformanceObserver, twee minuten).
+- **Lesplanpagina.** "In het kort" in twee kolommen vanaf 1000 px, met de noot "Dit overzicht maakt Boosterz" en een grenszin vóór de letterlijke tekst; een kleverige balk "Ga naar" met als eerste pil "In het kort"; een knop Afdrukken; "Toon het beeld groot" bij de mindmap. Afdrukken op A4 is nagekeken: geen halflege bladen of losse koppen meer (LP0065 16 bladzijden, bewaakt in de rooktest), dode links en knoppen niet op papier (klassen `b-lp-scherm`, `b-lp-acties`, `b-lp-beeld-groot`).
+- **Koppelingen.** De chips staan op één plaats (`KoppelingChips`), met de twijfel per chip. In het buitengewoon onderwijs gaan alle links van het GO! naar de tweeling met hetzelfde nummer (`src/lib/basis/go/tweeling.ts`, `useDoelPad`). Op papier gaan alle dichte details open (`src/lib/basis/afdruk.ts`), zodat een afgedrukte doelpagina alle leerplandoelen toont.
+- **Navigatie en adressen.** De navigatie volgt op elk scherm de bewaarde keuze (`src/lib/basis/basisNav.ts`). Nieuw in de adressen: `?leerjaar=alle` (alle leeftijden) bij de leerplandoelen en de lesplannen, en `?zonder=1` (zonder minimumdoel) bij de leerplandoelen; zo overleven die keuzes Terug en herladen. Alleen "Alle leeftijden" laat het bewaarde leerjaar los; er wordt niets nieuws bewaard. Een rubriek-kruimel toont de hele rubriek over alle leeftijden. Vak- en leerlijnpagina linken naar het leerplan van het GO! van dat vak. Zoeken zegt bij een onbestaande code dat ze niet in het leerplan staat. `index.html` heeft `<base target="_self" />`, zonder `href` (bewaakt door `csp.test.ts`; nooit een `href` erbij): een filterklik in de volle lijst van wiskunde ging van 1,5 s naar 0,3 s (CPU 4x).
+- **Lijsten en taal.** Een leeg vak voor de gekozen leeftijd zegt voor welke leeftijden er wel doelen zijn; elke rubriek is een kop (h2 tot h5, een subrubriek een h5 met de look van een vette tussenregel), zodat een schermlezer alle 141 groepstitels vindt. Woordkeuze: overal "vak" ("vakdiscipline" alleen waar het GO! het zelf schrijft); elke link naar `#/basis/go` heet "Leerplan en lesplannen van het GO!".
+- **Import.** Elke wijziging aan iets dat al bestaat, stopt de import tot `--aanvaard-wijzigingen` (vergelijking in `src/lib/basis/go/wijzigingen.ts`, met oud en nieuw en de lesplannen die erop steunen). Nieuwe controles op de bron (vreemde cellen, verborgen rijen en kolommen, opmerkingen, beelden, opmaak en alineastijlen, de leeftijd van een lesplan, twee schrijfwijzen van een lessenlijn met hetzelfde adres, de sha256 van het origineel en van de WebP). `maak.script.test.ts` speelt de import na met 32 mutaties; de Python-tests van de lezers draaien in de deploy-workflow. Een volledige run is byte-gelijk aan `public/basis/go`. Uitleg in `tools/basis/go/LEESMIJ.md`.
+- **Oudere iPads.** Geen enkele lookbehind meer in `src/` (17 plaatsen herschreven met hetzelfde gedrag, bewaakt door `src/lib/geenLookbehind.test.ts`; hulp in `src/lib/tekenErvoor.ts`). Daarvoor opende op Safari en iPadOS vóór 16.4 geen enkel scherm van het basisdeel en ook de quiz niet. De minimumversie staat vast in `vite.config.ts` (`build.target`, Safari en iPadOS 14). Nog niet nagekeken: `color-mix` (Safari 16.2) voor tekst in de accentkleur, en een echte iPad met iPadOS 15.
+- **Rooktest.** `tests/basis/go.mjs` leest de lesplancodes uit de gebouwde `index.json` (een nieuw lesplan krijgt vanzelf de browsercontrole) en heeft nieuwe secties go 13 tot go 25 (laadfouten, offline, afdrukken, doelpagina, navigatie, wisselen van vak, alle leeftijden).
+- **Poort.** Lint 0 fouten (47 waarschuwingen, gelijk), typecheck, vitest 179 bestanden en 7761 tests, de Python-tests van de lezers (60), build binnen het budget (335,2 van 335,7 kB, het leerlingpad is niet geraakt), `go-los.mjs`, `ingang-los.mjs` en de volledige rooktest (1394 checks) groen. Een nakijkronde op het geheel volgt.
+- **Niet gedaan, bewust.** `content-visibility` op de lange lijst: dan zet Terug je 18 tot 50 doelen naast je plek. De vakvolgorde en WI.706 wachten op de eigenaar.
 
 ## Antwoorden van de eigenaar (9 november 2026)
 
@@ -35,7 +55,7 @@ KORT: het volledige GO! leerplan basisonderwijs en de eerste 8 lesplannen staan 
 
 ## De officiële koppeling (nagerekend)
 
-KORT: de officiële koppeling leerplandoel naar minimumdoel staat in de 12 doelensets en is bijna foutloos om te zetten. Van de 4973 codeverwijzingen op doelzin-rijen vinden er 4972 precies één doel (vast nummer). Dat lukt in de 34 sets van het gewoon basisonderwijs in public/leerplannen/minimumdoelen/ (ODS_3395 tot ODS_3428), op moment plus code; het eerste cijfer van de code geeft het vak. Er is geen enkele dubbelzinnige code. De enige mislukking is een tikfout in de bron. Alle 998 minimumdoelen van het gewoon basisonderwijs worden door minstens één leerplandoel van het GO! genoemd (zeker, nagerekend). Er is niets in de repo gewijzigd (git status: 0 regels).
+KORT: de officiële koppeling leerplandoel naar minimumdoel staat in de 12 doelensets en is bijna foutloos om te zetten. Van de 4973 codeverwijzingen op doelzin-rijen vinden er 4972 precies één doel (vast nummer). Dat lukt in de 29 sets van het gewoon basisonderwijs in public/leerplannen/minimumdoelen/ (ODS_3395 tot ODS_3428), op moment plus code; het eerste cijfer van de code geeft het vak. Er is geen enkele dubbelzinnige code. De enige mislukking is een tikfout in de bron. Alle 998 minimumdoelen van het gewoon basisonderwijs worden door minstens één leerplandoel van het GO! genoemd (zeker, nagerekend). Er is niets in de repo gewijzigd (git status: 0 regels).
 
 1. DOWNLOAD EN VORM (zeker). Ik heb de 12 bestanden op hun id gedownload met download_file_content. Het id is nagekeken, de zip-test is OK en er zijn geen gevaarlijke paden. Titels "Doelenset BaO <vak>.xlsx", dc:created 2025-05-15, dc:modified 2026-09-03. Wetenschap en techniek is byte-gelijk aan de bestaande kopie (sha256 43e67805…). Ik las ze met een eigen script (zipfile, xml.etree, python -I); openpyxl is er niet. Elke set heeft één tabblad. De 24 kolomkoppen zijn overal letterlijk gelijk, behalve in wiskunde: daar is de kop van kolom M ("KENNISVERWERKING") leeg, maar de waarden staan er wel. KENNISVERWERKING heeft overal alleen begrijpen, gebruiken of engageren. De leeftijdskolommen bevatten alleen 0 of 1, en elke doelzin heeft minstens één leeftijd.
 
@@ -124,8 +144,8 @@ Voorbeelden van de echte verschillen:
 
 Een deel zijn tikfouten in de Excel. Een ander deel lijkt een oudere stand van de API-tekst (de minimumdoelen van het basisonderwijs zijn in juni 2026 gewijzigd; **onzeker**). Daarnaast staat dezelfde code 25 keer met twee verschillende teksten in één Excel. **Besluit:** de API blijft de bron voor de tekst; de Excel dient alleen voor de koppeling.
 
-4. DE 8 LESPLANNEN (zeker, uit de docx-dumps in go-lesplannen/dump/). 19 verschillende WT-doelen, 22 vermeldingen.
-- Code, niveau en leeftijden zijn bij alle 22 gelijk aan de Excel. De tekst is bij 21 gelijk. Uitzondering: WT.008 in LP0065, "Herkennen de belangrijkste voedingswijze van dieren.", terwijl de Excel "Herkennen verschillende voedingswijzen van dieren." heeft. Het woord "belangrijkste" staat in de Excel pas bij WT.011 tot WT.015 (6-7 jaar en ouder).
+4. DE 8 LESPLANNEN (zeker, uit de docx-dumps in go-lesplannen/dump/). 19 verschillende WT-doelen, 20 doelregels in deel 2.
+- Code, niveau en leeftijden zijn bij alle 20 gelijk aan de Excel. De tekst is bij 19 gelijk. Uitzondering: WT.008 in LP0065, "Herkennen de belangrijkste voedingswijze van dieren.", terwijl de Excel "Herkennen verschillende voedingswijzen van dieren." heeft. Het woord "belangrijkste" staat in de Excel pas bij WT.011 tot WT.015 (6-7 jaar en ouder).
 - Alle MIA-blokken (titel en items) zijn letterlijk gelijk aan de MIA-rijen van de Excel, ook de fouten zoals "dat gaat ontkiemt". Die fouten komen dus uit het leerplan zelf.
 - "Te hanteren begrippen: de baby" (LP0001) is gelijk aan de Excel.
 - De Excel heeft voorbeelden die de lesplannen niet tonen: bij WT.008, WT.094, WT.184 en WT.216. Ze bevatten verzonnen kindernamen.
@@ -282,7 +302,7 @@ public/basis/go/
   lesplannen/LP0001.json …           GoLesplanBestand, één per lesplan
   beelden/                           alleen beelden die de eigenaar vrijgeeft (nu leeg)
 ```
-Niet in de voorcache (PRECACHE_PUBLIC blijft gelijk). De service worker bewaart ze na het eerste gebruik: ‘netwerk eerst, cache als terugval’.
+Niet in de voorcache (PRECACHE_PUBLIC blijft gelijk). De service worker bewaart ze na het eerste gebruik: ‘netwerk eerst, cache als terugval’ (sinds de verbeterronde ook de json-bestanden; wat onderweg was bij de overname geeft `src/offline/register.ts` door).
 
 ```ts
 // src/lib/basis/go/types.ts
@@ -602,15 +622,16 @@ Alleen de standaardbibliotheek, altijd `python3 -I`. De scripts staan in tools/b
   Met `--tekst` schrijft het een leesbare weergave voor de nakijker.
 - **`lees_xlsx.py <xlsx> <ruw.json>`** leest:
   - workbook.xml voor de bladnaam;
-  - sharedStrings.xml (rich text wordt samengevoegd, regeleinden blijven);
-  - sheet1.xml;
+  - sharedStrings.xml (de tekst van alle runs, regeleinden blijven; doorhaling, super- of subschrift en cursief komen apart mee als opmaak);
+  - sheet1.xml, en van de drawing van dat blad alleen waar beelden en vormen staan;
   - uit core.xml alleen dcterms:modified.
 
-  Per rij geeft het de 24 cellen als tekst.
+  Per rij geeft het de 24 cellen als tekst. Het meldt ook wat het niet als tekst overneemt: cellen die geen tekst zijn, verborgen rijen en kolommen, opmerkingen en de ankers van beelden (de vorm staat in tools/basis/go/LEESMIJ.md).
+- **Beide lezers** schrijven in de ruwe JSON de bytes en de sha256 van het gelezen bestand (`bron`). maak.ts stopt als die niet bij het origineel in bron/ passen.
 - **Veiligheid** (veilig_zip.py):
-  - ledennamen zonder ‘..’ en zonder absoluut pad;
+  - ledennamen zonder ‘..’, zonder absoluut pad en zonder backslash; geen naam die twee keer voorkomt en geen versleuteld lid;
   - hoogstens 50 MB uitgepakt, met een redelijke verhouding tegen een zip-bom;
-  - een XML-bestand met <!DOCTYPE of <!ENTITY wordt geweigerd vóór het parsen, want expat werkt interne entiteiten uit.
+  - een XML-bestand met <!DOCTYPE of <!ENTITY, of met een nulbyte (UTF-16 zonder BOM), wordt geweigerd vóór het parsen, want expat werkt interne entiteiten uit.
 
 **Waarom Python:** zipfile en xml.etree zitten in de standaardbibliotheek en zijn betrouwbaar. De verkenners hebben er alle 20 bestanden mee gelezen. De regel ‘python -I voor gedownloade bestanden’ is zo vanzelf voldaan. Python leest alleen; alle betekenis zit in TypeScript.
 
@@ -631,14 +652,14 @@ De logica staat in zuivere modules met unittests:
   - de mindmap wordt een GoBeeld met status ‘weggelaten’.
 - **src/lib/basis/go/koppelen.ts:** zie het veld koppeling.
 - **src/lib/basis/go/rondgang.ts:** de tekstvergelijking (zie de controles).
-- **src/lib/basis/go/valideer.ts:** dezelfde validator als in de app, op elk bestand vóór het schrijven.
+- **src/lib/basis/go/valideer.ts:** de strikte validator, op elk bestand vóór het schrijven (de app gebruikt sinds de verbeterronde de lichte controle in `lichteControle.ts`).
 
 **Uitgangscodes:**
 - 0: geschreven. Een ongewijzigd bestand wordt niet aangeraakt.
 - 1: fout.
 - 3: de vorm wijkt af of de gegevens zijn niet betrouwbaar. Er is niets geschreven behalve <werkmap>/rapport.json.
 
-Krijgt een bestaande code een andere tekst (een nieuwe versie van het GO!), dan stopt de import tot de hoofdsessie `--aanvaard-wijzigingen` meegeeft. Het rapport noemt die codes, met de lesplannen en het aanbod die erop steunen.
+Elke wijziging aan iets dat al bestaat (een nieuwe versie van het GO!), stopt de import tot de hoofdsessie `--aanvaard-wijzigingen` meegeeft: een andere tekst, koppeling, leeftijd, kennisverwerking, andere vlaggen of schakels, rubriek of inhoud bij een bestaande code, een gewijzigd lesplan, en een verdwenen code of lesplan. Een verdwenen doelenset en een bestand in `--uit` dat de nieuwe index niet noemt, stoppen ook met die vlag. Alleen iets nieuws stopt niet. Het rapport en het scherm noemen elke wijziging met oud en nieuw, met de lesplannen die erop steunen (src/lib/basis/go/wijzigingen.ts).
 
 ## 3. Controles
 
@@ -659,8 +680,11 @@ Dit doet een script, geen model. Elke afwijking geeft exit 3.
   - de koprij is grijs (F2F2F2), met de kolommen ‘Inhoud (Wat?)’ en ‘Didactiek (Hoe?)’.
 - **Leskern:** 5 of 6 stappen met de gekende namen, in deze volgorde: Verkennen, Voorkeursinstructie, Terugkoppelen, Begeleid inoefenen, Kleine lesafsluiting, Zelfstandige verwerking. In beide kolommen staan hetzelfde nummer en dezelfde naam; witruimte achteraan mag. LP0014b heeft er 5: zeker, er staat geen ‘6. Zelfstandige verwerking’ in.
 - **Doelregels in deel 2:** vette code <vak>.<3 cijfers>, cursief niveau tussen haken, de tekst, de leeftijden tussen haakjes.
+- **Leeftijd:** de leeftijd uit de titel is ook een leeftijd van elk diploma in deel 4 en van elk doel uit deel 2; voor een doel kan bekende-afwijkingen.json een uitzondering maken.
+- **Lessenlijn en lessenreeks:** twee schrijfwijzen die in de app hetzelfde adres krijgen (bv. een andere hoofdletter) stoppen de import, tenzij bekende-afwijkingen.json ze voor dat lesplan kent.
 - **Media en opmaak:**
-  - alleen de 6 gekende iconen; een ander beeld alleen via bekende-afwijkingen.json, op zijn sha1;
+  - alleen de 6 gekende iconen; een ander beeld alleen via bekende-afwijkingen.json, op zijn sha1; een getoond beeld (de WebP van de mindmap) moet de sha256 van zijn regel daar hebben;
+  - alleen de gekende alineastijlen (Heading1 tot Heading4, ListParagraph, en Strong met een eigen vet op elke run) en de gekende run-eigenschappen (`RPR_GEKEND` in vorm.ts): verborgen tekst, hoofdletters via opmaak of een tekenstijl stoppen de import;
   - geen geneste tabellen, geen opmerkingen, geen bijgehouden wijzigingen, geen tekstvakken, geen inhoudsbesturingselementen, geen hyperlinks en geen velden in de body;
   - geen w:tab;
   - alleen lijstniveau 0, met numFmt bullet of decimal.
@@ -668,6 +692,7 @@ Dit doet een script, geen model. Elke afwijking geeft exit 3.
 ### Doelenset (xlsx)
 
 - **Blad:** één blad; de koprij heeft exact de 24 gekende kolommen. De lege kop van kolom M in wiskunde mag via bekende-afwijkingen.json.
+- **Cellen:** elke cel is tekst. Een getal, een foutwaarde zoals #REF!, een formuletekst, een datum of een Excel-escape (_x000D_) stopt de import, net als een verborgen rij met inhoud, een verborgen kolom of een opmerking. Een beeld, vorm of grafiek op het blad mag alleen via bekende-afwijkingen.json; nu de vijf piepkleine ankers in wiskunde.
 - **TYPE** komt uit de gekende lijst: onderwerp, subthema, rubriek, subrubriek, minimumdoel, doelzin, MIA - titel, MIA - aanklikbaar, MIA - niet aanklikbaar, te hanteren begrippen, voorbeelden - titel, voorbeelden - bullet, asterisk. Rijen met alleen nullen mogen alleen na de laatste inhoud staan.
 - **GO! NR.** staat alleen op doelzin-rijen, met het voorvoegsel van de set, en loopt door van 001 tot N.
 - **KENNISVERWERKING** is begrijpen, gebruiken of engageren.
@@ -697,7 +722,10 @@ bekende-afwijkingen.json wijzigt alleen de hoofdsessie, met een reden en een dat
 - **src/lib/basis/go/goBestanden.test.ts** leest alle bestanden in public/basis/go/ en eist:
   - dat valideer* niets meldt;
   - dat elke sha256 klopt;
-  - dat index, leerplannen, lesplannen en omgekeerde index bij elkaar passen.
+  - dat index, leerplannen, lesplannen en omgekeerde index bij elkaar passen;
+  - dat elk bestand in beelden/ byte-gelijk is aan het vrijgegeven beeld (de sha256 van zijn regel in bekende-afwijkingen.json).
+- **src/lib/basis/go/maak.script.test.ts** draait maak.ts zelf op een kleine werkmap: een tweede run schrijft niets, een wijziging stopt (ook een andere koppeling), `--aanvaard-wijzigingen` laat ze door, een ontbrekende doelenset of een wees in `--uit` stopt altijd, en een afwijkend manifest, een ruwe JSON van een ander bestand of een ander beeld stopt.
+- **De tests van de Python-lezers** (`python3 -I -B -m unittest discover -s tools/basis/go`) draaien ook in de uitrol (`.github/workflows/deploy.yml`).
 - **src/lib/basis/go.echt.test.ts** staat bovenaan src/lib/basis, zodat de glob src/lib/basis/*.echt.test.ts van de maandelijkse ophaling hem meeneemt (minimumdoelenWorkflow.test.ts:741). Bij GEGEVENSRUN=1 slaat hij over, zoals momentmodel.echt.test.ts. Hij eist:
   - dat elke ref nog bestaat in public/leerplannen/minimumdoelen, met dezelfde code, in een nieuwe gewone set van het juiste vak en eindmoment;
   - dat de tweeling in het buitengewoon onderwijs hetzelfde nummer heeft.
@@ -786,7 +814,7 @@ Dit vond de verkenner (zeker); de import rekent het opnieuw na.
 - 178 verwijzingen (3,6 %) hebben een moment buiten de leeftijden. Voorbeeld: LO.076 (2,5-4 tot 5-6) → L4 7.1.10.
 
 Voor de 8 lesplannen:
-- 19 leerplandoelen, 22 vermeldingen.
+- 19 leerplandoelen, 20 doelregels in deel 2.
 - 17 van die doelen koppelt het leerplan aan een minimumdoel in ODS_3410 (kleuter wetenschap en techniek). WT.235 gaat daarnaast ook naar L6 3.3.2 (92822, ODS_3409). WT.008 en WT.057 hebben geen minimumdoel.
 - Ze raken 7 van de 21 kleuterdoelen wetenschap en techniek: 3.1.2, 3.1.3, 3.1.4, 3.2.2, 3.3.1, 3.3.2 en 3.3.3.
 
@@ -816,8 +844,8 @@ Daarnaast hebben 6 rijen geen bruikbare code. Zo kan er in de app nooit een twee
 ## Lesplan → leerplandoel
 
 Uit deel 2 van het lesplan (de vette code), nagekeken tegen de Excel:
-- code, kennisverwerking en leeftijden: 22 van 22 gelijk;
-- tekst: 21 van 22 gelijk. WT.008 wijkt af: in LP0065 ‘Herkennen de belangrijkste voedingswijze van dieren.’, in de Excel ‘Herkennen verschillende voedingswijzen van dieren.’
+- code, kennisverwerking en leeftijden: 20 van 20 gelijk;
+- tekst: 19 van 20 gelijk. WT.008 wijkt af: in LP0065 ‘Herkennen de belangrijkste voedingswijze van dieren.’, in de Excel ‘Herkennen verschillende voedingswijzen van dieren.’
 
 Beide blijven letterlijk. Het lesplan toont zijn eigen tekst. De leerplandoelpagina toont die van de Excel, met ‘In lesplan LP0065 staat: …’.
 
@@ -916,8 +944,8 @@ Per doel:
 Dezelfde import als voor de lesplannen: lees_xlsx.py en daarna maak.ts. Werkt het GO! de Excel bij, dan:
 1. vervangt de eigenaar het bestand in de map, liefst met hetzelfde Drive-id;
 2. draait de hoofdsessie de import;
-3. toont het rapport welke codes nieuw zijn, verdwenen zijn of een andere tekst kregen;
-4. stopt de import bij een gewijzigde tekst van een bestaande code, tot de hoofdsessie --aanvaard-wijzigingen meegeeft.
+3. toont het rapport welke codes nieuw zijn, verdwenen zijn of veranderd zijn (tekst, koppeling, leeftijd, kennisverwerking, vlaggen of schakels, rubriek of inhoud), met oud en nieuw;
+4. stopt de import bij elke wijziging aan een bestaande code, tot de hoofdsessie --aanvaard-wijzigingen meegeeft. Een doelenset die ontbreekt, stopt de import altijd.
 
 De Excel heeft geen versienummer. De versie is dus de bestandsdatum plus de sha256.
 
@@ -972,10 +1000,10 @@ src/lib/basis/basisRoutes.ts krijgt padlezer en padbouwer voor deze schermen. Ee
 | Adres | Scherm | Inhoud |
 |---|---|---|
 | /basis/go | {s:'go'} | overzicht ‘Leerplan en lesplannen van het GO!’: 12 vaktegels en de lesplannen per leeftijd |
-| /basis/lesplannen?leerjaar=K1&vak=wt | {s:'lesplannen', leerjaar?, vak?} | lesplannen per leeftijdsgroep, per vakdiscipline › lessenlijn › lessenreeks |
+| /basis/lesplannen?leerjaar=K1&vak=wt | {s:'lesplannen', leerjaar?, alle?, vak?} | lesplannen per leeftijdsgroep, per vak › lessenlijn › lessenreeks; `leerjaar=alle` is alle leeftijden |
 | /basis/lesplan/LP0065?stap=3 | {s:'lesplan', code, stap?} | lesplanpagina; code LP[0-9]{4}[a-z]?, kleine letters mogen |
 | /basis/lessenlijn/wt/biologie-van-organismen?leerjaar=K1 | {s:'lessenlijn', vak, lijn, leerjaar?} | één lessenlijn |
-| /basis/leerplandoelen/wt?leerjaar=K1&rubriek=WT-r012 | {s:'leerplandoelen', vak, leerjaar?, rubriek?} | leerplandoelen van een vak |
+| /basis/leerplandoelen/wt?leerjaar=K1&rubriek=WT-r012 | {s:'leerplandoelen', vak, leerjaar?, alle?, rubriek?, zonder?} | leerplandoelen van een vak; `leerjaar=alle` is alle leeftijden, `zonder=1` alleen de doelen zonder minimumdoel |
 | /basis/leerplandoel/WT.086 | {s:'leerplandoel', code} | leerplandoelpagina |
 
 Paginatitels komen in src/lib/paginaTitel.ts (bv. ‘Lesplan · Basisonderwijs’), vóór ['/basis', …].
@@ -1003,11 +1031,11 @@ Paginatitels komen in src/lib/paginaTitel.ts (bv. ‘Lesplan · Basisonderwijs�
 - Tekst in Atkinson op 16 px, hoogstens 72 tekens per regel.
 
 **Navigeren**
-- Een balk ‘Ga naar’: Wat moet de leraar weten, Doelen, Samenhang, Lesopbouw, Trainen, Materiaal.
+- Een kleverige balk ‘Ga naar’: In het kort, Wat moet de leraar weten, Doelen, Samenhang, Lesopbouw, Trainen, Materiaal.
 - ?stap=3 springt naar die stap. In een hash-router is een anker een route, dus de focus wordt zelf gezet, op de kop van de stap (zoals de skip-link in BasisSchil).
 - Een vette code van een bestaand leerplandoel in de tekst (bv. ‘WT.229’ achter een schakel) wordt een link naar dat doel. De tekst zelf verandert niet.
 
-**Printstijl** (@media print): geen kop en geen navigatie, zwart op wit. Leerkrachten drukken een lesplan af.
+**Printstijl** (@media print): geen kop en geen navigatie, zwart op wit, geen dode links of knoppen, geen kop los onderaan een blad. Leerkrachten drukken een lesplan af (knop Afdrukken; LP0065 is 16 bladzijden A4, bewaakt in de rooktest).
 
 ## 2. Leerplandoelpagina (LeerplandoelScherm)
 
@@ -1024,7 +1052,7 @@ Paginatitels komen in src/lib/paginaTitel.ts (bv. ‘Lesplan · Basisonderwijs�
 - h1 ‘Leerplan van het GO!: wetenschap en techniek’.
 - LeeftijdKiezer: 9 pillen met aria-pressed. Standaard staat de groep van het bewaarde leerjaar aan.
 - RubriekenLijst per onderwerp.
-- Elk onderwerp een h2, elk subthema een h3, elke rubriek een h4. Een subrubriek wordt een vette tussenregel, geen h5, zodat de kopstructuur bruikbaar blijft.
+- Elk onderwerp een h2, elk subthema een h3, elke rubriek een h4: een niveau onder haar ouder. Een subrubriek is een h5 (of h4 bij de twee in wiskunde op diepte 3) met de look van een vette tussenregel, zodat een schermlezer alle groepstitels vindt (verbeterronde).
 - Elk doel: code, kennisverwerking, tekst, chips voor de minimumdoelen en het aantal lesplannen.
 - Een filter ‘zonder minimumdoel’.
 - Laadt één leerplanbestand: WT ±0,5 MB (±66 kB gzip), WI ±0,8 MB (±82 kB gzip). Dat is een ordegrootte uit de verkenning.
@@ -1079,7 +1107,7 @@ Paginatitels komen in src/lib/paginaTitel.ts (bv. ‘Lesplan · Basisonderwijs�
 - De bestanden komen uit public/basis/go/ via goBron.ts:
   - de index één keer;
   - leerplannen en lesplannen lui, met hoogstens enkele tegelijk in het geheugen;
-  - elk bestand gevalideerd bij het laden.
+  - elk bestand nagekeken bij het laden met de lichte controle (`lichteControle.ts`); de strikte validator draait in de import en de uitrolpoort.
 - De service worker bewaart ze voor offline gebruik (‘andere eigen bestanden: netwerk eerst, cache als terugval’).
 
 ## Aanbod
@@ -1611,7 +1639,7 @@ vorm.ts heeft daar geen regel voor. **Herstel:** Wijzer uitbreiden met `item?: n
 
 - Doelensets nagerekend: 3490 leerplandoelen, per vak exact zoals in de tabel (AA 276 … WI 998). Codes lopen van 001 tot N zonder gaten. GO! NR. staat alleen op doelzin-rijen. Kennisverwerking alleen begrijpen, gebruiken of engageren. Onderwerp, subthema, rubriek en subrubriek: 44, 131, 229, 141. MIA aanklikbaar 5042 en niet aanklikbaar 2387; begrippen 4682, waarvan 4665 met een leeftijd; voorbeelden 838 titels en 2035 opsommingstekens; 45 rijen asterisk. MIA-rijen hebben nooit een leeftijd. Eén rubriekrij met een leeftijd (FR). In WI is de kop van kolom M leeg.
 - Koppeling nagerekend: 4973 verwijzingen op doelzin-rijen, 4972 vinden precies één doel in ODS_3395-3428. De enige mislukking is MV.040 KO ‘6.12’; 6.1.2 (92439, ‘vormgevingsmiddelen … verkennen’) is een redelijk voorstel. 3022 doelen met en 468 zonder koppeling. Alle 998 minimumdoelen worden genoemd. Geen dubbele code binnen een moment. De tweelingen in het buitengewoon onderwijs hebben hetzelfde nummer (0 afwijkingen). Hoogstens 57 leerplandoelen bij één minimumdoel (93408). 18 kapotte vlaggen en schakels (16 + 2), letterlijk zoals opgesomd.
-- Eerste reeks: 22 doelregels in deel 2. Code, kennisverwerking en leeftijden zijn 22 op 22 gelijk aan de Excel; de tekst 21 op 22, alleen WT.008 in LP0065 wijkt af. De 36 MIA- en begrippenregels staan letterlijk in de Excel. Vlag- en schakeliconen per lesplan zijn per soort exact gelijk aan de kolommen VLAGGEN en SCHAKELS (8 op 8). 17 doelen naar ODS_3410, WT.235 ook naar L6 3.3.2 (92822, ODS_3409), WT.008 en WT.057 zonder minimumdoel, 7 van de 21 kleuterdoelen.
+- Eerste reeks: 20 doelregels in deel 2. Code, kennisverwerking en leeftijden zijn 20 op 20 gelijk aan de Excel; de tekst 19 op 20, alleen WT.008 in LP0065 wijkt af. De 36 MIA- en begrippenregels staan letterlijk in de Excel. Vlag- en schakeliconen per lesplan zijn per soort exact gelijk aan de kolommen VLAGGEN en SCHAKELS (8 op 8). 17 doelen naar ODS_3410, WT.235 ook naar L6 3.3.2 (92822, ODS_3409), WT.008 en WT.057 zonder minimumdoel, 7 van de 21 kleuterdoelen.
 - Vorm van de docx-bestanden zoals beschreven: één Heading1 ‘Lesplan <code> <titel> (2,5-4 jaar)’ en vijf metaregels met een vet label. ‘Lesplan:’ is overal gelijk aan code + titel; LP0074 en LP0087 hebben twee fiches. Delen 1-6, plus 7 in LP0014a. H3 en H4 alleen in deel 3 (9 per bestand). 6 tabellen, geen geneste tabellen, geen gridSpan, geen kop in een cel. Deel 4 is 11x3, in LP0014b 10x3 met 5 stappen: ‘Zelfstandige verwerking’ komt er niet in voor. Leskern met vMerge. Geen w:tab, hyperlink, sdt, tekstvak, ins/del of veld in de body. Alleen lijstniveau 0 (numId 1 opsomming; numId 2 genummerd in LP0087). Runopmaak alleen b, i en u (single). 18 w:t met een regeleinde. Alleen de 6 gekende iconen plus de mindmap in deel 4 van LP0014a en LP0014b.
 - Verwijzingen naar de code kloppen:
 - MinimumdoelRef in curriculumTypes.ts:75-82, net ‘go’ op :11, methode ‘export’;

@@ -546,7 +546,8 @@ function termPair(block: CourseBlock, titled: boolean): [string, string] | null 
   const uitleg = m[2].replace(/\s+/g, ' ').trim();
   // Buiten een begrippensectie: een vet kopje boven een lange alinea is een
   // tussenkop, geen definitie.
-  if (!titled && (term.length > 40 || uitleg.length > 320 || uitleg.split(/(?<=[.!?])\s/).length > 3)) return null;
+  // Meer dan drie zinnen: elk leesteken met witruimte erna is een zinsgrens (geteld zonder lookbehind).
+  if (!titled && (term.length > 40 || uitleg.length > 320 || uitleg.split(/[.!?]\s/).length > 3)) return null;
   return [term, uitleg];
 }
 

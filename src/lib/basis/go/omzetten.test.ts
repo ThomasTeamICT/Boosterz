@@ -5,6 +5,7 @@ import {
   Afwijkingen,
   Bekende,
   controleerLesplanTegenLeerplan,
+  controleerLessenlijnen,
   controleerRuwDocx,
   controleerRuwXlsx,
   isZichtbaar,
@@ -21,217 +22,19 @@ import {
   type BekendeAfwijking,
   type RuwAlinea,
   type RuwBlok,
-  type RuwCel,
   type RuwDocx,
-  type RuwRij,
   type RuwRun,
   type RuwXlsx,
 } from './omzetten';
+import { B, I, KOP, NUL, RUW_BRON, STAPNAMEN, XLSX_LEEG, cel, h, icoon, kopcel, leerplanRuw, lesplanRuw, li, llRuw, p, r, rij, tbl, wtRuw } from './testRuw';
 import { rondgangLeerplan, rondgangLesplan } from './rondgang';
 import { leerplanShaInvoer, lesplanShaInvoer, type GoLeerplanBestand, type GoMoment, type GoVak, type Regel, type TekstStuk } from './types';
 import { valideerGoBijMinimumdoel, valideerGoIndex, valideerGoLeerplan, valideerGoLesplan } from './valideer';
-
-// ══ Hulp: ruwe docx ══════════════════════════════════════════════════
-type Opmaak = { b?: boolean; i?: boolean; u?: boolean; strike?: boolean };
-const r = (tekst: string, o: Opmaak = {}): RuwRun => ({ t: 'tekst', tekst, ...o });
-const B = { b: true };
-const I = { i: true };
-const p = (runs: RuwRun[], stijl: string | null = null): RuwAlinea => ({ t: 'p', stijl, stijlen_ruw: stijl ? [stijl] : [], num: null, runs });
-const li = (runs: RuwRun[], numId = '1', fmt = 'bullet'): RuwAlinea => ({ t: 'p', stijl: 'ListParagraph', stijlen_ruw: ['ListParagraph'], num: { numId, ilvl: 0, fmt, start: 1 }, runs });
-const h = (n: 1 | 2 | 3 | 4, tekst: string) => p([r(tekst)], `Heading${n}`);
-const icoon = (naam: string): RuwRun => ({ t: 'beeld', bestand: `word/media/lesplan-${naam}.png`, sha1: `${'0'.repeat(39)}1`, breed: 133350, hoog: 133350 });
-const pagina = (): RuwAlinea => p([{ t: 'br', soort: 'page' }]);
-const cel = (blokken: RuwBlok[], o: Partial<RuwCel> = {}): RuwCel => ({ span: 1, vmerge: null, vulling: null, blokken, ...o });
-const kopcel = (blokken: RuwBlok[]): RuwCel => cel(blokken, { vulling: 'F2F2F2' });
-const tbl = (rijen: RuwCel[][]): RuwBlok => ({ t: 'tbl', rijen: rijen.map((cellen) => ({ cellen })) });
-const watHoeKop = () => [kopcel([p([r('', B)], 'Strong')]), kopcel([p([r('Inhoud (Wat?)', B)], 'Strong')]), kopcel([p([r('Didactiek (Hoe?)', B)], 'Strong')])];
-
-const STAPNAMEN = ['Verkennen', 'Voorkeursinstructie', 'Terugkoppelen', 'Begeleid inoefenen', 'Kleine lesafsluiting', 'Zelfstandige verwerking'];
-
-interface LesplanOpties {
-  stappen?: number;
-  deel2?: RuwBlok[];
-  lesdoel?: RuwBlok[];
-  deel5?: RuwBlok[];
-  extraDeel?: RuwBlok[];
-  deel3vlag?: RuwBlok[];
-  /** Na de tabel van deel 4 (zoals de mindmap in LP0014a en LP0014b). */
-  deel4Extra?: RuwBlok[];
-}
-
-/** Een klein lesplan naar LP0065 (ingekort), als de ruwe JSON van lees_docx.py. */
-function lesplanRuw(o: LesplanOpties = {}): RuwDocx {
-  const stappen = o.stappen ?? 6;
-  const leskern: RuwCel[][] = [];
-  for (let s = 0; s < stappen; s++) {
-    const naam = `${s + 1}. ${STAPNAMEN[s]}`;
-    leskern.push([
-      cel(s === 0 ? [p([r('Leskern', B)])] : [p([r('')])], { vmerge: s === 0 ? 'restart' : 'voort' }),
-      cel([p([r(naam, B), r('')]), p([r(`Wat bij stap ${s + 1}.`)])]),
-      cel([p([r(s === 1 ? '2. Voorkeursinstructie' : naam, B)]), p([r(`Hoe bij stap ${s + 1}.`)])]),
-    ]);
-  }
-  const body: RuwBlok[] = [
-    h(1, 'Lesplan LP0065 Dieren classificeren (2,5-4 jaar)'),
-    p([r('Vakdiscipline:', B), r(' Wetenschap en techniek')]),
-    p([r('Lessenlijn:', B), r(' Biologie van organismen')]),
-    p([r('Lessenreeks:', B), r(' Fauna: classificeren')]),
-    p([r('Lesplan:', B), r(' LP0065 Dieren classificeren')]),
-    p([r('Didactische fiche:', B), r(' DFWT005 Kenmerken van de organismen: Taxonomie van de fauna (GO! Navigator > Basisonderwijs > …)')]),
-    h(2, '1. Wat moet de leraar weten?'),
-    tbl([
-      watHoeKop(),
-      [cel([p([r('Kennis', B)])]), cel([p([r('Dieren en planten', B), r('')]), p([r('Dieren en planten zijn levende organismen.')])]), cel([li([r('Vertrek vanuit concrete materialen.')])])],
-      [cel([p([r('Misconcept', B)])]), cel([li([r('voeding: vb. "scherpe tanden = vleeseter"')])]), cel([p([r('')])])],
-    ]),
-    pagina(),
-    h(2, '2. Wat moet de leerling kennen en kunnen?'),
-    tbl([
-      watHoeKop(),
-      [
-        cel([p([r('Leerplandoelen', B)])]),
-        cel(
-          o.deel2 ?? [
-            p([r('WT.001', B), r(' [begrijpen]', I), r(' Herkennen het organisme dier. (2,5-4 jaar)')]),
-            p([r('WT.008', B), r(' [begrijpen]', I), r(' Herkennen de belangrijkste voedingswijze van dieren. (2,5-4 jaar)')]),
-            p([r('MIA', B), r(' — Dieren:')]),
-            li([r('zoogdieren')]),
-            li([r('vogels')]),
-            p([r('WT.028', B), r(' [gebruiken]', I), r(' Onderscheiden dieren en planten. (2,5-4 jaar)')]),
-          ],
-        ),
-        cel([li([r('Laat leerlingen dieren herkennen.')])]),
-      ],
-    ]),
-    pagina(),
-    h(2, '3. Samenhang'),
-    h(3, 'Verticale samenhang'),
-    p([r('Dit lesplan vormt een onderdeel van de lessenlijn '), r('Biologie van organismen', I), r('.')]),
-    h(3, 'Horizontale samenhang binnen de vakdiscipline'),
-    h(4, 'Vlaggen en schakels'),
-    p([r('Er zijn geen expliciete schakels of vlaggen naar andere doelen binnen de vakdiscipline voor dit lesplan.')]),
-    h(4, "Samenhang tussen diploma's en deelconcepten"),
-    p([r('In een diploma wordt een selectie van leerplandoelen samengenomen.')]),
-    tbl([
-      [kopcel([p([icoon('diploma'), r('   '), r('Diploma', B)], 'Strong')]), kopcel([p([icoon('deelconcept'), r('   '), r('Deelconcepten', B)], 'Strong')])],
-      [cel([p([r('De dierenkenner')])]), cel([li([r('Bouw en functies van planten, dieren, mens')])])],
-    ]),
-    h(4, 'Samenhang tussen deelconcepten en GO! concepten'),
-    p([r('Deelconcepten vormen een onderdeel van grotere GO! concepten.')]),
-    tbl([
-      [kopcel([p([icoon('deelconcept'), r('   '), r('Deelconcepten', B)], 'Strong')]), kopcel([p([icoon('go-concept'), r('   '), r('GO! concepten', B)], 'Strong')])],
-      [cel([p([r('Bouw en functies van planten, dieren, mens')])]), cel([li([r('Structuur en functie: de bouw hangt samen met de functie.')]), li([r('Ecologie: -')])])],
-      [cel([p([r('Gezondheid, voeding, hygiëne')])]), cel([li([r('Cel als basiseenheid: -')])])],
-    ]),
-    h(3, 'Horizontale samenhang over de vakdisciplines heen'),
-    h(4, 'Vlaggen en schakels'),
-    p([r('Er zijn geen vlaggen of schakels naar doelen van andere vakdisciplines.')]),
-    h(4, 'Denklenzen'),
-    p([r('Denklenzen vormen een brug tussen basiskennis en diep begrip.')]),
-    tbl([
-      [kopcel([p([icoon('denklens'), r('   '), r('Denklenzen', B)], 'Strong')]), kopcel([p([r('Voorbeeldvragen binnen dit lesplan', B)], 'Strong')])],
-      [cel([p([r('Lens Systemen en modellen - diepe denkvragen', B)])]), cel([li([r('Welke dingen horen samen?')])])],
-    ]),
-    h(4, 'Geïntegreerde samenhang met leren leren, ICT, sociale vaardigheden met dit lesplan'),
-    p([r('De menu’s maken zichtbaar welke doelen geïntegreerd kunnen worden.')]),
-    ...(o.deel3vlag ?? [p([icoon('vlag'), r('   '), r('LL.001', B), r(' Herkennen manieren om de impulsen te controleren. (2,5-4 jaar, 4-5 jaar, 5-6 jaar)')])]),
-    pagina(),
-    h(2, '4. Lesopbouw'),
-    tbl([
-      watHoeKop(),
-      [cel([p([r('Voorkennis', B)])]), cel([p([r('')])]), cel([p([r('Startleeftijd: geen voorkennisdoelen.')])])],
-      [cel([p([r('Doeloriëntatie / belang', B)])]), cel([p([r('Enthousiasmeren.')])]), cel([p([r('“Vandaag worden wij echte natuurkenners.”')])])],
-      [
-        cel([p([r('Lesdoel', B)])]),
-        cel(
-          o.lesdoel ?? [
-            p([r('Leerdoelen op leerlingenniveau vanuit het diploma: De dierenkenner 2,5-4 jaar', B)]),
-            p([r("(GO! Navigator > Basisonderwijs > Het nieuwe GO! Leerplan > Conceptkaarten > Diploma's)")]),
-            p([r('WT.001', B), r(' [begrijpen]', I), r(' (2,5-4 jaar)')]),
-            li([r('Ik herken dieren.', B)]),
-            p([r('WT.008', B), r(' [begrijpen]', I), r(' (2,5-4 jaar)')]),
-            li([r('Ik herken de voedingswijze van dieren.', B), r(' Ik weet wat dieren eten.')]),
-          ],
-        ),
-        cel([li([r('Vertaal het lesdoel naar een kindvriendelijk ik-doel.')])]),
-      ],
-      ...leskern,
-      [cel([p([r('Vastlegging', B)])]), cel([p([r('Het borgen van het concept.')])]), cel([p([r('W&T-hoek', B)])])],
-    ]),
-    ...(o.deel4Extra ?? []),
-    pagina(),
-    h(2, '5. Trainen'),
-    p([r('Deze activiteiten geven richting over hoe je tot oefenen komt met de leerlingen. Beperk je niet tot deze activiteiten, maar gebruik ook jouw eigen creativiteit.', I)]),
-    ...(o.deel5 ?? [
-      p([r('Dierenmand en plantenmand', B), r('\nZet twee grote manden klaar.\nZe leggen elk voorwerp in de juiste mand.')]),
-      p([r('Wie heeft honger?', B), r('\nZet enkele dierenknuffels op tafel.')]),
-    ]),
-    pagina(),
-    h(2, '6. Didactisch materiaal bij dit lesplan'),
-    p([r('Voorzie volgende didactische materialen:')]),
-    li([r('2 hoepels')]),
-    li([r('een kartonnen doos')]),
-    ...(o.extraDeel ?? []),
-  ];
-  return { bestand: 'LP0065.docx', gemaakt: '2026-10-01T08:00:00Z', media: [], stijlen: {}, tellingen: { alineas: 1 }, body };
-}
 
 const BRON = { bytes: 1234, sha256: 'b'.repeat(64), ingelezen: '2026-11-09' };
 const zetOm = (ruw: RuwDocx, bekende: BekendeAfwijking[] = []) => zetLesplanOm(ruw, { bekende: new Bekende(bekende), bron: BRON });
 const nieuweSoorten = (a: Afwijkingen) => a.nieuwe.map((x) => x.soort);
 const laatste = <T>(l: readonly T[] | undefined): T | undefined => (l ? l[l.length - 1] : undefined);
-
-// ══ Hulp: ruwe xlsx ══════════════════════════════════════════════════
-const KOP = ['TYPE', 'GO! NR.', 'INHOUD', 'KO nummer', 'KO minimumdoel', 'KO omschrijving', 'L4 nummer', 'L4 minimumdoel', 'L4 omschrijving', 'L6 nummer', 'L6 minimumdoel', 'L6 omschrijving', 'KENNISVERWERKING', '2,5-4', '4-5', '5-6', '6-7', '7-8', '8-9', '9-10', '10-11', '11-12', 'VLAGGEN', 'SCHAKELS'];
-const NUL = ['0', '0', '0', '0', '0', '0', '0', '0', '0'];
-interface RijOpties {
-  code?: string;
-  ko?: string;
-  l4?: string;
-  l6?: string;
-  kv?: string;
-  lft?: string[];
-  vlaggen?: string;
-  schakels?: string;
-  koTekst?: string;
-}
-const LFT = ['2,5-4', '4-5', '5-6', '6-7', '7-8', '8-9', '9-10', '10-11', '11-12'];
-function rij(nr: number, type: string, inhoud: string | null, o: RijOpties = {}): RuwRij {
-  const leeftijden = o.lft ? LFT.map((l) => (o.lft?.includes(l) ? '1' : '0')) : NUL;
-  return {
-    r: nr,
-    c: [type, o.code ?? null, inhoud, o.ko ?? null, o.koTekst ?? null, null, o.l4 ?? null, null, null, o.l6 ?? null, null, null, o.kv ?? null, ...leeftijden, o.vlaggen ?? null, o.schakels ?? null],
-  };
-}
-
-/** Een kleine doelenset wetenschap en techniek (naar de echte, ingekort). */
-function leerplanRuw(extra: RuwRij[] = [], vervang?: (rijen: RuwRij[]) => RuwRij[]): RuwXlsx {
-  let rijen: RuwRij[] = [
-    { r: 1, c: KOP },
-    rij(2, 'onderwerp', 'Organismen'),
-    rij(3, 'minimumdoel', null, { ko: '3.1.2', koTekst: 'De kleuters kunnen:' }),
-    rij(4, 'subthema', 'Kenmerken van organismen'),
-    rij(5, 'rubriek', 'Fauna'),
-    rij(6, 'subrubriek', 'Kenmerken: bouw'),
-    rij(7, 'doelzin', 'Herkennen het organisme dier.', { code: 'WT.001', ko: '3.1.2', kv: 'begrijpen', lft: ['2,5-4'], vlaggen: 'LL.001' }),
-    rij(8, 'te hanteren begrippen', 'het dier', { lft: ['2,5-4'] }),
-    rij(9, 'te hanteren begrippen', 'de alleseter'),
-    rij(10, 'doelzin', 'Herkennen verschillende voedingswijzen van dieren.', { code: 'WT.002', kv: 'begrijpen', lft: ['2,5-4'] }),
-    rij(11, 'MIA - titel', 'Dieren:'),
-    rij(12, 'MIA - aanklikbaar', 'zoogdieren'),
-    rij(13, 'MIA - aanklikbaar', 'vogels'),
-    rij(14, 'voorbeelden - titel', 'Voedingswijze:'),
-    rij(15, 'voorbeelden - bullet', 'Schapen eten gras.'),
-    rij(16, 'rubriek', 'Flora'),
-    rij(17, 'doelzin', 'Onderscheiden dieren en planten.', { code: 'WT.003', ko: '3.1.2', l6: '3.3.2', kv: 'gebruiken', lft: ['2,5-4', '4-5'], schakels: 'WT.001, WT.999' }),
-    rij(18, 'MIA - titel', 'Aftrekken:', { l4: '3.1.4' }),
-    rij(19, 'MIA - niet aanklikbaar', 'tot 10'),
-    rij(20, 'asterisk', '* een voetnoot'),
-    ...extra,
-  ];
-  if (vervang) rijen = vervang(rijen);
-  return { bestand: 'wetenschap_techniek.xlsx', gewijzigd: '2026-09-03T09:39:57Z', bladnamen: [{ naam: 'Wetenschap en techniek', staat: 'zichtbaar' }], blad: 'Wetenschap en techniek', merged: [], tellingen: {}, rijen };
-}
 
 /** Een opzoektabel zonder setbestanden: (moment, code) → doel. */
 function tabel(doelen: Record<string, MinimumdoelKandidaat>): Opzoektabel {
@@ -284,10 +87,30 @@ describe('controleerRuwDocx en controleerRuwXlsx', () => {
     expect(controleerRuwXlsx(leerplanRuw())).toEqual([]);
   });
   it('weigeren een ongeldige vorm', () => {
-    expect(controleerRuwDocx({ bestand: 'x', gemaakt: null, body: [{ t: 'p', stijl: null, num: null, runs: [{ t: 'raar' }] }], media: [], tellingen: {} })).toEqual(['body[0].runs[0] heeft een onbekende soort']);
+    expect(controleerRuwDocx({ bestand: 'x', bron: RUW_BRON, gemaakt: null, body: [{ t: 'p', stijl: null, num: null, runs: [{ t: 'raar' }] }], media: [], tellingen: {} })).toEqual(['body[0].runs[0] heeft een onbekende soort']);
     expect(controleerRuwDocx(null)).toEqual(['de ruwe docx-JSON is geen object']);
-    expect(controleerRuwXlsx({ bestand: 'x', blad: 'y', gewijzigd: null, bladnamen: [], merged: [], rijen: [{ r: 2, c: [] }, { r: 1, c: [] }] })[0]).toMatch(/lopen niet op/);
-    expect(controleerRuwXlsx({ bestand: 'x', blad: 'y', gewijzigd: null, bladnamen: [], merged: [], rijen: [{ r: 1, c: [3] }] })[0]).toMatch(/geen tekst/);
+    expect(controleerRuwXlsx({ bestand: 'x', ...XLSX_LEEG, blad: 'y', gewijzigd: null, bladnamen: [], rijen: [{ r: 2, c: [] }, { r: 1, c: [] }] })[0]).toMatch(/lopen niet op/);
+    expect(controleerRuwXlsx({ bestand: 'x', ...XLSX_LEEG, blad: 'y', gewijzigd: null, bladnamen: [], rijen: [{ r: 1, c: [3] }] })[0]).toMatch(/geen tekst/);
+  });
+
+  it('eisen het veld bron: {bytes, sha256} van het gelezen bestand (IMP-2)', () => {
+    const zonder = <T extends object>(o: T, k: string) => Object.fromEntries(Object.entries(o).filter(([x]) => x !== k));
+    expect(controleerRuwDocx(zonder(lesplanRuw(), 'bron')).join()).toMatch(/"bron" ontbreekt/);
+    expect(controleerRuwXlsx(zonder(leerplanRuw(), 'bron')).join()).toMatch(/"bron" ontbreekt/);
+    for (const bron of [{ bytes: 1, sha256: 'A'.repeat(64) }, { bytes: -1, sha256: 'a'.repeat(64) }, { bytes: 1.5, sha256: 'a'.repeat(64) }, { bytes: 1, sha256: 'a'.repeat(63) }, { bytes: 1 }, 'x']) {
+      expect(controleerRuwDocx({ ...lesplanRuw(), bron }).join(), JSON.stringify(bron)).toMatch(/"bron" ontbreekt of is ongeldig/);
+    }
+  });
+
+  it('eisen de lijsten van vreemde cellen, verborgen rijen en kolommen, opmerkingen en beelden (IMP-4, BLP-4)', () => {
+    for (const k of ['vreemde_cellen', 'verborgen_rijen', 'verborgen_kolommen', 'opmerkingen', 'beelden']) {
+      const ruw = Object.fromEntries(Object.entries(leerplanRuw()).filter(([x]) => x !== k));
+      expect(controleerRuwXlsx(ruw).join(), k).toMatch(new RegExp(`"${k}"`));
+    }
+    expect(controleerRuwXlsx({ ...leerplanRuw(), vreemde_cellen: [{ r: 1, k: 0, soort: 'n' }] }).join()).toMatch(/vreemde_cellen/);
+    expect(controleerRuwXlsx({ ...leerplanRuw(), beelden: [[1]] }).join()).toMatch(/beelden/);
+    expect(controleerRuwXlsx({ ...leerplanRuw(), verborgen_kolommen: [[1, -2]] }).join()).toMatch(/verborgen_kolommen/);
+    expect(controleerRuwXlsx({ ...leerplanRuw(), opmerkingen: '0' }).join()).toMatch(/opmerkingen/);
   });
 });
 
@@ -309,6 +132,22 @@ describe('leesBekendeAfwijkingen', () => {
     expect(fouten({ soort: 'opmaak', vak: 'WI', rij: '3', kolom: 2, tekst: 'x', besluit: 'opmaak-bewaren', reden: 'Een reden van genoeg lengte.', datum: '2026-11-09' }).join()).toMatch(/"rij" is geen geheel getal/);
     expect(fouten({ soort: 'lesplan-beeld', sha1: 'a', lesplannen: ['LP0001'], status: 'getoond', reden: 'Een reden van genoeg lengte.', datum: '2026-11-09' }).join()).toMatch(/"bestand" en "alt"/);
     expect(leesBekendeAfwijkingen({ lijst: [] }).fouten[0]).toMatch(/geen lijst "afwijkingen"/);
+  });
+
+  it('een getoond beeld mag een sha256 hebben, maar dan een echte (IMP-6); nieuwe soorten zijn streng', () => {
+    const fouten = (a: unknown) => leesBekendeAfwijkingen({ afwijkingen: [a] }).fouten;
+    const beeld = { soort: 'lesplan-beeld', sha1: 'a'.repeat(40), lesplannen: ['LP0014a'], status: 'getoond', bestand: 'beelden/a.webp', alt: 'Een beeld.', reden: 'Een reden van genoeg lengte.', datum: '2026-11-09' };
+    expect(fouten(beeld)).toEqual([]);
+    expect(fouten({ ...beeld, sha256: '9433715e48416f710a1c487879fdfd2be6ab4fa39426643bb6f770703591c2ce' })).toEqual([]);
+    for (const sha256 of ['9433715E48416F710A1C487879FDFD2BE6AB4FA39426643BB6F770703591C2CE', 'abc', 65744, '']) expect(fouten({ ...beeld, sha256 }).join(), String(sha256)).toMatch(/sha256/);
+    expect(fouten({ ...beeld, bytes: 65744 }).join()).toMatch(/onbekend veld "bytes"/);
+    const basis = { reden: 'Een reden van genoeg lengte.', datum: '2026-11-09' };
+    expect(fouten({ soort: 'xlsx-beeld', vak: 'WI', rij: 898, kolom: 2, ...basis })).toEqual([]);
+    expect(fouten({ soort: 'xlsx-beeld', vak: 'WI', rij: '898', kolom: 2, ...basis }).join()).toMatch(/"rij" is geen geheel getal/);
+    expect(fouten({ soort: 'lesplan-leeftijd', lesplan: 'LP0065', doel: 'WT.001', ...basis })).toEqual([]);
+    expect(fouten({ soort: 'lesplan-leeftijd', lesplan: 'LP0065', ...basis }).join()).toMatch(/"doel" ontbreekt/);
+    expect(fouten({ soort: 'lessenlijn-variant', lesplan: 'LP0060', veld: 'lessenlijn', naam: 'Biologie van Organismen', ...basis })).toEqual([]);
+    expect(fouten({ soort: 'lessenlijn-variant', lesplan: 'LP0060', veld: 'lijn', naam: 'x', ...basis }).join()).toMatch(/lessenlijn of lessenreeks/);
   });
 
   it('Bekende houdt bij welke regels gebruikt zijn', () => {
@@ -811,23 +650,6 @@ describe('zetLeerplanOm: afwijkingen geven exit 3', () => {
 
 // ══ Over lesplan en doelenset heen ════════════════════════════════════
 describe('controleerLesplanTegenLeerplan', () => {
-  // Een doelenset met de doelen van het lesplan (WT.001, WT.008, WT.028) en LL.001 voor de vlag.
-  const wtRuw = () => {
-    const rijen: RuwRij[] = [{ r: 1, c: KOP }, rij(2, 'onderwerp', 'Organismen')];
-    let nr = 3;
-    for (let n = 1; n <= 28; n++) {
-      const code = `WT.${String(n).padStart(3, '0')}`;
-      const tekst = n === 1 ? 'Herkennen het organisme dier.' : n === 8 ? 'Herkennen verschillende voedingswijzen van dieren.' : n === 28 ? 'Onderscheiden dieren en planten.' : `Doel ${n}.`;
-      rijen.push(rij(nr++, 'doelzin', tekst, { code, kv: n === 28 ? 'gebruiken' : 'begrijpen', lft: ['2,5-4'], vlaggen: n === 1 ? 'LL.001' : undefined }));
-      if (n === 8) rijen.push(rij(nr++, 'MIA - titel', 'Dieren:'), rij(nr++, 'MIA - aanklikbaar', 'zoogdieren'), rij(nr++, 'MIA - aanklikbaar', 'vogels'));
-    }
-    return { ...leerplanRuw(), rijen };
-  };
-  const llRuw = (): RuwXlsx => ({
-    ...leerplanRuw(),
-    blad: 'Leren leren',
-    rijen: [{ r: 1, c: KOP }, rij(2, 'subthema', 'Zelfregulatie'), rij(3, 'doelzin', 'Herkennen manieren om de impulsen te controleren.', { code: 'LL.001', kv: 'begrijpen', lft: ['2,5-4', '4-5', '5-6'] })],
-  });
   const leerplannen = () => {
     const m = new Map<GoVak, GoLeerplanBestand>();
     m.set('WT', leerplanOm(wtRuw(), [], () => true).bestand as GoLeerplanBestand);
@@ -922,5 +744,244 @@ describe('maakBijMinimumdoel en maakIndex', () => {
     expect(index.leerplan[0]).toMatchObject({ vak: 'WT', aantal: 3, zonderMinimumdoel: 1, perLeeftijd: { '2,5-4': 3, '4-5': 1, '5-6': 0 }, bronDatum: '2026-09-03T09:39:57Z', sha256: wt.sha256 });
     expect(index.lesplannen[0]).toMatchObject({ code: 'LP0065', vak: 'WT', doelen: ['WT.001', 'WT.008', 'WT.028'], bestand: 'lesplannen/LP0065.json', sha256: lp.sha256 });
     expect(index.bijMinimumdoel).toEqual([{ vak: 3, bestand: 'bij-minimumdoel/3.json', sha256: bij[0].sha256 }]);
+  });
+});
+
+// ══ Wat een volgende reeks anders kan aanleveren (IMP-4, IMP-5, IMP-13, BLP-4, lessenlijnen) ══════════
+describe('zetLesplanOm: onbekende opmaak en stijlen stoppen de import (IMP-5)', () => {
+  it('een run-eigenschap buiten de gekende lijst: verborgen tekst, hoofdletters, een tekenstijl', () => {
+    for (const k of ['rpr:vanish', 'rpr:caps', 'rpr:rStyle', 'rpr:smallCaps', 'rpr:noProof']) {
+      const ruw = lesplanRuw();
+      ruw.tellingen = { ...ruw.tellingen, [k]: 2 };
+      expect(zetOm(ruw).afwijkingen.nieuwe, k).toContainEqual(expect.objectContaining({ soort: 'docx-opmaak', bericht: expect.stringContaining(`2 × ${k}`) as unknown }));
+    }
+  });
+
+  it('de 11 gekende run-eigenschappen geven geen afwijking', () => {
+    const ruw = lesplanRuw();
+    for (const k of ['b', 'bCs', 'i', 'iCs', 'u', 'color', 'lang', 'rFonts', 'rtl', 'sz', 'szCs']) ruw.tellingen[`rpr:${k}`] = 5;
+    expect(zetOm(ruw).afwijkingen.nieuwe).toEqual([]);
+  });
+
+  it('een alineastijl buiten de gekende lijst (bv. Heading5 of Normal)', () => {
+    for (const stijl of ['Heading5', 'Title', 'Normal']) {
+      const u = zetOm(lesplanRuw({ extraDeel: [p([r('Extra materiaal')], stijl)] }));
+      expect(u.afwijkingen.nieuwe, stijl).toContainEqual(expect.objectContaining({ soort: 'docx-stijl', bericht: `de alineastijl ${stijl} is niet gekend` }));
+    }
+  });
+
+  it('tekst in de stijl Strong zonder eigen vet; witruimte zonder vet en een pictogram mogen', () => {
+    const u = zetOm(lesplanRuw({ extraDeel: [p([r('Belangrijk:', B), r(' was de handen.')], 'Strong')] }));
+    expect(u.afwijkingen.nieuwe).toContainEqual(expect.objectContaining({ soort: 'docx-stijl', bericht: 'tekst in de stijl Strong zonder eigen vet' }));
+    expect(zetOm(lesplanRuw({ extraDeel: [p([r('Belangrijk', B), r('   '), r(' alles vet', B)], 'Strong')] })).afwijkingen.nieuwe).toEqual([]);
+  });
+});
+
+describe('zetLeerplanOm: wat de lezer zag maar niet als tekst overneemt (IMP-4, BLP-4)', () => {
+  const nieuw = (ruw: RuwXlsx, bekende?: BekendeAfwijking[]) => leerplanOm(ruw, bekende).afwijkingen.nieuwe;
+
+  it.each([
+    ['n', '0.5', /een cel die geen tekst is \(n\): "0\.5"/],
+    ['e', '#REF!', /een cel die geen tekst is \(e\): "#REF!"/],
+    ['str', 'een formule', /\(str\)/],
+    ['d', '2026-11-09', /\(d\)/],
+    ['escape', 'Benoemen de delen_x000D_', /Excel-escape/],
+  ])('een vreemde cel van de soort %s', (soort, waarde, bericht) => {
+    const ruw = { ...leerplanRuw(), vreemde_cellen: [{ r: 11, k: 2, soort, waarde }] };
+    expect(nieuw(ruw)).toContainEqual(expect.objectContaining({ soort: 'xlsx-cel', waar: 'rij 11, kolom 2', bericht: expect.stringMatching(bericht) as unknown }));
+  });
+
+  it('een verborgen rij of kolom en een opmerking stoppen altijd', () => {
+    expect(nieuw({ ...leerplanRuw(), verborgen_rijen: [12] })).toContainEqual(expect.objectContaining({ soort: 'xlsx-verborgen', waar: 'rij 12' }));
+    expect(nieuw({ ...leerplanRuw(), verborgen_kolommen: [[2, 2], [24, 30]] }).map((a) => a.waar)).toEqual(['kolom 2', 'kolom 24-30']);
+    expect(nieuw({ ...leerplanRuw(), opmerkingen: 1 })).toContainEqual(expect.objectContaining({ soort: 'xlsx-opmerking' }));
+  });
+
+  it('een beeld op het blad: alleen als bekende afwijking voor dat vak, die rij en die kolom', () => {
+    const ruw = { ...leerplanRuw(), beelden: [[14, 2]] as [number, number][] };
+    expect(nieuw(ruw)).toContainEqual(expect.objectContaining({ soort: 'xlsx-beeld', waar: 'rij 14, kolom 2' }));
+    const bekend: BekendeAfwijking = { soort: 'xlsx-beeld', vak: 'WT', rij: 14, kolom: 2, reden: 'Een restant van een breuk (test).', datum: '2026-11-09' };
+    const u = leerplanOm(ruw, [KAPOT, bekend]);
+    expect(u.afwijkingen.nieuwe).toEqual([]);
+    expect(u.afwijkingen.lijst.filter((a) => a.bekend).map((a) => a.soort)).toContain('xlsx-beeld');
+    expect(nieuw(ruw, [KAPOT, { ...bekend, kolom: 3 }]).map((a) => a.soort)).toContain('xlsx-beeld');
+    expect(nieuw(ruw, [KAPOT, { ...bekend, vak: 'WI' }]).map((a) => a.soort)).toContain('xlsx-beeld');
+    expect(nieuw({ ...leerplanRuw(), beelden: [[0, 0]] })).toContainEqual(expect.objectContaining({ soort: 'xlsx-beeld', waar: 'blad (zonder cel)' }));
+  });
+});
+
+describe('controleerLesplanTegenLeerplan: de leeftijd van het lesplan (IMP-13)', () => {
+  const leerplannen = () => {
+    const m = new Map<GoVak, GoLeerplanBestand>();
+    m.set('WT', leerplanOm(wtRuw(), [], () => true).bestand as GoLeerplanBestand);
+    m.set('LL', leerplanOm(llRuw(), [], () => true).bestand as GoLeerplanBestand);
+    return m;
+  };
+  const DOELTEKST: BekendeAfwijking = { soort: 'lesplan-doeltekst', lesplan: 'LP0065', doel: 'WT.008', tekst: 'Herkennen de belangrijkste voedingswijze van dieren.', reden: 'Het lesplan heeft een andere tekst (test).', datum: '2026-11-09' };
+  const controleer = (ruw: RuwDocx, bekende: BekendeAfwijking[] = [DOELTEKST]) => {
+    const u = zetOm(ruw);
+    if (!u.bestand) throw new Error('geen bestand');
+    const afw = new Afwijkingen(u.bestand.code);
+    controleerLesplanTegenLeerplan(u.bestand, u.extra, leerplannen(), new Bekende(bekende), afw);
+    return afw;
+  };
+  const metTitel = (titel: string) => {
+    const ruw = lesplanRuw();
+    ruw.body[0] = h(1, titel);
+    return ruw;
+  };
+
+  it('een titel met een andere leeftijd dan de doelen en het diploma: een afwijking per doel en per diploma', () => {
+    const afw = controleer(metTitel('Lesplan LP0065 Dieren classificeren (6-7 jaar)'));
+    const lft = afw.nieuwe.filter((a) => a.soort === 'lesplan-leeftijd');
+    expect(lft.map((a) => a.waar)).toEqual(['deel 2, WT.001', 'deel 2, WT.008', 'deel 2, WT.028', 'deel 4, diploma De dierenkenner']);
+    expect(lft[0].bericht).toBe('het lesplan is voor 6-7 jaar (titel), het doel voor 2,5-4 jaar');
+  });
+
+  it('een diploma met een andere leeftijd', () => {
+    const ruw = lesplanRuw({
+      lesdoel: [
+        p([r('Leerdoelen op leerlingenniveau vanuit het diploma: De dierenkenner 4-5 jaar', B)]),
+        p([r("(GO! Navigator > Basisonderwijs > Het nieuwe GO! Leerplan > Conceptkaarten > Diploma's)")]),
+        p([r('WT.001', B), r(' [begrijpen]', I), r(' (2,5-4 jaar)')]),
+        li([r('Ik herken dieren.', B)]),
+      ],
+    });
+    expect(controleer(ruw).nieuwe).toEqual([expect.objectContaining({ soort: 'lesplan-leeftijd', waar: 'deel 4, diploma De dierenkenner', bericht: 'het lesplan is voor 2,5-4 jaar (titel), het diploma voor 4-5 jaar' })]);
+  });
+
+  it('een doel van meer leeftijden mag, zolang de leeftijd van het lesplan erbij is; bewust anders kan via bekende-afwijkingen.json', () => {
+    expect(controleer(lesplanRuw()).nieuwe).toEqual([]);
+    const afw = controleer(metTitel('Lesplan LP0065 Dieren classificeren (4-5 jaar)'), [
+      DOELTEKST,
+      ...['WT.001', 'WT.008', 'WT.028'].map((doel): BekendeAfwijking => ({ soort: 'lesplan-leeftijd', lesplan: 'LP0065', doel, reden: 'Het GO! bedoelt het zo (test).', datum: '2026-11-09' })),
+    ]);
+    expect(afw.nieuwe.map((a) => a.waar)).toEqual(['deel 4, diploma De dierenkenner']);
+  });
+});
+
+describe('controleerLessenlijnen: twee schrijfwijzen van dezelfde lessenlijn of lessenreeks (gat lessenlijnen)', () => {
+  const lp = zetOm(lesplanRuw()).bestand;
+  if (!lp) throw new Error('geen lesplan');
+  const met = (code: string, lessenlijn: string, lessenreeks = 'Fauna: classificeren', vak: GoVak = 'WT') => ({ ...lp, code, afgeleid: { ...lp.afgeleid, vak, lessenlijn, lessenreeks } });
+
+  it('gelijke namen: niets', () => {
+    expect(controleerLessenlijnen([met('LP0065', 'Biologie van organismen'), met('LP0074', 'Biologie van organismen')], new Bekende([]))).toEqual([]);
+  });
+
+  it("'Biologie van organismen' en 'Biologie van Organismen': de minder gebruikte schrijfwijze is een afwijking", () => {
+    const lijst = [met('LP0060', 'Biologie van Organismen'), met('LP0065', 'Biologie van organismen'), met('LP0074', 'Biologie van organismen')];
+    const a = controleerLessenlijnen(lijst, new Bekende([]));
+    expect(a).toEqual([
+      {
+        soort: 'lessenlijn-variant',
+        bestand: 'LP0060',
+        waar: 'deel 0, Lessenlijn',
+        bericht: '"Biologie van Organismen" en "Biologie van organismen" (LP0065, LP0074) geven hetzelfde adres (biologie-van-organismen), maar zijn niet letterlijk gelijk: de app toont dan twee lessenlijnen',
+      },
+    ]);
+  });
+
+  it('ook witruimte, accenten en leestekens; bij gelijke stand wint het laagste lesplan', () => {
+    expect(controleerLessenlijnen([met('LP0065', 'Biologie van organismen'), met('LP0074', 'Biologie  van  organismen')], new Bekende([])).map((a) => a.bestand)).toEqual(['LP0074']);
+    expect(controleerLessenlijnen([met('LP0065', 'Fauna: één'), met('LP0074', 'Fauna - een')], new Bekende([])).map((a) => a.bestand)).toEqual(['LP0074']);
+  });
+
+  it('een andere lessenlijn of een ander vak telt niet; een lessenreeks binnen dezelfde lijn wel', () => {
+    expect(controleerLessenlijnen([met('LP0065', 'Biologie van organismen'), met('LP0074', 'Biologie van planten'), met('LP0087', 'Biologie van Organismen', 'x', 'AA')], new Bekende([]))).toEqual([]);
+    const a = controleerLessenlijnen([met('LP0065', 'Biologie van organismen', 'Fauna: classificeren'), met('LP0074', 'Biologie van organismen', 'Fauna: Classificeren'), met('LP0087', 'Biologie van planten', 'Fauna: Classificeren')], new Bekende([]));
+    expect(a.map((x) => [x.bestand, x.waar])).toEqual([['LP0074', 'deel 0, Lessenreeks']]);
+  });
+
+  it('een bekende variant voor dat lesplan gaat door', () => {
+    const lijst = [met('LP0060', 'Biologie van Organismen'), met('LP0065', 'Biologie van organismen'), met('LP0074', 'Biologie van organismen')];
+    const bekend: BekendeAfwijking = { soort: 'lessenlijn-variant', lesplan: 'LP0060', veld: 'lessenlijn', naam: 'Biologie van Organismen', reden: 'Het GO! schrijft het zo (test).', datum: '2026-11-09' };
+    const a = controleerLessenlijnen(lijst, new Bekende([bekend]));
+    expect(a).toHaveLength(1);
+    expect(a[0].bekend).toBeDefined();
+    expect(controleerLessenlijnen(lijst, new Bekende([{ ...bekend, lesplan: 'LP0065' }]))[0].bekend).toBeUndefined();
+  });
+});
+
+// ══ Elke controle van de import heeft een test (IMP-10) ══════════════════
+// De 32 controles die bij de mutatietest van 9 november 2026 niet gevangen werden: per controle een kleine wijziging
+// aan het voorbeeld en de afwijking die ze moet geven (soort en een stuk van het bericht).
+type Lesplanwijziging = (ruw: RuwDocx) => void;
+const tabelVan = (ruw: RuwDocx, n: number) => ruw.body.filter((b): b is Extract<RuwBlok, { t: 'tbl' }> => b.t === 'tbl')[n];
+const regelVan = (ruw: RuwDocx, tekst: string) => ruw.body.findIndex((b) => b.t === 'p' && b.runs.some((x) => x.t === 'tekst' && x.tekst === tekst));
+const deel2 = (regels: RuwBlok[]): Lesplanwijziging => (ruw) => {
+  (tabelVan(ruw, 1).rijen[1].cellen[1] as { blokken: RuwBlok[] }).blokken = regels;
+};
+const doelregel = (code: string, codeOpmaak: { b?: boolean } = B, kvOpmaak: { i?: boolean } = I) => p([r(code, codeOpmaak), r(' [begrijpen]', kvOpmaak), r(' Herkennen het organisme dier. (2,5-4 jaar)')]);
+const LESPLAN_MUTATIES: [string, Lesplanwijziging, string, RegExp][] = [
+  ['docx: verboden elementen (bv. een hyperlink)', (x) => void (x.tellingen.hyperlinks = 1), 'docx-element', /1 × hyperlinks/],
+  ['docx: bijgehouden wijzigingen, tekstvak, veld, commentaar', (x) => void Object.assign(x.tellingen, { ins: 1, del: 1, tekstvakken: 1, velden: 1, commentaar_ankers: 1 }), 'docx-element', /tekstvakken/],
+  ['docx: een onbekend element in een run', (x) => void (x.tellingen['run_kind:footnoteReference'] = 1), 'docx-element', /run_kind:footnoteReference/],
+  ['docx: nummering anders dan bullet of decimal', (x) => void x.body.push(li([r('a')], '7', 'lowerLetter')), 'docx-lijst', /nummering "lowerLetter"/],
+  ['docx: een kop in een tabelcel', (x) => void tabelVan(x, 0).rijen[1].cellen[1].blokken.push(h(3, 'Kop')), 'docx-kop-in-cel', /een kop in een tabelcel/],
+  ['docx: gridSpan', (x) => void (tabelVan(x, 0).rijen[1].cellen[1].span = 2), 'docx-tabel', /gridSpan 2/],
+  ['docx: een tabel in een tabel', (x) => void tabelVan(x, 0).rijen[1].cellen[1].blokken.push(tbl([[cel([p([r('x')])])]])), 'docx-tabel', /een tabel in een tabel/],
+  ['lesplan: de code in de titel is niet die van het bestand', (x) => void (x.bestand = 'LP0066.docx'), 'lesplan-titel', /de code in de titel \(LP0065\)/],
+  ['lesplan: het aantal metaregels', (x) => void x.body.splice(6, 0, p([r('Nog een regel.')])), 'lesplan-metaregels', /6 regels onder de titel/],
+  ["lesplan: 'Lesplan:' is niet code en titel", (x) => void (x.body[4] = p([r('Lesplan:', B), r(' LP0065 Dieren sorteren')])), 'lesplan-metaregels', /"Lesplan:" is niet gelijk/],
+  ['lesplan: een fiche van een ander vak', (x) => void (x.body[5] = p([r('Didactische fiche:', B), r(' DFWI005 Getallen (GO! Navigator > Basisonderwijs > …)')])), 'lesplan-metaregels', /de fiche DFWI005 hoort niet bij WT/],
+  ['lesplan: de kop van een deel wijkt af', (x) => void (x.body[regelVan(x, '1. Wat moet de leraar weten?')] = h(2, '1. Wat moet de leraar weten')), 'lesplan-delen', /de kop is "1\. Wat moet de leraar weten"/],
+  ['lesplan: te weinig delen', (x) => void x.body.splice(regelVan(x, '6. Didactisch materiaal bij dit lesplan'), 1), 'lesplan-delen', /5 delen, verwacht 6/],
+  ['lesplan: een kop van niveau 3 buiten deel 3', (x) => void x.body.push(h(3, 'Extra')), 'lesplan-koppen', /buiten deel 3/],
+  ['lesplan: de tussenkoppen van deel 3', (x) => void (x.body[regelVan(x, 'Denklenzen')] = h(4, 'Denklens')), 'lesplan-koppen', /tussenkoppen van deel 3/],
+  ['lesplan: het aantal tabellen per deel', (x) => void x.body.push(tbl([[cel([p([r('x')])])]])), 'lesplan-tabel', /1 tabellen, verwacht 0/],
+  ['lesplan: het aantal kolommen', (x) => void tabelVan(x, 0).rijen[1].cellen.push(cel([p([r('x')])])), 'lesplan-tabel', /niet elke rij heeft 3 kolommen/],
+  ['lesplan: een kolomkop', (x) => void (tabelVan(x, 0).rijen[0].cellen[1] = kopcel([p([r('Inhoud', B)], 'Strong')])), 'lesplan-tabel', /verwacht "Inhoud \(Wat\?\)", er staat "Inhoud"/],
+  ['lesplan: de rijkoppen', (x) => void (tabelVan(x, 0).rijen[2].cellen[0] = cel([p([r('Misconcepten', B)])])), 'lesplan-tabel', /de rijkoppen zijn Kennis, Misconcepten/],
+  ['lesplan: de code van een doel staat niet vet vooraan', deel2([doelregel('WT.001', {})]), 'lesplan-deel2', /WT\.001 staat niet vet vooraan/],
+  ['lesplan: het niveau staat niet cursief', deel2([doelregel('WT.001', B, {})]), 'lesplan-deel2', /\[begrijpen\] staat niet cursief/],
+  ['lesplan: een doel staat er twee keer', deel2([doelregel('WT.001'), doelregel('WT.001')]), 'lesplan-deel2', /WT\.001 staat er twee keer/],
+  ['lesplan: een doel van een ander vak', deel2([doelregel('WI.001')]), 'lesplan-deel2', /WI\.001 hoort niet bij de vakdiscipline WT/],
+  ['lesplan: een vlag buiten deel 3', (x) => void x.body.push(p([icoon('vlag'), r('   '), r('LL.001', B), r(' Herkennen. (2,5-4 jaar)')])), 'lesplan-deel3', /een vlag of schakel buiten deel 3/],
+];
+
+type Leerplanwijziging = (ruw: RuwXlsx) => void;
+const LEERPLAN_MUTATIES: [string, Leerplanwijziging, string, RegExp][] = [
+  ['xlsx: meer dan één tabblad', (x) => void x.bladnamen.push({ naam: 'Blad2', staat: 'hidden' }), 'xlsx-blad', /2 tabbladen \(verwacht één\)/],
+  ['xlsx: samengevoegde cellen', (x) => void x.merged.push('A2:B2'), 'xlsx-blad', /1 samengevoegde cellen/],
+  ['xlsx: meer dan 24 kolommen in de kop', (x) => void (x.rijen[0] = { r: 1, c: [...KOP, 'EXTRA'] }), 'xlsx-kop', /meer dan 24 kolommen/],
+  ['xlsx: een waarde voorbij kolom 24', (x) => void x.rijen[7].c.push('x'), 'xlsx-rij', /een waarde voorbij kolom 24/],
+  ['xlsx: opmaak buiten de kolom INHOUD', (x) => void (x.rijen[7].opmaak = { '3': [{ t: '3.1.2', strike: true }] }), 'opmaak', /opmaak buiten de kolom INHOUD/],
+  ['xlsx: een rij zonder TYPE met inhoud', (x) => void x.rijen.splice(8, 0, { r: 8.5, c: ['', null, 'Wees.'] }), 'xlsx-rij', /een rij zonder TYPE met inhoud/],
+  ['xlsx: een onbekende kennisverwerking', (x) => void (x.rijen[6] = rij(7, 'doelzin', 'Herkennen het organisme dier.', { code: 'WT.001', ko: '3.1.2', kv: 'toepassen', lft: ['2,5-4'], vlaggen: 'LL.001' })), 'xlsx-rij', /kennisverwerking "toepassen"/],
+  // Een code die geen doel vindt, twee keer: zonder de controle op dezelfde letterlijke code zouden het twee problemen zijn.
+  ['koppelen: dezelfde code twee keer in één kolom', (x) => void (x.rijen[6] = rij(7, 'doelzin', 'Herkennen het organisme dier.', { code: 'WT.001', ko: '3.1.2, 3.9.9, 3.9.9', kv: 'begrijpen', lft: ['2,5-4'], vlaggen: 'LL.001' })), 'koppeling-dubbel', /KO 3\.9\.9 staat twee keer/],
+  ['koppelen: twee codes die hetzelfde doel vinden', (x) => void (x.rijen[6] = rij(7, 'doelzin', 'Herkennen het organisme dier.', { code: 'WT.001', ko: '3.1.2, 3.1.2', kv: 'begrijpen', lft: ['2,5-4'], vlaggen: 'LL.001' })), 'koppeling-dubbel', /KO 3\.1\.2 staat twee keer/],
+];
+
+describe('elke controle van de import heeft een test: een gewijzigd lesplan of doelenset geeft deze afwijking', () => {
+  it('het voorbeeld zelf geeft geen enkele afwijking', () => {
+    expect(zetOm(lesplanRuw()).afwijkingen.nieuwe).toEqual([]);
+    expect(leerplanOm(leerplanRuw()).afwijkingen.nieuwe).toEqual([]);
+  });
+
+  it.each(LESPLAN_MUTATIES)('%s', (_naam, wijzig, soort, bericht) => {
+    const ruw = lesplanRuw();
+    wijzig(ruw);
+    expect(zetOm(ruw).afwijkingen.nieuwe).toContainEqual(expect.objectContaining({ soort, bericht: expect.stringMatching(bericht) as unknown }));
+  });
+
+  it.each(LEERPLAN_MUTATIES)('%s', (_naam, wijzig, soort, bericht) => {
+    const ruw = leerplanRuw();
+    wijzig(ruw);
+    expect(leerplanOm(ruw).afwijkingen.nieuwe).toContainEqual(expect.objectContaining({ soort, bericht: expect.stringMatching(bericht) as unknown }));
+  });
+
+  it('over lesplan en doelenset heen: een begrip dat niet bij het doel staat', () => {
+    const m = new Map<GoVak, GoLeerplanBestand>();
+    m.set('WT', leerplanOm(wtRuw(), [], () => true).bestand as GoLeerplanBestand);
+    m.set('LL', leerplanOm(llRuw(), [], () => true).bestand as GoLeerplanBestand);
+    const ruw = lesplanRuw();
+    deel2([doelregel('WT.001'), p([r('Te hanteren begrippen:', B), r(' het dier, de vis')])])(ruw);
+    const u = zetOm(ruw);
+    if (!u.bestand) throw new Error('geen bestand');
+    const afw = new Afwijkingen('LP0065');
+    controleerLesplanTegenLeerplan(u.bestand, u.extra, m, new Bekende([]), afw);
+    expect(afw.nieuwe).toContainEqual(expect.objectContaining({ soort: 'lesplan-begrip', bericht: 'het begrip "het dier" staat niet bij WT.001' }));
   });
 });

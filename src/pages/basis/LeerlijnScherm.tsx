@@ -8,6 +8,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { GoVakLinks } from '../../components/basis/go/GoVakLinks';
 import { MOMENT_KORT } from '../../components/basis/DoelRij';
 import { LeerlijnTabel } from '../../components/basis/LeerlijnTabel';
 import { RubriekenLijst, ga, onderwerpKopId } from '../../components/basis/RubriekenLijst';
@@ -174,6 +175,7 @@ export function LeerlijnInhoud({ soort, vak, leerjaar, onderwerp, doelen, moment
             Alle doelen: {MOMENT_KORT[m].toLowerCase()}
           </Link>
         ))}
+        <GoVakLinks vak={vak} leerjaar={leerjaar} />
       </p>
     </>
   );

@@ -256,6 +256,7 @@ export function ZoekResultaten({ uitslag, vraagTekst, doelen, soort, leerjaar, b
             <li>Controleer de spelling, of probeer een ander woord voor hetzelfde.</li>
             <li>Probeer één woord, bijvoorbeeld het onderwerp.</li>
             <li>Typ een doelnummer (5 cijfers) of een code zoals 3.5.4 als je die kent.</li>
+            <li>Een code van het GO! werkt ook, bijvoorbeeld WT.086 of LP0065. Woorden uit de leerplandoelen en lesplannen van het GO! doorzoeken we nog niet.</li>
           </ul>
           {bereikLink && <p>{bereikLink}</p>}
           <h2 className="b-zoek-vaktegels">Of bekijk de leerlijn van een vak</h2>

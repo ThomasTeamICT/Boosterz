@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { createElement, type ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom/server';
+import { GO_LEESBRIL_UITLEG } from '../../lib/basis/go/leeftijden';
 import { describe, expect, it } from 'vitest';
 import type { MinimumdoelenIndexSet } from '../../lib/minimumdoelen';
 import { DoelKaart } from '../../components/basis/DoelKaart';
@@ -301,6 +302,14 @@ describe('VakInhoud', () => {
     expect(tekst(html)).toContain('2 doelen: 1 te bereiken (populatie) · 1 na te streven');
   });
 
+  it('linkt naar het leerplan van het GO! voor dit vak, met het leerjaar van het scherm', () => {
+    const html = vak({ leerjaar: 'K1' });
+    expect(html).toContain('href="/basis/leerplandoelen/wt?leerjaar=K1"');
+    expect(tekst(html)).toContain('Leerplan van het GO!: wetenschap en techniek');
+    expect(vak()).toContain('href="/basis/leerplandoelen/wt"');
+    expect(tekst(toon(createElement(VakInhoud, { soort: 'bao', eind: 'L4', vak: 9, sets: [], doelen: [], schooljaar: 2026 })))).toContain('Leerplan van het GO!: burgerschap');
+  });
+
   it('een vak zonder set op dit moment geeft een zin en geen onderwerpen', () => {
     const html = toon(createElement(VakInhoud, { soort: 'bao', eind: 'L4', vak: 10, sets: [], doelen: [], schooljaar: 2026 }));
     expect(tekst(html)).toContain('Frans heeft geen nieuwe doelen voor het einde van het 4de leerjaar.');
@@ -479,12 +488,12 @@ function bijDoel(vak: number, id: string, index: GoIndex | undefined = GO_INDEX,
 }
 
 describe('GoBijDoelInhoud', () => {
-  it('toont bij 3.1.2 (92590) de leerplandoelen van het GO! met de lesplannen, per vakdiscipline', () => {
+  it('toont bij 3.1.2 (92590) de leerplandoelen van het GO! met de lesplannen, per vak', () => {
     const html = bijDoel(3, '92590', GO_INDEX, '3.1.2');
     expect(tel(html, /<h2[\s>]/g)).toBe(1);
     expect(tel(html, /<h1[\s>]/g)).toBe(0);
     expect(html).toContain(`<h2 id="b-go-bij-kop">${GO_BIJ_DOEL_KOP}</h2>`);
-    expect(tekst(html)).toContain('Het leerplan van het GO! koppelt deze leerplandoelen aan dit minimumdoel (22 leerplandoelen in 1 vakdiscipline).');
+    expect(tekst(html)).toContain('Het leerplan van het GO! koppelt deze leerplandoelen aan dit minimumdoel (22 leerplandoelen in 1 vak).');
     expect(tekst(html)).toContain('Wetenschap en techniek (22 leerplandoelen)');
     expect(html).toContain('href="/basis/leerplandoel/WT.028"');
     expect(tekst(html)).toContain('Lesplannen (2): LP0065 Dieren classificeren (2,5-4 jaar) , LP0074 Planten classificeren (2,5-4 jaar)');
@@ -494,10 +503,17 @@ describe('GoBijDoelInhoud', () => {
     expect(html).toContain('href="/basis/go"');
   });
 
+  it('lesplannen bij een doel: de komma staat achter het vorige item, nooit voor het volgende', () => {
+    const html = bijDoel(3, '92590');
+    expect(html).toMatch(/\(2,5-4 jaar\)<\/span>,<\/span><span>/);
+    expect(html).not.toMatch(/<span>, /);
+  });
+
   it('toont de letterlijke tekst van het leerplandoel, de leeftijden en het moment waaraan het gekoppeld is', () => {
     const html = bijDoel(3, '92590');
     expect(tekst(html)).toContain('WT.001 begrijpen');
-    expect(tekst(html)).toContain('(2,5-4 jaar) · gekoppeld aan einde kleuter');
+    expect(tekst(html)).toContain('(2,5-4 jaar) Lesplan: LP0065');
+    expect(tekst(html)).not.toContain('gekoppeld aan');
     expect(html).not.toContain('dangerouslySetInnerHTML');
   });
 
@@ -506,11 +522,11 @@ describe('GoBijDoelInhoud', () => {
     expect(toon(createElement(GoBijDoelInhoud, { doelen: [], doel: minimum(3, '92590'), index: GO_INDEX }))).toBe('');
   });
 
-  it('meer dan 6 in een groep: 6 staan er open en de rest in een details-blok "Toon alle n"', () => {
+  it('meer dan 6 in een groep: 6 staan er open en de rest in een details-blok "Toon de n andere leerplandoelen"', () => {
     const html = bijDoel(2, '93408');
     const n = leerplandoelenBijMinimumdoel(BIJ.get(2) as GoBijMinimumdoelBestand, '93408').length;
     expect(n).toBeGreaterThan(EERST_GETOOND);
-    expect(html).toContain(`<summary>Toon alle ${n}</summary>`);
+    expect(html).toContain(`<summary>Toon de ${n - EERST_GETOOND} andere leerplandoelen</summary>`);
     expect(tel(html, /<details class="b-go-meer"/g)).toBe(1);
     expect(tel(html, /class="b-go-doel"/g)).toBe(n);
     const open = html.slice(0, html.indexOf('<details class="b-go-meer"'));
@@ -542,8 +558,8 @@ describe('GoBijDoelInhoud', () => {
   it('een officiële koppeling met twijfel zegt onder "Hoe zeker is dit?" wat er niet past (WT.235 bij 3.3.2)', () => {
     const html = bijDoel(3, '92822', GO_INDEX, '3.3.2');
     expect(html).toContain('<summary>Hoe zeker is dit?</summary>');
-    expect(tekst(html)).toContain('Dit doel is voor 2,5-4 jaar');
-    expect(tekst(html)).toContain('het einde van het 6de leerjaar (3.3.2)');
+    expect(tekst(html)).toContain('Dit leerplandoel is voor 2,5-4 jaar');
+    expect(tekst(html)).toContain('koppelt het aan minimumdoel 3.3.2, een doel voor het einde van het 6de leerjaar. Zo staat het in het leerplan.');
     // Twijfel is geen voorstel: geen waarschuwingsbadge.
     expect(html).not.toContain('badge-warn');
   });
@@ -585,9 +601,9 @@ describe('GoBijDoelInhoud', () => {
     expect(metDoelen).toBeGreaterThan(900);
   });
 
-  it('laadt lui en verandert de vaste volgorde niet: DoelScherm importeert het deel met React.lazy', () => {
+  it('laadt lui en verandert de vaste volgorde niet: DoelScherm importeert het deel met React.lazy, met een terugval', () => {
     const bron = readFileSync(fileURLToPath(new URL('./DoelScherm.tsx', import.meta.url)), 'utf8');
-    expect(bron).toContain("lazy(() => import('../../components/basis/go/GoBijDoel'))");
+    expect(bron).toMatch(/= lazy<[^\n]*>\(\(\) =>\s*import\('\.\.\/\.\.\/components\/basis\/go\/GoBijDoel'\)\.catch\(/);
     expect(bron).not.toMatch(/^import .*components\/basis\/go\/GoBijDoel/m);
   });
 });
@@ -597,21 +613,24 @@ describe('VanHetGoBlok (leerjaarpagina)', () => {
     toon(createElement(VanHetGoBlok, { leerjaar, index }));
   const som = (leeftijd: '2,5-4' | '8-9') => GO_INDEX.leerplan.reduce((n, l) => n + l.perLeeftijd[leeftijd], 0);
 
-  it('K1: de leerplandoelen van 2,5-4 jaar in alle vakdisciplines met doelen, en de 8 lesplannen (wetenschap en techniek)', () => {
+  it('K1: de leerplandoelen van 2,5-4 jaar in alle vakken met doelen, en de 8 lesplannen (wetenschap en techniek)', () => {
     const html = blok('K1');
     const n = som('2,5-4');
     expect(html).toContain('<h2 id="b-vango-kop">Van het GO!</h2>');
-    expect(tekst(html)).toContain(`Leerplandoelen voor 2,5-4 jaar: ${n} in 11 vakdisciplines.`);
+    expect(tekst(html)).toContain(`Leerplandoelen voor 2,5-4 jaar: ${n} in 11 vakken.`);
     expect(tekst(html)).toContain('Lesplannen voor 2,5-4 jaar: 8 (wetenschap en techniek).');
     expect(html).toContain('href="/basis/go"');
     expect(html).toContain('href="/basis/lesplannen?leerjaar=K1"');
     expect(html).toContain('href="/basis/leerplandoelen/wt?leerjaar=K1"');
     expect(tekst(html)).toContain('2,5-4 jaar is meestal instapklas en 1ste kleuterklas waarschijnlijk');
+    expect(html).toMatch(/<\/span>\. Het GO! deelt zijn leerplan in per leeftijd/);
+    expect(tekst(html)).toContain(GO_LEESBRIL_UITLEG);
+    expect(html).not.toContain('vakdiscipline');
   });
 
   it('L3 heeft leerplandoelen maar geen lesplannen: dan staat de regel over lesplannen er niet', () => {
     const html = blok('L3');
-    expect(tekst(html)).toContain(`Leerplandoelen voor 8-9 jaar: ${som('8-9')} in 11 vakdisciplines.`);
+    expect(tekst(html)).toContain(`Leerplandoelen voor 8-9 jaar: ${som('8-9')} in 11 vakken.`);
     expect(html).not.toContain('Lesplannen voor');
     expect(html).not.toContain('/basis/lesplannen');
   });
@@ -623,7 +642,7 @@ describe('VanHetGoBlok (leerjaarpagina)', () => {
 
   it('is lui geladen door LeerjaarScherm en leest alleen de index', () => {
     const lees = (p: string) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8');
-    expect(lees('./LeerjaarScherm.tsx')).toContain("lazy(() => import('../../components/basis/go/VanHetGo'))");
+    expect(lees('./LeerjaarScherm.tsx')).toMatch(/= lazy<[^\n]*>\(\(\) =>\s*import\('\.\.\/\.\.\/components\/basis\/go\/VanHetGo'\)\.catch\(/);
     expect(lees('../../components/basis/go/VanHetGo.tsx')).not.toMatch(/useGoLeerplan|useGoLesplan|useGoBijMinimumdoel/);
   });
 });
@@ -632,7 +651,7 @@ describe('LesplannenInhoud', () => {
   const pagina = (leeftijd?: Parameters<typeof LesplannenInhoud>[0]['leeftijd'], vak?: Parameters<typeof LesplannenInhoud>[0]['vak']) =>
     toon(createElement(LesplannenInhoud, { index: GO_INDEX, leeftijd, vak, onLeeftijd: () => undefined, vakPad: (v) => `/basis/lesplannen?vak=${v ?? ''}` }));
 
-  it('heeft één h1, de kiezer en de lesplannen per vakdiscipline › lessenlijn › lessenreeks', () => {
+  it('heeft één h1, de kiezer en de lesplannen per vak › lessenlijn › lessenreeks', () => {
     const html = pagina('2,5-4');
     expect(tel(html, /<h1[\s>]/g)).toBe(1);
     expect(html).toContain('<h1>Lesplannen van het GO!</h1>');
@@ -660,7 +679,32 @@ describe('LesplannenInhoud', () => {
   it('alle leeftijden toont alle 8 lesplannen; met een vak alleen dat vak', () => {
     expect(tel(pagina(undefined), /href="\/basis\/lesplan\/LP/g)).toBe(8);
     expect(tel(pagina(undefined, 'WT'), /href="\/basis\/lesplan\/LP/g)).toBe(8);
-    expect(tekst(pagina(undefined, 'NL'))).toContain('Er zijn nog geen lesplannen in nederlands.');
+    expect(tekst(pagina(undefined, 'NL'))).toContain('Er zijn nog geen lesplannen in Nederlands.');
+  });
+
+  it('een vak zonder lesplannen: geen tegenstrijdige zin, wel een uitweg en het vakfilter om weg te halen', () => {
+    const html = pagina('2,5-4', 'WI');
+    const t = tekst(html);
+    expect(t).toContain('Er zijn nog geen lesplannen voor 2,5-4 jaar in wiskunde.');
+    expect(t).not.toContain('Kies een andere leeftijd');
+    expect(t).toContain('Er zijn voor wiskunde in geen enkele leeftijd lesplannen.');
+    expect(t).toContain('Toon alle vakken');
+    expect(html).toContain('aria-label="Vak"');
+    expect(html).toContain('href="/basis/lesplannen?vak="');
+  });
+
+  it('een vak met lesplannen in een andere leeftijd: de zin noemt die leeftijden, ook met een vak in het adres', () => {
+    const t = tekst(pagina('8-9', 'WT'));
+    expect(t).toContain('Er zijn nog geen lesplannen voor 8-9 jaar in wetenschap en techniek.');
+    expect(t).toContain('Er zijn lesplannen voor 2,5-4 jaar. Kies een andere leeftijd om ze te zien.');
+    expect(t).not.toContain('in geen enkele leeftijd');
+  });
+
+  it('alle negen leeftijden dragen een aantal, ook als dat 0 is', () => {
+    const t = tekst(pagina(undefined));
+    expect(t).toContain('2,5-4 jaar (8)');
+    expect(t).toContain('4-5 jaar (0)');
+    expect(t).toContain('11-12 jaar (0)');
   });
 
   it('de bron noemt het GO! met een link naar GO! studio', () => {
@@ -691,11 +735,18 @@ describe('LessenlijnInhoud', () => {
     expect(tekst(html)).toContain('Wetenschap en techniek: 4 lesplannen in 4 lessenreeksen.');
   });
 
+  it('heeft de bronvermelding van het GO! met de toestemming, zoals het lesplan en de overzichten (CT-9)', () => {
+    const t = tekst(pagina()).replace(/ \./g, '.');
+    expect(t).toContain('Bron: GO! onderwijs van de Vlaamse Gemeenschap, lesplannen uit GO! studio. Letterlijk overgenomen met toestemming.');
+    expect(pagina()).toContain('href="https://studio.g-o.be/"');
+  });
+
   it('de rijen zijn de lessenreeksen, de kolom de leeftijd met lesplannen, de cel de lesplannen met een link', () => {
     const html = pagina();
     expect(tekst(html)).toContain('Fauna: classificeren');
     expect(tekst(html)).toContain('Flora: levenscyclus');
-    expect(html).toContain('data-label="2,5-4 jaar"');
+    expect(html).not.toContain('data-label');
+    expect(html).toContain('<span class="b-go-label" aria-hidden="true">2,5-4 jaar</span>');
     expect(html).toContain('href="/basis/lesplan/LP0065"');
     expect(tekst(html)).toContain('Lesplan LP0065 Dieren classificeren');
   });
@@ -707,10 +758,11 @@ describe('LessenlijnInhoud', () => {
 
   it('een onbekende lessenlijn zegt dat, met een link naar alle lesplannen en één h1', () => {
     expect(vindLessenlijn(GO_INDEX, 'WT', 'bestaat-niet')).toBeUndefined();
-    const html = toon(createElement(LessenlijnNietGevonden, { vak: 'WT' }));
+    const html = toon(createElement(LessenlijnNietGevonden));
     expect(tel(html, /<h1[\s>]/g)).toBe(1);
     expect(html).toContain('<h1>Deze lessenlijn vonden we niet</h1>');
-    expect(html).toContain('href="/basis/lesplannen?vak=wt"');
+    expect(html).toContain('href="/basis/lesplannen?leerjaar=alle"');
+    expect(html).not.toContain('vak=wt');
   });
 
   it('elke lessenlijn uit de index geeft een tabel zonder lege rij', () => {
@@ -719,5 +771,42 @@ describe('LessenlijnInhoud', () => {
       expect(tel(html, /<tr role="row">/g), l.naam).toBe(l.reeksen.length + 1);
       expect(tel(html, /href="\/basis\/lesplan\/LP/g), l.naam).toBe(l.lesplannen.length);
     }
+  });
+});
+
+describe('GoBijDoelInhoud: lesplannen en uitklappers (pakket D)', () => {
+  it('de lesplannen bij het minimumdoel staan boven de lijst, ook als hun doel achter “Toon de andere” zit (92612: LP0014a en LP0014b)', () => {
+    const html = bijDoel(3, '92612', GO_INDEX, '3.3.1');
+    const buiten = html.slice(0, html.indexOf('<details class="b-go-meer"'));
+    expect(buiten).toContain('href="/basis/lesplan/LP0014a"');
+    expect(buiten).toContain('href="/basis/lesplan/LP0014b"');
+    expect(tekst(buiten)).toContain('Lesplannen bij dit minimumdoel (2):');
+    expect(html).toContain('<summary>Toon de 17 andere leerplandoelen</summary>');
+  });
+
+  it('zonder lesplannen bij het minimumdoel staat er geen regel “Lesplannen bij dit minimumdoel”', () => {
+    const doelen = leerplandoelenBijMinimumdoel(BIJ.get(3) as GoBijMinimumdoelBestand, '92609').map((d) => ({ ...d, lesplannen: [] }));
+    const html = toon(createElement(GoBijDoelInhoud, { doelen, doel: minimum(3, '92609'), index: GO_INDEX }));
+    expect(tekst(html)).not.toContain('Lesplannen bij dit minimumdoel');
+  });
+
+  it('bij één doel in de rest luidt de knop “Toon het andere leerplandoel”', () => {
+    const doelen = leerplandoelenBijMinimumdoel(BIJ.get(3) as GoBijMinimumdoelBestand, '92590');
+    const html = toon(createElement(GoBijDoelInhoud, { doelen: doelen.slice(0, EERST_GETOOND + 1), doel: minimum(3, '92590'), index: GO_INDEX }));
+    expect(html).toContain('<summary>Toon het andere leerplandoel</summary>');
+  });
+
+  it('de stand van “Toon de andere” zit in de state van de geschiedenis: met goMeer staat het blok open, zonder dicht', () => {
+    const doelen = leerplandoelenBijMinimumdoel(BIJ.get(3) as GoBijMinimumdoelBestand, '92590');
+    const el = createElement(GoBijDoelInhoud, { doelen, doel: minimum(3, '92590'), index: GO_INDEX });
+    const met = renderToStaticMarkup(createElement(StaticRouter, { location: { pathname: '/', state: { goMeer: ['WT'] } } }, el));
+    const zonder = renderToStaticMarkup(createElement(StaticRouter, { location: { pathname: '/', state: { goMeer: ['NL'] } } }, el));
+    expect(met).toMatch(/<details class="b-go-meer" open=""/);
+    expect(zonder).not.toMatch(/<details class="b-go-meer" open/);
+  });
+
+  it('de zin over de kennisverwerking staat achter de bestaande noot, die als geheel blijft staan', () => {
+    const t = tekst(bijDoel(3, '92590'));
+    expect(t).toContain('De tekst staat er letterlijk, zoals het GO! hem schrijft. Bij elk doel staat de kennisverwerking volgens het GO!: begrijpen, gebruiken of engageren.');
   });
 });

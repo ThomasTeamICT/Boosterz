@@ -1,10 +1,11 @@
 """Unittests voor de lezers van het GO!-materiaal. Draaien met:
 
-    python3 -I -m unittest discover -s tools/basis/go
+    python3 -I -B -m unittest discover -s tools/basis/go
 
 De tests bouwen zelf kleine docx- en xlsx-bestanden. Zet GO_WERKMAP op de werkmap met de echte
-bestanden (docx/, xlsx/ en manifest.json) om ook de tellingen op de 8 lesplannen en de 12
-doelensets te controleren; zonder die variabele worden die tests overgeslagen.
+bestanden om ook de tellingen op de 8 lesplannen en de 12 doelensets te controleren; zonder die
+variabele worden die tests overgeslagen. Beide indelingen werken: bron/ zoals decodeer.py ze maakt
+(met 'Doelenset BaO <vak>.xlsx'), of de oudere docx/ en xlsx/ met korte namen.
 """
 import base64
 import hashlib
@@ -15,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import warnings
 import zipfile
 from xml.sax.saxutils import escape
 from pathlib import Path
@@ -83,6 +85,21 @@ def bouw_docx(pad, body=None, extra=None):
 
 S = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' \
     'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
+
+
+def zip_met_vlag(pad, leden, vlag):
+    """Een zip waarin elk lid in de lokale kop en in de centrale map de algemene vlag `vlag` krijgt (bv. 0x1: versleuteld)."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
+        for naam, inhoud in leden.items():
+            z.writestr(naam, inhoud)
+    data = bytearray(buf.getvalue())
+    for sig, plaats in ((b"PK\x03\x04", 6), (b"PK\x01\x02", 8)):
+        i = data.find(sig)
+        while i >= 0:
+            data[i + plaats] |= vlag
+            i = data.find(sig, i + 4)
+    Path(pad).write_bytes(bytes(data))
 
 
 def bouw_xlsx(pad, extra=None):
@@ -169,6 +186,36 @@ class VeiligZip(Tijdelijk):
             vz.parse_xml("<x/>".encode("utf-16"))
         with self.assertRaises(vz.Onveilig):
             vz.parse_xml(b"<x>")
+
+    def test_weigert_utf16_zonder_bom_met_entity(self):
+        # Zonder BOM en zonder declaratie staat er na elk ASCII-teken een nulbyte: '<!ENTITY' komt als bytes niet voor,
+        # maar expat herkent UTF-16 toch en zou de entiteit uitwerken (IMP-15).
+        xml = '<!DOCTYPE x [<!ENTITY a "UITGEWERKT">]><x>&a;&a;&a;</x>'
+        for codering in ("utf-16-le", "utf-16-be"):
+            data = xml.encode(codering)
+            self.assertNotIn(b"<!ENTITY", data)
+            with self.assertRaises(vz.Onveilig, msg=codering):
+                vz.parse_xml(data)
+        with self.assertRaises(vz.Onveilig):
+            vz.parse_xml(b"<x>a\x00b</x>")
+
+    def test_weigert_dubbele_ledennaam(self):
+        pad = self.dir / "dubbel.docx"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # zipfile waarschuwt voor de dubbele naam
+            with zipfile.ZipFile(pad, "w") as z:
+                z.writestr("word/document.xml", "<x>EERSTE</x>")
+                z.writestr("word/document.xml", "<x>TWEEDE</x>")
+        with self.assertRaises(vz.Onveilig) as ctx:
+            vz.open_veilig(pad)
+        self.assertIn("dubbele", str(ctx.exception))
+
+    def test_weigert_versleuteld_lid(self):
+        pad = self.dir / "versleuteld.docx"
+        zip_met_vlag(pad, {"word/document.xml": "<x/>"}, 0x1)
+        with self.assertRaises(vz.Onveilig) as ctx:
+            vz.open_veilig(pad)
+        self.assertIn("versleuteld", str(ctx.exception))
 
     def test_docx_met_doctype_wordt_geweigerd(self):
         pad = self.dir / "d.docx"
@@ -281,6 +328,31 @@ class LeesDocx(Tijdelijk):
         self.assertEqual(r.returncode, 3)
         self.assertFalse((MAP / "ruw.json").exists())
 
+    def test_bron_is_het_gelezen_bestand(self):
+        pad = self.dir / "t.docx"
+        bouw_docx(pad)
+        ruw = lees_docx.lees(pad)
+        data = pad.read_bytes()
+        self.assertEqual(ruw["bron"], {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()})
+
+    def test_maakt_de_uitvoermap(self):
+        pad = self.dir / "t.docx"
+        bouw_docx(pad)
+        uit = self.dir / "werk" / "ruw" / "t.json"
+        r = subprocess.run([sys.executable, "-I", "-B", str(MAP / "lees_docx.py"), str(pad), str(uit)],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(uit.is_file())
+
+    def test_vreemde_vorm_geeft_exit_3_zonder_traceback(self):
+        pad = self.dir / "t.docx"
+        zip_met_vlag(pad, {"word/document.xml": f"<w:document {W}><w:body/></w:document>"}, 0x1)
+        r = subprocess.run([sys.executable, "-I", "-B", str(MAP / "lees_docx.py"), str(pad), str(self.dir / "t.json")],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 3, r.stderr)
+        self.assertIn("FOUT:", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
 
 class LeesXlsx(Tijdelijk):
     def lees(self, **kw):
@@ -360,6 +432,103 @@ class LeesXlsx(Tijdelijk):
     def test_weigert_entity(self):
         with self.assertRaises(vz.Onveilig):
             self.lees(extra={"xl/sharedStrings.xml": '<!DOCTYPE sst [<!ENTITY a "b">]><sst/>'})
+
+    def blad(self, rijen, na=""):
+        return {"xl/worksheets/sheet1.xml": f'<worksheet {S}><sheetData>{rijen}</sheetData>{na}</worksheet>'}
+
+    def test_bron_is_het_gelezen_bestand(self):
+        pad = self.dir / "t.xlsx"
+        bouw_xlsx(pad)
+        data = pad.read_bytes()
+        self.assertEqual(lees_xlsx.lees(pad)["bron"], {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()})
+
+    def test_vreemde_cellen_getal_fout_formule_en_escape(self):
+        # Een getal (D3 = 7) en een escape (_x000D_ in B5) uit het standaardbestand, en hier een foutwaarde, een
+        # formuletekst en een datum. Booleans (de leeftijdsvakjes) en gedeelde tekst zijn niet vreemd (IMP-4).
+        ruw = self.lees()
+        self.assertEqual(ruw["vreemde_cellen"], [
+            {"r": 3, "k": 3, "soort": "n", "waarde": "7"},
+            {"r": 5, "k": 1, "soort": "escape", "waarde": "vorm_x000D_"},
+        ])
+        ruw = self.lees(extra=self.blad(
+            '<row r="2"><c r="A2" t="e"><f>1/0</f><v>#REF!</v></c><c r="B2" t="str"><f>A1</f><v>tekst</v></c>'
+            '<c r="C2" t="d"><v>2026-11-09</v></c><c r="D2" t="b"><v>1</v></c><c r="E2" t="s"><v>0</v></c>'
+            '<c r="F2" t="n"><v>0.5</v></c></row>'))
+        self.assertEqual([(v["k"], v["soort"], v["waarde"]) for v in ruw["vreemde_cellen"]],
+                         [(0, "e", "#REF!"), (1, "str", "tekst"), (2, "d", "2026-11-09"), (5, "n", "0.5")])
+        self.assertEqual(ruw["tellingen"]["celsoort:b"], 1)
+        lang = self.lees(extra=self.blad('<row r="2"><c r="A2"><v>' + "1" * 60 + '</v></c></row>'))
+        self.assertEqual(len(lang["vreemde_cellen"][0]["waarde"]), 40)
+
+    def test_weigert_cel_of_rij_zonder_r(self):
+        for rijen in ('<row r="1"><c t="s"><v>0</v></c></row>', '<row><c r="A1" t="s"><v>0</v></c></row>',
+                      '<row r="1"><c r="1A" t="s"><v>0</v></c></row>'):
+            with self.assertRaises(vz.Onveilig, msg=rijen):
+                self.lees(extra=self.blad(rijen))
+
+    def test_weigert_gedeelde_tekst_buiten_bereik(self):
+        for v in ("99999999", "-1", "x"):
+            with self.assertRaises(vz.Onveilig, msg=v):
+                self.lees(extra=self.blad(f'<row r="1"><c r="A1" t="s"><v>{v}</v></c></row>'))
+
+    def test_weigert_werkboek_zonder_relatie_voor_het_blad(self):
+        with self.assertRaises(vz.Onveilig):
+            self.lees(extra={"xl/_rels/workbook.xml.rels": '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>'})
+
+    def test_vreemde_vorm_geeft_exit_3_zonder_traceback(self):
+        pad = self.dir / "t.xlsx"
+        bouw_xlsx(pad, extra=self.blad('<row r="1"><c t="s"><v>0</v></c></row>'))
+        r = subprocess.run([sys.executable, "-I", "-B", str(MAP / "lees_xlsx.py"), str(pad), str(self.dir / "uit" / "t.json")],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 3, r.stderr)
+        self.assertIn("r-attribuut", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+        r = subprocess.run([sys.executable, "-I", "-B", str(MAP / "lees_xlsx.py"), str(self.dir / "t.xlsx"), str(self.dir / "w" / "ruw" / "t.json")],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 3)  # nog altijd hetzelfde slechte bestand
+        bouw_xlsx(pad)
+        r = subprocess.run([sys.executable, "-I", "-B", str(MAP / "lees_xlsx.py"), str(pad), str(self.dir / "w" / "ruw" / "t.json")],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)  # de uitvoermap wordt aangemaakt
+        self.assertTrue((self.dir / "w" / "ruw" / "t.json").is_file())
+
+    def test_verborgen_rij_en_kolom_en_opmerking(self):
+        # Een kopie met rij 2 verborgen (met waarde), rij 4 verborgen (zonder waarde: telt niet), kolom C verborgen en
+        # een opmerking: de lezer meldt ze, zodat de omzetting kan stoppen (BLP-4).
+        extra = self.blad('<row r="1"><c r="A1" t="s"><v>0</v></c></row><row r="2" hidden="1"><c r="A2" t="s"><v>1</v></c></row>'
+                          '<row r="4" hidden="true"></row>')
+        extra["xl/worksheets/sheet1.xml"] = extra["xl/worksheets/sheet1.xml"].replace(
+            "<sheetData>", '<cols><col min="1" max="2" width="9"/><col min="3" max="3" hidden="1"/></cols><sheetData>')
+        extra["xl/comments1.xml"] = f'<comments {S}><commentList><comment ref="A2"><text><t>Dit doel vervalt.</t></text></comment></commentList></comments>'
+        extra["xl/threadedComments/threadedComment1.xml"] = "<ThreadedComments/>"
+        ruw = self.lees(extra=extra)
+        self.assertEqual(ruw["verborgen_rijen"], [2])
+        self.assertEqual(ruw["verborgen_kolommen"], [[2, 2]])
+        self.assertEqual(ruw["opmerkingen"], 2)
+        gewoon = self.lees()
+        self.assertEqual((gewoon["verborgen_rijen"], gewoon["verborgen_kolommen"], gewoon["opmerkingen"], gewoon["beelden"]), ([], [], 0, []))
+
+    def test_beelden_op_het_blad(self):
+        xdr = 'xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"'
+        extra = {
+            "xl/worksheets/_rels/sheet1.xml.rels": '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/>'
+                '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing" Target="../drawings/vml1.vml"/>'
+                '</Relationships>',
+            "xl/drawings/drawing1.xml": f'<xdr:wsDr {xdr}>'
+                '<xdr:twoCellAnchor><xdr:from><xdr:col>2</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>897</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>'
+                '<xdr:to><xdr:col>2</xdr:col><xdr:row>897</xdr:row></xdr:to><xdr:pic/></xdr:twoCellAnchor>'
+                '<xdr:oneCellAnchor><xdr:from><xdr:col>7</xdr:col><xdr:row>835</xdr:row></xdr:from><xdr:sp/></xdr:oneCellAnchor>'
+                '<xdr:absoluteAnchor><xdr:pos x="0" y="0"/><xdr:graphicFrame/></xdr:absoluteAnchor>'
+                '</xdr:wsDr>',
+        }
+        self.assertEqual(self.lees(extra=extra)["beelden"], [[898, 2], [836, 7], [0, 0]])
+        extra["xl/drawings/drawing1.xml"] = f'<xdr:wsDr {xdr}><xdr:twoCellAnchor><xdr:from><xdr:col>x</xdr:col><xdr:row>1</xdr:row></xdr:from></xdr:twoCellAnchor></xdr:wsDr>'
+        with self.assertRaises(vz.Onveilig):
+            self.lees(extra=extra)
+        del extra["xl/drawings/drawing1.xml"]  # de relatie wijst naar een lid dat er niet is
+        with self.assertRaises(vz.Onveilig):
+            self.lees(extra=extra)
 
 
 class Decodeer(Tijdelijk):
@@ -653,7 +822,17 @@ TYPES = {
 OPMAAK_XLSX = {  # doorgehaalde en superschrift-runs per set (rechter, 9 november 2026)
     "burgerschap": (3, 0), "nederlands": (1, 0), "wiskunde": (13, 8), "geschiedenis": (0, 3),
 }
+BEELDEN_XLSX = {"wiskunde": [[898, 2], [1346, 2], [1367, 2], [836, 7], [846, 10]]}  # [rij, kolom] (BLP-4)
 CURSIEF_XLSX = {"wiskunde": 8}  # cursieve runs: de voorbeelden van WI.971 en WI.972 (rechter, 1a-G6-1)
+
+
+# De korte namen (de oudere werkmap met docx/ en xlsx/) en de namen op de Drive (bron/, zoals decodeer.py ze schrijft).
+DRIVE_NAAM = {
+    "aardrijkskunde": "aardrijkskunde", "burgerschap": "burgerschap", "frans": "Frans", "geschiedenis": "geschiedenis",
+    "ict": "ICT", "leren_leren": "leren leren", "lichamelijke_opvoeding": "lichamelijke opvoeding",
+    "muzische_vorming": "muzische vorming", "nederlands": "Nederlands", "sociale_vaardigheden": "sociale vaardigheden",
+    "wetenschap_techniek": "wetenschap en techniek", "wiskunde": "wiskunde",
+}
 
 
 @unittest.skipUnless(os.environ.get("GO_WERKMAP"), "GO_WERKMAP niet gezet")
@@ -662,16 +841,26 @@ class EchteBestanden(unittest.TestCase):
     def setUpClass(cls):
         cls.werk = Path(os.environ["GO_WERKMAP"])
 
+    def docx(self, code):
+        p = decodeer.vind_bestand(self.werk, f"{code}.docx")
+        self.assertIsNotNone(p, f"{code}.docx niet gevonden in {self.werk}")
+        return p
+
+    def xlsx(self, vak):
+        p = decodeer.vind_bestand(self.werk, f"{vak}.xlsx") or decodeer.vind_bestand(self.werk, f"Doelenset BaO {DRIVE_NAAM[vak]}.xlsx")
+        self.assertIsNotNone(p, f"de doelenset {vak} niet gevonden in {self.werk}")
+        return p
+
     def test_manifest_en_bytes(self):
         bevestigd, onbevestigd, meldingen = decodeer.controleer(self.werk, sta_onbevestigd_toe=True)
         self.assertEqual(meldingen, [])
-        self.assertEqual(len(bevestigd), 8)
-        self.assertEqual(len(onbevestigd), 12)  # de xlsx staan niet in het manifest
+        # Het manifest van de eerste reeks heeft alleen de 8 docx; een werkmap van decodeer.py heeft alle 20.
+        self.assertIn((len(bevestigd), len(onbevestigd)), [(8, 12), (20, 0)])
 
     def test_docx_tellingen(self):
         regeleinden = 0
         for code, (alineas, lijst, beelden, tabellen) in DOCX_TELLINGEN.items():
-            ruw = lees_docx.lees(self.werk / "docx" / f"{code}.docx")
+            ruw = lees_docx.lees(self.docx(code))
             t = ruw["tellingen"]
             self.assertEqual(
                 (t["alineas"], t["lijstalineas"], sum(1 for _ in lees_docx.iter_beelden(ruw["body"])), t["tabellen"]),
@@ -684,7 +873,7 @@ class EchteBestanden(unittest.TestCase):
 
     def test_xlsx_rijen_per_type(self):
         for vak, verwacht in TYPES.items():
-            ruw = lees_xlsx.lees(self.werk / "xlsx" / f"{vak}.xlsx")
+            ruw = lees_xlsx.lees(self.xlsx(vak))
             self.assertEqual(len(ruw["bladnamen"]), 1, vak)
             kop = ruw["rijen"][0]["c"]
             self.assertEqual(len(kop), 24, vak)
@@ -698,10 +887,19 @@ class EchteBestanden(unittest.TestCase):
 
     def test_xlsx_opmaak(self):
         for vak in TYPES:
-            ruw = lees_xlsx.lees(self.werk / "xlsx" / f"{vak}.xlsx")
+            ruw = lees_xlsx.lees(self.xlsx(vak))
             t = ruw["tellingen"]
             self.assertEqual((t.get("run:strike", 0), t.get("run:vertAlign", 0)), OPMAAK_XLSX.get(vak, (0, 0)), vak)
             self.assertEqual(t.get("run:i", 0), CURSIEF_XLSX.get(vak, 0), vak)
+
+    def test_xlsx_geen_vreemde_cellen_verborgen_rijen_of_opmerkingen(self):
+        # Eerste reeks: alleen booleans in de leeftijdsvakjes, niets verborgen, geen opmerkingen; wiskunde heeft vijf
+        # ankers van een paar punt groot (restanten van breuken, de tekst staat in de cel ernaast; BLP-4).
+        for vak in TYPES:
+            ruw = lees_xlsx.lees(self.xlsx(vak))
+            self.assertEqual((ruw["vreemde_cellen"], ruw["verborgen_rijen"], ruw["verborgen_kolommen"], ruw["opmerkingen"]),
+                             ([], [], [], 0), vak)
+            self.assertEqual(ruw["beelden"], BEELDEN_XLSX.get(vak, []), vak)
 
 
 if __name__ == "__main__":

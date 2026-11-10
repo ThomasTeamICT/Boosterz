@@ -3,10 +3,11 @@
 Alleen de standaardbibliotheek. Altijd draaien met `python3 -I`.
 
 Wat dit doet:
-- ledennamen zonder '..' en zonder absoluut pad (ook geen backslash of schijfletter);
+- ledennamen zonder '..' en zonder absoluut pad (ook geen backslash of schijfletter), geen naam twee keer en
+  geen versleuteld lid;
 - hoogstens MAX_UITGEPAKT bytes uitgepakt en een redelijke verhouding tegen een zip-bom;
-- een xml-bestand met <!DOCTYPE of <!ENTITY wordt geweigerd vóór het parsen,
-  want expat werkt interne entiteiten uit;
+- een xml-bestand met <!DOCTYPE of <!ENTITY, of met een nulbyte (UTF-16 zonder BOM), wordt geweigerd vóór het
+  parsen, want expat werkt interne entiteiten uit;
 - een werkmap of uitvoerbestand binnen een git-repository wordt geweigerd, zodat een
   origineel nooit per ongeluk gecommit wordt.
 """
@@ -64,12 +65,18 @@ def open_veilig(pad):
     if len(leden) > MAX_LEDEN:
         z.close()
         raise Onveilig(f"te veel leden in de zip: {len(leden)}")
+    if len({li.filename for li in leden}) != len(leden):
+        z.close()
+        raise Onveilig("dubbele ledennaam in de zip (een ander programma kan een ander lid lezen)")
     uitgepakt = 0
     ingepakt = 0
     for li in leden:
         if not _naam_ok(li.filename):
             z.close()
             raise Onveilig(f"onveilige ledennaam: {li.filename!r}")
+        if li.flag_bits & 0x1:
+            z.close()
+            raise Onveilig(f"versleuteld lid: {li.filename}")
         if li.file_size > MAX_LID:
             z.close()
             raise Onveilig(f"lid te groot: {li.filename} ({li.file_size} bytes)")
@@ -104,7 +111,13 @@ def lees_lid(z, naam, verplicht=True):
 
 
 def parse_xml(data, naam="xml"):
-    """Parse xml-bytes, maar weiger DOCTYPE en ENTITY vóór het parsen."""
+    """Parse xml-bytes, maar weiger DOCTYPE en ENTITY vóór het parsen.
+
+    Een nulbyte komt in geldige UTF-8-xml nooit voor; xml in UTF-16 zonder BOM heeft er een na elk ASCII-teken en zou de
+    zoektocht naar <!DOCTYPE en <!ENTITY hieronder ontlopen. Daarom die controle eerst.
+    """
+    if b"\x00" in data:
+        raise Onveilig(f"{naam}: nulbyte, geen UTF-8-xml")
     if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
         raise Onveilig(f"{naam}: UTF-16 wordt niet aanvaard")
     kop = data[:200].lower()

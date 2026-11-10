@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RuwBlok, RuwDocx, RuwRij, RuwRun, RuwXlsx } from './omzetten';
+import { RUW_BRON, XLSX_LEEG } from './testRuw';
 import { docxRegels, lesplanRegels, rondgangLeerplan, rondgangLesplan } from './rondgang';
 import type { Blok, GoLeerplanBestand, GoLeerplandoel, GoLesplanBestand } from './types';
 
@@ -25,7 +26,7 @@ function ruw(): RuwDocx {
     },
     { t: 'p', stijl: null, stijlen_ruw: [], num: null, runs: [beeld] },
   ];
-  return { bestand: 'LP0001.docx', gemaakt: '2026-10-01T08:00:00Z', media: [], stijlen: {}, tellingen: {}, body };
+  return { bestand: 'LP0001.docx', bron: RUW_BRON, gemaakt: '2026-10-01T08:00:00Z', media: [], stijlen: {}, tellingen: {}, body };
 }
 
 /** Zo zet omzetten.ts het om (met de hand geschreven, als verwachting). */
@@ -164,7 +165,7 @@ function xlsx(): RuwXlsx {
     { r: 6, c: c('te hanteren begrippen', null, 'het dier', null, null, ['1', '1', '0', '0', '0', '0', '0', '0', '0']) },
     { r: 7, c: ['', null, null, null, null, null, null, null, null, null, null, null, null, ...NUL] },
   ];
-  return { bestand: 'wt.xlsx', gewijzigd: null, bladnamen: [], blad: 'Wetenschap en techniek', merged: [], tellingen: {}, rijen };
+  return { bestand: 'wt.xlsx', ...XLSX_LEEG, gewijzigd: null, bladnamen: [], blad: 'Wetenschap en techniek', rijen };
 }
 
 function leerplan(): Pick<GoLeerplanBestand, 'rubrieken' | 'doelen'> {

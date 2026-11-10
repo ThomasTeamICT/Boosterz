@@ -2,46 +2,36 @@
 // Opbouw (docs/basisonderwijs/GO-LEERPLAN.md, "1. Lesplanpagina"):
 //   kruimelpad, de letterlijke Heading1 als h1, de onderregel, het bronkader, 'Ga naar', 'In het kort' (afgeleid, met alleen
 //   letterlijke stukken en een link naar hun plaats in het lesplan) en daarna de volledige tekst in de volgorde van de bron.
-// Dit scherm laadt lui (BasisDeel). Het leerplan van het vak komt er pas na het lesplan bij, voor de chips met de
-// minimumdoelen; de tekst van een minimumdoel zelf staat hier nooit, die staat op de doelpagina.
+// Dit scherm laadt lui (BasisDeel). De index vertrekt samen met het lesplan; zodra ze er is, vertrekt ook het leerplan van
+// het vak (voor de chips met de minimumdoelen), zonder op het lesplan te wachten. De tekst van een minimumdoel zelf staat
+// hier nooit, die staat op de doelpagina. Laadt de index niet, dan zegt 'In het kort' dat (de links ontbreken dan).
 // ?stap=3 springt naar de derde stap van de leskern: de focus gaat naar de kop van die stap.
 
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { MOMENT_KORT } from '../../components/basis/DoelRij';
+import { PrintIcon } from '../../components/icons';
+import { KoppelingChips, type DoelPadFn } from '../../components/basis/go/KoppelingLijst';
+import { useDoelPad } from '../../components/basis/go/useDoelPad';
 import { GoBronvermelding } from '../../components/basis/go/GoBronvermelding';
+import { IkZinnen } from '../../components/basis/go/IkZinnen';
 import { GoBlok, GoBlokken, GoRegel, GoTekstOptiesProvider, gaNaarId, regelTekst, useGoTekstOpties, wijzerId } from '../../components/basis/go/GoTekst';
-import { useGoIndex, useGoLeerplan, useGoLesplan } from '../../components/basis/useGo';
+import { foutVan, useGoIndex, useGoLeerplan, useGoLesplan, type GoLaadFout, type MetOpnieuw } from '../../components/basis/useGo';
 import { ZekerheidBadge } from '../../components/basis/ZekerheidBadge';
 import { FoutBericht, LaadBericht } from '../../components/curriculum/LaadStatus';
 import { basisPad } from '../../lib/basis/basisRoutes';
-import { lessenlijnen } from '../../lib/basis/go/goModel';
+import { isGoNietGevonden, laadGoLeerplan } from '../../lib/basis/go/goBron';
+import { lessenlijnen, lesplanVanCode, maakDoelLink, vakVanDoelcode } from '../../lib/basis/go/goModel';
 import {
-  EINDMOMENT_VAN_GO_MOMENT,
   GO_LEESBRIL_ZEKERHEID,
   leerjaarVanLeeftijd,
   leeftijdLabel,
   leeftijdenLabel,
   meestalTekst,
 } from '../../lib/basis/go/leeftijden';
-import { GO_VOORSTEL_LABEL, type Cel, type GoIndex, type GoLeerplandoel, type GoLesplanBestand, type GoMinimumdoelRef, type GoTwijfel, type Regel, type Wijzer } from '../../lib/basis/go/types';
-import { isZonderMinimumdoel } from '../../lib/basis/go/valideer';
-import { vakVanDoelcode } from '../../lib/basis/go/goModel';
+import { KENNISVERWERKING_ZIN, type Cel, type GoIndex, type GoLeerplandoel, type GoLesplanBestand, type Regel, type Wijzer } from '../../lib/basis/go/types';
 import '../../styles/basis-lesplan.css';
 
 // ── Pure hulpfuncties (getest in goComponenten.test.ts) ──────────────────────
-
-/** Het adres van een leerplandoel als de code bestaat in de index (vak bekend en nummer binnen het aantal), anders undefined. */
-export function maakDoelLink(index: GoIndex | undefined): ((code: string) => string | undefined) | undefined {
-  if (!index) return undefined;
-  const aantal = new Map(index.leerplan.map((l) => [l.vak as string, l.aantal]));
-  return (code) => {
-    const vak = vakVanDoelcode(code);
-    const max = vak ? aantal.get(vak) : undefined;
-    const nr = Number(code.slice(3));
-    return vak && max !== undefined && nr >= 1 && nr <= max ? basisPad({ s: 'leerplandoel', code }) : undefined;
-  };
-}
 
 /** De cel die een wijzer aanwijst (deel, blok, rij en kolom); undefined als de wijzer geen cel aanwijst. */
 export function celVanWijzer(lesplan: GoLesplanBestand, w: Wijzer): Cel | undefined {
@@ -58,21 +48,16 @@ export function aantalRegels(lesplan: GoLesplanBestand, w: Wijzer): number {
 }
 
 /**
- * De tekst uit de kolom Wat? van een stap, zonder de kop van de stap zelf ('1. Verkennen'): alleen de alinea's, letterlijk.
- * Staat er geen kop in de cel, dan alle alinea's.
+ * De tekst uit de kolom Wat? van een stap, zonder de kop van de stap zelf ('1. Verkennen'): de alinea's en de items van een
+ * lijst, letterlijk, in de volgorde van de cel. Staat er geen kop in de cel, dan alles.
  */
 export function stapWat(lesplan: GoLesplanBestand, wat: Wijzer, nr: number): Regel[] {
   const cel = celVanWijzer(lesplan, wat);
   if (!cel) return [];
-  const alineas = cel.blokken.flatMap((b) => (b.soort === 'alinea' ? [b.tekst] : []));
+  const alineas = cel.blokken.flatMap((b) => (b.soort === 'alinea' ? [b.tekst] : b.soort === 'lijst' ? b.items : []));
   const eerste = alineas[0];
   return eerste && regelTekst(eerste).trimStart().startsWith(`${nr}.`) ? alineas.slice(1) : alineas;
 }
-
-const TWIJFEL_TEKST: Readonly<Record<GoTwijfel, string>> = {
-  'moment-buiten-leeftijden': 'let op: dit moment past niet bij de leeftijden van het doel',
-  'ander-vak': 'let op: dit nummer hoort bij een ander vak',
-};
 
 /** De korte naam van de onderdelen in 'Ga naar'. De naam zonder cijfer uit de kop is de terugval. */
 const GA_NAAR: Readonly<Record<number, string>> = {
@@ -103,68 +88,20 @@ export type Koppelingen =
   | { status: 'fout'; fout: string; opnieuw: () => void }
   | { status: 'klaar'; perCode: ReadonlyMap<string, GoLeerplandoel> };
 
-function RefChip({ r }: { r: GoMinimumdoelRef }) {
-  return (
-    <>
-      <Link to={basisPad({ s: 'doel', setId: r.set, doelId: r.id })} className="b-lp-chip">
-        {MOMENT_KORT[EINDMOMENT_VAN_GO_MOMENT[r.moment]]} {r.code}
-      </Link>
-      {r.status === 'voorstel' && (
-        <span className="badge badge-warn">
-          {GO_VOORSTEL_LABEL}
-          {r.bronCode ? ` (in de bron staat "${r.bronCode}")` : ''}
-        </span>
-      )}
-      {r.twijfel?.map((t) => (
-        <span key={t} className="b-lp-twijfel">{TWIJFEL_TEKST[t]}</span>
-      ))}
-    </>
-  );
-}
-
-/** De minimumdoelen van één leerplandoel als chips, of de zin waarom er geen zijn; null als we het niet kunnen weten. */
-export function Minimumdoelen({ doel }: { doel: GoLeerplandoel }) {
-  const viaMia = doel.inhoud.flatMap((i) => ('koppeling' in i && i.koppeling ? i.koppeling.refs : []));
-  const problemen = doel.minimumdoelen.problemen.filter((p) => !doel.minimumdoelen.refs.some((r) => r.bronCode === p.bronCode));
-  return (
-    <div className="b-lp-minimum">
-      <span className="b-lp-minimum-kop">Minimumdoelen: </span>
-      {doel.minimumdoelen.refs.length > 0 && (
-        <ul className="b-lp-chips">
-          {doel.minimumdoelen.refs.map((r) => (
-            <li key={`${r.set}-${r.id}`}><RefChip r={r} /></li>
-          ))}
-        </ul>
-      )}
-      {doel.minimumdoelen.refs.length === 0 && viaMia.length > 0 && (
-        <>
-          <span>alleen een onderdeel van dit doel is gekoppeld: </span>
-          <ul className="b-lp-chips">
-            {viaMia.map((r) => (
-              <li key={`${r.set}-${r.id}`}><RefChip r={r} /></li>
-            ))}
-          </ul>
-        </>
-      )}
-      {problemen.map((p) => (
-        <span key={`${p.moment}-${p.bronCode}`} className="b-lp-twijfel">
-          {p.reden === 'onleesbaar' ? `"${p.bronCode}" is geen geldig nummer` : `"${p.bronCode}" bestaat niet in de officiële minimumdoelen`}
-        </span>
-      ))}
-      {isZonderMinimumdoel(doel) && <span>zonder minimumdoel (het leerplan van het GO! koppelt dit doel aan geen enkel minimumdoel)</span>}
-    </div>
-  );
-}
-
 // ── In het kort ──────────────────────────────────────────────────────────────
 
-/** Een link naar een plek in het lesplan zelf: zet de focus daar, zonder van adres te veranderen. */
-function NaarPlek({ code, ids, children }: { code: string; ids: string[]; children: ReactNode }) {
+/**
+ * Een link naar een plek in het lesplan zelf: zet de focus daar, zonder van adres te veranderen. Met `stap` heeft de link het
+ * adres van die stap (?stap=3), zodat 'in een nieuw tabblad openen' en doorsturen werken; `className` komt erbij
+ * (b-lp-scherm voor wat op papier een dode link is).
+ */
+function NaarPlek({ code, ids, stap, className, children }: { code: string; ids: string[]; stap?: number; className?: string; children: ReactNode }) {
   return (
     <Link
-      to={basisPad({ s: 'lesplan', code })}
-      className="b-lp-naarplek"
+      to={basisPad({ s: 'lesplan', code, stap })}
+      className={className ? `b-lp-naarplek ${className}` : 'b-lp-naarplek'}
       onClick={(e) => {
+        if (!gewoneKlik(e)) return;
         e.preventDefault();
         gaNaarId(...ids);
       }}
@@ -181,115 +118,150 @@ function plekIds(w: Wijzer): string[] {
   return ids;
 }
 
-function InHetKort({ lesplan, koppelingen }: { lesplan: GoLesplanBestand; koppelingen: Koppelingen }) {
+/**
+ * De plekken waar de link naar een diploma landt. Alle diploma's van een lesplan wijzen naar dezelfde cel (Lesdoel); daarin
+ * staat de naam van het diploma als eigen alinea, en daar hoort de focus te komen. Zonder treffer valt het terug op de cel.
+ * De zoekregel is dezelfde als in valideer.ts: de alinea is het diploma met leeftijd, of eindigt op ': <diploma met leeftijd>'.
+ */
+export function diplomaIds(lesplan: GoLesplanBestand, dip: GoLesplanBestand['afgeleid']['diplomas'][number]): string[] {
+  const kop = `${dip.naam} ${leeftijdLabel(dip.leeftijd)}`;
+  const cel = celVanWijzer(lesplan, dip.waar);
+  const g = cel?.blokken.findIndex((b) => {
+    if (b.soort !== 'alinea') return false;
+    const tekst = regelTekst(b.tekst).replace(/\s+/g, ' ').trim();
+    return tekst === kop || tekst.endsWith(`: ${kop}`);
+  });
+  if (g === undefined || g < 0) return plekIds(dip.waar);
+  return [wijzerId({ ...dip.waar, regel: g }), wijzerId(dip.waar)];
+}
+
+/** Een gewone klik springt binnen de pagina; ctrl, cmd, shift, alt of een andere knop laat de browser de link zelf openen. */
+function gewoneKlik(e: MouseEvent<HTMLAnchorElement>): boolean {
+  return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+}
+
+/** `indexFout`: de index laadde niet, dus de links naar de leerplandoelen ontbreken; dat staat er dan, met 'Opnieuw proberen'. */
+function InHetKort({ lesplan, koppelingen, indexFout, doelPad }: { lesplan: GoLesplanBestand; koppelingen: Koppelingen; indexFout?: GoLaadFout; doelPad?: DoelPadFn }) {
   const a = lesplan.afgeleid;
   const code = lesplan.code;
   const materiaal = aantalRegels(lesplan, a.materiaal);
   return (
     <section className="b-lp-kort" aria-labelledby="lp-kort-kop">
       <h2 id="lp-kort-kop">In het kort</h2>
+      <p className="b-lp-noot">Dit overzicht maakt Boosterz. De zinnen staan letterlijk in het lesplan hieronder; de minimumdoelen komen uit het leerplan van het GO!</p>
 
-      <h3>Leerplandoelen</h3>
-      {koppelingen.status === 'laden' && <LaadBericht tekst="De minimumdoelen worden geladen" melden={false} />}
-      {koppelingen.status === 'fout' && <FoutBericht fout={koppelingen.fout} onOpnieuw={koppelingen.opnieuw} />}
-      <ul className="b-lp-lijst">
-        {a.leerplandoelen.map((d) => {
-          const doel = koppelingen.status === 'klaar' && vakVanDoelcode(d.code) === a.vak ? koppelingen.perCode.get(d.code) : undefined;
-          return (
-            <li key={d.code} className="b-lp-doel">
-              <p>
-                <strong className="b-lp-code">{d.code}</strong>{' '}
-                <span className="b-lp-kv"><span className="sr-only">Kennisverwerking: </span>{d.kennisverwerking}</span>{' '}
-                {d.tekst} <span className="b-lp-leeftijden">({leeftijdenLabel(d.leeftijden)})</span>
-              </p>
-              <p className="b-lp-links">
-                <DoelLink code={d.code} />
-                <NaarPlek code={code} ids={plekIds(d.waar)}>
-                  In het lesplan<span className="sr-only"> bij {d.code}</span>
-                </NaarPlek>
-              </p>
-              {doel && <Minimumdoelen doel={doel} />}
-            </li>
-          );
-        })}
-      </ul>
-
-      {a.diplomas.length > 0 && (
-        <>
-          <h3>Ik-doelen per diploma</h3>
+      <div className="b-lp-kort-in">
+        <div className="b-lp-kort-kolom">
+          <h3>Leerplandoelen</h3>
+          <p className="b-noot">{KENNISVERWERKING_ZIN}</p>
+          {koppelingen.status === 'laden' && <LaadBericht tekst="De minimumdoelen worden geladen" melden={false} />}
+          {koppelingen.status === 'fout' && <FoutBericht fout={koppelingen.fout} onOpnieuw={koppelingen.opnieuw} naam="minimumdoelen" />}
+          {indexFout && <FoutBericht fout={indexFout.fout} onOpnieuw={indexFout.opnieuw} naam="links naar de leerplandoelen" />}
           <ul className="b-lp-lijst">
-            {a.diplomas.map((dip) => (
-              <li key={`${dip.naam}-${dip.leeftijd}`} className="b-lp-doel">
-                <p>
-                  <strong>{dip.naam}</strong> <span className="b-lp-leeftijden">({leeftijdLabel(dip.leeftijd)})</span>{' '}
-                  <NaarPlek code={code} ids={plekIds(dip.waar)}>
-                    In het lesplan<span className="sr-only"> bij het diploma {dip.naam}</span>
-                  </NaarPlek>
-                </p>
-                <ul className="b-lp-ik">
-                  {dip.ikDoelen.map((ik) => (
-                    <li key={ik.code}>
-                      <strong className="b-lp-code">{ik.code}</strong> {ik.zinnen.join(' ')}
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-
-      {a.stappen.length > 0 && (
-        <>
-          <h3>Lesverloop</h3>
-          <ol className="b-lp-lijst b-lp-stappen">
-            {a.stappen.map((s) => {
-              const wat = stapWat(lesplan, s.wat, s.nr);
+            {a.leerplandoelen.map((d) => {
+              const doel = koppelingen.status === 'klaar' && vakVanDoelcode(d.code) === a.vak ? koppelingen.perCode.get(d.code) : undefined;
               return (
-                <li key={s.nr}>
-                  <NaarPlek code={code} ids={[wijzerId({ ...s.wat, regel: 0 }), wijzerId(s.wat)]}>
-                    {s.nr}. {s.naam}
-                  </NaarPlek>
-                  {wat.length > 0 && (
-                    <span className="b-lp-wat">
-                      {wat.map((r, n) => (
-                        <span key={n}>
-                          {' '}
-                          <GoRegel regel={r} />
-                        </span>
-                      ))}
-                    </span>
-                  )}
+                <li key={d.code} className="b-lp-doel">
+                  <p>
+                    <DoelCode code={d.code} />{' '}
+                    <span className="b-lp-kv"><span className="sr-only">Kennisverwerking: </span>{d.kennisverwerking}</span>{' '}
+                    {d.tekst} <span className="b-lp-leeftijden">({leeftijdenLabel(d.leeftijden)})</span>
+                  </p>
+                  <div className="b-lp-doelregel">
+                    <NaarPlek code={code} ids={plekIds(d.waar)} className="b-lp-scherm">
+                      In het lesplan<span className="sr-only"> bij {d.code}</span>
+                    </NaarPlek>
+                    {doel && <KoppelingChips doel={doel} doelPad={doelPad} />}
+                  </div>
                 </li>
               );
             })}
-          </ol>
-        </>
-      )}
+          </ul>
 
-      {materiaal > 0 && (
-        <>
-          <h3>Materiaal</h3>
-          <p>
-            <NaarPlek code={code} ids={plekIds(a.materiaal)}>
-              Het materiaal bij dit lesplan
-            </NaarPlek>{' '}
-            <span className="b-lp-leeftijden">({materiaal} {materiaal === 1 ? 'regel' : 'regels'})</span>
-          </p>
-        </>
-      )}
+          {a.diplomas.length > 0 && (
+            <>
+              <h3>Ik-doelen per diploma</h3>
+              <ul className="b-lp-lijst">
+                {a.diplomas.map((dip) => (
+                  <li key={`${dip.naam}-${dip.leeftijd}`} className="b-lp-doel">
+                    <p>
+                      <strong>{dip.naam}</strong> <span className="b-lp-leeftijden">({leeftijdLabel(dip.leeftijd)})</span>{' '}
+                      <NaarPlek code={code} ids={diplomaIds(lesplan, dip)} className="b-lp-scherm">
+                        In het lesplan<span className="sr-only"> bij het diploma {dip.naam}</span>
+                      </NaarPlek>
+                    </p>
+                    <ul className="b-lp-ik">
+                      {dip.ikDoelen.map((ik) => (
+                        <li key={ik.code}>
+                          <strong className="b-lp-code">{ik.code}</strong>
+                          <IkZinnen zinnen={ik.zinnen} className="b-lp-ikzinnen" />
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+
+        <div className="b-lp-kort-kolom">
+          {a.stappen.length > 0 && (
+            <>
+              <h3>Lesverloop</h3>
+              <ol className="b-lp-lijst b-lp-stappen">
+                {a.stappen.map((s) => {
+                  const wat = stapWat(lesplan, s.wat, s.nr);
+                  return (
+                    <li key={s.nr}>
+                      <NaarPlek code={code} ids={[wijzerId({ ...s.wat, regel: 0 }), wijzerId(s.wat)]} stap={s.nr}>
+                        {s.nr}. {s.naam}
+                      </NaarPlek>
+                      {wat.length > 0 && (
+                        <span className="b-lp-wat">
+                          {wat.map((r, n) => (
+                            <span key={n}>
+                              {' '}
+                              <GoRegel regel={r} />
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            </>
+          )}
+
+          {materiaal > 0 && (
+            <div className="b-lp-scherm">
+              <h3>Materiaal</h3>
+              <p>
+                <NaarPlek code={code} ids={plekIds(a.materiaal)}>
+                  Het materiaal bij dit lesplan
+                </NaarPlek>{' '}
+                <span className="b-lp-leeftijden">({materiaal} {materiaal === 1 ? 'punt' : 'punten'})</span>
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </section>
   );
 }
 
-/** Een link naar de leerplandoelpagina, alleen als de code bestaat (anders niets). */
-function DoelLink({ code }: { code: string }) {
+/** De code van een leerplandoel: een link naar de leerplandoelpagina als de code bestaat, anders gewone vette tekst. */
+function DoelCode({ code }: { code: string }) {
   const naar = useGoTekstOpties().doelLink?.(code);
   return naar ? (
-    <Link to={naar} className="b-lp-naarplek">
-      Het leerplandoel<span className="sr-only"> {code}</span>
+    <Link to={naar} className="b-lp-naarplek b-lp-code">
+      <span className="sr-only">Leerplandoel </span>
+      {code}
     </Link>
-  ) : null;
+  ) : (
+    <strong className="b-lp-code">{code}</strong>
+  );
 }
 
 // ── De pagina ────────────────────────────────────────────────────────────────
@@ -301,7 +273,7 @@ function Kruimel({ lesplan, index }: { lesplan: GoLesplanBestand; index: GoIndex
   return (
     <nav className="b-kruimel" aria-label="Kruimelpad">
       <ol>
-        <li><Link to={basisPad({ s: 'lesplannen' })}>Lesplannen</Link></li>
+        <li><Link to={basisPad({ s: 'lesplannen', alle: true })}>Lesplannen</Link></li>
         <li><Link to={basisPad({ s: 'lesplannen', leerjaar })}>{leeftijdLabel(lesplan.leeftijd)}</Link></li>
         <li><Link to={basisPad({ s: 'lesplannen', leerjaar, vak: a.vak })}>{a.vakdiscipline}</Link></li>
         <li>
@@ -313,8 +285,11 @@ function Kruimel({ lesplan, index }: { lesplan: GoLesplanBestand; index: GoIndex
   );
 }
 
-/** De pagina voor een geladen lesplan, zonder zelf iets te laden: de index (voor links) en de koppelingen komen van buiten. */
-export function LesplanInhoud({ lesplan, index, koppelingen }: { lesplan: GoLesplanBestand; index?: GoIndex; koppelingen: Koppelingen }) {
+/**
+ * De pagina voor een geladen lesplan, zonder zelf iets te laden: de index (voor links) en de koppelingen komen van buiten.
+ * `indexFout`: de index laadde niet; 'In het kort' zegt dat, met 'Opnieuw proberen'.
+ */
+export function LesplanInhoud({ lesplan, index, koppelingen, indexFout, doelPad }: { lesplan: GoLesplanBestand; index?: GoIndex; koppelingen: Koppelingen; indexFout?: GoLaadFout; doelPad?: DoelPadFn }) {
   const a = lesplan.afgeleid;
   const doelLink = useMemo(() => maakDoelLink(index), [index]);
   const opties = useMemo(() => ({ doelLink }), [doelLink]);
@@ -335,13 +310,20 @@ export function LesplanInhoud({ lesplan, index, koppelingen }: { lesplan: GoLesp
           </p>
           <GoBronvermelding soort="lesplan" code={lesplan.code} url={bron.url} ingelezen={bron.ingelezen} />
 
+          <p className="b-lp-acties">
+            <button type="button" className="b-knop" onClick={() => window.print()}>
+              <PrintIcon size={18} aria-hidden="true" /> Afdrukken
+            </button>
+          </p>
+
           <nav className="b-lp-ganaar" aria-label="Ga naar">
             <ul>
-              {ganaar.map((g) => (
+              {[{ nr: 0, label: 'In het kort', id: 'lp-kort-kop' }, ...ganaar].map((g) => (
                 <li key={g.nr}>
                   <Link
                     to={basisPad({ s: 'lesplan', code: lesplan.code })}
                     onClick={(e) => {
+                      if (!gewoneKlik(e)) return;
                       e.preventDefault();
                       gaNaarId(g.id);
                     }}
@@ -353,8 +335,9 @@ export function LesplanInhoud({ lesplan, index, koppelingen }: { lesplan: GoLesp
             </ul>
           </nav>
 
-          <InHetKort lesplan={lesplan} koppelingen={koppelingen} />
+          <InHetKort lesplan={lesplan} koppelingen={koppelingen} indexFout={indexFout} doelPad={doelPad} />
 
+          <p className="b-lp-grens">Hieronder het volledige lesplan van het GO!, letterlijk overgenomen.</p>
           <div className="b-lp-tekst">
             {meta.length > 0 && (
               <div className="b-lp-meta">
@@ -374,10 +357,10 @@ export function LesplanInhoud({ lesplan, index, koppelingen }: { lesplan: GoLesp
   );
 }
 
-/** Laadt het leerplan van het vak van het lesplan, voor de chips met minimumdoelen; het lesplan zelf staat er al. */
-function LesplanPagina({ lesplan, stap }: { lesplan: GoLesplanBestand; stap?: number }) {
-  const index = useGoIndex().stand;
+/** Laadt het leerplan van het vak van het lesplan, voor de chips met minimumdoelen; het lesplan en de index komen van LesplanScherm. */
+function LesplanPagina({ lesplan, stap, index }: { lesplan: GoLesplanBestand; stap?: number; index: MetOpnieuw<GoIndex> }) {
   const leerplan = useGoLeerplan(lesplan.afgeleid.vak);
+  const doelPad = useDoelPad();
 
   const koppelingen = useMemo<Koppelingen>(() => {
     if (leerplan.stand.status === 'laden') return { status: 'laden' };
@@ -391,7 +374,15 @@ function LesplanPagina({ lesplan, stap }: { lesplan: GoLesplanBestand; stap?: nu
     if (s) gaNaarId(wijzerId({ ...s.wat, regel: 0 }), wijzerId(s.wat));
   }, [lesplan, stap]);
 
-  return <LesplanInhoud lesplan={lesplan} index={index.status === 'klaar' ? index.waarde : undefined} koppelingen={koppelingen} />;
+  return (
+    <LesplanInhoud
+      lesplan={lesplan}
+      index={index.stand.status === 'klaar' ? index.stand.waarde : undefined}
+      koppelingen={koppelingen}
+      indexFout={foutVan(index)}
+      doelPad={doelPad}
+    />
+  );
 }
 
 function NietGevonden({ code }: { code: string }) {
@@ -400,7 +391,7 @@ function NietGevonden({ code }: { code: string }) {
       <h1>Dit lesplan vonden we niet</h1>
       <p>Er is geen lesplan van het GO! met de code {code} in Boosterz.</p>
       <ul className="b-plaats-links">
-        <li><Link to={basisPad({ s: 'lesplannen' })}>Alle lesplannen</Link></li>
+        <li><Link to={basisPad({ s: 'lesplannen', alle: true })}>Alle lesplannen</Link></li>
         <li><Link to={basisPad({ s: 'go' })}>Leerplan en lesplannen van het GO!</Link></li>
       </ul>
     </section>
@@ -409,6 +400,15 @@ function NietGevonden({ code }: { code: string }) {
 
 export function LesplanScherm({ code, stap }: { code: string; stap?: number }) {
   const { stand, opnieuw } = useGoLesplan(code);
+  // De index vertrekt samen met het lesplan (zelfde commit). Ze zegt al het vak van het lesplan: zo vertrekt het leerplan
+  // ook vóór het lesplan binnen is. useGoLeerplan in LesplanPagina krijgt dan dezelfde belofte (de cache in goBron.ts);
+  // een mislukte voorlading wordt daar opnieuw geprobeerd.
+  const index = useGoIndex();
+  const vakUitIndex = index.stand.status === 'klaar' ? lesplanVanCode(index.stand.waarde, code)?.vak : undefined;
+  useEffect(() => {
+    if (vakUitIndex) laadGoLeerplan(vakUitIndex).catch(() => {});
+  }, [vakUitIndex]);
+
   if (stand.status === 'laden') {
     return (
       <div className="b-lesplan">
@@ -418,7 +418,7 @@ export function LesplanScherm({ code, stap }: { code: string; stap?: number }) {
     );
   }
   if (stand.status === 'fout') {
-    if (/bestaat niet/.test(stand.fout)) return <NietGevonden code={code} />;
+    if (isGoNietGevonden(stand.fout)) return <NietGevonden code={code} />;
     return (
       <div className="b-lesplan">
         <h1 className="b-lp-h1">Lesplan {code}</h1>
@@ -426,5 +426,5 @@ export function LesplanScherm({ code, stap }: { code: string; stap?: number }) {
       </div>
     );
   }
-  return <LesplanPagina lesplan={stand.waarde} stap={stap} />;
+  return <LesplanPagina lesplan={stand.waarde} stap={stap} index={index} />;
 }

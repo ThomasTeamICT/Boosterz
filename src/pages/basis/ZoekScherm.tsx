@@ -8,12 +8,13 @@
 //   alleen de index.
 // - Gewoon of buitengewoon wisselen kan hier (twee links met dezelfde vraag). Niets wordt bewaard, ook de vraag niet.
 
-import { useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { lazy, Suspense, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { doelSleutel, ZoekResultaten } from '../../components/basis/ZoekResultaten';
 import { ZoekVeld } from '../../components/basis/ZoekVeld';
 import { useBasisKeuze } from '../../components/basis/useBasisKeuze';
 import { useBasisIndex } from '../../components/basis/useBasisSets';
+import type { GoCode } from '../../components/basis/go/GoCodeLinks';
 import { FoutBericht, LaadBericht } from '../../components/curriculum/LaadStatus';
 import { useSetBestanden } from '../../components/curriculum/samenstellen/useSetBestanden';
 import { basisPad, basisRoute } from '../../lib/basis/basisRoutes';
@@ -27,50 +28,46 @@ import { SoortLinks } from './MomentScherm';
 import '../../styles/basis-go.css';
 import '../../styles/basis-zoek.css';
 
-export type GoCode = { soort: 'leerplandoel' | 'lesplan'; code: string };
+// De codes van het GO! (WT.086, LP0065) staan in een lui geladen onderdeel: een gewone zoekvraag laadt de gegevens van het GO! niet.
+const GoCodeLinks = lazy(() => import('../../components/basis/go/GoCodeLinks'));
 
 const MAX_GO_CODES = 3;
 
+/** Een woord uit de vraag zonder haakjes en leestekens eromheen: '(WT.086),' wordt 'WT.086'. */
+function kaalWoord(woord: string): string {
+  return woord.replace(/^[([«"'“‘]+/, '').replace(/[.,;:!?()\]»"'”’]+$/, '');
+}
+
+/** De code van het GO! in één woord, in de vorm van het GO! ('wt.086' wordt 'WT.086'); undefined als het geen code is. */
+function goCodeVan(woord: string): GoCode | undefined {
+  const kaal = kaalWoord(woord);
+  const scherm = /^[a-z]{2}\.\d{3,4}$/i.test(kaal)
+    ? basisRoute(`leerplandoel/${kaal}`, '')
+    : /^lp\d{4}[a-z]?$/i.test(kaal)
+      ? basisRoute(`lesplan/${kaal}`, '')
+      : undefined;
+  return scherm?.s === 'leerplandoel' || scherm?.s === 'lesplan' ? { soort: scherm.s, code: scherm.code } : undefined;
+}
+
 /**
  * De codes van het GO! in een zoekvraag: een leerplandoel (WT.086) of een lesplan (LP0065, LP0014a). Hoofdletters maken niet
- * uit; de code staat er weer in de vorm van het GO! ('wt.086' wordt 'WT.086'). Alleen wat een geldig adres geeft telt, en
- * hoogstens drie. Of de code echt bestaat, zegt het scherm waar de link naartoe gaat.
+ * uit; haakjes en leestekens rond een code vallen weg. Alleen wat een geldig adres geeft telt, en hoogstens drie. Of de code
+ * echt bestaat, zegt GoCodeLinks na het laden van de index.
  */
 export function goCodesIn(vraag: string): GoCode[] {
   const uit: GoCode[] = [];
   for (const woord of vraag.split(/\s+/)) {
-    const kaal = woord.replace(/[.,;:!?()]+$/, '');
-    const scherm = /^[a-z]{2}\.\d{3,4}$/i.test(kaal)
-      ? basisRoute(`leerplandoel/${kaal}`, '')
-      : /^lp\d{4}[a-z]?$/i.test(kaal)
-        ? basisRoute(`lesplan/${kaal}`, '')
-        : undefined;
-    if ((scherm?.s === 'leerplandoel' || scherm?.s === 'lesplan') && !uit.some((g) => g.code === scherm.code)) {
-      uit.push({ soort: scherm.s, code: scherm.code });
-    }
+    const g = goCodeVan(woord);
+    if (g && !uit.some((x) => x.code === g.code)) uit.push(g);
     if (uit.length === MAX_GO_CODES) break;
   }
   return uit;
 }
 
-/** Een gevonden code van het GO!, meteen als link (het GO! zelf, naast de doelen van de overheid). */
-export function GoCodeLinks({ codes }: { codes: readonly GoCode[] }) {
-  if (codes.length === 0) return null;
-  return (
-    <section className="b-blok b-zoek-go" aria-labelledby="b-zoek-go-kop">
-      <h2 id="b-zoek-go-kop">Gevonden bij het GO!</h2>
-      <ul className="b-go-lesplannen">
-        {codes.map((g) => (
-          <li key={g.code}>
-            <Link to={basisPad(g.soort === 'lesplan' ? { s: 'lesplan', code: g.code } : { s: 'leerplandoel', code: g.code })} className="b-go-lesplanlink">
-              {g.soort === 'lesplan' ? `Lesplan ${g.code}` : `Leerplandoel ${g.code}`}
-            </Link>{' '}
-            <span className="b-go-leeftijden">{g.soort === 'lesplan' ? '(lesplan van het GO!)' : '(leerplandoel van het GO!)'}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
+/** Bestaat de vraag helemaal uit codes van het GO!? Dan zoeken we niet in de doelen van de overheid. */
+export function alleenGoCodes(vraag: string): boolean {
+  const woorden = vraag.split(/\s+/).filter(Boolean);
+  return woorden.length > 0 && woorden.every((w) => goCodeVan(w) !== undefined);
 }
 
 /** Heeft deze vraag de doelen zelf nodig, of volstaat de index (leeg, alleen een vak of alleen een moment)? */
@@ -119,8 +116,9 @@ export function ZoekScherm({ soort, vraag, leerjaar, bereik }: { soort: SoortBas
 
   const gelezen = useMemo(() => leesVraag(vraag, ZOEKWOORDEN), [vraag]);
   const goCodes = useMemo(() => goCodesIn(vraag), [vraag]);
+  const alleenCodes = useMemo(() => alleenGoCodes(vraag), [vraag]);
   const effectief = echtBereik(gelezen, bereik, leerjaar);
-  const sets = useMemo(() => (alle ? zoekSets(alle, soort, gelezen, leerjaar, bereik) : []), [alle, soort, gelezen, leerjaar, bereik]);
+  const sets = useMemo(() => (alle && !alleenCodes ? zoekSets(alle, soort, gelezen, leerjaar, bereik) : []), [alle, alleenCodes, soort, gelezen, leerjaar, bereik]);
   const ids = useMemo(() => sets.map((s) => s.set.id), [sets]);
   const { stand, bestanden, opnieuw } = useSetBestanden(ids);
   const fouten = ids.filter((id) => stand(id).status === 'fout');
@@ -150,7 +148,11 @@ export function ZoekScherm({ soort, vraag, leerjaar, bereik }: { soort: SoortBas
       <div className="b-schakelaars">
         <SoortLinks soort={soort} naar={(s) => ({ s: 'zoek', soort: s, vraag, leerjaar, bereik })} />
       </div>
-      <GoCodeLinks codes={goCodes} />
+      {goCodes.length > 0 && (
+        <Suspense fallback={null}>
+          <GoCodeLinks codes={goCodes} />
+        </Suspense>
+      )}
       {index.stand.status === 'laden' && <LaadBericht tekst="De doelen worden geladen" />}
       {index.stand.status === 'fout' && <FoutBericht fout={index.stand.fout} onOpnieuw={index.opnieuw} />}
       {alle !== undefined && !klaar && (
@@ -162,7 +164,7 @@ export function ZoekScherm({ soort, vraag, leerjaar, bereik }: { soort: SoortBas
           })}
         </>
       )}
-      {alle !== undefined && uitslag && (
+      {alle !== undefined && !alleenCodes && uitslag && (
         <ZoekResultaten uitslag={uitslag} vraagTekst={vraag} doelen={doelen} soort={soort} leerjaar={leerjaar} bereik={effectief} alle={alle} />
       )}
     </div>

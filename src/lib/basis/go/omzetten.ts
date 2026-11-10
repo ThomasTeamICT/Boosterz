@@ -17,6 +17,7 @@
 import { canoniek } from '../../minimumdoelen';
 import { sha256Hex } from '../../sha256';
 import { GO_LEEFTIJDEN, isGoLeeftijd } from './leeftijden';
+import { slugVan } from './goModel';
 import { koppel, vakVanCode, type KoppelUitkomst, type Opzoektabel } from './koppelen';
 import {
   GO_MOMENTEN,
@@ -60,6 +61,7 @@ import {
 } from './types';
 import { isZonderMinimumdoel, regelTekst, splitsVerwijzingen, vetBegin } from './valideer';
 import {
+  ALINEASTIJLEN,
   BEGRIPPEN_LABEL,
   DIPLOMA_BEGRIPPEN,
   DIPLOMA_NAVIGATOR,
@@ -87,6 +89,7 @@ import {
   RIJKOP_LESKERN,
   RIJKOPPEN_LESOPBOUW,
   RIJSOORTEN_MET_KOPPELING,
+  RPR_GEKEND,
   STAPPEN,
   TABELLEN,
   TRAINEN_INLEIDING,
@@ -128,8 +131,15 @@ export interface RuwTabel {
 
 export type RuwBlok = RuwAlinea | RuwTabel | { t: 'onbekend'; tag: string };
 
+/** Grootte en sha256 van het bestand waaruit de lezer de ruwe JSON las (maak.ts vergelijkt ze met het origineel in bron/). */
+export interface RuwBron {
+  bytes: number;
+  sha256: string;
+}
+
 export interface RuwDocx {
   bestand: string;
+  bron: RuwBron;
   gemaakt: string | null;
   media: { naam: string; bytes: number; sha1: string }[];
   stijlen: Record<string, string>;
@@ -153,24 +163,53 @@ export interface RuwRij {
   opmaak?: Record<string, RuwOpmaakRun[]>;
 }
 
+/** Een cel die geen gedeelde tekst, inlineStr of boolean is (n, e, str, d), of een waarde met een Excel-escape. */
+export interface RuwVreemdeCel {
+  r: number;
+  /** De kolom, vanaf 0. */
+  k: number;
+  soort: string;
+  /** Hoogstens 40 tekens. */
+  waarde: string;
+}
+
 export interface RuwXlsx {
   bestand: string;
+  bron: RuwBron;
   gewijzigd: string | null;
   bladnamen: { naam: string; staat: string }[];
   blad: string;
   merged: string[];
   tellingen: Record<string, number>;
+  vreemde_cellen: RuwVreemdeCel[];
+  /** Rijnummers van verborgen rijen met een waarde. */
+  verborgen_rijen: number[];
+  /** [van, tot], kolommen vanaf 0. */
+  verborgen_kolommen: [number, number][];
+  /** Het aantal leden met opmerkingen (xl/comments*.xml, xl/threadedComments/*). */
+  opmerkingen: number;
+  /** [rij, kolom] van elk anker in de drawing van het blad (rij vanaf 1, kolom vanaf 0; [0, 0] zonder cel). */
+  beelden: [number, number][];
   rijen: RuwRij[];
 }
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
+const isGeheel = (v: unknown, min = 0): v is number => typeof v === 'number' && Number.isInteger(v) && v >= min;
+const RE_SHA256 = /^[0-9a-f]{64}$/;
+
+/** Het veld bron van de ruwe JSON: {bytes, sha256} van het gelezen bestand. */
+function controleerRuwBron(json: Obj, uit: string[]): void {
+  const b = json.bron;
+  if (!isObj(b) || !isGeheel(b.bytes) || typeof b.sha256 !== 'string' || !RE_SHA256.test(b.sha256)) uit.push('"bron" ontbreekt of is ongeldig ({bytes, sha256} van het gelezen bestand; lees het bestand opnieuw)');
+}
 
 /** Een structurele controle van de ruwe docx-JSON vóór gebruik: de lezer is van ons, maar de invoer niet. */
 export function controleerRuwDocx(json: unknown): string[] {
   const uit: string[] = [];
   if (!isObj(json)) return ['de ruwe docx-JSON is geen object'];
   if (typeof json.bestand !== 'string') uit.push('"bestand" ontbreekt');
+  controleerRuwBron(json, uit);
   if (json.gemaakt !== null && typeof json.gemaakt !== 'string') uit.push('"gemaakt" is geen tekst');
   if (!Array.isArray(json.media) || !json.media.every((m) => isObj(m) && typeof m.naam === 'string' && typeof m.sha1 === 'string')) uit.push('"media" is ongeldig');
   if (!isObj(json.tellingen)) uit.push('"tellingen" ontbreekt');
@@ -219,6 +258,14 @@ export function controleerRuwXlsx(json: unknown): string[] {
   if (json.gewijzigd !== null && typeof json.gewijzigd !== 'string') uit.push('"gewijzigd" is geen tekst');
   if (!Array.isArray(json.bladnamen)) uit.push('"bladnamen" is geen lijst');
   if (!Array.isArray(json.merged)) uit.push('"merged" is geen lijst');
+  controleerRuwBron(json, uit);
+  if (!isObj(json.tellingen)) uit.push('"tellingen" ontbreekt');
+  if (!Array.isArray(json.vreemde_cellen) || !json.vreemde_cellen.every((v) => isObj(v) && isGeheel(v.r, 1) && isGeheel(v.k) && typeof v.soort === 'string' && typeof v.waarde === 'string')) uit.push('"vreemde_cellen" is geen lijst van {r, k, soort, waarde}');
+  if (!Array.isArray(json.verborgen_rijen) || !json.verborgen_rijen.every((v) => isGeheel(v, 1))) uit.push('"verborgen_rijen" is geen lijst van rijnummers');
+  const paar = (v: unknown) => Array.isArray(v) && v.length === 2 && isGeheel(v[0]) && isGeheel(v[1]);
+  if (!Array.isArray(json.verborgen_kolommen) || !json.verborgen_kolommen.every(paar)) uit.push('"verborgen_kolommen" is geen lijst van [van, tot]');
+  if (!isGeheel(json.opmerkingen)) uit.push('"opmerkingen" is geen aantal');
+  if (!Array.isArray(json.beelden) || !json.beelden.every(paar)) uit.push('"beelden" is geen lijst van [rij, kolom]');
   if (!Array.isArray(json.rijen)) return [...uit, '"rijen" is geen lijst'];
   let vorige = 0;
   json.rijen.forEach((r, i) => {
@@ -250,7 +297,10 @@ export type BekendeAfwijking = BekendBasis &
     | { soort: 'minimumdoelrij'; vak: GoVak; rij: number }
     | { soort: 'minimumdoelrij-is-inhoud'; vak: GoVak; rij: number; doel: string; als: string; tekst: string }
     | { soort: 'opmaak'; vak: GoVak; rij: number; kolom: number; tekst: string; besluit: 'opmaak-bewaren' }
+    | { soort: 'xlsx-beeld'; vak: GoVak; rij: number; kolom: number }
     | { soort: 'lesplan-doeltekst'; lesplan: string; doel: string; tekst: string }
+    | { soort: 'lesplan-leeftijd'; lesplan: string; doel: string }
+    | { soort: 'lessenlijn-variant'; lesplan: string; veld: 'lessenlijn' | 'lessenreeks'; naam: string }
     | { soort: 'lesplan-deel'; lesplan: string; kop: string }
     | {
         soort: 'lesplan-beeld';
@@ -260,6 +310,8 @@ export type BekendeAfwijking = BekendBasis &
         bestand?: string;
         alt?: string;
         uitleg?: string;
+        /** sha256 van het getoonde bestand (bv. de WebP): maak.ts en de uitrolpoort rekenen het na. */
+        sha256?: string;
       }
   );
 
@@ -274,9 +326,12 @@ const BEKENDE_VELDEN: Readonly<Record<BekendeSoort, { verplicht: readonly string
   minimumdoelrij: { verplicht: ['vak', 'rij'] },
   'minimumdoelrij-is-inhoud': { verplicht: ['vak', 'rij', 'doel', 'als', 'tekst'] },
   opmaak: { verplicht: ['vak', 'rij', 'kolom', 'tekst', 'besluit'] },
+  'xlsx-beeld': { verplicht: ['vak', 'rij', 'kolom'] },
   'lesplan-doeltekst': { verplicht: ['lesplan', 'doel', 'tekst'] },
+  'lesplan-leeftijd': { verplicht: ['lesplan', 'doel'] },
+  'lessenlijn-variant': { verplicht: ['lesplan', 'veld', 'naam'] },
   'lesplan-deel': { verplicht: ['lesplan', 'kop'] },
-  'lesplan-beeld': { verplicht: ['sha1', 'lesplannen', 'status'], optioneel: ['bestand', 'alt', 'uitleg'] },
+  'lesplan-beeld': { verplicht: ['sha1', 'lesplannen', 'status'], optioneel: ['bestand', 'alt', 'uitleg', 'sha256'] },
 };
 
 /** Leest bekende-afwijkingen.json streng: een onbekend veld of een regel zonder reden of datum is een fout. */
@@ -304,7 +359,9 @@ export function leesBekendeAfwijkingen(json: unknown): { afwijkingen: BekendeAfw
       if (a.status === 'getoond' && (typeof a.bestand !== 'string' || typeof a.alt !== 'string')) fouten.push(`${p}: een getoond beeld heeft "bestand" en "alt"`);
       if (a.status === 'weggelaten' && typeof a.uitleg !== 'string') fouten.push(`${p}: een weggelaten beeld heeft "uitleg"`);
       if (a.status !== 'getoond' && a.status !== 'weggelaten') fouten.push(`${p}: "status" is getoond of weggelaten`);
+      if (a.sha256 !== undefined && (typeof a.sha256 !== 'string' || !RE_SHA256.test(a.sha256))) fouten.push(`${p}: "sha256" is geen sha256 (64 hex-tekens, kleine letters)`);
     }
+    if (a.soort === 'lessenlijn-variant' && a.veld !== 'lessenlijn' && a.veld !== 'lessenreeks') fouten.push(`${p}: "veld" is lessenlijn of lessenreeks`);
     if (a.soort === 'opmaak' && a.besluit !== 'opmaak-bewaren') fouten.push(`${p}: "besluit" is 'opmaak-bewaren'`);
     for (const k of Object.keys(a)) {
       const w = a[k];
@@ -480,6 +537,9 @@ interface LesplanCtx {
 }
 
 function zetAlineaOm(p: RuwAlinea, ctx: LesplanCtx, waar: string): Omgezet {
+  if (p.stijl && !ALINEASTIJLEN.has(p.stijl)) ctx.afw.nieuw('docx-stijl', waar, `de alineastijl ${p.stijl} is niet gekend`);
+  // Vet via de stijl Strong valt weg (de lezer geeft alleen opmaak van de run zelf door): elke zichtbare run moet zelf vet zijn.
+  if (p.stijl === 'Strong' && p.runs.some((r) => r.t === 'tekst' && r.tekst.trim() !== '' && !r.b)) ctx.afw.nieuw('docx-stijl', waar, 'tekst in de stijl Strong zonder eigen vet');
   const stukken: Stuk[] = [];
   const beelden: Extract<RuwRun, { t: 'beeld' }>[] = [];
   for (const r of p.runs) {
@@ -641,6 +701,7 @@ export function zetLesplanOm(
   for (const [k, n] of Object.entries(ruw.tellingen)) {
     const verboden = ['hyperlinks', 'ins', 'del', 'sdt', 'tekstvakken', 'velden', 'veldtekens', 'commentaar_ankers', 'commentaar_verwijzingen', 'tab', 'tabellen_genest', 'pict', 'smartTag', 'fldSimple', 'hyperlink'];
     if (n > 0 && (verboden.includes(k) || /^(run_kind|p_kind|blok_onbekend):/.test(k))) afw.nieuw('docx-element', 'body', `${n} × ${k} (niet gekend in een lesplan)`);
+    if (n > 0 && k.startsWith('rpr:') && !RPR_GEKEND.has(k.slice(4))) afw.nieuw('docx-opmaak', 'body', `${n} × ${k} (deze opmaak is niet gekend in een lesplan)`);
   }
   for (const m of ruw.media) {
     if (ICOON_MEDIA[m.naam]) continue;
@@ -1176,6 +1237,18 @@ export function zetLeerplanOm(
   if (ruw.bladnamen.length !== 1) afw.nieuw('xlsx-blad', 'werkboek', `${ruw.bladnamen.length} tabbladen (verwacht één)`);
   if (ruw.merged.length > 0) afw.nieuw('xlsx-blad', 'blad', `${ruw.merged.length} samengevoegde cellen`);
   if (ruw.gewijzigd === null) afw.nieuw('xlsx-blad', 'docProps', 'geen datum (dcterms:modified)');
+  // Wat de lezer zag maar niet als tekst overneemt: een cel die geen tekst is komt anders letterlijk als tekst online
+  // (bv. #REF! of 0.5 voor 50 %), en wat verborgen is, in een opmerking of in een figuur staat, zou stil verdwijnen.
+  for (const v of ruw.vreemde_cellen) {
+    afw.nieuw('xlsx-cel', `rij ${v.r}, kolom ${v.k}`, v.soort === 'escape' ? `een Excel-escape (_xHHHH_) in de tekst: "${v.waarde}"` : `een cel die geen tekst is (${v.soort}): "${v.waarde}"`);
+  }
+  for (const r of ruw.verborgen_rijen) afw.nieuw('xlsx-verborgen', `rij ${r}`, 'een verborgen rij met inhoud');
+  for (const [van, tot] of ruw.verborgen_kolommen) afw.nieuw('xlsx-verborgen', van === tot ? `kolom ${van}` : `kolom ${van}-${tot}`, 'een verborgen kolom');
+  if (ruw.opmerkingen > 0) afw.nieuw('xlsx-opmerking', 'werkboek', `${ruw.opmerkingen} bestanden met opmerkingen bij cellen (opmerkingen worden niet gelezen)`);
+  for (const [r, k] of ruw.beelden) {
+    const bekend = ctx.bekende.zoek('xlsx-beeld', (a) => a.vak === vak && a.rij === r && a.kolom === k);
+    afw.melding('xlsx-beeld', r === 0 ? 'blad (zonder cel)' : `rij ${r}, kolom ${k}`, 'een beeld, vorm of grafiek op het blad (die worden niet gelezen)', bekend);
+  }
 
   const kop = ruw.rijen[0];
   if (!kop || kop.r !== 1) {
@@ -1568,11 +1641,75 @@ export function controleerLesplanTegenLeerplan(
       }
     }
   }
+  // De leeftijd van het lesplan komt alleen uit de titel: elk doel uit deel 2 en elk diploma moet die leeftijd hebben.
+  for (const [code, x] of doelen) {
+    if (x.leeftijden.includes(lesplan.leeftijd)) continue;
+    const bekend = bekende.zoek('lesplan-leeftijd', (a) => a.lesplan === lesplan.code && a.doel === code);
+    afw.melding('lesplan-leeftijd', `deel 2, ${code}`, `het lesplan is voor ${lesplan.leeftijd} jaar (titel), het doel voor ${leeftijdenTekst(x.leeftijden)}`, bekend);
+  }
+  for (const d of lesplan.afgeleid.diplomas) {
+    if (d.leeftijd !== lesplan.leeftijd) afw.nieuw('lesplan-leeftijd', `deel 4, diploma ${d.naam}`, `het lesplan is voor ${lesplan.leeftijd} jaar (titel), het diploma voor ${d.leeftijd} jaar`);
+  }
   for (const ik of extra.ikDoelKoppen) {
     const d = lesplan.afgeleid.leerplandoelen.find((x) => x.code === ik.code);
     if (!d) afw.nieuw('lesplan-diploma', ik.waar, `${ik.code} staat bij een diploma, maar niet in deel 2`);
     else if (d.kennisverwerking !== ik.kennisverwerking || (ik.leeftijden ?? []).join('|') !== d.leeftijden.join('|')) afw.nieuw('lesplan-diploma', ik.waar, `${ik.code}: kennisverwerking of leeftijden anders dan in deel 2`);
   }
+}
+
+/**
+ * Lessenlijnen en lessenreeksen met dezelfde naam op een schrijfwijze na. De app groepeert de lesplannen van een vak op
+ * de letterlijke naam van de lessenlijn (goModel.ts, lessenlijnen) en geeft elke lijn een adres met slugVan: schrijft
+ * één lesplan 'Biologie van Organismen' en de rest 'Biologie van organismen', dan zijn dat twee lijnen, en de ene neemt
+ * het adres van de andere over ('…-2'). Hetzelfde voor de reeksen binnen een lijn. Per groep met hetzelfde adres wint
+ * de schrijfwijze van de meeste lesplannen (bij gelijke stand die van het laagste lesplan); elk lesplan met een andere
+ * schrijfwijze krijgt de afwijking 'lessenlijn-variant', tenzij bekende-afwijkingen.json ze voor dat lesplan kent.
+ * Alleen over de lesplannen van deze run: dat zijn de lesplannen van de nieuwe index.
+ */
+export function controleerLessenlijnen(lesplannen: readonly GoLesplanBestand[], bekende: Bekende): Afwijking[] {
+  const uit: Afwijking[] = [];
+  const perCode = new Map<string, Afwijkingen>();
+  const afwVan = (code: string) => {
+    const a = perCode.get(code) ?? new Afwijkingen(code);
+    perCode.set(code, a);
+    return a;
+  };
+  const gesorteerd = [...lesplannen].sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
+  /** Per groep (zelfde adres) de schrijfwijzen; meldt elk lesplan met een minder gebruikte schrijfwijze. */
+  const vergelijk = (groep: readonly GoLesplanBestand[], veld: 'lessenlijn' | 'lessenreeks', waar: string) => {
+    const perSlug = new Map<string, GoLesplanBestand[]>();
+    for (const l of groep) {
+      const s = slugVan(l.afgeleid[veld]);
+      perSlug.set(s, [...(perSlug.get(s) ?? []), l]);
+    }
+    for (const [slug, leden] of perSlug) {
+      const perNaam = new Map<string, string[]>();
+      for (const l of leden) perNaam.set(l.afgeleid[veld], [...(perNaam.get(l.afgeleid[veld]) ?? []), l.code]);
+      if (perNaam.size < 2) continue;
+      // Map behoudt de volgorde van invoegen (oplopend op code): bij gelijke stand wint de eerste.
+      const [winnaar, winCodes] = [...perNaam].reduce((a, b) => (b[1].length > a[1].length ? b : a));
+      for (const [naam, codes] of perNaam) {
+        if (naam === winnaar) continue;
+        for (const code of codes) {
+          const bekend = bekende.zoek('lessenlijn-variant', (a) => a.lesplan === code && a.veld === veld && a.naam === naam);
+          afwVan(code).melding('lessenlijn-variant', waar, `"${naam}" en "${winnaar}" (${winCodes.join(', ')}) geven hetzelfde adres (${slug || 'leeg'}), maar zijn niet letterlijk gelijk: de app toont dan twee ${veld === 'lessenlijn' ? 'lessenlijnen' : 'lessenreeksen'}`, bekend);
+        }
+      }
+    }
+  };
+  for (const vak of GO_VAK_CODES) {
+    const vanVak = gesorteerd.filter((l) => l.afgeleid.vak === vak);
+    if (vanVak.length === 0) continue;
+    vergelijk(vanVak, 'lessenlijn', 'deel 0, Lessenlijn');
+    const perLijn = new Map<string, GoLesplanBestand[]>();
+    for (const l of vanVak) {
+      const s = slugVan(l.afgeleid.lessenlijn);
+      perLijn.set(s, [...(perLijn.get(s) ?? []), l]);
+    }
+    for (const lijn of perLijn.values()) vergelijk(lijn, 'lessenreeks', 'deel 0, Lessenreeks');
+  }
+  for (const a of perCode.values()) uit.push(...a.lijst);
+  return uit;
 }
 
 // ══ Omgekeerde index en index ═════════════════════════════════════════

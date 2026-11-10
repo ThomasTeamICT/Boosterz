@@ -25,12 +25,13 @@ import {
   type GoLesplanBestand,
   type GoVak,
 } from '../../lib/basis/go/types';
-import { isZonderMinimumdoel } from '../../lib/basis/go/valideer';
+import { isZonderMinimumdoel } from '../../lib/basis/go/goModel';
 import { basisSet } from '../../lib/basis/moment';
 import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from '../../lib/minimumdoelen';
 import { GoInhoud } from './GoScherm';
 import { LeerplandoelInhoud, tekstInLesplan, type LesplannenBijDoel } from './LeerplandoelScherm';
 import { LeerplandoelenInhoud, aantalPerLeeftijd, blokkenVan, lijstItems, onderwerpKeuzes } from './LeerplandoelenScherm';
+import { LesplanInhoud } from './LesplanScherm';
 
 const toon = (el: ReactElement) => renderToStaticMarkup(createElement(StaticRouter, { location: '/' }, el));
 const ENTITEITEN: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#x27;': "'" };
@@ -291,14 +292,19 @@ describe('KoppelingLijst: twijfel en kapotte nummers', () => {
     const doel = doelVan('WT.235');
     const t = tekst(koppeling(doel));
     expect(t).toContain('Hoe zeker is dit?');
-    expect(t).toContain('het leerplan koppelt het ook aan een doel voor het einde van het 6de leerjaar (3.3.2)');
-    expect(t).toContain('Dit doel is voor 2,5-4 jaar');
+    expect(t).toContain('Dit leerplandoel is voor 2,5-4 jaar, 4-5 jaar');
+    expect(t).toContain('maar het leerplan van het GO! koppelt het aan minimumdoel 3.3.2, een doel voor het einde van het 6de leerjaar. Zo staat het in het leerplan.');
+    expect(t).not.toContain(' ook aan een doel');
   });
 
   it('twijfelZin noemt bij een ander vak het vak van het minimumdoel als dat bekend is', () => {
     const r = { set: 'ODS_3411', id: '92500', code: '4.2.3', moment: 'KO' as const, status: 'officieel' as const };
-    expect(twijfelZin('ander-vak', r, { code: 'WI.706', leeftijden: ['4-5'] }, 'Aardrijkskunde')).toContain('het vak Aardrijkskunde');
-    expect(twijfelZin('ander-vak', r, { code: 'WI.706', leeftijden: ['4-5'] })).toContain('een ander vak');
+    expect(twijfelZin('ander-vak', r, { code: 'WI.706', leeftijden: ['4-5'] }, 'Aardrijkskunde')).toBe(
+      'Het leerplan koppelt WI.706 aan minimumdoel 4.2.3, een doel van een ander vak (Aardrijkskunde) dan dat van dit leerplandoel.',
+    );
+    expect(twijfelZin('ander-vak', r, { code: 'WI.706', leeftijden: ['4-5'] })).toBe(
+      'Het leerplan koppelt WI.706 aan minimumdoel 4.2.3, een doel van een ander vak dan dat van dit leerplandoel.',
+    );
   });
 
   it('een kapot nummer zonder voorstel krijgt geen link maar een zin', () => {
@@ -333,7 +339,7 @@ describe('LeeftijdKiezer', () => {
     const t = tekst(kies('2,5-4'));
     expect(t).toContain('2,5-4 jaar: meestal instapklas en 1ste kleuterklas waarschijnlijk');
     expect(t).toContain('Hoe zeker is dit?');
-    expect(t).toContain('Het GO! deelt zijn leerplan in per leeftijd.');
+    expect(t).toContain('Het GO! deelt zijn leerplan in per leeftijd, niet per leerjaar.');
   });
 
   it('zonder keuze staat er geen “meestal”', () => {
@@ -446,10 +452,18 @@ describe('lijstItems', () => {
     }
   });
 
-  it('een subrubriek is een tussenregel (niveau 0), nooit een kop', () => {
-    const niveaus = new Set(lijstItems(LEERPLAN.get('WI') as GoLeerplanBestand, {}).items.flatMap((i) => (i.soort === 'kop' ? [i.niveau] : [])));
-    expect(niveaus.has(0)).toBe(true);
-    expect([...niveaus].every((n) => [0, 2, 3, 4].includes(n))).toBe(true);
+  it('een subrubriek is een kop, één niveau onder haar ouder, en de niveaus zitten tussen 2 en 5', () => {
+    const wi = LEERPLAN.get('WI') as GoLeerplanBestand;
+    const items = lijstItems(wi, {}).items;
+    const niveaus = new Set(items.flatMap((i) => (i.soort === 'kop' ? [i.niveau] : [])));
+    expect([...niveaus].every((n) => [2, 3, 4, 5].includes(n))).toBe(true);
+    const subs = items.flatMap((i) => (i.soort === 'kop' && i.rubriek.soort === 'subrubriek' ? [i] : []));
+    expect(subs.length).toBeGreaterThan(0);
+    const perId = new Map(items.flatMap((i) => (i.soort === 'kop' ? [[i.rubriek.id, i.niveau] as const] : [])));
+    for (const s of subs) {
+      const ouder = s.rubriek.ouder === undefined ? undefined : perId.get(s.rubriek.ouder);
+      if (ouder !== undefined) expect(s.niveau, s.rubriek.id).toBe(Math.min(ouder + 1, 5));
+    }
   });
 
   it('een rubriek houdt alleen de doelen eronder, met de koppen erboven', () => {
@@ -489,10 +503,9 @@ describe('LeerplandoelenInhoud (WT, 2,5-4 jaar)', () => {
     );
   const html = maak({ leeftijd: '2,5-4' });
 
-  it('heeft één h1, geen h5 en geen overgeslagen koppen', () => {
+  it('heeft één h1 en geen overgeslagen koppen', () => {
     expect(tel(html, /<h1[ >]/g)).toBe(1);
     expect(tekst(html)).toContain('Leerplan van het GO!: wetenschap en techniek');
-    expect(tel(html, /<h5[ >]/g)).toBe(0);
     expect(tel(html, /<h2[ >]/g)).toBeGreaterThan(0);
     const niveaus = [...html.matchAll(/<h([1-6])[ >]/g)].map((m) => Number(m[1]));
     for (let n = 1; n < niveaus.length; n++) expect(niveaus[n]).toBeLessThanOrEqual(niveaus[n - 1] + 1);
@@ -568,17 +581,19 @@ describe('LeerplandoelInhoud', () => {
       expect(tel(html, /<h1[ >]/g)).toBe(1);
       expect(t).toContain('Leerplandoel WT.086');
       expect(t).toContain('Herkennen dat mensen leven geven aan nieuwe mensen.');
-      expect(html).toContain('<span class="sr-only">Kennisverwerking: </span>begrijpen');
+      expect(t).toContain('Kennisverwerking: begrijpen');
       expect(html).toContain('href="/basis/leerplandoelen/wt?leerjaar=K1"');
       expect(html).toContain('href="/basis/leerplandoelen/wt?leerjaar=K2"');
     });
 
     it('zegt eerst de leeftijd, dan pas “meestal”, met de badge waarschijnlijk en de uitleg', () => {
-      expect(t).toContain('Leeftijd: 2,5-4 jaar 4-5 jaar waarschijnlijk');
+      expect(t).toContain('Leeftijd: 2,5-4 jaar 4-5 jaar');
+      expect(t).not.toMatch(/4-5 jaar\s*waarschijnlijk/);
+      expect(t).toContain('Welk leerjaar is dat meestal?');
       expect(t.indexOf('2,5-4 jaar')).toBeLessThan(t.indexOf('meestal'));
       expect(t).toContain('2,5-4 jaar: meestal instapklas en 1ste kleuterklas');
       expect(t).toContain('4-5 jaar: meestal 2de kleuterklas');
-      expect(t).toContain('Het GO! deelt zijn leerplan in per leeftijd.');
+      expect(t).toContain('Het GO! deelt zijn leerplan in per leeftijd, niet per leerjaar.');
     });
 
     it('toont de inhoud, het rubriekpad, de koppeling met de tekst uit de API en de lesplannen met hun ik-doelen', () => {
@@ -591,6 +606,17 @@ describe('LeerplandoelInhoud', () => {
       expect(t).toContain('De groeigoeroe mens (2,5-4 jaar): Ik herken zwangere vrouwen.');
       expect(html).toContain('class="b-kruimel"');
       expect(html).toContain('aria-label="Kruimelpad"');
+    });
+
+    it('zet de ik-zinnen per diploma als lijst, onder het woord Diploma met de naam van het diploma', () => {
+      expect(html).toContain('Diploma <strong>De groeigoeroe mens</strong>');
+      expect(html).toContain('<ul class="b-go-ikzinnen"><li>Ik herken zwangere vrouwen.</li><li>Ik weet dat een baby in de buik van mama groeit.</li>');
+    });
+
+    it('geeft WT.229 vijf aparte items (LP0014b) en zet een regeleinde in een zin als <br/> (WT.021, LP0087)', () => {
+      const zinnen = (h: string) => /<ul class="b-go-ikzinnen">(.*?)<\/ul>/.exec(h)?.[1] ?? '';
+      expect(zinnen(pagina('WT.229')).match(/<li>/g)).toHaveLength(5);
+      expect(zinnen(pagina('WT.021'))).toContain('zoogdieren.<br/>vb. ');
     });
 
     it('heeft de bronvermelding en links terug naar het vak en het overzicht', () => {
@@ -665,5 +691,359 @@ describe('LeerplandoelInhoud', () => {
         expect(tel(h, /<h[56][ >]/g), d.code).toBe(0);
       }
     }
+  });
+});
+
+// ── De index laadt niet (CT-8) ───────────────────────────────────────────────
+// Dan ontbreken de lesplannen bij een doel en de links in een lesplan. De pagina zegt dat, met 'Opnieuw proberen', in plaats
+// van stil onvolledig te lijken.
+
+describe('als de index niet laadt', () => {
+  const FOUT = 'De gegevens van het GO! konden niet geladen worden. Kijk je internetverbinding na en probeer opnieuw.';
+  const indexFout = { fout: FOUT, opnieuw: () => undefined };
+  const geenLesplannen: LesplannenBijDoel = { status: 'klaar', lesplannen: [] };
+  const leerplandoel = (code: string, fout?: typeof indexFout) =>
+    toon(
+      createElement(LeerplandoelInhoud, {
+        doel: doelVan(code),
+        leerplan: LEERPLAN.get(code.slice(0, 2) as GoVak) as GoLeerplanBestand,
+        minimumdoelen: KLAAR,
+        lesplannen: geenLesplannen,
+        indexFout: fout,
+      }),
+    );
+
+  it('de leerplandoelpagina toont het deel “Lesplannen met dit doel” met de melding en “Opnieuw proberen”', () => {
+    for (const code of ['WT.086', 'WT.200']) {
+      const html = leerplandoel(code, indexFout);
+      const t = tekst(html);
+      expect(t, code).toContain(`Lesplannen met dit doel ${FOUT} Opnieuw proberen`);
+      expect(html, code).toContain('role="alert"');
+      expect(html, code).toContain('<span class="sr-only"> (lesplannen met dit doel)</span>');
+      expect(tel(html, /<h2[ >][^<]*Lesplannen met dit doel/g), code).toBe(1);
+    }
+  });
+
+  it('zolang de index laadt, staat het deel er niet en is er geen melding', () => {
+    const html = leerplandoel('WT.086');
+    expect(tekst(html)).not.toContain('Lesplannen met dit doel');
+    expect(html).not.toContain('role="alert"');
+  });
+
+  it('het lesplan zegt onder “Leerplandoelen” dat de links ontbreken, met “Opnieuw proberen”', () => {
+    const html = toon(createElement(LesplanInhoud, { lesplan: lesplanVan('LP0065'), koppelingen: { status: 'laden' }, indexFout }));
+    const kop = html.indexOf('<h3>Leerplandoelen</h3>');
+    const melding = html.indexOf(FOUT);
+    expect(kop).toBeGreaterThan(-1);
+    expect(melding).toBeGreaterThan(kop);
+    expect(melding).toBeLessThan(html.indexOf('class="b-lp-doel"'));
+    expect(html).toContain('<span class="sr-only"> (links naar de leerplandoelen)</span>');
+    expect(tel(html, /Opnieuw proberen/g)).toBe(1);
+    expect(html).not.toContain('href="/basis/leerplandoel/');
+  });
+
+  it('het lesplan met twee fouten (leerplan en index) heeft twee meldingen die een schermlezer uit elkaar houdt', () => {
+    const html = toon(
+      createElement(LesplanInhoud, { lesplan: lesplanVan('LP0065'), koppelingen: { status: 'fout', fout: FOUT, opnieuw: () => undefined }, indexFout }),
+    );
+    expect(tel(html, /Opnieuw proberen/g)).toBe(2);
+    expect(html).toContain('<span class="sr-only"> (minimumdoelen)</span>');
+    expect(html).toContain('<span class="sr-only"> (links naar de leerplandoelen)</span>');
+  });
+
+  it('de lijst van een vak toont boven de doelen de melding met “Opnieuw proberen”', () => {
+    const html = toon(
+      createElement(LeerplandoelenInhoud, {
+        leerplan: LEERPLAN.get('WT') as GoLeerplanBestand,
+        filter: { leeftijd: '2,5-4' },
+        onLeeftijd: () => undefined,
+        onZonder: () => undefined,
+        rubriekPad: () => '/',
+        indexFout,
+      }),
+    );
+    const melding = html.indexOf(FOUT);
+    expect(melding).toBeGreaterThan(-1);
+    expect(melding).toBeLessThan(html.indexOf('class="b-go-doel"'));
+    expect(html).toContain('<span class="sr-only"> (lesplannen bij de doelen)</span>');
+    expect(tekst(html)).not.toContain('Lesplan: LP0001');
+  });
+});
+
+// ── Pakket D: de koppeling op één plek, één keer, en op de goede plaats ──────────────────────────────────────
+
+const ALLE_DOELEN = [...LEERPLAN.values()].flatMap((lp) => lp.doelen);
+/** Elke verwijzing van een doel (doelzin en onderdelen) als [set, id]. */
+const refsVan = (d: GoLeerplandoel) => [d.minimumdoelen, ...d.inhoud.flatMap((i) => ('koppeling' in i && i.koppeling ? [i.koppeling] : []))].flatMap((k) => k.refs);
+const hrefs = (html: string) => [...html.matchAll(/href="(\/basis\/doel\/[^"]+)"/g)].map((m) => m[1]);
+
+describe('twijfelZin: past niet bij de leeftijd (TU-5)', () => {
+  it('zegt “leerplandoel”, niet “ook”, en dat het zo in het leerplan staat; BU.009 heeft maar één koppeling', () => {
+    const doel = doelVan('BU.009');
+    expect(refsVan(doel)).toHaveLength(1);
+    const t = tekst(koppeling(doel));
+    expect(t).toContain('Hoe zeker is dit?');
+    expect(t).toMatch(/Dit leerplandoel is voor 10-11 jaar, maar het leerplan van het GO! koppelt het aan minimumdoel 5\.3\.1, een doel voor het einde van het 4de leerjaar\. Zo staat het in het leerplan\./);
+    expect(t).not.toMatch(/koppelt het ook aan/);
+  });
+
+  it('de twijfelzin bevat nooit “ook”, voor geen enkel doel met twijfel', () => {
+    const r = { set: 'ODS_3410', id: '92590', code: '3.1.2', moment: 'L4' as const, status: 'officieel' as const };
+    for (const d of ALLE_DOELEN.filter((x) => refsVan(x).some((y) => (y.twijfel ?? []).length > 0))) {
+      expect(twijfelZin('moment-buiten-leeftijden', r, d)).not.toMatch(/ ook /);
+    }
+  });
+});
+
+describe('KoppelingChips en KoppelingLijst: de twijfel staat bij de chip waar ze over gaat', () => {
+  it('WT.235: de chip van 3.3.2 krijgt zijn eigen vermelding, die van 3.3.1 niet', () => {
+    const html = toon(createElement(KoppelingChips, { doel: doelVan('WT.235') }));
+    const chips = html.split('<li>').slice(1);
+    expect(chips).toHaveLength(2);
+    expect(tekst(chips[0])).not.toContain('let op');
+    expect(tekst(chips[1])).toContain('3.3.2');
+    expect(tekst(chips[1])).toContain('let op: dit moment past niet bij de leeftijd van dit leerplandoel');
+  });
+});
+
+describe('ontdubbelen (CT-5)', () => {
+  it('BU.106 toont minimumdoel 9.1.9 één keer als kaart en noemt de herhaling van de onderdelen in één korte regel', () => {
+    const doel = doelVan('BU.106');
+    const html = koppeling(doel);
+    const kaarten = html.match(/<li class="b-go-ref">/g) ?? [];
+    const unieke = new Set(refsVan(doel).map((r) => `${r.set}-${r.id}-${r.moment}`));
+    expect(kaarten).toHaveLength(unieke.size);
+    expect(tel(html, /href="\/basis\/doel\/ODS_3427\/92664"/g)).toBe(1);
+    expect(tekst(html)).toMatch(/Het leerplan koppelt ook een onderdeel van dit doel \(.+\) aan minimumdoel 9\.1\.9, hierboven\./);
+    // De bron blijft volledig: elk onderdeel met een eigen koppeling staat nog onder “Zo staat het in het leerplan”.
+    expect(tekst(html)).toContain('Zo staat het in het leerplan');
+  });
+
+  it('in de lijst staat BU.106 met elk minimumdoel één keer als chip', () => {
+    const doel = doelVan('BU.106');
+    const links = hrefs(toon(createElement(KoppelingChips, { doel })));
+    expect(new Set(links).size).toBe(links.length);
+  });
+
+  it('WI.663: de twijfelzin onder “Hoe zeker is dit?” staat er één keer, en de kaart van 2.3.32 ook', () => {
+    const html = koppeling(doelVan('WI.663'));
+    expect(tel(tekst(html), /Dit leerplandoel is voor/g)).toBe(1);
+    expect(tel(html, /<li class="b-go-ref">/g)).toBe(1);
+  });
+
+  it('over alle doelen: in KoppelingChips en KoppelingLijst staat geen link dubbel en geen enkele unieke verwijzing ontbreekt', () => {
+    for (const d of ALLE_DOELEN) {
+      const unieke = new Set(refsVan(d).map((r) => `/basis/doel/${r.set}/${r.id}`));
+      for (const html of [toon(createElement(KoppelingChips, { doel: d })), koppeling(d, LEEG)]) {
+        const links = hrefs(html);
+        // Eén minimumdoel kan op twee momenten staan; dan is het twee kaarten met dezelfde link. Tel per set, id en moment.
+        expect(new Set(links), d.code).toEqual(unieke);
+      }
+      const chips = hrefs(toon(createElement(KoppelingChips, { doel: d })));
+      const perMoment = new Set(refsVan(d).map((r) => `${r.set}-${r.id}-${r.moment}`));
+      expect(chips.length, d.code).toBe(perMoment.size);
+    }
+  });
+});
+
+describe('de link naar een minimumdoel voor wie buitengewoon koos (SB-SB-2)', () => {
+  it('KoppelingChips gebruikt de doorgegeven functie voor het adres', () => {
+    const doel = doelVan('WT.006');
+    const standaard = hrefs(toon(createElement(KoppelingChips, { doel })));
+    expect(standaard.some((h) => h.startsWith('/basis/doel/ODS_3408/'))).toBe(true);
+    const naarBuso = (r: { set: string; id: string }) => `/basis/doel/${r.set === 'ODS_3408' ? 'ODS_3469' : r.set}/${r.id}`;
+    const html = toon(createElement(KoppelingChips, { doel, doelPad: naarBuso }));
+    expect(hrefs(html)[0]).toBe('/basis/doel/ODS_3469/92738');
+    expect(html).not.toContain('/basis/doel/ODS_3408/');
+  });
+
+  it('KoppelingLijst gebruikt dezelfde functie voor de kaarten', () => {
+    const doel = doelVan('WT.006');
+    const html = toon(createElement(KoppelingLijst, { doel, teksten: LEEG, doelPad: (r: { set: string; id: string }) => `/basis/doel/ODS_9999/${r.id}` }));
+    expect(hrefs(html).length).toBeGreaterThan(0);
+    for (const h of hrefs(html)) expect(h).toMatch(/^\/basis\/doel\/ODS_9999\//);
+  });
+});
+
+describe('LeerplandoelInhoud: de kruimel blijft in je leerjaar (CT-3)', () => {
+  const pagina = (code: string, bewaard?: 'K1' | 'K2' | 'K3' | 'L1' | 'L2' | 'L3' | 'L4' | 'L5' | 'L6') =>
+    toon(
+      createElement(LeerplandoelInhoud, {
+        doel: doelVan(code),
+        leerplan: LEERPLAN.get(code.slice(0, 2) as GoVak) as GoLeerplanBestand,
+        index: INDEX,
+        minimumdoelen: KLAAR,
+        lesplannen: { status: 'klaar', lesplannen: [] },
+        bewaard,
+      }),
+    );
+
+  it('WT.005 (6-7 en 7-8 jaar) met bewaard L2: de kruimel en de voetlink gaan naar L2', () => {
+    const html = pagina('WT.005', 'L2');
+    const kruimel = /<nav class="b-kruimel"[\s\S]*?<\/nav>/.exec(html)?.[0] ?? '';
+    const voet = /<p class="b-go-voet">[\s\S]*?<\/p>/.exec(html)?.[0] ?? '';
+    expect(kruimel).toContain('href="/basis/leerplandoelen/wt?leerjaar=L2"');
+    expect(kruimel).not.toContain('leerjaar=L1');
+    expect(voet).toContain('href="/basis/leerplandoelen/wt?leerjaar=L2"');
+  });
+
+  it('met een bewaard leerjaar dat niet bij het doel past, of zonder, geldt de eerste leeftijd (L1)', () => {
+    for (const html of [pagina('WT.005', 'L5'), pagina('WT.005')]) {
+      const kruimel = /<nav class="b-kruimel"[\s\S]*?<\/nav>/.exec(html)?.[0] ?? '';
+      expect(kruimel).toContain('href="/basis/leerplandoelen/wt?leerjaar=L1"');
+      expect(kruimel).not.toContain('leerjaar=L5');
+    }
+  });
+
+  it('de rubriek-kruimel toont de hele rubriek over alle leeftijden (WT.086 in WT-r019, ook met bewaard L2)', () => {
+    for (const html of [pagina('WT.086', 'L2'), pagina('WT.086')]) {
+      const kruimel = /<nav class="b-kruimel"[\s\S]*?<\/nav>/.exec(html)?.[0] ?? '';
+      const rubriek = /<a[^>]*class="b-go-kruimel-rubriek"[^>]*>/g;
+      const hrefs = [...kruimel.matchAll(rubriek)].map((m) => /href="([^"]*)"/.exec(m[0])?.[1] ?? '');
+      expect(hrefs.length).toBeGreaterThan(0);
+      expect(hrefs[hrefs.length - 1]).toMatch(/leerjaar=alle&amp;rubriek=WT-r019$/i);
+      for (const h of hrefs) expect(h).toContain('leerjaar=alle');
+    }
+  });
+});
+
+describe('woorden van het GO! met uitleg (TU-7)', () => {
+  it('op de doelpagina staat “Kennisverwerking:” zichtbaar, niet alleen voor schermlezers', () => {
+    const html = toon(
+      createElement(LeerplandoelInhoud, {
+        doel: doelVan('WI.408'),
+        leerplan: LEERPLAN.get('WI') as GoLeerplanBestand,
+        index: INDEX,
+        minimumdoelen: KLAAR,
+        lesplannen: { status: 'klaar', lesplannen: [] },
+      }),
+    );
+    expect(tekst(html)).toContain('Kennisverwerking: gebruiken');
+    expect(html).not.toContain('<span class="sr-only">Kennisverwerking: </span>');
+    expect(tekst(html)).toContain('Hier verwijst het leerplan naar andere leerplandoelen. In de lesplannen staan vlaggen en schakels onder ‘Horizontale samenhang’.');
+  });
+
+  it('de lijst van een vak legt de kennisverwerking uit', () => {
+    const lp = LEERPLAN.get('WT') as GoLeerplanBestand;
+    const html = toon(createElement(LeerplandoelenInhoud, { leerplan: lp, index: INDEX, filter: { leeftijd: '9-10' }, onLeeftijd: () => undefined, onZonder: () => undefined, rubriekPad: () => '/' }));
+    expect(tekst(html)).toContain('Bij elk doel staat de kennisverwerking volgens het GO!: begrijpen, gebruiken of engageren.');
+  });
+});
+
+describe('afdrukken en uitklappers in de css (BLP-3, GE-02)', () => {
+  const css = readFileSync(new URL('../../styles/basis-go.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+
+  it('de letterlijke tekst houdt spaties vast (pre-wrap), zodat rekenschema’s uitgelijnd blijven', () => {
+    const blok = /\.b-go-tekst\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(blok).toMatch(/white-space:\s*pre-wrap/);
+    expect(blok).toMatch(/tab-size:\s*4/);
+  });
+
+  it('“Toon de andere” heeft hetzelfde pijltje en dezelfde kleur als de andere uitklappers, en verdwijnt op papier', () => {
+    expect(css).toMatch(/\.b-go-uitleg summary,\s*\.b-go-meer summary\s*\{[^}]*color:\s*var\(--brand\)/);
+    expect(css).toMatch(/\.b-go-meer > summary\s*\{\s*display:\s*none/);
+  });
+});
+
+describe('LeerplandoelenInhoud: koppen, lege keuzes en spaties (pakket E2)', () => {
+  const maakVak = (vak: GoVak, filter: Parameters<typeof LeerplandoelenInhoud>[0]['filter']) =>
+    toon(
+      createElement(LeerplandoelenInhoud, {
+        leerplan: LEERPLAN.get(vak) as GoLeerplanBestand,
+        index: INDEX,
+        filter,
+        onLeeftijd: () => undefined,
+        onZonder: () => undefined,
+        rubriekPad: (r) => `/basis/leerplandoelen/${vak.toLowerCase()}${r ? `?rubriek=${r}` : ''}`,
+      }),
+    );
+
+  it('een subrubriek is een kop (h4 of h5) met de klasse voor de vormgeving, nooit een vette alinea; geen kopsprong', () => {
+    const html = maakVak('WI', {});
+    const subs = [...html.matchAll(/<(h[2-6])[^>]*class="[^"]*b-go-subrubriek[^"]*"/g)].map((m) => m[1]);
+    expect(subs.length).toBeGreaterThan(40);
+    expect(subs.every((h) => h === 'h4' || h === 'h5')).toBe(true);
+    expect(html).not.toMatch(/<p class="b-go-subrubriek/);
+    const niveaus = [...html.matchAll(/<h([1-6])[ >]/g)].map((m) => Number(m[1]));
+    for (let n = 1; n < niveaus.length; n++) expect(niveaus[n]).toBeLessThanOrEqual(niveaus[n - 1] + 1);
+  });
+
+  it('Frans voor 8-9 jaar: een zin die zegt waar het vak wel doelen heeft, met een knop per leeftijd', () => {
+    const html = maakVak('FR', { leeftijd: '8-9' });
+    const t = tekst(html);
+    expect(t).toContain('Frans heeft geen leerplandoelen voor 8-9 jaar. Wel voor:');
+    expect(html).toContain('role="status"');
+    expect(t).toContain('10-11 jaar (104)');
+    expect(t).toContain('11-12 jaar (103)');
+    const groep = html.match(/aria-label="Leeftijden met leerplandoelen">(.*?)<\/div>/)?.[1] ?? '';
+    expect(tel(groep, /<button /g)).toBe(2);
+    expect(tekst(groep)).toBe('10-11 jaar (104) 11-12 jaar (103)');
+    expect(t).not.toContain('Geen leerplandoelen voor deze keuze.');
+  });
+
+  it('met een ander filter blijft de gewone zin staan, en met doelen in de leeftijd verschijnt de uitleg niet', () => {
+    expect(tekst(maakVak('FR', { leeftijd: '8-9', zonderMinimumdoel: true }))).toContain('Geen leerplandoelen voor deze keuze.');
+    expect(tekst(maakVak('WT', { leeftijd: '2,5-4' }))).not.toContain('Wel voor:');
+  });
+
+  it('de aantallen in de pillen zijn los van het woord: een spatie voor de tekst van het aantal', () => {
+    expect(maakVak('WT', {})).toContain('<span class="b-go-pil-aantal"> (');
+  });
+
+  it('bij een leerplandoel met twee lesplannen staat de komma achter het eerste en niet voor het tweede', () => {
+    const html = maakVak('WT', {});
+    const alinea = html.match(/<p class="b-go-koppeling">(?:(?!<\/p>).)*Lesplannen \(2\)(?:(?!<\/p>).)*<\/p>/)?.[0] ?? '';
+    expect(alinea).not.toBe('');
+    expect(alinea).not.toMatch(/<span>, /);
+    expect(alinea).toMatch(/<\/a>,<\/span>/);
+  });
+});
+
+// ── CT-9: de opmaak van de leerplantekst komt op de pagina (de tekst van het GO! staat er letterlijk, de app maakt er alleen opmaak van) ──
+
+describe('de opmaak van de leerplantekst op de doelpagina (CT-9)', () => {
+  const pagina = (code: string) =>
+    toon(
+      createElement(LeerplandoelInhoud, {
+        doel: doelVan(code),
+        leerplan: LEERPLAN.get(code.slice(0, 2) as GoVak) as GoLeerplanBestand,
+        index: INDEX,
+        minimumdoelen: KLAAR,
+        lesplannen: { status: 'klaar', lesplannen: [] },
+      }),
+    );
+
+  it('WI.604 heeft een doorgehaald stuk in de doelzin en de pagina maakt er <s> van, met de tikfout erbij', () => {
+    const doel = doelVan('WI.604');
+    expect(doel.opmaak?.some((s) => 's' in s && s.s)).toBe(true);
+    const html = pagina('WI.604');
+    expect(html).toContain('<s>.</s>');
+    expect(tekst(html)).toContain('Berekenen de omtrek van een grillige figuur.');
+  });
+
+  it('WI.546 heeft superschrift in de onderdelen (cm3, dm3, m3) en de pagina maakt er <sup> van', () => {
+    const doel = doelVan('WI.546');
+    expect(doel.inhoud.some((i) => 'opmaak' in i && i.opmaak?.some((s) => 'sup' in s && s.sup))).toBe(true);
+    const html = pagina('WI.546');
+    expect(html).toContain('1cm<sup>3</sup>: volume van een kubus met een ribbe van 1 cm');
+    expect(html).toContain('cm<sup>3</sup>, dm<sup>3</sup>, m<sup>3</sup>');
+  });
+
+  it('elk onderdeel met opmaak in de gegevens krijgt die opmaak in MiaBlok: doorgehaald, cursief en superschrift, voor alle doelen', () => {
+    const soorten = { s: '<s>', i: '<em>', sup: '<sup>' } as const;
+    const gezien = { s: 0, i: 0, sup: 0 };
+    for (const d of ALLE_DOELEN) {
+      const nodig = new Set<keyof typeof soorten>();
+      for (const item of d.inhoud) for (const stuk of ('opmaak' in item && item.opmaak) || []) for (const k of Object.keys(soorten) as (keyof typeof soorten)[]) if (k in stuk && (stuk as unknown as Record<string, unknown>)[k]) nodig.add(k);
+      if (nodig.size === 0) continue;
+      const html = toon(createElement(MiaBlok, { inhoud: d.inhoud }));
+      for (const k of nodig) {
+        expect(html, `${d.code} ${k}`).toContain(soorten[k]);
+        gezien[k]++;
+      }
+    }
+    expect(gezien.s).toBeGreaterThan(0);
+    expect(gezien.i).toBeGreaterThan(0);
+    expect(gezien.sup).toBeGreaterThan(0);
   });
 });

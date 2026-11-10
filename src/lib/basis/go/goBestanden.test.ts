@@ -2,11 +2,12 @@
 // docs/basisonderwijs/GO-LEERPLAN.md).
 //
 // Deze test loopt altijd en hard: ontbreekt een bestand, dan faalt hij. Hij eist drie dingen:
-// - valideer* geeft niets op elk bestand (de validator van de app is dezelfde als die van de import);
+// - valideer* geeft niets op elk bestand (dezelfde strikte validator als in de import; de app gebruikt een lichtere controle);
 // - elke sha256 klopt (in het bestand zelf en in de index);
 // - de bestanden passen bij elkaar (index, leerplannen, lesplannen, omgekeerde index en beelden).
 // Aantallen staan hier niet vast: die horen bij de momentopname in src/lib/basis/go.echt.test.ts.
 // De tekst van een minimumdoel staat in geen van deze bestanden: die komt altijd uit public/leerplannen/minimumdoelen.
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -310,5 +311,19 @@ describe('public/basis/go: de bestanden passen bij elkaar', () => {
       expect(existsSync(join(GO_MAP, bestand)), bestand).toBe(true);
     }
     expect(bestandenIn('beelden').sort()).toEqual([...gebruikt].sort());
+  });
+
+  it('elk bestand in beelden/ is byte-gelijk aan het vrijgegeven beeld: de sha256 van zijn regel in bekende-afwijkingen.json (IMP-6)', () => {
+    const regels = (JSON.parse(readFileSync(BEKENDE_PAD, 'utf8')) as { afwijkingen: { soort: string; bestand?: string; sha256?: string }[] }).afwijkingen.filter((a) => a.soort === 'lesplan-beeld');
+    const beelden = bestandenIn('beelden');
+    expect(beelden.length).toBeGreaterThan(0);
+    for (const bestand of beelden) {
+      const regel = regels.find((a) => a.bestand === bestand);
+      expect(regel, `${bestand}: geen regel 'lesplan-beeld' met dit bestand`).toBeDefined();
+      // Een png met de sha1 van het origineel als naam is daarmee al vastgelegd; elk ander bestand heeft een sha256.
+      if (/^beelden\/[0-9a-f]{40}\.png$/.test(bestand)) continue;
+      expect(regel?.sha256, `${bestand}: de regel heeft geen sha256`).toMatch(SHA);
+      expect(createHash('sha256').update(readFileSync(join(GO_MAP, bestand))).digest('hex'), bestand).toBe(regel?.sha256);
+    }
   });
 });

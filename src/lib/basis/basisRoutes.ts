@@ -30,10 +30,10 @@ export type BasisScherm =
   // Het leerplan en de lesplannen van het GO! (docs/basisonderwijs/GO-LEERPLAN.md, "Adressen"). Het vak is hier het
   // voorvoegsel van het GO! ('WT'), niet het vaknummer van het minimumdoel.
   | { s: 'go' }
-  | { s: 'lesplannen'; leerjaar?: LeerjaarBasis; vak?: GoVak }
+  | { s: 'lesplannen'; leerjaar?: LeerjaarBasis; alle?: true; vak?: GoVak }
   | { s: 'lesplan'; code: string; stap?: number }
   | { s: 'lessenlijn'; vak: GoVak; lijn: string; leerjaar?: LeerjaarBasis }
-  | { s: 'leerplandoelen'; vak: GoVak; leerjaar?: LeerjaarBasis; rubriek?: string }
+  | { s: 'leerplandoelen'; vak: GoVak; leerjaar?: LeerjaarBasis; alle?: true; rubriek?: string; zonder?: true }
   | { s: 'leerplandoel'; code: string }
   | { s: 'onbekend' };
 
@@ -152,6 +152,8 @@ const ONBEKEND: BasisScherm = { s: 'onbekend' };
 
 /**
  * Het scherm bij het stuk achter '/basis/' (useParams()['*']) en de zoekopdracht van de url (location.search).
+ * - ?leerjaar=alle op de lijsten van het GO! (leerplandoelen, lesplannen) is 'alle leeftijden', ook als je een leerjaar bewaarde;
+ *   ?zonder=1 is het vinkje 'zonder minimumdoel';
  * - ?leerjaar valt weg als het geen geldig leerjaar is, en bij 'vak' ook als dat leerjaar niet naar het eindmoment werkt;
  * - ?onderwerp moet de vorm 3.5 hebben;
  * - al de rest geeft {s:'onbekend'}.
@@ -217,6 +219,7 @@ export function basisRoute(splat: string, zoek: string): BasisScherm {
       if (a !== undefined) return ONBEKEND;
       const uit: BasisScherm = { s: 'lesplannen' };
       if (leerjaar) uit.leerjaar = leerjaar;
+      else if (p.get('leerjaar') === 'alle') uit.alle = true;
       const vak = goVakVan(p.get('vak'));
       if (vak) uit.vak = vak;
       return uit;
@@ -245,8 +248,10 @@ export function basisRoute(splat: string, zoek: string): BasisScherm {
       if (!vak || b !== undefined) return ONBEKEND;
       const uit: BasisScherm = { s: 'leerplandoelen', vak };
       if (leerjaar) uit.leerjaar = leerjaar;
+      else if (p.get('leerjaar') === 'alle') uit.alle = true;
       const rubriek = goRubriekVan(p.get('rubriek'), vak);
       if (rubriek) uit.rubriek = rubriek;
+      if (p.get('zonder') === '1') uit.zonder = true;
       return uit;
     }
 
@@ -327,7 +332,7 @@ export function basisPad(s: BasisScherm): string {
       return '/basis/go';
     case 'lesplannen':
       return `/basis/lesplannen${query([
-        ['leerjaar', s.leerjaar],
+        ['leerjaar', s.leerjaar ?? (s.alle ? 'alle' : undefined)],
         ['vak', s.vak?.toLowerCase()],
       ])}`;
     case 'lesplan':
@@ -336,8 +341,9 @@ export function basisPad(s: BasisScherm): string {
       return `/basis/lessenlijn/${s.vak.toLowerCase()}/${encodeURIComponent(s.lijn)}${query([['leerjaar', s.leerjaar]])}`;
     case 'leerplandoelen':
       return `/basis/leerplandoelen/${s.vak.toLowerCase()}${query([
-        ['leerjaar', s.leerjaar],
+        ['leerjaar', s.leerjaar ?? (s.alle ? 'alle' : undefined)],
         ['rubriek', s.rubriek],
+        ['zonder', s.zonder ? '1' : undefined],
       ])}`;
     case 'leerplandoel':
       return `/basis/leerplandoel/${encodeURIComponent(s.code)}`;

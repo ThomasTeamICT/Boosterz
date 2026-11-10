@@ -71,7 +71,17 @@ function shuffle<T>(arr: T[], rnd: () => number): T[] {
 
 // ── Invuloefening uit vette begrippen ───────────────────────────────────────
 
-const SENTENCE_SPLIT = /(?<=[.!?])\s+(?=[A-ZÀ-Þ"“(])/;
+/**
+ * Een regel in zinnen knippen: na ".", "!" of "?" en witruimte, vóór een hoofdletter, aanhalingsteken of
+ * haakje. Het leesteken blijft bij de zin ervoor. Zonder lookbehind (Safari en iPadOS vóór 16.4 laden
+ * dat niet): `split` met het leesteken als groep, en dat leesteken daarna terug aan zijn zin vast.
+ */
+export function splitSentences(line: string): string[] {
+  const parts = line.split(/([.!?])\s+(?=[A-ZÀ-Þ"“(])/);
+  const out: string[] = [];
+  for (let i = 0; i < parts.length; i += 2) out.push(parts[i] + (parts[i + 1] ?? ''));
+  return out;
+}
 
 /**
  * Zinnen met precies één vet begrip (2–30 tekens, geen cijfers) worden een
@@ -84,7 +94,7 @@ export function gapSentences(markdown: string, max = 6): string[] {
   // Per regel (alinea of lijstitem) in zinnen knippen: een lijstitem is nooit
   // het vervolg van de zin ervoor.
   const units = markdown.split(/\n+/).map((l) => l.replace(/^\s*[-*]\s+/, '').replace(/\s+/g, ' ').trim()).filter(Boolean)
-    .flatMap((l) => l.split(SENTENCE_SPLIT));
+    .flatMap(splitSentences);
   for (const raw of units) {
     const sentence = raw.trim();
     if (sentence.length < 40 || sentence.length > 200) continue;

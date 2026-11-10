@@ -256,6 +256,10 @@ describe('css van de schermen van het basisdeel (basis-*.css)', () => {
       expect(kaal).not.toMatch(/(^|[;{\s])color:\s*var\(--lamp\)/);
     });
 
+    it('nooit --lamp als focusring of rand van een focus: lamp op wit haalt geen 3 : 1', () => {
+      expect(kaal).not.toMatch(/outline(-color)?\s*:[^;}]*var\(--lamp\)/);
+    });
+
     it('nooit witte tekst op --brand', () => {
       for (const m of kaal.matchAll(/\{([^{}]*)\}/g)) {
         if (/background(-color)?:\s*var\(--brand\)\s*[;}]?/.test(m[1])) expect(m[1]).not.toMatch(/(^|[;\s])color:\s*(#fff(fff)?|white)\b/i);
@@ -301,7 +305,7 @@ describe('css van de schermen van het basisdeel (basis-*.css)', () => {
     const css = ZONDER_COMMENTAAR(lees('../../styles/basis-lesplan.css'));
     expect(css).toMatch(/@media \(max-width: 760px\)/);
     expect(css).toMatch(/@media print/);
-    for (const kl of ['.b-lp-ganaar a', '.b-lp-chip', '.b-lp-naarplek', '.b-lp-bron a', '.b-lp-beeld-uitleg summary']) {
+    for (const kl of ['.b-lp-ganaar a', '.b-lp-naarplek', '.b-lp-bron a', '.b-lp-beeld-uitleg summary']) {
       const m = new RegExp(`${kl.replace(/[.]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(css);
       expect(m?.[1], kl).toMatch(/min-height:\s*44px/);
     }

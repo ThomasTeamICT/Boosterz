@@ -10,7 +10,7 @@ Boosterz is een volledig client-side leerplatform: React 18 en TypeScript strict
 - API's van Onderwijs (matrix van de studierichtingen via de API Structuuronderdelen, filter op studierichting in de doelen-API, aanbod, kwalificaties): bevindingen, stand van zaken en voorstel voor de import in `docs/ONDERWIJS-API.md`.
 - Studierichtingen (import van de matrix en van de doelen per richting, cursushulp per richting en jaar, dekking over cursussen heen; fase 2 gaten dichten, mijn richtingen, klas; fase 3 beroepskwalificaties per richting, alle drie klaar en live): ontwerp, bouwplan in pakketten en stand van zaken bovenaan `docs/STUDIERICHTINGEN.md`. Fase 3b (dekking op competenties overal, competenties plannen) is klaar en live sinds 14 oktober 2026: § 24 en bijlage F; het blok "Hervatten" bovenaan geeft wat nog wacht.
 - **Geparkeerd op 15 oktober 2026. Begin bij het blok "Hervatten" bovenaan `docs/NIEUWE-CURSUS.md`**: wat live staat, de afgesproken lijn (eenvoudige ingang "Nieuwe cursus", daarna de AI-cursusbouwer in etappes), wat wacht en op wie, en hoe je een sessie begint. Regels voor bouwagents: `docs/werkwijze/regels-bouwagents.md`.
-- Boosterz voor het basisonderwijs (een apart stuk voor kleuter en lager, met eigen vormgeving: de nieuwe minimumdoelen duidelijk per moment, later de lesfiches van het GO!, en digitale content met een digibord-deel): vraag, randvoorwaarden en stand van zaken bovenaan `docs/BASISONDERWIJS.md`. Live: de eigen ingang `#/basis` (spec en stand in `docs/basisonderwijs/INGANG.md`), het momentmodel (`docs/basisonderwijs/MOMENTMODEL.md`) en de toestelproef (`tools/prototypes/toestelproef/`). Leerplan en lesplannen van het GO! (drie lagen: minimumdoel, leerplandoel, lesplan; bron: de Drive-map van de eigenaar): ontwerp en stand in `docs/basisonderwijs/GO-LEERPLAN.md`; live sinds 9 november 2026 in `#/basis/go` (volledig leerplan en de eerste 8 lesplannen, import met `tools/basis/go/maak.ts`, foutenlijst voor het GO! in `docs/basisonderwijs/go-bronfouten.md`). Het werkend voorbeeld (Lichtkamer, 3D-diorama's rond licht) staat los van de app in `tools/prototypes/lichtkamer/`.
+- Boosterz voor het basisonderwijs (een apart stuk voor kleuter en lager, met eigen vormgeving: de nieuwe minimumdoelen duidelijk per moment, later de lesfiches van het GO!, en digitale content met een digibord-deel): vraag, randvoorwaarden en stand van zaken bovenaan `docs/BASISONDERWIJS.md`. Live: de eigen ingang `#/basis` (spec en stand in `docs/basisonderwijs/INGANG.md`), het momentmodel (`docs/basisonderwijs/MOMENTMODEL.md`) en de toestelproef (`tools/prototypes/toestelproef/`). Leerplan en lesplannen van het GO! (drie lagen: minimumdoel, leerplandoel, lesplan; bron: de Drive-map van de eigenaar): ontwerp en stand in `docs/basisonderwijs/GO-LEERPLAN.md`; live sinds 9 november 2026 in `#/basis/go` (volledig leerplan en de eerste 8 lesplannen, import met `tools/basis/go/maak.ts`, foutenlijst voor het GO! in `docs/basisonderwijs/go-bronfouten.md`); doorgelicht en verbeterd op 10 november 2026, met vragen aan de eigenaar en wat later komt in de stand van zaken. Het werkend voorbeeld (Lichtkamer, 3D-diorama's rond licht) staat los van de app in `tools/prototypes/lichtkamer/`.
 - Niveaumodel (vaardigheidsniveaus E tot A van de Vlaamse toetsen, eerste toepassing basisgeletterdheid): opdracht voor later, nog niet begonnen. Opdracht en stand van zaken in `docs/NIVEAUS.md`; pas starten op teken van de eigenaar.
 
 ## Kwaliteitspoort
@@ -19,15 +19,17 @@ Boosterz is een volledig client-side leerplatform: React 18 en TypeScript strict
 npm run lint        # 0 fouten; waarschuwingen niet bijmaken
 npm run typecheck
 npx vitest run
+python3 -I -B -m unittest discover -s tools/basis/go   # de lezers van de GO!-import (ook in de deploy-workflow)
 npm run build       # bewaakt het bundelbudget
 node node_modules/vite/bin/vite.js preview --port 4173 --strictPort &   # in de cloud per beurt opnieuw starten
 PW_CHROMIUM=/opt/pw-browsers/chromium node tests/smoke.mjs
 PW_CHROMIUM=/opt/pw-browsers/chromium node tests/ai/mock-studio.mjs [fout]   # AI-studio met nagebootste AI, zonder sleutel
 ```
 
-De deploy-workflow draait lint, typecheck, unit tests en build. Een lintfout blokkeert de uitrol. De mappen `tests/` en `tools/` vallen buiten ESLint. Een andere poort geef je mee met `SMOKE_BASE=http://localhost:<poort>`.
+De deploy-workflow draait lint, typecheck, unit tests, de Python-tests van de lezers en build. Een lintfout blokkeert de uitrol. De mappen `tests/` en `tools/` vallen buiten ESLint. Een andere poort geef je mee met `SMOKE_BASE=http://localhost:<poort>`.
 
 - **Bundel.** Het kritieke leerlingpad is de hoofdbundel plus `vendor` (budget in `vite.config.ts`). Gebruik je een nieuw Lucide-icoon op het leerlingpad (`PlayerPage`, `JoinPage`, `OpenSharedPage`, `ui.tsx`, `registry.tsx`, `A11yMenu`), zet de naam dan in `EAGER_ICON_NAMES`, anders faalt de build. Iconen van lui geladen pagina's komen vanzelf in `widget-icons`.
+- **Oudere browsers.** Boosterz werkt vanaf Safari en iPadOS 14: `build.target` in `vite.config.ts` zet dat vast. Geen lookbehind (`(?<=`, `(?<!`) in `src/`, want dan opent een heel scherm niet op iPadOS vóór 16.4. `src/lib/geenLookbehind.test.ts` bewaakt dat; hoe het zonder kan staat in `src/lib/tekenErvoor.ts`.
 - **Service worker.** `dist/sw.js` wordt bij elke build gemaakt uit `src/offline/serviceWorker.js`. Hernoem of verplaats `sw.js` niet. Uitschakelen kan alleen met een `sw.js` die zichzelf afmeldt; zie het commentaar in `src/offline/`.
 
 ## Ontwerp en taal

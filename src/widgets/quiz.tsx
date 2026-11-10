@@ -86,6 +86,39 @@ function escapeRegex(s: string): string {
 
 export interface GlossaryEntry { term: string; uitleg: string }
 
+const WOORDTEKEN_ERVOOR = /[\p{L}\p{N}]$/iu;
+
+/**
+ * De vraagstam in stukken rond de begrippen van het glossarium (`pattern`: de begrippen, geëscapet en
+ * met "|" ertussen): afwisselend gewone tekst en een begrip, alleen als heel woord ("arm" niet midden in
+ * "warm"). Dezelfde stukken als een `split` met een negatieve lookbehind op letters en cijfers vooraan,
+ * maar zonder die lookbehind: Safari en iPadOS vóór 16.4 laden die niet. Het teken vóór een treffer
+ * wordt apart nagekeken; de stappen volgen String.prototype.split.
+ */
+export function splitGlossary(text: string, pattern: string): string[] {
+  const re = new RegExp(`(${pattern})(?![\\p{L}\\p{N}])`, 'giu');
+  const losVooraan = (i: number) => !WOORDTEKEN_ERVOOR.test(text.slice(Math.max(0, i - 2), i));
+  if (text === '') return re.exec(text) ? [] : [text];
+  const parts: string[] = [];
+  let p = 0; // begin van het stuk dat nog moet komen
+  let q = 0; // waar de volgende treffer mag beginnen
+  while (q < text.length) {
+    re.lastIndex = q;
+    const z = re.exec(text);
+    if (z === null || z.index >= text.length) break;
+    if (re.lastIndex === p || !losVooraan(z.index)) {
+      // geen bruikbare treffer hier: één teken (codepunt) verder zoeken
+      q = z.index + ((text.codePointAt(z.index) ?? 0) > 0xffff ? 2 : 1);
+      continue;
+    }
+    parts.push(text.slice(p, z.index), ...z.slice(1));
+    p = re.lastIndex;
+    q = p;
+  }
+  parts.push(text.slice(p));
+  return parts;
+}
+
 function PromptText({
   text, spoken, glossary,
 }: { text: string; spoken: [number, number] | null; glossary?: GlossaryEntry[] }) {
@@ -118,9 +151,9 @@ function PromptText({
       // woordgrenzen (unicode-veilig): "arm" mag niet midden in "warm" matchen
       let parts: string[];
       try {
-        parts = text.split(new RegExp(`(?<![\\p{L}\\p{N}])(${pattern})(?![\\p{L}\\p{N}])`, 'giu'));
+        parts = splitGlossary(text, pattern);
       } catch {
-        parts = [text]; // oude browser zonder lookbehind → geen glossarium-markering
+        parts = [text]; // de expressie lukt niet (bv. te groot) → geen glossarium-markering
       }
       content = parts.map((part, i) => {
         const hit = valid.find((g) => g.term.trim().toLowerCase() === part.toLowerCase());

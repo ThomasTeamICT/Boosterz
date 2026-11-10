@@ -3,16 +3,18 @@
 // index. Het gebruikt geen leerkrachtschil (Layout). De vormgeving staat in src/styles/basis.css.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { koppelAfdruk } from '../../lib/basis/afdruk';
 import { Link, useLocation } from 'react-router-dom';
 import { Lamp, Moon, Sun, SunMoon } from 'lucide-react';
 import { BackIcon } from '../icons';
 import { cycleTheme, type ThemeMode } from '../../lib/theme';
 import { getPrefs } from '../../lib/storage';
 import { datumLeesbaar } from '../../lib/minimumdoelenBron';
-import { WERKT_NAAR, type Eindmoment, type SoortBasis } from '../../lib/basis/kalender';
+import { navEind, navSoort } from '../../lib/basis/basisNav';
 import { basisPad, type BasisScherm } from '../../lib/basis/basisRoutes';
 import { GO_NAAMSVERMELDING } from '../../lib/basis/go/types';
 import { laatstOpgehaald, useBasisIndex } from './useBasisSets';
+import { useBasisKeuze } from './useBasisKeuze';
 
 const THEMA_LABEL: Record<ThemeMode, string> = { auto: 'automatisch', light: 'licht', dark: 'donker' };
 const THEMA_ICOON = { auto: SunMoon, light: Sun, dark: Moon } as const;
@@ -47,24 +49,13 @@ function navVan(s: BasisScherm): NavSleutel | undefined {
   }
 }
 
-/** De soort die het scherm al heeft; anders gewoon onderwijs. De bewaarde keuze komt in de schermen zelf. */
-function soortVan(s: BasisScherm): SoortBasis {
-  return 'soort' in s ? s.soort : 'bao';
-}
-
-/** Het eindmoment dat bij het scherm past; anders het einde van het 4de leerjaar. */
-function eindVan(s: BasisScherm): Eindmoment {
-  if (s.s === 'moment' || s.s === 'vak') return s.eind;
-  if (s.s === 'leerjaar') return WERKT_NAAR[s.leerjaar];
-  return 'L4';
-}
-
 export function BasisSchil({ scherm, children }: { scherm: BasisScherm; children: ReactNode }) {
   const { pathname } = useLocation();
   const main = useRef<HTMLElement>(null);
   const eerste = useRef(true);
   const [thema, setThema] = useState<ThemeMode>(() => getPrefs().theme);
   const index = useBasisIndex().stand;
+  const { keuze } = useBasisKeuze();
 
   // Bij een schermwissel gaat de focus naar main (niet bij het eerste scherm: dat zou de focus stelen bij het openen).
   useEffect(() => {
@@ -76,11 +67,15 @@ export function BasisSchil({ scherm, children }: { scherm: BasisScherm; children
     window.scrollTo?.(0, 0);
   }, [pathname]);
 
-  const soort = soortVan(scherm);
+  // Afdrukken: wat achter een dichte uitklapper staat, hoort op papier (src/lib/basis/afdruk.ts).
+  useEffect(() => koppelAfdruk(window, () => main.current), []);
+
+  const sets = index.status === 'klaar' ? index.waarde.sets : undefined;
+  const soort = navSoort(scherm, keuze, sets);
   const actief = navVan(scherm);
   const items: { sleutel: NavSleutel; label: string; naar: string }[] = [
     { sleutel: 'leerjaar', label: 'Mijn leerjaar', naar: basisPad({ s: 'start' }) },
-    { sleutel: 'doelen', label: 'Doelen', naar: basisPad({ s: 'moment', soort, eind: eindVan(scherm) }) },
+    { sleutel: 'doelen', label: 'Doelen', naar: basisPad({ s: 'moment', soort, eind: navEind(scherm, keuze, sets) }) },
     { sleutel: 'leerlijnen', label: 'Leerlijnen', naar: basisPad({ s: 'leerlijnen', soort }) },
     { sleutel: 'zoeken', label: 'Zoeken', naar: basisPad({ s: 'zoek', soort, vraag: '', bereik: 'alles' }) },
     { sleutel: 'go', label: 'GO!', naar: basisPad({ s: 'go' }) },
@@ -106,7 +101,7 @@ export function BasisSchil({ scherm, children }: { scherm: BasisScherm; children
         <div className="b-kop-in">
           <Link to={basisPad({ s: 'start' })} className="b-merk" aria-label="Boosterz basisonderwijs, begin">
             <span className="b-lamptegel" aria-hidden="true"><Lamp size={22} /></span>
-            <span>Boosterz</span>
+            <span>Boosterz</span>{' '}
             <span className="b-pil">basisonderwijs</span>
           </Link>
           <nav className="b-nav" aria-label="Basisonderwijs">

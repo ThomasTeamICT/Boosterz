@@ -11,3 +11,6 @@ tests/tmp-*.mjs
 # Rapport van de laatste ophaling van de minimumdoelen (wordt als artifact van de workflow bewaard)
 tools/leerplannen/rapport/
 tools/verkenning/rapport/
+
+# Bytecode van Python (de lezers in tools/basis/go draaien met -B en schrijven er geen)
+__pycache__/

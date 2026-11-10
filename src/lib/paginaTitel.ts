@@ -35,7 +35,7 @@ const TITELS: [string, string][] = [
   ['/basis/leerlijn', 'Leerlijn · Basisonderwijs'],
   ['/basis/doel', 'Minimumdoel · Basisonderwijs'],
   ['/basis/zoek', 'Zoeken · Basisonderwijs'],
-  ['/basis/go', 'Leerplan van het GO! · Basisonderwijs'],
+  ['/basis/go', 'Leerplan en lesplannen van het GO! · Basisonderwijs'],
   ['/basis/lesplannen', 'Lesplannen · Basisonderwijs'],
   ['/basis/lesplan', 'Lesplan · Basisonderwijs'],
   ['/basis/lessenlijn', 'Lessenlijn · Basisonderwijs'],
@@ -45,11 +45,28 @@ const TITELS: [string, string][] = [
   ['/', 'Start'],
 ];
 
+// Een lesplan, een leerplandoel en de lijst van een vak krijgen hun code in de titel (tabblad, geschiedenis, afdruk). Zelfde
+// vorm als LESPLAN_CODE en GO_DOELCODE in basisRoutes.ts, maar zonder import: dit bestand blijft klein.
+const LESPLAN = /^\/basis\/lesplan\/lp(\d{4})([a-z]?)$/i;
+const LEERPLANDOEL = /^\/basis\/leerplandoel\/([a-z]{2})\.(\d{3,4})$/i;
+const LEERPLANDOELEN = /^\/basis\/leerplandoelen\/([a-z]{2})$/i;
+
+/** De titel met code voor een pad van het GO!, of undefined als het pad niet past. */
+function goLabel(pad: string): string | undefined {
+  let m = LESPLAN.exec(pad);
+  if (m) return `Lesplan LP${m[1]}${m[2].toLowerCase()} · Basisonderwijs`;
+  m = LEERPLANDOEL.exec(pad);
+  if (m) return `Leerplandoel ${m[1].toUpperCase()}.${m[2]} · Basisonderwijs`;
+  m = LEERPLANDOELEN.exec(pad);
+  if (m) return `Leerplandoelen ${m[1].toUpperCase()} · Basisonderwijs`;
+  return undefined;
+}
+
 /** "<label> · Boosterz" voor een pad uit de hash-router (bv. "/widgets"). */
 export function paginaTitel(pathname: string): string {
   const pad = pathname.replace(/\/+$/, '') || '/';
   // Onbekende paden toont de router als de meedoenpagina.
-  const label = TITELS.find(([v]) => pad === v || (v !== '/' && pad.startsWith(`${v}/`)))?.[1] ?? 'Meedoen';
+  const label = goLabel(pad) ?? TITELS.find(([v]) => pad === v || (v !== '/' && pad.startsWith(`${v}/`)))?.[1] ?? 'Meedoen';
   return `${label} · Boosterz`;
 }
 

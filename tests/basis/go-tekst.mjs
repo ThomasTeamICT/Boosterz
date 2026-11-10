@@ -13,7 +13,7 @@ import { chromium } from 'playwright-core';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { GO_LESPLANNEN } from './go.mjs';
+import { leesLesplanCodes } from './go.mjs';
 
 const BASE = process.env.SMOKE_BASE || 'http://localhost:4173';
 const UIT = process.env.GO_TEKST_MAP || join(tmpdir(), 'go-scherm-tekst');
@@ -30,6 +30,7 @@ try {
     if (m.type() === 'error' && !/ERR_CERT_AUTHORITY_INVALID/.test(m.text())) errors.push(`console: ${m.text()}`);
   });
   await p.clock.setFixedTime(new Date('2026-11-02T10:00:00Z'));
+  const GO_LESPLANNEN = await leesLesplanCodes(BASE);
   for (const code of GO_LESPLANNEN) {
     await p.goto(`${BASE}/#/basis/lesplan/${code}`, { waitUntil: 'networkidle' });
     await p.waitForSelector('.b-lesplan .b-lp-tabel', { timeout: 20000 });

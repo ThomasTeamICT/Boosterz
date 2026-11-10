@@ -9,7 +9,7 @@
 import { Link } from 'react-router-dom';
 import { basisPad } from '../../../lib/basis/basisRoutes';
 import { lessenlijnen } from '../../../lib/basis/go/goModel';
-import { GO_LEESBRIL_ZEKERHEID, leeftijdLabel, leeftijdVanLeerjaar, meestalTekst } from '../../../lib/basis/go/leeftijden';
+import { GO_LEESBRIL_UITLEG, GO_LEESBRIL_ZEKERHEID, leeftijdLabel, leeftijdVanLeerjaar, meestalTekst } from '../../../lib/basis/go/leeftijden';
 import { GO_VAKKEN, type GoIndex } from '../../../lib/basis/go/types';
 import type { LeerjaarBasis } from '../../../lib/basis/kalender';
 import { ZekerheidBadge } from '../ZekerheidBadge';
@@ -18,29 +18,25 @@ import '../../../styles/basis-go.css';
 
 export const VAN_HET_GO_KOP = 'Van het GO!';
 
-const TALEN = new Set(['Nederlands', 'Frans', 'ICT']);
-/** De vaknaam midden in een zin: 'Wetenschap en techniek' wordt 'wetenschap en techniek', 'Nederlands' blijft. */
-const kleineLetter = (t: string) => (TALEN.has(t) ? t : t.charAt(0).toLowerCase() + t.slice(1));
-
 /** Het blok voor een geladen index, zonder zelf iets te laden. Zonder leerplandoelen voor de leeftijd van dit leerjaar: null. */
 export function VanHetGoBlok({ leerjaar, index }: { leerjaar: LeerjaarBasis; index: GoIndex }) {
   const leeftijd = leeftijdVanLeerjaar(leerjaar);
   const perVak = index.leerplan.map((l) => ({ vak: l.vak, aantal: l.perLeeftijd[leeftijd] ?? 0 })).filter((v) => v.aantal > 0);
   const doelen = perVak.reduce((som, v) => som + v.aantal, 0);
   if (doelen === 0) return null;
-  // De lesplannen van deze leeftijd, met de vakdisciplines waar ze bij horen (in de volgorde van de vakken).
+  // De lesplannen van deze leeftijd, met de vakken waar ze bij horen (in de volgorde van de vakken).
   const lesplannen = lessenlijnen(index, { leeftijd }).flatMap((l) => l.lesplannen);
   const lesplanVakken = [...new Set(lessenlijnen(index, { leeftijd }).map((l) => l.vak))];
   return (
     <section aria-labelledby="b-vango-kop" className="b-blok b-vango">
       <h2 id="b-vango-kop">{VAN_HET_GO_KOP}</h2>
       <p>
-        Leerplandoelen voor {leeftijdLabel(leeftijd)}: {doelen} in {perVak.length} {perVak.length === 1 ? 'vakdiscipline' : 'vakdisciplines'}.{' '}
+        Leerplandoelen voor {leeftijdLabel(leeftijd)}: {doelen} in {perVak.length} {perVak.length === 1 ? 'vak' : 'vakken'}.{' '}
         <Link to={basisPad({ s: 'go' })} className="b-lees-meer">
-          Bekijk het leerplan van het GO!
+          Leerplan en lesplannen van het GO!
         </Link>
       </p>
-      <ul className="b-go-chips b-vango-vakken" aria-label={`Leerplandoelen voor ${leeftijdLabel(leeftijd)} per vakdiscipline`}>
+      <ul className="b-go-chips b-vango-vakken" aria-label={`Leerplandoelen voor ${leeftijdLabel(leeftijd)} per vak`}>
         {perVak.map((v) => (
           <li key={v.vak}>
             <Link to={basisPad({ s: 'leerplandoelen', vak: v.vak, leerjaar })} className="b-go-chip">
@@ -51,14 +47,14 @@ export function VanHetGoBlok({ leerjaar, index }: { leerjaar: LeerjaarBasis; ind
       </ul>
       {lesplannen.length > 0 && (
         <p>
-          Lesplannen voor {leeftijdLabel(leeftijd)}: {lesplannen.length} ({lesplanVakken.map((v) => kleineLetter(GO_VAKKEN[v].naam)).join(', ')}).{' '}
+          Lesplannen voor {leeftijdLabel(leeftijd)}: {lesplannen.length} ({lesplanVakken.map((v) => GO_VAKKEN[v].doelenset).join(', ')}).{' '}
           <Link to={basisPad({ s: 'lesplannen', leerjaar })} className="b-lees-meer">
             Bekijk de lesplannen
           </Link>
         </p>
       )}
       <p className="b-noot">
-        Het GO! deelt zijn leerplan in per leeftijd. {leeftijdLabel(leeftijd)} is {meestalTekst(leeftijd)} <ZekerheidBadge zekerheid={GO_LEESBRIL_ZEKERHEID} />
+        {leeftijdLabel(leeftijd)} is {meestalTekst(leeftijd)} <ZekerheidBadge zekerheid={GO_LEESBRIL_ZEKERHEID} />. {GO_LEESBRIL_UITLEG}
       </p>
     </section>
   );

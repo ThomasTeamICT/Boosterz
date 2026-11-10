@@ -211,6 +211,15 @@
   color: var(--bg-raised);
   box-shadow: 0 0 0 3px var(--lamp);
 }
+/* Windows hoog contrast: vulling en schaduw vervallen, dus de gekozen stand krijgt een dikke rand. */
+@media (forced-colors: active) {
+  .b-pil-knop[aria-pressed='true'],
+  .b-pil-knop[aria-current='true'],
+  .b-go-pil[aria-current='true'],
+  .b-nav a[aria-current='page'] {
+    border: 3px solid Highlight;
+  }
+}
 
 .b-kop-acties {
   display: flex;
@@ -270,6 +279,12 @@
 .b-main:focus-visible {
   outline: 3px solid var(--brand);
   outline-offset: -3px;
+}
+@media print {
+  /* Na Enter op een link krijgt main focus: dan staat er geen blauwe rand om elk blad. */
+  .b-main:focus-visible {
+    outline: none;
+  }
 }
 
 .b-voet {

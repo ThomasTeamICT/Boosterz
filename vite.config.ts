@@ -407,6 +407,9 @@ export default defineConfig({
     // Nu ligt ze net boven de pdf.js-chunk (de enige legitiem grote chunk), en
     // bewaakt het budget hierboven de rest — inclusief het leerlingpad.
     chunkSizeWarningLimit: 560,
+    // De minimumversie van de browser staat hier vast (Safari en iPadOS 14, de 'modules'-standaard van Vite 5),
+    // zodat een upgrade van Vite ze niet stil optrekt. Lookbehind in src/ bewaakt src/lib/geenLookbehind.test.ts.
+    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
     rollupOptions: {
       output: {
         // 'vendor' en 'widget-icons': zie manualChunkFor in src/lib/swBuild.ts

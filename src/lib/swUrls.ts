@@ -28,13 +28,14 @@ export function serviceWorkerUrls(entryUrl: string): { script: string; scope: st
 }
 
 /**
- * Welke al geladen bestanden moet de service worker alsnog bewaren? Bij het
- * allereerste bezoek laadt de pagina een deel van haar chunks nog vóór de
- * service worker er is. Alleen bestanden in `assets/` van deze app tellen
- * (de service worker controleert dat zelf nog eens).
+ * Welke al geladen eigen bestanden moet de service worker alsnog bewaren? Bij
+ * het allereerste bezoek laadt de pagina een deel van haar chunks en gegevens
+ * (bv. de json-bestanden van het GO! en de minimumdoelen) nog vóór de service
+ * worker er is. Alleen bestanden van deze app tellen, zonder query; de service
+ * worker bewaart er alleen wat bij zijn build hoort (KNOWN).
  */
 export function assetUrlsToWarm(resourceUrls: readonly string[], scope: string): string[] {
-  const prefix = scope + 'assets/';
+  const prefix = scope;
   const seen = new Set<string>();
   for (const raw of resourceUrls) {
     if (typeof raw !== 'string' || !raw.startsWith(prefix)) continue;
@@ -43,4 +44,14 @@ export function assetUrlsToWarm(resourceUrls: readonly string[], scope: string):
     seen.add(clean);
   }
   return [...seen];
+}
+
+/**
+ * De bestanden die niet langs de service worker kwamen: een resource-entry
+ * met `workerStart` 0 (de pagina was nog niet bediend toen het verzoek
+ * vertrok). Bij het eerste bezoek is dat ook wat nog onderweg was toen de
+ * service worker de pagina overnam; dat moet hij alsnog bewaren.
+ */
+export function nietLangsServiceWorker(entries: readonly { name: string; workerStart?: number }[]): string[] {
+  return entries.filter((e) => !e.workerStart).map((e) => e.name);
 }

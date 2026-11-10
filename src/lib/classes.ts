@@ -256,6 +256,22 @@ export function duplicateNames(text: string): string[] {
   return out;
 }
 
+/** Scheidingstekens in een regel van een klaslijst: ";", tab, of een komma vóór een nummer op het einde. */
+const STUDENT_SEP = /[;\t]|,(?=\s*\d{1,3}\s*$)/;
+
+/**
+ * Een regel van een klaslijst in stukken, ongetrimd: bij ";", een tab, een komma vóór een nummer op het
+ * einde ("Emma, 12") en de komma na een nummer vooraan ("12, Emma"). Die laatste staat los van de
+ * expressie: ze zou een lookbehind vragen, en die laden Safari en iPadOS vóór 16.4 niet.
+ */
+export function splitStudentLine(line: string): string[] {
+  // De komma na een nummer vooraan is de eerste komma van de regel: ervoor staan alleen witruimte en 1 tot 3 cijfers.
+  const voor = /^\s*\d{1,3}\s*,/.exec(line);
+  if (!voor) return line.split(STUDENT_SEP);
+  const komma = voor[0].length - 1;
+  return [...line.slice(0, komma).split(STUDENT_SEP), ...line.slice(komma + 1).split(STUDENT_SEP)];
+}
+
 /** Eén regel van een geplakte klaslijst: naam en (optioneel) klasnummer. */
 function parseStudentLine(rawLine: string): { name: string; number: number | null } | null {
   // opsommingstekens en omringende leestekens weg
@@ -264,7 +280,7 @@ function parseStudentLine(rawLine: string): { name: string; number: number | nul
   let name = '';
   let number: number | null = null;
 
-  const parts = line.split(/[;\t]|,(?=\s*\d{1,3}\s*$)|(?<=^\s*\d{1,3}\s*),/).map((p) => p.trim()).filter(Boolean);
+  const parts = splitStudentLine(line).map((p) => p.trim()).filter(Boolean);
   if (parts.length >= 2) {
     const first = toNumber(parts[0]);
     const last = toNumber(parts[parts.length - 1]);

@@ -16,6 +16,13 @@ naar hoe zeldzaam het is. Zo komt bij "schaduw maken" het doel over licht vóór
 Meting op de toetsset (66 vragen): recall 0,68 en P@3 0,81 (was 0,68 en 0,80); de vier schaduwvragen geven 92767 op plaats 1
 voor einde 4de.
 
+**Na de verbeterronde van het GO!-deel (10 november 2026).** De navigatie volgt op alle schermen de bewaarde keuze
+(`src/lib/basis/basisNav.ts`: eerst het scherm of de set van het doel, dan de keuze, dan gewoon en het 4de leerjaar), ook in
+het buitengewoon onderwijs. Vak- en leerlijnpagina linken naar het leerplan van het GO! van dat vak (`GO_VAKKEN_BIJ_VAK` in
+`src/lib/basis/go/types.ts`). Op papier gaan alle dichte details in `main` open (`src/lib/basis/afdruk.ts`). Er wordt niets
+nieuws bewaard: "Toon de andere" leeft alleen in de geschiedenis van de browser. Zie "Stand na de verbeterronde" in
+`docs/basisonderwijs/GO-LEERPLAN.md`.
+
 **Wat nog wacht:** de zoekwoorden van de proefleerkracht en een maker van de scholengroep (E3), de officiële invoeringstabel
 (dan worden de lagercellen "zeker"), en alles onder "Bewust niet nu" en "Later".
 

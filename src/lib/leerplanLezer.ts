@@ -19,6 +19,7 @@
 import type { CurriculumGoal } from './curriculumTypes';
 import { normalizeGoalCode, sanitizeGoal } from './curriculum';
 import { zoekVerwijzingBlokken } from './minimumdoelVerwijzing';
+import { volgendeTreffer } from './tekenErvoor';
 import { uid } from './utils';
 
 export interface GelezenDoel {
@@ -581,7 +582,8 @@ const NUMMER = String.raw`\d{1,3}(?:\.\d{1,3}){0,3}`;
 const GEEN_AFKORTING = new Set(['LPD', 'LP', 'MD', 'ET', 'EM', 'DEEL', 'THEMA', 'STAP', 'FASE', 'LES', 'BLZ', 'PAG', 'NR', 'BIJ']);
 const STERKE_DOELZIN = /^(?:de\s+)?leerling(?:en)?\b/i;
 const DOELZIN = /^["'“‘„(]?\p{Lu}/u;
-const VERWIJS_VOOR = /(?<![\p{L}\p{N}])(?:md|et|em|minimumdoel(?:en)?|eindterm(?:en)?)\s*[:.]?\s*$/iu;
+/** Eindigt de tekst op een aanduiding van een verwijzing ("MD", "ET 9.1" ervoor), niet midden in een woord? Zonder lookbehind: zie tekenErvoor.ts. */
+export const VERWIJS_VOOR = /(?:^|[^\p{L}\p{N}])(?:md|et|em|minimumdoel(?:en)?|eindterm(?:en)?)\s*[:.]?\s*$/iu;
 /** Aanduiding vlak na de code: "(uitbreiding)", "(uitbreidingsdoel)", "Uitbreidingsdoel:", "Uitbreiding:". */
 const UITBREIDING_NA_CODE = /^(?:\(uitbreiding(?:sdoel)?\)|uitbreidingsdoel\b\s*[:.–—-]?|uitbreiding\s*:)\s*/i;
 /** "uitbreiding" als aanduiding, niet als gewoon woord ("de uitbreiding van de stad"). */
@@ -1217,12 +1219,14 @@ export function samengevoegdeCode(tekst: string, code: string): string | undefin
   const diepte = m[2].split('.').length;
   const nummer = diepte === 1 ? String.raw`\d{1,3}` : String.raw`\d{1,3}(?:\.\d{1,3}){${diepte - 1}}`;
   const re = letters
-    ? new RegExp(String.raw`(?<![\p{L}\p{N}])(${escapeRe(letters)}\s?${nummer}(?:U|\s?\(U\))?)(?![\p{L}\p{N}]|\.\d)[\s:.)–—-]+`, 'giu')
+    ? new RegExp(String.raw`(${escapeRe(letters)}\s?${nummer}(?:U|\s?\(U\))?)(?![\p{L}\p{N}]|\.\d)[\s:.)–—-]+`, 'giu')
     : diepte === 1
-      ? new RegExp(String.raw`(?<![\p{L}\p{N}.])(${nummer})[.)]\s+`, 'gu')
-      : new RegExp(String.raw`(?<![\p{L}\p{N}.])(${nummer}U?)(?![\p{L}\p{N}]|\.\d)\.?[\s:)–—-]+`, 'gu');
+      ? new RegExp(String.raw`(${nummer})[.)]\s+`, 'gu')
+      : new RegExp(String.raw`(${nummer}U?)(?![\p{L}\p{N}]|\.\d)\.?[\s:)–—-]+`, 'gu');
+  // Niet vlak na een letter of cijfer, en een code van alleen cijfers ook niet vlak na een punt.
+  const verbodenErvoor = letters ? /[\p{L}\p{N}]$/iu : /[\p{L}\p{N}.]$/u;
   let treffer: RegExpExecArray | null;
-  while ((treffer = re.exec(tekst)) !== null) {
+  while ((treffer = volgendeTreffer(re, tekst, verbodenErvoor)) !== null) {
     const ervoor = tekst.slice(0, treffer.index);
     if (VERWIJS_VOOR.test(ervoor)) continue;
     const na = tekst.slice(treffer.index + treffer[0].length);

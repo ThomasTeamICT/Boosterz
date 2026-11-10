@@ -14,7 +14,7 @@ import { FoutBericht, LaadBericht } from '../../components/curriculum/LaadStatus
 import { goVakIcoon, goVakTint } from '../../components/basis/vakIconen';
 import { basisPad } from '../../lib/basis/basisRoutes';
 import { aantalLesplannenPerLeeftijd, lesplannenPerLeeftijd } from '../../lib/basis/go/goModel';
-import { GO_LEESBRIL_ZEKERHEID, leeftijdLabel, meestalTekst } from '../../lib/basis/go/leeftijden';
+import { GO_LEESBRIL_ZEKERHEID, leeftijdLabel, leeftijdVanLeerjaar, meestalTekst } from '../../lib/basis/go/leeftijden';
 import { GO_NAAMSVERMELDING, GO_STUDIO_URL, GO_VAKKEN, type GoIndex } from '../../lib/basis/go/types';
 import { datumLeesbaar } from '../../lib/minimumdoelenBron';
 import { webUrl } from '../../lib/veiligeUrl';
@@ -47,14 +47,15 @@ function Bron({ index }: { index: GoIndex }) {
 export function GoInhoud({ index }: { index: GoIndex }) {
   const { keuze } = useBasisKeuze();
   const groepen = aantalLesplannenPerLeeftijd(index);
+  const eigenLeeftijd = keuze ? leeftijdVanLeerjaar(keuze.leerjaar) : undefined;
   const totaal = index.leerplan.reduce((som, l) => som + l.aantal, 0);
   return (
     <div className="b-doelpagina b-go-pagina b-go-overzicht">
       <h1>{KOP}</h1>
       <p className="b-lead">
         Het GO! heeft een eigen leerplan voor het basisonderwijs. De meeste leerplandoelen van het GO! horen bij een of meer minimumdoelen van de
-        overheid, een aantal heeft er geen. De lesplannen van het GO! zeggen welke leerplandoelen ze halen. Hier lees je die drie lagen naast elkaar,
-        letterlijk zoals het GO! ze schrijft.
+        overheid, een aantal heeft er geen. De lesplannen van het GO! zeggen aan welke leerplandoelen ze werken. Hier lees je die drie lagen naast elkaar,
+        letterlijk zoals de overheid en het GO! ze schrijven.
       </p>
       <ol className="b-go-lagen" aria-label="De drie lagen">
         <li>
@@ -86,8 +87,9 @@ export function GoInhoud({ index }: { index: GoIndex }) {
                   <span className="b-vakkaart-tekst">
                     <span className="b-vakkaart-naam">{GO_VAKKEN[l.vak].naam}</span>
                     <span className="b-vakkaart-sub">
-                      {doelenWoord(l.aantal)}
-                      {l.zonderMinimumdoel > 0 ? ` · ${l.zonderMinimumdoel} zonder minimumdoel` : ''}
+                      {eigenLeeftijd !== undefined
+                        ? `${(l.perLeeftijd[eigenLeeftijd] ?? 0) > 0 ? doelenWoord(l.perLeeftijd[eigenLeeftijd] ?? 0) : 'geen leerplandoelen'} voor ${leeftijdLabel(eigenLeeftijd)} · ${l.aantal} in totaal`
+                        : `${doelenWoord(l.aantal)}${l.zonderMinimumdoel > 0 ? ` · ${l.zonderMinimumdoel} zonder minimumdoel` : ''}`}
                     </span>
                   </span>
                 </Link>
@@ -106,7 +108,7 @@ export function GoInhoud({ index }: { index: GoIndex }) {
         <section className="b-go-deel" aria-labelledby="b-go-lesplannen-kop">
           <h2 id="b-go-lesplannen-kop">Lesplannen per leeftijd</h2>
           {groepen.map(({ leeftijd, aantal }) => (
-            <div key={leeftijd} className="b-go-groep" aria-labelledby={`b-go-lp-${leeftijd}`}>
+            <div key={leeftijd} className="b-go-groep" role="group" aria-labelledby={`b-go-lp-${leeftijd}`}>
               <h3 id={`b-go-lp-${leeftijd}`}>
                 {leeftijdLabel(leeftijd)} <span className="b-go-leeftijden">({aantal} {aantal === 1 ? 'lesplan' : 'lesplannen'})</span>
               </h3>

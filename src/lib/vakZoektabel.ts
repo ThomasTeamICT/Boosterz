@@ -132,7 +132,8 @@ function frasePatroon(frase: string): RegExp {
   if (!re) {
     const vrijEinde = frase.endsWith('*');
     const kaal = (vrijEinde ? frase.slice(0, -1) : frase).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    re = new RegExp(`(?<![\\p{L}\\d])${kaal}${vrijEinde ? '' : '(?![\\p{L}\\d])'}`, 'u');
+    // Vooraan: begin van de tekst of een teken dat geen letter of cijfer is (zonder lookbehind, zie tekenErvoor.ts).
+    re = new RegExp(`(?:^|[^\\p{L}\\d])${kaal}${vrijEinde ? '' : '(?![\\p{L}\\d])'}`, 'u');
     REGEX_CACHE.set(frase, re);
   }
   return re;

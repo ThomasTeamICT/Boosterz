@@ -575,7 +575,7 @@ describe('andere eigen bestanden: netwerk eerst', () => {
 // ── Berichten van de pagina ─────────────────────────────────────────────────
 
 describe("bericht 'boosterz:cache-urls' (eerste bezoek)", () => {
-  it('bewaart alleen eigen assets van deze build', async () => {
+  it('bewaart alleen eigen bestanden van deze build', async () => {
     const sw = await installed();
     await sw.message({
       type: 'boosterz:cache-urls',
@@ -583,13 +583,27 @@ describe("bericht 'boosterz:cache-urls' (eerste bezoek)", () => {
         sw.root + 'assets/quiz-QQQ.js',
         sw.root + 'assets/onbekend-X.js',
         sw.root + 'voorbeelden/nw/h01-01.jpg',
+        sw.root + 'basis/go/onbekend.json',
+        sw.root + 'voorbeelden/nw/h01-01.jpg?v=2',
+        sw.root + 'index.html',
+        sw.root + 'sw.js',
         ORIGIN + '/Ander/assets/quiz-QQQ.js',
+        ORIGIN + '/Ander/voorbeelden/nw/h01-01.jpg',
         'https://api.openai.com/v1/x',
         42,
       ],
     });
-    expect(sw.net.calls.map((c) => c.url)).toEqual([sw.root + 'assets/quiz-QQQ.js']);
+    expect(sw.net.calls.map((c) => c.url)).toEqual([sw.root + 'assets/quiz-QQQ.js', sw.root + 'voorbeelden/nw/h01-01.jpg']);
     expect(sw.files()!.store.has(sw.root + 'assets/quiz-QQQ.js')).toBe(true);
+    expect(sw.files()!.store.has(sw.root + 'voorbeelden/nw/h01-01.jpg')).toBe(true);
+    expect(sw.files()!.store.has(sw.root + 'basis/go/onbekend.json')).toBe(false);
+  });
+
+  it('een gegevensbestand dat bij het eerste bezoek al geladen was, werkt daarna offline', async () => {
+    const sw = await installed();
+    await sw.message({ type: 'boosterz:cache-urls', urls: [sw.root + 'voorbeelden/nw/h01-01.jpg'] });
+    sw.net.offline = true;
+    expect(await (await sw.request('voorbeelden/nw/h01-01.jpg')).response!.text()).toBe('inhoud van voorbeelden/nw/h01-01.jpg');
   });
 
   it('vreemde berichten doen niets', async () => {

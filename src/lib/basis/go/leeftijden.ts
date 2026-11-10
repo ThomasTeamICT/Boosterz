@@ -69,9 +69,9 @@ export const GO_LEESBRIL: readonly GoLeesbrilRegel[] = [
 /** De zekerheid van de leesbril: altijd 'waarschijnlijk' (ZekerheidBadge). */
 export const GO_LEESBRIL_ZEKERHEID: Zekerheid = 'waarschijnlijk';
 
-/** Onder 'Hoe zeker is dit?'. */
+/** Onder 'Welk leerjaar is dat meestal?': van wie de inschatting is en wat ze betekent. */
 export const GO_LEESBRIL_UITLEG =
-  'Het GO! deelt zijn leerplan in per leeftijd. Welk leerjaar dat is, hangt af van het kind; dit is de leeftijd van de meeste kinderen in dat leerjaar.';
+  'Het GO! deelt zijn leerplan in per leeftijd, niet per leerjaar. Het leerjaar erbij is een inschatting van Boosterz: de klas waarin de meeste kinderen van die leeftijd zitten. Wie vroeger of later instapt of een jaar overdoet, zit in een ander leerjaar.';
 
 function regelVanLeeftijd(l: GoLeeftijd): GoLeesbrilRegel {
   const r = GO_LEESBRIL.find((x) => x.leeftijd === l);
@@ -89,6 +89,15 @@ export function leeftijdVanLeerjaar(lj: LeerjaarBasis): GoLeeftijd {
 /** Omgekeerd: 2,5-4 hoort alleen bij K1. */
 export function leerjaarVanLeeftijd(l: GoLeeftijd): LeerjaarBasis {
   return regelVanLeeftijd(l).leerjaar;
+}
+
+/**
+ * Het leerjaar voor een link vanaf een doel met deze leeftijden: het bewaarde leerjaar als zijn leeftijd bij het doel
+ * hoort (je blijft in je eigen leerjaar), anders het leerjaar van de eerste leeftijd van het doel.
+ */
+export function leerjaarVoorDoel(leeftijden: readonly GoLeeftijd[], bewaard?: LeerjaarBasis): LeerjaarBasis {
+  if (bewaard !== undefined && leeftijden.includes(leeftijdVanLeerjaar(bewaard))) return bewaard;
+  return leerjaarVanLeeftijd(leeftijden[0]);
 }
 
 /** 'meestal instapklas en 1ste kleuterklas': altijd na de leeftijd van het GO!, met de badge 'waarschijnlijk'. */

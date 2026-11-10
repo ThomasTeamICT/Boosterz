@@ -7,7 +7,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { createElement, type ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom/server';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   GO_NAAMSVERMELDING,
   GO_STUDIO_URL,
@@ -21,17 +21,20 @@ import {
   type GoLesplanBestand,
   type Regel,
 } from '../../../lib/basis/go/types';
+import { isZonderMinimumdoel, maakDoelLink } from '../../../lib/basis/go/goModel';
 import {
   LesplanInhoud,
   aantalRegels,
   celVanWijzer,
+  diplomaIds,
   gaNaarLijst,
-  maakDoelLink,
   stapWat,
   type Koppelingen,
 } from '../../../pages/basis/LesplanScherm';
+import type { GoLeerplandoel } from '../../../lib/basis/go/types';
 import { GoBronvermelding } from './GoBronvermelding';
-import { GoBeeldWeergave, GoBlokken, GoRegel, GoTabel, GoTekstOptiesProvider, celTekst, regelTekst, rijenSamengevoegd, wijzerId } from './GoTekst';
+import { KoppelingChips } from './KoppelingLijst';
+import { GoBeeldWeergave, GoBlokken, GoRegel, GoTabel, GoTekstOptiesProvider, celTekst, gaNaarId, regelTekst, rijenSamengevoegd, wijzerId } from './GoTekst';
 import { GO_ICOON, GO_ICOON_WOORD, beginMetWoord, tekstNaIcoon } from './goIconen';
 
 const toon = (el: ReactElement) => renderToStaticMarkup(createElement(StaticRouter, { location: '/' }, el));
@@ -43,6 +46,7 @@ function tekstVan(html: string): string {
   return html
     .replace(/<span class="sr-only">[^<]*<\/span>/g, '')
     .replace(/<span class="b-lp-label"[^>]*>[^<]*<\/span>/g, '')
+    .replace(/<th [^>]*b-lp-vervolg[^>]*>[^<]*<\/th>/g, '')
     .replace(/<figure[\s\S]*?<\/figure>/g, ' ')
     .replace(/<\/?(?:p|li|h[1-6]|td|th|tr|ul|ol|table|thead|tbody|div|figure|figcaption|details|summary|br|section|nav)\b[^>]*>/g, ' ')
     .replace(/<[^>]+>/g, '')
@@ -174,6 +178,15 @@ describe('GoBeeldWeergave', () => {
     expect(html).toContain('id="lp-d4-b2"');
   });
 
+  it('geeft onder een getoond beeld een link om het groot te tonen (nieuw tabblad), en niets bij een weggelaten beeld', () => {
+    const b: GoBeeld = { ...basis, status: 'getoond', bestand: 'beelden/x.webp', alt: 'Een beeld' };
+    const html = toon(createElement(GoBeeldWeergave, { beeld: b }));
+    expect(html).toMatch(/<a href="[^"]*basis\/go\/beelden\/x\.webp" target="_blank" rel="noopener">Toon het beeld groot<span class="sr-only"> \(opent in een nieuw tabblad\)<\/span><\/a>/);
+    expect(html).not.toMatch(/<svg/);
+    const weg = toon(createElement(GoBeeldWeergave, { beeld: { ...basis, status: 'weggelaten', uitleg: 'Weg.' } }));
+    expect(weg).not.toContain('Toon het beeld groot');
+  });
+
   it('toont een beeld zonder beschrijving zonder details-blok', () => {
     const b: GoBeeld = { ...basis, status: 'getoond', bestand: 'beelden/x.webp', alt: 'Een beeld' };
     expect(toon(createElement(GoBeeldWeergave, { beeld: b }))).not.toContain('<details');
@@ -207,7 +220,8 @@ describe('GoTabel', () => {
     expect(html).toContain('<table');
     expect(html).toContain('<thead>');
     expect(html.match(/<th [^>]*scope="col"/g)).toHaveLength(3);
-    expect(html.match(/<th [^>]*scope="row"/g)).toHaveLength(2);
+    // De rijkop van een samengevoegde cel komt er voor de smalle kaart nog twee keer bij (b-lp-vervolg).
+    expect(html.match(/<th (?![^>]*b-lp-vervolg)[^>]*scope="row"/g)).toHaveLength(2);
     expect(html.match(/<td /g)).toHaveLength(8);
   });
 
@@ -219,8 +233,20 @@ describe('GoTabel', () => {
     expect(rijenSamengevoegd(TABEL, 2, 0)).toBe(3);
     expect(rijenSamengevoegd(TABEL, 1, 0)).toBe(1);
     expect(html).toContain('rowspan="3"');
-    // Rij 3 en 4 hebben alleen nog twee cellen.
-    expect(html.match(/<tr [^>]*id="lp-d4-b1-r3"[^>]*>(.*?)<\/tr>/)?.[1].match(/<t[dh] /g)).toHaveLength(2);
+    // Rij 3 en 4 hebben alleen nog twee cellen, plus de herhaalde rijkop voor de smalle kaart.
+    const rij3 = html.match(/<tr [^>]*id="lp-d4-b1-r3"[^>]*>(.*?)<\/tr>/)?.[1] ?? '';
+    expect(rij3.replace(/<th [^>]*b-lp-vervolg[^>]*>.*?<\/th>/, '').match(/<t[dh] /g)).toHaveLength(2);
+  });
+
+  it('herhaalt de rijkop van een samengevoegde cel in elke vervolgrij, zonder id en zonder nieuwe inhoud', () => {
+    for (const r of [3, 4]) {
+      const rij = html.match(new RegExp(`<tr [^>]*id="lp-d4-b1-r${r}"[^>]*>(.*?)</tr>`))?.[1] ?? '';
+      expect(rij, `rij ${r}`).toMatch(/^<th role="rowheader" scope="row" class="b-lp-rijkop b-lp-vervolg">Leskern<\/th>/);
+    }
+    // Een vervolgcel van een gewone kolom (geen rijkop) geeft niets.
+    const data = toon(createElement(GoTabel, { rijen: [[cel('data', 'a'), cel('data', 'b', 'begin')], [cel('data', 'c'), cel('data', null, 'vervolg')]], pad: { deel: 1, blok: 1 } }));
+    expect(data).not.toContain('b-lp-vervolg');
+    expect(new Set(ids(html)).size).toBe(ids(html).length);
   });
 
   it('zet de rollen erbij en geeft elke gegevenscel de kolomkop als label voor de kaartweergave', () => {
@@ -416,7 +442,7 @@ describe('de lesplannen in public/basis/go/', () => {
         for (const r of doel?.minimumdoelen.refs ?? []) {
           expect(kort, `${d.code} ${r.code}`).toContain(`href="/basis/doel/${r.set}/${r.id}"`);
         }
-        if ((doel?.minimumdoelen.refs ?? []).length === 0) expect(kort).toContain('zonder minimumdoel');
+        if (doel && isZonderMinimumdoel(doel)) expect(kort).toContain('koppelt dit doel aan geen enkel minimumdoel');
       }
     });
 
@@ -485,7 +511,7 @@ describe('LP0065 (de proef)', () => {
     expect(tekstVan(kort)).toContain('WT.001 begrijpen Herkennen het organisme dier. (2,5-4 jaar)');
     expect(kort).toContain('Einde kleuter 3.1.2');
     // WT.008 en WT.057 zijn eigen doelen van het GO!: geen minimumdoel.
-    expect(tekstVan(kort)).toMatch(/WT\.008 begrijpen .*zonder minimumdoel/);
+    expect(tekstVan(kort)).toMatch(/WT\.008 begrijpen .*koppelt dit doel aan geen enkel minimumdoel/);
   });
 
   it('zet de vlaggen van deel 3 als link naar hun leerplandoel, met het woord "vlag"', () => {
@@ -534,5 +560,225 @@ describe('hulpfuncties van LesplanScherm', () => {
   it('aantalRegels telt de items van een lijst', () => {
     expect(aantalRegels(lp, lp.afgeleid.materiaal)).toBeGreaterThan(1);
     expect(aantalRegels(lp, { deel: 99, blok: 0 })).toBe(0);
+  });
+});
+
+describe('LesplanInhoud: wat het herstel van de lesplanpagina vastlegt', () => {
+  const lp = lesplan('LP0065');
+  const html = toon(createElement(LesplanInhoud, { lesplan: lp, index: INDEX, koppelingen: KLAAR }));
+  const kortVan = (h: string) => /<section class="b-lp-kort"[\s\S]*?<\/section>/.exec(h)?.[0] ?? '';
+  const kort = kortVan(html);
+
+  it('heeft een knop Afdrukken (een echte knop met het woord) vóór "Ga naar", buiten de letterlijke tekst', () => {
+    const knop = html.indexOf('<button type="button" class="b-knop"');
+    expect(knop).toBeGreaterThan(-1);
+    expect(html.slice(knop, html.indexOf('</button>', knop))).toContain('Afdrukken');
+    expect(knop).toBeLessThan(html.indexOf('<nav class="b-lp-ganaar"'));
+    expect(html.slice(knop - 40, knop)).toContain('class="b-lp-acties"');
+    expect(html.slice(html.indexOf('<div class="b-lp-tekst">'))).not.toContain('Afdrukken');
+  });
+
+  it('zet "In het kort" als eerste onderdeel van "Ga naar", zonder gaNaarLijst te veranderen', () => {
+    const nav = /<nav class="b-lp-ganaar"[\s\S]*?<\/nav>/.exec(html)?.[0] ?? '';
+    const labels = [...nav.matchAll(/<a [^>]*>([^<]*)<\/a>/g)].map((m) => m[1]);
+    expect(labels).toEqual(['In het kort', ...gaNaarLijst(lp).map((g) => g.label)]);
+  });
+
+  it('zegt dat "In het kort" van Boosterz komt en waar het letterlijke lesplan begint', () => {
+    expect(kort).toContain('<p class="b-lp-noot">Dit overzicht maakt Boosterz.');
+    const grens = html.indexOf('<p class="b-lp-grens">Hieronder het volledige lesplan van het GO!, letterlijk overgenomen.</p>');
+    expect(grens).toBeGreaterThan(html.indexOf('</section>', html.indexOf('<section class="b-lp-kort"')));
+    expect(html.indexOf('<div class="b-lp-tekst">')).toBe(grens + html.slice(grens).indexOf('</p>') + '</p>'.length);
+  });
+
+  it('toont de ik-zinnen als lijst, één item per zin, zoals in de bron', () => {
+    // In de bron is elke zin van de lijst een eigen opsommingsteken, ook al staan er twee zinnetjes in.
+    expect(kort).toContain('<li>Ik herken de voedingswijze van zoogdieren. Ik weet wat zoogdieren eten.</li><li>Ik herken de voedingswijze van vogels. Ik weet wat vogels eten.</li>');
+    expect(kort).toMatch(/<strong class="b-lp-code">WT\.008<\/strong><ul class="b-lp-ikzinnen"><li>Ik herken de voedingswijze van dieren\./);
+    expect(kort).not.toContain('Ik weet wat dieren eten. Ik herken de voedingswijze van zoogdieren.');
+  });
+
+  it('geeft WT.229 in LP0014b vijf aparte items en zet een regeleinde in een zin als <br/> (WT.021 in LP0087)', () => {
+    const b = kortVan(toon(createElement(LesplanInhoud, { lesplan: lesplan('LP0014b'), index: INDEX, koppelingen: KLAAR })));
+    const wt229 = /<strong class="b-lp-code">WT\.229<\/strong><ul class="b-lp-ikzinnen">(.*?)<\/ul>/.exec(b)?.[1] ?? '';
+    expect(wt229.match(/<li>/g)).toHaveLength(5);
+    const c = kortVan(toon(createElement(LesplanInhoud, { lesplan: lesplan('LP0087'), index: INDEX, koppelingen: KLAAR })));
+    const wt021 = /<strong class="b-lp-code">WT\.021<\/strong><ul class="b-lp-ikzinnen">(.*?)<\/ul>/.exec(c)?.[1] ?? '';
+    expect(wt021).toContain('zoogdieren.<br/>vb. ');
+    expect(wt021).not.toContain('\n');
+  });
+
+  it('maakt van de code van een leerplandoel de link naar dat doel (met het woord voor de schermlezer) en kent geen aparte link meer', () => {
+    expect(kort).toContain('<a class="b-lp-naarplek b-lp-code" href="/basis/leerplandoel/WT.008"><span class="sr-only">Leerplandoel </span>WT.008</a>');
+    expect(kort).not.toContain('Het leerplandoel');
+    // Zonder index is er geen link: de code staat dan als gewone vette tekst.
+    const zonder = kortVan(toon(createElement(LesplanInhoud, { lesplan: lp, koppelingen: KLAAR })));
+    expect(zonder).toContain('<strong class="b-lp-code">WT.008</strong>');
+  });
+
+  it('zet "In het lesplan" en de minimumdoelen van een doel samen in één regel, en verbergt wat op papier een dode link is', () => {
+    expect(kort).toMatch(/<div class="b-lp-doelregel"><a class="b-lp-naarplek b-lp-scherm"[^>]*>In het lesplan/);
+    // Elke link naar een plek in het lesplan zonder eigen tekst is verborgen op papier: de doelen, de diploma's en het materiaal.
+    const naarPlek = [...kort.matchAll(/<a class="b-lp-naarplek([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)];
+    for (const m of naarPlek.filter((x) => /^In het lesplan/.test(x[2]))) expect(m[1], m[2]).toContain('b-lp-scherm');
+    expect(kort).toMatch(/<div class="b-lp-scherm"><h3>Materiaal<\/h3>/);
+    // De stappen van Lesverloop blijven staan: zij zijn zelf de tekst.
+    expect(kort).not.toMatch(/b-lp-scherm[^>]*>\s*1\. Verkennen/);
+  });
+
+  it('legt de onderdelen van "In het kort" in twee kolommen, in dezelfde volgorde als in de bron', () => {
+    expect(kort.match(/<div class="b-lp-kort-kolom">/g)).toHaveLength(2);
+    const [links, rechts] = kort.split('<div class="b-lp-kort-kolom">').slice(1);
+    expect(links).toContain('<h3>Leerplandoelen</h3>');
+    expect(links).toContain('<h3>Ik-doelen per diploma</h3>');
+    expect(rechts).toContain('<h3>Lesverloop</h3>');
+    expect(rechts).toContain('<h3>Materiaal</h3>');
+    expect(kort.indexOf('Leerplandoelen')).toBeLessThan(kort.indexOf('Ik-doelen per diploma'));
+    expect(kort.indexOf('Ik-doelen per diploma')).toBeLessThan(kort.indexOf('Lesverloop'));
+  });
+
+  it('geeft elke stap van Lesverloop een eigen adres (?stap=N), zodat ze in een nieuw tabblad open kan', () => {
+    for (const s of lp.afgeleid.stappen) expect(kort).toContain(`href="/basis/lesplan/LP0065?stap=${s.nr}"`);
+    expect(html).toContain('href="/basis/lesplan/LP0065?stap=3"');
+    // De links van "Ga naar" en van de doelen en diploma's blijven het gewone adres.
+    expect(kort).toContain('href="/basis/lesplan/LP0065"');
+  });
+});
+
+describe('diplomaIds', () => {
+  const alleIds = (code: string) => {
+    const lp = lesplan(code);
+    const html = toon(createElement(LesplanInhoud, { lesplan: lp, index: INDEX, koppelingen: KLAAR }));
+    return { lp, bestaand: new Set(ids(html)) };
+  };
+
+  it('wijst bij LP0074 elk diploma aan met zijn eigen alinea in de cel Lesdoel (vier verschillende plekken)', () => {
+    const { lp, bestaand } = alleIds('LP0074');
+    const eerste = lp.afgeleid.diplomas.map((d) => diplomaIds(lp, d)[0]);
+    expect(eerste).toEqual(['lp-d4-b1-r3-k1-g0', 'lp-d4-b1-r3-k1-g4', 'lp-d4-b1-r3-k1-g8', 'lp-d4-b1-r3-k1-g12']);
+    for (const d of lp.afgeleid.diplomas) for (const id of diplomaIds(lp, d)) expect(bestaand.has(id), id).toBe(true);
+  });
+
+  it('wijst bij LP0065 het eerste diploma aan met de cel zelf-alinea g0, en de anderen met g8 en g12', () => {
+    const { lp } = alleIds('LP0065');
+    expect(lp.afgeleid.diplomas.map((d) => diplomaIds(lp, d)[0])).toEqual(['lp-d4-b1-r3-k1-g0', 'lp-d4-b1-r3-k1-g8', 'lp-d4-b1-r3-k1-g12']);
+  });
+
+  it('heeft voor elk diploma van de 8 lesplannen een bestaande id, en valt zonder treffer terug op de cel', () => {
+    for (const code of CODES) {
+      const { lp, bestaand } = alleIds(code);
+      for (const d of lp.afgeleid.diplomas) {
+        const lijst = diplomaIds(lp, d);
+        expect(lijst.length, `${code} ${d.naam}`).toBeGreaterThan(0);
+        expect(lijst.some((id) => bestaand.has(id)), `${code} ${d.naam}`).toBe(true);
+      }
+    }
+    const lp = lesplan('LP0065');
+    const vreemd = { ...lp.afgeleid.diplomas[0], naam: 'Een diploma dat niet bestaat' };
+    expect(diplomaIds(lp, vreemd)).toEqual(['lp-d4-b1-r3-k1']);
+  });
+});
+
+describe('stapWat met een lijst in de kolom Wat?', () => {
+  it('neemt ook de items van een lijst mee, na de alinea’s ervoor, zonder de kop van de stap', () => {
+    const lp = JSON.parse(JSON.stringify(lesplan('LP0065'))) as GoLesplanBestand;
+    const w = lp.afgeleid.stappen[0].wat;
+    const blok = lp.delen[w.deel].blokken[w.blok];
+    if (blok.soort !== 'tabel' || w.rij === undefined || w.kolom === undefined) throw new Error('geen tabel');
+    blok.rijen[w.rij][w.kolom] = {
+      rol: 'data',
+      blokken: [
+        { soort: 'alinea', tekst: [{ t: '1. Verkennen' }] },
+        { soort: 'alinea', tekst: [{ t: 'Ontdekken:' }] },
+        { soort: 'lijst', genummerd: false, items: [[{ t: 'een' }], [{ t: 'twee' }]] },
+      ],
+    };
+    expect(stapWat(lp, w, 1).map(regelTekst)).toEqual(['Ontdekken:', 'een', 'twee']);
+  });
+});
+
+describe('gaNaarId', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** Een element met net genoeg DOM voor gaNaarId: attributen, focus, scrollIntoView en een blur-luisteraar. */
+  function nepElement(attrs: Record<string, string> = {}) {
+    const a = new Map(Object.entries(attrs));
+    let bijBlur: (() => void) | undefined;
+    const el = {
+      hasAttribute: (n: string) => a.has(n),
+      setAttribute: (n: string, v: string) => void a.set(n, v),
+      removeAttribute: (n: string) => void a.delete(n),
+      getAttribute: (n: string) => a.get(n),
+      addEventListener: (_: string, f: () => void) => void (bijBlur = f),
+      focus: vi.fn(),
+      scrollIntoView: vi.fn(),
+      blur: () => bijBlur?.(),
+    };
+    return el;
+  }
+
+  it('geeft een element zonder tabindex er -1 bij, zet de focus en haalt de tabindex weer weg als de focus weggaat', () => {
+    const el = nepElement();
+    vi.stubGlobal('document', { getElementById: (id: string) => (id === 'lp-d1-b0' ? el : null) });
+    expect(gaNaarId('bestaat-niet', 'lp-d1-b0')).toBe(true);
+    expect(el.focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(el.scrollIntoView).toHaveBeenCalled();
+    expect(el.getAttribute('tabindex')).toBe('-1');
+    el.blur();
+    expect(el.hasAttribute('tabindex')).toBe(false);
+  });
+
+  it('laat een tabindex die er al stond staan, en geeft false als geen enkele id bestaat', () => {
+    const el = nepElement({ tabindex: '0' });
+    vi.stubGlobal('document', { getElementById: (id: string) => (id === 'x' ? el : null) });
+    expect(gaNaarId('x')).toBe(true);
+    el.blur();
+    expect(el.getAttribute('tabindex')).toBe('0');
+    expect(gaNaarId('y')).toBe(false);
+  });
+});
+
+describe('een lesplan toont de koppeling via een onderdeel van het leerplandoel (CT-9)', () => {
+  // Geen enkel echt lesplan noemt nu een doel van wiskunde: een zelfgemaakt lesplan (LP0065 met WI.408 als eerste doel).
+  const WI = JSON.parse(lees('leerplan/WI.json')) as GoLeerplanBestand;
+  const eigen: GoLesplanBestand = (() => {
+    const l = structuredClone(lesplan('LP0065'));
+    l.afgeleid.vak = 'WI';
+    l.afgeleid.leerplandoelen = [{ ...l.afgeleid.leerplandoelen[0], code: 'WI.408', tekst: 'Trekken af met decimale getallen.', leeftijden: ['10-11', '11-12'] }];
+    return l;
+  })();
+  const perCode: Koppelingen = { status: 'klaar', perCode: new Map(WI.doelen.map((d) => [d.code, d])) };
+
+  it('WI.408 heeft alleen via de MIA “Aftrekken:” een minimumdoel, en het lesplan toont de chip van ODS_3407/93310', () => {
+    const doel = WI.doelen.find((d) => d.code === 'WI.408') as GoLeerplandoel;
+    expect(doel.minimumdoelen.refs).toHaveLength(0);
+    const html = toon(createElement(LesplanInhoud, { lesplan: eigen, index: INDEX, koppelingen: perCode }));
+    const kort = /<section class="b-lp-kort"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
+    expect(kort).toContain('href="/basis/doel/ODS_3407/93310"');
+    expect(tekstVan(kort)).toContain('via een onderdeel van dit doel');
+    expect(tekstVan(kort)).not.toContain('geen enkel minimumdoel');
+  });
+});
+
+describe('het lesplan gebruikt dezelfde chips als de lijsten (CT-13)', () => {
+  const html = toon(createElement(LesplanInhoud, { lesplan: lesplan('LP0014b'), index: INDEX, koppelingen: KLAAR }));
+  const kort = /<section class="b-lp-kort"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
+
+  it('gebruikt KoppelingChips: dezelfde klassen en woorden, geen eigen kopie meer', () => {
+    expect(kort).toContain('class="b-go-koppeling"');
+    expect(kort).toContain('class="b-go-chip"');
+    expect(html).not.toContain('b-lp-chip');
+    expect(html).not.toContain('b-lp-minimum');
+    expect(tekstVan(kort)).not.toContain('zonder minimumdoel (');
+  });
+
+  it('WT.235 houdt zijn twijfel: de chip van minimumdoel 3.3.2 krijgt de vermelding, in dezelfde woorden als de lijst', () => {
+    const vanLijst = toon(createElement(KoppelingChips, { doel: WT.doelen.find((d) => d.code === 'WT.235') as GoLeerplandoel }));
+    expect(tekstVan(vanLijst)).toContain('let op: dit moment past niet bij de leeftijd van dit leerplandoel');
+    expect(tekstVan(kort)).toContain('let op: dit moment past niet bij de leeftijd van dit leerplandoel');
+  });
+
+  it('de chips gaan naar de doelpagina, ook zonder doorgegeven doelPad', () => {
+    expect(kort).toMatch(/href="\/basis\/doel\/ODS_\d+\/\d+"/);
   });
 });

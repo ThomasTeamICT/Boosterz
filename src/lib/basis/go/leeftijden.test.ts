@@ -13,6 +13,7 @@ import {
   leeftijdLabel,
   leeftijdVanLeerjaar,
   leerjaarVanLeeftijd,
+  leerjaarVoorDoel,
   meestalTekst,
   momentPastBijLeeftijden,
   vergelijkLeeftijden,
@@ -66,7 +67,7 @@ describe('de leesbril naar de leerjaren van de app (waarschijnlijk)', () => {
   it('heeft zekerheid waarschijnlijk en zegt waarom', () => {
     expect(GO_LEESBRIL_ZEKERHEID).toBe('waarschijnlijk');
     expect(GO_LEESBRIL_UITLEG).toBe(
-      'Het GO! deelt zijn leerplan in per leeftijd. Welk leerjaar dat is, hangt af van het kind; dit is de leeftijd van de meeste kinderen in dat leerjaar.',
+      'Het GO! deelt zijn leerplan in per leeftijd, niet per leerjaar. Het leerjaar erbij is een inschatting van Boosterz: de klas waarin de meeste kinderen van die leeftijd zitten. Wie vroeger of later instapt of een jaar overdoet, zit in een ander leerjaar.',
     );
   });
 
@@ -128,5 +129,15 @@ describe('moment en leeftijden (de regel voor de twijfel, rechtzetting 1)', () =
 
   it('laat zonder leeftijden niets passen', () => {
     for (const mo of GO_MOMENTEN) expect(momentPastBijLeeftijden(mo, [])).toBe(false);
+  });
+});
+
+describe('leerjaarVoorDoel: de kruimel blijft in het bewaarde leerjaar als dat bij het doel past', () => {
+  it('geeft het bewaarde leerjaar als zijn leeftijd bij het doel hoort', () => {
+    expect(leerjaarVoorDoel(['6-7', '7-8'], 'L2')).toBe('L2');
+  });
+  it('valt terug op de eerste leeftijd als het bewaarde leerjaar er niet bij past, of er geen is', () => {
+    expect(leerjaarVoorDoel(['6-7', '7-8'], 'L5')).toBe('L1');
+    expect(leerjaarVoorDoel(['6-7', '7-8'])).toBe('L1');
   });
 });

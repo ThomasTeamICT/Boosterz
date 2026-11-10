@@ -2,8 +2,9 @@
 // leeftijden, de voorbeelden en de voetnoten, letterlijk en in de volgorde van de bron (docs/basisonderwijs/GO-LEERPLAN.md,
 // "2. Leerplandoelpagina").
 //
-// Wat 'MIA' betekent, zegt de bron niet; daarom staat dat woord nergens op het scherm. Of een MIA-item aanklikbaar is
-// (GoDoelInhoud.aanklikbaar) blijft bewaard maar staat ook niet op het scherm, zolang de betekenis niet gekend is.
+// Wat 'MIA' betekent, zegt de bron niet; MiaBlok toont het woord daarom niet en legt het niet uit. Het staat wel letterlijk
+// in de lesplannen en in de zin over een koppeling via een onderdeel (KoppelingLijst, GoBijDoel: 'MIA “Aftrekken:”'). Of een
+// MIA-item aanklikbaar is (GoDoelInhoud.aanklikbaar) blijft bewaard maar staat niet op het scherm, zolang de betekenis niet gekend is.
 // Voorbeelden bevatten soms verzonnen kindernamen uit de bron; die blijven letterlijk staan.
 
 import { Fragment } from 'react';

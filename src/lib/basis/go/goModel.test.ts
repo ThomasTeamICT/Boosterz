@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   aantalLesplannenPerLeeftijd,
+  goDoelBestaat,
   groepeerBijDoelen,
   ikDoelenVanDoel,
   leerplandoelenBijMinimumdoel,
@@ -23,6 +24,7 @@ import {
   vindLeerplandoel,
   vindLessenlijn,
 } from './goModel';
+import { GO_VAKKEN_BIJ_VAK, isGoVak } from './types';
 import type { GoBijDoel, GoBijMinimumdoelBestand, GoIndex, GoLeerplanBestand, GoLesplanBestand, GoRubriek } from './types';
 
 type IndexLesplan = GoIndex['lesplannen'][number];
@@ -319,5 +321,33 @@ describe('ikDoelenVanDoel', () => {
     expect(ikDoelenVanDoel(LESPLANNEN, 'WT.999')).toEqual([]);
     expect(ikDoelenVanDoel([], 'WT.028')).toEqual([]);
     expect(LESPLANNEN.map((l) => l.code)).toEqual(volgorde);
+  });
+});
+
+describe('GO_VAKKEN_BIJ_VAK', () => {
+  it('elk vak van 1 tot 10 heeft alleen geldige vakken van het GO!', () => {
+    for (let nr = 1; nr <= 10; nr++) {
+      const lijst = GO_VAKKEN_BIJ_VAK[nr];
+      expect(lijst, `vak ${nr}`).toBeDefined();
+      expect(lijst.length).toBeGreaterThan(0);
+      for (const g of lijst) expect(isGoVak(g), `${nr}: ${g}`).toBe(true);
+    }
+    expect(GO_VAKKEN_BIJ_VAK[3]).toEqual(['WT']);
+  });
+});
+
+describe('goDoelBestaat', () => {
+  it('is waar voor een code die in het leerplan staat en anders niet', () => {
+    const aantal = { vak: 'WT', aantal: 307 };
+    const index = { ...INDEX, leerplan: [aantal] } as unknown as GoIndex;
+    const vak = aantal.vak;
+    expect(goDoelBestaat(index, `${vak}.001`)).toBe(true);
+    expect(goDoelBestaat(index, `${vak}.${String(aantal.aantal).padStart(3, '0')}`)).toBe(true);
+    expect(goDoelBestaat(index, `${vak}.${String(aantal.aantal + 1).padStart(3, '0')}`)).toBe(false);
+    expect(goDoelBestaat(index, `${vak}.000`)).toBe(false);
+    expect(goDoelBestaat(index, `${vak}.0001`)).toBe(false);
+    expect(goDoelBestaat(index, 'ZZ.001')).toBe(false);
+    expect(goDoelBestaat(index, 'wt.001')).toBe(false);
+    expect(goDoelBestaat(index, 'LP0065')).toBe(false);
   });
 });

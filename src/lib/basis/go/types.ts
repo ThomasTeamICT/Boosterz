@@ -8,6 +8,11 @@
 // Dit bestand is het contract tussen de import (tools/basis/go/maak.ts), de validator (valideer.ts) en de
 // schermen. Naast de types staan hier alleen vaste gegevens en kleine zuivere functies die bij het contract horen
 // (de vakken, de bronvermelding, wat de sha256 van een bestand dekt).
+//
+// Versie: elk bestand draagt `v`. Een wijziging van de vorm verhoogt v: een veld dat verdwijnt, van type verandert of
+// verplicht wordt, of een nieuwe waarde in een opsomming (een soort blok, een leeftijd, een moment …). De app weigert een
+// onbekende v (lichteControle.ts), zodat een tabblad met oude code 'Laad de pagina opnieuw' zegt in plaats van iets
+// verkeerds te tonen. Een nieuw optioneel veld mag zonder nieuwe v: dat laat de lichte controle door.
 import type { MinimumdoelRef } from '../../curriculumTypes';
 
 /** De twaalf vakdisciplines van het nieuwe GO! leerplan basisonderwijs (het voorvoegsel van de code). */
@@ -21,6 +26,9 @@ export type GoMoment = 'KO' | 'L4' | 'L6';
 
 export const GO_MOMENTEN: readonly GoMoment[] = ['KO', 'L4', 'L6'];
 export const KENNISVERWERKINGEN: readonly Kennisverwerking[] = ['begrijpen', 'gebruiken', 'engageren'];
+
+/** De zin die bij de pillen met de kennisverwerking staat, op elk scherm met een lijst van doelen. */
+export const KENNISVERWERKING_ZIN = 'Bij elk doel staat de kennisverwerking volgens het GO!: begrijpen, gebruiken of engageren.';
 
 /**
  * Per vakdiscipline: de naam van het tabblad in de doelenset (zo staat ze ook als 'Vakdiscipline:' in een lesplan) en
@@ -58,6 +66,24 @@ export const GO_VOORSTEL_LABEL = 'voorstel, nog niet bevestigd door het GO!';
 export function bronvermeldingLesplan(code: string): string {
   return `Bron: ${GO_NAAMSVERMELDING}, lesplan ${code} (GO! studio). Letterlijk overgenomen met toestemming.`;
 }
+
+/**
+ * De vakken van het GO! bij elk vak van de minimumdoelen (het eerste getal van een code: 1 Nederlands tot 10 Frans). Zo
+ * koppelt het GO! zelf in `bij-minimumdoel`; nagerekend op de bestanden: 1 NL 100%, 2 WI 98%, 3 WT 100%, 4 AA 100%,
+ * 5 GE 91%, 6 MV 100%, 7 LO 100%, 8 IT 88%, 10 FR 100%, en 9 (attitudes) verdeeld over BU, LL en SV.
+ */
+export const GO_VAKKEN_BIJ_VAK: Readonly<Record<number, readonly GoVak[]>> = {
+  1: ['NL'],
+  2: ['WI'],
+  3: ['WT'],
+  4: ['AA'],
+  5: ['GE'],
+  6: ['MV'],
+  7: ['LO'],
+  8: ['IT'],
+  9: ['BU', 'LL', 'SV'],
+  10: ['FR'],
+};
 
 /** De volledige bronvermelding bij een leerplandoel of een overzicht van leerplandoelen van één vak. */
 export function bronvermeldingLeerplan(vak: GoVak): string {

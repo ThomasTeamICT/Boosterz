@@ -1,17 +1,19 @@
-// Het laden van de gegevens van het GO!: strikte bestandsnamen, valideren bij het laden, een kleine cache en nette
-// foutmeldingen. De bestanden zijn de echte uit public/basis/go/ (een goed bestand moet erdoor); de foute zijn kopieën
-// waar iets aan stuk gemaakt is.
+// Het laden van de gegevens van het GO!: strikte bestandsnamen, de lichte controle bij het laden, een kleine cache (de minst
+// recent gebruikte gaat eruit) en foutmeldingen in gewone woorden. De bestanden zijn de echte uit public/basis/go/ (een goed
+// bestand moet erdoor); de foute zijn kopieën waar iets aan stuk gemaakt is.
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  BelofteCache,
   FOUT_GO_NIET_GELADEN,
   GO_MAP,
   GoNietGevondenFout,
   MAX_LEERPLANNEN_IN_CACHE,
   goCacheGrootte,
+  isGoNietGevonden,
   isGeldigMinimumdoelVak,
   isGeldigeLesplancode,
   laadGoBijMinimumdoel,
@@ -20,7 +22,7 @@ import {
   laadGoLesplan,
   wisGoCache,
 } from './goBron';
-import type { GoVak } from './types';
+import { GO_VAK_CODES, type GoVak } from './types';
 
 const MAP = join(fileURLToPath(new URL('../../../../', import.meta.url)), 'public', 'basis', 'go');
 const lees = (bestand: string): unknown => JSON.parse(readFileSync(join(MAP, bestand), 'utf8'));
@@ -47,8 +49,28 @@ function stubFetch(anders: Record<string, () => Response | Promise<Response>> = 
 
 const urls = (fn: ReturnType<typeof stubFetch>) => fn.mock.calls.map((c) => String(c[0]));
 
-beforeEach(() => wisGoCache());
-afterEach(() => vi.unstubAllGlobals());
+/** Het advies bij een bestand dat niet door de controle komt: herladen helpt bij een tabblad met oude code. */
+const HERLADEN = 'kon niet gelezen worden. Laad de pagina opnieuw; lukt het dan nog niet, probeer het later nog eens.';
+
+/** De melding van een mislukte belofte. */
+async function melding(p: Promise<unknown>): Promise<string> {
+  try {
+    await p;
+  } catch (e) {
+    return e instanceof Error ? e.message : String(e);
+  }
+  throw new Error('de belofte lukte');
+}
+
+let waarschuwing: ReturnType<typeof vi.spyOn>;
+beforeEach(() => {
+  wisGoCache();
+  waarschuwing = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+  waarschuwing.mockRestore();
+});
 
 describe('de bestandsnamen', () => {
   it('de map ligt naast de app', () => {
@@ -116,10 +138,24 @@ describe('laadGoIndex', () => {
     await expect(laadGoIndex()).rejects.toThrow(FOUT_GO_NIET_GELADEN);
   });
 
-  it('weigert een index met een onbekend veld als beschadigd', async () => {
-    const stuk = { ...(lees('index.json') as Record<string, unknown>), metadata: 'iets' };
+  it('aanvaardt een index met een onbekend optioneel veld (een uitrol met een nieuw veld breekt geen open tabblad)', async () => {
+    const extra = { ...(lees('index.json') as Record<string, unknown>), nieuwVeld: 'iets' };
+    stubFetch({ 'index.json': () => antwoord(extra) });
+    expect((await laadGoIndex()).kind).toBe('go-index');
+  });
+
+  it('weigert een index met een misvormde lijst, in gewone woorden en met het detail alleen in de console', async () => {
+    const stuk = { ...(lees('index.json') as Record<string, unknown>), lesplannen: 'geen lijst' };
     stubFetch({ 'index.json': () => antwoord(stuk) });
-    await expect(laadGoIndex()).rejects.toThrow(/beschadigd/);
+    const m = await melding(laadGoIndex());
+    expect(m).toBe(`Het overzicht van het GO! ${HERLADEN}`);
+    expect(m).not.toMatch(/lesplannen|lijst|beschadigd|index/);
+    expect(waarschuwing).toHaveBeenCalledWith('Boosterz: Het overzicht van het GO!', ['lesplannen: geen lijst']);
+  });
+
+  it('weigert een index van een nieuwere versie (v 2) met het advies de pagina opnieuw te laden', async () => {
+    stubFetch({ 'index.json': () => antwoord({ ...(lees('index.json') as Record<string, unknown>), v: 2 }) });
+    expect(await melding(laadGoIndex())).toBe(`Het overzicht van het GO! ${HERLADEN}`);
   });
 });
 
@@ -143,30 +179,41 @@ describe('laadGoLesplan', () => {
   it('een ontbrekend bestand is een GoNietGevondenFout, en blijft niet in de cache', async () => {
     const fn = stubFetch();
     await expect(laadGoLesplan('LP9999')).rejects.toBeInstanceOf(GoNietGevondenFout);
-    await expect(laadGoLesplan('LP9999')).rejects.toThrow(/bestaat niet/);
+    expect(await melding(laadGoLesplan('LP9999'))).toBe('Het lesplan LP9999 bestaat niet (meer).');
     expect(fn).toHaveBeenCalledTimes(2);
     expect(goCacheGrootte().lesplannen).toBe(0);
   });
 
-  it('weigert een beschadigd lesplan, met de eerste fout erbij', async () => {
-    const stuk = { ...(lees('lesplannen/LP0065.json') as Record<string, unknown>), onbekend: 1 };
+  it('isGoNietGevonden herkent de melding van een ontbrekend bestand, en geen andere melding', async () => {
+    stubFetch();
+    expect(isGoNietGevonden(await melding(laadGoLesplan('LP9999')))).toBe(true);
+    expect(isGoNietGevonden(FOUT_GO_NIET_GELADEN)).toBe(false);
+    const stuk = { ...(lees('lesplannen/LP0065.json') as Record<string, unknown>), delen: 'stuk' };
     stubFetch({ 'lesplannen/LP0065.json': () => antwoord(stuk) });
-    await expect(laadGoLesplan('LP0065')).rejects.toThrow(/Het lesplan LP0065 kon niet gelezen worden: het bestand is beschadigd/);
+    expect(isGoNietGevonden(await melding(laadGoLesplan('LP0065')))).toBe(false);
+    expect(isGoNietGevonden(await melding(laadGoLesplan('lp0065')))).toBe(false);
+  });
+
+  it('weigert een lesplan met een misvormd deel, zonder het detail van de controle op het scherm', async () => {
+    const stuk = { ...(lees('lesplannen/LP0065.json') as Record<string, unknown>), delen: 'stuk' };
+    stubFetch({ 'lesplannen/LP0065.json': () => antwoord(stuk) });
+    expect(await melding(laadGoLesplan('LP0065'))).toBe(`Het lesplan LP0065 ${HERLADEN}`);
+    expect(waarschuwing).toHaveBeenCalledWith('Boosterz: Het lesplan LP0065', ['delen: geen lijst']);
     expect(goCacheGrootte().lesplannen).toBe(0);
+  });
+
+  it('aanvaardt een lesplan met een onbekend optioneel veld', async () => {
+    const extra = { ...(lees('lesplannen/LP0065.json') as Record<string, unknown>), onbekend: 1 };
+    stubFetch({ 'lesplannen/LP0065.json': () => antwoord(extra) });
+    expect((await laadGoLesplan('LP0065')).code).toBe('LP0065');
   });
 
   it('weigert een bestand dat bij een ander lesplan hoort', async () => {
     stubFetch({ 'lesplannen/LP0074.json': () => antwoord(lees('lesplannen/LP0065.json')) });
-    await expect(laadGoLesplan('LP0074')).rejects.toThrow(/beschadigd/);
+    expect(await melding(laadGoLesplan('LP0074'))).toBe(`Het lesplan LP0074 ${HERLADEN}`);
+    expect(waarschuwing).toHaveBeenCalledWith('Boosterz: Het lesplan LP0074', ['het bestand hoort bij een ander lesplan (LP0065)']);
   });
-
-  it('weigert een lesplan met een e-mailadres erin', async () => {
-    const stuk = JSON.parse(JSON.stringify(lees('lesplannen/LP0065.json'))) as { delen: { blokken: { soort: string; tekst?: { t: string }[] }[] }[] };
-    const alinea = stuk.delen[0].blokken.find((b) => b.soort === 'alinea');
-    alinea?.tekst?.push({ t: ' mail naar iemand@voorbeeld.be' });
-    stubFetch({ 'lesplannen/LP0065.json': () => antwoord(stuk) });
-    await expect(laadGoLesplan('LP0065')).rejects.toThrow(/beschadigd/);
-  });
+  // Persoonsgegevens en de volledige vorm bewaakt de uitrolpoort (goBestanden.test.ts, valideer.ts), niet de app.
 });
 
 describe('laadGoLeerplan', () => {
@@ -180,29 +227,51 @@ describe('laadGoLeerplan', () => {
     expect(b).toBe(a);
   });
 
-  it('houdt hoogstens enkele leerplannen tegelijk in het geheugen; de oudste gaat eruit', async () => {
+  it('houdt alle twaalf leerplannen in het geheugen: heen en weer tussen vakken haalt niets opnieuw op', async () => {
     const fn = stubFetch();
-    const vakken: GoVak[] = ['SV', 'LL', 'IT', 'MV'];
-    expect(vakken.length).toBe(MAX_LEERPLANNEN_IN_CACHE + 1);
-    for (const v of vakken) await laadGoLeerplan(v);
-    expect(goCacheGrootte().leerplannen).toBe(MAX_LEERPLANNEN_IN_CACHE);
-    expect(fn).toHaveBeenCalledTimes(4);
-    await laadGoLeerplan('MV'); // nog bewaard
-    expect(fn).toHaveBeenCalledTimes(4);
-    await laadGoLeerplan('SV'); // eruit gegaan: opnieuw opgehaald
-    expect(fn).toHaveBeenCalledTimes(5);
+    expect(MAX_LEERPLANNEN_IN_CACHE).toBe(GO_VAK_CODES.length);
+    for (const v of GO_VAK_CODES) await laadGoLeerplan(v);
+    expect(goCacheGrootte().leerplannen).toBe(12);
+    for (const v of GO_VAK_CODES) await laadGoLeerplan(v);
+    expect(fn).toHaveBeenCalledTimes(12);
   });
 
-  it('weigert een bestand dat bij een ander vak hoort', async () => {
-    stubFetch({ 'leerplan/SV.json': () => antwoord(lees('leerplan/LL.json')) });
-    await expect(laadGoLeerplan('SV')).rejects.toThrow(/beschadigd/);
+  it('weigert een bestand dat bij een ander vak hoort; het leerplan heet zoals de doelenset', async () => {
+    stubFetch({ 'leerplan/WT.json': () => antwoord(lees('leerplan/LL.json')) });
+    expect(await melding(laadGoLeerplan('WT'))).toBe(`Het leerplan wetenschap en techniek van het GO! ${HERLADEN}`);
   });
 
-  it('weigert een leerplan met een gat in de codes', async () => {
-    const stuk = JSON.parse(JSON.stringify(lees('leerplan/SV.json'))) as { doelen: unknown[] };
-    stuk.doelen.splice(3, 1);
+  it('weigert een leerplan met een doel zonder inhoud', async () => {
+    const stuk = JSON.parse(JSON.stringify(lees('leerplan/SV.json'))) as { doelen: Record<string, unknown>[] };
+    delete stuk.doelen[3].inhoud;
     stubFetch({ 'leerplan/SV.json': () => antwoord(stuk) });
-    await expect(laadGoLeerplan('SV')).rejects.toThrow(/Het leerplan SV kon niet gelezen worden/);
+    expect(await melding(laadGoLeerplan('SV'))).toBe(`Het leerplan sociale vaardigheden van het GO! ${HERLADEN}`);
+    expect(waarschuwing).toHaveBeenCalledWith('Boosterz: Het leerplan sociale vaardigheden van het GO!', ['doelen[3] (SV.004).inhoud: geen lijst']);
+  });
+});
+
+describe('BelofteCache', () => {
+  const klaar = (w: string) => () => Promise.resolve(w);
+
+  it('boven de grens gaat het minst recent gebruikte eruit; een gebruikt bestand blijft staan', async () => {
+    const cache = new BelofteCache<string>(3);
+    const maak = vi.fn(klaar('x'));
+    for (const s of ['WT', 'WI', 'NL']) await cache.haal(s, maak);
+    await cache.haal('WT', maak); // treffer: WT is nu het meest recent gebruikt
+    expect(maak).toHaveBeenCalledTimes(3);
+    await cache.haal('AA', maak); // WI gaat eruit, niet WT
+    expect(cache.grootte).toBe(3);
+    await cache.haal('WT', maak);
+    expect(maak).toHaveBeenCalledTimes(4);
+    await cache.haal('WI', maak); // eruit gegaan: opnieuw gemaakt
+    expect(maak).toHaveBeenCalledTimes(5);
+  });
+
+  it('een mislukte poging blijft er niet in staan', async () => {
+    const cache = new BelofteCache<string>(2);
+    await expect(cache.haal('WT', () => Promise.reject(new Error('weg')))).rejects.toThrow('weg');
+    expect(cache.grootte).toBe(0);
+    expect(await cache.haal('WT', klaar('terug'))).toBe('terug');
   });
 });
 
@@ -217,13 +286,14 @@ describe('laadGoBijMinimumdoel', () => {
     expect(b).toBe(a);
   });
 
-  it('weigert een bestand dat bij een ander vak hoort', async () => {
+  it('weigert een bestand dat bij een ander vak hoort, met een melding in het enkelvoud en zonder vaknummer', async () => {
     stubFetch({ 'bij-minimumdoel/4.json': () => antwoord(lees('bij-minimumdoel/3.json')) });
-    await expect(laadGoBijMinimumdoel(4)).rejects.toThrow(/beschadigd/);
+    expect(await melding(laadGoBijMinimumdoel(4))).toBe(`Het leerplan van het GO! bij dit minimumdoel ${HERLADEN}`);
   });
 
   it('een ontbrekend bestand is een GoNietGevondenFout', async () => {
     stubFetch({ 'bij-minimumdoel/2.json': () => antwoord(null, 404) });
     await expect(laadGoBijMinimumdoel(2)).rejects.toBeInstanceOf(GoNietGevondenFout);
+    expect(await melding(laadGoBijMinimumdoel(2))).toBe('Het leerplan van het GO! bij dit minimumdoel bestaat niet (meer).');
   });
 });

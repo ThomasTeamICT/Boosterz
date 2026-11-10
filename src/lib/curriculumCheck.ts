@@ -253,11 +253,12 @@ const TUSSEN_CODE_EN_TEKST = String.raw`(?:\s|[:.)\]–—-]|\(U\)|\(uitbreiding
  * einde van wat ervoor staat). Tolerant voor spaties tussen letters en cijfers ("LPD12"), een "U" of
  * "(U)" achter de code, en `TUSSEN_CODE_EN_TEKST`.
  */
-function codeVoorRegex(code: string): RegExp | undefined {
+export function codeVoorRegex(code: string): RegExp | undefined {
   const basis = normalizeGoalCode(code).replace(/\s?\(U\)$/, '').replace(/(\d)U$/, '$1');
   if (!basis) return undefined;
   const patroon = escapeRe(basis.replace(/(\p{L})(\d)/gu, '$1 $2')).replace(/ /g, String.raw`\s?`);
-  return new RegExp(String.raw`(?<![\p{L}\p{N}.])${patroon}(?:\s?U|\s?\(U\))?${TUSSEN_CODE_EN_TEKST}$`, 'iu');
+  // Vooraan: begin van de tekst of een teken dat geen letter, cijfer of punt is (zonder lookbehind, zie tekenErvoor.ts).
+  return new RegExp(String.raw`(?:^|[^\p{L}\p{N}.])${patroon}(?:\s?U|\s?\(U\))?${TUSSEN_CODE_EN_TEKST}$`, 'iu');
 }
 
 /** Een doeltekst die zo eindigt, is een afgeronde zin (of lijst): na normalisatie zijn de aanhalingstekens recht. */

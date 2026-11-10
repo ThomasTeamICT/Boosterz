@@ -1,26 +1,28 @@
 // #/basis/leerplandoelen/wt?leerjaar=K1: de leerplandoelen van één vakdiscipline van het GO! (docs/basisonderwijs/
 // GO-LEERPLAN.md, "3. Leerplandoelen per vak en leeftijd"): de kiezer voor de leeftijd, de onderwerpen, een filter
-// 'zonder minimumdoel' en de doelen per onderwerp (h2), subthema (h3) en rubriek (h4). Een subrubriek is een vette
-// tussenregel, geen h5, zodat de kopstructuur bruikbaar blijft.
+// 'zonder minimumdoel' en de doelen per onderwerp (h2), subthema (h3), rubriek (h4) en subrubriek (h5). Elke rubriek is een
+// kop, een niveau onder haar ouder, zodat een schermlezer de hele indeling kan doorlopen zonder dat er een niveau overgeslagen wordt.
 //
 // Dit scherm laadt lui (BasisDeel) en laadt één leerplanbestand en de index. Alle tekst van het GO! is letterlijk; de
 // minimumdoelen staan als chips (de tekst zelf staat op de leerplandoelpagina, uit de API).
 // De groep van het bewaarde leerjaar staat standaard aan; 'Alle leeftijden' zet dat uit zonder iets te bewaren.
+// Laadt de index niet, dan staat er boven de lijst een melding met 'Opnieuw proberen': de lesplannen bij de doelen
+// ontbreken dan, en stil weglaten zou zeggen dat er geen zijn.
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GoBronvermelding } from '../../components/basis/go/GoBronvermelding';
-import { KoppelingChips } from '../../components/basis/go/KoppelingLijst';
+import { KoppelingChips, type DoelPadFn } from '../../components/basis/go/KoppelingLijst';
+import { useDoelPad } from '../../components/basis/go/useDoelPad';
 import { LeeftijdKiezer } from '../../components/basis/go/LeeftijdKiezer';
 import { GoTekstWeergave } from '../../components/basis/go/MiaBlok';
-import { useGoIndex, useGoLeerplan } from '../../components/basis/useGo';
+import { foutVan, useGoIndex, useGoLeerplan, type GoLaadFout } from '../../components/basis/useGo';
 import { useBasisKeuze } from '../../components/basis/useBasisKeuze';
 import { FoutBericht, LaadBericht } from '../../components/curriculum/LaadStatus';
 import { basisPad } from '../../lib/basis/basisRoutes';
-import { rubriekPad } from '../../lib/basis/go/goModel';
+import { isZonderMinimumdoel, rubriekPad } from '../../lib/basis/go/goModel';
 import { GO_LEEFTIJDEN, leerjaarVanLeeftijd, leeftijdLabel, leeftijdenLabel, leeftijdVanLeerjaar } from '../../lib/basis/go/leeftijden';
-import { GO_VAKKEN, type GoIndex, type GoLeeftijd, type GoLeerplandoel, type GoLeerplanBestand, type GoRubriek, type GoVak } from '../../lib/basis/go/types';
-import { isZonderMinimumdoel } from '../../lib/basis/go/valideer';
+import { GO_VAKKEN, KENNISVERWERKING_ZIN, type GoIndex, type GoLeeftijd, type GoLeerplandoel, type GoLeerplanBestand, type GoRubriek, type GoVak } from '../../lib/basis/go/types';
 import type { LeerjaarBasis } from '../../lib/basis/kalender';
 import '../../styles/basis-go.css';
 
@@ -35,13 +37,13 @@ export interface DoelFilter {
 }
 
 export type LijstItem =
-  | { soort: 'kop'; rubriek: GoRubriek; /** 2 tot 4 voor h2 tot h4; 0 voor een vette tussenregel. */ niveau: 0 | 2 | 3 | 4 }
+  | { soort: 'kop'; rubriek: GoRubriek; /** 2 tot 5 voor h2 tot h5. */ niveau: 2 | 3 | 4 | 5 }
   | { soort: 'doel'; doel: GoLeerplandoel };
 
 /**
  * De doelen die het filter doorlaten, met alleen de koppen waar zo'n doel onder valt, in bronvolgorde. Het niveau van een
  * kop volgt de diepte in de hiërarchie (de bron slaat soms een niveau over), zodat er nooit een kop overgeslagen wordt;
- * een subrubriek krijgt geen kop maar een tussenregel.
+ * een subrubriek is een h5.
  */
 export function lijstItems(leerplan: GoLeerplanBestand, filter: DoelFilter): { items: LijstItem[]; aantal: number } {
   const bekend = new Set(leerplan.rubrieken.map((r) => r.id));
@@ -67,7 +69,7 @@ export function lijstItems(leerplan: GoLeerplanBestand, filter: DoelFilter): { i
       .filter((r) => gebruikt.has(r.id))
       .map((r) => {
         const diepte = padVan(r.id).length;
-        const niveau: 0 | 2 | 3 | 4 = r.soort === 'subrubriek' ? 0 : (Math.min(1 + diepte, 4) as 2 | 3 | 4);
+        const niveau = Math.min(1 + diepte, 5) as 2 | 3 | 4 | 5;
         return { rij: r.rij, item: { soort: 'kop', rubriek: r, niveau } as LijstItem };
       }),
     ...doelen.map((d) => ({ rij: d.rij, item: { soort: 'doel', doel: d } as LijstItem })),
@@ -118,7 +120,7 @@ export function onderwerpKeuzes(leerplan: GoLeerplanBestand, filter: Omit<DoelFi
 
 // ── Onderdelen ──────────────────────────────────────────────────────────────
 
-function Doel({ doel, lesplannen }: { doel: GoLeerplandoel; lesplannen: readonly string[] }) {
+function Doel({ doel, lesplannen, doelPad }: { doel: GoLeerplandoel; lesplannen: readonly string[]; doelPad?: DoelPadFn }) {
   return (
     <li className="b-go-doel" id={`b-go-doel-${doel.code}`}>
       <p className="b-go-doelkop">
@@ -135,17 +137,17 @@ function Doel({ doel, lesplannen }: { doel: GoLeerplandoel; lesplannen: readonly
         <GoTekstWeergave tekst={doel} />
       </p>
       <p className="b-go-leeftijden">({leeftijdenLabel(doel.leeftijden)})</p>
-      <KoppelingChips doel={doel} />
+      <KoppelingChips doel={doel} doelPad={doelPad} />
       {lesplannen.length > 0 && (
         <p className="b-go-koppeling">
           <span className="b-go-koppeling-kop">{lesplannen.length === 1 ? 'Lesplan: ' : `Lesplannen (${lesplannen.length}): `}</span>
           {lesplannen.map((c, n) => (
             <span key={c}>
-              {n > 0 && ', '}
               <Link to={basisPad({ s: 'lesplan', code: c })} className="b-go-lesplanlink">
                 {c}
                 <span className="sr-only"> (lesplan bij {doel.code})</span>
               </Link>
+              {n < lesplannen.length - 1 && ','}
             </span>
           ))}
         </p>
@@ -154,17 +156,14 @@ function Doel({ doel, lesplannen }: { doel: GoLeerplandoel; lesplannen: readonly
   );
 }
 
-function Kop({ rubriek, niveau }: { rubriek: GoRubriek; niveau: 0 | 2 | 3 | 4 }): ReactNode {
-  const inhoud = <GoTekstWeergave tekst={rubriek} />;
-  if (niveau === 0) {
-    return (
-      <p className="b-go-subrubriek b-go-tekst">
-        <strong>{inhoud}</strong>
-      </p>
-    );
-  }
-  const H = `h${niveau}` as 'h2' | 'h3' | 'h4';
-  return <H className={`b-go-kop b-go-kop-${niveau} b-go-tekst`}>{inhoud}</H>;
+function Kop({ rubriek, niveau }: { rubriek: GoRubriek; niveau: 2 | 3 | 4 | 5 }): ReactNode {
+  const H = `h${niveau}` as 'h2' | 'h3' | 'h4' | 'h5';
+  const klasse = rubriek.soort === 'subrubriek' ? 'b-go-kop b-go-subrubriek b-go-tekst' : `b-go-kop b-go-kop-${niveau} b-go-tekst`;
+  return (
+    <H className={klasse}>
+      <GoTekstWeergave tekst={rubriek} />
+    </H>
+  );
 }
 
 export interface LeerplandoelenInhoudProps {
@@ -175,10 +174,14 @@ export interface LeerplandoelenInhoudProps {
   onZonder: (aan: boolean) => void;
   /** Het adres van een onderwerp (rubriek) met dezelfde leeftijd, of van het hele vak (zonder rubriek). */
   rubriekPad: (rubriek: string | undefined) => string;
+  /** De index laadde niet: de lesplannen bij de doelen ontbreken. Boven de lijst staat dan een melding met 'Opnieuw proberen'. */
+  indexFout?: GoLaadFout;
+  /** Het adres van een minimumdoel (useDoelPad, één keer per scherm); standaard de gewone set. */
+  doelPad?: DoelPadFn;
 }
 
 /** De pagina voor een geladen leerplan, zonder zelf iets te laden. */
-export function LeerplandoelenInhoud({ leerplan, index, filter, onLeeftijd, onZonder, rubriekPad: naarRubriek }: LeerplandoelenInhoudProps) {
+export function LeerplandoelenInhoud({ leerplan, index, filter, onLeeftijd, onZonder, rubriekPad: naarRubriek, indexFout, doelPad }: LeerplandoelenInhoudProps) {
   const vak = leerplan.vak;
   const { items, aantal } = useMemo(() => lijstItems(leerplan, filter), [leerplan, filter]);
   const keuzes = useMemo(() => onderwerpKeuzes(leerplan, { leeftijd: filter.leeftijd, zonderMinimumdoel: filter.zonderMinimumdoel }), [leerplan, filter.leeftijd, filter.zonderMinimumdoel]);
@@ -192,13 +195,17 @@ export function LeerplandoelenInhoud({ leerplan, index, filter, onLeeftijd, onZo
   const zonderAantal = useMemo(() => leerplan.doelen.filter((d) => isZonderMinimumdoel(d)).length, [leerplan]);
   const gekozenRubriek = filter.rubriek !== undefined ? leerplan.rubrieken.find((r) => r.id === filter.rubriek) : undefined;
   const naam = GO_VAKKEN[vak].doelenset;
+  // Een lege lijst door de leeftijd alleen (geen vinkje, geen onderwerp): zeg waar het vak wel doelen heeft.
+  const eldersLeeftijden = GO_LEEFTIJDEN.filter((l) => perLeeftijd[l] > 0);
+  const elders =
+    aantal === 0 && filter.leeftijd !== undefined && !filter.zonderMinimumdoel && filter.rubriek === undefined && eldersLeeftijden.length > 0 ? eldersLeeftijden : undefined;
 
   return (
     <div className="b-doelpagina b-go-pagina b-go-lijst">
       <nav className="b-kruimel" aria-label="Kruimelpad">
         <ol>
           <li>
-            <Link to={basisPad({ s: 'go' })}>Leerplan van het GO!</Link>
+            <Link to={basisPad({ s: 'go' })}>Leerplan en lesplannen van het GO!</Link>
           </li>
           <li>
             <span aria-current="page">{GO_VAKKEN[vak].naam}</span>
@@ -209,6 +216,7 @@ export function LeerplandoelenInhoud({ leerplan, index, filter, onLeeftijd, onZo
       <p className="b-lead">
         {leerplan.doelen.length} leerplandoelen, per leeftijd en per onderwerp, met de minimumdoelen waar het leerplan van het GO! ze aan koppelt.
       </p>
+      <p className="b-noot">{KENNISVERWERKING_ZIN}</p>
       <GoBronvermelding soort="leerplan" vak={vak} ingelezen={leerplan.bron.ingelezen} />
 
       <LeeftijdKiezer waarde={filter.leeftijd} onKies={onLeeftijd} aantallen={perLeeftijd} />
@@ -243,10 +251,23 @@ export function LeerplandoelenInhoud({ leerplan, index, filter, onLeeftijd, onZo
       )}
 
       <p className="b-go-aantal" role="status">
-        {aantal === 0
+        {elders
+          ? `${naam} heeft geen leerplandoelen voor ${leeftijdLabel(filter.leeftijd as GoLeeftijd)}. Wel voor:`
+          : aantal === 0
           ? 'Geen leerplandoelen voor deze keuze.'
           : `${aantal} van de ${leerplan.doelen.length} leerplandoelen${filter.leeftijd ? ` voor ${leeftijdLabel(filter.leeftijd)}` : ''}${filter.zonderMinimumdoel ? ', zonder minimumdoel' : ''}.`}
       </p>
+      {elders && (
+        <div className="b-pillen" role="group" aria-label="Leeftijden met leerplandoelen">
+          {elders.map((l) => (
+            <button key={l} type="button" className="b-pil-knop" onClick={() => onLeeftijd(l)}>
+              {leeftijdLabel(l)}
+              <span className="b-go-pil-aantal"> ({perLeeftijd[l]})</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {indexFout && <FoutBericht fout={indexFout.fout} onOpnieuw={indexFout.opnieuw} naam="lesplannen bij de doelen" />}
 
       {blokken.map((b, n) =>
         b.soort === 'kop' ? (
@@ -254,7 +275,7 @@ export function LeerplandoelenInhoud({ leerplan, index, filter, onLeeftijd, onZo
         ) : (
           <ul key={`doelen-${n}`} className="b-go-doelen">
             {b.doelen.map((d) => (
-              <Doel key={d.code} doel={d} lesplannen={lesplannen.get(d.code) ?? []} />
+              <Doel key={d.code} doel={d} lesplannen={lesplannen.get(d.code) ?? []} doelPad={doelPad} />
             ))}
           </ul>
         ),
@@ -265,24 +286,37 @@ export function LeerplandoelenInhoud({ leerplan, index, filter, onLeeftijd, onZo
 
 // ── Het scherm ──────────────────────────────────────────────────────────────
 
-export function LeerplandoelenScherm({ vak, leerjaar, rubriek }: { vak: GoVak; leerjaar?: LeerjaarBasis; rubriek?: string }) {
+export function LeerplandoelenScherm({
+  vak,
+  leerjaar,
+  alle,
+  rubriek,
+  zonder,
+}: {
+  vak: GoVak;
+  leerjaar?: LeerjaarBasis;
+  alle?: boolean;
+  rubriek?: string;
+  zonder?: boolean;
+}) {
   const leerplan = useGoLeerplan(vak);
-  const index = useGoIndex().stand;
+  const indexHook = useGoIndex();
+  const index = indexHook.stand;
   const navigate = useNavigate();
   const { keuze } = useBasisKeuze();
-  const [alle, setAlle] = useState(false);
-  const [zonder, setZonder] = useState(false);
+  const doelPad = useDoelPad();
 
   // Het adres wint; zonder leerjaar in het adres staat de groep van het bewaarde leerjaar aan, tenzij je 'Alle leeftijden' koos.
   const effectief: LeerjaarBasis | undefined = leerjaar ?? (alle ? undefined : keuze?.leerjaar);
   const leeftijd = effectief ? leeftijdVanLeerjaar(effectief) : undefined;
-  const filter = useMemo<DoelFilter>(() => ({ leeftijd, zonderMinimumdoel: zonder, rubriek }), [leeftijd, zonder, rubriek]);
+  const filter = useMemo<DoelFilter>(() => ({ leeftijd, zonderMinimumdoel: !!zonder, rubriek }), [leeftijd, zonder, rubriek]);
 
   const kiesLeeftijd = (l: GoLeeftijd | undefined) => {
-    setAlle(l === undefined);
-    navigate(basisPad({ s: 'leerplandoelen', vak, leerjaar: l ? leerjaarVanLeeftijd(l) : undefined, rubriek }), { replace: true });
+    navigate(basisPad({ s: 'leerplandoelen', vak, leerjaar: l ? leerjaarVanLeeftijd(l) : undefined, alle: l === undefined || undefined, rubriek, zonder: zonder || undefined }), { replace: true });
   };
-  const naarRubriek = (r: string | undefined) => basisPad({ s: 'leerplandoelen', vak, leerjaar: effectief, rubriek: r });
+  const onZonder = (aan: boolean) => navigate(basisPad({ s: 'leerplandoelen', vak, leerjaar, alle: alle || undefined, rubriek, zonder: aan || undefined }), { replace: true });
+  const naarRubriek = (r: string | undefined) =>
+    basisPad({ s: 'leerplandoelen', vak, leerjaar: effectief, alle: (!effectief && alle) || undefined, rubriek: r, zonder: zonder || undefined });
 
   const kop = `Leerplan van het GO!: ${GO_VAKKEN[vak].doelenset}`;
   if (leerplan.stand.status === 'laden') {
@@ -307,8 +341,10 @@ export function LeerplandoelenScherm({ vak, leerjaar, rubriek }: { vak: GoVak; l
       index={index.status === 'klaar' ? index.waarde : undefined}
       filter={filter}
       onLeeftijd={kiesLeeftijd}
-      onZonder={setZonder}
+      onZonder={onZonder}
       rubriekPad={naarRubriek}
+      indexFout={foutVan(indexHook)}
+      doelPad={doelPad}
     />
   );
 }

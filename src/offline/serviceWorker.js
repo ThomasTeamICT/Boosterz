@@ -341,9 +341,11 @@ self.addEventListener('message', (event) => {
 });
 
 /**
- * Bij het allereerste bezoek laadde de pagina al chunks vóór deze service
- * worker bestond. De pagina stuurt die lijst; wij bewaren alleen bestanden in
- * assets/ die bij deze build horen.
+ * Bij het allereerste bezoek laadde de pagina al chunks en gegevens (bv. de
+ * json-bestanden van het GO!) vóór deze service worker bestond. De pagina
+ * stuurt die lijst; wij bewaren alleen eigen bestanden die bij deze build
+ * horen (KNOWN: nooit index.html of sw.js). Zo werkt een pagina die één keer
+ * online bekeken is, daarna ook offline.
  */
 async function cacheUrls(urls) {
   if (!Array.isArray(urls)) return;
@@ -351,7 +353,7 @@ async function cacheUrls(urls) {
   for (const raw of urls.slice(0, 300)) {
     if (typeof raw !== 'string') continue;
     const path = pathInApp(raw);
-    if (path === null || !path.startsWith('assets/') || !KNOWN.has(path)) continue;
+    if (path === null || !KNOWN.has(path)) continue;
     const url = ROOT + path;
     try {
       if (await files.match(url, { ignoreVary: true })) continue;

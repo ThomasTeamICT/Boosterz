@@ -6,19 +6,25 @@
 //   npx vite-node tools/basis/go/maak.ts --werkmap <map> --uit <map> [--aanvaard-wijzigingen]
 //     [--ingelezen JJJJ-MM-DD] [--minimumdoelen <map>] [--bekende <bekende-afwijkingen.json>]
 //
-//   --werkmap  buiten de repo: bron/ (de originele docx en xlsx, ook in submappen), ruw/ (de JSON van de lezers),
+//   --werkmap  buiten de repo: bron/ (de originele docx en xlsx, ook in submappen), ruw/ (de JSON van de lezers; het
+//              veld bron, bytes en sha256 van het gelezen bestand, moet bij het origineel in bron/ horen),
 //              eventueel manifest.json (decodeer.py; bytes en sha256 worden nagekeken) en beelden/ (de beelden die
-//              bekende-afwijkingen.json als 'getoond' opgeeft, bv. beelden/<sha1>.png: een png met de sha1 als naam
-//              moet byte-gelijk zijn aan het origineel). Het rapport komt in <werkmap>/rapport.json.
+//              bekende-afwijkingen.json als 'getoond' opgeeft: een png met de sha1 als naam moet byte-gelijk zijn aan
+//              het origineel, elk ander beeld (de WebP) aan de sha256 van zijn regel). Ontbreekt een beeld in
+//              beelden/, dan neemt maak.ts het uit --uit als het daar met de juiste sha1 of sha256 staat.
+//              Het rapport komt in <werkmap>/rapport.json.
 //   --uit      waar de bestanden komen (index.json, leerplan/, bij-minimumdoel/, lesplannen/, beelden/). Verplicht:
 //              buiten de repo, of precies public/basis/go van deze repo (de echte import, pakket G4).
-//   --aanvaard-wijzigingen  een bestaande code met een andere tekst (of een verdwenen code of lesplan) is bewust aanvaard.
+//   --aanvaard-wijzigingen  elke wijziging aan een bestaande code, een bestaand lesplan of een rubriek (andere tekst,
+//              koppeling, leeftijd, niveau, vlaggen of schakels, rubriek of inhoud; een verdwenen code of lesplan) is
+//              bewust aanvaard. Een verdwenen doelenset en een bestand in --uit dat de nieuwe index niet noemt, stoppen
+//              ook met deze vlag; alleen het bestand van een aanvaard verdwenen lesplan (en zijn beelden) wordt gewist.
 //
 // Uitgangscodes: 0 geschreven (een ongewijzigd bestand blijft onaangeroerd); 1 fout (gebruik, lezen, schrijven);
 // 3 de vorm wijkt af of de gegevens zijn niet betrouwbaar: er is niets geschreven behalve <werkmap>/rapport.json.
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { htmlNaarTekst, metUitbreidingOpDoelzin, type MinimumdoelenIndexSet, type MinimumdoelenSetBestand } from '../../../src/lib/minimumdoelen';
 import { controleerTweelingen, maakOpzoektabel } from '../../../src/lib/basis/go/koppelen';
@@ -26,6 +32,7 @@ import {
   Afwijkingen,
   Bekende,
   controleerLesplanTegenLeerplan,
+  controleerLessenlijnen,
   controleerRuwDocx,
   controleerRuwXlsx,
   leesBekendeAfwijkingen,
@@ -42,10 +49,20 @@ import {
   type MinimumdoelRij,
   type RuwDocx,
   type RuwXlsx,
+  type RuwBron,
 } from '../../../src/lib/basis/go/omzetten';
 import { rondgangLeerplan, rondgangLesplan, type RondgangUitkomst, type XlsxRondgangUitkomst } from '../../../src/lib/basis/go/rondgang';
 import { GO_VAKKEN, leerplanShaInvoer, type GoBijMinimumdoelBestand, type GoIndex, type GoLeerplanBestand, type GoLesplanBestand, type GoVak } from '../../../src/lib/basis/go/types';
 import { valideerGoBijMinimumdoel, valideerGoIndex, valideerGoLeerplan, valideerGoLesplan, isZonderMinimumdoel } from '../../../src/lib/basis/go/valideer';
+import {
+  schermAfwijkingen,
+  schermWijzigingen,
+  tellingWijzigingen,
+  wijzigingenDoelensets,
+  wijzigingenLeerplan,
+  wijzigingenLesplannen,
+  type Wijziging,
+} from '../../../src/lib/basis/go/wijzigingen';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const STANDAARD_BEKENDE = join(REPO, 'tools', 'basis', 'go', 'bekende-afwijkingen.json');
@@ -166,8 +183,9 @@ interface Rapport {
   /** De tekst van de minimumdoel-rijen in de Excel naast die van de API (alleen ter controle; de app toont die van de API). */
   minimumdoelTekst?: { vergeleken: number; gelijk: number; witruimteOfTekens: number; anders: { vak: GoVak; rij: number; moment: string; code: string; doel: string }[] };
   tweelingen: string[];
-  wijzigingen: { soort: string; wat: string; lesplannen?: string[] }[];
-  bestanden: { geschreven: string[]; ongewijzigd: string[] };
+  wijzigingen: Wijziging[];
+  /** verwijderd: alleen het bestand (en de beelden) van een aanvaard verdwenen lesplan. */
+  bestanden: { geschreven: string[]; ongewijzigd: string[]; verwijderd: string[] };
 }
 
 function nieuwRapport(o: Opties): Rapport {
@@ -184,7 +202,7 @@ function nieuwRapport(o: Opties): Rapport {
     minimumdoelRijen: [],
     tweelingen: [],
     wijzigingen: [],
-    bestanden: { geschreven: [], ongewijzigd: [] },
+    bestanden: { geschreven: [], ongewijzigd: [], verwijderd: [] },
   };
 }
 
@@ -228,6 +246,13 @@ function maak(o: Opties, rapport: Rapport): 0 | 3 {
     }
     const bytes = statSync(origineel).size;
     const sha256 = sha256Bestand(origineel);
+    // De ruwe JSON moet uit dit origineel gelezen zijn: anders hoort de bronvermelding niet bij de tekst.
+    const ruwBron = json.bron as RuwBron;
+    if (ruwBron.bytes !== bytes || ruwBron.sha256 !== sha256) {
+      rapport.uitleg.push(`${naam}: de ruwe JSON ${basename(p)} is niet uit dit bestand gelezen (bytes of sha256 wijken af); lees het opnieuw.`);
+      invoerFout = true;
+      continue;
+    }
     const regel = manifest.find((m) => m.naam === naam);
     let staat: Rapport['invoer'][number]['manifest'] = 'onbevestigd';
     if (regel && regel.bytes !== undefined && regel.sha256 !== undefined) staat = regel.bytes === bytes && regel.sha256 === sha256 ? 'bevestigd' : 'afwijkend';
@@ -342,6 +367,8 @@ function maak(o: Opties, rapport: Rapport): 0 | 3 {
     }
     alleAfwijkingen.push(...r.afwijkingen.lijst);
   }
+  // Twee schrijfwijzen van dezelfde lessenlijn of lessenreeks geven in de app twee lijnen met een verschoven adres.
+  alleAfwijkingen.push(...controleerLessenlijnen(lesplannen, bekende));
 
   // 5. Omgekeerde index en index.
   const bij = maakBijMinimumdoel([...leerplannen.values()], lesplannen);
@@ -396,63 +423,86 @@ function maak(o: Opties, rapport: Rapport): 0 | 3 {
   rapport.afwijkingen.bekend = alleAfwijkingen.filter((a) => a.bekend);
   rapport.afwijkingen.verouderd = bekende.ongebruikt();
 
-  // 9. Wijzigingen tegenover wat er al in --uit staat.
-  let wijzigingStopt = false;
+  // 9. Wijzigingen tegenover wat er al in --uit staat (src/lib/basis/go/wijzigingen.ts): elke wijziging aan iets dat
+  // al bestaat stopt, tenzij --aanvaard-wijzigingen; een verdwenen doelenset stopt altijd.
+  rapport.wijzigingen.push(...wijzigingenDoelensets(bestaandeIndex, [...leerplannen.keys()]));
   for (const l of leerplannen.values()) {
     const p = join(o.uit, 'leerplan', `${l.vak}.json`);
-    if (!existsSync(p)) continue;
-    const oud = leesJson(p) as GoLeerplanBestand;
-    const nieuwPer = new Map(l.doelen.map((d) => [d.code, d]));
-    for (const d of oud.doelen ?? []) {
-      const n = nieuwPer.get(d.code);
-      const lps = lesplannen.filter((x) => x.afgeleid.leerplandoelen.some((y) => y.code === d.code)).map((x) => x.code);
-      if (!n) {
-        rapport.wijzigingen.push({ soort: 'verdwenen', wat: d.code, lesplannen: lps });
-        wijzigingStopt = true;
-      } else if (n.tekst !== d.tekst || JSON.stringify(n.opmaak ?? null) !== JSON.stringify(d.opmaak ?? null)) {
-        rapport.wijzigingen.push({ soort: 'andere tekst', wat: `${d.code}: "${d.tekst}" → "${n.tekst}"`, lesplannen: lps });
-        wijzigingStopt = true;
-      } else if (shaVan({ ...n, rij: 0, inhoud: n.inhoud.map((i) => ({ ...i, rij: 0 })) }) !== shaVan({ ...d, rij: 0, inhoud: d.inhoud.map((i) => ({ ...i, rij: 0 })) })) {
-        rapport.wijzigingen.push({ soort: 'aangepast', wat: `${d.code} (inhoud, koppeling of verwijzingen)`, lesplannen: lps });
-      }
-    }
-    const oudeCodes = new Set((oud.doelen ?? []).map((d) => d.code));
-    for (const d of l.doelen) if (!oudeCodes.has(d.code)) rapport.wijzigingen.push({ soort: 'nieuw', wat: d.code });
+    if (existsSync(p)) rapport.wijzigingen.push(...wijzigingenLeerplan(leesJson(p) as GoLeerplanBestand, l, lesplannen));
+    else if (bestaandeIndex?.leerplan?.some((x) => x.vak === l.vak)) rapport.wijzigingen.push({ soort: 'andere doelenset', wat: `${l.vak}: de vorige index noemt het, maar het bestand in --uit ontbreekt`, stopt: true });
   }
-  for (const lp of lesplannen) {
-    const p = join(o.uit, 'lesplannen', `${lp.code}.json`);
-    if (!existsSync(p)) continue;
-    const oud = leesJson(p) as GoLesplanBestand;
-    if (oud.sha256 !== lp.sha256) {
-      rapport.wijzigingen.push({ soort: 'ander lesplan', wat: `${lp.code}: de tekst of de afgeleide gegevens zijn veranderd (het aanbod dat erop steunt, wordt 'na te kijken')` });
-      wijzigingStopt = true;
-    }
-  }
-  if (bestaandeIndex) {
-    for (const l of bestaandeIndex.lesplannen ?? []) {
-      if (!lesplannen.some((x) => x.code === l.code)) {
-        rapport.wijzigingen.push({ soort: 'verdwenen lesplan', wat: l.code });
-        wijzigingStopt = true;
-      }
-    }
-  }
+  const oudLesplan = (code: string) => {
+    const p = join(o.uit, 'lesplannen', `${code}.json`);
+    return existsSync(p) ? (leesJson(p) as GoLesplanBestand) : undefined;
+  };
+  rapport.wijzigingen.push(...wijzigingenLesplannen(bestaandeIndex, oudLesplan, lesplannen));
+  const wijzigingStopt = rapport.wijzigingen.some((w) => w.stopt);
+  const wijzigingStoptAltijd = rapport.wijzigingen.filter((w) => w.altijd);
 
-  // 10. Beelden die getoond worden: het bestand moet in <werkmap>/beelden staan.
-  const beelden = new Map<string, string>();
-  for (const lp of lesplannen) {
+  // 10. Beelden die getoond worden. Een png met de sha1 van het origineel als naam moet byte-gelijk zijn aan dat origineel;
+  // elk ander beeld (de WebP van de mindmap) moet de sha256 van zijn regel in bekende-afwijkingen.json hebben. Het beeld
+  // komt uit <werkmap>/beelden, of anders uit --uit als het daar al met de juiste inhoud staat.
+  const getoond = new Set<string>();
+  const getoondIn = (lp: GoLesplanBestand) => {
+    const uit = new Set<string>();
     const zoek = (blokken: GoLesplanBestand['delen'][number]['blokken']) => {
       for (const b of blokken) {
-        if (b.soort === 'beeld' && b.status === 'getoond') beelden.set(b.bestand, join(o.werkmap, b.bestand));
+        if (b.soort === 'beeld' && b.status === 'getoond') uit.add(b.bestand);
         if (b.soort === 'tabel') for (const rij of b.rijen) for (const c of rij) zoek(c.blokken as typeof blokken);
       }
     };
-    for (const d of lp.delen) zoek(d.blokken);
+    for (const d of lp.delen ?? []) zoek(d.blokken);
+    return uit;
+  };
+  for (const lp of lesplannen) for (const b of getoondIn(lp)) getoond.add(b);
+  const beelden = new Map<string, string>();
+  const ontbrekendeBeelden: string[] = [];
+  for (const bestand of [...getoond].sort()) {
+    const png = /^beelden\/([0-9a-f]{40})\.png$/.exec(bestand);
+    const regel = bekende.lijst.find((a): a is Extract<typeof a, { soort: 'lesplan-beeld' }> => a.soort === 'lesplan-beeld' && a.bestand === bestand);
+    if (!png && !regel?.sha256) {
+      ontbrekendeBeelden.push(`${bestand} (geen sha256 in bekende-afwijkingen.json)`);
+      continue;
+    }
+    const klopt = (pad: string) => (png ? createHash('sha1').update(readFileSync(pad)).digest('hex') === png[1] : sha256Bestand(pad) === regel?.sha256);
+    const inWerkmap = join(o.werkmap, bestand);
+    const inUit = join(o.uit, bestand);
+    if (existsSync(inWerkmap)) {
+      if (klopt(inWerkmap)) beelden.set(bestand, inWerkmap);
+      else ontbrekendeBeelden.push(`${bestand} (${png ? 'sha1 wijkt af van het origineel' : 'sha256 wijkt af van bekende-afwijkingen.json'})`);
+    } else if (existsSync(inUit) && klopt(inUit)) {
+      beelden.set(bestand, inUit);
+    } else {
+      ontbrekendeBeelden.push(`${bestand} (niet in de werkmap${existsSync(inUit) ? ', en in --uit met een andere inhoud' : ''})`);
+    }
   }
-  const ontbrekendeBeelden = [...beelden.entries()].filter(([, p]) => !existsSync(p)).map(([b]) => b);
-  // Een png met de naam van het origineel moet byte-gelijk zijn aan dat origineel (zelfde sha1).
-  for (const [bestand, p] of beelden) {
-    const m = /^beelden\/([0-9a-f]{40})\.png$/.exec(bestand);
-    if (m && existsSync(p) && createHash('sha1').update(readFileSync(p)).digest('hex') !== m[1]) ontbrekendeBeelden.push(`${bestand} (sha1 wijkt af van het origineel)`);
+
+  // De bestanden die geschreven worden, en wat er in --uit staat zonder dat de nieuwe index het noemt (een wees).
+  const doelen: { pad: string; object: Record<string, unknown> }[] = [
+    { pad: 'index.json', object: gidsIndex as unknown as Record<string, unknown> },
+    ...[...leerplannen.values()].map((l) => ({ pad: `leerplan/${l.vak}.json`, object: l as unknown as Record<string, unknown> })),
+    ...bij.map((b: GoBijMinimumdoelBestand) => ({ pad: `bij-minimumdoel/${b.vak}.json`, object: b as unknown as Record<string, unknown> })),
+    ...lesplannen.map((l) => ({ pad: `lesplannen/${l.code}.json`, object: l as unknown as Record<string, unknown> })),
+  ];
+  const verwacht = new Set([...doelen.map((d) => d.pad), ...getoond]);
+  // Alleen een lesplan dat als 'verdwenen lesplan' gemeld is (en dus aanvaard moet worden), en de beelden die alleen dat
+  // lesplan toonde, mogen weg; elke andere wees stopt de import.
+  const verdwenenLesplannen = new Set(rapport.wijzigingen.flatMap((w) => (w.soort === 'verdwenen lesplan' && w.lesplan ? [w.lesplan] : [])));
+  const mag = new Set<string>();
+  for (const code of verdwenenLesplannen) {
+    mag.add(`lesplannen/${code}.json`);
+    const vorig = oudLesplan(code);
+    if (vorig) for (const b of getoondIn(vorig)) if (!getoond.has(b)) mag.add(b);
+  }
+  const teVerwijderen: string[] = [];
+  const wezen: string[] = [];
+  for (const map of ['leerplan', 'bij-minimumdoel', 'lesplannen', 'beelden']) {
+    for (const pad of alleBestanden(join(o.uit, map))) {
+      const rel = relative(o.uit, pad).split(sep).join('/');
+      if (verwacht.has(rel)) continue;
+      if (mag.has(rel)) teVerwijderen.push(rel);
+      else wezen.push(rel);
+    }
   }
 
   // 11. Beslissen.
@@ -465,8 +515,10 @@ function maak(o: Opties, rapport: Rapport): 0 | 3 {
   if (lesplannen.length !== docx.length) redenen.push(`${docx.length - lesplannen.length} lesplannen konden niet omgezet worden`);
   if (leerplannen.size !== xlsx.length) redenen.push(`${xlsx.length - leerplannen.size} doelensets konden niet omgezet worden`);
   if (rapport.tweelingen.length > 0) redenen.push(`${rapport.tweelingen.length} koppelingen zonder gelijke tweeling in het buitengewoon onderwijs`);
-  if (ontbrekendeBeelden.length > 0) redenen.push(`getoonde beelden ontbreken in de werkmap: ${ontbrekendeBeelden.join(', ')}`);
-  if (wijzigingStopt && !o.aanvaard) redenen.push('bestaande codes of lesplannen zijn veranderd of verdwenen: geef --aanvaard-wijzigingen mee als dat bewust is');
+  if (ontbrekendeBeelden.length > 0) redenen.push(`getoonde beelden ontbreken of kloppen niet: ${ontbrekendeBeelden.join(', ')}`);
+  if (wezen.length > 0) redenen.push(`bestanden in --uit die de nieuwe index niet noemt: ${wezen.join(', ')} (een ontbrekende doelenset of een oud bestand; dit stopt ook met --aanvaard-wijzigingen)`);
+  if (wijzigingStoptAltijd.length > 0) redenen.push(`${wijzigingStoptAltijd.map((w) => w.wat).join('; ')}: dit stopt altijd, ook met --aanvaard-wijzigingen`);
+  if (wijzigingStopt && !o.aanvaard) redenen.push('bestaande codes, rubrieken of lesplannen zijn veranderd of verdwenen (zie de regels WIJZIGING): geef --aanvaard-wijzigingen mee als dat bewust is');
   if (redenen.length > 0) {
     for (const r of redenen) rapport.uitleg.push(r);
     return 3;
@@ -474,12 +526,6 @@ function maak(o: Opties, rapport: Rapport): 0 | 3 {
 
   // 12. Schrijven: alleen wat veranderd is. Een bestand dat op de datum van inlezen na gelijk is aan wat er al staat,
   // blijft onaangeroerd (met zijn oude datum): zo verandert er niets zolang de bron niet verandert.
-  const doelen: { pad: string; object: Record<string, unknown> }[] = [
-    { pad: 'index.json', object: gidsIndex as unknown as Record<string, unknown> },
-    ...[...leerplannen.values()].map((l) => ({ pad: `leerplan/${l.vak}.json`, object: l as unknown as Record<string, unknown> })),
-    ...bij.map((b: GoBijMinimumdoelBestand) => ({ pad: `bij-minimumdoel/${b.vak}.json`, object: b as unknown as Record<string, unknown> })),
-    ...lesplannen.map((l) => ({ pad: `lesplannen/${l.code}.json`, object: l as unknown as Record<string, unknown> })),
-  ];
   for (const d of doelen) {
     const p = join(o.uit, d.pad);
     const inhoud = schrijfJsonTekst(d.object);
@@ -514,6 +560,10 @@ function maak(o: Opties, rapport: Rapport): 0 | 3 {
     copyFileSync(bron, p);
     rapport.bestanden.geschreven.push(bestand);
   }
+  for (const rel of teVerwijderen) {
+    unlinkSync(join(o.uit, rel));
+    rapport.bestanden.verwijderd.push(rel);
+  }
   return 0;
 }
 
@@ -534,8 +584,8 @@ function samenvatting(r: Rapport): string[] {
   const leer = Object.values(r.rondgang.leerplannen);
   uit.push(`Rondgang: lesplannen ${les.filter((x) => x.gelijk).length} van ${les.length} gelijk; doelensets ${leer.filter((x) => x.gelijk).length} van ${leer.length} gelijk.`);
   uit.push(`Afwijkingen: ${r.afwijkingen.nieuw.length} nieuw, ${r.afwijkingen.bekend.length} bekend, ${r.afwijkingen.verouderd.length} verouderde regels in bekende-afwijkingen.json.`);
-  if (r.wijzigingen.length > 0) uit.push(`Wijzigingen tegenover --uit: ${r.wijzigingen.length}.`);
-  uit.push(`Bestanden: ${r.bestanden.geschreven.length} geschreven, ${r.bestanden.ongewijzigd.length} ongewijzigd.`);
+  if (r.wijzigingen.length > 0) uit.push(`Wijzigingen tegenover --uit: ${r.wijzigingen.length} (${tellingWijzigingen(r.wijzigingen)}).`);
+  uit.push(`Bestanden: ${r.bestanden.geschreven.length} geschreven, ${r.bestanden.ongewijzigd.length} ongewijzigd${r.bestanden.verwijderd.length > 0 ? `, ${r.bestanden.verwijderd.length} verwijderd (${r.bestanden.verwijderd.join(', ')})` : ''}.`);
   return uit;
 }
 
@@ -579,8 +629,8 @@ function hoofd(argv: string[]): number {
   }
   for (const regel of samenvatting(rapport)) console.log(regel);
   for (const regel of rapport.uitleg) console.log(`${code === 0 ? '' : 'GESTOPT: '}${regel}`);
-  for (const a of rapport.afwijkingen.nieuw.slice(0, 30)) console.log(`  NIEUW ${a.bestand} ${a.waar} [${a.soort}]: ${a.bericht}`);
-  if (rapport.afwijkingen.nieuw.length > 30) console.log(`  … en nog ${rapport.afwijkingen.nieuw.length - 30} (zie rapport.json)`);
+  for (const regel of schermWijzigingen(rapport.wijzigingen)) console.log(regel);
+  for (const regel of schermAfwijkingen(rapport.afwijkingen.nieuw)) console.log(regel);
   for (const [k, v] of Object.entries(rapport.validatie)) console.log(`  VALIDATIE ${k}: ${v.slice(0, 3).join(' | ')}${v.length > 3 ? ` … (${v.length})` : ''}`);
   console.log(`Rapport: ${join(o.werkmap, 'rapport.json')}`);
   console.log(`Uitgangscode ${code}.`);

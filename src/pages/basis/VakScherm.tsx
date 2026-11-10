@@ -15,6 +15,7 @@ import { useBasisKeuze } from '../../components/basis/useBasisKeuze';
 import { useBasisIndex } from '../../components/basis/useBasisSets';
 import { aantalTekst } from '../../components/basis/VakKaart';
 import { vakIcoon, vakTint } from '../../components/basis/vakIconen';
+import { GoVakLinks } from '../../components/basis/go/GoVakLinks';
 import { FoutBericht, LaadBericht } from '../../components/curriculum/LaadStatus';
 import { useSetBestanden } from '../../components/curriculum/samenstellen/useSetBestanden';
 import { basisPad } from '../../lib/basis/basisRoutes';
@@ -157,6 +158,7 @@ export function VakInhoud({
         <Link to={basisPad({ s: 'leerlijn', soort, vak, leerjaar })} className="b-lees-meer">
           Leerlijn van dit vak
         </Link>
+        <GoVakLinks vak={vak} leerjaar={leerjaar} />
         {sets.map((s) => (
           <Link key={s.set.id} to={`/leerplannen/minimumdoelen/${s.set.id}`} className="b-lees-meer">
             Officiële set{sets.length > 1 ? ` ${s.set.id}` : ''}

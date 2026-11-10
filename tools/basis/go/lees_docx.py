@@ -7,7 +7,8 @@ Leest alleen:
 - de namen, groottes en sha1 van word/media/*;
 - uit docProps/core.xml alleen dcterms:created.
 
-Uitvoer: {bestand, gemaakt, media, stijlen, tellingen, body}. De body is een lijst blokken:
+Uitvoer: {bestand, bron, gemaakt, media, stijlen, tellingen, body}. bron is {bytes, sha256} van het gelezen bestand
+(maak.ts gaat na dat de ruwe JSON bij het origineel hoort). De body is een lijst blokken:
   {t:'p', stijl, stijlen_ruw, num:{numId, ilvl, fmt, start}|null, runs:[...]}
   {t:'tbl', rijen:[{cellen:[{span, vmerge, vulling, blokken:[...]}]}]}
   {t:'onbekend', tag}
@@ -19,8 +20,10 @@ Opmaak (b, i, u, strike, vertAlign) staat alleen op een run als ze aan staan.
 Met --tekst schrijft het ook <ruw>.txt, een leesbare weergave voor de nakijker.
 """
 import json
+import os
 import re
 import sys
+import zipfile
 from collections import Counter
 from pathlib import Path
 
@@ -289,7 +292,9 @@ def lees(pad):
         blokken = lezer.blokken(body)
         tel_ruw(body, lezer.tel)
         gemaakt = vz.kern_datum(z, "created")
-        return {"bestand": Path(pad).name, "gemaakt": gemaakt,
+        return {"bestand": Path(pad).name,
+                "bron": {"bytes": os.path.getsize(pad), "sha256": vz.sha256_bestand(pad)},
+                "gemaakt": gemaakt,
                 "media": sorted(lezer.media.values(), key=lambda m: m["naam"]),
                 "stijlen": lezer.stijlen, "tellingen": dict(sorted(lezer.tel.items())),
                 "body": blokken}
@@ -348,9 +353,12 @@ def main(argv):
     try:
         vz.weiger_in_repo(src, "invoer")
         vz.weiger_in_repo(dst, "uitvoer")
+        Path(dst).parent.mkdir(parents=True, exist_ok=True)
         ruw = lees(src)
     except vz.Onveilig as e:
         vz.fout_en_stop(e)
+    except (KeyError, IndexError, TypeError, ValueError, AttributeError, RuntimeError, zipfile.BadZipFile) as e:
+        vz.fout_en_stop(f"onverwachte vorm: {type(e).__name__}: {e}")
     with open(dst, "w", encoding="utf-8") as f:
         json.dump(ruw, f, ensure_ascii=False)
     if "--tekst" in argv:

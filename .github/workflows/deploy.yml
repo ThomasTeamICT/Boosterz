@@ -35,6 +35,10 @@ jobs:
         run: npm run typecheck
       - name: Unittests (scoringsmotor)
         run: npm test
+      # De lezers van de GO!-import (docx en xlsx naar ruwe JSON): alleen de standaardbibliotheek, eigen kleine
+      # proefbestanden, een paar seconden. -I: geen invoer uit de omgeving; -B: geen __pycache__.
+      - name: Tests van de lezers (Python)
+        run: python3 -I -B -m unittest discover -s tools/basis/go
 
       - name: Bouwen
         run: npm run build

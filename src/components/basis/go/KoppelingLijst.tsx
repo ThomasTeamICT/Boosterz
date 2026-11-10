@@ -22,7 +22,7 @@ import {
   type GoMoment,
   type GoTwijfel,
 } from '../../../lib/basis/go/types';
-import { isZonderMinimumdoel } from '../../../lib/basis/go/valideer';
+import { isZonderMinimumdoel } from '../../../lib/basis/go/goModel';
 import { INVOERINGSKALENDER, type Eindmoment } from '../../../lib/basis/kalender';
 import { basisSet } from '../../../lib/basis/moment';
 import { FoutBericht, LaadBericht } from '../../curriculum/LaadStatus';
@@ -30,6 +30,7 @@ import { useSetBestanden } from '../../curriculum/samenstellen/useSetBestanden';
 import { VolledigeDoeltekst } from '../DoelKaart';
 import { MOMENT_KORT } from '../DoelRij';
 import { useBasisIndex } from '../useBasisSets';
+import '../../../styles/basis-go.css';
 
 // ── De teksten van de minimumdoelen ─────────────────────────────────────────
 
@@ -99,13 +100,33 @@ export function redenZin(reden: 'bestaat-niet' | 'onleesbaar'): string {
 /** De zin onder 'Hoe zeker is dit?' bij een twijfel; `naamVak` is het vak van het minimumdoel als dat geladen is. */
 export function twijfelZin(t: GoTwijfel, r: GoMinimumdoelRef, doel: Pick<GoLeerplandoel, 'code' | 'leeftijden'>, naamVak?: string): string {
   if (t === 'moment-buiten-leeftijden') {
-    return `Dit doel is voor ${leeftijdenLabel(doel.leeftijden)}; het leerplan koppelt het ook aan een doel voor ${EINDE_ZIN[EINDMOMENT_VAN_GO_MOMENT[r.moment]]} (${r.code}).`;
+    return `Dit leerplandoel is voor ${leeftijdenLabel(doel.leeftijden)}, maar het leerplan van het GO! koppelt het aan minimumdoel ${r.code}, een doel voor ${EINDE_ZIN[EINDMOMENT_VAN_GO_MOMENT[r.moment]]}. Zo staat het in het leerplan.`;
   }
-  return `Het leerplan koppelt ${doel.code} aan minimumdoel ${r.code}, een doel van ${naamVak ? `het vak ${naamVak}` : 'een ander vak'} dan dat van dit leerplandoel.`;
+  return `Het leerplan koppelt ${doel.code} aan minimumdoel ${r.code}, een doel van een ander vak${naamVak ? ` (${naamVak})` : ''} dan dat van dit leerplandoel.`;
 }
 
+/** Waar de twijfel over gaat, in een paar woorden: voor in een lijst of een lesplan, naast de chip met die twijfel. */
+export const TWIJFEL_KORT: Readonly<Record<GoTwijfel, string>> = {
+  'moment-buiten-leeftijden': 'let op: dit moment past niet bij de leeftijd van dit leerplandoel',
+  'ander-vak': 'let op: dit minimumdoel hoort bij een ander vak',
+};
+
 const vakNaam = (d: DoelBasis | undefined) => (d ? INVOERINGSKALENDER.vakken.find((v) => v.nr === d.vak)?.naam : undefined);
-const sleutelVan = (r: { set: string; id: string }) => `${r.set}-${r.id}`;
+/** Eén verwijzing is één minimumdoel op één moment: het leerplan kan hetzelfde doel bij een onderdeel herhalen. */
+const refSleutel = (r: { set: string; id: string; moment: string }) => `${r.set}-${r.id}-${r.moment}`;
+/** De verwijzingen zonder dubbels, in de volgorde van de bron; `al` is wat al getoond is. */
+function uniek(refs: readonly GoMinimumdoelRef[], al: ReadonlySet<string> = new Set()): GoMinimumdoelRef[] {
+  const gezien = new Set(al);
+  return refs.filter((r) => {
+    const s = refSleutel(r);
+    if (gezien.has(s)) return false;
+    gezien.add(s);
+    return true;
+  });
+}
+/** Het adres van de doelpagina van een koppeling; scherm en lijst geven er desnoods een andere functie voor (zie useDoelPad). */
+export type DoelPadFn = (r: { set: string; id: string }) => string;
+const GEWOON_DOELPAD: DoelPadFn = (r) => basisPad({ s: 'doel', setId: r.set, doelId: r.id });
 /** Het onderdeel waar een koppeling bij hoort, zoals het in een zin staat: 'MIA “Aftrekken:”' of 'voorbeeld “…”'. */
 const onderdeelNaam = (i: { soort: string; tekst: string }) => `${i.soort === 'mia-titel' || i.soort === 'mia' ? 'MIA' : 'voorbeeld'} “${i.tekst.trim()}”`;
 
@@ -122,13 +143,13 @@ function Voorstel({ r, doel }: { r: GoMinimumdoelRef; doel: GoLeerplandoel }) {
   );
 }
 
-function RefKaart({ r, doel, teksten }: { r: GoMinimumdoelRef; doel: GoLeerplandoel; teksten: MinimumdoelTeksten }) {
+function RefKaart({ r, doel, teksten, doelPad }: { r: GoMinimumdoelRef; doel: GoLeerplandoel; teksten: MinimumdoelTeksten; doelPad: DoelPadFn }) {
   const gevonden = teksten.status === 'klaar' ? teksten.vind(r) : undefined;
   return (
     <li className="b-go-ref">
       <p className="b-go-ref-kop">
         <span className="b-go-ref-moment">{momentKort(r.moment)}</span>
-        <Link to={basisPad({ s: 'doel', setId: r.set, doelId: r.id })} className="b-go-ref-link">
+        <Link to={doelPad(r)} className="b-go-ref-link">
           Minimumdoel {r.code}
         </Link>
         {r.status === 'voorstel' && <span className="badge badge-warn">{GO_VOORSTEL_LABEL}</span>}
@@ -145,12 +166,12 @@ function RefKaart({ r, doel, teksten }: { r: GoMinimumdoelRef; doel: GoLeerpland
   );
 }
 
-function Refs({ refs, doel, teksten }: { refs: readonly GoMinimumdoelRef[]; doel: GoLeerplandoel; teksten: MinimumdoelTeksten }) {
+function Refs({ refs, doel, teksten, doelPad }: { refs: readonly GoMinimumdoelRef[]; doel: GoLeerplandoel; teksten: MinimumdoelTeksten; doelPad: DoelPadFn }) {
   if (refs.length === 0) return null;
   return (
     <ul className="b-go-refs">
       {refs.map((r) => (
-        <RefKaart key={sleutelVan(r) + r.moment} r={r} doel={doel} teksten={teksten} />
+        <RefKaart key={refSleutel(r)} r={r} doel={doel} teksten={teksten} doelPad={doelPad} />
       ))}
     </ul>
   );
@@ -184,20 +205,40 @@ function bronTekst(k: GoKoppeling): string {
 export interface KoppelingLijstProps {
   doel: GoLeerplandoel;
   teksten: MinimumdoelTeksten;
+  /** Het adres van een minimumdoel; standaard de gewone set van de koppeling. */
+  doelPad?: DoelPadFn;
 }
 
 /**
  * Het deel 'Minimumdoelen' van de leerplandoelpagina (h2). Het geeft altijd een antwoord: de koppeling, een kapot nummer,
  * of dat het leerplan het doel aan geen enkel minimumdoel koppelt.
  */
-export function KoppelingLijst({ doel, teksten }: KoppelingLijstProps) {
+export function KoppelingLijst({ doel, teksten, doelPad = GEWOON_DOELPAD }: KoppelingLijstProps) {
   const k = doel.minimumdoelen;
   const viaOnderdeel = doel.inhoud.flatMap((i) => ('koppeling' in i && i.koppeling ? [{ i, k: i.koppeling }] : []));
   const bronnen: { wie?: string; tekst: string }[] = [
     ...(bronTekst(k) ? [{ tekst: bronTekst(k) }] : []),
     ...viaOnderdeel.flatMap(({ i, k: kk }) => (bronTekst(kk) ? [{ wie: onderdeelNaam(i), tekst: bronTekst(kk) }] : [])),
   ];
-  const twijfels = [k.refs, ...viaOnderdeel.map((v) => v.k.refs)].flat().flatMap((r) => (r.twijfel ?? []).map((t) => ({ r, t })));
+  const refsEerst = uniek(k.refs);
+  // Een minimumdoel dat de doelzin al toont, krijgt bij een onderdeel geen tweede kaart maar één korte regel.
+  const getoond = new Set(refsEerst.map(refSleutel));
+  const perOnderdeel = viaOnderdeel.map(({ i, k: kk }) => {
+    const nieuw = uniek(kk.refs, getoond);
+    const herhaald = uniek(kk.refs).filter((r) => getoond.has(refSleutel(r)));
+    nieuw.forEach((r) => getoond.add(refSleutel(r)));
+    return { i, k: kk, nieuw, herhaald };
+  });
+  const twijfelSleutels = new Set<string>();
+  const twijfels = [k.refs, ...viaOnderdeel.map((v) => v.k.refs)]
+    .flat()
+    .flatMap((r) => (r.twijfel ?? []).map((t) => ({ r, t })))
+    .filter(({ r, t }) => {
+      const s = `${refSleutel(r)}-${t}`;
+      if (twijfelSleutels.has(s)) return false;
+      twijfelSleutels.add(s);
+      return true;
+    });
 
   return (
     <section className="b-go-deel" aria-labelledby="b-go-mind-kop">
@@ -208,17 +249,23 @@ export function KoppelingLijst({ doel, teksten }: KoppelingLijstProps) {
         <>
           {k.refs.length > 0 && <p className="b-lead">Volgens het leerplan van het GO! hoort dit leerplandoel bij:</p>}
           {teksten.status === 'fout' && <FoutBericht fout={teksten.fout} onOpnieuw={teksten.opnieuw} />}
-          <Refs refs={k.refs} doel={doel} teksten={teksten} />
+          <Refs refs={refsEerst} doel={doel} teksten={teksten} doelPad={doelPad} />
           <Problemen k={k} refs={k.refs} />
-          {viaOnderdeel.map(({ i, k: kk }) =>
+          {perOnderdeel.map(({ i, k: kk, nieuw, herhaald }) =>
             kk.refs.length > 0 || kk.problemen.length > 0 ? (
               <div key={i.rij} className="b-go-via">
-                {kk.refs.length > 0 && (
+                {nieuw.length > 0 && (
                   <p className="b-lead">
                     Het leerplan koppelt een onderdeel van dit doel ({onderdeelNaam(i)}) aan:
                   </p>
                 )}
-                <Refs refs={kk.refs} doel={doel} teksten={teksten} />
+                <Refs refs={nieuw} doel={doel} teksten={teksten} doelPad={doelPad} />
+                {herhaald.length > 0 && (
+                  <p className="b-noot">
+                    Het leerplan koppelt ook een onderdeel van dit doel ({onderdeelNaam(i)}) aan minimumdoel{' '}
+                    {herhaald.map((r) => r.code).join(', ')}, hierboven.
+                  </p>
+                )}
                 <Problemen k={kk} refs={kk.refs} />
               </div>
             ) : null,
@@ -244,7 +291,7 @@ export function KoppelingLijst({ doel, teksten }: KoppelingLijstProps) {
           <ul>
             {twijfels.map(({ r, t }) => {
               const gevonden = teksten.status === 'klaar' ? teksten.vind(r) : undefined;
-              return <li key={`${sleutelVan(r)}-${t}`}>{twijfelZin(t, r, doel, vakNaam(gevonden))}</li>;
+              return <li key={`${refSleutel(r)}-${t}`}>{twijfelZin(t, r, doel, vakNaam(gevonden))}</li>;
             })}
           </ul>
         </details>
@@ -255,45 +302,54 @@ export function KoppelingLijst({ doel, teksten }: KoppelingLijstProps) {
 
 // ── Compact: voor een lijst van doelen ──────────────────────────────────────
 
-function Chip({ r }: { r: GoMinimumdoelRef }): ReactNode {
+function Chip({ r, doelPad }: { r: GoMinimumdoelRef; doelPad: DoelPadFn }): ReactNode {
   return (
     <li>
-      <Link to={basisPad({ s: 'doel', setId: r.set, doelId: r.id })} className="b-go-chip">
+      <Link to={doelPad(r)} className="b-go-chip">
         {momentKort(r.moment)} {r.code}
         <span className="sr-only"> (minimumdoel)</span>
       </Link>
       {r.status === 'voorstel' && <span className="badge badge-warn">{GO_VOORSTEL_LABEL}</span>}
+      {/* De twijfel staat bij de chip waar ze over gaat: lijst en lesplan tonen allebei welke chip er niet past. */}
+      {(r.twijfel ?? []).map((t) => (
+        <span key={t} className="b-noot">
+          {TWIJFEL_KORT[t]}
+        </span>
+      ))}
     </li>
   );
 }
 
 /**
- * De koppeling van één leerplandoel in een paar woorden, voor in een lijst: chips die naar de doelpagina leiden, een
- * kapot nummer als tekst, of de zin dat er geen minimumdoel is. Zonder gegevens van de minimumdoelen te laden.
+ * De koppeling van één leerplandoel in een paar woorden, voor in een lijst of een lesplan: chips die naar de doelpagina
+ * leiden, een kapot nummer als tekst, of de zin dat er geen minimumdoel is. Zonder gegevens van de minimumdoelen te laden.
+ * `doelPad` komt van het scherm (useDoelPad, één keer per scherm); zonder gaat elke chip naar de gewone set.
  */
-export function KoppelingChips({ doel }: { doel: GoLeerplandoel }) {
+export function KoppelingChips({ doel, doelPad = GEWOON_DOELPAD }: { doel: GoLeerplandoel; doelPad?: DoelPadFn }) {
   const k = doel.minimumdoelen;
   const via = doel.inhoud.flatMap((i) => ('koppeling' in i && i.koppeling ? [{ i, k: i.koppeling }] : []));
-  const viaRefs = via.flatMap((v) => v.k.refs);
+  const eerst = uniek(k.refs);
+  // Een onderdeel dat hetzelfde minimumdoel nogmaals noemt, geeft geen tweede chip.
+  const viaRefs = uniek(via.flatMap((v) => v.k.refs), new Set(eerst.map(refSleutel)));
   const problemen = [k, ...via.map((v) => v.k)].flatMap((kk) => kk.problemen.filter((p) => !kk.refs.some((r) => r.status === 'voorstel' && r.moment === p.moment && r.bronCode === p.bronCode)));
   const twijfel = [...k.refs, ...viaRefs].some((r) => (r.twijfel ?? []).length > 0);
   return (
     <div className="b-go-koppeling">
       <span className="b-go-koppeling-kop">Minimumdoelen: </span>
       {isZonderMinimumdoel(doel) && <span className="b-noot">het leerplan van het GO! koppelt dit doel aan geen enkel minimumdoel</span>}
-      {k.refs.length > 0 && (
+      {eerst.length > 0 && (
         <ul className="b-go-chips">
-          {k.refs.map((r) => (
-            <Chip key={sleutelVan(r) + r.moment} r={r} />
+          {eerst.map((r) => (
+            <Chip key={refSleutel(r)} r={r} doelPad={doelPad} />
           ))}
         </ul>
       )}
       {viaRefs.length > 0 && (
         <>
-          <span className="b-noot">{k.refs.length > 0 ? 'en via een onderdeel van dit doel: ' : 'via een onderdeel van dit doel: '}</span>
+          <span className="b-noot">{eerst.length > 0 ? 'en via een onderdeel van dit doel: ' : 'via een onderdeel van dit doel: '}</span>
           <ul className="b-go-chips">
             {viaRefs.map((r) => (
-              <Chip key={sleutelVan(r) + r.moment} r={r} />
+              <Chip key={refSleutel(r)} r={r} doelPad={doelPad} />
             ))}
           </ul>
         </>

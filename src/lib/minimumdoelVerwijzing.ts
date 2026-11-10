@@ -13,6 +13,7 @@
 import type { MinimumdoelRef } from './curriculumTypes';
 import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from './minimumdoelen';
 import { oudeVersieIds } from './minimumdoelenBron';
+import { volgendeTreffer } from './tekenErvoor';
 
 /**
  * Code van een minimumdoel om te vergelijken: alleen cijfers en punten, per deel zonder
@@ -47,8 +48,12 @@ export interface VerwijzingBlok {
 }
 
 const AANDUIDING_BRON = '(?:md|et|em|minimumdoelen|minimumdoel|eindtermen|eindterm)(?!\\p{L})\\s*[:.]?\\s*';
-/** Aanduiding los in een tekst: niet midden in een woord ("het", "emmer"). */
-const RE_AANDUIDING = new RegExp(`(?<![\\p{L}\\p{N}])${AANDUIDING_BRON}`, 'giu');
+/**
+ * Aanduiding los in een tekst: niet midden in een woord ("het", "emmer"). Het teken ervoor (geen letter
+ * of cijfer) kijkt `volgendeTreffer` na met `VOOR_AANDUIDING`: zonder lookbehind, zie tekenErvoor.ts.
+ */
+const RE_AANDUIDING = new RegExp(AANDUIDING_BRON, 'giu');
+const VOOR_AANDUIDING = /[\p{L}\p{N}]$/iu;
 /** Aanduiding na een scheidingsteken, bv. de tweede "MD" in "MD 09.01, MD 09.03". */
 const RE_AANDUIDING_HIER = new RegExp(AANDUIDING_BRON, 'iuy');
 /**
@@ -105,7 +110,7 @@ export function zoekVerwijzingBlokken(tekst: string): VerwijzingBlok[] {
   const blokken: VerwijzingBlok[] = [];
   RE_AANDUIDING.lastIndex = 0;
   let treffer: RegExpExecArray | null;
-  while ((treffer = RE_AANDUIDING.exec(tekst)) !== null) {
+  while ((treffer = volgendeTreffer(RE_AANDUIDING, tekst, VOOR_AANDUIDING)) !== null) {
     const start = treffer.index;
     let plaats = start + treffer[0].length;
     const eerste = opPlaats(RE_CODE, tekst, plaats);

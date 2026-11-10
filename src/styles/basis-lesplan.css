@@ -1,7 +1,8 @@
 /* ── Deel basisonderwijs: de pagina van een lesplan van het GO! ──────────────
    Alleen met de tokens van basis.css. Elke selector begint met .b-. Alles wat je kan aantikken is minstens 44 px hoog.
    Lopende tekst in Atkinson op 16 px, hoogstens 72 tekens per regel; de tabellen worden op 760 px of smaller kaarten.
-   Contrast en selectors worden bewaakt in src/lib/basis/basisKleuren.test.ts. */
+   Contrast en selectors worden bewaakt in src/lib/basis/basisKleuren.test.ts. De breedte van 760 px geldt ook op papier:
+   A4 staand met marges (718 px) geeft kaarten, liggend of zonder marges de tabel. */
 
 .b-lesplan {
   max-width: 72rem;
@@ -32,9 +33,18 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  /* Het tikvlak blijft 44 px, maar de regel wordt niet hoger dan de tekst: het vlak schuift over de regels erboven en eronder. */
+  margin-block: -10px;
 }
 
-/* ── Ga naar ────────────────────────────────────────────────────────────── */
+/* ── Afdrukken en Ga naar ───────────────────────────────────────────────── */
+
+.b-lp-acties {
+  margin: 0 0 12px;
+}
+.b-lp-acties .b-knop {
+  padding: 0 14px;
+}
 
 .b-lp-ganaar ul {
   display: flex;
@@ -59,6 +69,32 @@
 .b-lp-ganaar a:hover {
   background: var(--brand-soft);
 }
+/* Een lang lesplan is 13 tot 28 schermen hoog: de balk blijft bovenaan staan, zodat je na een sprong de weg terug niet kwijt
+   bent. Op een liggende telefoon (lager dan 500 px) zou ze te veel plaats innemen. De scroll-padding houdt een element met
+   focus onder de balk vandaan. */
+@media (min-height: 500px) {
+  .b-lp-ganaar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    margin-bottom: 20px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+  }
+  .b-lp-ganaar ul {
+    flex-wrap: nowrap;
+    margin: 0;
+    padding: 6px 4px;
+    overflow-x: auto;
+  }
+  .b-lp-ganaar li {
+    flex: none;
+  }
+  :root[data-deel='basis']:has(.b-lp-ganaar) {
+    scroll-padding-top: 76px;
+  }
+}
 
 /* ── In het kort ────────────────────────────────────────────────────────── */
 
@@ -71,6 +107,21 @@
 }
 .b-lp-kort h2 {
   margin: 12px 0 4px;
+}
+.b-lp-noot {
+  max-width: 72ch;
+  margin: 0 0 8px;
+  color: var(--text-soft);
+}
+.b-lp-kort-in {
+  display: block;
+}
+@media (min-width: 1000px) {
+  .b-lp-kort-in {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 32px;
+  }
 }
 .b-lp-kort h3 {
   margin: 20px 0 6px;
@@ -105,6 +156,10 @@
 .b-lp-ik li {
   margin: 2px 0;
 }
+.b-lp-ikzinnen {
+  margin: 2px 0 0;
+  padding-left: 20px;
+}
 .b-lp-code {
   font-family: var(--font-display);
   font-weight: 600;
@@ -121,58 +176,23 @@
 .b-lp-leeftijden {
   color: var(--text-soft);
 }
-.b-lp-links {
+.b-lp-doelregel {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 16px;
+  align-items: center;
+  gap: 4px 16px;
 }
 .b-lp-naarplek {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
 }
-.b-lp-minimum {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-  color: var(--text);
+/* Na het blok hierboven: basisKleuren.test.ts leest de eerste regel van .b-lp-naarplek voor de 44 px. */
+.b-lp-stappen .b-lp-naarplek {
+  margin-block: -10px;
 }
-.b-lp-minimum-kop {
-  font-weight: 700;
-}
-.b-lp-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.b-lp-chips li {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-}
-.b-lp-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  background: var(--brand-soft);
-  color: var(--text);
-  font-weight: 700;
-  text-decoration: none;
-}
-.b-lp-chip:hover {
-  text-decoration: underline;
-}
-.b-lp-twijfel {
-  color: var(--text-soft);
-  font-style: italic;
+.b-lp-code.b-lp-naarplek {
+  margin-block: -10px;
 }
 
 /* ── De volledige tekst ─────────────────────────────────────────────────── */
@@ -182,7 +202,13 @@
   font-size: 1rem;
   line-height: 1.6;
 }
-.b-lp-tekst :is(h2, h3, h4) {
+.b-lp-grens {
+  margin: 0 0 12px;
+  padding: 6px 12px;
+  border-left: 6px solid var(--lamp);
+  font-weight: 700;
+}
+.b-lp-tekst [id] {
   scroll-margin-top: 16px;
 }
 .b-lp-tekst h2 {
@@ -211,7 +237,7 @@
   margin: 0 0 4px;
 }
 .b-lp-tekst [tabindex='-1']:focus {
-  outline: 3px solid var(--lamp);
+  outline: 3px solid var(--brand);
   outline-offset: 3px;
 }
 .b-lp-meta {
@@ -276,13 +302,17 @@
   font-weight: 700;
 }
 .b-lp-tabel-rijkop thead th:first-child {
-  width: 8.5rem;
+  width: 9.5rem;
 }
 .b-lp-rijkop {
   background: var(--bg-sunken);
   font-weight: 700;
 }
 .b-lp-label {
+  display: none;
+}
+/* De herhaalde rijkop (Leskern) is er alleen voor de kaart op een smal scherm, zodat elke cel onder de juiste kolomkop hangt. */
+.b-lp-tabel .b-lp-vervolg {
   display: none;
 }
 
@@ -300,12 +330,35 @@
   border-radius: var(--radius-s);
   background: var(--bg-raised);
 }
+.b-lp-beeld-groot {
+  margin: 4px 0 0;
+}
+.b-lp-beeld-groot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
 .b-lp-beeld-uitleg summary {
   display: flex;
   align-items: center;
   min-height: 44px;
+  color: var(--brand);
   cursor: pointer;
   font-weight: 700;
+}
+/* Een draaiend pijltje, want display: flex haalt het standaardpijltje weg (zoals bij 'Hoe zeker is dit?'). */
+.b-lp-beeld-uitleg summary::before {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin: 0 12px 0 4px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+.b-lp-beeld-uitleg[open] summary::before {
+  transform: rotate(45deg);
 }
 .b-lp-beeld-uitleg p {
   max-width: 72ch;
@@ -359,8 +412,15 @@
   .b-lp-rijkop {
     width: auto;
   }
+  .b-lp-tabel .b-lp-vervolg {
+    display: block;
+  }
+  /* Een lege cel blijft in de kaart staan op hoogte 0, zodat de cellen erna onder hun eigen kolomkop blijven hangen. */
   .b-lp-tabel .b-lp-cel-leeg {
-    display: none;
+    height: 0;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
   }
   .b-lp-label {
     display: block;
@@ -377,7 +437,11 @@
   .b-kop,
   .b-voet,
   .b-kruimel,
-  .b-lp-ganaar {
+  .b-lp-ganaar,
+  .b-lp-acties,
+  .b-lp-scherm,
+  .b-lp-beeld-groot,
+  .b-lp-beeld-uitleg {
     display: none !important;
   }
   .b-lesplan,
@@ -387,10 +451,15 @@
     border-color: #000 !important;
     box-shadow: none !important;
   }
-  .b-lp-tabel tr {
-    break-inside: avoid;
-  }
+  /* Een rij mag over bladen breken (rijen zijn tot 1250 px hoog): zo blijven er geen halflege bladen over. */
   .b-lp-beeld {
     break-inside: avoid;
+  }
+  .b-lp-tekst :is(h2, h3, h4),
+  .b-lp-kort :is(h2, h3) {
+    break-after: avoid;
+  }
+  .b-lp-tekst [tabindex='-1']:focus {
+    outline: none;
   }
 }

@@ -4,13 +4,14 @@
 // module laadt pas na `load` (zie main.tsx), als eigen kleine chunk: ze hoort
 // niet op het kritieke pad en weegt dus niet op de hoofdbundel. Hier:
 //  - registreren;
-//  - de chunks die al geladen werden vóór de service worker bestond, alsnog
-//    laten bewaren (alleen relevant bij het allereerste bezoek);
+//  - de chunks en gegevens die al geladen werden vóór de service worker
+//    bestond, alsnog laten bewaren (alleen relevant bij het allereerste
+//    bezoek), ook wat nog onderweg was toen hij de pagina overnam;
 //  - een wachtende nieuwe versie laten overnemen, maar alleen als dat niemand
 //    stoort (de service worker beslist; zie 'boosterz:activate' daar).
 // Een mislukte registratie is stil: de app werkt dan gewoon zonder offline-schil.
 
-import { assetUrlsToWarm, serviceWorkerUrls } from '../lib/swUrls';
+import { assetUrlsToWarm, nietLangsServiceWorker, serviceWorkerUrls } from '../lib/swUrls';
 
 /** @param entryUrl `import.meta.url` van de hoofdbundel */
 export async function registerServiceWorker(entryUrl: string): Promise<void> {
@@ -41,6 +42,23 @@ function afterRegister(reg: ServiceWorkerRegistration, scope: string, entryUrl: 
   };
   void sw.ready.then(warm);
   sw.addEventListener('controllerchange', warm, { once: true });
+
+  // Wat nog onderweg was toen de service worker de pagina overnam, kwam niet
+  // langs hem en stond nog niet in de lijst van `warm` (bv. het leerplan van
+  // een lesplan, dat pas na de index vertrekt). Ook dat alsnog laten bewaren:
+  // alleen bij het eerste bezoek, en hooguit twee minuten.
+  if (!sw.controller && typeof PerformanceObserver === 'function') {
+    try {
+      const obs = new PerformanceObserver((lijst) => {
+        const urls = assetUrlsToWarm(nietLangsServiceWorker(lijst.getEntries() as PerformanceResourceTiming[]), scope);
+        if (urls.length > 0) void sw.ready.then((r) => r.active?.postMessage({ type: 'boosterz:cache-urls', urls }));
+      });
+      obs.observe({ type: 'resource' });
+      setTimeout(() => obs.disconnect(), 120000);
+    } catch {
+      /* niet erg */
+    }
+  }
 
   // Een update ligt klaar? Vraag of ze mag overnemen. Alleen wanneer deze
   // pagina al door een service worker bediend wordt: bij de eerste installatie

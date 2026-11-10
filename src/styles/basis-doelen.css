@@ -28,8 +28,14 @@
   padding: 0;
   list-style: none;
 }
+.b-kruimel li {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
 .b-kruimel li + li::before {
   content: '›';
+  flex: none;
   margin-right: 10px;
   color: var(--text-soft);
 }

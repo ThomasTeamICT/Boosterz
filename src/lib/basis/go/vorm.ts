@@ -99,6 +99,17 @@ export const ICOON_MEDIA: Readonly<Record<string, GoIcoon>> = {
   'word/media/lesplan-denklens.png': 'denklens',
 };
 
+/**
+ * De run-eigenschappen (w:rPr) die in een lesplan voorkomen en die de omzetting kent: vet, cursief en onderlijnd (die
+ * de app toont) en eigenschappen zonder betekenis voor de tekst (lettertype, grootte, kleur, taal, leesrichting).
+ * Elke andere eigenschap (bv. w:vanish verborgen tekst, w:caps hoofdletters, w:rStyle een tekenstijl) zou stil
+ * verloren gaan of iets tonen wat het GO! niet bedoelde: de import stopt dan (IMP-5). Gemeten in de 8 lesplannen.
+ */
+export const RPR_GEKEND: ReadonlySet<string> = new Set(['b', 'bCs', 'i', 'iCs', 'u', 'color', 'lang', 'rFonts', 'rtl', 'sz', 'szCs']);
+
+/** De alineastijlen die in een lesplan voorkomen (naast geen stijl): de koppen 1-4, lijstalinea en Strong. */
+export const ALINEASTIJLEN: ReadonlySet<string> = new Set(['Heading1', 'Heading2', 'Heading3', 'Heading4', 'ListParagraph', 'Strong']);
+
 /** wp:extent staat in EMU; 9525 EMU is één pixel. */
 export const EMU_PER_PX = 9525;
 

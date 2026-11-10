@@ -12,7 +12,18 @@ import {
 import type { GoBijMinimumdoelBestand, GoIndex, GoLeerplanBestand, GoLesplanBestand, GoVak } from '../../lib/basis/go/types';
 import { useLaadstand, type Laadstand } from '../../lib/useLaadstand';
 
-type MetOpnieuw<T> = { stand: Laadstand<T>; opnieuw: () => void };
+export type MetOpnieuw<T> = { stand: Laadstand<T>; opnieuw: () => void };
+
+/** Een laadfout met 'Opnieuw proberen', zoals een scherm ze doorgeeft aan een deel dat zonder die gegevens onvolledig is. */
+export interface GoLaadFout {
+  fout: string;
+  opnieuw: () => void;
+}
+
+/** De fout van een laadstand, met 'opnieuw'; undefined zolang er geen fout is. */
+export function foutVan<T>(h: MetOpnieuw<T>): GoLaadFout | undefined {
+  return h.stand.status === 'fout' ? { fout: h.stand.fout, opnieuw: h.opnieuw } : undefined;
+}
 
 /** De index van het GO!: lesplannen, leerplan per vak en de omgekeerde index. */
 export function useGoIndex(): MetOpnieuw<GoIndex> {

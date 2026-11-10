@@ -17,7 +17,8 @@ export function niveauTekst(graad: string, stroom: string): string {
  */
 export function leesNiveau(level: string): { graad: string; stroom: string } {
   const graad = /(\d)\s*(?:ste|de|e)?\s*graad/i.exec(level)?.[1];
-  const stroom = /(?<![\p{L}\d])([AB])[\s-]*stroom/iu.exec(level)?.[1];
+  // "A" of "B" niet midden in een woord: begin van de tekst of een teken dat geen letter of cijfer is.
+  const stroom = /(?:^|[^\p{L}\d])([AB])[\s-]*stroom/iu.exec(level)?.[1];
   return {
     graad: graad === '1' ? '1ste graad' : graad === '2' ? '2de graad' : graad === '3' ? '3de graad' : '',
     stroom: stroom ? `${stroom.toUpperCase()}-stroom` : '',

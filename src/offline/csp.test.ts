@@ -163,6 +163,15 @@ describe('de echte index.html', () => {
     expect(verifyCsp(out, sha256)).toEqual([]);
   });
 
+  it('heeft precies één base-element, zonder href (de router zoekt er bij elke Link naar)', () => {
+    const bases = indexHtml.match(/<base\b[^>]*>/gi) ?? [];
+    expect(bases).toHaveLength(1);
+    expect(bases[0]).not.toMatch(/\bhref\s*=/i);
+    expect(bases[0]).toMatch(/target="_self"/);
+    // De CSP-injectie en de controle blijven werken met dat element erbij.
+    expect(verifyCsp(injectCsp(indexHtml, sha256), sha256)).toEqual([]);
+  });
+
   it('heeft zelf nog geen CSP: die komt er pas bij de build (niet in dev)', () => {
     expect(indexHtml).not.toMatch(/http-equiv\s*=\s*["']?content-security-policy/i);
   });

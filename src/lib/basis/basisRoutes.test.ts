@@ -19,12 +19,15 @@ const GO_VAKKEN: GoVak[] = ['AA', 'BU', 'FR', 'GE', 'IT', 'LL', 'LO', 'MV', 'NL'
 
 /** Alle schermen van het GO!: het overzicht, de lesplannen, de lessenlijnen en de leerplandoelen. */
 function goSchermen(): BasisScherm[] {
-  const uit: BasisScherm[] = [{ s: 'go' }, { s: 'lesplannen' }];
+  const uit: BasisScherm[] = [{ s: 'go' }, { s: 'lesplannen' }, { s: 'lesplannen', alle: true }];
   for (const leerjaar of LEERJAREN_BASIS) uit.push({ s: 'lesplannen', leerjaar });
   for (const vak of GO_VAKKEN) {
     uit.push({ s: 'lesplannen', vak }, { s: 'lesplannen', vak, leerjaar: 'K1' });
     uit.push({ s: 'lessenlijn', vak, lijn: 'biologie-van-organismen' }, { s: 'lessenlijn', vak, lijn: 'ict-2', leerjaar: 'L6' });
     uit.push({ s: 'leerplandoelen', vak }, { s: 'leerplandoelen', vak, leerjaar: 'K1' });
+    uit.push({ s: 'lesplannen', vak, alle: true }, { s: 'leerplandoelen', vak, alle: true });
+    uit.push({ s: 'leerplandoelen', vak, zonder: true }, { s: 'leerplandoelen', vak, leerjaar: 'L3', zonder: true });
+    uit.push({ s: 'leerplandoelen', vak, alle: true, rubriek: `${vak}-r012`, zonder: true });
     uit.push({ s: 'leerplandoelen', vak, rubriek: `${vak}-r012` }, { s: 'leerplandoelen', vak, leerjaar: 'L3', rubriek: `${vak}-r1234` });
     for (const code of ['001', '086', '998']) uit.push({ s: 'leerplandoel', code: `${vak}.${code}` });
   }
@@ -326,5 +329,28 @@ describe('de schermen van het GO!', () => {
     expect(basisRoute('leerlijn/gewoon/wetenschap-en-techniek', '')).toMatchObject({ s: 'leerlijn' });
     expect(basisRoute('doel/ODS_3410/92609', '')).toMatchObject({ s: 'doel' });
     expect(basisRoute('lessenlijn/gewoon/ict', '')).toEqual({ s: 'onbekend' });
+  });
+});
+
+describe('basisRoute: Alle leeftijden en zonder minimumdoel staan in het adres', () => {
+  it('leerjaar=alle en zonder=1 worden gelezen en teruggeschreven', () => {
+    expect(basisPad({ s: 'leerplandoelen', vak: 'WI', alle: true, zonder: true })).toBe('/basis/leerplandoelen/wi?leerjaar=alle&zonder=1');
+    expect(lees('/basis/leerplandoelen/wi?leerjaar=alle&zonder=1')).toEqual({ s: 'leerplandoelen', vak: 'WI', alle: true, zonder: true });
+    expect(basisPad({ s: 'lesplannen', alle: true })).toBe('/basis/lesplannen?leerjaar=alle');
+    expect(lees('/basis/lesplannen?leerjaar=alle')).toEqual({ s: 'lesplannen', alle: true });
+  });
+  it('een geldig leerjaar wint van alle', () => {
+    expect(lees('/basis/lesplannen?leerjaar=K1&alle=1')).toEqual({ s: 'lesplannen', leerjaar: 'K1' });
+    expect(basisPad({ s: 'lesplannen', leerjaar: 'L3', alle: true })).toBe('/basis/lesplannen?leerjaar=L3');
+  });
+  it('bestaande adressen zonder die parameters blijven gelijk', () => {
+    expect(lees('/basis/leerplandoelen/wt')).toEqual({ s: 'leerplandoelen', vak: 'WT' });
+    expect(lees('/basis/leerplandoelen/wt?leerjaar=K1')).toEqual({ s: 'leerplandoelen', vak: 'WT', leerjaar: 'K1' });
+    expect(lees('/basis/leerplandoelen/wt?zonder=0')).toEqual({ s: 'leerplandoelen', vak: 'WT' });
+  });
+  it('leerjaar=alle valt bij andere schermen gewoon weg', () => {
+    expect(lees('/basis/leerlijn/gewoon?leerjaar=alle')).toEqual({ s: 'leerlijnen', soort: 'bao' });
+    expect(lees('/basis/lessenlijn/wt/biologie-van-organismen?leerjaar=alle')).toEqual({ s: 'lessenlijn', vak: 'WT', lijn: 'biologie-van-organismen' });
+    expect(lees('/basis/zoek?q=a&leerjaar=alle')).toMatchObject({ s: 'zoek', bereik: 'alles' });
   });
 });

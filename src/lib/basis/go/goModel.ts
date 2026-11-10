@@ -1,10 +1,11 @@
 // Zuivere selectors over de gegevens van het GO!: lesplannen per leeftijd, lessenlijnen en hun adresdelen, het
-// rubriekpad van een leerplandoel, de leerplandoelen bij een minimumdoel en de ik-doelen van een doel.
-// (docs/basisonderwijs/GO-LEERPLAN.md, "In de app".)
+// rubriekpad van een leerplandoel, de leerplandoelen bij een minimumdoel, de ik-doelen van een doel, 'zonder
+// minimumdoel' en het adres van een leerplandoel. (docs/basisonderwijs/GO-LEERPLAN.md, "In de app".)
 //
 // Zuiver: geen React, geen opslag, geen netwerk en nergens de klok. Alle tekst blijft letterlijk uit de bron; hier
 // wordt alleen gekozen, gegroepeerd en gesorteerd. De tekst van een minimumdoel komt hier nooit voor.
 
+import { basisPad } from '../basisRoutes';
 import { GO_LEEFTIJDEN, vergelijkLeeftijden } from './leeftijden';
 import { GO_VAK_CODES, isGoVak } from './types';
 import type {
@@ -44,6 +45,43 @@ export function vakVanDoelcode(code: string): GoVak | undefined {
   if (typeof code !== 'string') return undefined;
   const m = DOELCODE.exec(code);
   return m && isGoVak(m[1]) ? m[1] : undefined;
+}
+
+/**
+ * Het adres van een leerplandoel als de code bestaat in de index (vak bekend en nummer binnen het aantal), anders
+ * undefined. Zonder index: geen functie, dus geen links.
+ */
+export function maakDoelLink(index: GoIndex | undefined): ((code: string) => string | undefined) | undefined {
+  if (!index) return undefined;
+  const aantal = new Map(index.leerplan.map((l) => [l.vak as string, l.aantal]));
+  return (code) => {
+    const vak = vakVanDoelcode(code);
+    const max = vak ? aantal.get(vak) : undefined;
+    const nr = Number(code.slice(3));
+    return vak && max !== undefined && nr >= 1 && nr <= max ? basisPad({ s: 'leerplandoel', code }) : undefined;
+  };
+}
+
+const DOELCODE_DRIE = /^[A-Z]{2}\.\d{3}$/;
+
+/**
+ * Bestaat deze code van een leerplandoel in het leerplan? Waar als ze de vorm 'WT.086' heeft, het vak in de index staat
+ * en het nummer tussen 1 en het aantal ligt (de codes lopen zonder gaten van 001 tot N).
+ */
+export function goDoelBestaat(index: GoIndex, code: string): boolean {
+  if (typeof code !== 'string' || !DOELCODE_DRIE.test(code)) return false;
+  const rij = index.leerplan.find((l) => l.vak === code.slice(0, 2));
+  const nr = Number(code.slice(3));
+  return rij !== undefined && nr >= 1 && nr <= rij.aantal;
+}
+
+/**
+ * 'Zonder minimumdoel' (rechtzetting 2 van de rechter): noch de doelzin, noch een MIA- of voorbeeldrij van het doel
+ * draagt een code. Een doel met alleen een kapotte code is 'kapot', niet 'zonder minimumdoel'. valideer.ts zet deze
+ * functie door voor de import en de uitrolpoort; de schermen halen ze hier, zodat de validator niet in de app komt.
+ */
+export function isZonderMinimumdoel(doel: GoLeerplandoel): boolean {
+  return Object.keys(doel.minimumdoelen.bron).length === 0 && doel.inhoud.every((i) => !('koppeling' in i) || i.koppeling === undefined);
 }
 
 // ── Lesplannen ───────────────────────────────────────────────────────────────

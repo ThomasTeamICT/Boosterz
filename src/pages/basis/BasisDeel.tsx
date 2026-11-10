@@ -98,13 +98,13 @@ function kies(s: BasisScherm): ReactNode {
     case 'lesplannen':
       return (
         <Wacht titel="Lesplannen van het GO!">
-          <LesplannenScherm leerjaar={s.leerjaar} vak={s.vak} />
+          <LesplannenScherm leerjaar={s.leerjaar} alle={s.alle} vak={s.vak} />
         </Wacht>
       );
     case 'lessenlijn':
       return (
         <Wacht titel="Lessenlijn">
-          <LessenlijnScherm vak={s.vak} lijn={s.lijn} leerjaar={s.leerjaar} />
+          <LessenlijnScherm vak={s.vak} lijn={s.lijn} />
         </Wacht>
       );
     case 'go':
@@ -116,7 +116,7 @@ function kies(s: BasisScherm): ReactNode {
     case 'leerplandoelen':
       return (
         <Wacht titel="Leerplan van het GO!">
-          <LeerplandoelenScherm vak={s.vak} leerjaar={s.leerjaar} rubriek={s.rubriek} />
+          <LeerplandoelenScherm vak={s.vak} leerjaar={s.leerjaar} alle={s.alle} rubriek={s.rubriek} zonder={s.zonder} />
         </Wacht>
       );
     case 'leerplandoel':

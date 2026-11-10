@@ -52,6 +52,11 @@ describe('BasisDeel en BasisSchil', () => {
     expect(html).toMatch(/<a class="skip-link" href="#main">Naar de inhoud<\/a>/);
   });
 
+  it('de merklink heeft een spatie tussen "Boosterz" en "basisonderwijs", zodat de zichtbare tekst in de naam zit', () => {
+    const html = pagina('/basis/go');
+    expect(html).toMatch(/<span>Boosterz<\/span> <span class="b-pil">basisonderwijs<\/span>/);
+  });
+
   it('heeft de navigatie, de themaknop en "Naar Boosterz"', () => {
     const html = pagina('/basis/leerjaar/gewoon/L3');
     expect(html).toContain('aria-label="Basisonderwijs"');
