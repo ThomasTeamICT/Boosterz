@@ -379,6 +379,15 @@ describe('de bronnen van leerlijn en zoeken', () => {
     }
   });
 
+  it('ZoekScherm zet de codes van het GO! in een statusregel die er altijd staat (TOE-1: een schermlezer hoort het resultaat)', () => {
+    const bron = lees('./ZoekScherm.tsx');
+    const blok = /<div role="status" className="b-zoek-go-status">([\s\S]*?)<\/div>/.exec(bron)?.[1] ?? '';
+    expect(blok).toContain('<GoCodeLinks codes={goCodes} />');
+    // De statusregel zelf hangt niet aan een voorwaarde: de voorwaarde staat binnenin.
+    expect(bron).not.toMatch(/\{goCodes\.length > 0 && \(\s*<div role="status"/);
+    expect(bron.match(/<GoCodeLinks /g)).toHaveLength(1);
+  });
+
   it('zeggen "leerjaar" en nergens "(je klas)"', () => {
     for (const b of bestanden) expect(lees(b), b).not.toContain('(je klas)');
   });

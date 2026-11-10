@@ -148,11 +148,15 @@ export function ZoekScherm({ soort, vraag, leerjaar, bereik }: { soort: SoortBas
       <div className="b-schakelaars">
         <SoortLinks soort={soort} naar={(s) => ({ s: 'zoek', soort: s, vraag, leerjaar, bereik })} />
       </div>
-      {goCodes.length > 0 && (
-        <Suspense fallback={null}>
-          <GoCodeLinks codes={goCodes} />
-        </Suspense>
-      )}
+      {/* Altijd aanwezig, ook zonder code: zo meldt een schermlezer wat er bij een code van het GO! hoort, ook als de
+          gewone uitslag (met haar eigen statusregel) wegvalt bij een vraag met alleen codes. */}
+      <div role="status" className="b-zoek-go-status">
+        {goCodes.length > 0 && (
+          <Suspense fallback={null}>
+            <GoCodeLinks codes={goCodes} />
+          </Suspense>
+        )}
+      </div>
       {index.stand.status === 'laden' && <LaadBericht tekst="De doelen worden geladen" />}
       {index.stand.status === 'fout' && <FoutBericht fout={index.stand.fout} onOpnieuw={index.opnieuw} />}
       {alle !== undefined && !klaar && (

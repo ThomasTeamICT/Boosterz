@@ -452,26 +452,36 @@ export async function basisGo({ browser, BASE, check, errors, sleep }) {
       await d.p.emulateMedia({ media: 'screen' });
       await wachtOpStand(d.p, JSON.stringify(voor));
       const na = await d.p.evaluate(() => [...document.querySelectorAll('main details')].map((e) => e.open));
+      // Alleen een ontbrekend pdftotext (ENOENT) geeft null; elke andere fout gooit de check stuk in plaats van stil groen.
+      const dir = mkdtempSync(join(tmpdir(), 'boosterz-pdf-'));
       let uit = null;
       try {
-        const dir = mkdtempSync(join(tmpdir(), 'boosterz-pdf-'));
         writeFileSync(join(dir, 'p.pdf'), pdf);
         uit = execFileSync('pdftotext', ['-layout', join(dir, 'p.pdf'), '-'], { encoding: 'utf8' }).replace(/\s+/g, ' ');
+      } catch (e) {
+        if (e?.code !== 'ENOENT') throw e;
+      } finally {
         rmSync(dir, { recursive: true, force: true });
-      } catch {
-        uit = null; // pdftotext ontbreekt: dan kijken we alleen naar de stand van de uitklappers.
       }
       return { voor, na, uit };
     };
-    for (const [hash, aantal] of [['/#/basis/doel/ODS_3410/92590', 22], ['/#/basis/doel/ODS_3409/92822', 41]]) {
+    // Zonder pdftotext is de controle op papier niet mogelijk: dat is rood, tenzij je het bewust toelaat met
+    // GO_ZONDER_PDFTOTEXT=1; dan staat er zichtbaar OVERGESLAGEN en geen teruggevallen getal.
+    const zonderPdftotext = process.env.GO_ZONDER_PDFTOTEXT === '1';
+    const opPapier = (r, naam, ok) => {
+      if (r.uit !== null) check(naam, ok(r.uit));
+      else if (zonderPdftotext) console.log(`  - OVERGESLAGEN: ${naam} (geen pdftotext)`);
+    };
+    for (const [i, [hash, aantal]] of [['/#/basis/doel/ODS_3410/92590', 22], ['/#/basis/doel/ODS_3409/92822', 41]].entries()) {
       const r = await tekstUitPdf(hash, '.b-go-bijdoel');
-      const codes = r.uit ? new Set(r.uit.match(/WT\.\d{3}/g) ?? []).size : aantal;
-      const dood = r.uit ? /Toon (alle|de \d+ andere|het andere)/.test(r.uit) : false;
-      check(`go 19: ${hash} telt op papier ${aantal} leerplandoelen (${codes}), zonder dode tekst "Toon de andere" (${dood})`, codes === aantal && !dood);
+      if (i === 0) check('go 19: pdftotext is beschikbaar voor de controle op papier (of GO_ZONDER_PDFTOTEXT=1)', r.uit !== null || zonderPdftotext);
+      const codes = r.uit === null ? null : new Set(r.uit.match(/WT\.\d{3}/g) ?? []).size;
+      const dood = r.uit === null ? null : /Toon (alle|de \d+ andere|het andere)/.test(r.uit);
+      opPapier(r, `go 19: ${hash} telt op papier ${aantal} leerplandoelen (${codes}), zonder dode tekst "Toon de andere" (${dood})`, () => codes === aantal && !dood);
       check(`go 19: ${hash} staat na het afdrukken weer zoals ervoor (uitklappers ${JSON.stringify(r.voor) === JSON.stringify(r.na)})`, JSON.stringify(r.voor) === JSON.stringify(r.na) && r.voor.length > 0);
     }
     const w = await tekstUitPdf('/#/basis/leerplandoel/WT.235', '.b-go-deel');
-    check('go 19: #/basis/leerplandoel/WT.235 heeft de twijfelzin op papier', w.uit === null || /koppelt het aan minimumdoel 3\.3\.2, een doel voor het einde van het 6de leerjaar/.test(w.uit));
+    opPapier(w, 'go 19: #/basis/leerplandoel/WT.235 heeft de twijfelzin op papier', (t) => /koppelt het aan minimumdoel 3\.3\.2, een doel voor het einde van het 6de leerjaar/.test(t));
     // Een uitklapper die de leerkracht zelf opende, blijft ook na het afdrukken open; de rest gaat weer dicht.
     await d.gaNaar('/#/basis/doel/ODS_3410/92590', '.b-go-meer');
     await d.p.locator('.b-go-meer > summary').first().click();

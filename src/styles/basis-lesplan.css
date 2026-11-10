@@ -91,7 +91,8 @@
   .b-lp-ganaar li {
     flex: none;
   }
-  :root[data-deel='basis']:has(.b-lp-ganaar) {
+  /* data-ganaar zet LesplanPagina; geen :has(), dat kent Safari pas vanaf 15.4. */
+  :root[data-deel='basis'][data-ganaar] {
     scroll-padding-top: 76px;
   }
 }

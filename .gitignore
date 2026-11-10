@@ -14,3 +14,7 @@ tools/verkenning/rapport/
 
 # Bytecode van Python (de lezers in tools/basis/go draaien met -B en schrijven er geen)
 __pycache__/
+
+# Reservekopieën van patch en merge
+*.orig
+*.rej

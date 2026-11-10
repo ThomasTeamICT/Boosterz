@@ -7,7 +7,7 @@
 // hier nooit, die staat op de doelpagina. Laadt de index niet, dan zegt 'In het kort' dat (de links ontbreken dan).
 // ?stap=3 springt naar de derde stap van de leskern: de focus gaat naar de kop van die stap.
 
-import { useEffect, useMemo, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { PrintIcon } from '../../components/icons';
 import { KoppelingChips, type DoelPadFn } from '../../components/basis/go/KoppelingLijst';
@@ -367,6 +367,14 @@ function LesplanPagina({ lesplan, stap, index }: { lesplan: GoLesplanBestand; st
     if (leerplan.stand.status === 'fout') return { status: 'fout', fout: leerplan.stand.fout, opnieuw: leerplan.opnieuw };
     return { status: 'klaar', perCode: new Map(leerplan.stand.waarde.doelen.map((d) => [d.code, d])) };
   }, [leerplan]);
+
+  // De kleverige balk 'Ga naar' staat op deze pagina: het attribuut geeft de scroll-padding eronder (basis-lesplan.css).
+  // Geen :has() in de css, want dat kent Safari pas vanaf 15.4 (het basisdeel richt zich op Safari 14).
+  useLayoutEffect(() => {
+    const html = document.documentElement;
+    html.setAttribute('data-ganaar', '');
+    return () => html.removeAttribute('data-ganaar');
+  }, []);
 
   useEffect(() => {
     if (stap === undefined) return;

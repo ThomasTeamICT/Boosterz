@@ -19,6 +19,7 @@ import { describe, expect, it } from 'vitest';
 import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from '../minimumdoelen';
 import { controleerTweelingen, maakOpzoektabel, vakVanCode, type Opzoektabel } from './go/koppelen';
 import { EINDMOMENT_VAN_GO_MOMENT } from './go/leeftijden';
+import { bubaoSetVan } from './go/tweeling';
 import type { GoIndex, GoLeerplanBestand, GoMinimumdoelRef } from './go/types';
 
 const REPO = fileURLToPath(new URL('../../../', import.meta.url));
@@ -105,6 +106,13 @@ describe.skipIf(GEGEVENSRUN)('het GO! leerplan op de echte minimumdoelen', () =>
     const tabel = (opzoek as { tabel: Opzoektabel }).tabel;
     const slecht = alleRefs.filter(({ ref }) => ref.status === 'officieel' && tabel.zoek(ref.moment, ref.code).length !== 1).map(({ doel, ref }) => `${doel}: ${ref.moment} ${ref.code}`);
     expect(slecht).toEqual([]);
+  });
+
+  it.runIf(momentopname)('29 gewone sets hebben precies één tweeling in het buitengewoon (ODS_3408 → ODS_3469, ODS_3410 → ODS_3460)', () => {
+    const kaart = bubaoSetVan(index);
+    expect(kaart.size).toBe(29);
+    expect(kaart.get('ODS_3408')).toBe('ODS_3469');
+    expect(kaart.get('ODS_3410')).toBe('ODS_3460');
   });
 
   it.runIf(klaar)('elke tweeling in het buitengewoon onderwijs heeft hetzelfde nummer en dezelfde code', () => {

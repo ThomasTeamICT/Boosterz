@@ -234,6 +234,10 @@ describe('css van de schermen van het basisdeel (basis-*.css)', () => {
     const css = lees(`../../styles/${bestand}`);
     const kaal = ZONDER_COMMENTAAR(css);
 
+    it('gebruikt geen :has(): dat kent Safari pas vanaf 15.4, en het basisdeel richt zich op Safari 14 (vite.config.ts)', () => {
+      expect(kaal).not.toContain(':has(');
+    });
+
     it("elke selector begint met :root[data-deel='basis'] of met .b-", () => {
       const lijst = selectors(css);
       expect(lijst.length).toBeGreaterThan(0);
