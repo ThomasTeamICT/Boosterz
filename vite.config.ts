@@ -265,6 +265,62 @@ const LUCIDE_EXPORTS = parseLucideExports(readFileSync(lucideBarrel(), 'utf8'));
 const EAGER_ICON_FILES = iconFiles(EAGER_ICON_NAMES, LUCIDE_EXPORTS);
 
 /**
+ * Bewaking van de syntaxis in alles wat de build uitgeeft: Safari en iPadOS 14 (14.1 is de ondergrens, zie
+ * `build.target`) lezen geen private methodes (pas vanaf 15), geen static-blokken en geen `#x in o` (pas vanaf
+ * 16.4). Vite zet chunks en gebundelde workers om naar het doel, maar een bestand dat als los bestand gekopieerd
+ * wordt (zoals de worker van pdf.js, `new URL(…, import.meta.url)`) blijft zoals het is. Zonder deze controle
+ * merkte niemand dat een pdf op een oude iPad niet opende. De enige bewuste uitzondering is de moderne pdf-worker;
+ * oude toestellen krijgen pdfWorkerOud.ts (zie src/lib/pdfWorker.ts).
+ */
+const MODERNE_SYNTAXIS_TOEGESTAAN = /(?:^|\/)pdf\.worker\.min-[\w-]+\.mjs$/;
+function safari14Syntaxis(): Plugin {
+  type Knoop = { type?: string; [sleutel: string]: unknown };
+  const vondsten = (boom: unknown): string[] => {
+    const gevonden = new Set<string>();
+    const loop = (k: unknown): void => {
+      if (!k || typeof k !== 'object') return;
+      if (Array.isArray(k)) { for (const x of k) loop(x); return; }
+      const n = k as Knoop;
+      if (n.type === 'StaticBlock') gevonden.add('static-blok (Safari 16.4)');
+      if (n.type === 'MethodDefinition' && (n.key as Knoop | undefined)?.type === 'PrivateIdentifier') gevonden.add('private methode (Safari 15)');
+      if (n.type === 'BinaryExpression' && (n.left as Knoop | undefined)?.type === 'PrivateIdentifier') gevonden.add('#x in object (Safari 15)');
+      if (n.type === 'Literal' && (n.regex as { pattern?: string } | undefined)?.pattern?.match(/\(\?<[=!]/)) gevonden.add('lookbehind (Safari 16.4)');
+      for (const sleutel of Object.keys(n)) if (sleutel !== 'type') loop(n[sleutel]);
+    };
+    loop(boom);
+    return [...gevonden];
+  };
+  return {
+    name: 'wf-safari14-syntaxis',
+    apply: 'build',
+    generateBundle: {
+      order: 'post',
+      handler(_options, bundle) {
+        const fouten: string[] = [];
+        for (const [naam, o] of Object.entries(bundle)) {
+          if (!/\.m?js$/.test(naam) || MODERNE_SYNTAXIS_TOEGESTAAN.test(naam)) continue;
+          const code = o.type === 'chunk' ? o.code : typeof o.source === 'string' ? o.source : Buffer.from(o.source).toString('utf8');
+          let boom: unknown;
+          try {
+            boom = this.parse(code);
+          } catch {
+            continue; // geen geldige module (bv. een klassieke worker): niet onze zaak
+          }
+          const gevonden = vondsten(boom);
+          if (gevonden.length) fouten.push(`${naam}: ${gevonden.join(', ')}`);
+        }
+        if (fouten.length) {
+          this.error(
+            `Syntaxis die Safari en iPadOS 14 niet lezen in de uitgegeven bestanden (Vite zet ze niet om):\n  ${fouten.join('\n  ')}\n` +
+              'Laad zulke bestanden via een bundel (zoals pdfWorkerOud.ts) of voeg ze bewust toe aan MODERNE_SYNTAXIS_TOEGESTAAN.',
+          );
+        }
+      },
+    },
+  };
+}
+
+/**
  * Offline-schil: schrijft bij elke build dist/sw.js uit.
  *
  * Het sjabloon staat in src/offline/serviceWorker.js (strategie en uitleg
@@ -401,7 +457,7 @@ function listFiles(dir: string): string[] {
 // Relative base zodat de build ook werkt op GitHub Pages of een subpad.
 export default defineConfig({
   base: './',
-  plugins: [react(), contentSecurityPolicy(), bundleBudget(), offlineShell()],
+  plugins: [react(), contentSecurityPolicy(), bundleBudget(), safari14Syntaxis(), offlineShell()],
   build: {
     // Vite's eigen grens stond op 1200 kB: dat onderdrukte élke waarschuwing.
     // Nu ligt ze net boven de pdf.js-chunk (de enige legitiem grote chunk), en

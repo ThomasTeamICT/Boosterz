@@ -69,16 +69,18 @@
   border-radius: var(--radius-s);
   background: var(--warn-soft);
   color: var(--text);
+  border: 1px solid var(--warn);
   border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
   min-width: 0;
 }
 .course-editor-alert-problem {
   background: var(--err-soft);
+  border-color: var(--err);
   border-color: color-mix(in srgb, var(--err) 45%, transparent);
 }
 .course-editor-alert-icon { flex: none; margin-top: 2px; color: var(--warn-text); }
 .course-editor-alert-problem .course-editor-alert-icon { color: var(--err-text); }
-.course-editor-alert-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.course-editor-alert-body { flex: 1; min-width: 0; overflow-wrap: break-word; overflow-wrap: anywhere; }
 .course-editor-alert-body > p { margin: 0 0 8px; }
 .course-editor-alert-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .course-editor-alert-hint { margin: 8px 0 0; }
@@ -100,6 +102,7 @@
   padding: 10px 12px;
   border-radius: var(--radius-s);
   background: var(--bg-raised);
+  border: 1px solid var(--err);
   border: 1px solid color-mix(in srgb, var(--err) 45%, transparent);
   border-left-width: 4px;
 }

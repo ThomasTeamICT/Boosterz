@@ -288,7 +288,7 @@ export function VideoQuizEditor({ config, onChange }: EditorProps<VideoQuizConfi
 
       {videoId ? (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ position: 'relative', aspectRatio: '16 / 9', maxWidth: 480, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--line)', background: '#000' }}>
+          <div className="vid-169" style={{ position: 'relative', aspectRatio: '16 / 9', maxWidth: 480, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--line)', background: '#000' }}>
             <iframe
               src={ytEmbedUrl(videoId)}
               title="Voorbeeld van de gekozen video"
@@ -645,7 +645,7 @@ export function VideoQuizPlayer({ widget, timeUp, onComplete }: PlayerProps<Vide
           </div>
         </div>
         <div className="card" style={{ overflow: 'hidden', marginBottom: 18 }}>
-          <div style={{ position: 'relative', aspectRatio: '16 / 9', background: '#000' }}>
+          <div className="vid-169" style={{ position: 'relative', aspectRatio: '16 / 9', background: '#000' }}>
             <iframe
               src={ytEmbedUrl(videoId)}
               title={`Video: ${widget.title}`}
@@ -705,7 +705,7 @@ export function VideoQuizPlayer({ widget, timeUp, onComplete }: PlayerProps<Vide
       </GameStatus>
 
       <div className="card" style={{ overflow: 'hidden', marginBottom: 18 }}>
-        <div ref={wrapRef} style={{ position: 'relative', aspectRatio: '16 / 9', background: '#000' }} />
+        <div ref={wrapRef} className="vid-169" style={{ position: 'relative', aspectRatio: '16 / 9', background: '#000' }} />
       </div>
 
       {checkpoints.length === 0 && (

@@ -162,7 +162,7 @@
 /* ── De tekst van een doel (DoeltekstWeergave) ───────────────────────────── */
 
 .b-doeltekst {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word; overflow-wrap: anywhere;
 }
 .b-doeltekst-alinea {
   margin: 0 0 8px;
@@ -283,7 +283,7 @@
 .b-doelrij-tekst {
   flex: 1 1 14rem;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word; overflow-wrap: anywhere;
 }
 .b-dit {
   padding: 0 8px;
@@ -349,7 +349,7 @@
 .b-doelvoet {
   margin: 12px 0 0;
   color: var(--text-soft);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word; overflow-wrap: anywhere;
 }
 .b-doelvoet a {
   display: inline-flex;

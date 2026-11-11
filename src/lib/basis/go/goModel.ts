@@ -1,6 +1,6 @@
 // Zuivere selectors over de gegevens van het GO!: lesplannen per leeftijd, lessenlijnen en hun adresdelen, het
 // rubriekpad van een leerplandoel, de leerplandoelen bij een minimumdoel, de ik-doelen van een doel, 'zonder
-// minimumdoel' en het adres van een leerplandoel. (docs/basisonderwijs/GO-LEERPLAN.md, "In de app".)
+// minimumdoel', bij welke code een voorstel hoort en het adres van een leerplandoel. (docs/basisonderwijs/GO-LEERPLAN.md, "In de app".)
 //
 // Zuiver: geen React, geen opslag, geen netwerk en nergens de klok. Alle tekst blijft letterlijk uit de bron; hier
 // wordt alleen gekozen, gegroepeerd en gesorteerd. De tekst van een minimumdoel komt hier nooit voor.
@@ -12,10 +12,12 @@ import type {
   GoBijDoel,
   GoBijMinimumdoelBestand,
   GoIndex,
+  GoKoppeling,
   GoLeerplanBestand,
   GoLeerplandoel,
   GoLeeftijd,
   GoLesplanBestand,
+  GoMinimumdoelRef,
   GoRubriek,
   GoVak,
 } from './types';
@@ -82,6 +84,32 @@ export function goDoelBestaat(index: GoIndex, code: string): boolean {
  */
 export function isZonderMinimumdoel(doel: GoLeerplandoel): boolean {
   return Object.keys(doel.minimumdoelen.bron).length === 0 && doel.inhoud.every((i) => !('koppeling' in i) || i.koppeling === undefined);
+}
+
+// ── Voorstellen (de twee vormen van GoMinimumdoelRef) ────────────────────────
+
+/**
+ * Waar een voorstel bij hoort, binnen zijn eigen koppeling: vorm A ('kapot') bij een probleem met hetzelfde moment en
+ * dezelfde bronCode (MV.040 '6.12'), vorm B ('ander-vak') bij een officiële ref met twijfel 'ander-vak' op die code en
+ * dat moment (WI.706 4.2.3). De import en de controles laten geen andere voorstellen door.
+ */
+export type VoorstelVorm =
+  | { vorm: 'kapot'; probleem: GoKoppeling['problemen'][number] }
+  | { vorm: 'ander-vak'; officieel: GoMinimumdoelRef };
+
+/** De vorm van een voorstel in deze koppeling; undefined voor een officiële ref of een voorstel dat nergens bij hoort. */
+export function vormVanVoorstel(k: GoKoppeling, r: GoMinimumdoelRef): VoorstelVorm | undefined {
+  if (r.status !== 'voorstel' || r.bronCode === undefined) return undefined;
+  const probleem = k.problemen.find((p) => p.moment === r.moment && p.bronCode === r.bronCode);
+  if (probleem) return { vorm: 'kapot', probleem };
+  const officieel = k.refs.find((o) => o.status === 'officieel' && o.moment === r.moment && o.code === r.bronCode && (o.twijfel ?? []).includes('ander-vak'));
+  return officieel ? { vorm: 'ander-vak', officieel } : undefined;
+}
+
+/** Vorm B vanaf de officiële ref: het voorstel dat Boosterz ernaast zet (zelfde koppeling en moment), of undefined. */
+export function voorstelNaast(k: GoKoppeling, r: GoMinimumdoelRef): GoMinimumdoelRef | undefined {
+  if (r.status !== 'officieel' || !(r.twijfel ?? []).includes('ander-vak')) return undefined;
+  return k.refs.find((v) => v.status === 'voorstel' && v.moment === r.moment && v.bronCode === r.code);
 }
 
 // ── Lesplannen ───────────────────────────────────────────────────────────────

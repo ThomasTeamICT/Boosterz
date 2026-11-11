@@ -14,7 +14,7 @@
   margin: 12px 0 8px;
   padding-bottom: 10px;
   border-bottom: 4px solid var(--lamp);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word; overflow-wrap: anywhere;
 }
 .b-lesplan .b-onderregel {
   max-width: 72ch;
@@ -228,7 +228,7 @@
 .b-lp-tekst ol {
   max-width: 72ch;
   margin: 0 0 10px;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word; overflow-wrap: anywhere;
 }
 .b-lp-tekst ul,
 .b-lp-tekst ol {
@@ -287,7 +287,7 @@
   border-bottom: 1px solid var(--line);
   vertical-align: top;
   text-align: left;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word; overflow-wrap: anywhere;
 }
 .b-lp-tabel :is(th, td) + :is(th, td) {
   border-left: 1px solid var(--line);

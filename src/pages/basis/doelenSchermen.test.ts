@@ -19,7 +19,7 @@ import { doeltekstBlokken } from '../../lib/basis/doeltekst';
 import { rubrieken, type DoelBasis } from '../../lib/basis/doelBasis';
 import { basisSet, invoering, type BasisSet } from '../../lib/basis/moment';
 import { leerplandoelenBijMinimumdoel, lessenlijnen, vindLessenlijn } from '../../lib/basis/go/goModel';
-import type { GoBijMinimumdoelBestand, GoIndex } from '../../lib/basis/go/types';
+import { GO_VOORSTEL_LABEL as GO_GO_LABEL, type GoBijMinimumdoelBestand, type GoIndex } from '../../lib/basis/go/types';
 import { DOEL_DELEN, DoelInhoud, DoelNietGevonden, type VakDoelen } from './DoelScherm';
 import { LessenlijnInhoud, LessenlijnNietGevonden, VOLGORDE_ZIN } from './LessenlijnScherm';
 import { LesplannenInhoud } from './LesplannenScherm';
@@ -553,6 +553,44 @@ describe('GoBijDoelInhoud', () => {
     expect(tekst(html)).toContain('In het leerplan staat “6.12”. Waarschijnlijk is 6.1.2 bedoeld.');
     // Alleen dit ene doel is een voorstel; de rest blijft officieel.
     expect(tel(html, /badge badge-warn/g)).toBe(1);
+  });
+
+  describe('vorm B: WI.706 verwijst naar 4.2.3 (aardrijkskunde); Boosterz stelt 2.4.3 voor (11 november 2026)', () => {
+    it('bij 2.4.3 (93005) staat WI.706 als voorstel, gemarkeerd, met "In het leerplan staat “4.2.3”"', () => {
+      const html = bijDoel(2, '93005', GO_INDEX, '2.4.3', 'ODS_3405');
+      const t = tekst(html);
+      expect(t).toContain('Wiskunde (2 leerplandoelen)');
+      expect(html).toContain('href="/basis/leerplandoel/WI.706"');
+      expect(t).toContain(`WI.706 gebruiken ${GO_GO_LABEL}`);
+      expect(t).toContain('In het leerplan staat “4.2.3”. Waarschijnlijk is 2.4.3 bedoeld.');
+      // WI.791 blijft officieel: één badge, en WI.706 staat (oplopend op code) eerst.
+      expect(tel(html, /badge badge-warn/g)).toBe(1);
+      expect(html.indexOf('WI.706')).toBeLessThan(html.indexOf('WI.791'));
+      expect(html).not.toContain('Hoe zeker is dit?');
+    });
+
+    it('bij 4.2.3 (92500) staat WI.706 officieel, met de twijfel en de vermelding van het voorstel 2.4.3 (met link)', () => {
+      const html = bijDoel(4, '92500', GO_INDEX, '4.2.3', 'ODS_3411');
+      const wi = html.slice(html.lastIndexOf('<li', html.indexOf('id="b-go-bij-WI.706"')));
+      const t = tekst(wi.slice(0, wi.indexOf('</li>')));
+      expect(t).toBe(
+        `WI.706 gebruiken (De)monteren ruimtefiguren tot een bouwsel en omgekeerd. (2,5-4 jaar, 4-5 jaar, 5-6 jaar) Het GO! verwijst naar 4.2.3, een minimumdoel van aardrijkskunde. Waarschijnlijk is 2.4.3 bedoeld. ${GO_GO_LABEL} Hoe zeker is dit? Het leerplan koppelt WI.706 aan minimumdoel 4.2.3, een doel van een ander vak (Aardrijkskunde) dan dat van dit leerplandoel.`,
+      );
+      expect(wi).toContain('href="/basis/doel/ODS_3405/93005"');
+      // Alleen WI.706 heeft hier een voorstel: de doelen van aardrijkskunde niet.
+      expect(tel(html, /badge badge-warn/g)).toBe(1);
+      expect(html).not.toContain('In het leerplan staat');
+    });
+
+    it('in het buitengewoon onderwijs dezelfde doelen; de link naar het voorstel volgt de doelpagina van de app (useDoelPad)', () => {
+      const gewoon = bijDoel(4, '92500', GO_INDEX, '4.2.3', 'ODS_3411');
+      expect(bijDoel(4, '92500', GO_INDEX, '4.2.3', 'ODS_3456')).toBe(gewoon);
+      expect(bijDoel(2, '93005', GO_INDEX, '2.4.3', 'ODS_3484')).toBe(bijDoel(2, '93005', GO_INDEX, '2.4.3', 'ODS_3405'));
+      const doelen = leerplandoelenBijMinimumdoel(BIJ.get(4) as GoBijMinimumdoelBestand, '92500');
+      const bubao = toon(createElement(GoBijDoelInhoud, { doelen, doel: minimum(4, '92500', '4.2.3', 'ODS_3456'), index: GO_INDEX, doelPad: (r) => `/basis/doel/${r.set === 'ODS_3405' ? 'ODS_3484' : r.set}/${r.id}` }));
+      expect(bubao).toContain('href="/basis/doel/ODS_3484/93005"');
+      expect(bubao).not.toContain('ODS_3405');
+    });
   });
 
   it('een officiële koppeling met twijfel zegt onder "Hoe zeker is dit?" wat er niet past (WT.235 bij 3.3.2)', () => {

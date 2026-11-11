@@ -26,7 +26,7 @@ details.lw { margin-bottom: 18px; }
 .lw-weg-zin { color: var(--text-soft); font-size: 0.9rem; line-height: 1.4; }
 .lw-richting { margin: 12px 0 0; max-width: 72ch; }
 .lw-links { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 18px; }
-.lw-links a { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; overflow-wrap: anywhere; }
+.lw-links a { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; overflow-wrap: break-word; overflow-wrap: anywhere; }
 .lw-domein { color: var(--text-soft); font-size: 0.88rem; }
 .lw-tip { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0 0; max-width: 72ch; }
 .lw-tip-icoon { flex: none; margin-top: 3px; }
@@ -51,7 +51,7 @@ details.lw { margin-bottom: 18px; }
 }
 .lp-info > div { min-width: 0; }
 .lp-info dt { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-faint); }
-.lp-info dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.lp-info dd { margin: 0; font-weight: 600; overflow-wrap: break-word; overflow-wrap: anywhere; }
 .lp-info .lp-info-breed { grid-column: 1 / -1; }
 .lp-info .lp-info-breed dd { font-weight: 400; }
 .lp-doelen-kop { margin: 0 0 10px; font-size: 1.2rem; }

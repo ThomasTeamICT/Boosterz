@@ -120,7 +120,18 @@ export function onderwerpKeuzes(leerplan: GoLeerplanBestand, filter: Omit<DoelFi
 
 // ── Onderdelen ──────────────────────────────────────────────────────────────
 
-function Doel({ doel, lesplannen, doelPad }: { doel: GoLeerplandoel; lesplannen: readonly string[]; doelPad?: DoelPadFn }) {
+/** Een lesplan bij een doel, voor de link: de code en, als de index geladen is, de titel. */
+export interface LesplanLink {
+  code: string;
+  titel?: string;
+}
+
+/** De tekst van een lesplanlink: 'LP0065 Dieren classificeren'; zonder titel (index niet geladen) alleen de code. */
+export const lesplanLinkTekst = (l: LesplanLink): string => (l.titel ? `${l.code} ${l.titel}` : l.code);
+
+// Vanaf 900 px breed is een doel één rij met drie kolommen (code en kennisverwerking, doelzin en leeftijden, minimumdoelen
+// en lesplannen); eronder staan de delen onder elkaar, zoals altijd (basis-go.css, '.b-go-lijst').
+function Doel({ doel, lesplannen, doelPad }: { doel: GoLeerplandoel; lesplannen: readonly LesplanLink[]; doelPad?: DoelPadFn }) {
   return (
     <li className="b-go-doel" id={`b-go-doel-${doel.code}`}>
       <p className="b-go-doelkop">
@@ -133,25 +144,29 @@ function Doel({ doel, lesplannen, doelPad }: { doel: GoLeerplandoel; lesplannen:
           {doel.kennisverwerking}
         </span>
       </p>
-      <p className="b-go-tekst b-go-doeltekst">
-        <GoTekstWeergave tekst={doel} />
-      </p>
-      <p className="b-go-leeftijden">({leeftijdenLabel(doel.leeftijden)})</p>
-      <KoppelingChips doel={doel} doelPad={doelPad} />
-      {lesplannen.length > 0 && (
-        <p className="b-go-koppeling">
-          <span className="b-go-koppeling-kop">{lesplannen.length === 1 ? 'Lesplan: ' : `Lesplannen (${lesplannen.length}): `}</span>
-          {lesplannen.map((c, n) => (
-            <span key={c}>
-              <Link to={basisPad({ s: 'lesplan', code: c })} className="b-go-lesplanlink">
-                {c}
-                <span className="sr-only"> (lesplan bij {doel.code})</span>
-              </Link>
-              {n < lesplannen.length - 1 && ','}
-            </span>
-          ))}
+      <div className="b-go-doelmidden">
+        <p className="b-go-tekst b-go-doeltekst">
+          <GoTekstWeergave tekst={doel} />
         </p>
-      )}
+        <p className="b-go-leeftijden">({leeftijdenLabel(doel.leeftijden)})</p>
+      </div>
+      <div className="b-go-doelzij">
+        <KoppelingChips doel={doel} doelPad={doelPad} />
+        {lesplannen.length > 0 && (
+          <p className="b-go-koppeling">
+            <span className="b-go-koppeling-kop">{lesplannen.length === 1 ? 'Lesplan: ' : `Lesplannen (${lesplannen.length}): `}</span>
+            {lesplannen.map((l, n) => (
+              <span key={l.code}>
+                <Link to={basisPad({ s: 'lesplan', code: l.code })} className="b-go-lesplanlink">
+                  {lesplanLinkTekst(l)}
+                  <span className="sr-only"> (lesplan bij {doel.code})</span>
+                </Link>
+                {n < lesplannen.length - 1 && ','}
+              </span>
+            ))}
+          </p>
+        )}
+      </div>
     </li>
   );
 }
@@ -188,8 +203,8 @@ export function LeerplandoelenInhoud({ leerplan, index, filter, onLeeftijd, onZo
   const blokken = useMemo(() => blokkenVan(items), [items]);
   const perLeeftijd = useMemo(() => aantalPerLeeftijd(leerplan), [leerplan]);
   const lesplannen = useMemo(() => {
-    const uit = new Map<string, string[]>();
-    if (index) for (const l of index.lesplannen) for (const c of l.doelen) uit.set(c, [...(uit.get(c) ?? []), l.code]);
+    const uit = new Map<string, LesplanLink[]>();
+    if (index) for (const l of index.lesplannen) for (const c of l.doelen) uit.set(c, [...(uit.get(c) ?? []), { code: l.code, titel: l.titel }]);
     return uit;
   }, [index]);
   const zonderAantal = useMemo(() => leerplan.doelen.filter((d) => isZonderMinimumdoel(d)).length, [leerplan]);

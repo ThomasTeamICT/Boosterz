@@ -8,6 +8,9 @@ import { EditorProps, GameStatus, PlayerProps } from './shared';
 
 // ── Hulpjes ─────────────────────────────────────────────────────────────────
 
+/** Safari en iPadOS 14 kennen aspect-ratio niet (pas vanaf 15): daar houdt het bord zijn verhouding via padding-top. */
+const metVerhouding = typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('aspect-ratio', '1');
+
 const DIM_OPTIONS = [2, 3, 4, 5, 6] as const;
 
 function clampDim(n: number): number {
@@ -261,6 +264,7 @@ export function JigsawPlayer({ widget, timeUp, onComplete }: PlayerProps<JigsawC
         <p style={{ textAlign: 'center', color: 'var(--text-soft)' }} role="status">Afbeelding laden…</p>
       ) : (
         <div style={{ position: 'relative', maxWidth: 560, margin: '0 auto' }}>
+          <div style={metVerhouding ? undefined : { position: 'relative', height: 0, paddingTop: `${100 / ratio}%` }}>
           <div
             role="group"
             aria-label={`Puzzelbord met ${total} stukjes`}
@@ -269,7 +273,7 @@ export function JigsawPlayer({ widget, timeUp, onComplete }: PlayerProps<JigsawC
               gridTemplateColumns: `repeat(${cols}, 1fr)`,
               gridTemplateRows: `repeat(${rows}, 1fr)`,
               gap: 3,
-              aspectRatio: String(ratio),
+              ...(metVerhouding ? { aspectRatio: String(ratio) } : { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }),
               background: 'var(--bg-sunken)',
               border: '1px solid var(--line)',
               borderRadius: 12,
@@ -337,6 +341,7 @@ export function JigsawPlayer({ widget, timeUp, onComplete }: PlayerProps<JigsawC
                 />
               );
             })}
+          </div>
           </div>
           {locked && (
             <div

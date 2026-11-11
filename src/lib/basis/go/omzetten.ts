@@ -17,7 +17,7 @@
 import { canoniek } from '../../minimumdoelen';
 import { sha256Hex } from '../../sha256';
 import { GO_LEEFTIJDEN, isGoLeeftijd } from './leeftijden';
-import { slugVan } from './goModel';
+import { slugVan, voorstelNaast, vormVanVoorstel } from './goModel';
 import { koppel, vakVanCode, type KoppelUitkomst, type Opzoektabel } from './koppelen';
 import {
   GO_MOMENTEN,
@@ -79,6 +79,7 @@ import {
   MIN_STAPPEN,
   MOMENT_KOLOMMEN,
   OPSOMTEKEN,
+  RE_CODEVORM,
   RE_DIPLOMA_KOP,
   RE_DOELREGEL,
   RE_FICHE,
@@ -293,7 +294,8 @@ export type BekendeAfwijking = BekendBasis &
     | { soort: 'rubriek-met-leeftijd'; vak: GoVak; rij: number; tekst: string }
     | { soort: 'verwijzing-kapot'; doel: string; kolom: 'VLAGGEN' | 'SCHAKELS'; waarde: string }
     | { soort: 'koppeling-voorstel'; doel: string; moment: GoMoment; bronCode: string; voorstel: string }
-    | { soort: 'koppeling-ander-vak'; doel: string; moment: GoMoment; code: string }
+    /** `voorstel` (vorm B, types.ts): een code die Boosterz naast de officiële koppeling voorstelt, op hetzelfde moment. */
+    | { soort: 'koppeling-ander-vak'; doel: string; moment: GoMoment; code: string; voorstel?: string }
     | { soort: 'minimumdoelrij'; vak: GoVak; rij: number }
     | { soort: 'minimumdoelrij-is-inhoud'; vak: GoVak; rij: number; doel: string; als: string; tekst: string }
     | { soort: 'opmaak'; vak: GoVak; rij: number; kolom: number; tekst: string; besluit: 'opmaak-bewaren' }
@@ -322,7 +324,7 @@ const BEKENDE_VELDEN: Readonly<Record<BekendeSoort, { verplicht: readonly string
   'rubriek-met-leeftijd': { verplicht: ['vak', 'rij', 'tekst'] },
   'verwijzing-kapot': { verplicht: ['doel', 'kolom', 'waarde'] },
   'koppeling-voorstel': { verplicht: ['doel', 'moment', 'bronCode', 'voorstel'] },
-  'koppeling-ander-vak': { verplicht: ['doel', 'moment', 'code'] },
+  'koppeling-ander-vak': { verplicht: ['doel', 'moment', 'code'], optioneel: ['voorstel'] },
   minimumdoelrij: { verplicht: ['vak', 'rij'] },
   'minimumdoelrij-is-inhoud': { verplicht: ['vak', 'rij', 'doel', 'als', 'tekst'] },
   opmaak: { verplicht: ['vak', 'rij', 'kolom', 'tekst', 'besluit'] },
@@ -363,6 +365,9 @@ export function leesBekendeAfwijkingen(json: unknown): { afwijkingen: BekendeAfw
     }
     if (a.soort === 'lessenlijn-variant' && a.veld !== 'lessenlijn' && a.veld !== 'lessenreeks') fouten.push(`${p}: "veld" is lessenlijn of lessenreeks`);
     if (a.soort === 'opmaak' && a.besluit !== 'opmaak-bewaren') fouten.push(`${p}: "besluit" is 'opmaak-bewaren'`);
+    if (a.soort === 'koppeling-ander-vak' && a.voorstel !== undefined && (typeof a.voorstel !== 'string' || !RE_CODEVORM.test(a.voorstel) || a.voorstel === a.code)) {
+      fouten.push(`${p}: "voorstel" is een andere code van de vorm cijfer.cijfer.cijfer`);
+    }
     for (const k of Object.keys(a)) {
       const w = a[k];
       if (!getallen.includes(k) && k !== 'lesplannen' && typeof w !== 'string') fouten.push(`${p}: "${k}" is geen tekst`);
@@ -1272,6 +1277,8 @@ export function zetLeerplanOm(
   let naMinimumdoel = false;
 
   const voorstelVoor = (doel: string) => (moment: GoMoment, bronCode: string) => ctx.bekende.zoek('koppeling-voorstel', (a) => a.doel === doel && a.moment === moment && a.bronCode === bronCode)?.voorstel;
+  /** Vorm B: het voorstel naast een officiële koppeling met twijfel 'ander-vak' (veld voorstel van die bekende afwijking). */
+  const voorstelNaastVoor = (doel: string) => (moment: GoMoment, code: string) => ctx.bekende.zoek('koppeling-ander-vak', (a) => a.doel === doel && a.moment === moment && a.code === code)?.voorstel;
 
   /** Koppelt de codekolommen van een rij; meldt problemen, voorstellen en een vak dat niet verwacht is. */
   const koppelRij = (rij: RuwRij, cel: (k: number) => string | null, doel: GoLeerplandoel | undefined, lft: readonly GoLeeftijd[], doelzin: boolean): GoKoppeling | undefined => {
@@ -1285,6 +1292,7 @@ export function zetLeerplanOm(
     const anderVak: { moment: GoMoment; code: string; bekend: BekendBasis | undefined }[] = [];
     const u = koppel(bron, lft, ctx.tabel, {
       voorstel: voorstelVoor(doelCode),
+      voorstelNaast: voorstelNaastVoor(doelCode),
       twijfel: (moment, code) => {
         const mv = vakVanCode(code);
         if (mv === undefined || VERWACHTE_MINIMUMDOELVAKKEN[vak].includes(mv)) return [];
@@ -1295,7 +1303,16 @@ export function zetLeerplanOm(
     });
     koppelingen.push({ doel: doelCode, uitkomst: u });
     const w = `rij ${rij.r} (${doelCode})`;
-    for (const a of anderVak) afw.melding('koppeling-ander-vak', w, `${a.moment} ${a.code} is een minimumdoel van vak ${vakVanCode(a.code)}, niet van een vak dat ${vak} verwacht`, a.bekend);
+    for (const a of anderVak) {
+      const naast = u.koppeling.refs.find((r) => r.status === 'voorstel' && r.moment === a.moment && r.bronCode === a.code);
+      afw.melding('koppeling-ander-vak', w, `${a.moment} ${a.code} is een minimumdoel van vak ${vakVanCode(a.code)}, niet van een vak dat ${vak} verwacht${naast ? ` (voorstel ${naast.code}, ${naast.set}/${naast.id})` : ''}`, a.bekend);
+    }
+    // Vorm B: het voorgestelde doel hoort zelf bij een vak dat de vakdiscipline verwacht, anders stopt de import.
+    for (const r of u.koppeling.refs) {
+      const mv = vakVanCode(r.code);
+      if (vormVanVoorstel(u.koppeling, r)?.vorm !== 'ander-vak' || (mv !== undefined && VERWACHTE_MINIMUMDOELVAKKEN[vak].includes(mv))) continue;
+      afw.nieuw('koppeling-voorstel', w, `het voorstel ${r.code} voor ${r.moment} ${r.bronCode ?? ''} is een minimumdoel van vak ${String(mv)}, niet van een vak dat ${vak} verwacht`);
+    }
     for (const d of u.dubbelzinnig) afw.nieuw('koppeling-dubbelzinnig', w, `${d.moment} ${d.code} vindt ${d.kandidaten.length} doelen (${d.kandidaten.map((k) => `${k.set}/${k.id}`).join(', ')})`);
     for (const d of u.dubbel) afw.nieuw('koppeling-dubbel', w, `${d.moment} ${d.code} staat twee keer`);
     for (const v of u.voorstelZonderDoel) afw.nieuw('koppeling-voorstel', w, `het voorstel ${v.voorstel} voor ${v.moment} "${v.bronCode}" vindt geen doel`);
@@ -1714,7 +1731,11 @@ export function controleerLessenlijnen(lesplannen: readonly GoLesplanBestand[], 
 
 // ══ Omgekeerde index en index ═════════════════════════════════════════
 
-/** Per vak van de minimumdoelen (1-10) het bestand bij-minimumdoel/<vak>.json, met de lesplannen per doel. */
+/**
+ * Per vak van de minimumdoelen (1-10) het bestand bij-minimumdoel/<vak>.json, met de lesplannen per doel. Een voorstel
+ * staat bij het voorgestelde doel (status 'voorstel' met zijn bronCode); bij vorm B krijgt de officiële koppeling met
+ * twijfel 'ander-vak' daarbij het voorgestelde doel in `voorstel`.
+ */
 export function maakBijMinimumdoel(leerplannen: readonly GoLeerplanBestand[], lesplannen: readonly GoLesplanBestand[]): GoBijMinimumdoelBestand[] {
   const lesplannenVan = new Map<string, string[]>();
   for (const lp of [...lesplannen].sort((a, b) => (a.code < b.code ? -1 : 1))) {
@@ -1723,18 +1744,18 @@ export function maakBijMinimumdoel(leerplannen: readonly GoLeerplanBestand[], le
   const perVak = new Map<number, Map<string, GoBijDoel[]>>();
   for (const lp of leerplannen) {
     for (const doel of lp.doelen) {
-      const perId = new Map<string, { ref: GoMinimumdoelRef; via: GoVia[] | undefined }>();
-      for (const r of doel.minimumdoelen.refs) perId.set(r.id, { ref: r, via: undefined });
+      const perId = new Map<string, { ref: GoMinimumdoelRef; naast: GoMinimumdoelRef | undefined; via: GoVia[] | undefined }>();
+      for (const r of doel.minimumdoelen.refs) perId.set(r.id, { ref: r, naast: voorstelNaast(doel.minimumdoelen, r), via: undefined });
       for (const i of doel.inhoud) {
         if (!('koppeling' in i) || !i.koppeling) continue;
         for (const r of i.koppeling.refs) {
           const via: GoVia = { soort: i.soort, tekst: i.tekst, rij: i.rij, ...(i.opmaak ? { opmaak: i.opmaak } : {}) };
           const al = perId.get(r.id);
-          if (!al) perId.set(r.id, { ref: r, via: [via] });
+          if (!al) perId.set(r.id, { ref: r, naast: voorstelNaast(i.koppeling, r), via: [via] });
           else if (al.via) al.via.push(via); // de doelzin zelf verwijst niet: alle MIA-rijen erbij
         }
       }
-      for (const [id, { ref, via }] of perId) {
+      for (const [id, { ref, naast, via }] of perId) {
         const vak = vakVanCode(ref.code);
         if (vak === undefined) continue;
         const b: GoBijDoel = {
@@ -1743,6 +1764,7 @@ export function maakBijMinimumdoel(leerplannen: readonly GoLeerplanBestand[], le
           status: ref.status,
           ...(ref.twijfel ? { twijfel: [...ref.twijfel] } : {}),
           ...(ref.bronCode !== undefined ? { bronCode: ref.bronCode } : {}),
+          ...(naast ? { voorstel: { set: naast.set, id: naast.id, code: naast.code } } : {}),
           tekst: doel.tekst,
           ...(doel.opmaak ? { opmaak: doel.opmaak } : {}),
           kennisverwerking: doel.kennisverwerking,

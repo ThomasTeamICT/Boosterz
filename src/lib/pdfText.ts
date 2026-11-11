@@ -6,6 +6,8 @@
 // Let op: een gescande pdf (foto's van pagina's) bevat geen tekstlaag en
 // levert dus (bijna) niets op — de knop meldt dat aan de leerkracht.
 
+import { laadPdfjs } from './pdfWorker';
+
 /** Meer dan dit plakken we niet in een AI-prompt (± 15k tokens). */
 const MAX_CHARS = 60000;
 const TRUNC_MARKER = '\n\n[… ingekort …]';
@@ -19,8 +21,7 @@ const TRUNC_MARKER = '\n\n[… ingekort …]';
 export async function extractPdfText(src: Blob): Promise<{ text: string; pages: number }> {
   // De legacy-build, net als PdfViewer: de moderne build eist splinternieuwe
   // JS-API's die op oudere school-pc's nog ontbreken.
-  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString();
+  const pdfjs = await laadPdfjs();
   const data = await src.arrayBuffer();
   const task = pdfjs.getDocument({ data });
   const doc = await task.promise;
@@ -183,8 +184,7 @@ export interface PdfRegels {
  */
 export async function extractPdfLines(src: Blob): Promise<PdfRegels> {
   // Dezelfde legacy-build en worker als extractPdfText.
-  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString();
+  const pdfjs = await laadPdfjs();
   const data = await src.arrayBuffer();
   const task = pdfjs.getDocument({ data });
   const doc = await task.promise;

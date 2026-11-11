@@ -33,7 +33,7 @@
 .kz-rij:hover { background: var(--bg-sunken); }
 .kz-rij input { width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--brand); cursor: pointer; }
 .kz-rij:has(input:checked) { background: var(--brand-soft); }
-.kz-code { font-variant-numeric: tabular-nums; font-weight: 700; overflow-wrap: anywhere; line-height: 1.5; }
+.kz-code { font-variant-numeric: tabular-nums; font-weight: 700; overflow-wrap: break-word; overflow-wrap: anywhere; line-height: 1.5; }
 .kz-tekst { min-width: 0; white-space: pre-line; overflow-wrap: break-word; hyphens: auto; line-height: 1.5; }
 .kz-meer { display: flex; justify-content: center; margin: 10px 0 4px; }
 .kz-leeg { padding: 14px; border: 2px dashed var(--line-strong); border-radius: var(--radius-m); color: var(--text-soft); }

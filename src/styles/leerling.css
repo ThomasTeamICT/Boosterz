@@ -181,7 +181,7 @@
 /* ── Lange woorden en url's mogen nooit de pagina breder maken ──────────── */
 
 .player-shell .player-main {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word; overflow-wrap: anywhere;
 }
 
 /* ── Meedoen-pagina: linkjes onder de knop als volwaardig tikdoel ───────── */
@@ -242,5 +242,5 @@
   /* trapsgewijs kleiner bij smallere schermen, nooit zo klein dat het onleesbaar wordt */
   font-size: clamp(1rem, 0.85rem + 1vw, 1.35rem);
 }
-.player-shell .flashcard .face span:last-child { overflow-wrap: anywhere; }
+.player-shell .flashcard .face span:last-child { overflow-wrap: break-word; overflow-wrap: anywhere; }
 .player-shell .flashcard .face.back { transform: rotateY(180deg); }

@@ -190,7 +190,7 @@ function LinkVraag({ decoded, question, localTitle, onAccept, onKeep }: {
       {n > 0 && (
         <ul
           aria-label="Oefeningen die zouden veranderen"
-          style={{ textAlign: 'left', margin: '0 0 14px', paddingLeft: 22, overflowWrap: 'anywhere' }}
+          style={{ textAlign: 'left', margin: '0 0 14px', paddingLeft: 22, overflowWrap: 'anywhere', wordBreak: 'break-word' }}
         >
           {genoemd.map((c) => (
             <li key={c.id}>

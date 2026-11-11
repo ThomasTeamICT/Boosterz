@@ -205,6 +205,64 @@ describe('koppel', () => {
     expect(u.koppeling.refs[0].twijfel).toEqual(['moment-buiten-leeftijden', 'ander-vak']);
   });
 
+  // Vorm B (WI.706, beslissing van de eigenaar van 11 november 2026): naast de officiële koppeling met twijfel 'ander-vak'.
+  const anderVak = (_m: string, c: string) => (c === '4.2.3' ? (['ander-vak'] as const) : []);
+
+  it("vorm B: een voorstel naast een officiële koppeling met twijfel 'ander-vak', direct erna, met de officiële code als bronCode", () => {
+    const u = koppel({ KO: '4.2.3, 3.1.2' }, ['4-5'], tabel, { twijfel: anderVak, voorstelNaast: (m, c) => (m === 'KO' && c === '4.2.3' ? '2.1.2' : undefined) });
+    expect(u.koppeling).toEqual({
+      bron: { KO: '4.2.3, 3.1.2' },
+      refs: [
+        { set: 'ODS_3411', id: '92500', code: '4.2.3', moment: 'KO', status: 'officieel', twijfel: ['ander-vak'] },
+        { set: 'ODS_3405', id: '93001', code: '2.1.2', moment: 'KO', status: 'voorstel', bronCode: '4.2.3' },
+        { set: 'ODS_3410', id: '92590', code: '3.1.2', moment: 'KO', status: 'officieel' },
+      ],
+      problemen: [],
+    });
+    expect([...u.dubbel, ...u.dubbelzinnig, ...u.voorstelZonderDoel]).toEqual([]);
+  });
+
+  it("vorm B: alleen gevraagd bij een officiële koppeling met twijfel 'ander-vak', nooit bij een gewone of kapotte code", () => {
+    const gevraagd: string[] = [];
+    const naast = (m: string, c: string) => {
+      gevraagd.push(`${m} ${c}`);
+      return '2.1.2';
+    };
+    const zonder = koppel({ KO: '4.2.3, 3.1.2, 3.9.9' }, ['4-5'], tabel, { voorstelNaast: naast });
+    expect(gevraagd).toEqual([]);
+    expect(zonder.koppeling.refs.every((r) => r.status === 'officieel')).toBe(true);
+    koppel({ KO: '4.2.3, 3.1.2, 3.9.9' }, ['4-5'], tabel, { twijfel: anderVak, voorstelNaast: naast });
+    expect(gevraagd).toEqual(['KO 4.2.3']);
+  });
+
+  it('vorm B: het voorstel krijgt de leeftijdstwijfel als zijn moment niet past, nooit de twijfel ander-vak', () => {
+    const u = koppel({ KO: '4.2.3' }, ['10-11'], tabel, { twijfel: anderVak, voorstelNaast: () => '2.1.2' });
+    expect(u.koppeling.refs[1]).toEqual({ set: 'ODS_3405', id: '93001', code: '2.1.2', moment: 'KO', status: 'voorstel', bronCode: '4.2.3', twijfel: ['moment-buiten-leeftijden'] });
+  });
+
+  it('vorm B: een voorstel dat geen of meer dan één doel vindt, of de code zelf is, wordt gemeld en niet gekoppeld', () => {
+    for (const voorstel of ['2.9.9', '6.12', '4.2.3']) {
+      const u = koppel({ KO: '4.2.3' }, ['4-5'], tabel, { twijfel: anderVak, voorstelNaast: () => voorstel });
+      expect(u.koppeling.refs.map((r) => r.status), voorstel).toEqual(['officieel']);
+      expect(u.voorstelZonderDoel, voorstel).toEqual([{ moment: 'KO', bronCode: '4.2.3', voorstel }]);
+    }
+    const t = tabelVan({ ODS_3405: set('ODS_3405', [['93002', '2.1.1']]) }).tabel;
+    const twee = koppel({ KO: '4.2.3' }, ['4-5'], t, { twijfel: anderVak, voorstelNaast: () => '2.1.1' });
+    expect(twee.voorstelZonderDoel).toEqual([{ moment: 'KO', bronCode: '4.2.3', voorstel: '2.1.1' }]);
+  });
+
+  it('vorm B: een voorstel naar een doel dat de rij al officieel koppelt, wordt gemeld (geen dubbel minimumdoel)', () => {
+    const u = koppel({ KO: '2.1.2, 4.2.3' }, ['4-5'], tabel, { twijfel: anderVak, voorstelNaast: () => '2.1.2' });
+    expect(u.koppeling.refs.map((r) => `${r.code} ${r.status}`)).toEqual(['2.1.2 officieel', '4.2.3 officieel']);
+    expect(u.dubbel).toEqual([{ moment: 'KO', code: '2.1.2' }]);
+  });
+
+  it('vorm A blijft zoals ze was: het voorstel staat direct na de plaats van de kapotte code', () => {
+    const u = koppel({ KO: '3.13, 3.1.2' }, ['2,5-4'], tabel, { voorstel: () => '3.1.3', voorstelNaast: () => '2.1.2' });
+    expect(u.koppeling.refs.map((r) => `${r.code} ${r.status} ${r.bronCode ?? ''}`)).toEqual(['3.1.3 voorstel 3.13', '3.1.2 officieel ']);
+    expect(u.koppeling.problemen).toEqual([{ moment: 'KO', bronCode: '3.13', reden: 'onleesbaar' }]);
+  });
+
   it('de momenten in vaste volgorde KO, L4, L6, ook als de bron anders geordend is', () => {
     const u = koppel({ L6: '3.3.2', KO: '3.1.2' }, ['2,5-4', '11-12'], tabel);
     expect(u.koppeling.refs.map((r) => r.moment)).toEqual(['KO', 'L6']);

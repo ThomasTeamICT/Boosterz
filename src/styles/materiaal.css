@@ -304,6 +304,7 @@ details.mat-details { display: block; padding: 0; }
 .mat-ai-card {
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
   padding: 16px 20px; margin-bottom: 30px; text-decoration: none; color: var(--text);
+  border: 1px solid var(--brand);
   border: 1px solid color-mix(in srgb, var(--brand) 45%, transparent); background: var(--brand-soft);
 }
 .mat-ai-card:hover { border-color: var(--brand); }

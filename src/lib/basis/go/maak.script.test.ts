@@ -180,6 +180,52 @@ describe('maak.ts: schrijven, niets herschrijven, stoppen bij een wijziging en d
   });
 });
 
+// ── Een voorstel naast een koppeling met een ander vak (vorm B) ──────
+
+describe('maak.ts: een voorstel naast een officiële koppeling met twijfel ander-vak (vorm B, zoals WI.706)', () => {
+  // WT.001 verwijst naar KO 4.2.3, een minimumdoel van aardrijkskunde (ODS_3411/92500 in de echte minimumdoelen).
+  const anderVak = (voorstel: string): BekendeAfwijking => ({ soort: 'koppeling-ander-vak', doel: 'WT.001', moment: 'KO', code: '4.2.3', voorstel, reden: 'Een code van aardrijkskunde, met een voorstel (test).', datum: '2026-11-11' });
+  let werk = '';
+  let uit = '';
+
+  beforeAll(() => {
+    werk = join(TMP, 'andervak', 'werk');
+    uit = join(TMP, 'andervak', 'uit');
+  });
+
+  it('mutatie: een voorstel dat geen doel vindt, stopt (exit 3, niets geschreven)', () => {
+    const { bekende } = werkmap(werk, { wt: wt('4.2.3'), bekende: [DOELTEKST, anderVak('3.9.9')] });
+    const r = draai(werk, uit, bekende);
+    expect(r.status, r.stdout).toBe(3);
+    expect(r.stdout).toContain('  NIEUW WT rij 3 (WT.001) [koppeling-voorstel]: het voorstel 3.9.9 voor KO "4.2.3" vindt geen doel');
+    expect(r.rapport.afwijkingen.nieuw.map((a) => a.soort)).toEqual(['koppeling-voorstel']);
+    expect(opname(uit)).toEqual({});
+  });
+
+  it('een voorstel dat precies één doel van een verwacht vak vindt, gaat door: officieel blijft, het voorstel staat erbij', () => {
+    const { bekende } = werkmap(werk, { wt: wt('4.2.3'), bekende: [DOELTEKST, anderVak('3.1.2')] });
+    const r = draai(werk, uit, bekende);
+    expect(r.status, r.stdout).toBe(0);
+    expect(r.stdout).toContain('Koppeling op doelzin-rijen: 1 van 1 vinden precies één doel; 1 voorstel (WT.001 KO "4.2.3" → 3.1.2 (ODS_3410/92590)); 0 problemen.');
+    const wtBestand = JSON.parse(readFileSync(join(uit, 'leerplan', 'WT.json'), 'utf8')) as { doelen: { code: string; minimumdoelen: { refs: unknown[] } }[] };
+    expect(wtBestand.doelen.find((d) => d.code === 'WT.001')?.minimumdoelen.refs).toEqual([
+      { set: 'ODS_3411', id: '92500', code: '4.2.3', moment: 'KO', status: 'officieel', twijfel: ['ander-vak'] },
+      { set: 'ODS_3410', id: '92590', code: '3.1.2', moment: 'KO', status: 'voorstel', bronCode: '4.2.3' },
+    ]);
+    const vier = JSON.parse(readFileSync(join(uit, 'bij-minimumdoel', '4.json'), 'utf8')) as { doelen: Record<string, { code: string; voorstel?: unknown }[]> };
+    expect(vier.doelen['92500'].map((d) => [d.code, d.voorstel])).toEqual([['WT.001', { set: 'ODS_3410', id: '92590', code: '3.1.2' }]]);
+  });
+
+  it('mutatie: een voorstel naar een doel van een vak dat de vakdiscipline niet verwacht, stopt', () => {
+    const { bekende } = werkmap(werk, { wt: wt('4.2.3'), bekende: [DOELTEKST, anderVak('2.4.3')] });
+    const voor = opname(uit);
+    const r = draai(werk, uit, bekende);
+    expect(r.status, r.stdout).toBe(3);
+    expect(r.stdout).toContain('[koppeling-voorstel]: het voorstel 2.4.3 voor KO 4.2.3 is een minimumdoel van vak 2, niet van een vak dat WT verwacht');
+    expect(opname(uit)).toEqual(voor);
+  });
+});
+
 // ── Wat altijd stopt ─────────────────────────────────────────────────
 
 describe('maak.ts: een ontbrekende doelenset, een wees in --uit, een verkeerde invoer', () => {

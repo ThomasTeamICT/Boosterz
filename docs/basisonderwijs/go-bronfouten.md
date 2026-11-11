@@ -1,6 +1,6 @@
 # Meldingen voor het GO!: fouten en vragen in de bron
 
-Opgemaakt op 9 november 2026 bij de eerste import van het nieuwe GO! leerplan basisonderwijs en de eerste reeks lesplannen in Boosterz. Aangevuld op 10 november 2026.
+Opgemaakt op 9 november 2026 bij de eerste import van het nieuwe GO! leerplan basisonderwijs en de eerste reeks lesplannen in Boosterz. Aangevuld op 10 en 11 november 2026.
 
 **Over Boosterz.** Boosterz is een gratis leerplatform dat volledig in de browser werkt. Met toestemming van het GO! staan het nieuwe GO! leerplan basisonderwijs en de eerste lesplannen er letterlijk in, met bronvermelding. Bij elk leerplandoel toont het de minimumdoelen waarnaar het leerplan verwijst.
 
@@ -18,7 +18,7 @@ Opgemaakt op 9 november 2026 bij de eerste import van het nieuwe GO! leerplan ba
 - *Onder AA.063* betekent: de rij staat in de Excel na de doelzin van dat leerplandoel en vóór de volgende doelzin (meestal bij zijn MIA, begrippen of voorbeelden).
 - *Officiële tekst* is de tekst van het minimumdoel zoals de overheid hem publiceert.
 
-**Wat Boosterz ermee doet.** Boosterz neemt de tekst van het GO! letterlijk over en verbetert niets, ook geen tikfouten. Een verwijzing die niet bestaat, staat er zonder link. Eén keer tonen we een voorstel, duidelijk gemarkeerd als ‘voorstel, nog niet bevestigd door het GO!’ (MV.040). De tekst van een minimumdoel komt in Boosterz altijd van de overheid, nooit uit de Excel: een afwijkende tekst in de Excel komt dus nergens op het scherm.
+**Wat Boosterz ermee doet.** Boosterz neemt de tekst van het GO! letterlijk over en verbetert niets, ook geen tikfouten. Een verwijzing die niet bestaat, staat er zonder link. Twee keer tonen we een voorstel, duidelijk gemarkeerd als ‘voorstel, nog niet bevestigd door het GO!’: bij MV.040 (‘6.12’, waarschijnlijk 6.1.2) en bij WI.706 (waarschijnlijk 2.4.3, naast de verwijzing naar 4.2.3, die blijft staan). De tekst van een minimumdoel komt in Boosterz altijd van de overheid, nooit uit de Excel: een afwijkende tekst in de Excel komt dus nergens op het scherm.
 
 ## Vragen aan het GO!
 
@@ -33,6 +33,7 @@ Opgemaakt op 9 november 2026 bij de eerste import van het nieuwe GO! leerplan ba
 9. **WI.408, WI.411 en WI.963:** alleen een MIA heeft een code, de doelzin niet. Is dat bedoeld, of mist de doelzin zijn code? Zie Wiskunde.
 10. **WT.288** verwijst in de kolom VLAGGEN naar zichzelf. Welk doel is bedoeld? Zie Wetenschap en techniek.
 11. **WT.008** heeft in lesplan LP0065 een andere tekst dan in de doelenset. Welke versie leidt? Zie Lesplannen.
+12. **Codes bij een nieuwe versie.** Houdt een leerplandoel zijn code (bv. WT.086) als er in een nieuwe versie van een doelenset doelen bijkomen of wegvallen, of worden de codes dan opnieuw doorgenummerd? Boosterz linkt naar een leerplandoel op zijn code, en de lesplannen verwijzen ernaar met die code.
 
 ## In het kort
 
@@ -486,7 +487,7 @@ Alle andere begrippen (‘te hanteren begrippen’) hebben minstens één leefti
 
 **Verwijzingen naar een minimumdoel (vraag 8)**
 
-- WI.706 (rij 4402) verwijst naar KO 4.2.3, een minimumdoel van aardrijkskunde (minimumdoel 92500, begrippen over infrastructuur), niet van wiskunde. Waarschijnlijk is KO 2.4.3 bedoeld (minimumdoel 93005, meetkundige objecten opdelen en samenstellen): het zusterdoel WI.791 (rij 4887) heeft dezelfde MIA “(de)monteren:” / “opdelen en samenstellen” en verwijst naar 2.4.3, en de minimumdoel-rijen bovenaan het onderwerp ‘Meetkunde’ (rij 4365-4368) noemen voor KO 2.4.1, 2.4.2, 2.4.3 en 2.4.18, niet 4.2.3. Is 2.4.3 bedoeld? Boosterz toont de verwijzing naar 4.2.3 zoals ze in de doelenset staat, met de vermelding dat het een minimumdoel van een ander vak is.
+- WI.706 (rij 4402) verwijst naar KO 4.2.3, een minimumdoel van aardrijkskunde (minimumdoel 92500, begrippen over infrastructuur), niet van wiskunde. Waarschijnlijk is KO 2.4.3 bedoeld (minimumdoel 93005, meetkundige objecten opdelen en samenstellen): het zusterdoel WI.791 (rij 4887) heeft dezelfde MIA “(de)monteren:” / “opdelen en samenstellen” en verwijst naar 2.4.3, en de minimumdoel-rijen bovenaan het onderwerp ‘Meetkunde’ (rij 4365-4368) noemen voor KO 2.4.1, 2.4.2, 2.4.3 en 2.4.18, niet 4.2.3. Is 2.4.3 bedoeld? Boosterz toont de verwijzing naar 4.2.3 zoals ze in de doelenset staat, met de vermelding dat het een minimumdoel van een ander vak is. Daarnaast toont Boosterz nu 2.4.3 als voorstel, gemarkeerd ‘voorstel, nog niet bevestigd door het GO!’; de koppeling met 4.2.3 blijft staan (beslissing van de eigenaar, 11 november 2026).
 
 **Vorm van de doelenset**
 

@@ -228,7 +228,7 @@
   font-family: var(--font-display);
   font-size: 1.1rem;
   font-weight: 600;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word; overflow-wrap: anywhere;
 }
 .b-vakkaart-sub {
   color: var(--text-soft);
@@ -262,7 +262,7 @@
   align-items: center;
   min-height: 44px;
   font-weight: 700;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word; overflow-wrap: anywhere;
 }
 .b-oudinfo {
   color: var(--text-soft);

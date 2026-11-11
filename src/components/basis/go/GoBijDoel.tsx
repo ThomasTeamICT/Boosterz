@@ -6,7 +6,10 @@
 // Dit bestand wordt lui geladen (DoelScherm): wie de gegevens van het GO! niet nodig heeft, laadt ze niet. Is er niets,
 // dan staat er niets: geen lege kop (H5). Meer dan 6 doelen in een groep: de rest staat in een details-blok. Een link naar
 // een leerplandoelpagina staat er alleen als het leerplan van dat vak bestaat. Ook bij het buitengewoon basisonderwijs
-// (zelfde nummer, dus dezelfde doelen) en bij een voorstel (gemarkeerd 'voorstel, nog niet bevestigd door het GO!').
+// (zelfde nummer, dus dezelfde doelen) en bij een voorstel (gemarkeerd 'voorstel, nog niet bevestigd door het GO!'). Bij
+// een voorstel van vorm B (types.ts) staat het leerplandoel twee keer: als voorstel bij het voorgestelde doel (WI.706 bij
+// 2.4.3, 'in het leerplan staat 4.2.3') en officieel, met zijn twijfel, bij het doel uit de bron, met de vermelding van
+// het voorstel (WI.706 bij 4.2.3).
 
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AFDRUK_ATTRIBUUT } from '../../../lib/basis/afdruk';
@@ -27,7 +30,8 @@ import {
 import { INVOERINGSKALENDER } from '../../../lib/basis/kalender';
 import { FoutBericht } from '../../curriculum/LaadStatus';
 import { useGoBijMinimumdoel, useGoIndex } from '../useGo';
-import { twijfelZin } from './KoppelingLijst';
+import { VoorstelAnderVakZin, twijfelZin, type DoelPadFn } from './KoppelingLijst';
+import { useDoelPad } from './useDoelPad';
 import { GoTekstWeergave } from './MiaBlok';
 import '../../../styles/basis-go.css';
 
@@ -36,6 +40,8 @@ export const GO_BIJ_DOEL_KOP = 'Leerplan van het GO!';
 export const EERST_GETOOND = 6;
 
 type MinimumDoel = Pick<DoelBasis, 'setId' | 'id' | 'code' | 'vak'>;
+/** Zonder keuze voor het buitengewoon onderwijs: de gewone set (zie useDoelPad). */
+const GEWOON_DOELPAD: DoelPadFn = (r) => basisPad({ s: 'doel', setId: r.set, doelId: r.id });
 
 const doelenWoord = (n: number) => `${n} ${n === 1 ? 'leerplandoel' : 'leerplandoelen'}`;
 /** 'MIA “Aftrekken:”' of 'voorbeeld “…”': het onderdeel van een leerplandoel dat naar dit minimumdoel verwijst. */
@@ -64,7 +70,7 @@ function Lesplannen({ codes, index, kop }: { codes: readonly string[]; index?: G
   );
 }
 
-function Doel({ d, minimum, index }: { d: GoBijDoel; minimum: MinimumDoel; index?: GoIndex }) {
+function Doel({ d, minimum, index, doelPad }: { d: GoBijDoel; minimum: MinimumDoel; index?: GoIndex; doelPad: DoelPadFn }) {
   const vak = vakVanDoelcode(d.code);
   // Een link naar de leerplandoelpagina alleen als het leerplan van het vak er is (zolang de index laadt of ontbreekt, wel).
   const heeftLeerplan = vak !== undefined && (index === undefined || index.leerplan.some((l) => l.vak === vak));
@@ -97,6 +103,12 @@ function Doel({ d, minimum, index }: { d: GoBijDoel; minimum: MinimumDoel; index
           In het leerplan staat “{d.bronCode}”. Waarschijnlijk is {minimum.code} bedoeld.
         </p>
       )}
+      {d.status === 'officieel' && d.voorstel && (
+        <p className="b-go-voorstel">
+          <VoorstelAnderVakZin bronCode={minimum.code} code={d.voorstel.code} naar={doelPad(d.voorstel)} />{' '}
+          <span className="badge badge-warn">{GO_VOORSTEL_LABEL}</span>
+        </p>
+      )}
       {d.via && d.via.length > 0 && (
         <p className="b-go-via">
           Het leerplan koppelt een onderdeel van dit doel ({d.via.map(onderdeelNaam).join(', ')}) aan dit minimumdoel.
@@ -122,7 +134,7 @@ interface MeerState {
   goMeer?: string[];
 }
 
-function Groep({ groep, minimum, index }: { groep: BijDoelGroep; minimum: MinimumDoel; index?: GoIndex }) {
+function Groep({ groep, minimum, index, doelPad }: { groep: BijDoelGroep; minimum: MinimumDoel; index?: GoIndex; doelPad: DoelPadFn }) {
   const location = useLocation();
   const navigate = useNavigate();
   // Na 'Terug' staat het blok weer open waar je het liet: de stand zit in het item van de geschiedenis (SB-SB-8).
@@ -138,7 +150,7 @@ function Groep({ groep, minimum, index }: { groep: BijDoelGroep; minimum: Minimu
       </h3>
       <ul className="b-go-doelen">
         {eerst.map((d) => (
-          <Doel key={d.code} d={d} minimum={minimum} index={index} />
+          <Doel key={d.code} d={d} minimum={minimum} index={index} doelPad={doelPad} />
         ))}
       </ul>
       {rest.length > 0 && (
@@ -160,7 +172,7 @@ function Groep({ groep, minimum, index }: { groep: BijDoelGroep; minimum: Minimu
           <summary>{rest.length === 1 ? 'Toon het andere leerplandoel' : `Toon de ${rest.length} andere leerplandoelen`}</summary>
           <ul className="b-go-doelen">
             {rest.map((d) => (
-              <Doel key={d.code} d={d} minimum={minimum} index={index} />
+              <Doel key={d.code} d={d} minimum={minimum} index={index} doelPad={doelPad} />
             ))}
           </ul>
         </details>
@@ -171,9 +183,10 @@ function Groep({ groep, minimum, index }: { groep: BijDoelGroep; minimum: Minimu
 
 /**
  * Het deel voor de leerplandoelen bij dit minimumdoel, zonder zelf iets te laden. Zonder leerplandoelen: null.
- * `doelen` zijn alle leerplandoelen bij dit minimumdoel (uit bij-minimumdoel/<vak>.json).
+ * `doelen` zijn alle leerplandoelen bij dit minimumdoel (uit bij-minimumdoel/<vak>.json). `doelPad` geeft het adres van
+ * een ander minimumdoel (het voorstel van vorm B); standaard de gewone set.
  */
-export function GoBijDoelInhoud({ doelen, doel, index }: { doelen: readonly GoBijDoel[]; doel: MinimumDoel; index?: GoIndex }) {
+export function GoBijDoelInhoud({ doelen, doel, index, doelPad = GEWOON_DOELPAD }: { doelen: readonly GoBijDoel[]; doel: MinimumDoel; index?: GoIndex; doelPad?: DoelPadFn }) {
   const groepen = groepeerBijDoelen(doelen);
   if (groepen.length === 0) return null;
   const aantal = groepen.reduce((som, g) => som + g.doelen.length, 0);
@@ -193,7 +206,7 @@ export function GoBijDoelInhoud({ doelen, doel, index }: { doelen: readonly GoBi
       </p>
       <Lesplannen codes={lesplanCodes} index={index} kop={`Lesplannen bij dit minimumdoel (${lesplanCodes.length}): `} />
       {groepen.map((g) => (
-        <Groep key={g.vak} groep={g} minimum={doel} index={index} />
+        <Groep key={g.vak} groep={g} minimum={doel} index={index} doelPad={doelPad} />
       ))}
       <p>
         <Link to={basisPad({ s: 'go' })} className="b-lees-meer">
@@ -210,6 +223,7 @@ export function GoBijDoelInhoud({ doelen, doel, index }: { doelen: readonly GoBi
 function Geladen({ doel }: { doel: MinimumDoel }) {
   const bij = useGoBijMinimumdoel(doel.vak);
   const index = useGoIndex().stand;
+  const doelPad = useDoelPad();
   // Zolang er niets te zeggen valt, staat er niets: ook geen kop met een laadregel.
   if (bij.stand.status === 'laden' || index.status === 'laden') return null;
   if (bij.stand.status === 'fout') {
@@ -221,7 +235,7 @@ function Geladen({ doel }: { doel: MinimumDoel }) {
     );
   }
   const doelen = leerplandoelenBijMinimumdoel(bij.stand.waarde, doel.id);
-  return <GoBijDoelInhoud doelen={doelen} doel={doel} index={index.status === 'klaar' ? index.waarde : undefined} />;
+  return <GoBijDoelInhoud doelen={doelen} doel={doel} index={index.status === 'klaar' ? index.waarde : undefined} doelPad={doelPad} />;
 }
 
 /** Het lui geladen deel op de doelpagina: laadt de omgekeerde index van het vak van dit minimumdoel. */

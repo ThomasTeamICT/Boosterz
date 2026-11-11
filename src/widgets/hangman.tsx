@@ -230,7 +230,7 @@ export function HangmanPlayer({ widget, timeUp, onComplete }: PlayerProps<Hangma
           fontWeight: 800, letterSpacing: long ? '0.2em' : '0.35em', margin: '22px 0',
           fontFamily: 'monospace',
           // lange woorden breken af in plaats van uit beeld te lopen
-          overflowWrap: 'anywhere',
+          overflowWrap: 'anywhere', wordBreak: 'break-word',
         }}
       >
         {cells.join('')}

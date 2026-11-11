@@ -444,6 +444,32 @@ function bijVoorstel(): GoBijMinimumdoelBestand {
   };
 }
 
+/** Vorm B (zoals WI.706 bij 92500): de officiële koppeling met twijfel 'ander-vak' noemt het voorgestelde doel. */
+function bijAnderVak(): GoBijMinimumdoelBestand {
+  return {
+    app: 'boosterz',
+    kind: 'go-bij-minimumdoel',
+    v: 1,
+    vak: 4,
+    doelen: {
+      '92500': [
+        {
+          code: 'WI.706',
+          moment: 'KO',
+          status: 'officieel',
+          twijfel: ['ander-vak'],
+          voorstel: { set: 'ODS_3405', id: '93005', code: '2.4.3' },
+          tekst: '(De)monteren ruimtefiguren tot een bouwsel en omgekeerd.',
+          kennisverwerking: 'gebruiken',
+          leeftijden: ['2,5-4', '4-5', '5-6'],
+          lesplannen: [],
+        },
+      ],
+    },
+    sha256: SHA,
+  };
+}
+
 const perLeeftijd = { '2,5-4': 125, '4-5': 110, '5-6': 105, '6-7': 60, '7-8': 55, '8-9': 50, '9-10': 52, '10-11': 108, '11-12': 109 };
 
 function index(): GoIndex {
@@ -737,6 +763,39 @@ describe('valideerGoLeerplan', () => {
       expect(alles(valideerGoLeerplan(zelfde))).toMatch(/een voorstel stelt een andere code voor/);
       const twee = met(leerplan(), (x) => x.doelen[3].minimumdoelen.refs.push({ set: 'ODS_3415', id: '92440', code: '6.1.3', moment: 'KO', status: 'voorstel', bronCode: '6.12' }));
       expect(alles(valideerGoLeerplan(twee))).toMatch(/er is al een voorstel voor KO "6.12"/);
+    });
+
+    describe("vorm B: een voorstel naast een officiële koppeling met twijfel 'ander-vak' (zoals WI.706, 11 november 2026)", () => {
+      const VOORSTEL = { set: 'ODS_3405', id: '93005', code: '2.4.3', moment: 'KO' as const, status: 'voorstel' as const, bronCode: '4.2.3' };
+      const metVoorstel = (wijzig: (r: GoLeerplanBestand['doelen'][number]['minimumdoelen']['refs']) => void = () => {}) =>
+        met(leerplan(), (x) => {
+          x.doelen[6].minimumdoelen.refs.push({ ...VOORSTEL });
+          wijzig(x.doelen[6].minimumdoelen.refs);
+        });
+
+      it('is in orde: de officiële koppeling blijft, het voorstel staat erna met de officiële code als bronCode', () => {
+        expect(valideerGoLeerplan(metVoorstel())).toEqual([]);
+      });
+
+      it("weigert het zonder de twijfel 'ander-vak' op de officiële koppeling, op een ander moment of bij een andere code", () => {
+        const fout = /bij een voorstel hoort een probleem met hetzelfde moment en dezelfde bronCode \(KO "4\.2\.3"\), of een officiële koppeling met twijfel 'ander-vak' op die code/;
+        expect(alles(valideerGoLeerplan(metVoorstel((r) => delete r[0].twijfel)))).toMatch(fout);
+        expect(alles(valideerGoLeerplan(metVoorstel((r) => (r[1].bronCode = '4.2.4'))))).toMatch(/bij een voorstel hoort een probleem met hetzelfde moment en dezelfde bronCode \(KO "4\.2\.4"\)/);
+        const anderMoment = metVoorstel((r) => {
+          r[1].moment = 'L4';
+          r[1].set = 'ODS_3406';
+        });
+        expect(alles(valideerGoLeerplan(anderMoment))).toMatch(/bij een voorstel hoort een probleem met hetzelfde moment en dezelfde bronCode \(L4 "4\.2\.3"\)/);
+      });
+
+      it("weigert een voorstel zonder bronCode, met de twijfel 'ander-vak', een tweede voorstel en hetzelfde doel als de officiële koppeling", () => {
+        expect(alles(valideerGoLeerplan(metVoorstel((r) => delete r[1].bronCode)))).toMatch(/een voorstel heeft een "bronCode"/);
+        expect(alles(valideerGoLeerplan(metVoorstel((r) => (r[1].twijfel = ['ander-vak']))))).toMatch(/een voorstel heeft geen twijfel 'ander-vak'/);
+        expect(alles(valideerGoLeerplan(metVoorstel((r) => r.push({ ...VOORSTEL, id: '93006', code: '2.4.4' }))))).toMatch(/er is al een voorstel voor KO "4\.2\.3"/);
+        const zelfde = metVoorstel((r) => Object.assign(r[1], { set: 'ODS_3411', id: '92500', code: '4.2.3' }));
+        expect(alles(valideerGoLeerplan(zelfde))).toMatch(/het minimumdoel ODS_3411\/92500 staat er meer dan één keer/);
+        expect(alles(valideerGoLeerplan(zelfde))).toMatch(/een voorstel stelt een andere code voor dan de bron/);
+      });
     });
 
     it('weigert een code die zowel koppeling als probleem is', () => {
@@ -1064,6 +1123,22 @@ describe('valideerGoBijMinimumdoel', () => {
   it('eist elke code één keer per minimumdoel, oplopend', () => {
     const b = met(bij(), (x) => x.doelen['92590'].reverse());
     expect(alles(valideerGoBijMinimumdoel(b))).toMatch(/elke code één keer, oplopend/);
+  });
+
+  it("vorm B: een officiële koppeling met twijfel 'ander-vak' mag het voorgestelde doel noemen (zoals WI.706 bij 92500)", () => {
+    expect(valideerGoBijMinimumdoel(bijAnderVak())).toEqual([]);
+  });
+
+  it('vorm B: weigert "voorstel" zonder twijfel ander-vak, bij een voorstel, naar hetzelfde doel of vak, of met een vreemde vorm', () => {
+    const fout = (wijzig: (d: GoBijMinimumdoelBestand['doelen'][string][number]) => void) => alles(valideerGoBijMinimumdoel(met(bijAnderVak(), (x) => wijzig(x.doelen['92500'][0]))));
+    expect(fout((d) => delete d.twijfel)).toMatch(/voorstel: staat alleen bij een officiële koppeling met twijfel 'ander-vak'/);
+    expect(fout((d) => Object.assign(d, { status: 'voorstel', bronCode: '4.2.4' }))).toMatch(/voorstel: staat alleen bij een officiële koppeling/);
+    expect(fout((d) => Object.assign(d, { status: 'voorstel', bronCode: '4.2.4' }))).toMatch(/een voorstel heeft geen twijfel 'ander-vak'/);
+    expect(fout((d) => Object.assign(d.voorstel ?? {}, { id: '92500' }))).toMatch(/stelt hetzelfde minimumdoel voor/);
+    expect(fout((d) => Object.assign(d.voorstel ?? {}, { code: '4.2.4' }))).toMatch(/stelt een minimumdoel van hetzelfde vak \(4\) voor/);
+    expect(fout((d) => Object.assign(d.voorstel ?? {}, { set: 'ods_3405' }))).toMatch(/geen geldige set/);
+    expect(fout((d) => Object.assign(d.voorstel ?? {}, { naam: 'x' }))).toMatch(/onbekend veld "naam"/);
+    expect(fout((d) => delete (d.voorstel as { code?: string }).code)).toMatch(/voorstel.*code/);
   });
 
   it('eist een bronCode bij een voorstel en alleen daar', () => {

@@ -30,7 +30,7 @@
 
 /* Links onder het paneel */
 .cb-links { display: flex; flex-wrap: wrap; gap: 0 20px; margin: 10px 0 0; }
-.cb-links a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; overflow-wrap: anywhere; }
+.cb-links a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; overflow-wrap: break-word; overflow-wrap: anywhere; }
 
 /* Het venster "Gebruik deze doelen in een cursus": een keuzerondje per cursus */
 .cb-cursussen { list-style: none; margin: 6px 0 12px; padding: 0; display: grid; gap: 6px; }

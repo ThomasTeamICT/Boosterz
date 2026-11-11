@@ -2,7 +2,9 @@
 // GO-LEERPLAN.md, "Vijf standen en hoe ze zichtbaar zijn"):
 //  - officieel: 'volgens het leerplan van het GO!', met het moment, het nummer en de volledige tekst van het minimumdoel;
 //  - officieel met twijfel: dezelfde weergave, met onder 'Hoe zeker is dit?' wat er niet past;
-//  - voorstel: alleen voor een kapot nummer (nu MV.040 '6.12'), met de badge 'voorstel, nog niet bevestigd door het GO!';
+//  - voorstel, met de badge 'voorstel, nog niet bevestigd door het GO!': bij een kapot nummer (vorm A, MV.040 '6.12' →
+//    6.1.2) of naast een officiële koppeling met een minimumdoel van een ander vak (vorm B, WI.706 4.2.3 → 2.4.3; die
+//    officiële koppeling blijft staan, met haar twijfel);
 //  - kapot, zonder voorstel: geen link, wel de zin dat dat nummer niet bestaat of geen geldig nummer is;
 //  - zonder minimumdoel: alleen als noch de doelzin, noch een onderdeel van het doel een nummer heeft;
 //  - via een onderdeel: een MIA of voorbeeld van het doel is gekoppeld, de doelzin zelf niet.
@@ -22,7 +24,7 @@ import {
   type GoMoment,
   type GoTwijfel,
 } from '../../../lib/basis/go/types';
-import { isZonderMinimumdoel } from '../../../lib/basis/go/goModel';
+import { isZonderMinimumdoel, vormVanVoorstel } from '../../../lib/basis/go/goModel';
 import { INVOERINGSKALENDER, type Eindmoment } from '../../../lib/basis/kalender';
 import { basisSet } from '../../../lib/basis/moment';
 import { FoutBericht, LaadBericht } from '../../curriculum/LaadStatus';
@@ -105,6 +107,39 @@ export function twijfelZin(t: GoTwijfel, r: GoMinimumdoelRef, doel: Pick<GoLeerp
   return `Het leerplan koppelt ${doel.code} aan minimumdoel ${r.code}, een doel van een ander vak${naamVak ? ` (${naamVak})` : ''} dan dat van dit leerplandoel.`;
 }
 
+/** Het vak van een code van een minimumdoel (het eerste getal), zonder de koppelcode van de import in de app te halen. */
+const vakVanMinimumdoelcode = (code: string): number | undefined => (/^\d+\.\d+\.\d+$/.test(code) ? Number(code.split('.')[0]) : undefined);
+
+/** De naam van een vak van de minimumdoelen zoals ze midden in een zin staat: 'aardrijkskunde', maar 'Frans' en 'ICT'. */
+export function vakInZin(nr: number | undefined): string | undefined {
+  const naam = INVOERINGSKALENDER.vakken.find((v) => v.nr === nr)?.naam;
+  if (!naam) return undefined;
+  return naam === naam.toUpperCase() || naam === 'Nederlands' || naam === 'Frans' ? naam : `${naam.charAt(0).toLowerCase()}${naam.slice(1)}`;
+}
+
+/**
+ * De zin van Boosterz bij een voorstel van vorm B: 'Het GO! verwijst naar 4.2.3, een minimumdoel van aardrijkskunde.
+ * Waarschijnlijk is 2.4.3 bedoeld.' `naar` maakt van de voorgestelde code een link (op de doelpagina van 4.2.3).
+ */
+export function VoorstelAnderVakZin({ bronCode, code, naar }: { bronCode: string; code: string; naar?: string }) {
+  const vak = vakInZin(vakVanMinimumdoelcode(bronCode));
+  return (
+    <>
+      Het GO! verwijst naar {bronCode}
+      {vak ? `, een minimumdoel van ${vak}` : ''}. Waarschijnlijk is{' '}
+      {naar ? (
+        <Link to={naar}>
+          {code}
+          <span className="sr-only"> (minimumdoel)</span>
+        </Link>
+      ) : (
+        code
+      )}{' '}
+      bedoeld.
+    </>
+  );
+}
+
 /** Waar de twijfel over gaat, in een paar woorden: voor in een lijst of een lesplan, naast de chip met die twijfel. */
 export const TWIJFEL_KORT: Readonly<Record<GoTwijfel, string>> = {
   'moment-buiten-leeftijden': 'let op: dit moment past niet bij de leeftijd van dit leerplandoel',
@@ -132,10 +167,19 @@ const onderdeelNaam = (i: { soort: string; tekst: string }) => `${i.soort === 'm
 
 // ── Een minimumdoel als kaart ───────────────────────────────────────────────
 
+/** Waarom er een voorstel staat: bij een kapot nummer (vorm A) of naast een koppeling met een ander vak (vorm B). */
 function Voorstel({ r, doel }: { r: GoMinimumdoelRef; doel: GoLeerplandoel }) {
-  const reden = [doel.minimumdoelen, ...koppelingenVan(doel)]
-    .flatMap((k) => k.problemen)
-    .find((p) => p.moment === r.moment && p.bronCode === r.bronCode)?.reden;
+  const vorm = koppelingenVan(doel)
+    .map((k) => vormVanVoorstel(k, r))
+    .find((v) => v !== undefined);
+  if (vorm?.vorm === 'ander-vak') {
+    return (
+      <p className="b-go-voorstel">
+        <VoorstelAnderVakZin bronCode={vorm.officieel.code} code={r.code} />
+      </p>
+    );
+  }
+  const reden = vorm?.probleem.reden;
   return (
     <p className="b-go-voorstel">
       In het leerplan staat “{r.bronCode}”. {reden ? `${redenZin(reden)}; ` : ''}waarschijnlijk is {r.code} bedoeld.

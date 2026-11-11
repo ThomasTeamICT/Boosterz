@@ -24,9 +24,12 @@ import {
   type GoBijDoel,
   type GoBijMinimumdoelBestand,
   type GoIndex,
+  type GoKoppeling,
+  type GoMinimumdoelRef,
   type GoLeerplanBestand,
   type GoLesplanBestand,
 } from './types';
+import { voorstelNaast, vormVanVoorstel } from './goModel';
 import {
   isZonderMinimumdoel,
   valideerGoBijMinimumdoel,
@@ -223,23 +226,28 @@ describe('public/basis/go: de bestanden passen bij elkaar', () => {
   });
 
   it('de omgekeerde index: elke ref van elk leerplandoel (doelzin of MIA) staat erin, en elke vermelding komt uit een ref', () => {
-    // Verwacht: vak → id → code → { moment, status, via? }
-    const verwacht = new Map<string, { moment: string; status: string; direct: boolean; via: number }>();
+    // Verwacht: vak → id → code → { moment, status, bronCode?, voorstel?, via? }
+    type Verwacht = { moment: string; status: string; bronCode?: string; voorstel?: { set: string; id: string; code: string }; direct: boolean; via: number };
+    const verwacht = new Map<string, Verwacht>();
+    const van = (r: GoMinimumdoelRef, k: GoKoppeling, direct: boolean): Verwacht & { code: string } => {
+      const naast = voorstelNaast(k, r);
+      return { moment: r.moment, status: r.status, bronCode: r.bronCode, voorstel: naast && { set: naast.set, id: naast.id, code: naast.code }, direct, via: direct ? 0 : 1, code: r.code };
+    };
     for (const b of leerplannen.values()) {
       for (const d of b.doelen) {
-        const dezeDoel = new Map<string, { moment: string; status: string; direct: boolean; via: number; code: string }>();
-        for (const r of d.minimumdoelen.refs) dezeDoel.set(r.id, { moment: r.moment, status: r.status, direct: true, via: 0, code: r.code });
+        const dezeDoel = new Map<string, Verwacht & { code: string }>();
+        for (const r of d.minimumdoelen.refs) dezeDoel.set(r.id, van(r, d.minimumdoelen, true));
         for (const i of d.inhoud) {
           if (!('koppeling' in i) || !i.koppeling) continue;
           for (const r of i.koppeling.refs) {
             const al = dezeDoel.get(r.id);
-            if (!al) dezeDoel.set(r.id, { moment: r.moment, status: r.status, direct: false, via: 1, code: r.code });
+            if (!al) dezeDoel.set(r.id, van(r, i.koppeling, false));
             else if (!al.direct) al.via += 1;
           }
         }
         for (const [id, w] of dezeDoel) {
           const vak = vakVanCode(w.code);
-          verwacht.set(`${vak}|${id}|${d.code}`, { moment: w.moment, status: w.status, direct: w.direct, via: w.via });
+          verwacht.set(`${vak}|${id}|${d.code}`, w);
         }
       }
     }
@@ -252,6 +260,9 @@ describe('public/basis/go: de bestanden passen bij elkaar', () => {
       const w = verwacht.get(sleutel);
       expect(e.moment, sleutel).toBe(w?.moment);
       expect(e.status, sleutel).toBe(w?.status);
+      expect(e.bronCode, `${sleutel} bronCode`).toBe(w?.bronCode);
+      // Vorm B: de officiële koppeling met twijfel 'ander-vak' noemt het voorgestelde doel, en alleen die.
+      expect(e.voorstel, `${sleutel} voorstel`).toEqual(w?.voorstel);
       // 'via' staat er alleen als de doelzin zelf niet naar dit minimumdoel verwijst (rechtzetting 2).
       expect(e.via !== undefined, `${sleutel} via`).toBe(w?.direct === false);
       if (e.via) expect(e.via.length, `${sleutel} via aantal`).toBe(w?.via);
@@ -284,15 +295,22 @@ describe('public/basis/go: de bestanden passen bij elkaar', () => {
     }
   });
 
-  it('een voorstel is er alleen als bij die code een probleem staat met dezelfde letterlijke bronCode', () => {
+  it("een voorstel hoort bij een probleem met dezelfde letterlijke bronCode (vorm A) of naast een officiële koppeling met twijfel 'ander-vak' op die code (vorm B)", () => {
+    const vormen: string[] = [];
     for (const b of leerplannen.values()) {
       for (const d of b.doelen) {
-        for (const r of d.minimumdoelen.refs.filter((x) => x.status === 'voorstel')) {
-          const p = d.minimumdoelen.problemen.find((x) => x.moment === r.moment && x.bronCode === r.bronCode);
-          expect(p, `${d.code} ${r.moment} ${r.bronCode}`).toBeDefined();
+        const koppelingen = [d.minimumdoelen, ...d.inhoud.flatMap((i) => ('koppeling' in i && i.koppeling ? [i.koppeling] : []))];
+        for (const k of koppelingen) {
+          for (const r of k.refs.filter((x) => x.status === 'voorstel')) {
+            const vorm = vormVanVoorstel(k, r);
+            expect(vorm, `${d.code} ${r.moment} ${r.bronCode}`).toBeDefined();
+            vormen.push(`${d.code} ${vorm?.vorm ?? '?'}`);
+          }
         }
       }
     }
+    // Aantallen horen bij de momentopname (go.echt.test.ts); hier alleen: er is minstens één voorstel om na te kijken.
+    expect(vormen.length).toBeGreaterThan(0);
   });
 
   it('een getoond beeld bestaat in beelden/ en niets in beelden/ is zonder lesplan', () => {

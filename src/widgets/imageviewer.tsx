@@ -296,6 +296,7 @@ function ViewerStage({
           role="application"
           aria-label={`Afbeeldingsviewer: ${title}. Zoom met plus en min, verschuif met de pijltjestoetsen, herstel met nul.`}
           tabIndex={0}
+          className="vid-43"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerEnd}

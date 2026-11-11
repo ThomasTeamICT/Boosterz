@@ -63,11 +63,11 @@
 /* Met een waarschuwingsregel erbij is de chip te hoog voor een volledig ronde vorm. */
 .sam-chip:has(.sam-chip-waarschuwing) { border-radius: var(--radius-m); }
 .sam-chip-tekst { display: grid; min-width: 0; padding: 2px 0; line-height: 1.25; }
-.sam-chip-naam { font-weight: 700; overflow-wrap: anywhere; }
-.sam-chip-meta { font-size: 0.8rem; color: var(--text-soft); overflow-wrap: anywhere; }
+.sam-chip-naam { font-weight: 700; overflow-wrap: break-word; overflow-wrap: anywhere; }
+.sam-chip-meta { font-size: 0.8rem; color: var(--text-soft); overflow-wrap: break-word; overflow-wrap: anywhere; }
 .sam-chip-waarschuwing {
   display: flex; align-items: flex-start; gap: 5px; margin-top: 2px; font-size: 0.8rem; font-weight: 600; color: var(--warn-text);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word; overflow-wrap: anywhere;
 }
 .sam-chip-waarschuwing svg { flex: none; margin-top: 2px; }
 .sam-chip-weg {
@@ -151,7 +151,7 @@
 .sam-doel:has(input:checked) { background: var(--brand-soft); }
 .sam-doel:focus-within { outline: 3px solid var(--brand); outline-offset: -2px; border-radius: var(--radius-s); }
 .sam-doel input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--brand-fill); cursor: pointer; }
-.sam-doel-code { font-variant-numeric: tabular-nums; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
+.sam-doel-code { font-variant-numeric: tabular-nums; font-weight: 700; line-height: 1.5; overflow-wrap: break-word; overflow-wrap: anywhere; }
 .sam-doel-tekst { display: grid; gap: 6px; min-width: 0; }
 .sam-doel-zin { white-space: pre-line; overflow-wrap: break-word; hyphens: auto; }
 .sam-doel-labels { display: flex; flex-wrap: wrap; gap: 6px; }

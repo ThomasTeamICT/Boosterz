@@ -19,6 +19,7 @@ import { Eraser, ExternalLink, FileType, Highlighter, Minus } from 'lucide-react
 import { uid } from '../../lib/utils';
 import { webUrl } from '../../lib/veiligeUrl';
 import { AddIcon, DownloadIcon } from '../icons';
+import { laadPdfjs } from '../../lib/pdfWorker';
 
 const PDF_TYPE = 'application/pdf';
 export const PDF_LINK_GEWEIGERD = 'Deze pdf-link kan niet geopend worden: alleen https://-adressen zijn toegelaten.';
@@ -108,8 +109,7 @@ export function PdfViewer({
       try {
         // De legacy-build: de moderne build eist splinternieuwe JS-API's die op
         // oudere school-pc's (en de test-Chromium) nog ontbreken.
-        const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-        pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString();
+        const pdfjs = await laadPdfjs();
         pdfjsRef.current = pdfjs;
         if (typeof src !== 'string') {
           const data = await src.arrayBuffer();

@@ -2,6 +2,7 @@ import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Crosshair, Leaf, Undo2 } from 'lucide-react';
 import type { MindmapConfig } from '../lib/types';
 import { clamp } from '../lib/utils';
+import { kanColorMix } from '../lib/color';
 import { CheckRow, Field } from '../components/ui';
 import { CheckIcon } from '../components/icons';
 import { EditorProps, GameStatus, PlayerProps, ResultHero } from './shared';
@@ -249,10 +250,11 @@ function MindmapCanvas({ root, outline, maxHeight = 480 }: { root: string; outli
           {lay.nodes.map((n) => (
             <g key={n.key} aria-hidden>
               <rect
+                className="mm-knoop"
                 x={n.x - n.w / 2} y={n.y - n.h / 2} width={n.w} height={n.h}
                 rx={n.depth === 0 ? 14 : 10}
                 style={{
-                  fill: n.depth === 0 ? ACCENT : `color-mix(in srgb, ${n.color} 12%, var(--bg-raised))`,
+                  fill: n.depth === 0 ? ACCENT : kanColorMix ? `color-mix(in srgb, ${n.color} 12%, var(--bg-raised))` : 'var(--bg-raised)',
                   stroke: n.depth === 0 ? 'none' : n.color,
                   strokeWidth: n.depth === 1 ? 1.8 : 1.4,
                 }}

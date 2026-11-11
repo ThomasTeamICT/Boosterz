@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Piano, VolumeX } from 'lucide-react';
 import type { PianoConfig } from '../lib/types';
 import { CheckRow, Field } from '../components/ui';
+import { kanColorMix } from '../lib/color';
 import { EditorProps, GameStatus, PlayerProps } from './shared';
 
 // ── Muzikale basis ──────────────────────────────────────────────────────────
@@ -246,7 +247,7 @@ export function PianoPlayer({ widget }: PlayerProps<PianoConfig>) {
           height: 'clamp(160px, 36vw, 230px)',
           padding: '8px 8px 10px',
           borderRadius: 'var(--radius-m)',
-          background: `linear-gradient(color-mix(in srgb, ${accent} 55%, #1b1e2e), #14172a)`,
+          background: kanColorMix ? `linear-gradient(color-mix(in srgb, ${accent} 55%, #1b1e2e), #14172a)` : 'linear-gradient(#2f3552, #14172a)',
           boxShadow: 'var(--shadow-2)',
           touchAction: 'none',
           userSelect: 'none',
@@ -284,7 +285,7 @@ export function PianoPlayer({ widget }: PlayerProps<PianoConfig>) {
                 border: '1px solid #9aa1bd',
                 borderRadius: '0 0 7px 7px',
                 background: pressed
-                  ? `color-mix(in srgb, ${accent} 38%, #ffffff)`
+                  ? (kanColorMix ? `color-mix(in srgb, ${accent} 38%, #ffffff)` : '#dfe3f5')
                   : 'linear-gradient(#ffffff, #f0f1f8)',
                 color: pressed ? '#111527' : '#4a5270',
                 boxShadow: pressed ? 'inset 0 3px 6px rgba(15, 23, 42, 0.3)' : 'inset 0 -5px 0 rgba(15, 23, 42, 0.08)',
@@ -337,7 +338,7 @@ export function PianoPlayer({ widget }: PlayerProps<PianoConfig>) {
                 border: '1px solid #05060d',
                 borderRadius: '0 0 6px 6px',
                 background: pressed
-                  ? `color-mix(in srgb, ${accent} 55%, #101322)`
+                  ? (kanColorMix ? `color-mix(in srgb, ${accent} 55%, #101322)` : '#4a5270')
                   : 'linear-gradient(#2b3048, #14172a)',
                 color: '#eef0fa',
                 boxShadow: pressed ? 'inset 0 3px 6px rgba(0, 0, 0, 0.65)' : '0 4px 6px rgba(0, 0, 0, 0.4)',

@@ -51,6 +51,7 @@ const TABEL = tabel({
   'L6 3.3.2': { set: 'ODS_3409', id: '92822', code: '3.3.2' },
   'L4 3.1.4': { set: 'ODS_3408', id: '93100', code: '3.1.4' },
   'KO 4.2.3': { set: 'ODS_3411', id: '92500', code: '4.2.3' },
+  'KO 2.4.3': { set: 'ODS_3405', id: '93005', code: '2.4.3' },
 });
 const BRONXLSX = { naam: 'Doelenset BaO wetenschap en techniek.xlsx', bytes: 9, sha256: 'c'.repeat(64), datum: '2026-09-03T09:39:57Z' };
 const KAPOT: BekendeAfwijking = { soort: 'verwijzing-kapot', doel: 'WT.003', kolom: 'SCHAKELS', waarde: 'WT.999', reden: 'Bestaat niet in de doelenset (voor de test).', datum: '2026-11-09' };
@@ -148,6 +149,16 @@ describe('leesBekendeAfwijkingen', () => {
     expect(fouten({ soort: 'lesplan-leeftijd', lesplan: 'LP0065', ...basis }).join()).toMatch(/"doel" ontbreekt/);
     expect(fouten({ soort: 'lessenlijn-variant', lesplan: 'LP0060', veld: 'lessenlijn', naam: 'Biologie van Organismen', ...basis })).toEqual([]);
     expect(fouten({ soort: 'lessenlijn-variant', lesplan: 'LP0060', veld: 'lijn', naam: 'x', ...basis }).join()).toMatch(/lessenlijn of lessenreeks/);
+  });
+
+  it("koppeling-ander-vak mag een voorstel hebben (vorm B): een andere code van de vorm cijfer.cijfer.cijfer", () => {
+    const fouten = (a: unknown) => leesBekendeAfwijkingen({ afwijkingen: [a] }).fouten;
+    const regel = { soort: 'koppeling-ander-vak', doel: 'WI.706', moment: 'KO', code: '4.2.3', reden: 'Een reden van genoeg lengte.', datum: '2026-11-11' };
+    expect(fouten(regel)).toEqual([]);
+    expect(fouten({ ...regel, voorstel: '2.4.3' })).toEqual([]);
+    for (const voorstel of ['2.43', '4.2.3', '', 243]) expect(fouten({ ...regel, voorstel }).join(), String(voorstel)).toMatch(/"voorstel" is een andere code/);
+    // Alleen bij die soort: elders is het een onbekend veld.
+    expect(fouten({ ...KAPOT, voorstel: '2.4.3' }).join()).toMatch(/onbekend veld "voorstel"/);
   });
 
   it('Bekende houdt bij welke regels gebruikt zijn', () => {
@@ -641,6 +652,64 @@ describe('zetLeerplanOm: afwijkingen geven exit 3', () => {
     const u = leerplanOm(ruw, [KAPOT, bekend]);
     expect(u.bestand?.doelen[3].minimumdoelen.refs[0]).toMatchObject({ code: '4.2.3', status: 'officieel', twijfel: ['ander-vak'] });
     expect(u.tellingen.twijfelAnderVak).toBe(1);
+  });
+
+  describe("vorm B: een voorstel naast de officiële koppeling met twijfel 'ander-vak' (zoals WI.706, 11 november 2026)", () => {
+    const ruw = () => leerplanRuw([rij(21, 'doelzin', 'Tekst.', { code: 'WT.004', ko: '4.2.3', kv: 'begrijpen', lft: ['2,5-4'] })]);
+    const regel = (voorstel: string, code = '4.2.3'): BekendeAfwijking => ({ soort: 'koppeling-ander-vak', doel: 'WT.004', moment: 'KO', code, voorstel, reden: 'Een code van aardrijkskunde (test).', datum: '2026-11-11' });
+
+    it('de officiële koppeling blijft staan; het voorstel staat erna, met de officiële code als bronCode', () => {
+      const u = leerplanOm(ruw(), [KAPOT, regel('3.1.2')]);
+      expect(nieuweSoorten(u.afwijkingen)).toEqual([]);
+      expect(u.bestand?.doelen[3].minimumdoelen).toEqual({
+        bron: { KO: '4.2.3' },
+        refs: [
+          { set: 'ODS_3411', id: '92500', code: '4.2.3', moment: 'KO', status: 'officieel', twijfel: ['ander-vak'] },
+          { set: 'ODS_3410', id: '92590', code: '3.1.2', moment: 'KO', status: 'voorstel', bronCode: '4.2.3' },
+        ],
+        problemen: [],
+      });
+      // Officieel blijft officieel: 1 van 1 code; het voorstel telt apart.
+      expect(u.tellingen).toMatchObject({ doelzinCodes: 4, doelzinOfficieel: 4, doelzinVoorstel: 1, doelzinProblemen: 0, twijfelAnderVak: 1 });
+      expect(u.afwijkingen.lijst.find((a) => a.soort === 'koppeling-ander-vak')?.bericht).toBe('KO 4.2.3 is een minimumdoel van vak 4, niet van een vak dat WT verwacht (voorstel 3.1.2, ODS_3410/92590)');
+      expect(valideerGoLeerplan(JSON.parse(JSON.stringify(u.bestand)))).toEqual([]);
+    });
+
+    it('een voorstel dat geen doel vindt, stopt de import (een nieuwe afwijking)', () => {
+      const u = leerplanOm(ruw(), [KAPOT, regel('3.9.9')]);
+      expect(u.afwijkingen.nieuwe).toEqual([expect.objectContaining({ soort: 'koppeling-voorstel', bericht: 'het voorstel 3.9.9 voor KO "4.2.3" vindt geen doel' })]);
+      expect(u.bestand?.doelen[3].minimumdoelen.refs.map((r) => r.status)).toEqual(['officieel']);
+    });
+
+    it('een voorstel naar een doel van een vak dat de vakdiscipline niet verwacht, stopt de import', () => {
+      const u = leerplanOm(ruw(), [KAPOT, regel('2.4.3')]);
+      expect(u.afwijkingen.nieuwe).toEqual([expect.objectContaining({ soort: 'koppeling-voorstel', bericht: 'het voorstel 2.4.3 voor KO 4.2.3 is een minimumdoel van vak 2, niet van een vak dat WT verwacht' })]);
+    });
+
+    it('zonder twijfel ander-vak wordt het voorstel nooit gebruikt: de regel is dan verouderd', () => {
+      const bekende = new Bekende([KAPOT, regel('3.1.3', '3.1.2')]);
+      const u = zetLeerplanOm(leerplanRuw([rij(21, 'doelzin', 'Tekst.', { code: 'WT.004', ko: '3.1.2', kv: 'begrijpen', lft: ['2,5-4'] })]), { bekende, tabel: TABEL, bestaat: (c) => /^WT\.00[1-3]$|^LL\.00\d$/.test(c), bronBestand: BRONXLSX, ingelezen: '2026-11-09' });
+      expect(u.bestand?.doelen[3].minimumdoelen.refs.map((r) => `${r.code} ${r.status}`)).toEqual(['3.1.2 officieel']);
+      expect(bekende.ongebruikt().map((a) => a.soort)).toEqual(['koppeling-ander-vak']);
+    });
+
+    it('de omgekeerde index: het leerplandoel staat als voorstel bij het voorgestelde doel, en de officiële koppeling noemt het voorstel', () => {
+      const wt = leerplanOm(ruw(), [KAPOT, regel('3.1.2')]).bestand as GoLeerplanBestand;
+      const bij = maakBijMinimumdoel([wt], []);
+      expect(bij.map((b) => b.vak)).toEqual([3, 4]);
+      for (const b of bij) expect(valideerGoBijMinimumdoel(JSON.parse(JSON.stringify(b)))).toEqual([]);
+      const drie = bij[0].doelen['92590'];
+      expect(drie.map((x) => [x.code, x.status, x.bronCode ?? null])).toEqual([
+        ['WT.001', 'officieel', null],
+        ['WT.003', 'officieel', null],
+        ['WT.004', 'voorstel', '4.2.3'],
+      ]);
+      expect(drie.every((x) => x.voorstel === undefined)).toBe(true);
+      expect(bij[1].doelen['92500']).toEqual([
+        expect.objectContaining({ code: 'WT.004', moment: 'KO', status: 'officieel', twijfel: ['ander-vak'], voorstel: { set: 'ODS_3410', id: '92590', code: '3.1.2' } }),
+      ]);
+      expect(bij[1].doelen['92500'][0].bronCode).toBeUndefined();
+    });
   });
 
   it('een tabblad dat geen vakdiscipline is: geen bestand', () => {

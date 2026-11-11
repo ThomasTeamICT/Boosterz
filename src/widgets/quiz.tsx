@@ -11,6 +11,7 @@ import type {
   TFQuestion, LongQuestion,
 } from '../lib/types';
 import { extractGaps, gradeQuestion, gradeQuiz, matchChoiceCorrect, splitGapText } from '../lib/grading';
+import { kanColorMix } from '../lib/color';
 import { normalizeAnswer, shuffled, shuffledNotIdentity, uid } from '../lib/utils';
 import { Field, ImagePicker, Modal, useToast } from '../components/ui';
 import {
@@ -132,7 +133,7 @@ function PromptText({
       <>
         {text.slice(0, spoken[0])}
         <mark style={{
-          background: 'color-mix(in srgb, var(--player-accent, var(--brand)) 28%, transparent)',
+          background: kanColorMix ? 'color-mix(in srgb, var(--player-accent, var(--brand)) 28%, transparent)' : 'var(--brand-soft)',
           color: 'inherit', borderRadius: 4, padding: '0 2px',
         }}>
           {text.slice(spoken[0], spoken[1])}

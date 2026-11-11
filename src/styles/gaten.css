@@ -27,7 +27,7 @@
 /* ── Het venster ───────────────────────────────────────────────────────── */
 
 .gt { min-width: 0; }
-.gt a { overflow-wrap: anywhere; }
+.gt a { overflow-wrap: break-word; overflow-wrap: anywhere; }
 .gt-intro { margin: 0 0 10px; color: var(--text-soft); max-width: 72ch; overflow-wrap: break-word; }
 .gt-hint { margin: 0 0 8px; color: var(--text-soft); font-size: 0.92rem; max-width: 72ch; overflow-wrap: break-word; }
 
@@ -58,7 +58,7 @@
 .gt-details[open] > summary::before { transform: rotate(45deg); }
 .gt-details > summary:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: var(--radius-s); }
 .gt-doelen { list-style: none; margin: 0 0 8px; padding: 0; }
-.gt-doel { padding: 7px 0; border-top: 1px solid var(--line); font-size: 0.92rem; line-height: 1.45; overflow-wrap: anywhere; }
+.gt-doel { padding: 7px 0; border-top: 1px solid var(--line); font-size: 0.92rem; line-height: 1.45; overflow-wrap: break-word; overflow-wrap: anywhere; }
 .gt-doel:first-child { border-top: 0; }
 .gt-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 700; }
 
@@ -95,7 +95,7 @@
 .gt-cursus:focus-within { outline: 3px solid var(--brand); outline-offset: 2px; }
 .gt-cursus input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--brand-fill); cursor: pointer; }
 .gt-cursus-tekst { display: grid; gap: 2px; min-width: 0; }
-.gt-cursus-titel { font-family: var(--font-display); font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.gt-cursus-titel { font-family: var(--font-display); font-weight: 700; line-height: 1.3; overflow-wrap: break-word; overflow-wrap: anywhere; }
 .gt-cursus-meta { font-size: 0.85rem; color: var(--text-soft); overflow-wrap: break-word; }
 .gt-zonder { margin: 8px 0 0; color: var(--text-soft); font-size: 0.9rem; overflow-wrap: break-word; }
 .gt-voorbeeld { margin: 10px 0 0; min-height: 1.4em; overflow-wrap: break-word; max-width: 72ch; }

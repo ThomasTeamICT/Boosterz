@@ -423,6 +423,7 @@ input[type='color'] {
   position: sticky; top: 0; z-index: 50;
   display: flex; align-items: center; gap: 14px;
   padding: 10px 22px;
+  background: var(--bg-raised);
   background: color-mix(in srgb, var(--bg-raised) 88%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
@@ -485,7 +486,8 @@ input[type='color'] {
   font: inherit; color: var(--text); text-align: left; text-decoration: none; cursor: pointer;
 }
 .menu-item > svg { flex: none; margin-top: 2px; color: var(--text-soft); }
-.menu-item:hover, .menu-item:focus-visible { background: var(--bg-sunken); outline: none; }
+.menu-item:hover { background: var(--bg-sunken); outline: none; }
+.menu-item:focus-visible { background: var(--bg-sunken); outline: none; }
 .menu-item:focus-visible { box-shadow: inset 0 0 0 2px var(--brand); }
 .menu-item-danger, .menu-item-danger > svg { color: var(--err-text); }
 .menu-text { display: grid; gap: 1px; min-width: 0; }
@@ -641,6 +643,7 @@ input[type='color'] {
 .player-shell {
   min-height: 100%;
   display: flex; flex-direction: column;
+  background: var(--bg);
   background:
     radial-gradient(1200px 500px at 10% -10%, color-mix(in srgb, var(--player-accent, var(--brand-fill)) 16%, transparent), transparent),
     radial-gradient(1000px 600px at 110% 110%, color-mix(in srgb, var(--player-accent, var(--brand-fill)) 10%, transparent), transparent),
@@ -649,6 +652,7 @@ input[type='color'] {
 .player-topbar {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 18px;
+  background: var(--bg-raised);
   background: color-mix(in srgb, var(--bg-raised) 80%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
@@ -670,7 +674,7 @@ input[type='color'] {
 
 .question-card { padding: 22px 24px; margin-bottom: 16px; }
 .question-num { font-size: 0.8rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--player-accent, var(--brand-fill)) 60%, var(--text)); margin-bottom: 6px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
-.question-prompt { font-size: 1.15rem; font-weight: 650; margin-bottom: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.question-prompt { font-size: 1.15rem; font-weight: 650; margin-bottom: 14px; white-space: pre-wrap; overflow-wrap: break-word; overflow-wrap: anywhere; }
 .question-image { max-width: 100%; max-height: 320px; border-radius: var(--radius-m); margin-bottom: 14px; display: block; }
 
 .answer-option {
@@ -760,6 +764,7 @@ input[type='color'] {
   border: 2px solid var(--line);
 }
 .memory-face.front {
+  background: var(--player-accent, var(--brand-fill));
   background: linear-gradient(135deg, var(--player-accent, var(--brand-fill)), color-mix(in srgb, var(--player-accent, var(--brand-fill)) 60%, #000));
   color: #fff; font-size: 1.6rem;
 }
@@ -882,7 +887,7 @@ input[type='color'] {
   background: var(--bg-raised); font: inherit; font-weight: 650; cursor: pointer;
   display: flex; align-items: center; justify-content: center; text-align: center;
   padding: 6px; font-size: clamp(0.65rem, 2.2vw, 0.95rem); color: var(--text);
-  min-width: 0; overflow-wrap: anywhere; hyphens: auto;
+  min-width: 0; overflow-wrap: break-word; overflow-wrap: anywhere; hyphens: auto;
   transition: background 0.15s, transform 0.08s;
 }
 .bingo-cell:hover { transform: scale(1.03); }
@@ -958,11 +963,12 @@ table.data tbody tr:hover { background: var(--bg-sunken); }
 .callout {
   display: flex; gap: 11px; padding: 13px 16px; border-radius: var(--radius-m);
   background: var(--brand-soft); color: var(--text); font-size: 0.93rem;
+  border: 1px solid var(--line);
   border: 1px solid color-mix(in srgb, var(--brand) 30%, transparent);
   margin-bottom: 16px;
 }
-.callout.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
-.callout.err { background: var(--err-soft); border-color: color-mix(in srgb, var(--err) 40%, transparent); }
+.callout.warn { background: var(--warn-soft); border-color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+.callout.err { background: var(--err-soft); border-color: var(--err); border-color: color-mix(in srgb, var(--err) 40%, transparent); }
 
 /* ── Landing ────────────────────────────────────────────────────────────── */
 
@@ -1072,7 +1078,7 @@ table.data tbody tr:hover { background: var(--bg-sunken); }
   padding: 10px 14px;
   overflow-x: auto;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word; overflow-wrap: anywhere;
   background: var(--bg-sunken);
   border: 1px solid var(--line);
   border-radius: var(--radius-s);
@@ -1132,4 +1138,35 @@ table.data tbody tr:hover { background: var(--bg-sunken); }
 @media print {
   .course-block details { break-inside: avoid; }
   .course-block details summary { list-style: none; }
+}
+
+/* Terugval voor Safari en iPadOS 14 (14.1 is de ondergrens): dat kent aspect-ratio nog niet (pas vanaf 15) en
+   zonder dit krijgen memory, de videospelers, de afbeeldingsviewer en de legpuzzel hoogte 0. Nieuwere
+   browsers slaan dit blok over. De klassen vid-169 en vid-43 staan op de vakken met een vaste verhouding. */
+@supports not (aspect-ratio: 1) {
+  .memory-card { position: relative; height: 0; padding-top: 113.33%; }
+  .memory-card-inner { position: absolute; top: 0; left: 0; }
+  .course-block .video-frame, .vid-169 { height: 0; padding-top: 56.25%; }
+  .vid-169 > iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  .vid-43 { height: 0; padding-top: 75%; }
+  .flashcard { min-height: 220px; }
+}
+
+/* Mindmap: de vulling van een knoop kiest mindmap.tsx in code (kanColorMix); .mm-knoop is de gewone terugval als
+   het script de css-vulling nodig heeft. Een inline color-mix() met var() zou in Safari vóór 16.2 bij het berekenen
+   'unset' worden en de knoop zwart vullen; een regel hier eronder zou dat niet verhelpen. */
+.mm-knoop { fill: var(--bg-raised); }
+
+/* Terugval voor browsers zonder color-mix() (Safari vóór 16.2): markering van geselecteerde of actieve cellen. */
+@supports not (color: color-mix(in srgb, red, blue)) {
+  .ws-cell.sel { background: var(--brand-soft); box-shadow: inset 0 0 0 2px var(--player-accent, var(--brand-fill)); }
+  .cross-cell.active { background: var(--brand-soft); }
+  .cross-cell input:focus { outline: 2px solid var(--player-accent, var(--brand-fill)); outline-offset: -2px; }
+  /* Een declaratie met color-mix() en var() wordt in Safari vóór 16.2 'unset' bij het berekenen: een gewone
+     declaratie ervoor redt dan niets. Wat leesbaarheid raakt, krijgt hier zijn terugval (later in het bestand wint). */
+  .topbar, .player-topbar { background: var(--bg-raised); }
+  .memory-face.front { background: var(--player-accent, var(--brand-fill)); }
+  .callout { border: 1px solid var(--brand); }
+  .callout.warn { border-color: var(--warn); }
+  .callout.err { border-color: var(--err); }
 }

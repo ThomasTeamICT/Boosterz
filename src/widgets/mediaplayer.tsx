@@ -147,7 +147,7 @@ function fragmentText(provider: Provider, startSec?: number, endSec?: number): s
 function VideoFrame({ src, title }: { src: string; title: string }) {
   return (
     <div className="card" style={{ overflow: 'hidden' }}>
-      <div style={{ position: 'relative', aspectRatio: '16 / 9', background: '#000' }}>
+      <div className="vid-169" style={{ position: 'relative', aspectRatio: '16 / 9', background: '#000' }}>
         <iframe
           key={src}
           src={src}

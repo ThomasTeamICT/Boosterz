@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import type { CarouselConfig, CarouselSlide } from '../lib/types';
 import { uid } from '../lib/utils';
+import { kanColorMix } from '../lib/color';
 import { EmptyState, Field, ImagePicker } from '../components/ui';
 import { CheckIcon } from '../components/icons';
 import { EditorProps, ItemHeader, moveItem, PlayerProps } from './shared';
@@ -295,7 +296,7 @@ export function CarouselPlayer({ widget, timeUp, onComplete }: PlayerProps<Carou
                     background: active
                       ? 'var(--player-accent, var(--brand))'
                       : seen
-                        ? 'color-mix(in srgb, var(--player-accent, var(--brand)) 45%, var(--bg-sunken))'
+                        ? (kanColorMix ? 'color-mix(in srgb, var(--player-accent, var(--brand)) 45%, var(--bg-sunken))' : 'var(--line-strong)')
                         : 'transparent',
                     transition: 'width 0.15s ease, background 0.15s ease',
                   }}

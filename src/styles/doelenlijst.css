@@ -25,7 +25,7 @@
 
 .dl-code {
   font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text);
-  overflow-wrap: anywhere; line-height: 1.5;
+  overflow-wrap: break-word; overflow-wrap: anywhere; line-height: 1.5;
 }
 .dl-tekst { min-width: 0; }
 .dl-zin { margin: 0; white-space: pre-line; overflow-wrap: break-word; hyphens: auto; }

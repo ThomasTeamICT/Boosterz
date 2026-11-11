@@ -27,7 +27,7 @@
 .md-wanneer-tweeling { display: grid; gap: 6px; }
 .md-wanneer-tweeling p { margin: 0; }
 .md-wanneer-tweeling ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.md-wanneer-tweeling li { min-width: 0; overflow-wrap: anywhere; }
+.md-wanneer-tweeling li { min-width: 0; overflow-wrap: break-word; overflow-wrap: anywhere; }
 
 /* ── "Waarop steunt dit?" ──────────────────────────────────────────────── */
 
@@ -45,7 +45,7 @@
 .md-wanneer-bronnen[open] > summary::after { transform: rotate(-135deg); }
 .md-wanneer-bronnen-lijst { padding: 0 14px 12px; min-width: 0; }
 .md-wanneer-bronnen-lijst ul { margin: 0; padding-left: 1.3em; }
-.md-wanneer-bronnen-lijst li { margin: 0 0 6px; font-size: 0.9rem; overflow-wrap: anywhere; }
+.md-wanneer-bronnen-lijst li { margin: 0 0 6px; font-size: 0.9rem; overflow-wrap: break-word; overflow-wrap: anywhere; }
 .md-wanneer-bronnen-lijst li:last-child { margin-bottom: 0; }
 
 @media (max-width: 640px) {

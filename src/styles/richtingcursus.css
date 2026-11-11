@@ -20,7 +20,7 @@
 .rc-melding-links a { display: inline-flex; align-items: center; min-height: 32px; font-weight: 700; }
 .rc-melding:focus { outline: none; }
 .rc-melding:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
-.rc a { overflow-wrap: anywhere; }
+.rc a { overflow-wrap: break-word; overflow-wrap: anywhere; }
 
 /* Groepen met keuzerondjes */
 .rc-groep { border: 0; margin: 0 0 18px; padding: 0; min-width: 0; }
@@ -75,7 +75,7 @@
 .rc-bk-groep {
   min-width: 0; margin: 0; padding: 8px 12px 6px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg-raised);
 }
-.rc-bk-groep > legend { padding: 0 6px; font-family: var(--font-display); font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+.rc-bk-groep > legend { padding: 0 6px; font-family: var(--font-display); font-weight: 700; line-height: 1.35; overflow-wrap: break-word; overflow-wrap: anywhere; }
 .rc-bk-zin { margin: 2px 0 6px; color: var(--text-soft); font-size: 0.92rem; max-width: 72ch; overflow-wrap: break-word; }
 .rc-bk-rij {
   display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 10px 8px; cursor: pointer; border-radius: var(--radius-s);
@@ -85,12 +85,12 @@
 .rc-bk-rij:has(input:checked) { background: var(--brand-soft); }
 .rc-bk-rij:focus-within { outline: 3px solid var(--brand); outline-offset: -2px; }
 .rc-bk-rij input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--brand-fill); cursor: pointer; }
-.rc-bk-rij > span { min-width: 0; overflow-wrap: anywhere; }
+.rc-bk-rij > span { min-width: 0; overflow-wrap: break-word; overflow-wrap: anywhere; }
 .rc-bk-alle > span { font-weight: 700; }
 .rc-bk-details { min-width: 0; margin-top: 2px; }
 .rc-bk-details > summary {
   display: flex; align-items: center; min-height: 44px; padding: 0 8px; cursor: pointer; font-weight: 600; color: var(--text-soft);
-  list-style: none; overflow-wrap: anywhere;
+  list-style: none; overflow-wrap: break-word; overflow-wrap: anywhere;
 }
 .rc-bk-details > summary::-webkit-details-marker { display: none; }
 .rc-bk-details > summary::before {

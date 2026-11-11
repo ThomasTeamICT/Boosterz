@@ -111,3 +111,11 @@ export function readableAccent(hex: string): string {
   }
   return '#000000';
 }
+
+/**
+ * Kent deze browser color-mix()? Safari vóór 16.2 niet. Een declaratie met color-mix(… var(…) …) aanvaardt zo'n browser
+ * bij het inlezen wel, maar bij het berekenen wordt ze 'unset' (invalid at computed-value time), en dan helpt een gewone
+ * declaratie ervoor niet. Kies daarom in code: geef een gewone kleur als dit false is.
+ */
+export const kanColorMix = typeof CSS !== 'undefined' && typeof CSS.supports === 'function'
+  && CSS.supports('color', 'color-mix(in srgb, red, blue)');

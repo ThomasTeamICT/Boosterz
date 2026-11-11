@@ -7,7 +7,7 @@
 /* De hele rij: een lange naam ("Natuurwetenschappen · 2de graad") past op één regel en breekt alleen bij spaties. */
 .lp-info > div.lp-info-richting { grid-column: 1 / -1; }
 
-.lp-info .lp-info-link { overflow-wrap: anywhere; }
+.lp-info .lp-info-link { overflow-wrap: break-word; overflow-wrap: anywhere; }
 
 @media (max-width: 640px) {
   .lp-info .lp-info-link { display: inline-flex; align-items: center; min-height: 44px; }

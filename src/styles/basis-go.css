@@ -8,11 +8,13 @@
 }
 .b-go-pagina h1 {
   margin: 12px 0 8px;
+  overflow-wrap: break-word;
   overflow-wrap: anywhere;
 }
 
 /* Letterlijke tekst van het GO!: regeleinden uit de bron blijven staan, lange woorden breken. */
 .b-go-tekst {
+  overflow-wrap: break-word;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   tab-size: 4;
@@ -436,6 +438,7 @@
   padding-left: 20px;
 }
 .b-go-kruimel-rubriek {
+  overflow-wrap: break-word;
   overflow-wrap: anywhere;
 }
 
@@ -515,6 +518,7 @@
   border: 1px solid var(--line);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: break-word;
   overflow-wrap: anywhere;
 }
 .b-go-lijntabel thead th {
@@ -579,5 +583,65 @@
 @media print {
   .b-voet-go {
     color: #000 !important;
+  }
+}
+
+/* ── De lijst van leerplandoelen vanaf 900 px: één rij per doel, drie kolommen (pakket GE15) ─────────────
+   Alleen de lijst (.b-go-lijst); de doelen bij een minimumdoel (GoBijDoel) houden hun kaart. Onder 900 px, en op papier
+   (A4 is smaller), blijft alles onder elkaar. */
+
+/* Onder 900 px dragen de twee omhulsels niets bij: de delen staan onder elkaar, precies als voorheen. */
+.b-go-lijst .b-go-doelmidden,
+.b-go-lijst .b-go-doelzij {
+  display: contents;
+}
+
+@media (min-width: 900px) {
+  .b-go-lijst .b-go-doelmidden,
+  .b-go-lijst .b-go-doelzij {
+    display: block;
+  }
+  .b-go-lijst .b-go-doelen {
+    gap: 0;
+    margin: 4px 0 0;
+    border-top: 1px solid var(--line-strong);
+  }
+  .b-go-lijst .b-go-doelen > .b-go-doel {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr) minmax(13rem, 23rem);
+    column-gap: 20px;
+    align-items: start;
+    padding: 4px 4px;
+    border: 0;
+    border-bottom: 1px solid var(--line-strong);
+    border-radius: 0;
+    background: transparent;
+  }
+  .b-go-lijst .b-go-doelen > .b-go-doel p {
+    margin: 0;
+  }
+  .b-go-lijst .b-go-doelkop {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+  /* Tikdoel van 44 px voor de code, zonder dat de rij er hoger door wordt (zoals .b-lp-code.b-lp-naarplek). Niet voor
+     de lesplanlinks: daar zouden de tikzones over de chip en over elkaar vallen, zodat een tik het verkeerde opent. */
+  .b-go-lijst .b-go-doelcode {
+    margin-block: -10px;
+  }
+  .b-go-lijst .b-go-doelkop .b-go-kv {
+    margin-top: 12px;
+  }
+  .b-go-lijst .b-go-doelmidden {
+    padding-block: 2px;
+  }
+  .b-go-lijst .b-go-doelzij .b-go-koppeling {
+    gap: 0 8px;
+  }
+  .b-go-lijst .b-go-doelzij > p.b-go-koppeling {
+    margin-top: 4px;
+    padding: 0;
   }
 }

@@ -1589,7 +1589,7 @@ function CockpitRow({
   return (
     <div className="card" style={{ padding: '13px 16px', marginBottom: 10, borderLeft: graded ? '4px solid var(--ok)' : '4px solid var(--warn)' }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 6 }}>
-        <strong style={{ overflowWrap: 'anywhere' }}>{submission.studentName}</strong>
+        <strong style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{submission.studentName}</strong>
         {graded ? <span className="badge badge-ok"><OkMark /> {existing.earned}/{question.points}</span> : <span className="badge badge-warn">na te kijken</span>}
       </div>
       <div style={{ background: 'var(--bg-sunken)', borderRadius: 8, padding: '8px 12px', marginBottom: 8 }}>

@@ -9,7 +9,7 @@ import { createElement, type ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom/server';
 import { describe, expect, it } from 'vitest';
-import { KoppelingChips, KoppelingLijst, redenZin, twijfelZin, type MinimumdoelTeksten } from '../../components/basis/go/KoppelingLijst';
+import { KoppelingChips, KoppelingLijst, redenZin, twijfelZin, vakInZin, type MinimumdoelTeksten } from '../../components/basis/go/KoppelingLijst';
 import { LeeftijdKiezer } from '../../components/basis/go/LeeftijdKiezer';
 import { MiaBlok, groepeerInhoud } from '../../components/basis/go/MiaBlok';
 import { GO_VAK_ICONEN, GO_VAK_TINTEN, VAK_ICONEN, VAK_TINTEN, goVakIcoon, goVakTint } from '../../components/basis/vakIconen';
@@ -30,7 +30,7 @@ import { basisSet } from '../../lib/basis/moment';
 import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from '../../lib/minimumdoelen';
 import { GoInhoud } from './GoScherm';
 import { LeerplandoelInhoud, tekstInLesplan, type LesplannenBijDoel } from './LeerplandoelScherm';
-import { LeerplandoelenInhoud, aantalPerLeeftijd, blokkenVan, lijstItems, onderwerpKeuzes } from './LeerplandoelenScherm';
+import { LeerplandoelenInhoud, aantalPerLeeftijd, blokkenVan, lesplanLinkTekst, lijstItems, onderwerpKeuzes } from './LeerplandoelenScherm';
 import { LesplanInhoud } from './LesplanScherm';
 
 const toon = (el: ReactElement) => renderToStaticMarkup(createElement(StaticRouter, { location: '/' }, el));
@@ -273,17 +273,65 @@ describe('KoppelingLijst: voorstel voor MV.040', () => {
     expect(t).toContain('Zo staat het in het leerplan KO 6.1.1, 6.12 · L4 6.1.3, 6.1.4 · L6 6.1.3, 6.1.4');
   });
 
-  it('is het enige voorstel van alle leerplandoelen', () => {
+  it('is met WI.706 (vorm B) een van de twee voorstellen van alle leerplandoelen', () => {
     const voorstellen = [...LEERPLAN.values()].flatMap((lp) =>
       lp.doelen.flatMap((d) => d.minimumdoelen.refs.filter((r) => r.status === 'voorstel').map(() => d.code)),
     );
-    expect(voorstellen).toEqual(['MV.040']);
+    expect(voorstellen).toEqual(['MV.040', 'WI.706']);
+  });
+
+  it('vorm A blijft letterlijk zoals ze was: de kaart van 6.1.2 met badge en zin, zonder zin over een ander vak', () => {
+    const kaart = html.slice(html.indexOf('href="/basis/doel/ODS_3417/92439"'));
+    expect(kaart.slice(0, kaart.indexOf('</p>', kaart.indexOf('b-go-voorstel')) + 4)).toContain(
+      `Minimumdoel 6.1.2</a><span class="badge badge-warn">${GO_VOORSTEL_LABEL}</span></p><p class="b-go-voorstel">In het leerplan staat “6.12”. Dat is geen geldig nummer; waarschijnlijk is 6.1.2 bedoeld.</p>`,
+    );
+    expect(t).not.toContain('Het GO! verwijst naar');
   });
 
   it('in de lijst staat het voorstel ook als voorstel, nooit als officieel', () => {
     const chips = toon(createElement(KoppelingChips, { doel }));
     expect(tekst(chips)).toContain(GO_VOORSTEL_LABEL);
     expect(tel(chips, /<li>/g)).toBe(6);
+  });
+});
+
+describe('KoppelingLijst: voorstel naast een koppeling met een ander vak (WI.706, vorm B, 11 november 2026)', () => {
+  const doel = doelVan('WI.706');
+  const html = koppeling(doel);
+  const t = tekst(html);
+
+  it('de officiële koppeling met 4.2.3 blijft staan, met de tekst van het minimumdoel en zonder badge', () => {
+    expect(html).toContain('href="/basis/doel/ODS_3411/92500"');
+    // De tekst komt uit de officiële set (ODS_3411/92500), niet uit de Excel van het GO!.
+    expect(officieel('ODS_3411').get('92500')?.doelzinHtml).toContain('De kleuters kennen de volgende begrippen met betrekking tot infrastructuur');
+    expect(t).toContain('Einde kleuter Minimumdoel 4.2.3 De kleuters kennen de volgende begrippen met betrekking tot infrastructuur');
+    expect(t).toContain('Volgens het leerplan van het GO! hoort dit leerplandoel bij:');
+    expect(t).toContain('Zo staat het in het leerplan KO 4.2.3');
+  });
+
+  it('daarna 2.4.3 als voorstel, met de badge, de zin van Boosterz en de tekst van het minimumdoel', () => {
+    expect(html.indexOf('ODS_3411/92500')).toBeLessThan(html.indexOf('ODS_3405/93005'));
+    expect(html).toContain('href="/basis/doel/ODS_3405/93005"');
+    expect(tel(html, new RegExp(GO_VOORSTEL_LABEL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'))).toBe(1);
+    expect(t).toContain(`Minimumdoel 2.4.3 ${GO_VOORSTEL_LABEL} Het GO! verwijst naar 4.2.3, een minimumdoel van aardrijkskunde. Waarschijnlijk is 2.4.3 bedoeld.`);
+    expect(t).toContain(tekst(officieel('ODS_3405').get('93005')?.doelzinHtml ?? 'ontbreekt'));
+  });
+
+  it('onder "Hoe zeker is dit?" staat de twijfel bij 4.2.3; geen zin over een kapot nummer', () => {
+    expect(t).toContain('Hoe zeker is dit? Het leerplan koppelt WI.706 aan minimumdoel 4.2.3, een doel van een ander vak (Aardrijkskunde) dan dat van dit leerplandoel.');
+    expect(t).not.toMatch(/In het leerplan staat|geen geldig nummer|bestaat niet in de officiële/);
+  });
+
+  it('in de lijst: de chip 4.2.3 met de twijfel en de chip 2.4.3 met het voorstel-label', () => {
+    const chips = toon(createElement(KoppelingChips, { doel }));
+    expect(tel(chips, /<li>/g)).toBe(2);
+    expect(tekst(chips)).toBe(
+      `Minimumdoelen: Einde kleuter 4.2.3 let op: dit minimumdoel hoort bij een ander vak Einde kleuter 2.4.3 ${GO_VOORSTEL_LABEL} Open het leerplandoel voor wat er niet past.`,
+    );
+  });
+
+  it('vakInZin: de naam van het vak zoals midden in een zin', () => {
+    expect([4, 3, 1, 8, 10, 99].map(vakInZin)).toEqual(['aardrijkskunde', 'wetenschap en techniek', 'Nederlands', 'ICT', 'Frans', undefined]);
   });
 });
 
@@ -521,6 +569,24 @@ describe('LeerplandoelenInhoud (WT, 2,5-4 jaar)', () => {
     expect(tekst(html)).toContain('Lesplan: LP0001');
   });
 
+  it('toont een lesplanlink met de code en de titel uit de index, en alleen de code zonder index', () => {
+    const l = INDEX.lesplannen.find((x) => x.doelen.includes('WT.001'));
+    expect(l).toBeDefined();
+    expect(lesplanLinkTekst({ code: 'LP0065', titel: 'Dieren classificeren' })).toBe('LP0065 Dieren classificeren');
+    expect(lesplanLinkTekst({ code: 'LP0065' })).toBe('LP0065');
+    expect(html).toContain(`href="/basis/lesplan/${l?.code}"`);
+    expect(tekst(html)).toContain(`${l?.code} ${l?.titel}`);
+    const zonderIndex = toon(
+      createElement(LeerplandoelenInhoud, { leerplan: wt, filter: { leeftijd: '2,5-4' }, onLeeftijd: () => undefined, onZonder: () => undefined, rubriekPad: () => '/' }),
+    );
+    expect(zonderIndex).not.toContain('/basis/lesplan/');
+  });
+
+  it('houdt de omhulsels van de drie kolommen en de oude klasse van het doel (de tellingen hierboven en GoBijDoel lezen die)', () => {
+    expect(tel(html, /class="b-go-doelmidden"/g)).toBe(48);
+    expect(tel(html, /class="b-go-doelzij"/g)).toBe(48);
+  });
+
   it('toont de kiezer met 2,5-4 jaar ingedrukt en het filter zonder minimumdoel', () => {
     expect(html).toMatch(/aria-pressed="true"[^>]*>2,5-4 jaar/);
     expect(html).toContain('type="checkbox"');
@@ -666,6 +732,20 @@ describe('LeerplandoelInhoud', () => {
 
     it('toont alle negen leeftijden', () => {
       for (const l of GO_LEEFTIJDEN) expect(t).toContain(`${l} jaar`);
+    });
+  });
+
+  describe('WI.706 (vorm B: voorstel naast een koppeling met een ander vak)', () => {
+    const html = pagina('WI.706');
+    const t = tekst(html);
+
+    it('toont de officiële koppeling met 4.2.3 en het voorstel 2.4.3, gemarkeerd, met de zin van Boosterz', () => {
+      expect(tel(html, /<h1[ >]/g)).toBe(1);
+      expect(html).toContain('href="/basis/doel/ODS_3411/92500"');
+      expect(html).toContain('href="/basis/doel/ODS_3405/93005"');
+      expect(t).toContain(GO_VOORSTEL_LABEL);
+      expect(t).toContain('Het GO! verwijst naar 4.2.3, een minimumdoel van aardrijkskunde. Waarschijnlijk is 2.4.3 bedoeld.');
+      expect(t).toContain('Hoe zeker is dit?');
     });
   });
 

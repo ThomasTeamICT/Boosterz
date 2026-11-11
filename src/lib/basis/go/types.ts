@@ -59,7 +59,7 @@ export function isGoVak(v: unknown): v is GoVak {
 export const GO_NAAMSVERMELDING = 'GO! onderwijs van de Vlaamse Gemeenschap';
 /** Tot het patroon van een link per lesplan gekend is, linkt elk lesplan hierheen. */
 export const GO_STUDIO_URL = 'https://studio.g-o.be/';
-/** De badge bij een koppeling met status 'voorstel' (nu alleen MV.040 '6.12'). */
+/** De badge bij een koppeling met status 'voorstel' (nu MV.040 '6.12' → 6.1.2 en WI.706 4.2.3 → 2.4.3). */
 export const GO_VOORSTEL_LABEL = 'voorstel, nog niet bevestigd door het GO!';
 
 /** De volledige bronvermelding bij een lesplan, bv. lesplan LP0065. */
@@ -336,7 +336,9 @@ export type GoDoelInhoud =
 
 /**
  * De koppeling naar minimumdoelen uit de codekolommen van één rij. Elke code in `bron` (gesplitst op komma) staat
- * precies één keer verantwoord: als officiële ref (moment + code) of als probleem (moment + bronCode).
+ * precies één keer verantwoord: als officiële ref (moment + code) of als probleem (moment + bronCode). Een voorstel
+ * verantwoordt geen code: het staat altijd naast een probleem (vorm A) of naast een officiële ref met twijfel
+ * 'ander-vak' (vorm B), zie GoMinimumdoelRef.
  */
 export interface GoKoppeling {
   /** Letterlijk uit de kolommen, bv. { KO: '3.1.3, 3.1.4' }. Alleen kolommen met tekst. */
@@ -351,23 +353,36 @@ export interface GoKoppeling {
 }
 
 /**
- * Een twijfel bij een officiële koppeling: melden, niet verbeteren.
+ * Een twijfel bij een koppeling: melden, niet verbeteren.
  * - 'moment-buiten-leeftijden': het moment past niet bij de leeftijden van het doel (regel: momentPastBijLeeftijden).
+ *   Geldt voor elke ref, ook voor een voorstel.
  * - 'ander-vak': de code wijst naar een doel van een ander vak dan de vakdiscipline verwacht (bv. WI.706 → KO 4.2.3);
- *   alleen via bekende-afwijkingen.json.
+ *   alleen bij een officiële ref, en alleen via bekende-afwijkingen.json. Daar kan ook een voorstel bij staan (vorm B).
  */
 export type GoTwijfel = 'moment-buiten-leeftijden' | 'ander-vak';
 /** Ook de volgorde waarin twijfels in een lijst staan. */
 export const GO_TWIJFELS: readonly GoTwijfel[] = ['moment-buiten-leeftijden', 'ander-vak'];
 
-/** De sleutel van de app (set + vast nummer + code), met het moment en de status. */
+/**
+ * De sleutel van de app (set + vast nummer + code), met het moment en de status.
+ *
+ * 'voorstel': een minimumdoel dat Boosterz voorstelt, alleen uit bekende-afwijkingen.json (nooit afgeleid uit leeftijden
+ * of tekst), op hetzelfde moment als de code uit de bron. Er zijn twee vormen, en `bronCode` zegt bij welke code uit de
+ * bron het voorstel hoort:
+ * - A: bij een code die geen doel vindt (MV.040 KO '6.12' → 6.1.2; soort 'koppeling-voorstel'). Er staat een probleem
+ *   met hetzelfde moment en dezelfde bronCode bij.
+ * - B: naast een officiële ref met twijfel 'ander-vak' (WI.706 KO 4.2.3 → 2.4.3; soort 'koppeling-ander-vak' met een
+ *   veld voorstel, beslissing van de eigenaar van 11 november 2026). `bronCode` is de code van die officiële ref, die
+ *   blijft staan zoals in de bron.
+ * In beide vormen staat het voorstel in `refs` direct na de ref of de plaats van de code waar het bij hoort. Een voorstel
+ * draagt nooit de twijfel 'ander-vak' en stelt nooit de code uit de bron zelf voor.
+ */
 export interface GoMinimumdoelRef extends MinimumdoelRef {
   moment: GoMoment;
-  /** 'voorstel': alleen voor een code die geen doel vindt, uit bekende-afwijkingen.json (sleutel doel + moment + bronCode). */
   status: 'officieel' | 'voorstel';
   /** Niet leeg, zonder dubbels, in de volgorde van GO_TWIJFELS. */
   twijfel?: GoTwijfel[];
-  /** Alleen bij een voorstel: wat er letterlijk in de bron staat, bv. '6.12'. Er staat dan ook een probleem bij. */
+  /** Alleen bij een voorstel: de code uit de bron waar het bij hoort, letterlijk ('6.12' in vorm A, '4.2.3' in vorm B). */
   bronCode?: string;
 }
 
@@ -408,8 +423,15 @@ export interface GoBijDoel extends GoTekst {
   moment: GoMoment;
   status: 'officieel' | 'voorstel';
   twijfel?: GoTwijfel[];
-  /** Alleen bij een voorstel: wat er letterlijk in de bron staat. */
+  /** Alleen bij een voorstel: de code uit de bron waar het bij hoort ('6.12' in vorm A, '4.2.3' in vorm B). */
   bronCode?: string;
+  /**
+   * Alleen bij een officiële koppeling met twijfel 'ander-vak' waar Boosterz een ander minimumdoel voorstelt (vorm B, nu
+   * WI.706 bij 92500): het voorgestelde doel. Zo kan de doelpagina van het officiële doel het voorstel noemen zonder het
+   * leerplan te laden. Bij dat voorgestelde doel staat hetzelfde leerplandoel als voorstel, met als bronCode de code van
+   * dit minimumdoel. Een nieuw optioneel veld: geen nieuwe v (de lichte controle laat het door).
+   */
+  voorstel?: MinimumdoelRef;
   kennisverwerking: Kennisverwerking;
   leeftijden: GoLeeftijd[];
   /** Lesplancodes met dit doel in deel 2, oplopend. */

@@ -255,6 +255,27 @@ export async function basisGo({ browser, BASE, check, errors, sleep }) {
     const t10 = await tekst(d.p);
     check('go 10: het leerplan wetenschap en techniek voor K1 toont WT.086 en de bronvermelding van het leerplan', /WT\.086/.test(t10) && /Bron: GO! onderwijs van de Vlaamse Gemeenschap, het nieuwe GO! leerplan basisonderwijs, doelenset/.test(t10));
     await d.ctx.close();
+    // 10b. De lijst is compact (pakket GE15): op 1280x768 staan na de eerste kop minstens 3 doelen helemaal op het eerste scherm
+    // (gemeten 4 bij K1, met veel lesplanlinks; als losse kaarten waren het er 2), de doelzin blijft breed genoeg, en op
+    // 390 px scrolt niets horizontaal.
+    const l = await open(1280, { viewport: { width: 1280, height: 768 } });
+    await l.gaNaar('/#/basis/leerplandoelen/wt?leerjaar=K1', '.b-go-doelen > .b-go-doel');
+    const eerste = await l.p.evaluate(() => {
+      const lijst = document.querySelector('.b-go-doelen');
+      const kop = lijst.previousElementSibling;
+      window.scrollTo(0, kop.getBoundingClientRect().top + window.scrollY - 8);
+      const doelen = [...document.querySelectorAll('.b-go-doelen > .b-go-doel')];
+      const zicht = doelen.filter((x) => { const r = x.getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight; }).length;
+      const tekst = document.querySelector('.b-go-doeltekst');
+      const fs = parseFloat(getComputedStyle(tekst).fontSize);
+      return { zicht, tekens: tekst.getBoundingClientRect().width / (fs * 0.5) };
+    });
+    check(`go 10b: leerplandoelen K1 op 1280x768: ${eerste.zicht} doelen helemaal op het eerste scherm (minstens 3; vroeger als losse kaarten 2), doelzin ongeveer ${Math.round(eerste.tekens)} tekens breed (minstens 40)`, eerste.zicht >= 3 && eerste.tekens >= 40);
+    await l.ctx.close();
+    const sm = await open(SMAL);
+    await sm.gaNaar('/#/basis/leerplandoelen/wt?leerjaar=K1', '.b-go-doel');
+    check('go 10c: leerplandoelen K1 op 390 px scrollen niet horizontaal', await passtOpSmal(sm.p));
+    await sm.ctx.close();
   };
 
   const sectieMindmap = async () => {
@@ -591,5 +612,48 @@ export async function basisGo({ browser, BASE, check, errors, sleep }) {
     await a.ctx.close();
   };
 
-  await Promise.all([sectieSmal(), sectieStap(), sectieKoppeling(), sectieMindmap(), sectiePrint(), sectieWisselen(), sectieNietGevonden(), sectieChunkWeg(), sectieWaterval(), sectieOffline(), sectieDoelpagina(), sectieNavigatie()]);
+  const sectieVoorstel = async () => {
+    // 26. Vorm B (WI.706, beslissing van de eigenaar van 11 november 2026): de officiële koppeling met 4.2.3 blijft staan,
+    // 2.4.3 staat ernaast als voorstel. Op 390 px, met de officiële teksten geladen.
+    const LABEL = 'voorstel, nog niet bevestigd door het GO!';
+    const v = await open(SMAL);
+    await v.gaNaar('/#/basis/leerplandoel/WI.706', '.b-go-ref-link');
+    // Wachten tot beide kaarten hun officiële tekst hebben (een tekst kan uit meer dan één blok bestaan).
+    const metTekst = () => [...document.querySelectorAll('.b-go-ref')].filter((li) => li.querySelector('.b-go-minimumtekst')).length;
+    await v.p.waitForFunction(`(${metTekst.toString()})() >= 2`, null, { timeout: 15000 }).catch(() => {});
+    const wi = await v.p.evaluate(() => ({
+      links: [...document.querySelectorAll('.b-go-ref-link')].map((a) => a.getAttribute('href') ?? ''),
+      labels: [...document.querySelectorAll('.b-go-deel .badge-warn')].map((b) => (b.textContent ?? '').trim()),
+      zinnen: [...document.querySelectorAll('.b-go-deel .b-go-voorstel')].map((x) => (x.textContent ?? '').replace(/\s+/g, ' ').trim()),
+      teksten: [...document.querySelectorAll('.b-go-ref')].filter((li) => li.querySelector('.b-go-minimumtekst')).length,
+      zeker: [...document.querySelectorAll('.b-go-deel summary')].some((x) => /Hoe zeker is dit\?/.test(x.textContent ?? '')),
+    }));
+    check(
+      `go 26: WI.706 toont de officiële koppeling 4.2.3 en daarna 2.4.3 als voorstel met het label (${wi.links.join(', ')}; labels: ${wi.labels.join(' | ')}; ${wi.teksten} teksten)`,
+      wi.links.length === 2 && /\/ODS_3411\/92500$/.test(wi.links[0]) && /\/ODS_3405\/93005$/.test(wi.links[1]) && wi.labels.length === 1 && wi.labels[0] === LABEL && wi.teksten === 2,
+    );
+    check(
+      `go 26: WI.706 zegt waarom ("${wi.zinnen.join(' | ')}") en houdt "Hoe zeker is dit?" bij 4.2.3`,
+      wi.zinnen.length === 1 && wi.zinnen[0] === 'Het GO! verwijst naar 4.2.3, een minimumdoel van aardrijkskunde. Waarschijnlijk is 2.4.3 bedoeld.' && wi.zeker,
+    );
+    check('go 26: WI.706 heeft op 390 px één main, één h1 en scrolt niet horizontaal', (await heeftEenKop(v.p)) && (await passtOpSmal(v.p)));
+    const bijWi = () =>
+      v.p.evaluate(() => {
+        const li = document.getElementById('b-go-bij-WI.706');
+        return { tekst: (li?.textContent ?? '').replace(/\s+/g, ' '), label: (li?.querySelector('.badge-warn')?.textContent ?? '').trim(), link: li?.querySelector('.b-go-voorstel a')?.getAttribute('href') ?? '' };
+      });
+    await v.gaNaar('/#/basis/doel/ODS_3405/93005', '#b-go-bij-WI\\.706');
+    const d1 = await bijWi();
+    check(`go 26: de doelpagina van 2.4.3 (ODS_3405/93005) toont WI.706 met het label en "In het leerplan staat “4.2.3”" (${d1.label})`, d1.label === LABEL && /In het leerplan staat “4\.2\.3”\. Waarschijnlijk is 2\.4\.3 bedoeld\./.test(d1.tekst));
+    await v.gaNaar('/#/basis/doel/ODS_3411/92500', '#b-go-bij-WI\\.706');
+    const d2 = await bijWi();
+    check(
+      `go 26: de doelpagina van 4.2.3 (ODS_3411/92500) toont WI.706 met de twijfel en het voorstel 2.4.3, met een link (${d2.link})`,
+      d2.label === LABEL && /Het GO! verwijst naar 4\.2\.3, een minimumdoel van aardrijkskunde\. Waarschijnlijk is 2\.4\.3( \(minimumdoel\))? bedoeld\./.test(d2.tekst) && /Hoe zeker is dit\?/.test(d2.tekst) && /\/ODS_3405\/93005$/.test(d2.link),
+    );
+    check('go 26: de doelpagina van 4.2.3 heeft op 390 px één main, één h1 en scrolt niet horizontaal', (await heeftEenKop(v.p)) && (await passtOpSmal(v.p)));
+    await v.ctx.close();
+  };
+
+  await Promise.all([sectieSmal(), sectieStap(), sectieKoppeling(), sectieMindmap(), sectiePrint(), sectieWisselen(), sectieNietGevonden(), sectieChunkWeg(), sectieWaterval(), sectieOffline(), sectieDoelpagina(), sectieNavigatie(), sectieVoorstel()]);
 }

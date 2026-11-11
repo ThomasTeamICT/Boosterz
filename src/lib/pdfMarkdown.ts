@@ -10,6 +10,8 @@
 // De kern (pdfLinesToMarkdown) is een pure functie op al gegroepeerde regels,
 // zodat ze in vitest zonder browser of pdf.js te testen valt.
 
+import { laadPdfjs } from './pdfWorker';
+
 export interface PdfSpan {
   text: string;
   size: number;
@@ -423,8 +425,7 @@ export const MAX_MARKDOWN_CHARS = 200000;
  * in de pdf zit (die reizen niet mee; de leerkracht voegt ze toe in de editor).
  */
 export async function extractPdfMarkdown(src: Blob): Promise<{ markdown: string; pages: number; images: number }> {
-  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString();
+  const pdfjs = await laadPdfjs();
   const data = await src.arrayBuffer();
   const task = pdfjs.getDocument({ data });
   const doc = await task.promise;

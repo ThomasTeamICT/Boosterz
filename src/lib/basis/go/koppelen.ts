@@ -9,8 +9,9 @@
 //
 // Wat hier nooit gebeurt: een koppeling afleiden uit leeftijden of tekst. Past het moment niet bij de leeftijden van het
 // doel, dan blijft de koppeling officieel, met twijfel 'moment-buiten-leeftijden' (melden, niet verbeteren). Een
-// voorstel bestaat alleen voor een code die geen doel vindt, en alleen als de hoofdsessie het opnam in
-// bekende-afwijkingen.json (sleutel doel + moment + letterlijke bronCode).
+// voorstel bestaat alleen als de hoofdsessie het opnam in bekende-afwijkingen.json, in twee vormen (types.ts,
+// GoMinimumdoelRef): A voor een code die geen doel vindt (sleutel doel + moment + letterlijke bronCode), B naast een
+// officiële koppeling met twijfel 'ander-vak' (sleutel doel + moment + code); die officiële koppeling blijft staan.
 //
 // Zuiver: de index en de setbestanden zijn de invoer; geen I/O.
 import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from '../../minimumdoelen';
@@ -130,7 +131,11 @@ export function maakOpzoektabel(
   return { tabel, meldingen };
 }
 
-/** Een voorstel voor een code die geen doel vindt (uit bekende-afwijkingen.json): de voorgestelde code op hetzelfde moment. */
+/**
+ * Een voorstel uit bekende-afwijkingen.json: de voorgestelde code op hetzelfde moment. Als `voorstel` (vorm A) gevraagd
+ * voor een code die geen doel vindt; als `voorstelNaast` (vorm B) voor de code van een officiële koppeling met twijfel
+ * 'ander-vak'.
+ */
 export type VoorstelZoeker = (moment: GoMoment, bronCode: string) => string | undefined;
 /** Extra twijfels bij een officiële koppeling (bv. 'ander-vak' uit bekende-afwijkingen.json). */
 export type TwijfelZoeker = (moment: GoMoment, code: string) => readonly GoTwijfel[];
@@ -141,7 +146,7 @@ export interface KoppelUitkomst {
   dubbelzinnig: { moment: GoMoment; code: string; kandidaten: MinimumdoelKandidaat[] }[];
   /** Een code die twee keer in dezelfde kolom staat, of een voorstel dat naar een al gekoppeld doel wijst. */
   dubbel: { moment: GoMoment; code: string }[];
-  /** Een voorstel waarvan de voorgestelde code zelf geen (of meer dan één) doel vindt. */
+  /** Een voorstel (vorm A of B) waarvan de voorgestelde code zelf geen (of meer dan één) doel vindt, of de code uit de bron is. */
   voorstelZonderDoel: { moment: GoMoment; bronCode: string; voorstel: string }[];
 }
 
@@ -153,13 +158,14 @@ function ordenTwijfels(lijst: readonly GoTwijfel[]): GoTwijfel[] {
 /**
  * Zet de codekolommen van één rij om naar een GoKoppeling. `lft` zijn de leeftijden van het doel (ook bij een
  * koppeling op een MIA-rij, die zelf geen leeftijd heeft). Elke code uit de bron staat daarna precies één keer
- * verantwoord: als officiële ref of als probleem (met eventueel een voorstel erbij).
+ * verantwoord: als officiële ref of als probleem. Een voorstel komt direct na de code waar het bij hoort: na het probleem
+ * (vorm A, `voorstel`) of na de officiële ref met twijfel 'ander-vak' (vorm B, `voorstelNaast`, alleen dan gevraagd).
  */
 export function koppel(
   bron: Partial<Record<GoMoment, string>>,
   lft: readonly GoLeeftijd[],
   tabel: Opzoektabel,
-  opties: { voorstel?: VoorstelZoeker; twijfel?: TwijfelZoeker } = {},
+  opties: { voorstel?: VoorstelZoeker; voorstelNaast?: VoorstelZoeker; twijfel?: TwijfelZoeker } = {},
 ): KoppelUitkomst {
   const refs: GoMinimumdoelRef[] = [];
   const problemen: GoKoppeling['problemen'] = [];
@@ -174,6 +180,25 @@ export function koppel(
     if (!momentPastBijLeeftijden(moment, lft)) tw.push('moment-buiten-leeftijden');
     if (officieel && opties.twijfel) tw.push(...opties.twijfel(moment, code));
     return ordenTwijfels(tw);
+  };
+
+  /** Zoekt het voorgestelde doel en zet het als voorstel achteraan in refs; anders een melding (stopt de import). */
+  const voegVoorstelToe = (moment: GoMoment, bronCode: string, voorstel: string) => {
+    const vk = tabel.zoek(moment, voorstel);
+    if (vk.length !== 1 || voorstel === bronCode) {
+      voorstelZonderDoel.push({ moment, bronCode, voorstel });
+      return;
+    }
+    const sleutel = `${vk[0].set}/${vk[0].id}`;
+    if (gekoppeld.has(sleutel)) {
+      dubbel.push({ moment, code: voorstel });
+      return;
+    }
+    gekoppeld.add(sleutel);
+    const ref: GoMinimumdoelRef = { set: vk[0].set, id: vk[0].id, code: vk[0].code, moment, status: 'voorstel', bronCode };
+    const tw = twijfelsVoor(moment, vk[0].code, false);
+    if (tw.length > 0) ref.twijfel = tw;
+    refs.push(ref);
   };
 
   for (const moment of GO_MOMENTEN) {
@@ -205,26 +230,14 @@ export function koppel(
         const tw = twijfelsVoor(moment, k.code, true);
         if (tw.length > 0) ref.twijfel = tw;
         refs.push(ref);
+        // Vorm B: alleen naast een officiële koppeling met twijfel 'ander-vak'.
+        const naast = tw.includes('ander-vak') ? opties.voorstelNaast?.(moment, k.code) : undefined;
+        if (naast !== undefined) voegVoorstelToe(moment, k.code, naast);
         continue;
       }
       problemen.push({ moment, bronCode: code, reden: leesbaar ? 'bestaat-niet' : 'onleesbaar' });
       const voorstel = opties.voorstel?.(moment, code);
-      if (voorstel === undefined) continue;
-      const vk = tabel.zoek(moment, voorstel);
-      if (vk.length !== 1 || voorstel === code) {
-        voorstelZonderDoel.push({ moment, bronCode: code, voorstel });
-        continue;
-      }
-      const sleutel = `${vk[0].set}/${vk[0].id}`;
-      if (gekoppeld.has(sleutel)) {
-        dubbel.push({ moment, code: voorstel });
-        continue;
-      }
-      gekoppeld.add(sleutel);
-      const ref: GoMinimumdoelRef = { set: vk[0].set, id: vk[0].id, code: vk[0].code, moment, status: 'voorstel', bronCode: code };
-      const tw = twijfelsVoor(moment, vk[0].code, false);
-      if (tw.length > 0) ref.twijfel = tw;
-      refs.push(ref);
+      if (voorstel !== undefined) voegVoorstelToe(moment, code, voorstel);
     }
   }
   return { koppeling: { bron: schoneBron, refs, problemen }, dubbelzinnig, dubbel, voorstelZonderDoel };

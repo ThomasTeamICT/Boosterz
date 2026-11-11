@@ -12,8 +12,9 @@
 // - Leerplan: codes van 001 tot N met het voorvoegsel van het bestand; rubrieken en ouders zoals ze uit de
 //   bronvolgorde volgen; inhoud tussen het doel en de volgende doel- of rubriekrij.
 // - Koppeling: elke code uit de bronkolommen staat precies één keer verantwoord (officiële ref of probleem); een
-//   voorstel hoort bij een probleem met hetzelfde moment en dezelfde letterlijke bronCode; de twijfel
-//   'moment-buiten-leeftijden' staat er als en alleen als de regel van momentPastBijLeeftijden dat zegt.
+//   voorstel hoort bij een probleem met hetzelfde moment en dezelfde letterlijke bronCode (vorm A) of bij een
+//   officiële ref met twijfel 'ander-vak' op die code en dat moment (vorm B); de twijfel 'moment-buiten-leeftijden'
+//   staat er als en alleen als de regel van momentPastBijLeeftijden dat zegt.
 // - Tekst: `opmaak` geeft samen precies `tekst`; aangrenzende stukken met dezelfde opmaak zijn samengevoegd.
 // - Lesplan: elke wijzer bestaat, en de afgeleide tekst staat letterlijk op die plek.
 // - Persoonsgegevens: geen e-mailadres en geen telefoonnummer (smal patroon, nagerekend op de echte bron).
@@ -623,8 +624,12 @@ function koppeling(m: Melder, v: unknown, pad: string, lft: readonly GoLeeftijd[
 
   // Welke (moment, code) is verantwoord, en hoe.
   const officieel = new Set<string>();
+  /** Officiële refs met twijfel 'ander-vak': daar mag een voorstel naast staan (vorm B). */
+  const anderVak = new Set<string>();
   const probleem = new Set<string>();
   const voorstel = new Set<string>();
+  /** De voorstellen, pas na alle refs nagekeken: de officiële ref van vorm B mag ook later in de lijst staan. */
+  const voorstellen: { rp: string; mo: GoMoment; bc: string; code: string | undefined }[] = [];
   const sleutel = (mo: string, c: string) => `${mo}\u0000${c}`;
   const inBron = (mo: GoMoment | undefined, c: string | undefined) => mo !== undefined && c !== undefined && (codes.get(mo) ?? []).includes(c);
 
@@ -673,19 +678,24 @@ function koppeling(m: Melder, v: unknown, pad: string, lft: readonly GoLeeftijd[
         if (officieel.has(s)) m.fout(rp, `${mo} ${code} staat er meer dan één keer`);
         if (probleem.has(s)) m.fout(rp, `${mo} ${code} staat zowel als koppeling als als probleem`);
         officieel.add(s);
+        if ((tw ?? []).includes('ander-vak')) anderVak.add(s);
       }
     } else if (status === 'voorstel') {
       const bc = heeft(ro, 'bronCode') ? tekst(m, ro.bronCode, `${rp}.bronCode`, MAX_KORT) : undefined;
       if (!heeft(ro, 'bronCode')) m.fout(rp, 'een voorstel heeft een "bronCode": wat er letterlijk in de bron staat');
-      if (mo !== undefined && bc !== undefined) {
-        const s = sleutel(mo, bc);
-        if (!probleem.has(s)) m.fout(rp, `bij een voorstel hoort een probleem met hetzelfde moment en dezelfde bronCode (${mo} "${kort(bc)}")`);
-        if (voorstel.has(s)) m.fout(rp, `er is al een voorstel voor ${mo} "${kort(bc)}"`);
-        if (bc === code) m.fout(rp, 'een voorstel stelt een andere code voor dan de bron');
-        voorstel.add(s);
-      }
+      if ((tw ?? []).includes('ander-vak')) m.fout(`${rp}.twijfel`, "een voorstel heeft geen twijfel 'ander-vak'; die hoort bij de officiële koppeling");
+      if (mo !== undefined && bc !== undefined) voorstellen.push({ rp, mo, bc, code });
     }
   });
+  for (const { rp, mo, bc, code } of voorstellen) {
+    const s = sleutel(mo, bc);
+    if (!probleem.has(s) && !anderVak.has(s)) {
+      m.fout(rp, `bij een voorstel hoort een probleem met hetzelfde moment en dezelfde bronCode (${mo} "${kort(bc)}"), of een officiële koppeling met twijfel 'ander-vak' op die code`);
+    }
+    if (voorstel.has(s)) m.fout(rp, `er is al een voorstel voor ${mo} "${kort(bc)}"`);
+    if (bc === code) m.fout(rp, 'een voorstel stelt een andere code voor dan de bron');
+    voorstel.add(s);
+  }
 
   // Elke code uit de bron is verantwoord.
   for (const [mo, delen] of codes) {
@@ -1243,7 +1253,7 @@ export function valideerGoBijMinimumdoel(json: unknown): string[] {
     vast(m, o, 'app', '', 'boosterz');
     vast(m, o, 'kind', '', 'go-bij-minimumdoel');
     vast(m, o, 'v', '', 1);
-    geheel(m, o.vak, 'vak', 1, 10);
+    const vak = geheel(m, o.vak, 'vak', 1, 10);
     if (!isObj(o.doelen)) {
       m.fout('doelen', 'is geen object');
     } else {
@@ -1256,7 +1266,7 @@ export function valideerGoBijMinimumdoel(json: unknown): string[] {
         let vorige: string | undefined;
         lijst(m, o.doelen[id], ip, true)?.forEach((b, i) => {
           const bp = `${ip}[${i}]`;
-          const bo = object(m, b, bp, ['code', 'moment', 'status', 'tekst', 'kennisverwerking', 'leeftijden', 'lesplannen'], ['opmaak', 'twijfel', 'bronCode', 'via']);
+          const bo = object(m, b, bp, ['code', 'moment', 'status', 'tekst', 'kennisverwerking', 'leeftijden', 'lesplannen'], ['opmaak', 'twijfel', 'bronCode', 'voorstel', 'via']);
           if (!bo) return;
           const code = patroon(m, bo.code, `${bp}.code`, RE_LEERPLANDOEL, 'geldige code van een leerplandoel');
           if (code !== undefined) {
@@ -1269,6 +1279,20 @@ export function valideerGoBijMinimumdoel(json: unknown): string[] {
           if (status === 'voorstel' && !heeft(bo, 'bronCode')) m.fout(bp, 'een voorstel heeft een "bronCode"');
           if (status === 'officieel' && heeft(bo, 'bronCode')) m.fout(bp, 'alleen een voorstel heeft een "bronCode"');
           if (heeft(bo, 'bronCode')) tekst(m, bo.bronCode, `${bp}.bronCode`, MAX_KORT);
+          if (status === 'voorstel' && (tw ?? []).includes('ander-vak')) m.fout(`${bp}.twijfel`, "een voorstel heeft geen twijfel 'ander-vak'");
+          if (heeft(bo, 'voorstel')) {
+            // Vorm B: alleen bij een officiële koppeling met twijfel 'ander-vak', naar een doel van een ander vak dan dit bestand.
+            const vp = `${bp}.voorstel`;
+            if (status !== 'officieel' || !(tw ?? []).includes('ander-vak')) m.fout(vp, "staat alleen bij een officiële koppeling met twijfel 'ander-vak'");
+            const vo = object(m, bo.voorstel, vp, ['set', 'id', 'code']);
+            if (vo) {
+              patroon(m, vo.set, `${vp}.set`, RE_SET, 'geldige set (ODS_…)');
+              const vid = patroon(m, vo.id, `${vp}.id`, RE_ID, 'geldig vast nummer');
+              const vcode = patroon(m, vo.code, `${vp}.code`, RE_MINIMUMDOEL_CODE, 'geldige code van een minimumdoel');
+              if (vid === id) m.fout(vp, 'stelt hetzelfde minimumdoel voor');
+              if (vcode !== undefined && vak !== undefined && Number(vcode.split('.')[0]) === vak) m.fout(vp, `stelt een minimumdoel van hetzelfde vak (${vak}) voor; vorm B gaat over een ander vak`);
+            }
+          }
           goTekst(m, bo, bp);
           keuze(m, bo.kennisverwerking, `${bp}.kennisverwerking`, KENNISVERWERKINGEN, 'geldige kennisverwerking');
           const lft = leeftijden(m, bo.leeftijden, `${bp}.leeftijden`, true);

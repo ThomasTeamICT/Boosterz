@@ -7,7 +7,10 @@
 // - elk veld dat een scherm leest, met zijn type (tekst, getal, lijst, object). Waar een onbekende waarde een scherm zou
 //   laten vastlopen of tekst stil zou laten wegvallen, ook de toegelaten waarden: leeftijd, moment, vak, soort blok,
 //   niveau van een kop, pictogram, soort inhoud en status van een beeld;
-// - wat in een href of src komt (de link naar GO! studio, het pad van een beeld): het vaste patroon.
+// - wat in een href of src komt (de link naar GO! studio, het pad van een beeld): het vaste patroon;
+// - dat een voorstel zegt bij welke code uit de bron het hoort (bronCode), en dat die code in zijn koppeling een
+//   probleem is (vorm A) of een officiële koppeling met twijfel 'ander-vak' (vorm B, types.ts): anders zou een scherm een
+//   voorstel tonen zonder de zin waarom.
 // Een onbekend optioneel veld laat ze bewust door: zo breekt een uitrol met een nieuw veld geen tabblad dat openstond.
 // Ze gooit nooit. Een lege lijst betekent 'in orde'; anders één melding met de plaats, voor de console (niet het scherm).
 
@@ -210,7 +213,7 @@ export function lichtGoLesplan(json: unknown): string[] {
 function koppeling(v: unknown, pad: string): void {
   const k = obj(v, pad);
   for (const [m, t] of Object.entries(obj(k.bron, `${pad}.bron`))) tekst(t, `${pad}.bron.${m.slice(0, 10)}`);
-  lijst(k.refs, `${pad}.refs`).forEach((x, n) => {
+  const refs = lijst(k.refs, `${pad}.refs`).map((x, n) => {
     const p = `${pad}.refs[${n}]`;
     const r = obj(x, p);
     tekst(r.set, `${p}.set`);
@@ -220,13 +223,23 @@ function koppeling(v: unknown, pad: string): void {
     tekst(r.status, `${p}.status`);
     optioneel(r.twijfel, `${p}.twijfel`, teksten);
     optioneel(r.bronCode, `${p}.bronCode`, tekst);
+    return r;
   });
-  lijst(k.problemen, `${pad}.problemen`).forEach((x, n) => {
+  const problemen = lijst(k.problemen, `${pad}.problemen`).map((x, n) => {
     const p = `${pad}.problemen[${n}]`;
     const pr = obj(x, p);
     eenVan(pr.moment, GO_MOMENTEN, `${p}.moment`);
     tekst(pr.bronCode, `${p}.bronCode`);
     tekst(pr.reden, `${p}.reden`);
+    return pr;
+  });
+  refs.forEach((r, n) => {
+    if (r.status !== 'voorstel') return;
+    const p = `${pad}.refs[${n}]`;
+    if (r.bronCode === undefined) fout(p, 'een voorstel zonder bronCode');
+    const bijProbleem = problemen.some((pr) => pr.moment === r.moment && pr.bronCode === r.bronCode);
+    const naastAnderVak = refs.some((o) => o.status === 'officieel' && o.moment === r.moment && o.code === r.bronCode && Array.isArray(o.twijfel) && o.twijfel.includes('ander-vak'));
+    if (!bijProbleem && !naastAnderVak) fout(p, "een voorstel hoort bij een probleem of bij een officiële koppeling met twijfel 'ander-vak'");
   });
 }
 
@@ -290,6 +303,13 @@ export function lichtGoBijMinimumdoel(json: unknown): string[] {
         tekst(d.status, `${p}.status`);
         optioneel(d.twijfel, `${p}.twijfel`, teksten);
         optioneel(d.bronCode, `${p}.bronCode`, tekst);
+        if (d.status === 'voorstel' && d.bronCode === undefined) fout(p, 'een voorstel zonder bronCode');
+        optioneel(d.voorstel, `${p}.voorstel`, (w, q) => {
+          const o = obj(w, q);
+          tekst(o.set, `${q}.set`);
+          tekst(o.id, `${q}.id`);
+          tekst(o.code, `${q}.code`);
+        });
         tekst(d.kennisverwerking, `${p}.kennisverwerking`);
         leeftijden(d.leeftijden, `${p}.leeftijden`);
         teksten(d.lesplannen, `${p}.lesplannen`);

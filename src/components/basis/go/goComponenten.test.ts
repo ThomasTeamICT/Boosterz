@@ -782,3 +782,50 @@ describe('het lesplan gebruikt dezelfde chips als de lijsten (CT-13)', () => {
     expect(kort).toMatch(/href="\/basis\/doel\/ODS_\d+\/\d+"/);
   });
 });
+
+// ── De chips bij een voorstel (vorm A en vorm B, types.ts) ───────────────────
+
+describe('KoppelingChips: de twee vormen van een voorstel, in een lijst en in een lesplan', () => {
+  const LABEL = 'voorstel, nog niet bevestigd door het GO!';
+  const doelUit = (vak: string, code: string) => (JSON.parse(lees(`leerplan/${vak}.json`)) as GoLeerplanBestand).doelen.find((d) => d.code === code) as GoLeerplandoel;
+  /** Zoals useDoelPad met keuze buitengewoon: ODS_3405 → ODS_3484, ODS_3411 → ODS_3456. */
+  const bubao = (r: { set: string; id: string }) => `/basis/doel/${({ ODS_3405: 'ODS_3484', ODS_3411: 'ODS_3456' } as Record<string, string>)[r.set] ?? r.set}/${r.id}`;
+
+  it('vorm A (MV.040): de chip 6.1.2 met het label; "6.12" staat niet als kapot nummer, want er is een voorstel', () => {
+    const html = toon(createElement(KoppelingChips, { doel: doelUit('MV', 'MV.040') }));
+    expect(html).toContain('href="/basis/doel/ODS_3417/92439"');
+    expect(html.split(LABEL)).toHaveLength(2);
+    expect(tekstVan(html)).not.toMatch(/6\.12|geen geldig nummer/);
+  });
+
+  it('vorm B (WI.706): de chip 4.2.3 met de twijfel en daarna de chip 2.4.3 met het label; doelPad geldt voor beide', () => {
+    const html = toon(createElement(KoppelingChips, { doel: doelUit('WI', 'WI.706'), doelPad: bubao }));
+    // tekstVan zet geen spatie tussen inline stukken: de chip en zijn noot staan er los na elkaar.
+    const items = [...html.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => tekstVan(m[1]));
+    expect(items).toEqual(['Einde kleuter 4.2.3let op: dit minimumdoel hoort bij een ander vak', `Einde kleuter 2.4.3${LABEL}`]);
+    expect(html).toContain('href="/basis/doel/ODS_3456/92500"');
+    expect(html).toContain('href="/basis/doel/ODS_3484/93005"');
+    expect(tekstVan(html)).toContain('Open het leerplandoel voor wat er niet past.');
+  });
+
+  it('in een lesplan ("In het kort") staan bij een leerplandoel met vorm B beide chips, het label en de twijfel', () => {
+    const wt001 = WT.doelen.find((d) => d.code === 'WT.001') as GoLeerplandoel;
+    const metVoorstel: GoLeerplandoel = {
+      ...wt001,
+      minimumdoelen: {
+        bron: { KO: '4.2.3' },
+        refs: [
+          { set: 'ODS_3411', id: '92500', code: '4.2.3', moment: 'KO', status: 'officieel', twijfel: ['ander-vak'] },
+          { set: 'ODS_3410', id: '92590', code: '3.1.2', moment: 'KO', status: 'voorstel', bronCode: '4.2.3' },
+        ],
+        problemen: [],
+      },
+    };
+    const koppelingen: Koppelingen = { status: 'klaar', perCode: new Map([...KLAAR.perCode, ['WT.001', metVoorstel]]) };
+    const html = toon(createElement(LesplanInhoud, { lesplan: lesplan('LP0065'), index: INDEX, koppelingen }));
+    const kort = /<section class="b-lp-kort"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
+    expect(kort).toContain('href="/basis/doel/ODS_3411/92500"');
+    expect(kort).toContain('href="/basis/doel/ODS_3410/92590"');
+    expect(tekstVan(kort)).toContain(`Einde kleuter 4.2.3let op: dit minimumdoel hoort bij een ander vak Einde kleuter 3.1.2${LABEL}`);
+  });
+});

@@ -204,6 +204,57 @@ describe('de velden die de schermen lezen', () => {
   });
 });
 
+describe('voorstellen: vorm A (bij een probleem) en vorm B (naast een officiële koppeling met twijfel ander-vak)', () => {
+  const OFFICIEEL = { set: 'ODS_3411', id: '92500', code: '4.2.3', moment: 'KO', status: 'officieel', twijfel: ['ander-vak'] };
+  const VOORSTEL = { set: 'ODS_3405', id: '93005', code: '2.4.3', moment: 'KO', status: 'voorstel', bronCode: '4.2.3' };
+  const PAD = 'doelen[0] (SV.001).minimumdoelen.refs[1]';
+  const metKoppeling = (officieel: Obj, voorstel: Obj, problemen: Obj[] = []) => {
+    const l = kopie(lees('leerplan/SV.json'));
+    (l.doelen as Obj[])[0].minimumdoelen = { bron: { KO: '4.2.3' }, refs: [officieel, voorstel], problemen };
+    return l;
+  };
+
+  it('vorm A (MV.040 "6.12") en vorm B (zoals WI.706 4.2.3 → 2.4.3) komen door', () => {
+    expect(lichtGoLeerplan(lees('leerplan/MV.json'))).toEqual([]);
+    expect(lichtGoLeerplan(metKoppeling(OFFICIEEL, VOORSTEL))).toEqual([]);
+  });
+
+  it('een voorstel zonder bronCode komt niet door', () => {
+    const { bronCode: _weg, ...zonder } = VOORSTEL;
+    expect(lichtGoLeerplan(metKoppeling(OFFICIEEL, zonder))).toEqual([`${PAD}: een voorstel zonder bronCode`]);
+    const mv = kopie(lees('leerplan/MV.json'));
+    delete (zoek(mv.doelen, (o) => o.status === 'voorstel') as Obj).bronCode;
+    expect(lichtGoLeerplan(mv)[0]).toMatch(/\(MV\.040\)\.minimumdoelen\.refs\[1\]: een voorstel zonder bronCode$/);
+  });
+
+  it("een voorstel dat bij geen probleem en bij geen officiële koppeling met twijfel 'ander-vak' hoort, komt niet door", () => {
+    const fout = [`${PAD}: een voorstel hoort bij een probleem of bij een officiële koppeling met twijfel 'ander-vak'`];
+    const { twijfel: _t, ...zonderTwijfel } = OFFICIEEL;
+    expect(lichtGoLeerplan(metKoppeling(zonderTwijfel, VOORSTEL))).toEqual(fout);
+    expect(lichtGoLeerplan(metKoppeling({ ...OFFICIEEL, twijfel: ['moment-buiten-leeftijden'] }, VOORSTEL))).toEqual(fout);
+    expect(lichtGoLeerplan(metKoppeling(OFFICIEEL, { ...VOORSTEL, moment: 'L4' }))).toEqual(fout);
+    expect(lichtGoLeerplan(metKoppeling(OFFICIEEL, { ...VOORSTEL, bronCode: '4.2.4' }))).toEqual(fout);
+    // Vorm A: het probleem moet hetzelfde moment en dezelfde bronCode hebben.
+    const mv = kopie(lees('leerplan/MV.json'));
+    (zoek(mv.doelen, (o) => o.status === 'voorstel') as Obj).bronCode = '6.13';
+    expect(lichtGoLeerplan(mv)[0]).toMatch(/\(MV\.040\)\.minimumdoelen\.refs\[1\]: een voorstel hoort bij een probleem/);
+  });
+
+  it('bij een minimumdoel: een voorstel zonder bronCode komt niet door; het veld voorstel (vorm B) heeft set, id en code', () => {
+    const b = kopie(lees('bij-minimumdoel/6.json'));
+    delete ((b.doelen as Record<string, Obj[]>)['92439'].find((d) => d.status === 'voorstel') as Obj).bronCode;
+    expect(lichtGoBijMinimumdoel(b)[0]).toMatch(/^doelen\.92439\[\d+\]: een voorstel zonder bronCode$/);
+    const c = kopie(lees('bij-minimumdoel/4.json'));
+    const eerste = ((c.doelen as Record<string, Obj[]>)['92500'] ?? [])[0];
+    eerste.voorstel = { set: 'ODS_3405', id: '93005', code: '2.4.3' };
+    expect(lichtGoBijMinimumdoel(c)).toEqual([]);
+    eerste.voorstel = { set: 'ODS_3405', id: 93005, code: '2.4.3' };
+    expect(lichtGoBijMinimumdoel(c)).toEqual(['doelen.92500[0].voorstel.id: geen tekst']);
+    eerste.voorstel = '2.4.3';
+    expect(lichtGoBijMinimumdoel(c)).toEqual(['doelen.92500[0].voorstel: geen object']);
+  });
+});
+
 describe('gooit nooit', () => {
   it('ook niet op iets dat geen bestand is', () => {
     for (const x of [null, undefined, 42, 'tekst', [], [1], true]) {

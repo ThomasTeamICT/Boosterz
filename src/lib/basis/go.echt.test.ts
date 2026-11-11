@@ -11,7 +11,8 @@
 // - GEGEVENSRUN=1 slaat elke test in dit bestand over. De maandelijkse ophaling (.github/workflows/minimumdoelen.yml)
 //   zet dat voor de gewone testrun. De deploy-workflow zet het niet en draait deze tests streng.
 // - De aantallen zijn een momentopname van de index van 1 november 2026 (1096 sets) en van de import van 9 november
-//   2026. Groeit of krimpt de index, dan slaan alleen die aantallen over; alle verbanden blijven gelden.
+//   2026 (met het voorstel bij WI.706 van 11 november 2026). Groeit of krimpt de index, dan slaan alleen die aantallen
+//   over; alle verbanden blijven gelden.
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,8 +20,10 @@ import { describe, expect, it } from 'vitest';
 import type { MinimumdoelenIndexSet, MinimumdoelenSetBestand } from '../minimumdoelen';
 import { controleerTweelingen, maakOpzoektabel, vakVanCode, type Opzoektabel } from './go/koppelen';
 import { EINDMOMENT_VAN_GO_MOMENT } from './go/leeftijden';
+import { vormVanVoorstel } from './go/goModel';
 import { bubaoSetVan } from './go/tweeling';
 import type { GoIndex, GoLeerplanBestand, GoMinimumdoelRef } from './go/types';
+import { splitsCodes } from './go/valideer';
 
 const REPO = fileURLToPath(new URL('../../../', import.meta.url));
 const MINIMUMDOELEN_MAP = join(REPO, 'public', 'leerplannen', 'minimumdoelen');
@@ -125,10 +128,40 @@ describe.skipIf(GEGEVENSRUN)('het GO! leerplan op de echte minimumdoelen', () =>
     expect(alleRefs.some(({ ref }) => tabel.tweelingen(ref.set).length > 0)).toBe(true);
   });
 
-  it.runIf(klaar)('een voorstel wijst naar een doel dat bestaat, en alleen MV.040 heeft er een (momentopname van de import)', () => {
+  it.runIf(klaar)('een voorstel wijst naar een doel dat bestaat; alleen MV.040 (vorm A) en WI.706 (vorm B) hebben er een (momentopname van de import)', () => {
     const voorstellen = alleRefs.filter(({ ref }) => ref.status === 'voorstel');
     for (const { ref } of voorstellen) expect(ref.bronCode, ref.code).toBeDefined();
-    if (momentopname) expect(voorstellen.map((v) => v.doel)).toEqual(['MV.040']);
+    if (momentopname) expect(voorstellen.map((v) => v.doel)).toEqual(['MV.040', 'WI.706']);
+  });
+
+  it.runIf(momentopname)('momentopname: MV.040 "6.12" → 6.1.2 bij een kapot nummer, WI.706 4.2.3 → 2.4.3 naast de officiële koppeling', () => {
+    const doel = (code: string) => leerplannen.flatMap((l) => l.doelen).find((d) => d.code === code);
+    const mv = doel('MV.040')?.minimumdoelen;
+    const wi = doel('WI.706')?.minimumdoelen;
+    if (!mv || !wi) throw new Error('MV.040 of WI.706 ontbreekt');
+    const mvVoorstel = mv.refs.find((r) => r.status === 'voorstel');
+    expect(mvVoorstel).toMatchObject({ set: 'ODS_3417', id: '92439', code: '6.1.2', moment: 'KO', bronCode: '6.12' });
+    expect(mvVoorstel && vormVanVoorstel(mv, mvVoorstel)?.vorm).toBe('kapot');
+    // De officiële koppeling met 4.2.3 blijft staan, zoals in de bron; het voorstel staat erna.
+    expect(wi).toEqual({
+      bron: { KO: '4.2.3' },
+      refs: [
+        { set: 'ODS_3411', id: '92500', code: '4.2.3', moment: 'KO', status: 'officieel', twijfel: ['ander-vak'] },
+        { set: 'ODS_3405', id: '93005', code: '2.4.3', moment: 'KO', status: 'voorstel', bronCode: '4.2.3' },
+      ],
+      problemen: [],
+    });
+    expect(vormVanVoorstel(wi, wi.refs[1])?.vorm).toBe('ander-vak');
+  });
+
+  it.runIf(momentopname)('momentopname: op de doelzinnen vinden 4972 van de 4973 codes precies één doel; 2 voorstellen en 1 kapot nummer', () => {
+    const doelzinnen = leerplannen.flatMap((l) => l.doelen.map((d) => d.minimumdoelen));
+    const codes = doelzinnen.reduce((n, k) => n + Object.values(k.bron).reduce((m, t) => m + splitsCodes(t ?? '').length, 0), 0);
+    const refs = doelzinnen.flatMap((k) => k.refs);
+    expect(codes).toBe(4973);
+    expect(refs.filter((r) => r.status === 'officieel')).toHaveLength(4972);
+    expect(refs.filter((r) => r.status === 'voorstel')).toHaveLength(2);
+    expect(doelzinnen.flatMap((k) => k.problemen)).toEqual([{ moment: 'KO', bronCode: '6.12', reden: 'onleesbaar' }]);
   });
 
   it.runIf(momentopname)('momentopname: 12 doelensets met 3490 leerplandoelen, 465 echt zonder koppeling, 8 lesplannen', () => {

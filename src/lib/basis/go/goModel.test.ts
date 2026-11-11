@@ -23,9 +23,11 @@ import {
   vakVanDoelcode,
   vindLeerplandoel,
   vindLessenlijn,
+  voorstelNaast,
+  vormVanVoorstel,
 } from './goModel';
 import { GO_VAKKEN_BIJ_VAK, isGoVak } from './types';
-import type { GoBijDoel, GoBijMinimumdoelBestand, GoIndex, GoLeerplanBestand, GoLesplanBestand, GoRubriek } from './types';
+import type { GoBijDoel, GoBijMinimumdoelBestand, GoIndex, GoKoppeling, GoLeerplanBestand, GoLesplanBestand, GoMinimumdoelRef, GoRubriek } from './types';
 
 type IndexLesplan = GoIndex['lesplannen'][number];
 
@@ -349,5 +351,33 @@ describe('goDoelBestaat', () => {
     expect(goDoelBestaat(index, 'ZZ.001')).toBe(false);
     expect(goDoelBestaat(index, 'wt.001')).toBe(false);
     expect(goDoelBestaat(index, 'LP0065')).toBe(false);
+  });
+});
+
+describe('vormVanVoorstel en voorstelNaast: de twee vormen van een voorstel (types.ts)', () => {
+  const officieel: GoMinimumdoelRef = { set: 'ODS_3411', id: '92500', code: '4.2.3', moment: 'KO', status: 'officieel', twijfel: ['ander-vak'] };
+  const naast: GoMinimumdoelRef = { set: 'ODS_3405', id: '93005', code: '2.4.3', moment: 'KO', status: 'voorstel', bronCode: '4.2.3' };
+  const vormB: GoKoppeling = { bron: { KO: '4.2.3' }, refs: [officieel, naast], problemen: [] };
+  const kapot: GoMinimumdoelRef = { set: 'ODS_3417', id: '92439', code: '6.1.2', moment: 'KO', status: 'voorstel', bronCode: '6.12' };
+  const vormA: GoKoppeling = { bron: { KO: '6.1.1, 6.12' }, refs: [{ set: 'ODS_3417', id: '92438', code: '6.1.1', moment: 'KO', status: 'officieel' }, kapot], problemen: [{ moment: 'KO', bronCode: '6.12', reden: 'onleesbaar' }] };
+
+  it('vorm A hoort bij het probleem met hetzelfde moment en dezelfde bronCode', () => {
+    expect(vormVanVoorstel(vormA, kapot)).toEqual({ vorm: 'kapot', probleem: { moment: 'KO', bronCode: '6.12', reden: 'onleesbaar' } });
+    expect(voorstelNaast(vormA, vormA.refs[0])).toBeUndefined();
+  });
+
+  it("vorm B hoort bij de officiële ref met twijfel 'ander-vak' op de bronCode, en die ref vindt het voorstel terug", () => {
+    expect(vormVanVoorstel(vormB, naast)).toEqual({ vorm: 'ander-vak', officieel });
+    expect(voorstelNaast(vormB, officieel)).toBe(naast);
+  });
+
+  it('een officiële ref is geen voorstel; zonder twijfel ander-vak, op een ander moment of met een andere bronCode hoort er niets bij', () => {
+    expect(vormVanVoorstel(vormB, officieel)).toBeUndefined();
+    const zonderTwijfel: GoKoppeling = { ...vormB, refs: [{ ...officieel, twijfel: ['moment-buiten-leeftijden'] }, naast] };
+    expect(vormVanVoorstel(zonderTwijfel, naast)).toBeUndefined();
+    expect(voorstelNaast(zonderTwijfel, zonderTwijfel.refs[0])).toBeUndefined();
+    expect(vormVanVoorstel(vormB, { ...naast, moment: 'L4' })).toBeUndefined();
+    expect(vormVanVoorstel(vormB, { ...naast, bronCode: '4.2.4' })).toBeUndefined();
+    expect(vormVanVoorstel(vormB, { ...naast, bronCode: undefined })).toBeUndefined();
   });
 });
