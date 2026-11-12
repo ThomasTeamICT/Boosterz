@@ -44,6 +44,7 @@ function navVan(s: BasisScherm): NavSleutel | undefined {
       return 'go';
     case 'zoek':
       return 'zoeken';
+    case 'kijkdoosproef':
     case 'onbekend':
       return undefined;
   }

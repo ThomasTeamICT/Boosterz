@@ -40,7 +40,7 @@ function goSchermen(): BasisScherm[] {
 
 /** Alle schermen die de app kan bouwen. */
 function alleSchermen(): BasisScherm[] {
-  const uit: BasisScherm[] = [{ s: 'start' }, { s: 'kies' }, { s: 'onbekend' }];
+  const uit: BasisScherm[] = [{ s: 'start' }, { s: 'kies' }, { s: 'onbekend' }, { s: 'kijkdoosproef' }];
   for (const soort of SOORTEN) {
     for (const leerjaar of LEERJAREN_BASIS) uit.push({ s: 'leerjaar', soort, leerjaar });
     for (const eind of EINDEN) {
@@ -142,6 +142,12 @@ describe('basisRoute: wat wegvalt of onbekend is', () => {
     expect(basisRoute('leerlijn/gewoon', '?klas=L3')).toEqual({ s: 'leerlijnen', soort: 'bao' }); // 'klas' is geen woord van dit deel
   });
 
+  it('de voorlopige proefpagina van de kijkdoos (LK-5) leest, ook met ?meet', () => {
+    expect(basisRoute('proef/kijkdoos', '')).toEqual({ s: 'kijkdoosproef' });
+    expect(basisRoute('proef/kijkdoos', '?meet&scene=onderzoek')).toEqual({ s: 'kijkdoosproef' });
+    expect(basisPad({ s: 'kijkdoosproef' })).toBe('/basis/proef/kijkdoos');
+  });
+
   it('onzin geeft "onbekend", zonder fout', () => {
     const onzin: [string, string][] = [
       ['xyz', ''], ['kies/extra', ''], ['leerjaar', ''], ['leerjaar/gewoon', ''], ['leerjaar/gewoon/L7', ''], ['leerjaar/so/L3', ''],
@@ -149,7 +155,7 @@ describe('basisRoute: wat wegvalt of onbekend is', () => {
       ['vak/gewoon/einde-4de/zang', ''], ['vak/gewoon/einde-4de', ''], ['leerlijn', ''], ['leerlijn/gewoon/zang', ''],
       ['leerlijn/gewoon/ict/extra', ''], ['doel', ''], ['doel/ODS_3408', ''], ['doel/3408/92767', ''], ['doel/ODS_3408/abc', ''],
       ['doel/ODS_3408/92767/extra', ''], ['doel/ods_3408/92767', ''], ['zoek/extra', ''], ['zoek', '?soort=so'], ['%E0%A4%A', ''],
-      ['a/b/c/d/e/f', ''], ['..', ''], ['onbekend', ''],
+      ['a/b/c/d/e/f', ''], ['..', ''], ['onbekend', ''], ['proef', ''], ['proef/kijkdoos/x', ''], ['proef/iets', ''],
     ];
     for (const [splat, zoek] of onzin) expect(basisRoute(splat, zoek), `${splat}${zoek}`).toEqual({ s: 'onbekend' });
   });

@@ -27,6 +27,8 @@ const LessenlijnScherm = lazy(() => import('./LessenlijnScherm').then((m) => ({ 
 const GoScherm = lazy(() => import('./GoScherm').then((m) => ({ default: m.GoScherm })));
 const LeerplandoelScherm = lazy(() => import('./LeerplandoelScherm').then((m) => ({ default: m.LeerplandoelScherm })));
 const LeerplandoelenScherm = lazy(() => import('./LeerplandoelenScherm').then((m) => ({ default: m.LeerplandoelenScherm })));
+// Voorlopige ontwikkelpagina van de kijkdoos (LK-5), tot de schermen van LK-8 er zijn. three laadt pas in de kijkdoos zelf.
+const KijkdoosProef = lazy(() => import('./KijkdoosProef').then((m) => ({ default: m.KijkdoosProef })));
 
 /** Tijdens het laden van zo'n scherm staat er al precies één h1. */
 function Wacht({ titel, children }: { titel: string; children: ReactNode }) {
@@ -123,6 +125,12 @@ function kies(s: BasisScherm): ReactNode {
       return (
         <Wacht titel={`Leerplandoel ${s.code}`}>
           <LeerplandoelScherm code={s.code} />
+        </Wacht>
+      );
+    case 'kijkdoosproef':
+      return (
+        <Wacht titel="Proef: de kijkdoos van de Lichtkamer">
+          <KijkdoosProef />
         </Wacht>
       );
     case 'onbekend':

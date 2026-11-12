@@ -35,6 +35,8 @@ export type BasisScherm =
   | { s: 'lessenlijn'; vak: GoVak; lijn: string; leerjaar?: LeerjaarBasis }
   | { s: 'leerplandoelen'; vak: GoVak; leerjaar?: LeerjaarBasis; alle?: true; rubriek?: string; zonder?: true }
   | { s: 'leerplandoel'; code: string }
+  // Voorlopige ontwikkelpagina van de kijkdoos van de Lichtkamer (LK-5); verdwijnt als de schermen van LK-8 er zijn.
+  | { s: 'kijkdoosproef' }
   | { s: 'onbekend' };
 
 export const SOORT_SLUG: Readonly<Record<SoortBasis, 'gewoon' | 'buitengewoon'>> = {
@@ -215,6 +217,8 @@ export function basisRoute(splat: string, zoek: string): BasisScherm {
 
     if (wat === 'go') return a === undefined ? { s: 'go' } : ONBEKEND;
 
+    if (wat === 'proef') return a === 'kijkdoos' && b === undefined ? { s: 'kijkdoosproef' } : ONBEKEND;
+
     if (wat === 'lesplannen') {
       if (a !== undefined) return ONBEKEND;
       const uit: BasisScherm = { s: 'lesplannen' };
@@ -347,6 +351,8 @@ export function basisPad(s: BasisScherm): string {
       ])}`;
     case 'leerplandoel':
       return `/basis/leerplandoel/${encodeURIComponent(s.code)}`;
+    case 'kijkdoosproef':
+      return '/basis/proef/kijkdoos';
     case 'onbekend':
       return '/basis/onbekend';
   }

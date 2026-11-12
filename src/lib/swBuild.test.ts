@@ -2,6 +2,10 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   NEVER_PRECACHE,
+  THREE_CHUNK,
+  THREE_GLOED_CHUNK,
+  checkThreeChunks,
+  threeChunkFor,
   VENDOR_CHUNK,
   WIDGET_ICONS_CHUNK,
   assetRefs,
@@ -409,5 +413,78 @@ describe('lucideImportNames', () => {
     ].join('\n');
     expect(lucideImportNames(code)).toEqual(['Sun']);
     expect(lucideImportNames('')).toEqual([]);
+  });
+});
+
+// ── three (kijkdoos van de Lichtkamer, LK-5) ─────────────────────────────────
+
+describe('three: eigen chunks en buildcontrole', () => {
+  const nm = '/home/x/app/node_modules';
+  const eager = new Set<string>();
+
+  it('three en zijn vaste voorbeeldmodules naar "three", de nabewerking naar "three-gloed"', () => {
+    expect(threeChunkFor(`${nm}/three/build/three.module.js`)).toBe(THREE_CHUNK);
+    expect(threeChunkFor(`${nm}/three/examples/jsm/geometries/RoundedBoxGeometry.js`)).toBe(THREE_CHUNK);
+    expect(threeChunkFor(`${nm}/three/examples/jsm/environments/RoomEnvironment.js`)).toBe(THREE_CHUNK);
+    expect(threeChunkFor(`${nm}/three/examples/jsm/postprocessing/EffectComposer.js`)).toBe(THREE_GLOED_CHUNK);
+    expect(threeChunkFor(`${nm}/three/examples/jsm/shaders/OutputShader.js`)).toBe(THREE_GLOED_CHUNK);
+    expect(manualChunkFor(`${nm}/three/build/three.module.js`, eager)).toBe(THREE_CHUNK);
+    expect(manualChunkFor('C:\\app\\node_modules\\three\\build\\three.module.js', eager)).toBe(THREE_CHUNK);
+    expect(manualChunkFor(`${nm}/three/examples/jsm/postprocessing/UnrealBloomPass.js`, eager)).toBe(THREE_GLOED_CHUNK);
+  });
+
+  it('eigen code en andere pakketten met "three" in de naam blijven ongemoeid', () => {
+    for (const id of [
+      '/home/x/app/src/lib/basis/lichtkamer/kijkdoos/kijkdoos3d.ts',
+      '/home/x/app/src/three/x.ts',
+      `${nm}/three-stdlib/index.js`,
+      `${nm}/@types/three/index.d.ts`,
+    ])
+      expect(manualChunkFor(id, eager), id).toBeUndefined();
+  });
+
+  it('three en three-gloed gaan nooit in de voorcache', () => {
+    expect(NEVER_PRECACHE.test('assets/three-H8qpGN68.js')).toBe(true);
+    expect(NEVER_PRECACHE.test('assets/three-gloed-BkhFWHSR.js')).toBe(true);
+    expect(NEVER_PRECACHE.test('assets/kijkdoos3d-BrPWOiMz.js')).toBe(false);
+  });
+
+  const c = (fileName: string, name: string, imports: string[] = [], isEntry = false) => ({ fileName, name, isEntry, imports, bytes: 1 });
+  const goed = [
+    c('assets/index-a.js', 'index', ['assets/vendor-b.js'], true),
+    c('assets/vendor-b.js', 'vendor'),
+    c('assets/three-c.js', 'three'),
+    c('assets/three-gloed-d.js', 'three-gloed', ['assets/three-c.js']),
+    c('assets/kijkdoos3d-e.js', 'kijkdoos3d', ['assets/index-a.js']),
+  ];
+  const sluiting = ['assets/index-a.js', 'assets/vendor-b.js'];
+
+  it('een goede bundel geeft geen fouten', () => {
+    expect(checkThreeChunks(goed, sluiting)).toEqual([]);
+    // zonder gloed-chunk mag ook
+    expect(checkThreeChunks(goed.filter((x) => x.name !== 'three-gloed'), sluiting)).toEqual([]);
+  });
+
+  it('three dat iets importeert, faalt', () => {
+    const b = goed.map((x) => (x.name === 'three' ? { ...x, imports: ['assets/index-a.js'] } : x));
+    expect(checkThreeChunks(b, sluiting).join('\n')).toMatch(/three-c\.js.*mag niets importeren/);
+  });
+
+  it('een statische import van three (of de gloed) door eigen code, faalt', () => {
+    const b = goed.map((x) => (x.name === 'kijkdoos3d' ? { ...x, imports: ['assets/index-a.js', 'assets/three-c.js'] } : x));
+    expect(checkThreeChunks(b, sluiting).join('\n')).toMatch(/kijkdoos3d-e\.js importeert assets\/three-c\.js statisch/);
+    const b2 = goed.map((x) => (x.name === 'kijkdoos3d' ? { ...x, imports: ['assets/three-gloed-d.js'] } : x));
+    expect(checkThreeChunks(b2, sluiting).join('\n')).toMatch(/three-gloed-d\.js statisch/);
+  });
+
+  it('de gloed die iets anders importeert dan three, faalt', () => {
+    const b = goed.map((x) => (x.name === 'three-gloed' ? { ...x, imports: ['assets/three-c.js', 'assets/vendor-b.js'] } : x));
+    expect(checkThreeChunks(b, sluiting).join('\n')).toMatch(/alleen 'three' mag/);
+  });
+
+  it('three op het kritieke leerlingpad, of in vendor gesmolten, faalt', () => {
+    expect(checkThreeChunks(goed, [...sluiting, 'assets/three-c.js']).join('\n')).toMatch(/op het kritieke leerlingpad/);
+    // three in vendor: dan bestaat de chunk 'three' niet meer
+    expect(checkThreeChunks(goed.filter((x) => x.name !== 'three' && x.name !== 'three-gloed'), sluiting).join('\n')).toMatch(/precies één chunk 'three', vond er 0/);
   });
 });

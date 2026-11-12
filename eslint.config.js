@@ -21,6 +21,8 @@ export default tseslint.config(
       // Playwright-rooktest: ander runtime-profiel (browser + node-script), draait lokaal.
       'tests/**',
       'tools/**', // bouwscripts (node + playwright), net als de rooktest
+      // gemaakte proefpagina's (tools/prototypes/*/maak-proef.mjs): three.js en de modules van het prototype, geen app-code
+      'public/proef/**',
     ],
   },
   js.configs.recommended,

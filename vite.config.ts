@@ -12,6 +12,7 @@ import {
   VENDOR_CHUNK,
   WIDGET_ICONS_CHUNK,
   checkCriticalPath,
+  checkThreeChunks,
   collectShell,
   iconFiles,
   knownFiles,
@@ -88,6 +89,11 @@ import { fontRefsInCss } from './src/offline/lettertypes';
  *    (64,3 kB); elk nieuw icoon kost er ±0,4 kB bij.
  *  - pdf.js: wordt pas opgehaald wanneer iemand echt een pdf opent; groot,
  *    maar nooit onderdeel van het leerlingpad.
+ *  - three r162 (kijkdoos van de Lichtkamer, LK-5): 677,7 kB gemeten (175,6 kB
+ *    gzip), met RoundedBoxGeometry en RoomEnvironment; 'three-gloed' (de
+ *    nabewerking, alleen op het bord) 18,7 kB. Alleen met import() geladen, nooit
+ *    in de voorcache; checkThreeChunks (swBuild.ts) laat de build falen als three
+ *    iets importeert, statisch geïmporteerd wordt of op het leerlingpad belandt.
  *  - de rest: paginachunks en widgetmodules; die horen klein te blijven.
  */
 const CRITICAL_PATH = {
@@ -107,6 +113,9 @@ const BUDGETS: { test: RegExp; label: string; maxKb: number }[] = [
   { test: /^assets\/pdf-[\w-]+\.js$/, label: 'pdf.js (lui geladen)', maxKb: 560 },
   { test: /mammoth/i, label: 'mammoth (.docx-import, lui geladen)', maxKb: 720 },
   { test: /jsqr/i, label: 'jsQR (QR-scanner, lui geladen)', maxKb: 140 },
+  // De kijkdoos van de Lichtkamer (LK-5): three r162 met RoundedBoxGeometry en RoomEnvironment, en apart de gloed van het bord.
+  { test: /^assets\/three-(?!gloed-)[\w-]+\.js$/, label: 'three r162 (kijkdoos, lui geladen)', maxKb: 690 },
+  { test: /^assets\/three-gloed-[\w-]+\.js$/, label: 'three-gloed (nabewerking op het bord, lui geladen)', maxKb: 25 },
 ];
 /** Alle overige js-chunks: paginachunks en widgetmodules. */
 const DEFAULT_MAX_KB = 80;
@@ -145,6 +154,12 @@ function bundleBudget(): Plugin {
           this.error(err instanceof Error ? err.message : String(err));
         }
         const iconen = iconsOnCriticalPath(this, bundle, pad.closure, root);
+        // three (kijkdoos van de Lichtkamer): eigen chunk die niets importeert, alleen met import() geladen, nooit op het leerlingpad.
+        const threeFouten = checkThreeChunks(
+          chunks.map((c) => ({ fileName: c.fileName, name: c.name, isEntry: c.isEntry, imports: c.imports, bytes: bytes(c) })),
+          pad.closure,
+        );
+        if (threeFouten.length > 0) this.error(`\nBuildcontrole three:\n${threeFouten.map((e) => `  ${e}`).join('\n')}\n`);
 
         // 2. De andere chunks, elk tegen hun eigen budget.
         const overschrijdingen = pad.warnings.map((w) => `  ${w} (${CRITICAL_PATH.label})`);
@@ -460,9 +475,10 @@ export default defineConfig({
   plugins: [react(), contentSecurityPolicy(), bundleBudget(), safari14Syntaxis(), offlineShell()],
   build: {
     // Vite's eigen grens stond op 1200 kB: dat onderdrukte élke waarschuwing.
-    // Nu ligt ze net boven de pdf.js-chunk (de enige legitiem grote chunk), en
-    // bewaakt het budget hierboven de rest — inclusief het leerlingpad.
-    chunkSizeWarningLimit: 560,
+    // Nu ligt ze net boven de grootste legitiem grote chunk: three r162 voor de
+    // kijkdoos van de Lichtkamer (677,7 kB gemeten, nov. 2026; daarvoor pdf.js,
+    // 560). Het budget hierboven bewaakt elke chunk apart, ook het leerlingpad.
+    chunkSizeWarningLimit: 690,
     // De minimumversie van de browser staat hier vast (Safari en iPadOS 14, de 'modules'-standaard van Vite 5),
     // zodat een upgrade van Vite ze niet stil optrekt. Lookbehind in src/ bewaakt src/lib/geenLookbehind.test.ts.
     target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],

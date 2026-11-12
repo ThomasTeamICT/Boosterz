@@ -49,5 +49,23 @@ Per toestel: de pagina openen, het toestel kiezen, de uitslag kopiëren en bij d
 | Nederlandse stem (nl-BE, nl-NL, nl) aanwezig? | | | | |
 | Stem werkt zonder internet (`localService`)? | | | | |
 | Welk toestel hangt aan het digibord, en heeft het een webcam? | n.v.t. | n.v.t. | n.v.t. | |
+| 3D-proef geopend (`proef/lichtkamer-proef.html?meet`): komt de pagina op en staat de meetstand rechtsonder? Opent de link uit Smartschool? | n.v.t. | | | |
+| 3D digibord-stand: eerste beeld (s) en p95 (ms), uit de uitslag | n.v.t. | | | |
+| 3D gewoon: eerste beeld (s) en p95 (ms) | n.v.t. | | | |
+| 3D licht: eerste beeld (s) en p95 (ms) | n.v.t. | | | |
+| 3D go of no-go: p95 hoogstens 50 ms én eerste beeld binnen 5 s, per stand; de standaardstand is de beste stand die op de Chromebook van het 3de leerjaar haalt | n.v.t. | | | |
 
 De uitkomst komt in `docs/BASISONDERWIJS.md` en legt twee grenzen vast voor pakket 5: de hoogste QR-versie per deel (voorstel: 10) en het aantal px per module (voorstel: 8). Leest de webcam versie 10 op 8 px niet vlot, dan zakt de grens naar versie 7 (224 tekens).
+
+## 3D-proef van de Lichtkamer (LK-3)
+
+Naast deze proef staat een tweede proefpagina, `proef/lichtkamer-proef.html`: het goedgekeurde prototype van de Lichtkamer (`tools/prototypes/lichtkamer/`) met three r128 lokaal en een meetstand. Ze meet of de 3D-kijkdoos vlot loopt op de toestellen van de school (`docs/basisonderwijs/LICHTKAMER-APP.md`, 'Go of no-go bij het bezoek', pakket LK-11). Ze is niet geïndexeerd en haalt niets van buiten. Maken, testen en gebruik staan in `tools/prototypes/lichtkamer/README.md`.
+
+Per toestel (Chromebook van het 3de leerjaar, laptop van de leerkracht, bordtoestel):
+
+1. Open `proef/lichtkamer-proef.html?meet` (bij een eerste bezoek, liefst in een gastsessie of privévenster).
+2. Wacht tot het beeld er staat en tik op 'Meet alle drie de standen'. Laat het toestel ongeveer 20 seconden met rust.
+3. Het eerste beeld per stand meet je bij het openen: tik daarna op 'Open opnieuw: digibord' en 'Open opnieuw: licht' en wacht telkens tot het beeld er staat. De uitslag blijft staan zolang het tabblad open is. Alleen het eerste beeld van het eerste bezoek is 'koud' (alles moet nog opgehaald worden): noteer dat getal apart, de volgende zijn sneller door de cache. Laat het tabblad tijdens het meten open staan: wissel je van tabblad, dan zegt de pagina 'Meting ongeldig' en meet je opnieuw.
+4. Lees het blok tekst af, noteer de rijen in de tabel hierboven (eerste beeld in seconden, p95 in milliseconden) of kopieer de uitslag, en noteer het oordeel 'GO' of 'NO-GO' dat er per stand onder staat.
+
+Een stand haalt de proef als de p95 hoogstens 50 ms is en het eerste beeld binnen 5 seconden komt. Minstens één stand moet dat doen op de Chromebook van het 3de leerjaar; die stand wordt de standaard. Haalt geen enkele stand het, dan stopt de generale repetitie en beslist de eigenaar: een lichter decor, of 3D alleen op het bord.

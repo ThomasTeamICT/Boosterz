@@ -34,10 +34,10 @@ export const PRECACHE_PUBLIC = ['manifest.webmanifest', 'icon.svg'];
 
 /**
  * Wat nooit in de voorcache hoort: zwaar en alleen nodig voor wie een pdf,
- * een .docx of een QR-code opent. Die bewaart de service worker pas bij het
- * eerste gebruik.
+ * een .docx of een QR-code opent, of de kijkdoos van de Lichtkamer (three en
+ * three-gloed). Die bewaart de service worker pas bij het eerste gebruik.
  */
-export const NEVER_PRECACHE = /(?:^|\/)(?:pdf|mammoth\w*|jsqr)[-.]/i;
+export const NEVER_PRECACHE = /(?:^|\/)(?:pdf|mammoth\w*|jsqr|three)[-.]/i;
 
 /** De bundels waarnaar een index.html verwijst (zelfde regel als in de service worker). */
 export function assetRefs(html: string): string[] {
@@ -246,6 +246,54 @@ export function checkCriticalPath(chunks: readonly BudgetChunk[], rules: Critica
 
 export const VENDOR_CHUNK = 'vendor';
 export const WIDGET_ICONS_CHUNK = 'widget-icons';
+/** three.js (r162) met de voorbeeldmodules die de kijkdoos altijd nodig heeft: importeert zelf niets. */
+export const THREE_CHUNK = 'three';
+/** De nabewerking voor de gloed op het bord (EffectComposer, UnrealBloomPass, GammaCorrectionShader): importeert alleen 'three'. */
+export const THREE_GLOED_CHUNK = 'three-gloed';
+
+/**
+ * De chunk van een module van three, of undefined. Alles van three gaat in 'three', behalve de nabewerking en haar
+ * shaders ('three-gloed'): die laden alleen in de stand 'hoog' van de kijkdoos.
+ */
+export function threeChunkFor(p: string): string | undefined {
+  const m = /\/node_modules\/three\/(.+)$/.exec(p);
+  if (!m) return undefined;
+  return /^examples\/jsm\/(?:postprocessing|shaders)\//.test(m[1]) ? THREE_GLOED_CHUNK : THREE_CHUNK;
+}
+
+/**
+ * Buildcontrole voor three (docs/basisonderwijs/LICHTKAMER-APP.md, 'three.js r162 in de eigen bundel'):
+ *  - de chunk 'three' bestaat en importeert zelf niets (zo blijft haar naam gelijk na een uitrol);
+ *  - alleen 'three-gloed' importeert 'three' statisch; al de rest laadt three met import();
+ *  - 'three-gloed' importeert alleen 'three';
+ *  - geen van beide zit in de statische sluiting van de hoofdbundel (`closure`).
+ * Geeft de fouten terug; leeg is goed.
+ */
+export function checkThreeChunks(chunks: readonly BudgetChunk[], closure: readonly string[]): string[] {
+  const fouten: string[] = [];
+  const three = chunks.filter((c) => c.name === THREE_CHUNK);
+  const gloed = chunks.filter((c) => c.name === THREE_GLOED_CHUNK);
+  if (three.length !== 1) fouten.push(`verwachtte precies één chunk '${THREE_CHUNK}', vond er ${three.length}`);
+  if (gloed.length > 1) fouten.push(`verwachtte hoogstens één chunk '${THREE_GLOED_CHUNK}', vond er ${gloed.length}`);
+  const threeFile = three[0]?.fileName;
+  const gloedFile = gloed[0]?.fileName;
+  for (const c of three) {
+    if (c.imports.length > 0) fouten.push(`${c.fileName} (chunk '${THREE_CHUNK}') importeert ${c.imports.join(', ')}; die chunk mag niets importeren`);
+  }
+  for (const c of gloed) {
+    const anders = c.imports.filter((f) => f !== threeFile);
+    if (anders.length > 0) fouten.push(`${c.fileName} (chunk '${THREE_GLOED_CHUNK}') importeert ${anders.join(', ')}; alleen '${THREE_CHUNK}' mag`);
+  }
+  for (const c of chunks) {
+    if (c.name === THREE_GLOED_CHUNK || c.name === THREE_CHUNK) continue;
+    const statisch = c.imports.filter((f) => f === threeFile || f === gloedFile);
+    if (statisch.length > 0) fouten.push(`${c.fileName} importeert ${statisch.join(', ')} statisch; three laadt alleen met import()`);
+  }
+  for (const f of [threeFile, gloedFile]) {
+    if (f && closure.includes(f)) fouten.push(`${f} zit op het kritieke leerlingpad`);
+  }
+  return fouten;
+}
 
 /**
  * Leest de barrel van lucide-react (dist/esm/lucide-react.mjs): elke
@@ -281,6 +329,8 @@ export function iconFiles(names: readonly string[], exports: ReadonlyMap<string,
 export function manualChunkFor(id: string, eagerIconFiles: ReadonlySet<string>): string | undefined {
   const p = id.replace(/\\/g, '/');
   if (p.includes('commonjsHelpers')) return VENDOR_CHUNK;
+  const three = threeChunkFor(p);
+  if (three) return three;
   if (/\/node_modules\/(?:react|react-dom|scheduler)\//.test(p)) return VENDOR_CHUNK;
   const lucide = /\/node_modules\/lucide-react\/dist\/esm\/([^?]+)/.exec(p);
   if (!lucide) return undefined;

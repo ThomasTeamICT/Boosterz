@@ -117,6 +117,58 @@
   outline: none;
 }
 
+/* Meldingen van de kijkdoos zelf (LK-5): geen 3D, of 'Tik om de kijkdoos opnieuw te laden' na contextverlies. Ze bedekken
+ * het beeld, op een effen vlak. */
+.b-lk-melding {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+  overflow: auto;
+  background: var(--stage);
+  color: var(--on-stage);
+  text-align: left;
+}
+.b-lk-melding p {
+  max-width: 40em;
+  margin: 0;
+  color: var(--on-stage-soft);
+}
+.b-lk-melding .b-lk-melding-kop {
+  color: var(--on-stage);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.b-lk-herlaad {
+  min-height: 56px;
+  font-size: 1.1rem;
+}
+
+/* De meetstand (?meet): frametijden linksboven, effen paneel, kleine tekst. Alleen voor de generale repetitie. */
+.b-lk-meet {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  max-width: calc(100% - 16px);
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--stage-paneel);
+  color: var(--on-stage);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  pointer-events: none;
+}
+
 /* Een naamplaatje op de kijkdoos, bijvoorbeeld 'Lamp op 15 cm'. Effen paneel, geen doorschijnend vlak. */
 .b-lk-chip {
   display: inline-flex;
@@ -428,4 +480,20 @@
   .b-lk-keuze {
     transition: none;
   }
+}
+
+/* Voorlopige ontwikkelpagina van de kijkdoos (#/basis/proef/kijkdoos, LK-5): verdwijnt met die pagina. */
+.b-lk-proef {
+  display: grid;
+  gap: 12px;
+}
+.b-lk-proef-rij {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.b-lk-proef-rij .b-knop[aria-pressed='true'] {
+  border-color: var(--text);
+  box-shadow: inset 0 -4px 0 var(--lamp);
 }
