@@ -177,9 +177,24 @@ describe('juiste en foute metingen', () => {
 
   it('een lege of onleesbare meting: zonder bewijs, met de afstanden', () => {
     const u = kijkOnderzoekNa({ voorwerp: 'boom', metingen: { 30: '11,5', 15: '', 10: 'veel' }, hypothese: 'groter', conclusie: null });
-    expect(u).toMatchObject({ stap: 'leeg', titel: 'Vul de meting bij 15 en 10 cm nog in.', afstanden: [15, 10], bewijzen: [] });
+    expect(u).toMatchObject({ stap: 'leeg', titel: 'Vul de meting bij 15 cm nog in.', afstanden: [15], bewijzen: [] });
+    const w = kijkOnderzoekNa({ voorwerp: 'boom', metingen: { 30: '', 15: '   ', 10: undefined }, hypothese: 'groter', conclusie: null });
+    expect(w).toMatchObject({ stap: 'leeg', titel: 'Vul de meting bij 30 en 15 en 10 cm nog in.', afstanden: [30, 15, 10] });
     const v = kijkOnderzoekNa({ voorwerp: 'boom', metingen: { 30: '11,5', 15: '13,5' }, hypothese: 'groter', conclusie: null });
     expect(v.afstanden).toEqual([10]);
+  });
+
+  it('een onleesbare meting (iets getypt, maar geen getal) krijgt een eigen melding, zonder bewijs', () => {
+    for (const x of ['-4', '12,,5', 'twaalf', '1,2,3', '12e1']) {
+      const u = kijkOnderzoekNa({ voorwerp: 'boom', metingen: { 30: x, 15: '13,5', 10: '15' }, hypothese: 'groter', conclusie: null });
+      expect(u, x).toMatchObject({ stap: 'onleesbaar', soort: 'warn', titel: 'Typ bij 30 cm alleen een getal, zoals 12 of 12,5.', afstanden: [30], bewijzen: [], klaar: false });
+    }
+    const twee = kijkOnderzoekNa({ voorwerp: 'boom', metingen: { 30: 'a', 15: 'b', 10: '15' }, hypothese: 'groter', conclusie: null });
+    expect(twee.titel).toBe('Typ bij 30 en 15 cm alleen een getal, zoals 12 of 12,5.');
+    // leeg gaat voor onleesbaar: eerst wat nog ontbreekt
+    const mix = kijkOnderzoekNa({ voorwerp: 'boom', metingen: { 30: 'a', 15: '', 10: '15' }, hypothese: 'groter', conclusie: null });
+    expect(mix.stap).toBe('leeg');
+    expect(mix.afstanden).toEqual([15]);
   });
 
   it('een foute meting: bewijs 4-meten fout, met de afstanden', () => {
@@ -200,7 +215,7 @@ describe('juiste en foute metingen', () => {
 
   it('juiste metingen zonder conclusie: bewijs 4-meten juist', () => {
     const u = kijkOnderzoekNa(metInvoer('boom', STANDAARD_AFSTANDEN, juist, { conclusie: null }));
-    expect(u).toMatchObject({ stap: 'conclusie', soort: 'warn', titel: 'Je metingen kloppen. Kies nu je conclusie.', klaar: false });
+    expect(u).toMatchObject({ stap: 'conclusie', soort: 'info', titel: 'Je metingen kloppen. Kies nu je conclusie.', klaar: false });
     expect(u.bewijzen).toEqual([{ id: '4-meten', juist: true, fout: null }]);
   });
 
@@ -243,7 +258,7 @@ describe('juiste en foute metingen', () => {
   it('metingen buiten de meetlat of negatief worden afgekeurd, nooit aanvaard', () => {
     for (const x of ['-12', '125', '1000', '0']) {
       const u = kijkOnderzoekNa({ voorwerp: 'boom', metingen: { 30: x, 15: '13,5', 10: '15' }, hypothese: 'groter', conclusie: 'dichter-groter' });
-      expect(['fout', 'leeg']).toContain(u.stap);
+      expect(['fout', 'leeg', 'onleesbaar']).toContain(u.stap);
       expect(u.klaar).toBe(false);
     }
   });

@@ -13,7 +13,8 @@ Ontwerp van 12 november 2026. Het hoort bij `docs/BASISONDERWIJS.md` (bouwstap 4
 | Lamplicht voor kijkdoos en bord (LK-4) | **Klaar** (12 november 2026): tokens in `src/styles/basis.css` en `src/styles/basis-lichtkamer.css` (nog door geen scherm geladen), met contrastparen in `basisKleuren.test.ts` | bouwer |
 | Kijkdoos op three r162 (LK-5) | **Gebouwd** (12 november 2026), nog in geen scherm van de les gebruikt: `src/components/basis/kijkdoos/` (gevel zonder three, motor en wereld in luie chunks) en `src/lib/basis/lichtkamer/kijkdoos/` (zuivere delen). three 0.162.0 zit in een eigen chunk (678 kB, 176 kB gzip), nooit op het leerlingpad of in de voorcache (`checkThreeChunks` in de build, `kijkdoosZonderThree.test.ts`); het kritieke pad bleef byte-gelijk. 20 keer openen en sluiten zonder lek. Tijdelijke ontwikkelpagina `#/basis/proef/kijkdoos` (nergens gelinkt; LK-8 haalt ze weg). Nagekeken door twee reviewers en een rechter; de acht bevestigde punten zijn hersteld (onder meer: nooit twee teken-lussen, zodat een traag bord wel naar 'laag' zakt, ook als het pas met de gloed te traag wordt; het gekozen zicht blijft na een herstart; de focus en de melding bij contextverlies). Voor later genoteerd: de vakwoorden in de meldingen ('WebGL', 'ICT-coördinator') herschrijven voor het kind en het chunk van de ontwikkelpagina (LK-8), de sprong bij het eerste slepen van de lamp (LK-6), en PMREM op WebGL 1 meten op een echte iPad met iPadOS 14. **Wacht:** de eigenaar keurt het uitzicht goed naast het prototype (beelden bezorgd op 12 november 2026) | kernbouwer |
 | Spiekkaart, plan B, observatieblad en meetblad (LK-7) | **Klaar als tekst** (12 november 2026), nog in geen scherm getoond: `src/lib/basis/lichtkamer/lesmateriaal.ts`, met de id's uit het manifest en de GO!-doelen 'ter info' met bron. Nagekeken door een nakijker en een rechter; zeven punten verwerkt. **Open bij de eigenaar:** de spiekkaart is één blad A4 recto-verso (hoogstens 500 woorden per kant), niet één kant | inhoudschrijver |
-| Panelen, schermen en rooktest (LK-6, LK-8, LK-9) | **Wacht** | bouwer |
+| Oefenpanelen, check en bordstand (LK-6) | **Gebouwd** (12 november 2026), alleen bereikbaar via de ontwikkelpagina `#/basis/proef/kijkdoos?les=kind` (of `bord`, `uitproberen`): `src/lib/basis/lichtkamer/les/` (zuivere lesmachine: de drie oefeningen, de check, de klasvraag, de presentertoetsen, 'Wat ik al kan', de aansluiting voor bewijs) en `src/components/basis/lichtkamer/` (`LichtkamerLes` met de standen kind, bord en uitproberen; `useKindBewijs` spiegelt alleen in de sessionStorage van het tabblad, nooit in localStorage). Browserproef met alleen het toetsenbord: 222 controles groen. Nagekeken door twee reviewers en een rechter; twaalf punten hersteld (onder meer: de kijkdoos blijft in beeld terwijl het kind de metingen typt; de klasvraag en het paneel lopen gelijk; een onleesbare meting krijgt een eigen melding; de check na herladen). **Open bij de eigenaar:** drie keuzes, zie "Vragen na de review van LK-6" onderaan. Voor LK-8 en LK-10 genoteerd: de tekstgrootte van hint en 'Ronde' op het bord, de focus na het sluiten van de klasvraag (spatie heropent ze), een gedeeltelijk afgelegde check na herladen | bouwer |
+| Schermen en lespagina (LK-8), rooktest (LK-9) | **Wacht** | bouwer |
 | Review en uitrol (LK-10) | **Wacht** | hoofdsessie |
 | Bezoek met de ICT-coördinator: toestelproef, 3D-proef en droge les (LK-11, bouwpakket 2) | **Wacht** op een datum (vraag 4) | eigenaar; de hoofdsessie verwerkt |
 | Generale repetitie en proefles 1 (LK-12, LK-13) | **Wacht** | eigenaar |
@@ -318,6 +319,18 @@ Zolang het toestel nooit iets wist, is het ontvangstteken niet nodig. Elke 'Leve
 6. three.js r162 in de eigen bundel; de eigenaar keurt het uitzicht goed naast het prototype vóór de proefles.
 7. Eerst een eigen scherm in `#/basis`, later een oefeningsoort.
 8. De leerplandoelen van het GO! staan 'ter info' op de spiekkaart, met de bron.
+
+## Vragen na de review van LK-6 (12 november 2026)
+
+De app volgt tot het antwoord het goedgekeurde prototype.
+
+| Nr. | Vraag | Nu in de app | Voorstel van de rechter |
+|---|---|---|---|
+| 9 | Welke woorden ziet het kind in 'Wat ik al kan'? | 'toont het', 'nog wankel', 'nog niet', 'nog geen bewijs' (zoals in dit ontwerp) | Voor het kind 'Ik kan het', 'Ik ben er bijna', 'Ik oefen nog', 'Nog niet geprobeerd', in een eigen kindtabel; de leerkracht houdt elders de eerste woorden |
+| 10 | Sluit de klasvraag op het bord vanzelf? | Ja, na 4,5 seconden, behalve in de prikkelarme stand (zoals het prototype) | Niet vanzelf sluiten zolang de focus in de dialoog staat |
+| 11 | Mag de zin na een foute hypothese eenvoudiger? | "Je hypothese klopte niet, en dat is ook een uitkomst." | Bijvoorbeeld "Je dacht iets anders, en dat mag: zo leer je iets." |
+
+Ook open: de spiekkaart is één blad A4 recto-verso, niet één kant (LK-7), en de eigenaar keurt het uitzicht van de kijkdoos goed naast het prototype (LK-5).
 
 ## Afwijkingen van eerdere afspraken
 

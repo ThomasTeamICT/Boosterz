@@ -28,21 +28,21 @@ describe('kijkCheckNa', () => {
 
   it('juist antwoord', () => {
     const u = kijkCheckNa(c1, 2);
-    expect(u).toMatchObject({ juist: true, fout: null, soort: 'ok', titel: 'juist.', uitleg: null, spreek: 'Juist', vraagId: '4c1' });
+    expect(u).toMatchObject({ juist: true, fout: null, soort: 'ok', titel: 'Juist.', uitleg: null, spreek: 'Juist', vraagId: '4c1' });
     expect(u.bewijs).toEqual({ juist: true, fout: null, doel: '92767', keuze: 2 });
   });
 
   it('fout antwoord: het juiste antwoord erbij, en het foutpatroon in het bewijs', () => {
     const u = kijkCheckNa(c1, 0);
-    expect(u).toMatchObject({ juist: false, fout: 'schaduw aan de kant van de lamp', soort: 'warn', titel: 'nog niet.', juisteIdx: 2 });
-    expect(u.uitleg).toBe('Het juiste antwoord is: C: de schaduw valt rechts op het scherm.');
-    expect(u.spreek).toBe('Nog niet. Het juiste antwoord is: C');
+    expect(u).toMatchObject({ juist: false, fout: 'schaduw aan de kant van de lamp', soort: 'warn', titel: 'Nog niet.', juisteIdx: 2 });
+    expect(u.uitleg).toBe('Het juiste antwoord is C: de schaduw valt rechts op het scherm.');
+    expect(u.spreek).toBe('Nog niet. Het juiste antwoord is C: de schaduw valt rechts op het scherm');
     expect(u.bewijs).toEqual({ juist: false, fout: 'schaduw aan de kant van de lamp', doel: '92767', keuze: 0 });
   });
 
   it('zonder label staat de tekst van de knop in het juiste antwoord', () => {
     const u = kijkCheckNa(c2, 1);
-    expect(u.uitleg).toBe('Het juiste antwoord is: groter.');
+    expect(u.uitleg).toBe('Het juiste antwoord is groter.');
     expect(u.fout).toBe('verwacht een kleinere schaduw als de lamp dichterbij staat');
   });
 

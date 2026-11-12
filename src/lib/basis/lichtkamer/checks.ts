@@ -94,9 +94,9 @@ export function kijkCheckNa(vraag: CheckVraag, keuze: number, eerder = false): C
     juisteIdx,
     juisteTekst,
     soort: juist ? 'ok' : 'warn',
-    titel: (eerder ? 'Je eerste antwoord telt: ' : '') + (juist ? 'juist.' : 'nog niet.'),
-    uitleg: juist ? null : `Het juiste antwoord is: ${juisteTekst}.`,
-    spreek: juist ? 'Juist' : `Nog niet. Het juiste antwoord is: ${juistOptie.t}`,
+    titel: (eerder ? 'Je eerste antwoord telt: ' : '') + (eerder ? (juist ? 'juist.' : 'nog niet.') : juist ? 'Juist.' : 'Nog niet.'),
+    uitleg: juist ? null : `Het juiste antwoord is ${juisteTekst}.`,
+    spreek: juist ? 'Juist' : `Nog niet. Het juiste antwoord is ${juisteTekst}`,
     bewijs: { juist, fout: optie.fout ?? null, doel: vraag.doel, keuze },
   };
 }

@@ -506,3 +506,432 @@
   border-color: var(--text);
   box-shadow: inset 0 -4px 0 var(--lamp);
 }
+
+/* ── LK-6: de les (tegels, panelen, terugkoppeling, 'Wat ik al kan') ─────────────────────────────────────────────────
+ *
+ * Hoort bij src/components/basis/lichtkamer/LichtkamerLes.tsx. Alleen tokens (geen vaste kleuren), geen :has(), geen
+ * color-mix en geen aspect-ratio: de kijkdoos heeft zijn eigen terugval hierboven. Tikdoelen zijn minstens 44 px en
+ * hoofdacties (.b-lk-groot) 64 px; op het bord 72 px. De bordregels staan onderaan en steunen op data-bord. Elke
+ * stand van een antwoord heeft een vorm en een woord (merkteken), nooit alleen een kleur.
+ */
+
+.b-lk-les {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.b-lk-les h2,
+.b-lk-les h3 {
+  margin: 0 0 8px;
+}
+.b-lk-keuze-scherm,
+.b-lk-check,
+.b-lk-kan-scherm {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.b-lk-gereedschap,
+.b-lk-acties,
+.b-lk-rij {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+/* basis.css haalt onder 640 px de binnenmarge van elke .b-knop weg (voor knoppen met alleen een icoon): in de les staat
+ * er tekst in, die niet tegen de rand mag kleven. De pijltjesknoppen van de kaartjes zijn alleen een icoon. */
+.b-lk-les .b-knop {
+  padding: 0 14px;
+}
+.b-lk-les .b-knop.b-lk-pijl {
+  padding: 0;
+}
+.b-knop.b-lk-groot,
+.b-lk-knop.b-lk-groot {
+  min-height: 64px;
+  padding-left: 20px;
+  padding-right: 20px;
+  font-size: 1.1rem;
+}
+.b-knop.b-lk-hoofd {
+  border-color: var(--text);
+  background: var(--lamp);
+  color: var(--on-lamp);
+}
+.b-knop.b-lk-hoofd:hover {
+  background: var(--lamp);
+}
+.b-lk-knop.b-lk-knop-hoofd {
+  border-color: var(--lamp);
+  background: var(--lamp);
+  color: var(--on-lamp);
+}
+
+/* De oefening: de kijkdoos en het paneel, naast elkaar vanaf 960 px, anders onder elkaar. */
+.b-lk-oefen {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.b-lk-terug {
+  justify-self: start;
+}
+.b-lk-links,
+.b-lk-rechts {
+  min-width: 0;
+}
+@media (min-width: 960px) {
+  .b-lk-oefen {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+  }
+  .b-lk-oefen .b-lk-terug {
+    grid-column: 1 / -1;
+  }
+  /* De kijkdoos blijft in beeld terwijl het kind in het paneel typt: de kolom met de kijkdoos en de knoppenbalk plakt boven aan. */
+  .b-lk-oefen .b-lk-links {
+    position: sticky;
+    top: 8px;
+    align-self: start;
+  }
+}
+.b-lk-balk-groep {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.b-lk-vraag-kop {
+  margin: 0 0 4px;
+  color: var(--stage-licht);
+  font-weight: 700;
+}
+.b-lk-vraag-acties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.b-lk-keuzes li {
+  margin: 0;
+}
+.b-lk-hint,
+.b-lk-uitleg {
+  margin: 0 0 8px;
+  color: var(--text-soft);
+}
+.b-lk-stappen {
+  margin: 0 0 12px;
+  padding-left: 1.4em;
+}
+.b-lk-stappen li {
+  margin: 2px 0;
+}
+.b-lk-paneel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.b-lk-ronde {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+.b-lk-af {
+  margin: 0;
+  font-weight: 600;
+}
+.b-lk-vraagkop {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+}
+
+/* Keuzes in het paneel: grote knoppen met een merkteken na het antwoord. */
+.b-lk-opts {
+  display: grid;
+  gap: 8px;
+}
+.b-lk-opts-prent {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+.b-lk-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 14px;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.b-lk-opt[aria-pressed='true'] {
+  border-color: var(--text);
+  background: var(--lamp-soft);
+  box-shadow: inset 0 -5px 0 var(--lamp);
+}
+.b-lk-opt:disabled {
+  cursor: default;
+}
+.b-lk-opt:disabled:not(.b-lk-juist):not(.b-lk-fout) {
+  border-style: dashed;
+  background: var(--bg-sunken);
+  color: var(--text-soft);
+}
+.b-lk-opt.b-lk-juist {
+  border: 4px double var(--ok);
+  background: var(--ok-soft);
+  color: var(--ok-text);
+}
+.b-lk-opt.b-lk-fout {
+  border: 4px dotted var(--err);
+  background: var(--err-soft);
+  color: var(--err-text);
+}
+.b-lk-opt-prent {
+  flex-direction: column;
+  align-items: stretch;
+  text-align: center;
+}
+.b-lk-opt-tekst {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.b-lk-prent {
+  display: block;
+  padding: 4px;
+  border-radius: var(--radius-s);
+  background: var(--on-stage);
+}
+.b-lk-prent svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.b-lk-letter {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+.b-lk-markering {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.b-lk-opt-prent .b-lk-markering {
+  justify-content: center;
+  margin-left: 0;
+}
+
+/* Terugkoppeling: een icoon, een titel en een uitleg. Het icoon verschilt per soort. */
+.b-lk-fb {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 2px solid currentColor;
+  border-radius: var(--radius-m);
+}
+.b-lk-fb p {
+  margin: 4px 0 0;
+}
+.b-lk-fb-icoon {
+  flex: none;
+  margin-top: 2px;
+}
+.b-lk-fb-ok {
+  background: var(--ok-soft);
+  color: var(--ok-text);
+}
+.b-lk-fb-warn {
+  background: var(--warn-soft);
+  color: var(--warn-text);
+}
+.b-lk-fb-info {
+  background: var(--brand-soft);
+  color: var(--text);
+}
+
+/* Het onderzoek en de kaartjes. */
+.b-lk-kaart {
+  padding: 12px 14px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+  color: var(--text);
+}
+.b-lk-kaart h3 {
+  margin: 0 0 6px;
+}
+.b-lk-kaart p {
+  margin: 4px 0;
+}
+.b-lk-tabel {
+  overflow-x: auto;
+}
+.b-lk-tabel table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.b-lk-tabel th,
+.b-lk-tabel td {
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.b-lk-velden {
+  display: grid;
+  gap: 12px;
+}
+.b-lk-veld label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.b-lk-invoer {
+  width: 6em;
+  max-width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.2rem;
+}
+.b-lk-eenheid {
+  font-weight: 600;
+}
+
+/* De keuze van de oefening: grote tegels. */
+.b-lk-tegels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.b-lk-tegel {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 96px;
+  padding: 12px 16px;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius-l);
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.b-lk-tegel:hover {
+  background: var(--brand-soft);
+}
+.b-lk-tegel-naam {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.b-lk-tegel-hint {
+  display: block;
+  color: var(--text-soft);
+}
+.b-lk-gedaan {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--ok-text);
+  font-weight: 700;
+}
+
+/* Het bord: de keuze tussen de drie oefeningen. */
+.b-lk-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.b-lk-nav .b-knop[aria-current='true'] {
+  border-color: var(--text);
+  background: var(--lamp-soft);
+  box-shadow: inset 0 -5px 0 var(--lamp);
+}
+
+/* Wat ik al kan: per doel een zin en een stand met vorm en woord (.b-lk-st-…, hierboven). */
+.b-lk-kan-lijst {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.b-lk-kan-rij {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 14px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+  color: var(--text);
+}
+.b-lk-kan-doel {
+  flex: 1 1 220px;
+}
+
+/* Hoog contrast: een gekozen antwoord blijft aan zijn dikkere rand te zien. */
+@media (forced-colors: active) {
+  .b-lk-opt[aria-pressed='true'],
+  .b-lk-nav .b-knop[aria-current='true'] {
+    border-width: 5px;
+  }
+}
+
+/* Het bord: grotere tekst en tikdoelen (de letters groeien al mee met html[data-bord]). */
+:root[data-deel='basis'][data-bord] .b-knop.b-lk-groot,
+:root[data-deel='basis'][data-bord] .b-lk-knop.b-lk-groot {
+  min-height: 72px;
+  font-size: 1.25rem;
+}
+:root[data-deel='basis'][data-bord] .b-lk-opt {
+  min-height: 72px;
+  font-size: 1.25rem;
+}
+:root[data-deel='basis'][data-bord] .b-lk-hint,
+:root[data-deel='basis'][data-bord] .b-lk-stappen,
+:root[data-deel='basis'][data-bord] .b-lk-uitleg {
+  font-size: 1.15rem;
+}
+:root[data-deel='basis'][data-bord] .b-lk-fb {
+  font-size: 1.15rem;
+}
+:root[data-deel='basis'][data-bord] .b-lk-letter {
+  width: 48px;
+  height: 48px;
+}

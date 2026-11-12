@@ -68,8 +68,8 @@ export function tolerantieVoor(voorwerp: Voorwerp, opties?: OnderzoekOpties): nu
 export type OnderzoekBewijs = { id: '4-meten' | '4-besluit'; juist: boolean; fout: string | null };
 
 export type OnderzoekUitkomst = {
-  stap: 'hypothese' | 'leeg' | 'fout' | 'volgorde' | 'conclusie' | 'besluit-fout' | 'klaar';
-  soort: 'ok' | 'warn';
+  stap: 'hypothese' | 'leeg' | 'onleesbaar' | 'fout' | 'volgorde' | 'conclusie' | 'besluit-fout' | 'klaar';
+  soort: 'ok' | 'warn' | 'info';
   titel: string;
   uitleg: string;
   /** Het onderzoek is af. */
@@ -108,9 +108,24 @@ export function kijkOnderzoekNa(invoer: OnderzoekInvoer, opties?: OnderzoekOptie
 
   if (!invoer.hypothese) return uit({ stap: 'hypothese', soort: 'warn', titel: 'Kies eerst je hypothese.', uitleg: 'Wat denk jij, vóór je meet?' });
 
-  const leeg = afstanden.filter((cm) => gelezen.get(cm) === null);
+  // Leeg (niets getypt) is iets anders dan onleesbaar (wel iets getypt, maar geen getal): elk krijgt zijn eigen zin.
+  const isLeeg = (cm: number): boolean => {
+    const r = invoer.metingen[cm];
+    return r === undefined || r === null || (typeof r === 'string' && r.trim() === '');
+  };
+  const leeg = afstanden.filter((cm) => gelezen.get(cm) === null && isLeeg(cm));
   if (leeg.length)
     return uit({ stap: 'leeg', soort: 'warn', titel: `Vul de meting bij ${opsomming(leeg)} cm nog in.`, uitleg: NAKIJKEN_UITLEG, afstanden: leeg });
+
+  const onleesbaar = afstanden.filter((cm) => gelezen.get(cm) === null);
+  if (onleesbaar.length)
+    return uit({
+      stap: 'onleesbaar',
+      soort: 'warn',
+      titel: `Typ bij ${opsomming(onleesbaar)} cm alleen een getal, zoals 12 of 12,5.`,
+      uitleg: NAKIJKEN_UITLEG,
+      afstanden: onleesbaar,
+    });
 
   const fout = afstanden.filter((cm) => Math.abs(m(cm) - (echt[cm] as number)) > tol);
   if (fout.length)
@@ -137,7 +152,7 @@ export function kijkOnderzoekNa(invoer: OnderzoekInvoer, opties?: OnderzoekOptie
 
   const metenJuist: OnderzoekBewijs = { id: '4-meten', juist: true, fout: null };
   if (!invoer.conclusie)
-    return uit({ stap: 'conclusie', soort: 'warn', titel: 'Je metingen kloppen. Kies nu je conclusie.', uitleg: 'Wat zeggen je metingen?', bewijzen: [metenJuist] });
+    return uit({ stap: 'conclusie', soort: 'info', titel: 'Je metingen kloppen. Kies nu je conclusie.', uitleg: 'Wat zeggen je metingen?', bewijzen: [metenJuist] });
 
   const ok = invoer.conclusie === 'dichter-groter';
   const dichtst = dichtNaarVer[0] as number;

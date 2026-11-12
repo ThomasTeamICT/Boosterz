@@ -6,9 +6,16 @@
 //
 // Zoekopdracht (voor de proefscripts): ?scene=voorspel|kaartjes|onderzoek, ?stand=auto|hoog|midden|laag, ?bord=1,
 // ?voorwerp=boom|huis|kind, ?meet (de meetstand van de kijkdoos zelf).
+//
+// Met ?les=kind, ?les=bord of ?les=uitproberen toont de pagina in plaats van de losse kijkdoos de les van LK-6
+// (LichtkamerLes: oefeningen, check, klasvraag, 'Wat ik al kan'). Bij ?les=bord zet ze html[data-bord], zoals het
+// echte scherm van LK-8 het zal doen. Met ?scherm=keuze|waar-valt-de-schaduw|drie-kaartjes|onderzoek-schaduw|check|kan
+// opent de les meteen op dat scherm.
 
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { LichtkamerLes, type LesScherm, type LesStand } from '../../components/basis/lichtkamer/LichtkamerLes';
+import { useKindBewijs } from '../../components/basis/lichtkamer/useKindBewijs';
 import {
   GAAT_HOOGTES,
   STANDAARD_AFSTANDEN,
@@ -39,9 +46,38 @@ declare global {
   }
 }
 
+const LES_STANDEN: readonly LesStand[] = ['kind', 'bord', 'uitproberen'];
+const LES_SCHERMEN: readonly LesScherm[] = ['keuze', 'waar-valt-de-schaduw', 'drie-kaartjes', 'onderzoek-schaduw', 'check', 'kan'];
+
+function LesProef({ stand, scherm }: { stand: LesStand; scherm?: LesScherm }) {
+  // Alleen het kindscherm spiegelt zijn bewijs (naar de sessionStorage van het tabblad); het bord en uitproberen niet.
+  const kindBewijs = useKindBewijs();
+  useEffect(() => {
+    if (stand !== 'bord') return;
+    const html = document.documentElement;
+    html.dataset.bord = '';
+    return () => {
+      delete html.dataset.bord;
+    };
+  }, [stand]);
+  return (
+    <section className="b-lk-proef">
+      <h1>Proef: de les van de Lichtkamer ({stand})</h1>
+      <p>Een ontwikkelpagina voor de les van het schaduwtheater (einde 4de leerjaar). Ze verdwijnt als de schermen van LK-8 klaar zijn.</p>
+      <LichtkamerLes stand={stand} bewijs={stand === 'kind' ? kindBewijs : null} beginScherm={scherm} />
+    </section>
+  );
+}
+
 export function KijkdoosProef() {
   const { search } = useLocation();
   const [p] = useState(() => new URLSearchParams(search));
+  const les = (LES_STANDEN as readonly string[]).includes(p.get('les') ?? '') ? (p.get('les') as LesStand) : null;
+  const scherm = (LES_SCHERMEN as readonly string[]).includes(p.get('scherm') ?? '') ? (p.get('scherm') as LesScherm) : undefined;
+  return les ? <LesProef stand={les} scherm={scherm} /> : <LosseKijkdoos p={p} />;
+}
+
+function LosseKijkdoos({ p }: { p: URLSearchParams }) {
   const vak = useRef<HTMLDivElement>(null);
   const doosRef = useRef<Kijkdoos | null>(null);
   const [open, setOpen] = useState(true);

@@ -477,3 +477,92 @@ describe('Lichtkamer: css van de kijkdoos', () => {
     });
   });
 });
+
+// ── Lichtkamer: de les (LK-6) ────────────────────────────────────────────────
+
+describe('Lichtkamer: de les (LK-6)', () => {
+  /** De kleurparen van het blok 'LK-6' onderaan basis-lichtkamer.css: tekst 4,5 : 1 (7 : 1 voor gewone tekst), vormen 3 : 1. */
+  const LES_PAREN: [fg: string, bg: string, min: number][] = [
+    // keuzeknoppen, tegels, kaarten, rijen van 'Wat ik al kan' en invoervelden
+    ['text', 'bg-raised', 7],
+    ['text-soft', 'bg-raised', 4.5],
+    // een keuze die niet meer kan (na het antwoord)
+    ['text-soft', 'bg-sunken', 4.5],
+    // het juiste, het foute en het gekozen antwoord, en de terugkoppeling
+    ['ok-text', 'ok-soft', 4.5],
+    ['err-text', 'err-soft', 4.5],
+    ['warn-text', 'warn-soft', 4.5],
+    ['text', 'brand-soft', 7],
+    ['text-soft', 'brand-soft', 4.5],
+    ['text', 'lamp-soft', 7],
+    // 'gedaan' op een tegel, ook als de muis erop staat
+    ['ok-text', 'bg-raised', 4.5],
+    ['ok-text', 'brand-soft', 4.5],
+    // de hoofdactie: donkere inkt op lampgeel
+    ['on-lamp', 'lamp', 4.5],
+    // de kop van de klasvraag op het donkere paneel
+    ['stage-licht', 'stage-paneel', 4.5],
+    // randen van het juiste en het foute antwoord (3 : 1), en de rand van een keuze
+    ['ok', 'bg-raised', 3],
+    ['err', 'bg-raised', 3],
+    ['ok', 'ok-soft', 3],
+    ['err', 'err-soft', 3],
+    ['line-strong', 'bg-raised', 3],
+  ];
+
+  it.each(Object.entries(THEMAS))('elk paar van de les haalt zijn minimum (%s)', (naam, tk) => {
+    for (const [fg, bg, min] of LES_PAREN) {
+      expect(tk[fg], `${naam}: token ${fg}`).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(tk[bg], `${naam}: token ${bg}`).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(contrastRatio(tk[fg], tk[bg]), `${naam}: ${fg} op ${bg}`).toBeGreaterThanOrEqual(min);
+    }
+  });
+
+  it.each(Object.entries(THEMAS))('de prenten van de check: donkere inkt en de lamp staan op een licht vlak (%s)', (naam, tk) => {
+    // De prenten (CheckPrent.tsx) hebben vaste kleuren op het vlak var(--on-stage), in licht en donker gelijk.
+    for (const inkt of ['#16203a', '#22324f', '#2b5bd0', '#3f9a5b']) {
+      expect(contrastRatio(inkt, tk['on-stage']), `${naam}: ${inkt}`).toBeGreaterThanOrEqual(3);
+    }
+    expect(contrastRatio('#16203a', tk['on-stage']), naam).toBeGreaterThanOrEqual(7);
+  });
+
+  describe('css van de les', () => {
+    const kaal = ZONDER_COMMENTAAR(LICHTKAMER);
+    const blok = (selector: string) => {
+      const start = kaal.indexOf(`${selector} {`);
+      expect(start, selector).toBeGreaterThanOrEqual(0);
+      return kaal.slice(start, kaal.indexOf('}', start));
+    };
+
+    it('hoofdacties zijn 64 pixels, op het bord 72; gewone knoppen, keuzes en velden minstens 44', () => {
+      expect(blok('.b-knop.b-lk-groot,\n.b-lk-knop.b-lk-groot')).toMatch(/min-height:\s*64px/);
+      expect(blok(":root[data-deel='basis'][data-bord] .b-knop.b-lk-groot,\n:root[data-deel='basis'][data-bord] .b-lk-knop.b-lk-groot")).toMatch(/min-height:\s*72px/);
+      for (const s of ['.b-lk-opt', '.b-lk-tegel', '.b-lk-invoer']) {
+        expect(Number(/min-height:\s*(\d+)px/.exec(blok(s))?.[1]), s).toBeGreaterThanOrEqual(44);
+      }
+    });
+
+    it('geen horizontaal scrollen op 390 pixels: het paneel en de kijkdoos mogen krimpen', () => {
+      for (const s of ['.b-lk-les', '.b-lk-oefen', '.b-lk-paneel']) expect(blok(s), s).toMatch(/min-width:\s*0/);
+      expect(blok('.b-lk-invoer')).toMatch(/max-width:\s*100%/);
+      expect(kaal).toMatch(/@media \(min-width: 960px\) \{\s*\.b-lk-oefen \{\s*grid-template-columns:\s*minmax\(0, 3fr\) minmax\(0, 2fr\)/);
+    });
+
+    it('elk antwoord heeft behalve de kleur ook een eigen rand: dubbel voor juist, gestippeld voor fout', () => {
+      expect(blok('.b-lk-opt.b-lk-juist')).toMatch(/border:\s*4px double/);
+      expect(blok('.b-lk-opt.b-lk-fout')).toMatch(/border:\s*4px dotted/);
+    });
+
+    it('met twee kolommen blijft de kijkdoos plakken, en op smal geven de knoppen hun tekst binnenmarge terug', () => {
+      expect(kaal).toMatch(/@media \(min-width: 960px\) \{[\s\S]*?\.b-lk-oefen \.b-lk-links \{\s*position:\s*sticky;\s*top:\s*8px;\s*align-self:\s*start;/);
+      expect(blok('.b-lk-les .b-knop')).toMatch(/padding:\s*0 14px/);
+      expect(blok('.b-lk-les .b-knop.b-lk-pijl')).toMatch(/padding:\s*0;/);
+      // de regel met binnenmarge staat vóór die van de hoofdacties, die 20 px links en rechts houden
+      expect(kaal.indexOf('.b-lk-les .b-knop {')).toBeLessThan(kaal.indexOf('.b-knop.b-lk-groot,'));
+    });
+
+    it('de tekst van de kop van de klasvraag gebruikt geen --lamp als tekstkleur', () => {
+      expect(blok('.b-lk-vraag-kop')).toMatch(/color:\s*var\(--stage-licht\)/);
+    });
+  });
+});
