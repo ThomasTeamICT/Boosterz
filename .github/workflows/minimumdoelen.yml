@@ -39,7 +39,7 @@ on:
   workflow_dispatch:
     inputs:
       filter:
-        description: 'Filter op de sets, als reguliere expressie (leeg = standaard: secundair|\bSO\b|SO_; . = alle sets)'
+        description: 'Filter op de sets, als reguliere expressie (leeg = standaard: secundair|\bSO\b|SO_|kleuteronderwijs|lager onderwijs; . = alle sets)'
         required: false
         type: string
       onderdelen:

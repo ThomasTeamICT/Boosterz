@@ -1092,3 +1092,23 @@ describe('workflow minimumdoelen.yml: het deel "Momentmodel basisonderwijs" in d
     expect(SAMENVATTING_JS).not.toContain('RAPPORT_MOMENTMODEL');
   });
 });
+
+describe('de standaardfilter van de maandelijkse ophaling', () => {
+  // Het script heeft code op het hoogste niveau; daarom lezen we de constante uit de tekst in plaats van te importeren.
+  const script = readFileSync(join(ROOT, 'tools', 'leerplannen', 'haal-minimumdoelen.mjs'), 'utf8');
+  const bron = /const STANDAARD_FILTER = '([^']+)';/.exec(script)?.[1] ?? '';
+  const filter = new RegExp(bron.replace(/\\\\/g, '\\'), 'i');
+  const sets = (JSON.parse(readFileSync(join(ROOT, 'public', 'leerplannen', 'minimumdoelen', 'index.json'), 'utf8')) as { sets: { id: string; naam: string; korteNaam?: string }[] }).sets;
+
+  it('kiest elke set die al in de app staat, ook die van het basisonderwijs, zodat een nieuwe set van dezelfde soort er vanzelf bij komt', () => {
+    expect(bron).not.toBe('');
+    const gemist = sets.filter((s) => !filter.test([s.naam, s.korteNaam ?? '', s.id].join(' | '))).map((s) => `${s.id} ${s.naam}`);
+    expect(gemist).toEqual([]);
+    expect(filter.test('Lager Onderwijs 6de leerjaar - Wiskunde')).toBe(true);
+    expect(filter.test('Buitengewoon Kleuteronderwijs Type 2 - Wetenschap en techniek')).toBe(true);
+  });
+
+  it('de workflow noemt dezelfde standaardfilter in de uitleg bij de invoer', () => {
+    expect(YML).toContain(`leeg = standaard: ${bron.replace(/\\\\/g, '\\')};`);
+  });
+});

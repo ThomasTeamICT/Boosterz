@@ -11,7 +11,8 @@
 //   --bron <bestand>    offline: een array van records, een array van API-pagina's of één API-pagina
 //   --uit <map>         doelmap (standaard public/leerplannen/minimumdoelen)
 //   --rapport <bestand> rapport (standaard tools/leerplannen/rapport/laatste-ophaling.json)
-//   --filter <regex>    welke sets (standaard secundair|\bSO\b|SO_; hoofdletterongevoelig; . = alles)
+//   --filter <regex>    welke sets (standaard secundair|\bSO\b|SO_|kleuteronderwijs|lager onderwijs;
+//                       hoofdletterongevoelig; . = alles)
 //                       Een set waarvan al een bestand bestaat, wordt altijd mee bijgewerkt.
 //
 // Omgeving (alleen zonder --bron)
@@ -58,7 +59,9 @@ try {
   process.exit(1);
 }
 
-const STANDAARD_FILTER = 'secundair|\\bSO\\b|SO_';
+// Het secundair en het basisonderwijs (gewoon en buitengewoon: 'Kleuteronderwijs …', 'Lager Onderwijs …'), zodat een nieuwe
+// set van het basisonderwijs, zoals de tweede golf, er vanzelf bij komt. Een set met al een bestand komt altijd mee.
+const STANDAARD_FILTER = 'secundair|\\bSO\\b|SO_|kleuteronderwijs|lager onderwijs';
 const RIJEN_PER_PAGINA = 500;
 const MAX_PAGINAS = 200;
 const PAUZE_MS = 200;
