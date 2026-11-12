@@ -12,6 +12,7 @@ import {
   VENDOR_CHUNK,
   WIDGET_ICONS_CHUNK,
   checkCriticalPath,
+  checkKijkdoosChunks,
   checkThreeChunks,
   collectShell,
   iconFiles,
@@ -160,6 +161,11 @@ function bundleBudget(): Plugin {
           pad.closure,
         );
         if (threeFouten.length > 0) this.error(`\nBuildcontrole three:\n${threeFouten.map((e) => `  ${e}`).join('\n')}\n`);
+        // De kijkdoos en de gedeelde lichtkamercode importeren nooit een paginachunk (LK-8).
+        const kijkdoosFouten = checkKijkdoosChunks(
+          chunks.map((c) => ({ fileName: c.fileName, name: c.name, isEntry: c.isEntry, imports: c.imports, bytes: bytes(c) })),
+        );
+        if (kijkdoosFouten.length > 0) this.error(`\nBuildcontrole kijkdoos:\n${kijkdoosFouten.map((e) => `  ${e}`).join('\n')}\n`);
 
         // 2. De andere chunks, elk tegen hun eigen budget.
         const overschrijdingen = pad.warnings.map((w) => `  ${w} (${CRITICAL_PATH.label})`);

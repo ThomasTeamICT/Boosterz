@@ -9,6 +9,8 @@ import { lazy, Suspense, useLayoutEffect, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { BasisSchil } from '../../components/basis/BasisSchil';
 import { basisPad, basisRoute, type BasisScherm } from '../../lib/basis/basisRoutes';
+import { PAKKETTEN } from '../../lib/basis/pakketten';
+import { schilVan } from '../../lib/basis/schil';
 import { KiesScherm, StartScherm } from './StartScherm';
 import { LeerjaarScherm } from './LeerjaarScherm';
 import { MomentScherm } from './MomentScherm';
@@ -27,8 +29,12 @@ const LessenlijnScherm = lazy(() => import('./LessenlijnScherm').then((m) => ({ 
 const GoScherm = lazy(() => import('./GoScherm').then((m) => ({ default: m.GoScherm })));
 const LeerplandoelScherm = lazy(() => import('./LeerplandoelScherm').then((m) => ({ default: m.LeerplandoelScherm })));
 const LeerplandoelenScherm = lazy(() => import('./LeerplandoelenScherm').then((m) => ({ default: m.LeerplandoelenScherm })));
-// Voorlopige ontwikkelpagina van de kijkdoos (LK-5), tot de schermen van LK-8 er zijn. three laadt pas in de kijkdoos zelf.
-const KijkdoosProef = lazy(() => import('./KijkdoosProef').then((m) => ({ default: m.KijkdoosProef })));
+// De drie schermen van de Lichtkamer (LK-8). De lespagina gaat in de gewone schil; het kind- en het bordscherm dragen hun
+// eigen kale schil (KindSchil, BordSchil) en laden die in hetzelfde chunk, zodat er één bestand te halen is. three laadt pas
+// in de kijkdoos zelf, en op de lespagina pas na 'Uitproberen'.
+const LichtkamerPakketScherm = lazy(() => import('./LichtkamerPakketScherm').then((m) => ({ default: m.LichtkamerPakketScherm })));
+const LichtkamerBordScherm = lazy(() => import('./LichtkamerBordScherm').then((m) => ({ default: m.LichtkamerBordScherm })));
+const LichtkamerKindScherm = lazy(() => import('./LichtkamerKindScherm').then((m) => ({ default: m.LichtkamerKindScherm })));
 
 /** Tijdens het laden van zo'n scherm staat er al precies één h1. */
 function Wacht({ titel, children }: { titel: string; children: ReactNode }) {
@@ -38,6 +44,24 @@ function Wacht({ titel, children }: { titel: string; children: ReactNode }) {
         <div>
           <h1>{titel}</h1>
           <LaadBericht tekst="Het scherm wordt geladen" />
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
+  );
+}
+
+/** Tijdens het laden van een kaal scherm (kind, bord) staat er al één main met één h1. */
+function KaleWacht({ titel, children }: { titel: string; children: ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="b-schil">
+          <main id="main" className="b-main">
+            <h1>{titel}</h1>
+            <LaadBericht tekst="Het scherm wordt geladen" />
+          </main>
         </div>
       }
     >
@@ -127,11 +151,23 @@ function kies(s: BasisScherm): ReactNode {
           <LeerplandoelScherm code={s.code} />
         </Wacht>
       );
-    case 'kijkdoosproef':
+    case 'pakket':
       return (
-        <Wacht titel="Proef: de kijkdoos van de Lichtkamer">
-          <KijkdoosProef />
+        <Wacht titel={PAKKETTEN[s.pakket].titel}>
+          <LichtkamerPakketScherm pakket={s.pakket} leerjaar={s.leerjaar} />
         </Wacht>
+      );
+    case 'bord':
+      return (
+        <KaleWacht titel={PAKKETTEN[s.pakket].titel}>
+          <LichtkamerBordScherm pakket={s.pakket} scherm={s.scherm} />
+        </KaleWacht>
+      );
+    case 'oefen':
+      return (
+        <KaleWacht titel={PAKKETTEN[s.pakket].titel}>
+          <LichtkamerKindScherm pakket={s.pakket} scherm={s.scherm} />
+        </KaleWacht>
       );
     case 'onbekend':
       return <OnbekendeBasisPagina />;
@@ -151,5 +187,7 @@ export function BasisDeel() {
     };
   }, []);
 
+  // Het kind en het bord hebben een kale schil: zonder de navigatie van de leerkracht en zonder 'Naar Boosterz'.
+  if (schilVan(scherm) !== 'basis') return <>{kies(scherm)}</>;
   return <BasisSchil scherm={scherm}>{kies(scherm)}</BasisSchil>;
 }

@@ -52,6 +52,11 @@ describe('paginaTitel', () => {
       ['/basis/leerplandoel/WT.086', 'Leerplandoel WT.086 · Basisonderwijs'],
       ['/basis/leerplandoel/wt.086', 'Leerplandoel WT.086 · Basisonderwijs'],
       ['/basis/leerplandoel/WT.086/', 'Leerplandoel WT.086 · Basisonderwijs'],
+      ['/basis/pakket/lichtkamer/einde-4de', 'Lespagina Lichtkamer · Basisonderwijs'],
+      ['/basis/bord/lichtkamer/einde-4de', 'Lichtkamer op het bord'],
+      ['/basis/oefen/lichtkamer/einde-4de', 'Lichtkamer: schaduwtheater'],
+      ['/basis/oefen/lichtkamer/einde-4de/', 'Lichtkamer: schaduwtheater'],
+      ['/basis/pakket', 'Basisonderwijs'],
       ['/basis/xyz', 'Basisonderwijs'],
     ];
     for (const [pad, label] of verwacht) expect(paginaTitel(pad), pad).toBe(`${label} · Boosterz`);

@@ -365,6 +365,8 @@ export function LichtkamerLes({ stand, bewijs, beginScherm }: LichtkamerLesProps
                   }}
                 />
               ) : null}
+              {/* Zonder kijkdoos (geen 3D, of de context ging verloren) doen deze knoppen niets: dan staan ze er niet. */}
+              {status === 'geen3d' || status === 'contextverlies' ? null : (
               <div className="b-lk-balk">
                 <div className="b-lk-balk-groep" role="group" aria-label="Kijken">
                   {ZICHTEN.map((z) => (
@@ -401,6 +403,7 @@ export function LichtkamerLes({ stand, bewijs, beginScherm }: LichtkamerLesProps
                   </div>
                 ) : null}
               </div>
+              )}
             </div>
           </div>
 

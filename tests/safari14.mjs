@@ -246,6 +246,83 @@ const pdf2 = await page2.evaluate(() => document.querySelectorAll('.pdfv-page ca
 check('een pdf opent in een gewone browser', pdf2 > 0, String(pdf2));
 check('de gewone pdf-worker start en pdfWorkerOud wordt niet opgehaald', opgehaald2.some((u) => /pdf\.worker\.min-.*\.mjs/.test(u)) && !opgehaald2.some((u) => /pdfWorkerOud-/.test(u)), JSON.stringify(opgehaald2.filter((u) => /worker/i.test(u))));
 check('gewone browser: geen pagina-, console- of CSP-fouten', fouten2.length === 0, fouten2.slice(0, 3).join(' | '));
+
+// Derde doorloop (LK-9): de Lichtkamer (lespagina en kindscherm) in de nagebootste Safari 14.1, met en zonder WebGL.
+console.log('\nLichtkamer in Safari 14.1 nagebootst');
+const GEEN_GL = `(() => { const o = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (t, ...r) { return /webgl/.test(String(t)) ? null : o.call(this, t, ...r); }; })();`;
+async function lichtkamerS14(zonderGl) {
+  const label = zonderGl ? 'zonder WebGL' : 'met WebGL';
+  const c = await browser.newContext({ viewport: { width: 390, height: 800 }, serviceWorkers: 'block' });
+  await c.addInitScript(INIT);
+  if (zonderGl) await c.addInitScript(GEEN_GL);
+  await c.route('**/*.css', async (route) => {
+    const resp = await route.fetch();
+    await route.fulfill({ response: resp, body: s14css(await resp.text()), headers: { ...resp.headers(), 'content-type': 'text/css' } });
+  });
+  const pg = await c.newPage();
+  const f = [];
+  const hal = [];
+  pg.on('request', (r) => hal.push(r.url()));
+  pg.on('pageerror', (e) => f.push(`pageerror: ${e.message}`));
+  pg.on('console', (m) => { if (m.type() === 'error' && !/ERR_CERT_AUTHORITY_INVALID|Failed to load resource/.test(m.text())) f.push(`console: ${m.text().slice(0, 200)}`); });
+  await pg.addInitScript(() => document.addEventListener('securitypolicyviolation', (e) => console.error(`CSP: ${e.violatedDirective} ${e.blockedURI}`)));
+  const breed = () => pg.evaluate(() => document.documentElement.scrollWidth);
+
+  // De lespagina.
+  await pg.goto(`${BASE}/#/basis/pakket/lichtkamer/einde-4de`, { waitUntil: 'networkidle' });
+  await pg.waitForSelector('.b-lkp h1', { timeout: 20000 }).catch(() => {});
+  check(`lespagina (${label}): de h1 staat er en er is één main`, (await pg.locator('main h1').count()) === 1 && (await pg.locator('main').count()) === 1);
+  check(`lespagina (${label}): geen horizontale scroll op 390 px`, (await breed()) <= 392, String(await breed()));
+  await pg.getByRole('button', { name: /Probeer de oefeningen uit/ }).click();
+  await pg.waitForSelector('.b-lk-les h2', { timeout: 15000 }).catch(() => {});
+  check(`lespagina (${label}): na 'Uitproberen' staat de les er, nog steeds met één h1`, (await pg.locator('.b-lk-les h2').count()) >= 1 && (await pg.locator('h1').count()) === 1);
+
+  // Het kindscherm.
+  await pg.goto('about:blank');
+  await pg.goto(`${BASE}/#/basis/oefen/lichtkamer/einde-4de`, { waitUntil: 'networkidle' });
+  await pg.waitForSelector('.b-lk-les h2', { timeout: 20000 }).catch(() => {});
+  check(`kindscherm (${label}): de h1 staat er en de keuze met vier tegels is opgebouwd`, (await pg.locator('main h1').count()) === 1 && (await pg.locator('.b-lk-tegel').count()) === 4);
+  const tegelH = await pg.evaluate(() => Math.round(document.querySelector('.b-lk-tegel').getBoundingClientRect().height));
+  check(`kindscherm (${label}): een tegel heeft een tikdoel van minstens 44 px`, tegelH >= 44, String(tegelH));
+  check(`kindscherm (${label}): geen horizontale scroll op 390 px`, (await breed()) <= 392, String(await breed()));
+  await pg.locator('.b-lk-tegel', { hasText: 'Drie kaartjes' }).click();
+  await pg.waitForSelector('.b-lk-kijk', { timeout: 15000 });
+  const terugval = await pg.waitForFunction(() => !!document.querySelector('.b-lk-kijk canvas') || !!document.querySelector('.b-lk-melding'), null, { timeout: 25000 }).then(() => true, () => false);
+  check(`kindscherm (${label}): de kijkdoos tekent, of er komt de melding (de terugval)`, terugval);
+  const vak = await pg.evaluate(() => Math.round(document.querySelector('.b-lk-kijk').getBoundingClientRect().height));
+  check(`kindscherm (${label}): het kijkvak heeft hoogte zonder aspect-ratio (de terugval werkt)`, vak > 100, String(vak));
+  if (zonderGl) {
+    check('kindscherm (zonder WebGL): three-*.js is niet opgehaald', !hal.some((u) => /\/(three|kijkdoos3d)-[^/]*\.js/.test(u)));
+    check('kindscherm (zonder WebGL): de melding noemt WebGL niet', !/webgl/i.test(await pg.locator('.b-lk-melding').innerText()));
+  } else if (await pg.locator('.b-lk-kijk canvas').count()) {
+    const toestand = await pg.evaluate(() => { const c = document.querySelector('.b-lk-kijk canvas'); const gl = c.getContext('webgl2') || c.getContext('webgl'); return !!gl && !gl.isContextLost(); });
+    check('kindscherm (met WebGL): de WebGL-context leeft', toestand);
+  }
+  // De rest van de les blijft bruikbaar: een gaatje verzetten, dan de check en 'Wat ik al kan'.
+  await pg.getByRole('button', { name: /^Gaatje 3 \(bij het scherm\) hoger$/ }).click().catch(() => {});
+  await pg.getByRole('button', { name: /Terug naar de oefeningen/ }).click();
+  await pg.locator('.b-lk-tegel', { hasText: 'De check' }).click();
+  await pg.waitForSelector('.b-lk-check');
+  for (const rx of [/^C: de schaduw valt rechts/, /^groter$/, /^A: gaatje 1 hoog/]) {
+    await pg.getByRole('button', { name: rx }).click();
+    await pg.getByRole('button', { name: /^(Volgende vraag|Klaar)$/ }).click();
+  }
+  await pg.waitForSelector('.b-lk-kan', { timeout: 10000 }).catch(() => {});
+  const woorden = await pg.locator('.b-lk-kan-rij .b-lk-st').allTextContents();
+  check(`kindscherm (${label}): de check werkt en 'Wat ik al kan' toont per doel een woord`, woorden.length === 3 && woorden[0].trim() === 'toont het', JSON.stringify(woorden));
+  // De juiste en foute antwoorden hebben ook zonder color-mix een zichtbare achtergrond of rand (geen kleur-alleen, geen leeg).
+  await pg.goto('about:blank');
+  await pg.goto(`${BASE}/#/basis/oefen/lichtkamer/einde-4de?scherm=check`, { waitUntil: 'networkidle' });
+  await pg.waitForSelector('.b-lk-opt');
+  await pg.getByRole('button', { name: /^C: de schaduw valt rechts/ }).click();
+  const juist = await pg.evaluate(() => { const e = document.querySelector('.b-lk-opt.b-lk-juist'); const s = getComputedStyle(e); return { bg: s.backgroundColor, rand: s.borderTopColor, tekst: e.textContent }; });
+  check(`kindscherm (${label}): het juiste antwoord heeft een eigen rand of achtergrond en het woord 'juist'`, /juist/.test(juist.tekst) && (juist.bg !== 'rgba(0, 0, 0, 0)' || juist.rand !== 'rgba(0, 0, 0, 0)'), JSON.stringify(juist));
+  check(`kindscherm (${label}): geen pagina-, console- of CSP-fouten`, f.length === 0, f.slice(0, 3).join(' | '));
+  await c.close();
+}
+await lichtkamerS14(false);
+await lichtkamerS14(true);
+
 await browser.close();
 console.log(failures === 0 ? '\nSafari 14: alles in orde' : `\nSafari 14: ${failures} controle(s) mislukt`);
 process.exit(failures === 0 ? 0 : 1);

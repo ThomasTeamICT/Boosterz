@@ -1,0 +1,605 @@
+/* ── Lichtkamer: de drie schermen (LK-8) ─────────────────────────────────────────────────────────────────────────────
+ *
+ * Hoort bij src/pages/basis/LichtkamerPakketScherm.tsx (lespagina), LichtkamerKindScherm.tsx en LichtkamerBordScherm.tsx,
+ * met de schillen KindSchil en BordSchil. De oefeningen zelf staan in basis-lichtkamer.css.
+ *
+ * Alleen tokens. Safari 14.1: geen :has(), geen :focus-visible in een selectorlijst, geen aspect-ratio, geen color-mix,
+ * geen dvh, geen vaste kleuren buiten het afdrukken (daar is alles zwart op wit, zoals basis-lesplan.css).
+ * Elke selector begint met .b- of met :root[data-deel='basis'] (basisKleuren.test.ts). De papiermaat (@page) laten we aan de
+ * browser: een selector zonder .b- mag hier niet, en A4 is overal in Vlaanderen de standaard.
+ */
+
+/* ── Lespagina ─────────────────────────────────────────────────────────────────────────────────────────────────────── */
+
+.b-lkp {
+  display: grid;
+  gap: 32px;
+  max-width: 62rem;
+  min-width: 0;
+}
+.b-lkp-kop h1 {
+  margin: 0 0 8px;
+}
+.b-lkp-deel {
+  min-width: 0;
+}
+.b-lkp-deel > h2 {
+  margin: 0 0 8px;
+  font-size: 1.35rem;
+}
+.b-lkp-uitleg {
+  margin: 0 0 12px;
+  max-width: 46rem;
+}
+.b-lkp-hint {
+  margin: 0 0 12px;
+  max-width: 46rem;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+}
+.b-lkp-label {
+  display: block;
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+.b-lkp-acties {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+}
+.b-lkp-acties .b-knop[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* De doelen */
+.b-lkp-doelen {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.b-lkp-doel {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--lamp);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+}
+.b-lkp-doel p {
+  margin: 0 0 6px;
+  max-width: 46rem;
+}
+.b-lkp-doel p:last-child {
+  margin-bottom: 0;
+}
+.b-lkp-doeltekst {
+  font-size: 1.1rem;
+}
+.b-lkp-doeltekst q {
+  quotes: '\201C' '\201D';
+}
+.b-lkp-code {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--lamp);
+  color: var(--on-lamp);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.b-lkp-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--brand);
+  font-weight: 600;
+}
+
+/* De stand per leerjaar: twee knoppen, de gekozen heeft een dikke onderrand (vorm, niet alleen kleur) */
+.b-lkp-keuze {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.b-lkp-keuze .b-knop[aria-current='true'] {
+  border-color: var(--text);
+  box-shadow: inset 0 -5px 0 var(--lamp);
+}
+.b-lkp-noot {
+  max-width: 46rem;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--brand);
+  border-radius: var(--radius-m);
+  background: var(--brand-soft);
+}
+
+/* Uitproberen: de oefeningen komen onder de knop, op de breedte van de pagina */
+.b-lkp-proef {
+  margin-top: 8px;
+  min-width: 0;
+}
+
+/* Voor de kinderen */
+.b-lkp-link-invoer {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 46rem;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+}
+.b-lkp-gekopieerd {
+  min-height: 1.5em;
+  font-weight: 700;
+  color: var(--ok-text);
+}
+.b-lkp-qr {
+  margin: 0 0 12px;
+}
+.b-lkp kbd {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 3px;
+  border-radius: var(--radius-s);
+  background: var(--bg-raised);
+  font: inherit;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.b-lkp-details {
+  margin: 0;
+}
+.b-lkp-details > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* ── De spiekkaart op het scherm ───────────────────────────────────────────────────────────────────────────────────── */
+
+.b-sk {
+  max-width: 62rem;
+  padding: 16px 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+}
+.b-sk h3 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+.b-sk h4 {
+  margin: 18px 0 6px;
+  font-size: 1.05rem;
+  border-bottom: 2px solid var(--lamp);
+}
+.b-sk p {
+  margin: 0 0 6px;
+}
+.b-sk-kop p {
+  color: var(--text-soft);
+}
+.b-sk-doelen,
+.b-sk-fasen {
+  margin: 0;
+  padding-left: 1.4em;
+}
+.b-sk-doelen li,
+.b-sk-fasen > li {
+  margin: 0 0 6px;
+}
+.b-sk-kind {
+  color: var(--text-soft);
+}
+.b-sk-fasekop {
+  margin: 0;
+}
+.b-sk-fase ul {
+  margin: 2px 0 2px;
+  padding-left: 1.2em;
+}
+.b-sk-zeg {
+  margin: 2px 0 0;
+}
+.b-sk-plek {
+  color: var(--text-soft);
+}
+.b-sk-antwoorden {
+  margin: 0;
+}
+.b-sk-antwoord {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0 0 6px;
+}
+.b-sk-antwoord dt {
+  font-weight: 700;
+}
+.b-sk-antwoord dd {
+  margin: 0;
+}
+.b-sk-regel {
+  display: block;
+}
+.b-sk-tabel {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+.b-sk-tabel th,
+.b-sk-tabel td {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.b-sk-tabel thead th {
+  background: var(--bg-sunken);
+}
+.b-sk-scherm {
+  display: block;
+  color: var(--text-soft);
+}
+.b-sk-go ul {
+  margin: 0 0 6px;
+  padding-left: 1.2em;
+}
+.b-sk-bron {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+/* Smal scherm: de antwoorden onder elkaar, de tabellen schuiven niet over de rand */
+@media (max-width: 640px) {
+  .b-sk {
+    padding: 12px;
+  }
+  .b-sk-antwoord {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .b-sk-tabel,
+  .b-sk-tabel tbody,
+  .b-sk-tabel tr,
+  .b-sk-tabel td {
+    display: block;
+  }
+  .b-sk-tabel thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .b-sk-tabel tr {
+    margin: 0 0 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-s);
+  }
+  .b-sk-tabel td {
+    border: 0;
+  }
+  /* De kolomkop gaat mee naar elke cel, want de koppen zijn verborgen. */
+  .b-sk-tabel td[data-label]::before {
+    content: attr(data-label) ': ';
+    font-weight: 700;
+  }
+}
+
+/* ── Meetblad en observatieblad ────────────────────────────────────────────────────────────────────────────────────── */
+
+.b-bl {
+  max-width: 62rem;
+  padding: 16px 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+}
+.b-bl h3 {
+  margin: 0 0 8px;
+  font-size: 1.3rem;
+}
+.b-bl h4 {
+  margin: 14px 0 6px;
+  font-size: 1.05rem;
+}
+.b-bl p {
+  margin: 0 0 6px;
+}
+.b-bl-keuzes {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.b-bl-rij {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+.b-bl-keuze {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.b-bl-vakje {
+  display: inline-block;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+}
+.b-bl-stappen {
+  margin: 0;
+  padding-left: 1.4em;
+}
+.b-bl-tabel {
+  width: 100%;
+  border-collapse: collapse;
+}
+.b-bl-tabel th,
+.b-bl-tabel td {
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  text-align: left;
+  vertical-align: top;
+}
+.b-bl-invul {
+  min-width: 6rem;
+  height: 2.2em;
+}
+.b-bl-lijnen {
+  display: grid;
+  gap: 0;
+}
+.b-bl-lijn {
+  display: block;
+  height: 1.9em;
+  border-bottom: 1px solid var(--line-strong);
+}
+.b-bl-streep {
+  display: inline-block;
+  min-width: 8rem;
+  border-bottom: 1px solid var(--line-strong);
+}
+.b-bl-blok {
+  margin: 0 0 8px;
+}
+.b-bl-veld {
+  margin: 0 0 8px;
+}
+.b-bl-geennamen {
+  padding: 8px 12px;
+  border: 2px solid var(--text);
+  border-radius: var(--radius-s);
+}
+
+/* ── Het kindscherm: kale schil ────────────────────────────────────────────────────────────────────────────────────── */
+
+.b-kind-menu {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+.b-kind .a11y-wrap .btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+.b-kind .b-main > h1 {
+  margin: 0 0 12px;
+}
+/* De tekstgrootte uit het menu (KindSchil zet font-size in em op .b-kind): de koppen en tegelnamen stonden in rem en groeiden
+ * niet mee. In em volgen ze, met dezelfde grootte bij schaal 1 (16 px rem = 16 px em). */
+.b-schil.b-kind .b-main > h1 {
+  font-size: clamp(1.55em, calc(1.2em + 1.4vw), 2.1em);
+}
+.b-kind .b-lk-les h2 {
+  font-size: 1.3em;
+}
+.b-kind .b-lk-tegel-naam {
+  font-size: 1.25em;
+}
+/* De schil zet bij het openen de focus op main (voor de schermlezer). Wie de link rechtstreeks opent, zou anders een
+ * blauwe rand rond het hele scherm zien; main staat niet in de tabvolgorde, dus de rand wijst niets aan. Geen
+ * selectorlijst met :focus-visible (Safari 14). */
+.b-kind .b-main:focus-visible {
+  outline: none;
+}
+.b-bord .b-main:focus-visible {
+  outline: none;
+}
+
+/* ── Het bordscherm: bijna kaal ────────────────────────────────────────────────────────────────────────────────────── */
+
+.b-bord .b-main {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.b-bord-titel {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  color: var(--text-soft);
+}
+.b-bord-voet {
+  padding: 4px 16px 12px;
+  text-align: right;
+}
+.b-bord-voet a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+}
+
+/* ── Afdrukken ─────────────────────────────────────────────────────────────────────────────────────────────────────── */
+
+@media print {
+  /* Altijd: geen knoppen, geen kijkdoos, geen tekst die alleen op het scherm zin heeft. */
+  .b-lkp-scherm,
+  .b-lkp-proef,
+  .b-lkp-qr,
+  .b-lkp-acties {
+    display: none !important;
+  }
+
+  /* Met een van de Afdrukken-knoppen (html[data-druk]): alleen het gekozen blad, zonder kop, voet of navigatie. */
+  :root[data-deel='basis'][data-druk] .b-kop,
+  :root[data-deel='basis'][data-druk] .b-voet,
+  :root[data-deel='basis'][data-druk] .b-schil .skip-link,
+  :root[data-deel='basis'][data-druk] .b-lkp-kop,
+  :root[data-deel='basis'][data-druk] .b-lkp-scherm-kop,
+  :root[data-deel='basis'][data-druk] .b-lkp-details > summary,
+  :root[data-deel='basis'][data-druk] .b-lkp-deel:not([data-blad]),
+  :root[data-deel='basis'][data-druk='spiekkaart'] .b-lkp-deel[data-blad='meetblad'],
+  :root[data-deel='basis'][data-druk='spiekkaart'] .b-lkp-deel[data-blad='observatieblad'],
+  :root[data-deel='basis'][data-druk='meetblad'] .b-lkp-deel[data-blad='spiekkaart'],
+  :root[data-deel='basis'][data-druk='meetblad'] .b-lkp-deel[data-blad='observatieblad'],
+  :root[data-deel='basis'][data-druk='observatieblad'] .b-lkp-deel[data-blad='spiekkaart'],
+  :root[data-deel='basis'][data-druk='observatieblad'] .b-lkp-deel[data-blad='meetblad'] {
+    display: none !important;
+  }
+  /* Zonder knop (Ctrl+P): de hele pagina, maar nog altijd zonder kop en voet van de site. */
+  .b-kop,
+  .b-voet,
+  .b-schil .skip-link {
+    display: none !important;
+  }
+
+  .b-main {
+    padding: 0 !important;
+  }
+  .b-lkp {
+    display: block;
+    max-width: none;
+  }
+  .b-lkp-deel {
+    margin: 0 0 12px;
+  }
+  .b-lkp-blad,
+  .b-lkp-blad * {
+    background: transparent !important;
+    color: #000 !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+  }
+  .b-lkp-blad {
+    max-width: none;
+    padding: 0;
+    border: 0 !important;
+    border-radius: 0;
+    font-size: 9.5pt;
+    line-height: 1.28;
+  }
+
+  /* De spiekkaart: één blad A4 recto-verso. De voorkant tot en met de antwoorden, de achterkant begint op een nieuw blad. */
+  .b-sk h3 {
+    font-size: 14pt;
+  }
+  .b-sk h4 {
+    margin: 8px 0 3px;
+    font-size: 10.5pt;
+    border-bottom: 1.5px solid #000;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .b-sk p {
+    margin: 0 0 3px;
+  }
+  .b-sk-doelen li,
+  .b-sk-fasen > li {
+    margin: 0 0 3px;
+  }
+  .b-sk-fase,
+  .b-sk-antwoord,
+  .b-sk-tabel tr,
+  .b-sk-doelen li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .b-sk-achterkant {
+    break-before: page;
+    page-break-before: always;
+  }
+  .b-sk-achterkant h4 {
+    margin-top: 0;
+  }
+  .b-sk-tabel {
+    font-size: 9pt;
+  }
+  .b-sk-tabel th,
+  .b-sk-tabel td {
+    padding: 2px 5px;
+    border: 0.75pt solid #000 !important;
+  }
+  .b-sk-bron {
+    font-size: 8pt;
+  }
+  /* Op papier zijn de tabellen weer tabellen, ook als het scherm smal was. */
+  .b-sk-tabel {
+    display: table;
+  }
+  .b-sk-tabel thead {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+  }
+  .b-sk-tabel tbody {
+    display: table-row-group;
+  }
+  .b-sk-tabel tr {
+    display: table-row;
+    margin: 0;
+    border: 0;
+  }
+  .b-sk-tabel td {
+    display: table-cell;
+  }
+  .b-sk-tabel td[data-label]::before {
+    content: none;
+  }
+  .b-sk-antwoord {
+    grid-template-columns: 9rem minmax(0, 1fr);
+  }
+
+  /* Het meetblad en het observatieblad: een kindvriendelijk blad met schrijflijnen. */
+  .b-bl {
+    font-size: 11pt;
+  }
+  .b-bl-blok {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .b-bl-tabel th,
+  .b-bl-tabel td {
+    border: 0.75pt solid #000 !important;
+  }
+  .b-bl-invul {
+    height: 2.4em;
+  }
+}

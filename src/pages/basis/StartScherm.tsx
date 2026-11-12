@@ -10,6 +10,8 @@ import { useBasisKeuze } from '../../components/basis/useBasisKeuze';
 import { useBasisSets } from '../../components/basis/useBasisSets';
 import { EINDMOMENTEN, vakkenOpMoment } from '../../lib/basis/doelBasis';
 import { basisPad } from '../../lib/basis/basisRoutes';
+import { PAKKETTEN } from '../../lib/basis/pakketten';
+import { PakketTegel } from '../../components/basis/PakketTegel';
 import type { Eindmoment, SoortBasis } from '../../lib/basis/kalender';
 import type { MinimumdoelenIndexSet } from '../../lib/minimumdoelen';
 import '../../styles/basis-leerjaar.css';
@@ -43,6 +45,9 @@ function Tegels({ soort, alle }: { soort: SoortBasis; alle?: readonly Minimumdoe
             <span className="b-tegel-naam">Leerlijnen per vak</span>
             <span className="b-tegel-sub">de drie eindmomenten naast elkaar</span>
           </Link>
+        </li>
+        <li>
+          <PakketTegel pakket={PAKKETTEN.lichtkamer} />
         </li>
         <li>
           <Link to={basisPad({ s: 'go' })} className="b-tegel">

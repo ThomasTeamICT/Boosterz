@@ -7,6 +7,7 @@ import { lazy, Suspense, type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { FoutBericht, LaadBericht } from '../../components/curriculum/LaadStatus';
 import { LeerjaarBalk, SnelZoeken } from '../../components/basis/LeerjaarKiezer';
+import { KlaarOmTeGeven } from '../../components/basis/PakketTegel';
 import { VakKaart } from '../../components/basis/VakKaart';
 import { ZekerheidBadge } from '../../components/basis/ZekerheidBadge';
 import { useBasisSets } from '../../components/basis/useBasisSets';
@@ -111,6 +112,7 @@ export function LeerjaarInhoud({
   leerjaar,
   schooljaar,
   go,
+  klaar,
 }: {
   alle: readonly MinimumdoelenIndexSet[];
   soort: SoortBasis;
@@ -118,6 +120,8 @@ export function LeerjaarInhoud({
   schooljaar: Schooljaar;
   /** Het blok 'Van het GO!' (een eigen sectie met h2, of niets); staat onder de doelen van de overheid. */
   go?: ReactNode;
+  /** Het blok 'Klaar om te geven' (een eigen sectie met h2, of niets); staat na het zoekveld, vóór 'Dit schooljaar verplicht'. */
+  klaar?: ReactNode;
 }) {
   const o = leerjaarOverzicht(alle, { soort, leerjaar }, schooljaar);
   const z = leerjaarZinnen(o);
@@ -150,6 +154,8 @@ export function LeerjaarInhoud({
       ))}
 
       <SnelZoeken soort={soort} leerjaar={leerjaar} />
+
+      {klaar}
 
       {geenGegevens ? (
         <p className="b-noot">Voor dit leerjaar vinden we in de gegevens niets dat dit schooljaar geldt.</p>
@@ -206,6 +212,7 @@ export function LeerjaarScherm({ soort, leerjaar }: { soort: SoortBasis; leerjaa
           soort={soort}
           leerjaar={leerjaar}
           schooljaar={huidigSchooljaar()}
+          klaar={<KlaarOmTeGeven soort={soort} leerjaar={leerjaar} />}
           go={
             <Suspense fallback={null}>
               <VanHetGo leerjaar={leerjaar} />

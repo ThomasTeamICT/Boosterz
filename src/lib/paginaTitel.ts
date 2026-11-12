@@ -41,6 +41,11 @@ const TITELS: [string, string][] = [
   ['/basis/lessenlijn', 'Lessenlijn · Basisonderwijs'],
   ['/basis/leerplandoelen', 'Leerplandoelen · Basisonderwijs'],
   ['/basis/leerplandoel', 'Leerplandoel · Basisonderwijs'],
+  // De drie schermen van de Lichtkamer hebben elk een eigen naam: een leerkracht met drie tabbladen open ziet zo welk welk is.
+  // Het kind ziet alleen de naam van de les.
+  ['/basis/pakket/lichtkamer', 'Lespagina Lichtkamer · Basisonderwijs'],
+  ['/basis/bord/lichtkamer', 'Lichtkamer op het bord'],
+  ['/basis/oefen/lichtkamer', 'Lichtkamer: schaduwtheater'],
   ['/basis', 'Basisonderwijs'],
   ['/', 'Start'],
 ];

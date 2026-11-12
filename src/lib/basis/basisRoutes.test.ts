@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GoVak } from './go/types';
 import { basisPad, basisRoute, doelPad, EIND_SLUG, SOORT_SLUG, vakSlug, vakVanSlug, type BasisScherm } from './basisRoutes';
+import { PAKKET_BEGINSCHERMEN } from './pakketten';
 import { INVOERINGSKALENDER, LEERJAREN_BASIS, WERKT_NAAR, type Eindmoment, type SoortBasis } from './kalender';
 
 const SOORTEN: SoortBasis[] = ['bao', 'bubao'];
@@ -38,9 +39,20 @@ function goSchermen(): BasisScherm[] {
   return uit;
 }
 
+/** De drie schermen van het pakket Lichtkamer, met en zonder hun zoekparameters. */
+function pakketSchermen(): BasisScherm[] {
+  const uit: BasisScherm[] = [{ s: 'pakket', pakket: 'lichtkamer', eind: 'L4' }];
+  for (const leerjaar of ['L3', 'L4'] as const) uit.push({ s: 'pakket', pakket: 'lichtkamer', eind: 'L4', leerjaar });
+  for (const s of ['bord', 'oefen'] as const) {
+    uit.push({ s, pakket: 'lichtkamer', eind: 'L4' });
+    for (const scherm of PAKKET_BEGINSCHERMEN) uit.push({ s, pakket: 'lichtkamer', eind: 'L4', scherm });
+  }
+  return uit;
+}
+
 /** Alle schermen die de app kan bouwen. */
 function alleSchermen(): BasisScherm[] {
-  const uit: BasisScherm[] = [{ s: 'start' }, { s: 'kies' }, { s: 'onbekend' }, { s: 'kijkdoosproef' }];
+  const uit: BasisScherm[] = [{ s: 'start' }, { s: 'kies' }, { s: 'onbekend' }];
   for (const soort of SOORTEN) {
     for (const leerjaar of LEERJAREN_BASIS) uit.push({ s: 'leerjaar', soort, leerjaar });
     for (const eind of EINDEN) {
@@ -72,6 +84,7 @@ function alleSchermen(): BasisScherm[] {
   }
   uit.push({ s: 'doel', setId: 'ODS_3408', doelId: '92767' }, { s: 'doel', setId: 'ODS_9999', doelId: '1' });
   uit.push(...goSchermen());
+  uit.push(...pakketSchermen());
   return uit;
 }
 
@@ -142,10 +155,29 @@ describe('basisRoute: wat wegvalt of onbekend is', () => {
     expect(basisRoute('leerlijn/gewoon', '?klas=L3')).toEqual({ s: 'leerlijnen', soort: 'bao' }); // 'klas' is geen woord van dit deel
   });
 
-  it('de voorlopige proefpagina van de kijkdoos (LK-5) leest, ook met ?meet', () => {
-    expect(basisRoute('proef/kijkdoos', '')).toEqual({ s: 'kijkdoosproef' });
-    expect(basisRoute('proef/kijkdoos', '?meet&scene=onderzoek')).toEqual({ s: 'kijkdoosproef' });
-    expect(basisPad({ s: 'kijkdoosproef' })).toBe('/basis/proef/kijkdoos');
+  it('de drie schermen van het pakket Lichtkamer (LK-8)', () => {
+    expect(basisRoute('pakket/lichtkamer/einde-4de', '')).toEqual({ s: 'pakket', pakket: 'lichtkamer', eind: 'L4' });
+    expect(basisRoute('pakket/lichtkamer/einde-4de', '?leerjaar=L3')).toEqual({ s: 'pakket', pakket: 'lichtkamer', eind: 'L4', leerjaar: 'L3' });
+    expect(basisRoute('pakket/lichtkamer/einde-4de', '?leerjaar=l4')).toEqual({ s: 'pakket', pakket: 'lichtkamer', eind: 'L4', leerjaar: 'L4' });
+    expect(basisRoute('bord/lichtkamer/einde-4de', '')).toEqual({ s: 'bord', pakket: 'lichtkamer', eind: 'L4' });
+    expect(basisRoute('oefen/lichtkamer/einde-4de', '?scherm=onderzoek-schaduw')).toEqual({ s: 'oefen', pakket: 'lichtkamer', eind: 'L4', scherm: 'onderzoek-schaduw' });
+    expect(basisPad({ s: 'pakket', pakket: 'lichtkamer', eind: 'L4' })).toBe('/basis/pakket/lichtkamer/einde-4de');
+    expect(basisPad({ s: 'pakket', pakket: 'lichtkamer', eind: 'L4', leerjaar: 'L3' })).toBe('/basis/pakket/lichtkamer/einde-4de?leerjaar=L3');
+    expect(basisPad({ s: 'bord', pakket: 'lichtkamer', eind: 'L4' })).toBe('/basis/bord/lichtkamer/einde-4de');
+    expect(basisPad({ s: 'oefen', pakket: 'lichtkamer', eind: 'L4' })).toBe('/basis/oefen/lichtkamer/einde-4de');
+  });
+
+  it('?meet (de meetstand van de kijkdoos) en andere vreemde zoekparameters storen de padlezer niet', () => {
+    expect(basisRoute('oefen/lichtkamer/einde-4de', '?meet')).toEqual({ s: 'oefen', pakket: 'lichtkamer', eind: 'L4' });
+    expect(basisRoute('bord/lichtkamer/einde-4de', '?meet=1&scherm=check')).toEqual({ s: 'bord', pakket: 'lichtkamer', eind: 'L4', scherm: 'check' });
+    expect(basisRoute('pakket/lichtkamer/einde-4de', '?meet&leerjaar=L3&x=1')).toEqual({ s: 'pakket', pakket: 'lichtkamer', eind: 'L4', leerjaar: 'L3' });
+  });
+
+  it('een ongeldig leerjaar of beginscherm valt weg, een leerjaar van een ander pakketmoment ook', () => {
+    expect(basisRoute('pakket/lichtkamer/einde-4de', '?leerjaar=L5')).toEqual({ s: 'pakket', pakket: 'lichtkamer', eind: 'L4' });
+    expect(basisRoute('pakket/lichtkamer/einde-4de', '?leerjaar=alle')).toEqual({ s: 'pakket', pakket: 'lichtkamer', eind: 'L4' });
+    expect(basisRoute('oefen/lichtkamer/einde-4de', '?scherm=xyz')).toEqual({ s: 'oefen', pakket: 'lichtkamer', eind: 'L4' });
+    expect(basisRoute('bord/lichtkamer/einde-4de', '?scherm=')).toEqual({ s: 'bord', pakket: 'lichtkamer', eind: 'L4' });
   });
 
   it('onzin geeft "onbekend", zonder fout', () => {
@@ -155,7 +187,11 @@ describe('basisRoute: wat wegvalt of onbekend is', () => {
       ['vak/gewoon/einde-4de/zang', ''], ['vak/gewoon/einde-4de', ''], ['leerlijn', ''], ['leerlijn/gewoon/zang', ''],
       ['leerlijn/gewoon/ict/extra', ''], ['doel', ''], ['doel/ODS_3408', ''], ['doel/3408/92767', ''], ['doel/ODS_3408/abc', ''],
       ['doel/ODS_3408/92767/extra', ''], ['doel/ods_3408/92767', ''], ['zoek/extra', ''], ['zoek', '?soort=so'], ['%E0%A4%A', ''],
-      ['a/b/c/d/e/f', ''], ['..', ''], ['onbekend', ''], ['proef', ''], ['proef/kijkdoos/x', ''], ['proef/iets', ''],
+      ['a/b/c/d/e/f', ''], ['..', ''], ['onbekend', ''], ['proef', ''], ['proef/kijkdoos', ''], ['proef/kijkdoos', '?meet'],
+      ['pakket', ''], ['pakket/lichtkamer', ''], ['pakket/lichtkamer/einde-6de', ''], ['pakket/lichtkamer/einde-kleuter', ''],
+      ['pakket/rekenen/einde-4de', ''], ['pakket/Lichtkamer/einde-4de', ''], ['pakket/lichtkamer/einde-4de/extra', ''],
+      ['bord', ''], ['bord/lichtkamer', ''], ['bord/lichtkamer/einde-3de', ''], ['bord/lichtkamer/einde-4de/x', ''],
+      ['oefen', ''], ['oefen/lichtkamer', ''], ['oefen/onbekend/einde-4de', ''], ['oefen/lichtkamer/einde-4de/x', ''],
     ];
     for (const [splat, zoek] of onzin) expect(basisRoute(splat, zoek), `${splat}${zoek}`).toEqual({ s: 'onbekend' });
   });

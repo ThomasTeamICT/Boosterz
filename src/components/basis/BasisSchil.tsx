@@ -44,7 +44,10 @@ function navVan(s: BasisScherm): NavSleutel | undefined {
       return 'go';
     case 'zoek':
       return 'zoeken';
-    case 'kijkdoosproef':
+    // De lespagina van een pakket staat bij geen enkel deel van de navigatie; het bord en het kind hebben een eigen schil.
+    case 'pakket':
+    case 'bord':
+    case 'oefen':
     case 'onbekend':
       return undefined;
   }

@@ -63,6 +63,7 @@ export function CodeQr({
   downloadName,
   tooLongText,
   enlarge = true,
+  enlargeHint = 'Houd je scherm stil voor de camera van je leerkracht.',
 }: {
   value: string;
   /** Beschrijving voor de alt-tekst, bv. "de resultaatcode van Emma". */
@@ -89,6 +90,8 @@ export function CodeQr({
    * vensters boven elkaar sluiten allebei op Escape.
    */
   enlarge?: boolean;
+  /** De zin onder de vergrote QR-code. De standaard is voor een leerling die zijn code aan de leerkracht toont. */
+  enlargeHint?: string;
 }) {
   const [qr, setQr] = useState<{ url: string; modules: number } | null>(null);
   const [failed, setFailed] = useState(false);
@@ -184,7 +187,7 @@ export function CodeQr({
             />
           </div>
           <p className="hint" style={{ textAlign: 'center', marginTop: 10 }}>
-            Houd je scherm stil voor de camera van je leerkracht.
+            {enlargeHint}
           </p>
         </Modal>
       )}

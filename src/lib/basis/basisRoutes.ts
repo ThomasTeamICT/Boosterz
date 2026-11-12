@@ -16,6 +16,7 @@ import {
   type SoortBasis,
 } from './kalender';
 import { isGoVak, type GoVak } from './go/types';
+import { pakketBeginScherm, pakketBijMoment, pakketLeerjaar, PAKKETTEN, type PakketBeginScherm, type PakketNaam } from './pakketten';
 
 export type BasisScherm =
   | { s: 'start' }
@@ -35,8 +36,11 @@ export type BasisScherm =
   | { s: 'lessenlijn'; vak: GoVak; lijn: string; leerjaar?: LeerjaarBasis }
   | { s: 'leerplandoelen'; vak: GoVak; leerjaar?: LeerjaarBasis; alle?: true; rubriek?: string; zonder?: true }
   | { s: 'leerplandoel'; code: string }
-  // Voorlopige ontwikkelpagina van de kijkdoos van de Lichtkamer (LK-5); verdwijnt als de schermen van LK-8 er zijn.
-  | { s: 'kijkdoosproef' }
+  // De drie schermen van een pakket (docs/basisonderwijs/LICHTKAMER-APP.md, 'Drie schermen in #/basis'): de lespagina voor
+  // de leerkracht (met ?leerjaar voor de stand), het bord en het kind (met ?scherm om meteen een oefening te openen).
+  | { s: 'pakket'; pakket: PakketNaam; eind: Eindmoment; leerjaar?: LeerjaarBasis }
+  | { s: 'bord'; pakket: PakketNaam; eind: Eindmoment; scherm?: PakketBeginScherm }
+  | { s: 'oefen'; pakket: PakketNaam; eind: Eindmoment; scherm?: PakketBeginScherm }
   | { s: 'onbekend' };
 
 export const SOORT_SLUG: Readonly<Record<SoortBasis, 'gewoon' | 'buitengewoon'>> = {
@@ -217,7 +221,18 @@ export function basisRoute(splat: string, zoek: string): BasisScherm {
 
     if (wat === 'go') return a === undefined ? { s: 'go' } : ONBEKEND;
 
-    if (wat === 'proef') return a === 'kijkdoos' && b === undefined ? { s: 'kijkdoosproef' } : ONBEKEND;
+    if (wat === 'pakket' || wat === 'bord' || wat === 'oefen') {
+      const pakket = pakketBijMoment(a, b);
+      if (!pakket || c !== undefined) return ONBEKEND;
+      if (wat === 'pakket') {
+        const lj = pakketLeerjaar(pakket, p.get('leerjaar'));
+        return lj ? { s: 'pakket', pakket: pakket.naam, eind: pakket.eind, leerjaar: lj } : { s: 'pakket', pakket: pakket.naam, eind: pakket.eind };
+      }
+      // De andere zoekparameters (zoals ?meet van de kijkdoos, die zijn url zelf leest) storen niet.
+      const scherm = pakketBeginScherm(p.get('scherm'));
+      const uit = { pakket: pakket.naam, eind: pakket.eind };
+      return scherm ? { s: wat, ...uit, scherm } : { s: wat, ...uit };
+    }
 
     if (wat === 'lesplannen') {
       if (a !== undefined) return ONBEKEND;
@@ -351,8 +366,12 @@ export function basisPad(s: BasisScherm): string {
       ])}`;
     case 'leerplandoel':
       return `/basis/leerplandoel/${encodeURIComponent(s.code)}`;
-    case 'kijkdoosproef':
-      return '/basis/proef/kijkdoos';
+    case 'pakket':
+      return `/basis/pakket/${s.pakket}/${PAKKETTEN[s.pakket].moment}${query([['leerjaar', s.leerjaar]])}`;
+    case 'bord':
+      return `/basis/bord/${s.pakket}/${PAKKETTEN[s.pakket].moment}${query([['scherm', s.scherm]])}`;
+    case 'oefen':
+      return `/basis/oefen/${s.pakket}/${PAKKETTEN[s.pakket].moment}${query([['scherm', s.scherm]])}`;
     case 'onbekend':
       return '/basis/onbekend';
   }

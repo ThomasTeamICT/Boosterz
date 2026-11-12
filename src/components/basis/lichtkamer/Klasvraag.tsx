@@ -46,6 +46,9 @@ export function KlasvraagDialoog({
   // beeld te verschuiven.
   useEffect(() => {
     eersteKeuze.current?.focus({ preventScroll: true });
+    // De dialoog staat onder de kijkdoos en valt op het bord anders deels buiten beeld (1366 x 768): volledig in beeld brengen,
+    // zonder vloeiend scrollen.
+    wortel.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
   }, []);
   // Na de uitkomst verdwijnt 'Toon de uitkomst': de focus naar 'Volgende ronde' of 'Sluiten'.
   useEffect(() => {

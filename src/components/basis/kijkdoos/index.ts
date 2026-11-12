@@ -117,9 +117,10 @@ async function wachtOpLettertype(): Promise<void> {
 }
 
 // Een module die niet laadde, onthoudt de browser tot de pagina herlaadt: opnieuw proberen zonder herladen helpt niet.
-const GEEN_3D_BESTANDEN =
-  'De 3D-bestanden konden niet geladen worden. Misschien is er geen internet, of blokkeert de school de bron. Herlaad de pagina als het internet terug is.';
-const GEEN_WEBGL = 'Dit toestel kan geen 3D tonen (WebGL staat uit of wordt niet ondersteund).';
+// De zichtbare zinnen zijn voor een kind van 9 (LK-8): geen vakwoorden. De technische uitleg voor de leerkracht staat op de
+// lespagina (LichtkamerPakketScherm). Er is geen knop om het laden opnieuw te proberen, dus de zin zegt: laad de pagina opnieuw.
+const GEEN_3D_BESTANDEN = 'De kijkdoos is niet geladen. Laad de pagina opnieuw, of zeg het aan je juf of meester.';
+const GEEN_WEBGL = 'Zeg het aan je juf of meester.';
 
 class Gevel implements Kijkdoos {
   status: KijkdoosStatus = 'laden';
@@ -189,13 +190,20 @@ class Gevel implements Kijkdoos {
       const naam = NAAM_VOORWERP[this.wens.voorwerp];
       const kop = document.createElement('p');
       kop.className = 'b-lk-melding-kop';
-      kop.textContent = 'De 3D-kijkdoos kon niet laden';
-      const p1 = document.createElement('p');
-      p1.textContent = reden;
-      const p2 = document.createElement('p');
-      p2.textContent =
-        `Wat wel werkt: de doelen en de check. Werk verder met de echte zaklamp, het ${naam} en de meetlat. Of probeer een ander toestel, of vraag de ICT-coördinator om WebGL toe te laten.`;
-      m.append(kop, p1, p2);
+      if (this.opties.bord === true) {
+        // Op het bord leest de klas mee: geen 'zeg het aan je juf' en geen check, want het bord heeft er geen.
+        kop.textContent = 'Dit toestel toont geen 3D';
+        const p = document.createElement('p');
+        p.textContent = `Werk met de echte zaklamp, het ${naam} en de meetlat.`;
+        m.append(kop, p);
+      } else {
+        kop.textContent = 'De kijkdoos kan hier niet openen';
+        const p1 = document.createElement('p');
+        p1.textContent = reden;
+        const p2 = document.createElement('p');
+        p2.textContent = `De check kan je wel doen. Of werk verder met de echte zaklamp, het ${naam} en de meetlat.`;
+        m.append(kop, p1, p2);
+      }
     } else {
       // Een alert: wie met het toetsenbord of een schermlezer werkt, hoort dat de kijkdoos weg is en waar de knop staat.
       m.setAttribute('role', 'alert');

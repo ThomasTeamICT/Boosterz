@@ -262,6 +262,54 @@ export function threeChunkFor(p: string): string | undefined {
 }
 
 /**
+ * De gedeelde lichtkamercode (src/lib/basis/lichtkamer/: lichtlogica en kijkdoos-toestanden, zonder les/ en lesmateriaal.ts).
+ * De kijkdoos (kijkdoos3d) en de schermen van de les gebruiken ze allebei. Zonder eigen chunk zet Rollup ze in het
+ * paginachunk dat eerst laadt, en dan importeert kijkdoos3d dat hele paginachunk (LK-8). Eén eigen chunk lost dat op en
+ * houdt zijn naam stabiel. De lesmachine (les/) hoort er bewust niet bij: ze gebruikt het lesmateriaal, en een manualChunk
+ * trekt zijn afhankelijkheden mee, waarna kijkdoos3d ook het lesmateriaal zou importeren.
+ */
+export const LICHTKAMER_CHUNK = 'lichtkamer';
+/**
+ * Het lesmateriaal (spiekkaart, meetblad, observatieblad) is gegevens voor de lespagina en wordt ook door de lesmachine
+ * gebruikt. Met een eigen chunk laadt de lespagina alleen die gegevens, de oefeningen pas na 'Uitproberen', en laadt het
+ * kindscherm niet het hele paginachunk van de lespagina mee.
+ */
+export const LESMATERIAAL_CHUNK = 'lesmateriaal';
+
+/** De chunk van een module van de gedeelde lichtkamercode ('lichtkamer', het lesmateriaal 'lesmateriaal'), of undefined (tests, les/). */
+export function lichtkamerChunkFor(p: string): string | undefined {
+  const m = /\/src\/lib\/basis\/lichtkamer\/([^?]+)/.exec(p.replace(/\\/g, '/'));
+  if (!m) return undefined;
+  if (/\.test\.[jt]sx?$/.test(m[1]) || m[1].startsWith('les/')) return undefined;
+  return m[1] === 'lesmateriaal.ts' ? LESMATERIAAL_CHUNK : LICHTKAMER_CHUNK;
+}
+
+/**
+ * Buildcontrole voor de kijkdoos (LK-8): 'kijkdoos3d' importeert statisch alleen de hoofdbundel, 'vendor' en 'lichtkamer';
+ * 'lichtkamer' en 'lesmateriaal' alleen de hoofdbundel en 'vendor'. Nooit een paginachunk, ook geen bare import voor de
+ * volgorde van uitvoering. Geeft de fouten terug; leeg is goed.
+ */
+export function checkKijkdoosChunks(chunks: readonly BudgetChunk[]): string[] {
+  const fouten: string[] = [];
+  const naam = new Map(chunks.map((c) => [c.fileName, c]));
+  const MAG: Readonly<Record<string, readonly string[]>> = {
+    kijkdoos3d: [LICHTKAMER_CHUNK],
+    [LICHTKAMER_CHUNK]: [],
+    [LESMATERIAAL_CHUNK]: [],
+  };
+  for (const c of chunks) {
+    const mag = MAG[c.name];
+    if (!mag) continue;
+    for (const f of c.imports) {
+      const doel = naam.get(f);
+      const toegestaan = doel?.isEntry === true || doel?.name === VENDOR_CHUNK || (doel !== undefined && mag.includes(doel.name));
+      if (!toegestaan) fouten.push(`${c.fileName} importeert ${f} (chunk '${doel?.name ?? '?'}') statisch; dat is geen paginachunk-vrije afhankelijkheid`);
+    }
+  }
+  return fouten;
+}
+
+/**
  * Buildcontrole voor three (docs/basisonderwijs/LICHTKAMER-APP.md, 'three.js r162 in de eigen bundel'):
  *  - de chunk 'three' bestaat en importeert zelf niets (zo blijft haar naam gelijk na een uitrol);
  *  - alleen 'three-gloed' importeert 'three' statisch; al de rest laadt three met import();
@@ -331,6 +379,8 @@ export function manualChunkFor(id: string, eagerIconFiles: ReadonlySet<string>):
   if (p.includes('commonjsHelpers')) return VENDOR_CHUNK;
   const three = threeChunkFor(p);
   if (three) return three;
+  const lichtkamer = lichtkamerChunkFor(p);
+  if (lichtkamer) return lichtkamer;
   if (/\/node_modules\/(?:react|react-dom|scheduler)\//.test(p)) return VENDOR_CHUNK;
   const lucide = /\/node_modules\/lucide-react\/dist\/esm\/([^?]+)/.exec(p);
   if (!lucide) return undefined;

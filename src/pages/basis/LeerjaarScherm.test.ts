@@ -8,6 +8,7 @@ import { StaticRouter } from 'react-router-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { MinimumdoelenIndexSet } from '../../lib/minimumdoelen';
 import { LEERJAREN_BASIS, type LeerjaarBasis, type Schooljaar, type SoortBasis } from '../../lib/basis/kalender';
+import { KlaarOmTeGeven } from '../../components/basis/PakketTegel';
 import { LeerjaarInhoud } from './LeerjaarScherm';
 import { StartInhoud } from './StartScherm';
 
@@ -184,6 +185,36 @@ describe('LeerjaarInhoud: het blok "Van het GO!"', () => {
   it('zonder het blok verandert er niets aan de pagina', () => {
     expect(metGo(undefined)).toBe(pagina('bao', 'L3', 2026));
     expect(kopjes(metGo(undefined))).not.toContain('Van het GO!');
+  });
+});
+
+describe('LeerjaarInhoud: het blok "Klaar om te geven" (Lichtkamer)', () => {
+  const KLAAR = createElement(KlaarOmTeGeven, { soort: 'bao', leerjaar: 'L3' });
+  const metKlaar = (leerjaar: LeerjaarBasis, klaar?: ReactNode, soort: SoortBasis = 'bao') =>
+    renderToStaticMarkup(createElement(StaticRouter, { location: '/' }, createElement(LeerjaarInhoud, { alle: INDEX, soort, leerjaar, schooljaar: 2026, klaar })));
+
+  it('staat na het zoekveld en vóór "Dit schooljaar verplicht", met de tegel naar de lespagina', () => {
+    const html = metKlaar('L3', KLAAR);
+    expect(kopjes(html)).toContain('Klaar om te geven');
+    expect(html.indexOf('Klaar om te geven')).toBeGreaterThan(html.indexOf('role="search"'));
+    expect(html.indexOf('Klaar om te geven')).toBeLessThan(html.indexOf('Dit schooljaar verplicht'));
+    expect(html).toContain('href="/basis/pakket/lichtkamer/einde-4de"');
+    expect(tekst(html)).toContain('Lichtkamer: schaduwtheater');
+  });
+
+  it('zonder het blok verandert er niets aan de pagina', () => {
+    expect(metKlaar('L3', undefined)).toBe(pagina('bao', 'L3', 2026));
+    expect(kopjes(metKlaar('L3'))).not.toContain('Klaar om te geven');
+  });
+
+  it('het blok toont zich alleen bij de leerjaren van het register (L3, L4) en in het gewoon onderwijs', () => {
+    const toont = (soort: SoortBasis, lj: LeerjaarBasis) =>
+      renderToStaticMarkup(createElement(StaticRouter, { location: '/' }, createElement(KlaarOmTeGeven, { soort, leerjaar: lj }))).includes('Klaar om te geven');
+    expect(toont('bao', 'L3')).toBe(true);
+    expect(toont('bao', 'L4')).toBe(true);
+    for (const lj of ['K1', 'K2', 'K3', 'L1', 'L2', 'L5', 'L6'] as const) expect(toont('bao', lj), lj).toBe(false);
+    expect(toont('bubao', 'L3')).toBe(false);
+    expect(renderToStaticMarkup(createElement(StaticRouter, { location: '/' }, createElement(KlaarOmTeGeven, { soort: 'bubao', leerjaar: 'L3' })))).toBe('');
   });
 });
 

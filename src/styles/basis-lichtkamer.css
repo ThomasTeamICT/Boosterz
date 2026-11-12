@@ -491,22 +491,6 @@
   }
 }
 
-/* Voorlopige ontwikkelpagina van de kijkdoos (#/basis/proef/kijkdoos, LK-5): verdwijnt met die pagina. */
-.b-lk-proef {
-  display: grid;
-  gap: 12px;
-}
-.b-lk-proef-rij {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.b-lk-proef-rij .b-knop[aria-pressed='true'] {
-  border-color: var(--text);
-  box-shadow: inset 0 -4px 0 var(--lamp);
-}
-
 /* ── LK-6: de les (tegels, panelen, terugkoppeling, 'Wat ik al kan') ─────────────────────────────────────────────────
  *
  * Hoort bij src/components/basis/lichtkamer/LichtkamerLes.tsx. Alleen tokens (geen vaste kleuren), geen :has(), geen
@@ -934,4 +918,13 @@
 :root[data-deel='basis'][data-bord] .b-lk-letter {
   width: 48px;
   height: 48px;
+}
+
+/* ── LK-8: het bord beter leesbaar ──────────────────────────────────────────────────────────────────────────────────
+ * De hint en 'Ronde 1 van 3' stonden in de zachte tekstkleur op 1,15 rem: vanaf de achterste rij van het klaslokaal te
+ * klein en te licht. Op het bord minstens 1,25 rem en in de gewone tekstkleur. */
+:root[data-deel='basis'][data-bord] .b-lk-hint,
+:root[data-deel='basis'][data-bord] .b-lk-ronde {
+  font-size: 1.25rem;
+  color: var(--text);
 }

@@ -4,16 +4,16 @@ import { MEET_VENSTER, Meter, meetGevraagd, meetTekst, percentiel } from './meet
 
 describe('meetstand', () => {
   it('?meet voor of na het hekje', () => {
-    expect(meetGevraagd('https://x.github.io/Boosterz/#/basis/proef/kijkdoos?meet')).toBe(true);
-    expect(meetGevraagd('https://x.github.io/Boosterz/#/basis/proef/kijkdoos?scene=onderzoek&meet=1')).toBe(true);
+    expect(meetGevraagd('https://x.github.io/Boosterz/#/basis/oefen/lichtkamer/einde-4de?meet')).toBe(true);
+    expect(meetGevraagd('https://x.github.io/Boosterz/#/basis/oefen/lichtkamer/einde-4de?scherm=onderzoek-schaduw&meet=1')).toBe(true);
     expect(meetGevraagd('https://x.github.io/Boosterz/?meet#/basis')).toBe(true);
     expect(meetGevraagd('http://localhost:5001/?meet=')).toBe(true);
   });
 
   it('zonder meet, met meet=0 of met een ander woord: nee', () => {
     for (const h of [
-      'https://x.github.io/Boosterz/#/basis/proef/kijkdoos',
-      'https://x.github.io/Boosterz/#/basis/proef/kijkdoos?meet=0',
+      'https://x.github.io/Boosterz/#/basis/oefen/lichtkamer/einde-4de',
+      'https://x.github.io/Boosterz/#/basis/oefen/lichtkamer/einde-4de?meet=0',
       'https://x.github.io/Boosterz/#/basis/meetlat',
       'https://x.github.io/Boosterz/#/basis/zoek?q=meet',
       'https://x.github.io/Boosterz/#/basis?meeting=1',

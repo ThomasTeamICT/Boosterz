@@ -1,10 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  LESMATERIAAL_CHUNK,
+  LICHTKAMER_CHUNK,
   NEVER_PRECACHE,
   THREE_CHUNK,
   THREE_GLOED_CHUNK,
+  checkKijkdoosChunks,
   checkThreeChunks,
+  lichtkamerChunkFor,
   threeChunkFor,
   VENDOR_CHUNK,
   WIDGET_ICONS_CHUNK,
@@ -435,7 +439,7 @@ describe('three: eigen chunks en buildcontrole', () => {
 
   it('eigen code en andere pakketten met "three" in de naam blijven ongemoeid', () => {
     for (const id of [
-      '/home/x/app/src/lib/basis/lichtkamer/kijkdoos/kijkdoos3d.ts',
+      '/home/x/app/src/components/basis/kijkdoos/kijkdoos3d.ts',
       '/home/x/app/src/three/x.ts',
       `${nm}/three-stdlib/index.js`,
       `${nm}/@types/three/index.d.ts`,
@@ -486,5 +490,89 @@ describe('three: eigen chunks en buildcontrole', () => {
     expect(checkThreeChunks(goed, [...sluiting, 'assets/three-c.js']).join('\n')).toMatch(/op het kritieke leerlingpad/);
     // three in vendor: dan bestaat de chunk 'three' niet meer
     expect(checkThreeChunks(goed.filter((x) => x.name !== 'three' && x.name !== 'three-gloed'), sluiting).join('\n')).toMatch(/precies één chunk 'three', vond er 0/);
+  });
+});
+
+// ── De gedeelde lichtkamercode in een eigen chunk (LK-8) ──────────────────────
+
+describe('lichtkamer: eigen chunk en buildcontrole', () => {
+  const eager = new Set<string>();
+  const c = (fileName: string, name: string, imports: string[] = [], isEntry = false) => ({ fileName, name, isEntry, imports, bytes: 1 });
+
+  it('de lichtlogica, de kijkdoos-toestanden en de lesmachine gaan naar "lichtkamer"', () => {
+    for (const id of [
+      '/home/x/app/src/lib/basis/lichtkamer/index.ts',
+      '/home/x/app/src/lib/basis/lichtkamer/schaduw.ts',
+      '/home/x/app/src/lib/basis/lichtkamer/kijkdoos/toestand.ts',
+      '\0/home/x/app/src/lib/basis/lichtkamer/kaartjes.ts?commonjs-proxy',
+      'C:\\app\\src\\lib\\basis\\lichtkamer\\rondes.ts',
+    ]) {
+      expect(lichtkamerChunkFor(id), id).toBe(LICHTKAMER_CHUNK);
+      expect(manualChunkFor(id, eager), id).toBe(LICHTKAMER_CHUNK);
+    }
+  });
+
+  it('het lesmateriaal krijgt een eigen chunk, zodat de lespagina de lesmachine niet vóór Uitproberen laadt', () => {
+    const id = '/home/x/app/src/lib/basis/lichtkamer/lesmateriaal.ts';
+    expect(lichtkamerChunkFor(id)).toBe(LESMATERIAAL_CHUNK);
+    expect(manualChunkFor(id, eager)).toBe(LESMATERIAAL_CHUNK);
+    expect(lichtkamerChunkFor('/home/x/app/src/lib/basis/lichtkamer/kijkdoos/lesmateriaal.ts')).toBe(LICHTKAMER_CHUNK);
+  });
+
+  it('de lesmachine (les/) blijft bij het scherm dat ze gebruikt: ze gebruikt het lesmateriaal, en een manualChunk trekt dat mee', () => {
+    for (const id of ['/home/x/app/src/lib/basis/lichtkamer/les/presenter.ts', '/home/x/app/src/lib/basis/lichtkamer/les/index.ts']) {
+      expect(lichtkamerChunkFor(id), id).toBeUndefined();
+      expect(manualChunkFor(id, eager), id).toBeUndefined();
+    }
+  });
+
+  it('tests en andere code blijven ongemoeid', () => {
+    for (const id of [
+      '/home/x/app/src/lib/basis/lichtkamer/lesmateriaal.test.ts',
+      '/home/x/app/src/lib/basis/lichtkamer/kaartjes.test.ts',
+      '/home/x/app/src/lib/basis/lichtkamer/les/presenter.test.ts',
+      '/home/x/app/src/lib/basis/lichtkamerBronnen.ts',
+      '/home/x/app/src/lib/basis/pakketten.ts',
+      '/home/x/app/src/components/basis/kijkdoos/index.ts',
+      '/home/x/app/src/components/basis/lichtkamer/LichtkamerLes.tsx',
+    ])
+      expect(lichtkamerChunkFor(id), id).toBeUndefined();
+  });
+
+  it('het chunk gaat niet in de voorcache omdat het geen statische import van de hoofdbundel is, en het is klein genoeg om niet in NEVER_PRECACHE te hoeven', () => {
+    expect(NEVER_PRECACHE.test('assets/lichtkamer-AbC123.js')).toBe(false);
+  });
+
+  const goed = [
+    c('assets/index-a.js', 'index', ['assets/vendor-b.js'], true),
+    c('assets/vendor-b.js', 'vendor'),
+    c('assets/lesmateriaal-h.js', 'lesmateriaal'),
+    c('assets/lichtkamer-f.js', 'lichtkamer', ['assets/index-a.js']),
+    c('assets/kijkdoos3d-e.js', 'kijkdoos3d', ['assets/index-a.js', 'assets/lichtkamer-f.js']),
+    c('assets/LichtkamerLes-g.js', 'LichtkamerLes', ['assets/index-a.js', 'assets/lichtkamer-f.js', 'assets/lesmateriaal-h.js']),
+  ];
+
+  it('een goede bundel geeft geen fouten', () => {
+    expect(checkKijkdoosChunks(goed)).toEqual([]);
+  });
+
+  it('kijkdoos3d die een paginachunk importeert, faalt (de fout van LK-5)', () => {
+    const b = goed.map((x) => (x.name === 'kijkdoos3d' ? { ...x, imports: ['assets/index-a.js', 'assets/LichtkamerLes-g.js'] } : x));
+    expect(checkKijkdoosChunks(b).join('\n')).toMatch(/kijkdoos3d-e\.js importeert assets\/LichtkamerLes-g\.js/);
+  });
+
+  it('het lesmateriaal importeert niets behalve de hoofdbundel en vendor', () => {
+    const b = goed.map((x) => (x.name === 'lesmateriaal' ? { ...x, imports: ['assets/lichtkamer-f.js'] } : x));
+    expect(checkKijkdoosChunks(b).join('\n')).toMatch(/lesmateriaal-h\.js importeert assets\/lichtkamer-f\.js/);
+  });
+
+  it('het chunk lichtkamer mag zelf geen paginachunk importeren', () => {
+    const b = goed.map((x) => (x.name === 'lichtkamer' ? { ...x, imports: ['assets/index-a.js', 'assets/LichtkamerLes-g.js'] } : x));
+    expect(checkKijkdoosChunks(b).join('\n')).toMatch(/lichtkamer-f\.js importeert assets\/LichtkamerLes-g\.js/);
+    const b2 = goed.map((x) => (x.name === 'lichtkamer' ? { ...x, imports: ['assets/kijkdoos3d-e.js'] } : x));
+    expect(checkKijkdoosChunks(b2)).toHaveLength(1);
+    // kijkdoos3d mag het lesmateriaal niet importeren, ook niet als bare import voor de volgorde (de fout van de eerste poging)
+    const b3 = goed.map((x) => (x.name === 'kijkdoos3d' ? { ...x, imports: ['assets/index-a.js', 'assets/lesmateriaal-h.js'] } : x));
+    expect(checkKijkdoosChunks(b3)).toHaveLength(1);
   });
 });
