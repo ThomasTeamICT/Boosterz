@@ -144,9 +144,10 @@ const SET_SO2 = {
   onderwijsstructuur: { graad: 'Tweede graad' },
   vlaamse_sleutelcompetentie: { nr: '2', naam: 'Competenties in verband met Engels' },
 };
+// Een set die de standaardfilter niet kiest (secundair en basisonderwijs wel; zie STANDAARD_FILTER).
 const SET_LO = {
-  onderwijsdoelenset: 'Lager onderwijs',
-  onderwijsstructuur: { graad: 'Lagere school' },
+  onderwijsdoelenset: 'Hoger onderwijs',
+  onderwijsstructuur: { graad: 'Hogeschool' },
 };
 
 function rec(code: string | undefined, omschrijving: string, set: Rec, rest: Rec = {}): Rec {
@@ -529,7 +530,7 @@ describe('setVan', () => {
   });
 
   it('werkt ook voor records die geen doel opleveren', () => {
-    expect(setVan(rec(undefined, 'Zonder code', SET_LO)).setSleutel).toBe('LAGER_ONDERWIJS');
+    expect(setVan(rec(undefined, 'Zonder code', SET_LO)).setSleutel).toBe('HOGER_ONDERWIJS');
     expect(setVan({ code: 1.1, omschrijving: 'x', onderwijsdoelenset: 'Basis' }).setSleutel).toBe('BASIS');
     for (const v of [null, undefined, 'tekst', 5, [], {}]) {
       expect(setVan(v)).toEqual({ setSleutel: 'ONBEKEND', setNaam: 'Onbekende set', structuur: {}, setInfo: {} });
@@ -742,6 +743,21 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
     return pad;
   }
 
+  it('kiest met de standaardfilter ook een nieuwe set van het basisonderwijs (gewoon en buitengewoon), maar niet het hoger onderwijs', () => {
+    const basis = { onderwijsdoelenset: 'Lager Onderwijs 4de leerjaar -  Wetenschap en techniek - Te bereiken minimumdoelen op populatieniveau' };
+    const buitengewoon = { onderwijsdoelenset: 'Buitengewoon Kleuteronderwijs -  Wetenschap en techniek - Na te streven minimumdoelen op populatieniveau' };
+    const records = [...PAGINA_1, rec('3.1.1', 'Een doel voor het 4de leerjaar', basis), rec('3.1.2', 'Een doel voor de kleuters', buitengewoon), PAGINA_2[1]];
+    const uit = join(tmp, 'uit-basis');
+    const rapportPad = join(tmp, 'r-basis.json');
+    const run = draai(['--bron', schrijfBron('basis.json', records), '--uit', uit, '--rapport', rapportPad]);
+    expect(run.status, run.stderr).toBe(0);
+    const rapport = JSON.parse(readFileSync(rapportPad, 'utf8')) as { alleSets: { naam: string; gekozen: boolean }[] };
+    const gekozen = Object.fromEntries(rapport.alleSets.map((x) => [x.naam, x.gekozen]));
+    expect(gekozen[basis.onderwijsdoelenset]).toBe(true);
+    expect(gekozen[buitengewoon.onderwijsdoelenset]).toBe(true);
+    expect(gekozen['Hoger onderwijs']).toBe(false);
+  });
+
   it('schrijft enkel de secundaire set, met een kloppende kop, index en rapport', () => {
     const bron = schrijfBron('twee-paginas.json', TWEE_PAGINAS);
     const uit = join(tmp, 'uit-1');
@@ -839,7 +855,7 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
       ongewijzigd: [],
       verdwenen: [],
       alleSets: [
-        { id: 'LAGER_ONDERWIJS', naam: 'Lager onderwijs', aantal: 2, gekozen: false, problemen: 1 },
+        { id: 'HOGER_ONDERWIJS', naam: 'Hoger onderwijs', aantal: 2, gekozen: false, problemen: 1 },
         { id: SO_ID, naam: 'Secundair onderwijs, eerste graad', aantal: 2, gekozen: true, problemen: 0 },
       ],
     });
@@ -847,7 +863,7 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
     expect(rapport.problemen).toEqual({
       conflict: { aantal: 0, voorbeelden: [] },
       variant: { aantal: 0, voorbeelden: [] },
-      overgeslagen: { aantal: 1, voorbeelden: [{ set: 'LAGER_ONDERWIJS', reden: 'de code ontbreekt', velden: ['omschrijving', 'onderwijsdoel_type', 'onderwijsdoelenset'] }] },
+      overgeslagen: { aantal: 1, voorbeelden: [{ set: 'HOGER_ONDERWIJS', reden: 'de code ontbreekt', velden: ['omschrijving', 'onderwijsdoel_type', 'onderwijsdoelenset'] }] },
       meerwaardig: { aantal: 0, voorbeelden: [] },
     });
     expect(rapport.tijdstip).toMatch(/^\d{4}-/);
@@ -931,10 +947,10 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
     const uit = join(tmp, 'uit-5');
     const run = draai(['--bron', schrijfBron('alles.json', schoon), '--uit', uit, '--rapport', join(tmp, 'r5.json'), '--filter', '.']);
     expect(run.status, run.stderr).toBe(0);
-    expect(readdirSync(uit).sort()).toEqual(['LAGER_ONDERWIJS.json', 'SO_1STE_GRAAD_V2_1.json', 'index.json']);
+    expect(readdirSync(uit).sort()).toEqual(['HOGER_ONDERWIJS.json', 'SO_1STE_GRAAD_V2_1.json', 'index.json']);
     expect(controleerMap(uit)).toEqual([]);
 
-    // TWEE_PAGINAS bevat in de lagere school een record zonder code: gekozen betekent nu een probleem
+    // TWEE_PAGINAS bevat in het hoger onderwijs een record zonder code: gekozen betekent nu een probleem
     const uit2 = join(tmp, 'uit-5b');
     const run2 = draai(['--bron', schrijfBron('alles-problemen.json', TWEE_PAGINAS), '--uit', uit2, '--rapport', join(tmp, 'r5b.json'), '--filter', '.']);
     expect(run2.status).toBe(3);
@@ -1303,10 +1319,10 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
     const rapport = leesJson<ProbleemRapport>(rapportPad);
     for (const soort of SOORTEN) {
       expect(rapport.problemen[soort].aantal, soort).toBe(1);
-      expect(rapport.problemen[soort].voorbeelden[0], soort).toMatchObject({ set: 'LAGER_ONDERWIJS' });
+      expect(rapport.problemen[soort].voorbeelden[0], soort).toMatchObject({ set: 'HOGER_ONDERWIJS' });
     }
     expect(rapport.alleSets).toEqual([
-      { id: 'LAGER_ONDERWIJS', naam: 'Lager onderwijs', aantal: 3, gekozen: false, problemen: 4 },
+      { id: 'HOGER_ONDERWIJS', naam: 'Hoger onderwijs', aantal: 3, gekozen: false, problemen: 4 },
       { id: SO_ID, naam: 'Secundair onderwijs, eerste graad', aantal: 1, gekozen: true, problemen: 0 },
     ]);
   });
@@ -1380,7 +1396,7 @@ describe('haal-minimumdoelen.mjs met --bron', () => {
     expect(zelfde.status, zelfde.stderr).toBe(0); // geen uitgangscode 2: er bestaat al een bestand
     const rapport = leesJson<{ ongewijzigd: string[]; alleSets: { id: string; gekozen: boolean }[] }>(rapportPad);
     expect(rapport.ongewijzigd).toEqual([SO_ID]);
-    expect(rapport.alleSets.map((s) => [s.id, s.gekozen])).toEqual([['LAGER_ONDERWIJS', false], [SO_ID, true]]);
+    expect(rapport.alleSets.map((s) => [s.id, s.gekozen])).toEqual([['HOGER_ONDERWIJS', false], [SO_ID, true]]);
 
     // en een wijziging in de bron komt er dan ook door
     const gewijzigd = [antwoord([{ ...PAGINA_1[1], omschrijving: 'Eerste doel, herzien' }, PAGINA_1[0]], 2)];
