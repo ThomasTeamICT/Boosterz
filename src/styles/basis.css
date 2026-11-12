@@ -124,6 +124,30 @@
   font-size: clamp(1.55rem, 1.2rem + 1.4vw, 2.1rem);
 }
 
+/* ── Het digibord: html[data-bord] naast data-deel ───────────────────────────
+ *
+ * De bordstand vergroot de letters tot 135 % van het toestel (rem volgt html) en heft de breedtegrens van 1240 px op.
+ * body staat hierboven vast op 16 px: de regel hieronder zet hem op 1rem, zodat ook de lopende tekst meegroeit.
+ * Tikdoelen worden 56 px. Niets hiervan wordt bewaard: BasisDeel (later het scherm) zet en haalt het attribuut weg. */
+:root[data-deel='basis'][data-bord] {
+  font-size: 135%;
+}
+:root[data-deel='basis'][data-bord] body {
+  font-size: 1rem;
+}
+:root[data-deel='basis'][data-bord] .b-kop-in,
+:root[data-deel='basis'][data-bord] .b-main,
+:root[data-deel='basis'][data-bord] .b-voet-in {
+  max-width: none;
+}
+:root[data-deel='basis'][data-bord] .b-nav a,
+:root[data-deel='basis'][data-bord] .b-knop {
+  min-height: 56px;
+}
+:root[data-deel='basis'][data-bord] .b-knop {
+  min-width: 56px;
+}
+
 /* ── Schil: kop, navigatie, inhoud en voet ──────────────────────────────── */
 
 .b-schil {

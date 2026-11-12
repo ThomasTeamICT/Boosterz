@@ -8,10 +8,10 @@ Ontwerp van 12 november 2026. Het hoort bij `docs/BASISONDERWIJS.md` (bouwstap 4
 |---|---|---|
 | Dit ontwerp | **Klaar** (12 november 2026), ter beslissing | eigenaar |
 | Beslissingen voor proefles 1 (LK-0, vragen 1 tot 5 onderaan) | **Wacht** | eigenaar, met de proefleerkracht |
-| Lichtlogica van het schaduwtheater (LK-1) en bewijsmodel (LK-2) | **Kan starten**: bouwstap 4 'kan verder' (`docs/BASISONDERWIJS.md` r. 46) | bouwer, kernbouwer |
+| Lichtlogica van het schaduwtheater (LK-1) en bewijsmodel (LK-2) | **Klaar** (12 november 2026), nog in geen scherm gebruikt: `src/lib/basis/lichtkamer/` (zuiver, 38 816 vergelijkingen met het prototype zonder verschil; bij 30/15/10 cm wordt geen geldige aflezing afgekeurd; '12,5' en '12.5' geven 12,5) en `src/lib/basis/bewijs/` (bouwpakket 3, met manifest v1 voor de drie momenten en een GO!-sleutel). Nagekeken door een reviewer en een rechter per pakket | bouwer, kernbouwer |
 | 3D-proefpagina met het goedgekeurde prototype (LK-3) | **Kan starten**; de uitrol wacht op vraag 3 | bouwer |
-| Lamplicht voor kijkdoos en bord (LK-4) | **Kan starten** | bouwer |
-| Kijkdoos op three r162 (LK-5) | **Wacht** op LK-1 | kernbouwer |
+| Lamplicht voor kijkdoos en bord (LK-4) | **Klaar** (12 november 2026): tokens in `src/styles/basis.css` en `src/styles/basis-lichtkamer.css` (nog door geen scherm geladen), met contrastparen in `basisKleuren.test.ts` | bouwer |
+| Kijkdoos op three r162 (LK-5) | **Kan starten**; vraag 6 (r162) staat open, maar blokkeert niet tenzij de eigenaar anders beslist | kernbouwer |
 | Panelen, spiekkaart, schermen en rooktest (LK-6 tot LK-9) | **Wacht** | bouwer, inhoudschrijver |
 | Review en uitrol (LK-10) | **Wacht** | hoofdsessie |
 | Bezoek met de ICT-coördinator: toestelproef, 3D-proef en droge les (LK-11, bouwpakket 2) | **Wacht** op een datum (vraag 4) | eigenaar; de hoofdsessie verwerkt |
@@ -122,6 +122,7 @@ Ontwerp van 12 november 2026. Het hoort bij `docs/BASISONDERWIJS.md` (bouwstap 4
 ### Wat we uit het prototype herstellen
 
 - De meetpunten van het onderzoek worden 30, 15 en 10 cm (vraag 2).
+- De tolerantie bij het nakijken past zich aan de afstanden aan (`tolerantieVoor` in `src/lib/basis/lichtkamer/onderzoek.ts`), zodat een geldige aflezing nooit wordt afgekeurd. Daardoor kan 'metingen passen niet bij elkaar' in de app niet meer voorkomen: 4-meten faalt alleen nog met 'leest de meetlat niet nauwkeurig af'. Het manifest houdt dat andere foutpatroon, gelijk met het prototype en zijn voorbeeldklas, maar de spiekkaart (LK-7) maakt er geen rij voor.
 - De meting komt in een tekstveld met `inputmode="decimal"` en een eigen lezer: komma en punt mogen allebei.
 - De zaklamp valt bij 10 cm niet meer achter de knoppenbalk.
 - Css voor Safari 14:

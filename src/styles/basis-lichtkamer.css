@@ -1,0 +1,431 @@
+/* ── Lichtkamer: de kijkdoos, de klasvraag en de vormen van het bewijs ──────────────────────────────────────────────
+ *
+ * Hoort bij docs/basisonderwijs/LICHTKAMER-APP.md (LK-4). Nog geen scherm: de schermen van LK-6 en LK-8 importeren dit
+ * bestand, naast basis.css. De tokens staan op html, zoals die van basis.css, en komen alleen bij met data-deel='basis'.
+ *
+ * De kijkdoos is in licht én donker een donker vlak (de lamp moet schijnen). Daarom een eigen reeks tokens met 'stage':
+ *   --stage / --stage-paneel   vlak van de kijkdoos en van een paneel erover (klasvraag, knoppenbalk): altijd ondoorzichtig,
+ *                              want contrast meet je op een effen kleur, niet op wat erdoor schemert
+ *   --on-stage / --on-stage-soft   tekst erop (7 : 1 en 4,5 : 1)
+ *   --stage-licht / --stage-schaduw   tekst en vormen voor 'licht' en 'schaduw' (4,5 : 1)
+ *   --stage-schaduw-vlak       gevulde schaduwvorm (3 : 1 tegen de kijkdoos)
+ *   --focus-stage              focusring op de kijkdoos (3 : 1; de blauwe van basis.css haalt dat op donker niet)
+ * Het donkere blok herhaalt elke sleutel (zie basis.css); src/lib/basis/basisKleuren.test.ts bewaakt het contrast.
+ *
+ * Safari 14.1: aspect-ratio heeft een terugval onder @supports not (aspect-ratio: 1), :focus-visible staat nooit in een
+ * selectorlijst, geen :has(), en geen color-mix (tinten zijn effen tokens). src/lib/safari14.test.ts bewaakt dat.
+ *
+ * Het bewijs heeft vier vormen die ook zonder kleur te onderscheiden zijn, naast het woord dat er altijd bij staat:
+ *   toont het: gevulde cirkel · nog wankel: vierkant, halfvol · nog niet: ruit (gedraaid vierkant)
+ *   · nog geen bewijs: holle cirkel met een gestippelde rand.
+ */
+
+:root[data-deel='basis'] {
+  --stage: #0c1022;
+  --stage-paneel: #151c36;
+  --stage-rand: #16203a;
+  --on-stage: #f4f7ff;
+  --on-stage-soft: #c3ccdf;
+  --focus-stage: #ffc53d;
+  --stage-licht: #ffd873;
+  --stage-schaduw: #aebbe3;
+  --stage-schaduw-vlak: #6f7fb3;
+}
+
+@media screen {
+  :root[data-deel='basis'][data-theme='dark'] {
+    --stage: #070b18;
+    --stage-paneel: #121a31;
+    --stage-rand: #6b7898;
+    --on-stage: #f4f7ff;
+    --on-stage-soft: #c3ccdf;
+    --focus-stage: #ffcf5c;
+    --stage-licht: #ffd873;
+    --stage-schaduw: #aebbe3;
+    --stage-schaduw-vlak: #6f7fb3;
+  }
+}
+
+/* ── De kijkdoos ────────────────────────────────────────────────────────── */
+
+.b-lk-doos {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  border: 3px solid var(--stage-rand);
+  border-radius: var(--radius-l);
+  background: var(--stage);
+  color: var(--on-stage);
+}
+
+/* Het beeld: 16 : 10, op een smal scherm 4 : 3, op het bord 16 : 9. De canvas vult het vak. */
+.b-lk-kijk {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  max-height: 72vh;
+  aspect-ratio: 16 / 10;
+}
+.b-lk-kijk canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+@media (max-width: 600px) {
+  .b-lk-kijk {
+    aspect-ratio: 4 / 3;
+  }
+}
+:root[data-deel='basis'][data-bord] .b-lk-kijk {
+  aspect-ratio: 16 / 9;
+  max-height: 80vh;
+}
+
+/* Safari 14: geen aspect-ratio. De verhouding komt uit een vulling boven het vak; het beeld ligt erover. De volgorde
+ * is die van hierboven: eerst gewoon, dan smal, dan het bord. */
+@supports not (aspect-ratio: 1) {
+  .b-lk-kijk {
+    height: 0;
+    max-height: none;
+    padding-top: 62.5%;
+  }
+  .b-lk-kijk canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  @media (max-width: 600px) {
+    .b-lk-kijk {
+      padding-top: 75%;
+    }
+  }
+  :root[data-deel='basis'][data-bord] .b-lk-kijk {
+    padding-top: 56.25%;
+  }
+}
+
+/* Het toetsenbord kan de kijkdoos verschuiven: een ring binnenin, in lampgeel op het donker. :focus eerst, en
+ * :focus:not(:focus-visible) haalt de ring bij een muisklik weer weg; Safari 14 laat die tweede regel vallen en houdt de ring. */
+.b-lk-kijk canvas:focus {
+  outline: 4px solid var(--focus-stage);
+  outline-offset: -4px;
+}
+.b-lk-kijk canvas:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Een naamplaatje op de kijkdoos, bijvoorbeeld 'Lamp op 15 cm'. Effen paneel, geen doorschijnend vlak. */
+.b-lk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--stage-paneel);
+  color: var(--on-stage);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Knoppenbalk onderaan de kijkdoos: lichte knoppen op een donker paneel. */
+.b-lk-balk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  background: var(--stage-paneel);
+}
+.b-lk-knop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 14px;
+  border: 2px solid var(--on-stage);
+  border-radius: 999px;
+  background: var(--on-stage);
+  color: var(--stage);
+  font: inherit;
+  font-family: var(--font-display);
+  font-weight: 600;
+  cursor: pointer;
+}
+.b-lk-knop[aria-pressed='true'] {
+  border-color: var(--lamp);
+  background: var(--lamp);
+  color: var(--on-lamp);
+  box-shadow: inset 0 -4px 0 var(--on-lamp);
+}
+.b-lk-knop:disabled {
+  cursor: default;
+  border-style: dashed;
+  background: var(--stage-paneel);
+  color: var(--on-stage-soft);
+}
+/* Elke selector apart: in een lijst laat één onbekende selector (:focus-visible in Safari 14) de hele regel vallen. */
+.b-lk-knop:focus {
+  outline: 3px solid var(--focus-stage);
+  outline-offset: 2px;
+}
+.b-lk-keuze:focus {
+  outline: 3px solid var(--focus-stage);
+  outline-offset: 2px;
+}
+.b-lk-knop:focus:not(:focus-visible) {
+  outline: none;
+}
+.b-lk-keuze:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── Licht en schaduw: een vorm naast de kleur ──────────────────────────── */
+
+.b-lk-licht,
+.b-lk-schaduw {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.b-lk-licht {
+  color: var(--stage-licht);
+}
+.b-lk-schaduw {
+  color: var(--stage-schaduw);
+}
+.b-lk-licht::before,
+.b-lk-schaduw::before {
+  content: '';
+  flex: none;
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+}
+/* Licht: een cirkel met een stralenrand. Schaduw: een vierkant met een holle kern. */
+.b-lk-licht::before {
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--stage), 0 0 0 5px currentColor;
+}
+.b-lk-schaduw::before {
+  border-radius: 2px;
+  background: var(--stage-schaduw-vlak);
+  border: 3px solid currentColor;
+}
+
+/* ── Klasvraag: een paneel op de kijkdoos ───────────────────────────────── */
+
+.b-lk-vraag {
+  padding: 12px 16px 16px;
+  border-top: 4px solid var(--lamp);
+  background: var(--stage-paneel);
+  color: var(--on-stage);
+}
+.b-lk-vraag h2 {
+  margin: 0 0 8px;
+  font-size: 1.45rem;
+}
+.b-lk-vraag p {
+  color: var(--on-stage-soft);
+}
+.b-lk-keuzes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.b-lk-keuze {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 64px;
+  padding: 6px 12px;
+  border: 4px solid var(--on-stage);
+  border-radius: var(--radius-m);
+  background: var(--on-stage);
+  color: var(--stage);
+  font: inherit;
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: left;
+  cursor: pointer;
+}
+.b-lk-keuze[aria-pressed='true'] {
+  border-color: var(--lamp);
+  background: var(--lamp);
+  color: var(--on-lamp);
+  box-shadow: inset 0 -5px 0 var(--on-lamp);
+}
+/* Het juiste antwoord: groen vlak, een dubbele rand en een vinkje van css. Zo valt het ook zonder kleur op. */
+.b-lk-keuze.b-lk-juist {
+  border-style: double;
+  border-color: var(--on-stage);
+  background: var(--ok-strong);
+  color: #ffffff;
+}
+.b-lk-keuze.b-lk-juist::after {
+  content: '';
+  flex: none;
+  width: 0.45em;
+  height: 0.9em;
+  margin-left: 4px;
+  border: solid currentColor;
+  border-width: 0 4px 4px 0;
+  transform: rotate(45deg);
+}
+.b-lk-keuze:disabled:not(.b-lk-juist) {
+  cursor: default;
+  border-style: dashed;
+  background: var(--stage-paneel);
+  color: var(--on-stage-soft);
+}
+.b-lk-keuze:disabled[aria-pressed='true']:not(.b-lk-juist) {
+  background: var(--lamp);
+  color: var(--on-lamp);
+}
+
+/* ── Het bewijs: vier standen met een eigen vorm ────────────────────────── */
+
+.b-lk-st {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 12px 2px 10px;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.b-lk-st::before {
+  content: '';
+  flex: none;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  background: currentColor;
+}
+/* toont het */
+.b-lk-st-toont {
+  background: var(--ok-soft);
+  color: var(--ok-text);
+}
+.b-lk-st-toont::before {
+  border-radius: 50%;
+}
+/* nog wankel: een vierkant dat voor de helft gevuld is (de bovenste helft blijft leeg) */
+.b-lk-st-wankel {
+  background: var(--warn-soft);
+  color: var(--warn-text);
+}
+.b-lk-st-wankel::before {
+  border-radius: 2px;
+  background: var(--warn-soft);
+  border: 2px solid currentColor;
+  box-shadow: inset 0 -6px 0 currentColor;
+}
+/* nog niet: een ruit, het vierkant op zijn punt */
+.b-lk-st-niet {
+  background: var(--err-soft);
+  color: var(--err-text);
+}
+.b-lk-st-niet::before {
+  width: 12px;
+  height: 12px;
+  margin: 1px;
+  transform: rotate(45deg);
+}
+/* nog geen bewijs: een holle cirkel, en de rand van het label gestippeld */
+.b-lk-st-leeg {
+  border-style: dashed;
+  background: var(--bg-sunken);
+  color: var(--text-soft);
+}
+.b-lk-st-leeg::before {
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid currentColor;
+}
+/* Windows hoog contrast: vullingen vervallen. De vorm blijft staan met systeemkleuren, zodat de vier standen verschillen. */
+@media (forced-colors: active) {
+  .b-lk-st,
+  .b-lk-knop,
+  .b-lk-keuze {
+    forced-color-adjust: none;
+    background: Canvas;
+    color: CanvasText;
+    border-color: CanvasText;
+  }
+  .b-lk-st::before {
+    background: CanvasText;
+  }
+  .b-lk-st-wankel::before {
+    background: Canvas;
+    border-color: CanvasText;
+    box-shadow: inset 0 -6px 0 CanvasText;
+  }
+  .b-lk-st-leeg::before {
+    background: Canvas;
+    border-color: CanvasText;
+  }
+  .b-lk-knop[aria-pressed='true'],
+  .b-lk-keuze[aria-pressed='true'] {
+    border-color: Highlight;
+    border-width: 5px;
+  }
+}
+
+/* ── Op het bord: groter, met brede tikdoelen ───────────────────────────── */
+
+:root[data-deel='basis'][data-bord] .b-lk-chip {
+  font-size: 1.1rem;
+}
+:root[data-deel='basis'][data-bord] .b-lk-knop {
+  min-height: 56px;
+  min-width: 56px;
+}
+:root[data-deel='basis'][data-bord] .b-lk-vraag h2 {
+  font-size: 2rem;
+}
+:root[data-deel='basis'][data-bord] .b-lk-keuzes {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+:root[data-deel='basis'][data-bord] .b-lk-keuze {
+  min-height: 88px;
+  font-size: 1.6rem;
+}
+:root[data-deel='basis'][data-bord] .b-lk-st {
+  font-size: 1.1rem;
+}
+:root[data-deel='basis'][data-bord] .b-lk-st::before {
+  width: 18px;
+  height: 18px;
+}
+:root[data-deel='basis'][data-bord] .b-lk-st-niet::before {
+  width: 15px;
+  height: 15px;
+  margin: 2px;
+}
+
+@media print {
+  /* De kijkdoos is een scherm: op papier staat alleen het bewijs, zonder donkere vlakken. */
+  .b-lk-doos {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .b-lk-knop,
+  .b-lk-keuze {
+    transition: none;
+  }
+}

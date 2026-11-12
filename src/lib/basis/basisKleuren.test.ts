@@ -9,6 +9,7 @@ import { contrastRatio, oklchToHex } from '../color';
 const lees = (pad: string) => readFileSync(new URL(pad, import.meta.url), 'utf8');
 const GLOBAAL = lees('../../styles/global.css');
 const BASIS = lees('../../styles/basis.css');
+const LICHTKAMER = lees('../../styles/basis-lichtkamer.css');
 
 /** De tokens (`--naam: waarde`) van het blok dat met `selector {` begint. */
 function tokens(css: string, selector: string): Record<string, string> {
@@ -27,10 +28,13 @@ const GLOBAAL_LICHT = tokens(GLOBAAL, ':root');
 const GLOBAAL_DONKER = tokens(GLOBAAL, "[data-theme='dark']");
 const BASIS_LICHT = tokens(BASIS, BASIS_LICHT_SEL);
 const BASIS_DONKER = tokens(BASIS, BASIS_DONKER_SEL);
+// De kijkdoos heeft eigen tokens ('stage') in basis-lichtkamer.css, met nieuwe namen: ze botsen niet met die van basis.css.
+const LK_LICHT = tokens(LICHTKAMER, BASIS_LICHT_SEL);
+const LK_DONKER = tokens(LICHTKAMER, BASIS_DONKER_SEL);
 
-// Wat de browser toont: de globale tokens met het basisblok erover.
-const LICHT = { ...GLOBAAL_LICHT, ...BASIS_LICHT };
-const DONKER = { ...GLOBAAL_LICHT, ...GLOBAAL_DONKER, ...BASIS_LICHT, ...BASIS_DONKER };
+// Wat de browser toont: de globale tokens met het basisblok erover (en de tokens van de Lichtkamer erbij).
+const LICHT = { ...GLOBAAL_LICHT, ...BASIS_LICHT, ...LK_LICHT };
+const DONKER = { ...GLOBAAL_LICHT, ...GLOBAAL_DONKER, ...BASIS_LICHT, ...BASIS_DONKER, ...LK_DONKER };
 const THEMAS = { licht: LICHT, donker: DONKER };
 
 /** De paren van color.test.ts, aangevuld met de lampgele vlakken en elke tekst op elk vlak. */
@@ -313,5 +317,163 @@ describe('css van de schermen van het basisdeel (basis-*.css)', () => {
       const m = new RegExp(`${kl.replace(/[.]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(css);
       expect(m?.[1], kl).toMatch(/min-height:\s*44px/);
     }
+  });
+});
+
+// ── Lichtkamer: kijkdoos, bordregel en vormen van het bewijs (LK-4) ─────────
+
+describe('Lichtkamer: tokens en contrast', () => {
+  const LK_SLEUTELS = ['stage', 'stage-paneel', 'stage-rand', 'on-stage', 'on-stage-soft', 'focus-stage', 'stage-licht', 'stage-schaduw', 'stage-schaduw-vlak'];
+
+  it('licht en donker hebben dezelfde negen sleutels, allemaal hexwaarden', () => {
+    expect(Object.keys(LK_LICHT).sort()).toEqual([...LK_SLEUTELS].sort());
+    expect(Object.keys(LK_DONKER).sort()).toEqual([...LK_SLEUTELS].sort());
+    for (const blok of [LK_LICHT, LK_DONKER]) for (const v of Object.values(blok)) expect(v).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  it('het donkere blok van de kijkdoos staat in @media screen, na het lichte', () => {
+    const donker = LICHTKAMER.indexOf(`${BASIS_DONKER_SEL} {`);
+    const media = LICHTKAMER.lastIndexOf('@media screen {', donker);
+    expect(media).toBeGreaterThan(LICHTKAMER.indexOf(`${BASIS_LICHT_SEL} {`));
+  });
+
+  /** Tekst 4,5 : 1 (7 : 1 voor gewone tekst op de kijkdoos), vormen en focusring 3 : 1. */
+  const LK_PAREN: [fg: string, bg: string, min: number][] = [
+    ['on-stage', 'stage', 7],
+    ['on-stage', 'stage-paneel', 7],
+    ['on-stage-soft', 'stage', 4.5],
+    ['on-stage-soft', 'stage-paneel', 4.5],
+    ['stage-licht', 'stage', 4.5],
+    ['stage-licht', 'stage-paneel', 4.5],
+    ['stage-schaduw', 'stage', 4.5],
+    ['stage-schaduw', 'stage-paneel', 4.5],
+    // Lichte knop op het donkere paneel: tekst in de kleur van de kijkdoos.
+    ['stage', 'on-stage', 7],
+    ['on-stage-soft', 'stage-paneel', 4.5],
+    // Vormen en ringen (3 : 1 voor niet-tekst)
+    ['focus-stage', 'stage', 3],
+    ['focus-stage', 'stage-paneel', 3],
+    ['stage-schaduw-vlak', 'stage', 3],
+    ['stage-schaduw-vlak', 'stage-paneel', 3],
+    ['lamp', 'stage-paneel', 3],
+    // De vier standen van het bewijs: tekst en vorm op hun eigen vlak.
+    ['ok-text', 'ok-soft', 4.5],
+    ['warn-text', 'warn-soft', 4.5],
+    ['err-text', 'err-soft', 4.5],
+    ['text-soft', 'bg-sunken', 4.5],
+    // Gekozen knop: donkere inkt op lampgeel.
+    ['on-lamp', 'lamp', 4.5],
+  ];
+
+  it.each(Object.entries(THEMAS))('elk paar van de kijkdoos en het bewijs haalt zijn minimum (%s)', (naam, tk) => {
+    for (const [fg, bg, min] of LK_PAREN) {
+      expect(contrastRatio(tk[fg], tk[bg]), `${naam}: ${fg} op ${bg}`).toBeGreaterThanOrEqual(min);
+    }
+  });
+
+  it.each(Object.entries(THEMAS))('het juiste antwoord: witte tekst op het groene vlak haalt 4,5 : 1 (%s)', (naam, tk) => {
+    expect(contrastRatio(tk['ok-strong'], '#ffffff'), naam).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(tk['ok-strong'], tk['on-stage']), `${naam}: rand op vlak`).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('Lichtkamer: css van de kijkdoos', () => {
+  const kaal = ZONDER_COMMENTAAR(LICHTKAMER);
+  const blokken = (css: string) => [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }));
+  const regel = (selector: string) => {
+    const r = blokken(kaal).find((b) => b.selector === selector);
+    expect(r, selector).toBeDefined();
+    return r!.body;
+  };
+
+  it("na 'Toon de uitkomst' blijft de keuze van de klas zichtbaar (aria-pressed op een uitgeschakelde keuze)", () => {
+    expect(regel(".b-lk-keuze:disabled[aria-pressed='true']:not(.b-lk-juist)")).toMatch(/background:\s*var\(--lamp\)/);
+  });
+
+  it('geen color-mix en geen vaste kleuren buiten de tokens, behalve wit op het groene vlak', () => {
+    expect(kaal).not.toContain('color-mix(');
+    const zonderTokenblokken = kaal.replace(/:root\[data-deel='basis'\](\[data-theme='dark'\])? \{[^}]*\}/g, '');
+    const vast = [...zonderTokenblokken.matchAll(/#[0-9a-f]{3,8}\b/gi)].map((m) => m[0].toLowerCase());
+    expect(vast).toEqual(['#ffffff']);
+  });
+
+  it('de kijkdoos heeft een terugval voor aspect-ratio, met dezelfde selectors', () => {
+    const start = kaal.indexOf('@supports not (aspect-ratio: 1) {');
+    expect(start).toBeGreaterThanOrEqual(0);
+    const terugval = kaal.slice(start);
+    for (const s of ['.b-lk-kijk', ":root[data-deel='basis'][data-bord] .b-lk-kijk"]) expect(terugval).toContain(s);
+    expect(terugval).toMatch(/padding-top:\s*62\.5%/);
+    expect(terugval).toMatch(/padding-top:\s*56\.25%/);
+  });
+
+  it(':focus-visible staat alleen na :not(, nooit in een selectorlijst, en elke ring heeft eerst een :focus-regel', () => {
+    for (const { selector } of blokken(kaal)) {
+      if (!selector.includes(':focus-visible')) continue;
+      expect(selector, selector).toMatch(/:focus:not\(:focus-visible\)$/);
+    }
+    expect(regel('.b-lk-kijk canvas:focus')).toMatch(/outline:\s*4px solid var\(--focus-stage\)/);
+    for (const s of ['.b-lk-knop:focus', '.b-lk-keuze:focus']) expect(regel(s)).toMatch(/outline:\s*3px solid var\(--focus-stage\)/);
+  });
+
+  it('de bordregel in basis.css vergroot de letters, ook de lopende tekst, en heft de breedtegrens op', () => {
+    const basis = ZONDER_COMMENTAAR(BASIS);
+    expect(basis).toMatch(/:root\[data-deel='basis'\]\[data-bord\] \{\s*font-size:\s*135%/);
+    expect(basis).toMatch(/:root\[data-deel='basis'\]\[data-bord\] body \{\s*font-size:\s*1rem/);
+    expect(basis).toMatch(/\[data-bord\] \.b-main,[\s\S]*?\{\s*max-width:\s*none/);
+  });
+
+  it('elke bordregel van de kijkdoos steunt op data-bord', () => {
+    const bord = blokken(kaal).filter((b) => b.selector.includes('[data-bord]'));
+    expect(bord.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('tikdoelen van de kijkdoos zijn minstens 44 pixels, op het bord 56 pixels', () => {
+    for (const s of ['.b-lk-knop']) expect(regel(s)).toMatch(/min-height:\s*44px/);
+    expect(regel('.b-lk-keuze')).toMatch(/min-height:\s*64px/);
+    expect(regel(":root[data-deel='basis'][data-bord] .b-lk-knop")).toMatch(/min-height:\s*56px/);
+  });
+
+  describe('vormen per stand van het bewijs', () => {
+    const STANDEN = ['toont', 'wankel', 'niet', 'leeg'] as const;
+    /** Wat de vorm bepaalt: afronding, draaiing, vulling, rand, schaduw en maat van het ::before-teken. */
+    const vorm = (stand: string) => {
+      const basis = regel('.b-lk-st::before');
+      const eigen = blokken(kaal).find((b) => b.selector === `.b-lk-st-${stand}::before`)?.body ?? '';
+      const lijst = (b: string) => b.split(';').map((d) => d.trim().replace(/\s+/g, ' ')).filter(Boolean);
+      const map = new Map<string, string>();
+      for (const d of [...lijst(basis), ...lijst(eigen)]) map.set(d.slice(0, d.indexOf(':')), d);
+      return ['border-radius', 'transform', 'background', 'border', 'box-shadow', 'width'].map((k) => map.get(k) ?? '-').join('|');
+    };
+
+    it('elke stand heeft een eigen klasse met tekst- en vlakkleur uit de tokens', () => {
+      for (const s of STANDEN) {
+        const body = regel(`.b-lk-st-${s}`);
+        expect(body, s).toMatch(/color:\s*var\(--[\w-]+\)/);
+        expect(body, s).toMatch(/background:\s*var\(--[\w-]+\)/);
+      }
+    });
+
+    it('de vier vormen verschillen van elkaar, ook zonder kleur', () => {
+      const vormen = STANDEN.map(vorm);
+      expect(new Set(vormen).size).toBe(4);
+      // toont: cirkel; wankel: vierkant met halfvolle vulling; niet: gedraaid vierkant; leeg: holle cirkel
+      expect(vorm('toont')).toContain('border-radius: 50%');
+      expect(vorm('wankel')).toMatch(/inset 0 -6px 0 currentColor/);
+      expect(vorm('niet')).toContain('rotate(45deg)');
+      expect(vorm('leeg')).toMatch(/background: transparent/);
+    });
+
+    it('de gestippelde rand van "nog geen bewijs" onderscheidt het label zonder kleur', () => {
+      expect(regel('.b-lk-st-leeg')).toMatch(/border-style:\s*dashed/);
+      for (const s of ['toont', 'wankel', 'niet']) expect(regel(`.b-lk-st-${s}`)).not.toMatch(/border-style/);
+    });
+
+    it('hoog contrast (forced-colors) houdt de vormen met systeemkleuren', () => {
+      const start = kaal.indexOf('@media (forced-colors: active)');
+      expect(start).toBeGreaterThanOrEqual(0);
+      const blok = kaal.slice(start, kaal.indexOf('/* ── Op het bord'));
+      expect(blok).toContain('forced-color-adjust: none');
+      expect(blok).toMatch(/\.b-lk-st::before \{\s*background:\s*CanvasText/);
+    });
   });
 });
