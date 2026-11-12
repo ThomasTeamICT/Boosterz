@@ -6,12 +6,12 @@ Ontwerp van 12 november 2026. Het hoort bij `docs/BASISONDERWIJS.md` (bouwstap 4
 
 | Wat | Stand | Op wie |
 |---|---|---|
-| Dit ontwerp | **Klaar** (12 november 2026), ter beslissing | eigenaar |
-| Beslissingen voor proefles 1 (LK-0, vragen 1 tot 5 onderaan) | **Wacht** | eigenaar, met de proefleerkracht |
+| Dit ontwerp | **Klaar en goedgekeurd** (12 november 2026): de eigenaar zei "ja op alles" op de acht vragen onderaan | eigenaar |
+| Beslissingen voor proefles 1 (LK-0, vragen 1 tot 5 onderaan) | **Beantwoord** (12 november 2026), zie "Antwoorden van de eigenaar" onderaan. Nog open: de datum van het bezoek met de ICT-coördinator; de proefleerkracht bevestigt de oefeningen en apart of duo na de droge les | eigenaar, met de proefleerkracht |
 | Lichtlogica van het schaduwtheater (LK-1) en bewijsmodel (LK-2) | **Klaar** (12 november 2026), nog in geen scherm gebruikt: `src/lib/basis/lichtkamer/` (zuiver, 38 816 vergelijkingen met het prototype zonder verschil; bij 30/15/10 cm wordt geen geldige aflezing afgekeurd; '12,5' en '12.5' geven 12,5) en `src/lib/basis/bewijs/` (bouwpakket 3, met manifest v1 voor de drie momenten en een GO!-sleutel). Nagekeken door een reviewer en een rechter per pakket | bouwer, kernbouwer |
-| 3D-proefpagina met het goedgekeurde prototype (LK-3) | **Kan starten**; de uitrol wacht op vraag 3 | bouwer |
+| 3D-proefpagina met het goedgekeurde prototype (LK-3) | **In bouw** (12 november 2026); mag op de openbare site (vraag 3) | bouwer |
 | Lamplicht voor kijkdoos en bord (LK-4) | **Klaar** (12 november 2026): tokens in `src/styles/basis.css` en `src/styles/basis-lichtkamer.css` (nog door geen scherm geladen), met contrastparen in `basisKleuren.test.ts` | bouwer |
-| Kijkdoos op three r162 (LK-5) | **Kan starten**; vraag 6 (r162) staat open, maar blokkeert niet tenzij de eigenaar anders beslist | kernbouwer |
+| Kijkdoos op three r162 (LK-5) | **In bouw** (12 november 2026); r162 is goedgekeurd (vraag 6), de eigenaar keurt het uitzicht goed naast het prototype | kernbouwer |
 | Panelen, spiekkaart, schermen en rooktest (LK-6 tot LK-9) | **Wacht** | bouwer, inhoudschrijver |
 | Review en uitrol (LK-10) | **Wacht** | hoofdsessie |
 | Bezoek met de ICT-coördinator: toestelproef, 3D-proef en droge les (LK-11, bouwpakket 2) | **Wacht** op een datum (vraag 4) | eigenaar; de hoofdsessie verwerkt |
@@ -304,6 +304,19 @@ Zolang het toestel nooit iets wist, is het ontvangstteken niet nodig. Elke 'Leve
 | 6 | Mogen we three.js r162 in de eigen bundel steken? | Ja. Zo blijft 3D mogelijk vanaf Safari en iPadOS 14.1. | niets, tenzij je anders beslist vóór LK-5 start |
 | 7 | Komt de Lichtkamer eerst als eigen scherm, en later pas als oefeningsoort? | Ja. Er is maar 0,3 kB ruimte op het leerlingpad, en WF1 zet een naam in de code. | niets |
 | 8 | Wil je de leerplandoelen van het GO! op de spiekkaart, ter info? | Ja, met de bron, zonder te beweren dat het GO! deze les zo voorziet. | één regel op de spiekkaart |
+
+## Antwoorden van de eigenaar (12 november 2026)
+
+"Ja op alles": de eigenaar volgt bij elke vraag het voorstel.
+
+1. Proefles 1 loopt zonder bewijs per kind in de app; het bewijs per kind (WB1) komt in proefles 2. Spoor 2 komt dus na proefles 1.
+2. 'Waar valt de schaduw?' op het bord, 'Drie kaartjes' en 'Onderzoek' op de Chromebook, daarna de digitale check. Het onderzoek meet op 30, 15 en 10 cm. De proefleerkracht bevestigt na de droge les.
+3. De 3D-proefpagina mag op de openbare site, niet geïndexeerd.
+4. De 3D-proef en een droge les van 30 minuten mogen mee naar het bezoek met de ICT-coördinator, met de go of no-go uit het bouwplan. **De datum is nog niet afgesproken.**
+5. De proefleerkracht kiest tussen apart en duo. De link gaat via Smartschool, anders als QR-code op het bord.
+6. three.js r162 in de eigen bundel; de eigenaar keurt het uitzicht goed naast het prototype vóór de proefles.
+7. Eerst een eigen scherm in `#/basis`, later een oefeningsoort.
+8. De leerplandoelen van het GO! staan 'ter info' op de spiekkaart, met de bron.
 
 ## Afwijkingen van eerdere afspraken
 
