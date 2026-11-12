@@ -23,6 +23,7 @@ import {
   type RuwAlinea,
   type RuwBlok,
   type RuwDocx,
+  type RuwOpmaakRun,
   type RuwRun,
   type RuwXlsx,
 } from './omzetten';
@@ -131,6 +132,10 @@ describe('leesBekendeAfwijkingen', () => {
     expect(fouten({ ...KAPOT, datum: '9/11/2026' }).join()).toMatch(/datum/);
     expect(fouten({ ...KAPOT, kolom: 'ANDERS' }).join()).toMatch(/VLAGGEN of SCHAKELS/);
     expect(fouten({ soort: 'opmaak', vak: 'WI', rij: '3', kolom: 2, tekst: 'x', besluit: 'opmaak-bewaren', reden: 'Een reden van genoeg lengte.', datum: '2026-11-09' }).join()).toMatch(/"rij" is geen geheel getal/);
+    const opmaak = { soort: 'opmaak', vak: 'WI', rij: 3, kolom: 2, tekst: 'x', besluit: 'opmaak-weglaten', reden: 'Een reden van genoeg lengte.', datum: '2026-11-12' };
+    expect(fouten(opmaak)).toEqual([]);
+    for (const besluit of ['weglaten', 'opmaak-tonen', 'Opmaak-weglaten', '', 1, null]) expect(fouten({ ...opmaak, besluit }).join(), String(besluit)).toMatch(/"besluit" is 'opmaak-bewaren' of 'opmaak-weglaten'/);
+    expect(fouten({ ...opmaak, besluit: undefined }).join()).toMatch(/veld "besluit" ontbreekt/);
     expect(fouten({ soort: 'lesplan-beeld', sha1: 'a', lesplannen: ['LP0001'], status: 'getoond', reden: 'Een reden van genoeg lengte.', datum: '2026-11-09' }).join()).toMatch(/"bestand" en "alt"/);
     expect(leesBekendeAfwijkingen({ lijst: [] }).fouten[0]).toMatch(/geen lijst "afwijkingen"/);
   });
@@ -619,6 +624,122 @@ describe('zetLeerplanOm: afwijkingen geven exit 3', () => {
     const u = leerplanOm(ruw);
     expect(u.afwijkingen.nieuwe).toEqual([]);
     expect(laatste(u.bestand?.doelen[2].inhoud)).toEqual({ soort: 'voorbeeld', tekst: 'gewoon', rij: 21 });
+  });
+
+  describe("besluit 'opmaak-weglaten': alleen de doorhaling van een spatie of leesteken valt weg, de tekst blijft byte-gelijk", () => {
+    const weglaten = (r: number, tekst: string): Extract<BekendeAfwijking, { soort: 'opmaak' }> => ({ soort: 'opmaak', vak: 'WT', rij: r, kolom: 2, tekst, besluit: 'opmaak-weglaten', reden: 'Een doorgehaalde spatie (test).', datum: '2026-11-12' });
+    /** Een doelzin (rij 10, WT.002) met deze runs in INHOUD; de tekst van de cel is alle runs samen. */
+    const doelzin = (runs: RuwOpmaakRun[]) => {
+      const ruw = leerplanRuw();
+      ruw.rijen[9] = { ...ruw.rijen[9], c: [...ruw.rijen[9].c], opmaak: { '2': runs } };
+      ruw.rijen[9].c[2] = runs.map((x) => x.t).join('');
+      return ruw;
+    };
+    /** Een voorbeeld (rij 21) onder WT.003 met deze runs. */
+    const voorbeeld = (runs: RuwOpmaakRun[]) => {
+      const ruw = leerplanRuw([rij(21, 'voorbeelden - bullet', runs.map((x) => x.t).join(''))]);
+      ruw.rijen[20].opmaak = { '2': runs };
+      return ruw;
+    };
+    const opmaakMeldingen = (a: Afwijkingen) => a.lijst.filter((x) => x.soort === 'opmaak');
+
+    it('een doorgehaalde spatie tussen twee woorden (zoals WI.386): geen opmaak meer, dezelfde tekst, bekend met de melding', () => {
+      const tekst = 'Tellen gerelateerde breuken op. ';
+      const ruw = doelzin([{ t: 'Tellen gerelateerde' }, { t: ' ', strike: true }, { t: 'breuken op. ' }]);
+      const u = leerplanOm(ruw, [KAPOT, weglaten(10, tekst)]);
+      expect(nieuweSoorten(u.afwijkingen)).toEqual([]);
+      const doel = u.bestand?.doelen[1];
+      expect(doel?.tekst).toBe(tekst);
+      expect(doel && 'opmaak' in doel).toBe(false);
+      const m = opmaakMeldingen(u.afwijkingen);
+      expect(m).toHaveLength(1);
+      expect(m[0].bekend?.reden).toBe('Een doorgehaalde spatie (test).');
+      expect(m[0].bericht).toContain('doorhaling weggelaten');
+      expect(valideerGoLeerplan(JSON.parse(JSON.stringify(u.bestand)))).toEqual([]);
+      expect(rondgangLeerplan(ruw, u.bestand as GoLeerplanBestand).gelijk).toBe(true);
+    });
+
+    it('een doorgehaalde punt (zoals WI.604) en een harde spatie, tab of regeleinde: ook weggelaten', () => {
+      for (const weg of ['.', '\u00a0', '\t', '\n', ' . ', ',;:!?\u2026']) {
+        const runs: RuwOpmaakRun[] = [{ t: 'Berekenen de omtrek van een grillige figuur.' }, { t: weg, strike: true }];
+        const u = leerplanOm(doelzin(runs), [KAPOT, weglaten(10, runs.map((x) => x.t).join(''))]);
+        expect(nieuweSoorten(u.afwijkingen), JSON.stringify(weg)).toEqual([]);
+        expect(u.bestand?.doelen[1], JSON.stringify(weg)).toEqual(expect.objectContaining({ tekst: runs.map((x) => x.t).join('') }));
+        expect(u.bestand?.doelen[1].opmaak, JSON.stringify(weg)).toBeUndefined();
+      }
+    });
+
+    it('dubbele doorhaling telt als doorhaling; superschrift en cursief in dezelfde cel blijven staan', () => {
+      const runs: RuwOpmaakRun[] = [{ t: '1 m' }, { t: '3', vertAlign: 'superscript' }, { t: ' ', dstrike: true }, { t: 'volume', i: true }, { t: '.', strike: true }];
+      const u = leerplanOm(voorbeeld(runs), [KAPOT, weglaten(21, '1 m3 volume.')]);
+      expect(nieuweSoorten(u.afwijkingen)).toEqual([]);
+      expect(laatste(u.bestand?.doelen[2].inhoud)).toEqual({ soort: 'voorbeeld', tekst: '1 m3 volume.', opmaak: [{ t: '1 m' }, { t: '3', sup: true }, { t: ' ' }, { t: 'volume', i: true }, { t: '.' }], rij: 21 });
+      expect(valideerGoLeerplan(JSON.parse(JSON.stringify(u.bestand)))).toEqual([]);
+    });
+
+    it('weigert een cel met doorgehaalde woorden: een nieuwe afwijking, en de doorhaling blijft staan (nooit stil als gewone tekst)', () => {
+      const runs: RuwOpmaakRun[] = [{ t: 'De kleuters kunnen massa ' }, { t: '(‘gewicht’)', strike: true }, { t: ' ', strike: true }, { t: 'kwalitatief vergelijken.' }];
+      const tekst = runs.map((x) => x.t).join('');
+      const u = leerplanOm(doelzin(runs), [KAPOT, weglaten(10, tekst)]);
+      expect(nieuweSoorten(u.afwijkingen)).toEqual(['opmaak']);
+      expect(u.afwijkingen.nieuwe[0].bericht).toContain('hier is "(‘gewicht’)" doorgehaald');
+      expect(u.bestand?.doelen[1]).toMatchObject({ tekst, opmaak: [{ t: 'De kleuters kunnen massa ' }, { t: '(‘gewicht’) ', s: true }, { t: 'kwalitatief vergelijken.' }] });
+      // De bekende melding zegt niet dat de doorhaling wegviel.
+      expect(opmaakMeldingen(u.afwijkingen).filter((x) => x.bekend).map((x) => x.bericht).join()).not.toContain('weggelaten');
+    });
+
+    it('weigert een doorgehaald cijfer, letter, haakje, aanhalingsteken, koppelteken, procent of wiskundig teken', () => {
+      for (const weg of ['3', 'x', ' a ', '(', '"', '’', '-', '–', '%', '=', '≠', '<', '/', '\u200b']) {
+        const runs: RuwOpmaakRun[] = [{ t: 'Tellen tot' }, { t: weg, strike: true }, { t: ' 20.' }];
+        const u = leerplanOm(doelzin(runs), [KAPOT, weglaten(10, runs.map((x) => x.t).join(''))]);
+        expect(nieuweSoorten(u.afwijkingen), JSON.stringify(weg)).toEqual(['opmaak']);
+        expect(u.bestand?.doelen[1].opmaak?.some((x) => x.s), JSON.stringify(weg)).toBe(true);
+      }
+    });
+
+    it('weigert als één van de doorgehaalde stukken echte tekst is, ook als de andere alleen spaties zijn', () => {
+      const runs: RuwOpmaakRun[] = [{ t: 'a', strike: true }, { t: 'b' }, { t: ' ', strike: true }, { t: 'c' }];
+      expect(nieuweSoorten(leerplanOm(doelzin(runs), [KAPOT, weglaten(10, 'ab c')]).afwijkingen)).toEqual(['opmaak']);
+      // In omgekeerde volgorde ook.
+      const omgekeerd: RuwOpmaakRun[] = [{ t: 'a' }, { t: ' ', strike: true }, { t: 'b' }, { t: 'c', strike: true }];
+      expect(nieuweSoorten(leerplanOm(doelzin(omgekeerd), [KAPOT, weglaten(10, 'a bc')]).afwijkingen)).toEqual(['opmaak']);
+    });
+
+    it('weigert een doorhaling via de celstijl over de hele cel', () => {
+      const runs: RuwOpmaakRun[] = [{ t: 'Doel 2.', strike: true, cel: true }];
+      const u = leerplanOm(doelzin(runs), [KAPOT, weglaten(10, 'Doel 2.')]);
+      expect(nieuweSoorten(u.afwijkingen)).toEqual(['opmaak']);
+      expect(u.bestand?.doelen[1].opmaak).toEqual([{ t: 'Doel 2.', s: true }]);
+    });
+
+    it('weigert het besluit op een cel zonder doorhaling (alleen superschrift): het superschrift blijft', () => {
+      const runs: RuwOpmaakRun[] = [{ t: '1cm' }, { t: '3', vertAlign: 'superscript' }];
+      const u = leerplanOm(voorbeeld(runs), [KAPOT, weglaten(21, '1cm3')]);
+      expect(nieuweSoorten(u.afwijkingen)).toEqual(['opmaak']);
+      expect(u.afwijkingen.nieuwe[0].bericht).toMatch(/vindt geen doorgehaalde tekst/);
+      expect(laatste(u.bestand?.doelen[2].inhoud)).toMatchObject({ tekst: '1cm3', opmaak: [{ t: '1cm' }, { t: '3', sup: true }] });
+      // Een lege doorgehaalde run telt niet als doorhaling.
+      const leeg: RuwOpmaakRun[] = [{ t: '1cm' }, { t: '', strike: true }, { t: '3', vertAlign: 'superscript' }];
+      expect(nieuweSoorten(leerplanOm(voorbeeld(leeg), [KAPOT, weglaten(21, '1cm3')]).afwijkingen)).toEqual(['opmaak']);
+    });
+
+    it('een run zonder tekst (kapotte ruwe JSON) telt nooit als weglaatbaar', () => {
+      const runs = [{ t: 'Doel 2.' }, { strike: true }] as unknown as RuwOpmaakRun[];
+      const ruw = doelzin(runs);
+      ruw.rijen[9].c[2] = 'Doel 2.';
+      expect(nieuweSoorten(leerplanOm(ruw, [KAPOT, weglaten(10, 'Doel 2.')]).afwijkingen)).toContain('opmaak');
+    });
+
+    it('het besluit geldt alleen voor die tekst, dat vak, die rij en die kolom', () => {
+      const tekst = 'Tellen gerelateerde breuken op. ';
+      const ruw = doelzin([{ t: 'Tellen gerelateerde' }, { t: ' ', strike: true }, { t: 'breuken op. ' }]);
+      const b = weglaten(10, tekst);
+      for (const ander of [{ ...b, tekst: 'Tellen gerelateerde breuken op.' }, { ...b, rij: 11 }, { ...b, kolom: 3 }, { ...b, vak: 'LL' as GoVak }]) {
+        const u = leerplanOm(ruw, [KAPOT, ander]);
+        expect(nieuweSoorten(u.afwijkingen)).toEqual(['opmaak']);
+        expect(u.bestand?.doelen[1].opmaak?.some((x) => x.s)).toBe(true);
+      }
+    });
   });
 
   it('een minimumdoel-rij met tekst: een afwijking, of als bekende afwijking een MIA-item van het doel erboven', () => {

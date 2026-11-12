@@ -284,6 +284,70 @@ describe('maak.ts: een ontbrekende doelenset, een wees in --uit, een verkeerde i
   });
 });
 
+// ── Een doorhaling weglaten (besluit 'opmaak-weglaten') ──────────────
+
+describe("maak.ts: besluit 'opmaak-weglaten' (een doorgehaalde spatie of punt zonder doorhaling tonen)", () => {
+  // WT.002 staat op rij 4 van wt(); 'Doel' + doorgehaald stuk + rest, samen 'Doel 2.'.
+  const metDoorhaling = (doorgehaald: string, rest: string): RuwXlsx => {
+    const ruw = wt('3.1.2', `Doel${doorgehaald}${rest}`);
+    const x = ruw.rijen.find((y) => y.c[1] === 'WT.002');
+    if (!x) throw new Error('WT.002 ontbreekt in de testdoelenset');
+    x.opmaak = { '2': [{ t: 'Doel' }, { t: doorgehaald, strike: true }, { t: rest }] };
+    return ruw;
+  };
+  const besluit = (b: 'opmaak-bewaren' | 'opmaak-weglaten', tekst = 'Doel 2.'): BekendeAfwijking => ({ soort: 'opmaak', vak: 'WT', rij: 4, kolom: 2, tekst, besluit: b, reden: 'Een doorgehaalde spatie (test).', datum: '2026-11-12' });
+  const wt002 = (uit: string) => (JSON.parse(readFileSync(join(uit, 'leerplan', 'WT.json'), 'utf8')) as { doelen: { code: string; tekst: string; opmaak?: unknown }[] }).doelen.find((d) => d.code === 'WT.002');
+  let werk = '';
+  let uit = '';
+  beforeAll(() => {
+    werk = join(TMP, 'weglaten', 'werk');
+    uit = join(TMP, 'weglaten', 'uit');
+  });
+
+  it('van bewaren naar weglaten: een wijziging die stopt; met de vlag verdwijnt alleen de doorhaling, de tekst blijft', () => {
+    const { bekende } = werkmap(werk, { wt: metDoorhaling(' ', '2.'), bekende: [DOELTEKST, besluit('opmaak-bewaren')] });
+    const r1 = draai(werk, uit, bekende);
+    expect(r1.status, r1.stdout).toBe(0);
+    expect(wt002(uit)).toMatchObject({ tekst: 'Doel 2.', opmaak: [{ t: 'Doel' }, { t: ' ', s: true }, { t: '2.' }] });
+
+    werkmap(werk, { wt: metDoorhaling(' ', '2.'), bekende: [DOELTEKST, besluit('opmaak-weglaten')] });
+    const voor = opname(uit);
+    const r2 = draai(werk, uit, bekende);
+    expect(r2.status, r2.stdout).toBe(3);
+    expect(r2.stdout).toContain('  WIJZIGING andere tekst: WT.002: de opmaak van "Doel 2." is anders');
+    expect(r2.rapport.wijzigingen.filter((w) => w.stopt).map((w) => w.soort)).toEqual(['andere tekst']);
+    expect(opname(uit)).toEqual(voor);
+
+    const r3 = draai(werk, uit, bekende, '--aanvaard-wijzigingen');
+    expect(r3.status, r3.stdout).toBe(0);
+    const doel = wt002(uit);
+    expect(doel?.tekst).toBe('Doel 2.');
+    expect(doel && 'opmaak' in doel).toBe(false);
+    const r4 = draai(werk, uit, bekende);
+    expect(r4.status, r4.stdout).toBe(0);
+    expect(r4.stdout).toContain('Bestanden: 0 geschreven, 5 ongewijzigd.');
+  });
+
+  it('mutatie: weglaten bij een doorgehaald woord stopt (exit 3, niets geschreven) en noemt het doorgehaalde stuk', () => {
+    const { bekende } = werkmap(werk, { wt: metDoorhaling(' twee', ' 2.'), bekende: [DOELTEKST, besluit('opmaak-weglaten', 'Doel twee 2.')] });
+    const voor = opname(uit);
+    const r = draai(werk, uit, bekende, '--aanvaard-wijzigingen');
+    expect(r.status, r.stdout).toBe(3);
+    expect(r.stdout).toContain(`NIEUW WT rij 4, kolom 2 [opmaak]: het besluit 'opmaak-weglaten' geldt alleen voor een doorgehaalde spatie of een doorgehaald leesteken; hier is " twee" doorgehaald`);
+    expect(r.rapport.afwijkingen.nieuw.map((a) => a.soort)).toEqual(['opmaak']);
+    expect(opname(uit)).toEqual(voor);
+  });
+
+  it("mutatie: een onbekend besluit in bekende-afwijkingen.json stopt de run", () => {
+    const { bekende } = werkmap(werk, { wt: metDoorhaling(' ', '2.'), bekende: [DOELTEKST, { ...besluit('opmaak-weglaten'), besluit: 'weglaten' } as unknown as BekendeAfwijking] });
+    const voor = opname(uit);
+    const r = draai(werk, uit, bekende, '--aanvaard-wijzigingen');
+    expect(r.status, r.stdout).not.toBe(0);
+    expect(r.stdout).toContain(`"besluit" is 'opmaak-bewaren' of 'opmaak-weglaten'`);
+    expect(opname(uit)).toEqual(voor);
+  });
+});
+
 // ── Het getoonde beeld ───────────────────────────────────────────────
 
 describe('maak.ts: een getoond beeld is byte-gelijk aan wat de eigenaar vrijgaf (IMP-6)', () => {

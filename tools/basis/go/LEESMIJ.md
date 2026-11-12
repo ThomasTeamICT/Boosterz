@@ -117,7 +117,9 @@ opmerkingen, beelden, rijen}`
   heeft, in een run van de gedeelde tekst of via de celstijl (`cel: true`), of een cursieve run (`i`, alleen uit een run,
   nooit via de celstijl; vet telt nergens). `c` bevat die tekst wel, zodat niets verdwijnt, maar de omzetting moet over
   doorhaling en superschrift bewust beslissen (rechtzetting van de rechter: doorgehaalde tekst is geen echte tekst);
-  cursief bewaart ze zonder melding.
+  cursief bewaart ze zonder melding. Het besluit in `bekende-afwijkingen.json` is `opmaak-bewaren` (de opmaak tonen) of
+  `opmaak-weglaten` (alleen de doorhaling weg, de tekst blijft byte-gelijk; enkel als elk doorgehaald stuk witruimte of
+  . , ; : ! ? … is, anders stopt de import).
 - `tellingen` heeft onder meer `run:strike`, `run:vertAlign` en `run:i` (eerste reeks: BU 3, NL 1, WI 13 doorgehaald;
   GE 3, WI 8 superschrift; WI 8 cursief).
 

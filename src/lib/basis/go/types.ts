@@ -97,7 +97,9 @@ export const GO_ICONEN: readonly GoIcoon[] = ['vlag', 'schakel', 'diploma', 'dee
 /**
  * Tekst met de opmaak van de bron: vet (b), cursief (i), onderlijnd (u), doorgehaald (s) en superschrift (sup).
  * Een vlag staat er alleen als ze `true` is. Doorgehaalde tekst blijft letterlijk staan, als doorgehaald: of hij
- * getoond of weggelaten wordt, beslist de hoofdsessie per geval (rechtzetting 3 van de rechter), nooit de app.
+ * getoond of weggelaten wordt, beslist de hoofdsessie per geval (rechtzetting 3 van de rechter), nooit de app. Alleen
+ * een doorgehaalde spatie of een doorgehaald leesteken kan zijn doorhaling verliezen (besluit 'opmaak-weglaten' in
+ * bekende-afwijkingen.json); de tekens zelf blijven dan staan.
  */
 export interface TekstStuk {
   t: string;

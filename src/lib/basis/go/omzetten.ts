@@ -298,7 +298,12 @@ export type BekendeAfwijking = BekendBasis &
     | { soort: 'koppeling-ander-vak'; doel: string; moment: GoMoment; code: string; voorstel?: string }
     | { soort: 'minimumdoelrij'; vak: GoVak; rij: number }
     | { soort: 'minimumdoelrij-is-inhoud'; vak: GoVak; rij: number; doel: string; als: string; tekst: string }
-    | { soort: 'opmaak'; vak: GoVak; rij: number; kolom: number; tekst: string; besluit: 'opmaak-bewaren' }
+    /**
+     * `besluit`: 'opmaak-bewaren' toont de opmaak van de cel (doorgehaald, superschrift …) zoals in de bron;
+     * 'opmaak-weglaten' haalt alleen de doorhaling weg (de tekens blijven letterlijk, andere opmaak blijft), en mag
+     * alleen als elk doorgehaald stuk in de cel uit witruimte en leestekens bestaat (WEGLAATBARE_DOORHALING).
+     */
+    | { soort: 'opmaak'; vak: GoVak; rij: number; kolom: number; tekst: string; besluit: OpmaakBesluit }
     | { soort: 'xlsx-beeld'; vak: GoVak; rij: number; kolom: number }
     | { soort: 'lesplan-doeltekst'; lesplan: string; doel: string; tekst: string }
     | { soort: 'lesplan-leeftijd'; lesplan: string; doel: string }
@@ -318,6 +323,17 @@ export type BekendeAfwijking = BekendBasis &
   );
 
 export type BekendeSoort = BekendeAfwijking['soort'];
+
+/** De besluiten voor een cel met doorhaling of superschrift (soort 'opmaak' in bekende-afwijkingen.json). */
+export const OPMAAK_BESLUITEN = ['opmaak-bewaren', 'opmaak-weglaten'] as const;
+export type OpmaakBesluit = (typeof OPMAAK_BESLUITEN)[number];
+
+/**
+ * Wat 'opmaak-weglaten' mag weglaten: een doorgehaald stuk van alleen witruimte en de leestekens . , ; : ! ? en het
+ * weglatingsteken. Geen letters, cijfers, haakjes, aanhalingstekens, koppeltekens of symbolen zoals = en ≠: die
+ * kunnen de betekenis dragen, en echte doorgehaalde tekst mag nooit stil als gewone tekst op het scherm komen.
+ */
+export const WEGLAATBARE_DOORHALING = /^[\s.,;:!?\u2026]+$/;
 
 const BEKENDE_VELDEN: Readonly<Record<BekendeSoort, { verplicht: readonly string[]; optioneel?: readonly string[] }>> = {
   'xlsx-kop': { verplicht: ['vak', 'kolom', 'waarde'] },
@@ -364,7 +380,7 @@ export function leesBekendeAfwijkingen(json: unknown): { afwijkingen: BekendeAfw
       if (a.sha256 !== undefined && (typeof a.sha256 !== 'string' || !RE_SHA256.test(a.sha256))) fouten.push(`${p}: "sha256" is geen sha256 (64 hex-tekens, kleine letters)`);
     }
     if (a.soort === 'lessenlijn-variant' && a.veld !== 'lessenlijn' && a.veld !== 'lessenreeks') fouten.push(`${p}: "veld" is lessenlijn of lessenreeks`);
-    if (a.soort === 'opmaak' && a.besluit !== 'opmaak-bewaren') fouten.push(`${p}: "besluit" is 'opmaak-bewaren'`);
+    if (a.soort === 'opmaak' && !(OPMAAK_BESLUITEN as readonly unknown[]).includes(a.besluit)) fouten.push(`${p}: "besluit" is 'opmaak-bewaren' of 'opmaak-weglaten'`);
     if (a.soort === 'koppeling-ander-vak' && a.voorstel !== undefined && (typeof a.voorstel !== 'string' || !RE_CODEVORM.test(a.voorstel) || a.voorstel === a.code)) {
       fouten.push(`${p}: "voorstel" is een andere code van de vorm cijfer.cijfer.cijfer`);
     }
@@ -1366,28 +1382,43 @@ export function zetLeerplanOm(
   /**
    * De letterlijke tekst van een cel, met de opmaak (doorgehaald, superschrift, cursief) als die er is. Doorhaling en
    * super-/subschrift vragen een besluit in bekende-afwijkingen.json (ze kunnen de betekenis van de tekst veranderen);
-   * cursief verandert de tekst niet en wordt zonder melding bewaard.
+   * cursief verandert de tekst niet en wordt zonder melding bewaard. Met het besluit 'opmaak-weglaten' valt alleen de
+   * doorhaling weg (de tekst blijft byte-gelijk), en alleen als elk doorgehaald stuk witruimte of leestekens is
+   * (WEGLAATBARE_DOORHALING); anders een nieuwe afwijking en blijft de doorhaling staan.
    */
   const goTekst = (rij: RuwRij, k: number, tekst: string): GoTekst => {
     const runs = rij.opmaak?.[String(k)];
     if (!runs) return { tekst };
-    if (runs.some((r) => r.strike || r.dstrike || r.vertAlign)) {
+    const waar = `rij ${rij.r}, kolom ${k}`;
+    const isDoorgehaald = (r: RuwOpmaakRun) => Boolean(r.strike || r.dstrike);
+    let doorhalingWeg = false;
+    if (runs.some((r) => isDoorgehaald(r) || r.vertAlign)) {
       const besluit = ctx.bekende.zoek('opmaak', (a) => a.vak === vak && a.rij === rij.r && a.kolom === k && a.tekst === tekst);
-      const soorten = [...new Set(runs.flatMap((r) => [r.strike || r.dstrike ? 'doorgehaald' : '', r.vertAlign ?? ''].filter(Boolean)))].join(', ');
-      afw.melding('opmaak', `rij ${rij.r}, kolom ${k}`, `opgemaakte tekst (${soorten}): "${tekst.slice(0, 60)}"`, besluit);
+      const soorten = [...new Set(runs.flatMap((r) => [isDoorgehaald(r) ? 'doorgehaald' : '', r.vertAlign ?? ''].filter(Boolean)))].join(', ');
+      let weigering = '';
+      if (besluit?.besluit === 'opmaak-weglaten') {
+        const doorgehaald = runs.filter((r) => isDoorgehaald(r) && r.t !== '');
+        // typeof: een run zonder tekst (een kapotte ruwe JSON) telt nooit als weglaatbaar.
+        const echt = doorgehaald.filter((r) => typeof r.t !== 'string' || !WEGLAATBARE_DOORHALING.test(r.t));
+        if (doorgehaald.length === 0) weigering = "het besluit 'opmaak-weglaten' vindt geen doorgehaalde tekst in deze cel";
+        else if (echt.length > 0) weigering = `het besluit 'opmaak-weglaten' geldt alleen voor een doorgehaalde spatie of een doorgehaald leesteken; hier is "${String(echt[0].t).slice(0, 60)}" doorgehaald (de doorhaling blijft staan)`;
+        else doorhalingWeg = true;
+      }
+      afw.melding('opmaak', waar, `opgemaakte tekst (${soorten}${doorhalingWeg ? '; doorhaling weggelaten' : ''}): "${tekst.slice(0, 60)}"`, besluit);
+      if (weigering !== '') afw.nieuw('opmaak', waar, weigering);
     }
     const stukken: TekstStuk[] = [];
     for (const r of runs) {
-      if (r.vertAlign && r.vertAlign !== 'superscript') afw.nieuw('opmaak', `rij ${rij.r}, kolom ${k}`, `${r.vertAlign} wordt niet ondersteund`);
+      if (r.vertAlign && r.vertAlign !== 'superscript') afw.nieuw('opmaak', waar, `${r.vertAlign} wordt niet ondersteund`);
       const s: TekstStuk = { t: r.t };
-      if (r.strike || r.dstrike) s.s = true;
+      if (isDoorgehaald(r) && !doorhalingWeg) s.s = true;
       if (r.vertAlign === 'superscript') s.sup = true;
       if (r.i) s.i = true;
       stukken.push(s);
     }
     const opmaak = voegSamen(stukken) as TekstStuk[];
     if (opmaak.map((s) => s.t).join('') !== tekst) {
-      afw.nieuw('opmaak', `rij ${rij.r}, kolom ${k}`, 'de opgemaakte stukken geven samen niet de tekst van de cel');
+      afw.nieuw('opmaak', waar, 'de opgemaakte stukken geven samen niet de tekst van de cel');
       return { tekst };
     }
     return opmaak.some((s) => s.s || s.sup || s.i) ? { tekst, opmaak } : { tekst };

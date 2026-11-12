@@ -1093,12 +1093,43 @@ describe('de opmaak van de leerplantekst op de doelpagina (CT-9)', () => {
       }),
     );
 
-  it('WI.604 heeft een doorgehaald stuk in de doelzin en de pagina maakt er <s> van, met de tikfout erbij', () => {
+  // De doorgehaalde spatie of punt in deze doelzinnen staat niet doorgehaald in de pdf van de doelenset (besluit
+  // 'opmaak-weglaten', 12 november 2026): de tekens blijven letterlijk staan, zonder <s>.
+  it('WI.604: de tweede punt (doorgehaald in de Excel) staat er letterlijk, zonder doorhaling', () => {
     const doel = doelVan('WI.604');
-    expect(doel.opmaak?.some((s) => 's' in s && s.s)).toBe(true);
+    expect(doel.tekst).toBe('Berekenen de omtrek van een grillige figuur..');
+    expect(doel.opmaak).toBeUndefined();
     const html = pagina('WI.604');
-    expect(html).toContain('<s>.</s>');
-    expect(tekst(html)).toContain('Berekenen de omtrek van een grillige figuur.');
+    expect(html).not.toContain('<s>');
+    expect(html).toContain('Berekenen de omtrek van een grillige figuur..');
+  });
+
+  it('WI.386 en WI.476: de spatie tussen twee woorden is een gewone spatie, zonder streepje (<s>) en zonder dat de woorden aan elkaar plakken', () => {
+    for (const [code, zin] of [
+      ['WI.386', 'Tellen gerelateerde breuken op. '],
+      ['WI.476', 'Vergelijken indirect de oppervlakte van twee objecten.'],
+    ] as const) {
+      const doel = doelVan(code);
+      expect(doel.tekst, code).toBe(zin);
+      expect(doel.opmaak, code).toBeUndefined();
+      const html = pagina(code);
+      expect(html, code).not.toContain('<s>');
+      expect(html, code).toContain(zin.trim());
+    }
+  });
+
+  it('een doorgehaald stuk in de doelzin wordt <s> op de pagina (kleine fixture: de gepubliceerde gegevens hebben er nu geen)', () => {
+    const doel: GoLeerplandoel = { ...doelVan('WI.604'), opmaak: [{ t: 'Berekenen de omtrek van een grillige figuur.' }, { t: 'weg', s: true }], tekst: 'Berekenen de omtrek van een grillige figuur.weg' };
+    const html = toon(
+      createElement(LeerplandoelInhoud, {
+        doel,
+        leerplan: LEERPLAN.get('WI') as GoLeerplanBestand,
+        index: INDEX,
+        minimumdoelen: KLAAR,
+        lesplannen: { status: 'klaar', lesplannen: [] },
+      }),
+    );
+    expect(html).toContain('Berekenen de omtrek van een grillige figuur.<s>weg</s>');
   });
 
   it('WI.546 heeft superschrift in de onderdelen (cm3, dm3, m3) en de pagina maakt er <sup> van', () => {
@@ -1122,8 +1153,23 @@ describe('de opmaak van de leerplantekst op de doelpagina (CT-9)', () => {
         gezien[k]++;
       }
     }
-    expect(gezien.s).toBeGreaterThan(0);
+    // Doorgehaald komt in de gepubliceerde onderdelen niet meer voor (besluit 'opmaak-weglaten'); de fixture hieronder toetst het.
     expect(gezien.i).toBeGreaterThan(0);
     expect(gezien.sup).toBeGreaterThan(0);
+  });
+
+  it('een doorgehaald stuk in een onderdeel wordt <s> in MiaBlok, superschrift en cursief ernaast blijven (kleine fixture)', () => {
+    const html = toon(
+      createElement(MiaBlok, {
+        inhoud: [
+          { soort: 'mia-titel', tekst: 'Vergelijken:', rij: 1 },
+          { soort: 'mia', tekst: 'land of regio ', opmaak: [{ t: 'land of regio' }, { t: ' ', s: true }], aanklikbaar: true, rij: 2 },
+          { soort: 'voorbeeld', tekst: '1 m3 weg', opmaak: [{ t: '1 m' }, { t: '3', sup: true }, { t: ' ' }, { t: 'weg', s: true, i: true }], rij: 3 },
+        ],
+      }),
+    );
+    expect(html).toContain('land of regio<s> </s>');
+    expect(html).toContain('1 m<sup>3</sup> ');
+    expect(html).toMatch(/<s><em>weg<\/em><\/s>|<em><s>weg<\/s><\/em>/);
   });
 });

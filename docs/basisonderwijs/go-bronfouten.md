@@ -23,7 +23,7 @@ Opgemaakt op 9 november 2026 bij de eerste import van het nieuwe GO! leerplan ba
 ## Vragen aan het GO!
 
 1. **Moment en leeftijd.** 326 verwijzingen bij 286 leerplandoelen gaan naar een minimumdoel voor een moment dat niet past bij de leeftijden van het doel (bv. WT.235, 2,5-4 tot 9-10 jaar, naar L6 3.3.2). Zijn die verwijzingen bedoeld, of is het moment of de leeftijd fout? Zie ‘Moment past niet bij de leeftijden’ en de lijst per vak.
-2. **Doorgehaalde tekst.** In 16 rijen van burgerschap, Nederlands en wiskunde staat doorgehaalde tekst in de cellen. Mag die tekst weg? Zie ‘Doorgehaalde tekst en superschrift’.
+2. **Doorgehaalde tekst.** In 16 rijen van burgerschap, Nederlands en wiskunde staat doorgehaalde tekst in de cellen. In 5 minimumdoel-rijen gaat het om echte woorden (bv. “(‘gewicht’)” bij KO 2.3.8). Mogen die doorgehaalde woorden weg? Zie ‘Doorgehaalde tekst en superschrift’.
 3. **AA.070** heeft de leeftijden 5-6, 10-11 en 11-12 jaar, met niets ertussen, en verwijst alleen naar minimumdoelen voor het kleuteronderwijs. Kloppen die leeftijden? Zie Aardrijkskunde.
 4. **FR.090** is voor 11-12 jaar, maar 11 van zijn begrippen ook voor 10-11 jaar. Welke leeftijd is bedoeld? Zie Frans.
 5. **Frans rij 752 en 755** hebben TYPE ‘minimumdoel’, maar zijn verder leeg. Ontbreekt daar een minimumdoel? Zie Frans.
@@ -102,7 +102,7 @@ Een deel van de verschillen lijkt een oudere versie van de officiële tekst (de 
 
 ### Doorgehaalde tekst en superschrift
 
-In burgerschap, Nederlands en wiskunde staat doorgehaalde tekst in de cellen, in geschiedenis en wiskunde superschrift. Superschrift is geen fout (bv. cm³, 19e eeuw). Doorgehaalde tekst is wel verwarrend: wie de Excel als gewone tekst leest, krijgt die tekst mee. **Vraag 2 aan het GO!:** mag de doorgehaalde tekst weg? Boosterz bewaart hem nu letterlijk, als doorgehaald. De rijen staan per vak hieronder.
+In burgerschap, Nederlands en wiskunde staat doorgehaalde tekst in de cellen, in geschiedenis en wiskunde superschrift. Superschrift is geen fout (bv. cm³, 19e eeuw). Doorgehaalde tekst is wel verwarrend: wie de Excel als gewone tekst leest, krijgt die tekst mee. **Vraag 2 aan het GO!:** mag de doorgehaalde tekst weg? Elf van de zestien rijen hebben alleen een doorgehaalde spatie of punt (burgerschap rij 792, 896, 1086; wiskunde rij 586, 792, 1006, 1790, 2413, 3045, 3662, 5689). In de pdf van de doelenset staat daar geen doorhaling, dus Boosterz toont die tekens zonder doorhaling. De andere vijf zijn minimumdoel-rijen met echte doorgehaalde woorden (Nederlands rij 2326; wiskunde rij 2362, 2860, 2861, 5682); de pdf laat die woorden weg. Die tekst komt in Boosterz niet op het scherm, want de tekst van een minimumdoel komt uit de officiële gegevens. De rijen staan per vak hieronder.
 
 ## Per vak
 
