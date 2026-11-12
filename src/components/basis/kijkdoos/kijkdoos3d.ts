@@ -213,6 +213,8 @@ function maakMotor(T: Three, X: Extra, RoomEnvironment: typeof RoomEnvironmentTy
   let eersteGetekend = false;
   let beeldGevraagd = 0;
   let lusId = 0;
+  /** Waar in lusStap: dan plant lusStap zelf de volgende beurt, en mag startLus geen tweede lus beginnen. */
+  let inLus = false;
   let vorigeLus = NaN;
   let laatsteAnim = 0;
   const lus = { slepen: false, proef: 0 };
@@ -238,8 +240,7 @@ function maakMotor(T: Three, X: Extra, RoomEnvironment: typeof RoomEnvironmentTy
     if (!eersteGetekend) {
       eersteGetekend = true;
       meter.eersteBeeld(performance.now() - o.startTijd);
-      if (o.keuze === 'auto' && o.stand !== 'laag') lus.proef = PROEFBEELDEN;
-      startLus();
+      startProef();
     }
     return duur;
   }
@@ -254,12 +255,22 @@ function maakMotor(T: Three, X: Extra, RoomEnvironment: typeof RoomEnvironmentTy
     });
   }
 
+  /** De proefbeelden (alleen bij 'auto' en niet al in 'laag'): na het eerste beeld, en opnieuw zodra de gloed er is. */
+  function startProef(): void {
+    if (o.keuze !== 'auto' || o.stand === 'laag') return;
+    proefTijden.length = 0;
+    lus.proef = PROEFBEELDEN;
+    vorigeLus = NaN;
+    startLus();
+  }
+
   function lusNodig(): boolean {
     return lus.slepen || lus.proef > 0 || animeert();
   }
 
   function startLus(): void {
-    if (dood || contextWeg || lusId || !lusNodig()) return;
+    // Nooit een tweede lus: niet als er al een beurt gepland is, en niet vanuit lusStap zelf (die plant zelf verder).
+    if (dood || contextWeg || lusId || inLus || !lusNodig()) return;
     if (beeldGevraagd) {
       cancelAnimationFrame(beeldGevraagd);
       beeldGevraagd = 0;
@@ -271,12 +282,23 @@ function maakMotor(T: Three, X: Extra, RoomEnvironment: typeof RoomEnvironmentTy
   function lusStap(t: number): void {
     lusId = 0;
     if (dood || contextWeg) return;
+    inLus = true;
+    try {
+      lusBeurt(t);
+    } finally {
+      inLus = false;
+    }
+    if (!dood && !contextWeg && !lusId && lusNodig()) lusId = requestAnimationFrame(lusStap);
+  }
+
+  function lusBeurt(t: number): void {
     const tussen = Number.isFinite(vorigeLus) ? t - vorigeLus : NaN;
+    // Begint de proef pas in deze beurt (bij het eerste beeld), dan telt deze beurt nog niet mee.
+    const proefNu = lus.proef > 0;
     // Alleen de stofjes: 25 beelden per seconde, zoals het prototype.
     const alleenAnim = !lus.slepen && lus.proef === 0;
     if (alleenAnim && t - laatsteAnim < 40) {
       vorigeLus = NaN;
-      if (lusNodig()) lusId = requestAnimationFrame(lusStap);
       return;
     }
     if (animeert()) {
@@ -286,7 +308,7 @@ function maakMotor(T: Three, X: Extra, RoomEnvironment: typeof RoomEnvironmentTy
     const duur = teken();
     // Alleen aansluitende beelden (slepen, proefbeelden) tellen mee in de tijd per beeld; de stofjes lopen op 25 per seconde.
     meter.beeld(alleenAnim ? NaN : tussen, duur);
-    if (lus.proef > 0) {
+    if (proefNu) {
       if (Number.isFinite(tussen)) proefTijden.push(tussen);
       lus.proef--;
       if (lus.proef === 0 && moetNaarLaag(o.keuze, o.stand, proefTijden)) {
@@ -297,8 +319,7 @@ function maakMotor(T: Three, X: Extra, RoomEnvironment: typeof RoomEnvironmentTy
       }
     }
     werkMeetVenster();
-    vorigeLus = alleenAnim ? NaN : t;
-    if (lusNodig()) lusId = requestAnimationFrame(lusStap);
+    vorigeLus = lus.slepen || lus.proef > 0 ? t : NaN;
   }
 
   motorBak.bijHetOpruimen(() => {
@@ -739,6 +760,9 @@ function maakMotor(T: Three, X: Extra, RoomEnvironment: typeof RoomEnvironmentTy
     ev.preventDefault();
     if (dood) return;
     contextWeg = true;
+    // Het dode canvas uit de tabvolgorde en weg voor de schermlezer: de melding met de herlaadknop neemt het over.
+    canvas.tabIndex = -1;
+    canvas.setAttribute('aria-hidden', 'true');
     if (beeldGevraagd) cancelAnimationFrame(beeldGevraagd);
     if (lusId) cancelAnimationFrame(lusId);
     beeldGevraagd = 0;
@@ -756,6 +780,8 @@ function maakMotor(T: Three, X: Extra, RoomEnvironment: typeof RoomEnvironmentTy
         }
         gloed = g;
         maat();
+        // Pas met de gloed weet je of het bord vlot genoeg is: meet bij 'auto' opnieuw.
+        startProef();
       })
       .catch((e) => console.warn('Kijkdoos zonder gloed:', e));
   }
@@ -794,6 +820,14 @@ function maakMotor(T: Three, X: Extra, RoomEnvironment: typeof RoomEnvironmentTy
       if (dood) return;
       zetZicht(z);
     },
+    focus() {
+      if (dood || contextWeg) return;
+      try {
+        canvas.focus({ preventScroll: true });
+      } catch {
+        canvas.focus();
+      }
+    },
     foto() {
       if (dood || contextWeg) return null;
       try {
@@ -819,12 +853,13 @@ function maakMotor(T: Three, X: Extra, RoomEnvironment: typeof RoomEnvironmentTy
       scene.clear();
       r.renderLists.dispose();
       r.dispose();
-      if (!contextWeg) {
-        try {
-          r.forceContextLoss();
-        } catch {
-          /* al weg */
-        }
+      // Ook na een contextverlies proberen, want de browser kan de context intussen hersteld hebben. Daarom kijken we
+      // naar de context zelf, niet naar contextWeg. Is ze echt weg, dan valt er niets los te laten (WEBGL_lose_context
+      // bestaat dan niet meer en three zou alleen een waarschuwing geven).
+      try {
+        if (!r.getContext().isContextLost()) r.forceContextLoss();
+      } catch {
+        /* al weg */
       }
       canvas.remove();
     },

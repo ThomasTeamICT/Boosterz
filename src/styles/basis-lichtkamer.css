@@ -128,13 +128,22 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* Niet justify-content: center: bij grote tekst valt de kop dan boven de rand, buiten bereik van het scrollen. Wel
+   * auto-marges op het eerste en laatste kind: gecentreerd als het past, van boven af als het niet past ('safe center'
+   * kent Safari 14 niet). */
+  justify-content: flex-start;
   gap: 10px;
   padding: 16px;
   overflow: auto;
   background: var(--stage);
   color: var(--on-stage);
   text-align: left;
+}
+.b-lk-melding > :first-child {
+  margin-top: auto;
+}
+.b-lk-melding > :last-child {
+  margin-bottom: auto;
 }
 .b-lk-melding p {
   max-width: 40em;

@@ -14,7 +14,7 @@
 // prototype). Valt de WebGL-context weg, dan wordt de status 'contextverlies' en verschijnt 'Tik om de kijkdoos opnieuw
 // te laden'. Elke keer dat een scherm opent, komt er een nieuwe kijkdoos met een eigen toestand.
 
-import type { Voorwerp } from '../../../lib/basis/lichtkamer';
+import { NAAM_VOORWERP, type Voorwerp } from '../../../lib/basis/lichtkamer';
 import { meetGevraagd, type MeetVerslag } from '../../../lib/basis/lichtkamer/kijkdoos/meet';
 import type { MaakMotor, Motor } from '../../../lib/basis/lichtkamer/kijkdoos/motor';
 import { isSoftwareRenderer, standVoorRenderer, type Stand, type StandKeuze } from '../../../lib/basis/lichtkamer/kijkdoos/standen';
@@ -135,7 +135,13 @@ class Gevel implements Kijkdoos {
     voorwerp: Voorwerp;
     stralen: boolean;
     prikkelarm: boolean;
+    /** Een gekozen zicht; null = het vaste zicht van de oefening. Overleeft het laden en een herstart. */
+    zicht: Zicht | null;
   };
+  /** De laatst doorgegeven beschrijving: dezelfde zin geven we niet nog eens door. */
+  private laatsteBeschrijving: string | null = null;
+  /** Stond de focus in de kijkdoos voor een herstart? Dan gaat hij na het opbouwen naar het nieuwe canvas. */
+  private focusTerug = false;
   private readonly start = performance.now();
 
   constructor(
@@ -148,6 +154,7 @@ class Gevel implements Kijkdoos {
       voorwerp: opties.voorwerp ?? 'boom',
       stralen: opties.stralen ?? false,
       prikkelarm: opties.prikkelarm ?? false,
+      zicht: null,
     };
     if (!opties.opBeschrijving) {
       const p = document.createElement('p');
@@ -179,6 +186,7 @@ class Gevel implements Kijkdoos {
     m.className = 'b-lk-melding';
     if (soort === 'geen3d') {
       m.setAttribute('role', 'note');
+      const naam = NAAM_VOORWERP[this.wens.voorwerp];
       const kop = document.createElement('p');
       kop.className = 'b-lk-melding-kop';
       kop.textContent = 'De 3D-kijkdoos kon niet laden';
@@ -186,9 +194,11 @@ class Gevel implements Kijkdoos {
       p1.textContent = reden;
       const p2 = document.createElement('p');
       p2.textContent =
-        'Wat wel werkt: de doelen en de check. Werk verder met de echte zaklamp, het boompje en de meetlat. Of probeer een ander toestel, of vraag de ICT-coördinator om WebGL toe te laten.';
+        `Wat wel werkt: de doelen en de check. Werk verder met de echte zaklamp, het ${naam} en de meetlat. Of probeer een ander toestel, of vraag de ICT-coördinator om WebGL toe te laten.`;
       m.append(kop, p1, p2);
     } else {
+      // Een alert: wie met het toetsenbord of een schermlezer werkt, hoort dat de kijkdoos weg is en waar de knop staat.
+      m.setAttribute('role', 'alert');
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'b-lk-knop b-lk-herlaad';
@@ -270,9 +280,14 @@ class Gevel implements Kijkdoos {
             }
           },
           beschrijving: (tekst) => {
-            if (beurt !== this.beurt) return;
-            if (this.opties.opBeschrijving) this.opties.opBeschrijving(tekst);
-            else if (this.live) this.live.textContent = tekst;
+            if (beurt !== this.beurt || tekst === this.laatsteBeschrijving) return;
+            this.laatsteBeschrijving = tekst;
+            try {
+              if (this.opties.opBeschrijving) this.opties.opBeschrijving(tekst);
+              else if (this.live) this.live.textContent = tekst;
+            } catch (e) {
+              console.error(e);
+            }
           },
           contextVerloren: () => {
             if (beurt !== this.beurt) return;
@@ -293,12 +308,19 @@ class Gevel implements Kijkdoos {
       return;
     }
     this.stand = stand;
+    if (this.wens.zicht) this.motor.zetZicht(this.wens.zicht);
     this.wisMelding();
+    if (this.focusTerug) {
+      this.focusTerug = false;
+      this.motor.focus();
+    }
     this.zetStatus('klaar');
   }
 
   private herstart(): void {
     if (this.status === 'gesloten') return;
+    const actief = typeof document === 'undefined' ? null : document.activeElement;
+    this.focusTerug = this.focusTerug || (!!actief && actief !== document.body && this.houder.contains(actief));
     this.stopMotor();
     this.wisMelding();
     void this.laad();
@@ -309,13 +331,18 @@ class Gevel implements Kijkdoos {
   }
   toon(t: SceneToestand): void {
     if (this.status === 'gesloten') return;
-    this.wens.toestand = normaliseer(t);
-    this.motor?.toon(this.wens.toestand);
+    const n = normaliseer(t);
+    // Een andere oefening krijgt haar eigen vaste zicht; een gekozen zicht geldt alleen binnen de oefening.
+    if (n.scene !== this.wens.toestand.scene) this.wens.zicht = null;
+    this.wens.toestand = n;
+    this.motor?.toon(n);
   }
   zetVoorwerp(v: Voorwerp): void {
     if (this.status === 'gesloten') return;
     this.wens.voorwerp = v;
     this.motor?.zetVoorwerp(v);
+    // Een ander voorwerp bouwt de oefening opnieuw op (met haar vaste zicht): een gekozen zicht blijft.
+    if (this.wens.zicht) this.motor?.zetZicht(this.wens.zicht);
   }
   zetStralen(aan: boolean): void {
     if (this.status === 'gesloten') return;
@@ -328,6 +355,8 @@ class Gevel implements Kijkdoos {
     this.motor?.zetPrikkelarm(aan);
   }
   zetZicht(z: Zicht): void {
+    if (this.status === 'gesloten') return;
+    this.wens.zicht = z;
     this.motor?.zetZicht(z);
   }
   zetStand(s: StandKeuze): void {

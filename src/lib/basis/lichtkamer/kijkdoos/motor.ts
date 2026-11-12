@@ -37,6 +37,8 @@ export type Motor = {
   zetStralen(aan: boolean): void;
   zetPrikkelarm(aan: boolean): void;
   zetZicht(z: Zicht): void;
+  /** Zet de focus op het canvas (na een herstart, als de focus in de kijkdoos stond). */
+  focus(): void;
   /** Een beeld van de kijkdoos als png (data-url), om te vergelijken; null als het niet lukt. */
   foto(): string | null;
   meting(): MeetVerslag;
