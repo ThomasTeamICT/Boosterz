@@ -28,6 +28,7 @@ import {
   Network,
   PencilRuler,
   Piano,
+  Presentation,
   Puzzle,
   ScanEye,
   Shuffle,
@@ -293,6 +294,13 @@ const TYPE_DEFS: Omit<WidgetTypeDef, 'color'>[] = [
     defaultConfig: () => ({ provider: 'youtube', videoUrl: '', title: '' }),
     Editor: lazyWidget(() => import('./mediaplayer').then((m) => ({ default: m.MediaPlayerEditor }))),
     Player: lazyWidget(() => import('./mediaplayer').then((m) => ({ default: m.MediaPlayerPlayer }))),
+  },
+  {
+    id: 'bordles', name: 'Bordles', tagline: 'Uitleg stap voor stap op het bord, daarna zelf doen',
+    Icon: Presentation, hue: 221, category: 'picture', hasSubmissions: true, hasScore: true, wide: true,
+    defaultConfig: () => ({ fases: [] }),
+    Editor: lazyWidget(() => import('./bordles').then((m) => ({ default: m.BordlesEditor }))),
+    Player: lazyWidget(() => import('./bordles').then((m) => ({ default: m.BordlesPlayer }))),
   },
   {
     id: 'activeplot', name: 'Actieve plot', tagline: 'Functiegrafieken met versleepbare parameters',

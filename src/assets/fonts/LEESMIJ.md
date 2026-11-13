@@ -28,3 +28,11 @@ bewaart ze bij de installatie).
   het deel; tot dan toont de browser Outfit.
 - Licentie: SIL Open Font License 1.1, zie `OFL-Fredoka.txt` (© 2016 The Fredoka Project Authors). Die tekst komt uit het
   pakket `@fontsource/fredoka` 5.3.0 (licentie OFL-1.1).
+
+## Patrick Hand (alleen in de bordles)
+
+- `patrick-hand-400-latin.woff2` is het latin-bestand van Patrick Hand uit het pakket `@fontsource/patrick-hand` 5.3.0,
+  opgehaald op 13 november 2026 voor het krijtschrift van de bordles (`docs/UITLEGVORMEN.md`).
+- De `@font-face`-regel staat alleen in `src/styles/bordles.css`: het lettertype laadt pas met de lui geladen bordles en zit
+  niet in de voorcache van het leerlingpad. Tot het geladen is, toont de browser een cursief systeemlettertype.
+- Licentie: SIL Open Font License 1.1, zie `OFL-PatrickHand.txt` (© 2010-2012 Patrick Wagesreiter).

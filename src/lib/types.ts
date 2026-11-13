@@ -38,7 +38,8 @@ export type WidgetTypeId =
   | 'webquest'
   | 'mindmap'
   | 'planner'
-  | 'piano';
+  | 'piano'
+  | 'bordles';
 
 export type WidgetCategory = 'test' | 'game' | 'picture' | 'math' | 'classroom';
 
@@ -484,6 +485,83 @@ export interface BeforeAfterConfig {
 
 export interface Frame { id: string; imageUrl?: string; title: string; text?: string }
 export interface FrameSequenceConfig { frames: Frame[] }
+
+// ── Bordles: stap voor stap voordoen op een schoolbord (docs/UITLEGVORMEN.md) ──
+
+export type BordlesSnelheid = 'traag' | 'normaal' | 'snel' | 'meteen';
+export type BordlesFaseSoort = 'kijk' | 'doe' | 'fout' | 'alleen';
+export type Krijtkleur = 'wit' | 'geel' | 'blauw' | 'roze' | 'groen' | 'oranje';
+/** Een punt op het bord; het bord is 600 breed en 500 hoog. */
+export type BordPunt = [number, number];
+
+interface BordElementBasis {
+  /** Nodig als een later element dit element vervangt. */
+  id?: string;
+  /** Id van een eerder element dat verdwijnt zodra dit element verschijnt. */
+  vervangt?: string;
+  kleur?: Krijtkleur;
+}
+export type BordElement =
+  | (BordElementBasis & { soort: 'lijn'; van: BordPunt; naar: BordPunt; dikte?: number })
+  | (BordElementBasis & { soort: 'veelhoek'; punten: BordPunt[]; gesloten?: boolean; vulling?: boolean; dikte?: number })
+  | (BordElementBasis & { soort: 'cirkel'; midden: BordPunt; straal: number; dikte?: number })
+  | (BordElementBasis & { soort: 'pijl'; van: BordPunt; naar: BordPunt; dikte?: number })
+  | (BordElementBasis & {
+      soort: 'tekst';
+      plek: BordPunt;
+      delen: { tekst: string; kleur?: Krijtkleur }[];
+      grootte?: number;
+      uitlijning?: 'links' | 'midden' | 'rechts';
+      /** Id van een invulstap: tot die opgelost is, staat hier de plaatshouder. */
+      verborgenTot?: string;
+      plaatshouder?: string;
+    });
+
+export interface BordlesKeuzeOptie { tekst: string; juist?: boolean; uitleg: string }
+
+export interface BordlesStap {
+  id: string;
+  /** Kort label met het doel van de stap, bv. "Kwadrateer". */
+  deeldoel?: string;
+  /** Tekst naast het bord; wordt ook voorgelezen. Mag hardop denken. */
+  uitleg: string;
+  teken: BordElement[];
+  /** De leerling vult een antwoord in (doe, alleen, instap). */
+  invul?: {
+    label: string;
+    antwoord: string;
+    hints: string[];
+    gekendeFouten?: { antwoord: string; uitleg: string }[];
+    /** Vraag 'zeker, twijfel, gok' vóór het controleren. */
+    zekerheid?: boolean;
+  };
+  /** Meerkeuze: zoek de fout, of een waaromvraag. */
+  keuze?: { vraag?: string; opties: BordlesKeuzeOptie[] };
+  /** Open waaromvraag zonder punten: de leerling denkt na en ziet daarna het modelantwoord. */
+  waarom?: { vraag: string; modelantwoord: string };
+  /** Bordstand: iedereen antwoordt eerst (wisbordje, duim) voor de oplossing verschijnt. */
+  klasmoment?: { opdracht: string };
+  /** De hand wijst hierheen nadat de stap getekend is. */
+  wijsNaar?: BordPunt;
+}
+
+export interface BordlesFase {
+  id: string;
+  soort: BordlesFaseSoort;
+  titel?: string;
+  stappen: BordlesStap[];
+}
+
+export interface BordlesConfig {
+  standaardSnelheid?: BordlesSnelheid;
+  /** In leerlingentaal; staat bij de start. */
+  leerdoel?: string;
+  /** Een controlevraag vooraf: juist betekent meteen naar de fase 'alleen'. */
+  instapvraag?: BordlesStap;
+  /** Vakwoorden met een korte uitleg, aanklikbaar onder de uitleg. */
+  woorden?: { woord: string; uitleg: string }[];
+  fases: BordlesFase[];
+}
 
 export interface TipTile { id: string; title: string; imageUrl?: string; text: string; color?: string }
 export interface TipTilesConfig { tiles: TipTile[] }

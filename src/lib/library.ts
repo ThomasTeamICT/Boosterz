@@ -117,6 +117,7 @@ const PLURAL: Record<WidgetTypeId, string> = {
   spinner: 'raderen van fortuin',
   timer: 'klastimers',
   checklist: 'checklists',
+  bordles: 'bordlessen',
 };
 
 /** Enkelvoud waar de soortnaam zelf een meervoud of een zin is. */

@@ -80,7 +80,8 @@ import { fontRefsInCss } from './src/offline/lettertypes';
  *    richtingen, klas en richting: alles lui, maar elk nieuw gedeeld chunk
  *    verlengt de preloadlijst) op 334,1 kB (106,2 kB gzip); de eigen ingang van het basisonderwijs (okt./nov. 2026: één luie route '/basis/*',
  *    haar paginatitels en één lazyRetry-regel; de padlezer zit in het luie chunk, zonder <Routes>) op 335,2 kB (106,5 kB gzip), gemeten, +0,7 kB tegenover
- *    334,5 kB. Het budget ligt ±0,5 kB boven die meting, zodat elke groei meteen opvalt; wie meer nodig heeft,
+ *    334,5 kB. De bordles (nov. 2026: een 39ste widgetsoort met het icoon Presentation in vendor en haar regel in
+ *    registry.tsx; de speler zelf is lui) op 336,3 kB (106,8 kB gzip), gemeten. Het budget ligt ±0,5 kB boven die meting, zodat elke groei meteen opvalt; wie meer nodig heeft,
  *    verhoogt het bewust, hier. Let op: vóór sep. 2026 mat dit budget vóór
  *    Vite de preloadlijst invulde, dus ±9 kB te licht (zie order: 'post').
  *  - vendor: React, React DOM, scheduler, de lucide-basis en de iconen van het
@@ -99,7 +100,7 @@ import { fontRefsInCss } from './src/offline/lettertypes';
  */
 const CRITICAL_PATH = {
   label: 'hoofdbundel (kritieke leerlingpad)',
-  maxKb: 335.7,
+  maxKb: 336.8,
   /** boven 5 % te veel faalt de build */
   hardFactor: 1.05,
   /** wat naast de hoofdbundel in de statische sluiting mag zitten */
@@ -268,7 +269,7 @@ const EAGER_ICON_NAMES = [
   'ArrowLeftRight', 'Brain', 'Brush', 'Calculator', 'CalendarCheck', 'ChartPie', 'ChartSpline',
   'CircleQuestionMark', 'Clapperboard', 'Columns2', 'Compass', 'Dices', 'FerrisWheel', 'FileText',
   'Film', 'GalleryHorizontal', 'Grid2x2Check', 'Grid3x3', 'Headphones', 'Keyboard', 'LayoutGrid',
-  'Link2', 'ListChecks', 'MapPin', 'MonitorPlay', 'Network', 'PencilRuler', 'Piano', 'Puzzle',
+  'Link2', 'ListChecks', 'MapPin', 'MonitorPlay', 'Network', 'PencilRuler', 'Piano', 'Presentation', 'Puzzle',
   'ScanEye', 'Shuffle', 'SquareStack', 'TextSearch', 'Ticket', 'Timeline', 'Timer', 'Vote', 'ZoomIn',
   // src/components/ui.tsx (meldingen) en src/pages/OpenSharedPage.tsx
   'Check', 'Copy', 'ImagePlus', 'TriangleAlert', 'X',

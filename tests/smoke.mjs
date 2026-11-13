@@ -43,7 +43,7 @@ console.log('1. Startpagina');
 await go('/#/');
 check('startpagina heeft één h1', (await page.locator('main h1').count()) === 1);
 check('eerste bezoek: uitleg "hoe het in elkaar zit"', await page.locator('text=Hoe het in elkaar zit').first().isVisible());
-check('38 widgetsoorten op de startpagina', (await page.locator('.start-type-chip').count()) === 38);
+check('39 widgetsoorten op de startpagina', (await page.locator('.start-type-chip').count()) === 39);
 check('aparte ingang voor leerlingen', (await page.locator('a[href="#/meedoen"]').count()) >= 1);
 {
   // Pakket Q3: de belofte bij "Delen" is eerlijk: de link werkt op elk toestel, de code alleen op dit toestel.
