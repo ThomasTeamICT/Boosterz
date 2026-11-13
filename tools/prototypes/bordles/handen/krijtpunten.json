@@ -1,0 +1,32 @@
+{
+  "schrijven": {
+    "breedte": 318,
+    "hoogte": 333,
+    "krijtpuntX": 0.0,
+    "krijtpuntY": 31.6
+  },
+  "lijn": {
+    "breedte": 318,
+    "hoogte": 326,
+    "krijtpuntX": 0.0,
+    "krijtpuntY": 23.8
+  },
+  "opgetild": {
+    "breedte": 325,
+    "hoogte": 338,
+    "krijtpuntX": 0.0,
+    "krijtpuntY": 29.5
+  },
+  "wijzen": {
+    "breedte": 319,
+    "hoogte": 312,
+    "krijtpuntX": 0.0,
+    "krijtpuntY": 11.0
+  },
+  "tikken": {
+    "breedte": 321,
+    "hoogte": 332,
+    "krijtpuntX": 0.0,
+    "krijtpuntY": 35.6
+  }
+}
