@@ -20,6 +20,8 @@ kunnen aanbrengen. De **bordles** is de eerste van die uitlegvormen. Het werkend
 | Bordles: editor voor de leerkracht (BL-5, BL-6) | **Wacht** | bouwer |
 | Bordles: AI-voorstel in de AI-studio (BL-7) | **Wacht** | hoofdsessie |
 | Voorbeeldlessen en rooktest (BL-8, BL-9) | **Wacht** | inhoudschrijver, nakijker, bouwer |
+| Richting na het uittesten (13 november 2026) | **Beslist** door de eigenaar: geen editor om van nul te starten, wel een **kant-en-klaar basispakket** op basis van de lesplannen, waarin zeker is dat de doelen voorkomen en logisch behandeld worden. (1) Eerst de GO!-lesplannen wetenschap en techniek in het basisdeel. (2) Wij maken de lessen vooraf en kijken ze na, met de mogelijkheid voor de leerkracht om eigen oefeningen toe te voegen. (3) Een les past zich aan aan klassikaal op het bord of individueel. Uitwerking in § 5 | klaar |
+| Bordles in het GO!-aanbod (§ 5) | **Wacht** op twee antwoorden van de eigenaar (beelden en startlesplan, onderaan) | eigenaar |
 | De andere uitlegvormen (§ 1, nummer 2 tot 4) | **Later**, na de bordles | eigenaar kiest de volgorde |
 
 ## 1. De set: welke uitlegvorm bij welk soort leerdoel
@@ -189,6 +191,32 @@ principes (uitgewerkte voorbeelden, afbouwen, fouten laten zoeken, ophalen, gesp
 | 6 | Leerdoel en waarom bij de instap, terugblik op het einde; geraamte als standaard | feed-up en zelf samenvatten; geen keurslijf | § 2 |
 | 7 | Vakwoorden naar de woordenlijst met steuntaal | taal is een drempel, zeker voor TAL | § 1, § 3.2 (`woorden`) |
 
+## 5. Kant-en-klaar: de bordles in het aanbod bij de lesplannen
+
+Beslissing van 13 november 2026 (zie de stand van zaken). Het aanbodmodel ligt al klaar in
+`docs/basisonderwijs/GO-LEERPLAN.md` (§ Aanbod, pakketten A1 tot A5): per lesplan een manifest dat per onderdeel zegt welke
+stap van de leskern of welke activiteit van 'Trainen' het ondersteunt en voor welke leerplandoelen het is. De bordles wordt
+daar één soort onderdeel van ('uitleg op het bord'), naast het digibord-deel, oefeningen en afdrukmateriaal.
+
+- **De doelen zeker behandeld.** De validator van het aanbod eist bovenop wat GO-LEERPLAN.md al vraagt dat elk leerplandoel
+  uit deel 2 van het lesplan door minstens één onderdeel gedekt wordt, en elke stap van een bordles draagt de doelcode die
+  ze behandelt. Wat ontbreekt, staat als 'nog niet gedekt' bij het lesplan, nooit stil weg.
+- **Zo logisch mogelijk.** De volgorde komt uit het lesplan zelf: de onderdelen volgen de stappen van de leskern (verkennen,
+  voorkeursinstructie, terugkoppelen, begeleid inoefenen, herhalen) en daarna 'Trainen' en de vastlegging. De bordles hoort
+  vooral bij de voorkeursinstructie (stap 2) en het korte herhalen (stap 5).
+- **Het lesplan blijft de baas.** De bordles vult aan en vervangt geen handelend leren.
+- **Bord of individueel.** Bij kleuters staat de bordstand standaard aan: de leerkracht bedient, de klas antwoordt samen.
+  In de hoekstand werkt één kind, groot en voorgelezen.
+- **Een kleutervariant van de bordles.** Geen formules en niet typen: de hand tekent eenvoudige krijttekeningen of legt prenten
+  op het bord, alles wordt vanzelf voorgelezen, en de kinderen antwoorden door op een prent te tikken. Daarvoor krijgt het
+  lesformaat een element 'prent' en een keuze met prenten.
+- **Zelf toevoegen.** 'Zet in mijn oefeningen' (pakket A2) zet het aanbod in een eigen map; de leerkracht voegt daar eigen
+  oefeningen aan toe en kan een kopie van een bordles aanpassen. Een AI-voorstel voor wat ontbreekt, komt later.
+- **Bouwvolgorde.** Eerst A2 (aanbodmodel met de dekkingscontrole), dan de kleutervariant van de bordles, dan het aanbod
+  voor het eerste lesplan (A3), uitproberen in de klas (A5), daarna de volgende lesplannen.
+
 ## Vragen aan de eigenaar
 
-1. Mag ik starten met BL-1 tot BL-3 (lesformaat, tekenmotor en speler), zodat je de bordles in Boosterz kunt uitproberen?
+1. Beelden voor de kleuterlessen (dieren, planten, voedsel): (a) eenvoudige krijttekeningen die de hand zelf tekent (geen
+   licenties nodig), (b) prenten in één vaste stijl die de eigenaar aanlevert, zoals de handen, of (c) allebei.
+2. Starten met LP0065 'Dieren classificeren' (2,5-4 jaar), zoals al voorgesteld in GO-LEERPLAN.md?
