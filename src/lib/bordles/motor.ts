@@ -52,8 +52,8 @@ export function maakMotor(laag: SVGGElement, handMap: string): Motor {
 
   while (laag.firstChild) laag.removeChild(laag.firstChild);
   const defs = el('defs', {}, laag);
-  const stof = el('g', { class: 'b-stof', 'aria-hidden': 'true' }, laag);
-  const hand = el('g', { class: 'b-hand', opacity: 0, 'aria-hidden': 'true' }, laag);
+  const stof = el('g', { class: 'bl-stof', 'aria-hidden': 'true' }, laag);
+  const hand = el('g', { class: 'bl-hand', opacity: 0, 'aria-hidden': 'true' }, laag);
   const beelden = new Map<HandPose, SVGImageElement>();
   (Object.keys(HANDEN) as HandPose[]).forEach((pose) => {
     const m = HANDEN[pose];
@@ -132,7 +132,7 @@ export function maakMotor(laag: SVGGElement, handMap: string): Motor {
       } else if (soort === 'tekst') {
         const t = e as SVGTextElement;
         const bb = t.getBBox();
-        const id = `b-knip-${++clipTeller}`;
+        const id = `bl-knip-${++clipTeller}`;
         const cp = el('clipPath', { id }, defs);
         const r = el('rect', { x: bb.x - 6, y: bb.y - 8, width: 0, height: bb.height + 16 }, cp);
         t.setAttribute('clip-path', `url(#${id})`);

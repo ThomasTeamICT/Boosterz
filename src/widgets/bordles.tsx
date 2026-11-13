@@ -9,7 +9,7 @@
 import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { BordElement, BordlesConfig, BordlesFase, BordlesSnelheid, BordlesStap } from '../lib/types';
 import {
-  alleStappen, antwoordGelijk, gekendeFout, MAX_POGINGEN, telendeStappen, teltAlsEigenWerk, toetsenbordVoor, uitkomstVan, valideerBordles,
+  alleStappen, antwoordGelijk, vervangenDoor, gekendeFout, MAX_POGINGEN, telendeStappen, teltAlsEigenWerk, toetsenbordVoor, uitkomstVan, valideerBordles,
   type StapVoortgang,
 } from '../lib/bordles/formaat';
 import { krijt, padVoor, SNELHEID_NAMEN, tekstAnker, voorleesTekst, vulPad } from '../lib/bordles/vormen';
@@ -47,7 +47,7 @@ function Prent({ el, map }: { el: Extract<BordElement, { soort: 'prent' }>; map?
     return (
       <g data-b="prent" aria-label={el.alt}>
         <rect x={x} y={y} width={b} height={b} rx={10} fill="none" stroke={krijt('wit')} strokeWidth={2} strokeDasharray="8 6" />
-        <text className="b-krijtschrift" x={x + b / 2} y={y + b / 2 + 8} fontSize={Math.max(18, Math.min(28, b / 6))} textAnchor="middle" fill={krijt('wit')}>{el.alt}</text>
+        <text className="bl-krijtschrift" x={x + b / 2} y={y + b / 2 + 8} fontSize={Math.max(18, Math.min(28, b / 6))} textAnchor="middle" fill={krijt('wit')}>{el.alt}</text>
       </g>
     );
   }
@@ -67,11 +67,11 @@ function BordVorm({ el, opgelost, pop, map }: { el: BordElement; opgelost: (id: 
     return (
       <text
         data-b="tekst"
-        className={`b-krijtschrift${el.verborgenTot && pop === el.verborgenTot && !verborgen ? ' b-pop' : ''}`}
+        className={`bl-krijtschrift${el.verborgenTot && pop === el.verborgenTot && !verborgen ? ' bl-pop' : ''}`}
         x={el.plek[0]} y={el.plek[1]} fontSize={el.grootte ?? 26} textAnchor={tekstAnker(el.uitlijning)} fill={krijt('wit')}
       >
         {verborgen
-          ? <tspan fill={kleur} className="b-blanco">{el.plaatshouder ?? '?'}</tspan>
+          ? <tspan fill={kleur} className="bl-blanco">{el.plaatshouder ?? '?'}</tspan>
           : el.delen.map((d, i) => <tspan key={i} fill={d.kleur ? krijt(d.kleur) : undefined}>{d.tekst}</tspan>)}
       </text>
     );
@@ -131,7 +131,8 @@ function bordTekst(stappen: BordlesStap[], vervangen: Set<string>, opgelost: (id
 
 /** Wat er bij een stap voorgelezen wordt: deeldoel, uitleg en de vraag (bij prenten ook de keuzes). */
 function voorleesVoor(stap: BordlesStap): string {
-  const keuzes = stap.keuze?.opties.some((o) => o.prent) ? ` ${stap.keuze.opties.map((o) => o.tekst).join(', of ')}?` : '';
+  const klein = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
+  const keuzes = stap.keuze?.opties.some((o) => o.prent) ? ` ${stap.keuze.opties.map((o, i) => (i === 0 ? o.tekst : klein(o.tekst))).join(', of ')}?` : '';
   return `${stap.deeldoel ? `${stap.deeldoel}. ` : ''}${stap.uitleg} ${stap.keuze?.vraag ?? stap.waarom?.vraag ?? stap.invul?.label ?? ''}${keuzes}`;
 }
 
@@ -377,7 +378,7 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
     return (
       <ResultHero earned={0} max={0} showScore={false} title="Klaar!" subtitle="Je hebt de hele bordles doorlopen.">
         {telend.length > 0 && (
-          <ul className="b-samenvatting">
+          <ul className="bl-samenvatting">
             {telend.map((s) => (
               <li key={s.id}>{s.deeldoel ?? s.uitleg}: <strong>{uitkomstVan(voortgang[s.id])}</strong></li>
             ))}
@@ -403,7 +404,7 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
   // Een element met 'vervangt' doet een eerder element verdwijnen.
   const zichtbaar = fase.stappen.slice(0, plek.stap + 1);
   const vervangen = new Set<string>();
-  zichtbaar.forEach((s) => s.teken.forEach((e) => { if (e.vervangt) vervangen.add(e.vervangt); }));
+  zichtbaar.forEach((s) => s.teken.forEach((e) => { for (const v of vervangenDoor(e)) vervangen.add(v); }));
   // Eén nieuwe stap tegelijk, de vorige gedimd (minder cognitieve belasting).
   // Tekent de huidige stap niets (een vraag), dan blijft het bord helder.
   const dim = stap.teken.length > 0;
@@ -413,10 +414,10 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
   const ids = { antwoord: `${uid}-antwoord`, waarom: `${uid}-waarom` };
 
   return (
-    <div className={`b-les${bordstand ? ' b-bordstand' : ''}${kleuter ? ' b-kleuter' : ''}`}>
-      {cfg.leerdoel && <p className="b-leerdoel"><strong>Leerdoel:</strong> {cfg.leerdoel}</p>}
-      {ingediend && <p className="callout b-al-ingediend" role="note">Je les is al ingediend. Wat je nu nog doet, telt niet meer mee.</p>}
-      <nav className="b-fases" aria-label="Fases van de les">
+    <div className={`bl-les${bordstand ? ' bl-bordstand' : ''}${kleuter ? ' bl-kleuter' : ''}`}>
+      {cfg.leerdoel && <p className="bl-leerdoel"><strong>Leerdoel:</strong> {cfg.leerdoel}</p>}
+      {ingediend && <p className="callout bl-al-ingediend" role="note">Je les is al ingediend. Wat je nu nog doet, telt niet meer mee.</p>}
+      <nav className="bl-fases" aria-label="Fases van de les">
         {instapFase && (
           <button type="button" aria-current={plek.fase === -1 ? 'step' : undefined} onClick={() => gaNaar({ fase: -1, stap: 0 }, true)}>Instap</button>
         )}
@@ -427,13 +428,13 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
         ))}
       </nav>
 
-      <div className="b-raster">
+      <div className="bl-raster">
         {/* Tik op het bord: de tekening meteen af (met het toetsenbord doet Volgende hetzelfde). */}
-        <div className="b-bord" onClick={() => motorRef.current?.maakAf()}>
+        <div className="bl-bord" onClick={() => motorRef.current?.maakAf()}>
           <svg viewBox="0 0 600 500" role="img" aria-label={`Op het bord: ${bordTekst(zichtbaar, vervangen, isOpgelost) || 'een tekening'}`}>
             <g key={teller}>
               {zichtbaar.map((s, i) => (
-                <g key={s.id} ref={i === plek.stap ? huidigeRef : undefined} className={i < plek.stap && dim ? 'b-oud' : undefined}>
+                <g key={s.id} ref={i === plek.stap ? huidigeRef : undefined} className={i < plek.stap && dim ? 'bl-oud' : undefined}>
                   {s.teken.map((e, j) => (e.id && vervangen.has(e.id) ? null
                     : <BordVorm key={j} el={e} opgelost={isOpgelost} pop={pop} map={cfg.beeldMap} />))}
                 </g>
@@ -443,17 +444,17 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
           </svg>
         </div>
 
-        <section className="b-paneel" aria-label="Uitleg en bediening">
-          <p className="b-teller">{fase.titel ?? FASE_NAAM[fase.soort]} · stap {plek.stap + 1} van {fase.stappen.length}</p>
+        <section className="bl-paneel" aria-label="Uitleg en bediening">
+          <p className="bl-teller">{fase.titel ?? FASE_NAAM[fase.soort]} · stap {plek.stap + 1} van {fase.stappen.length}</p>
           {/* Deeldoel: een naam per stap helpt de aanpak meenemen naar nieuwe opgaven. */}
-          {stap.deeldoel && <p className="b-deeldoel">{stap.deeldoel}</p>}
-          <p className="b-uitleg" aria-live="polite">{stap.uitleg}</p>
+          {stap.deeldoel && <p className="bl-deeldoel">{stap.deeldoel}</p>}
+          <p className="bl-uitleg" aria-live="polite">{stap.uitleg}</p>
 
-          <div className="b-rij">
-            <button type="button" className="btn btn-ghost b-voorlees" onClick={() => spreek(voorleesVoor(stap))}>
+          <div className="bl-rij">
+            <button type="button" className="btn btn-ghost bl-voorlees" onClick={() => spreek(voorleesVoor(stap))}>
               Voorlezen
             </button>
-            <div className="b-snelheid" role="group" aria-label="Tekensnelheid">
+            <div className="bl-snelheid" role="group" aria-label="Tekensnelheid">
               {SNELHEDEN.map((s) => (
                 <button key={s} type="button" aria-pressed={snelheid === s} onClick={() => {
                   setSnelheid(s);
@@ -462,14 +463,14 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
                 }}>{SNELHEID_NAMEN[s]}</button>
               ))}
             </div>
-            <label className="b-schakel"><input type="checkbox" checked={bordstand} onChange={(e) => setBordstand(e.target.checked)} /> Bordstand</label>
-            <label className="b-schakel"><input type="checkbox" checked={vanzelfVoorlezen} onChange={(e) => setVanzelfVoorlezen(e.target.checked)} /> Vanzelf voorlezen</label>
+            <label className="bl-schakel"><input type="checkbox" checked={bordstand} onChange={(e) => setBordstand(e.target.checked)} /> Bordstand</label>
+            <label className="bl-schakel"><input type="checkbox" checked={vanzelfVoorlezen} onChange={(e) => setVanzelfVoorlezen(e.target.checked)} /> Vanzelf voorlezen</label>
           </div>
 
           {/* Klasmoment: in de bordstand antwoordt eerst iedereen, dan pas de oplossing. */}
           {klasmomentOpen && (
-            <div className="b-klasmoment" role="status">
-              <p><strong>Klasmoment.</strong> {stap.klasmoment!.opdracht}</p>
+            <div className="bl-klasmoment" role="status">
+              <p><strong>Klasmoment.</strong> {stap.klasmoment!.opdracht}{stap.keuze ? ' Daarna tikt een kind of de leerkracht op het antwoord.' : ''}</p>
               <button type="button" className="btn btn-primary" onClick={() => {
                 wijzig(stap.id, (o) => ({ ...o, opgelost: true, klas: true, feedback: { tekst: stap.invul ? `De oplossing is ${stap.invul.antwoord}.` : (stap.keuze?.opties.find((x) => x.juist)?.uitleg ?? ''), goed: true } }));
                 if (plek.fase === -1) setInstapUitslag('fout');
@@ -479,9 +480,9 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
           )}
 
           {stap.invul && !klasmomentOpen && (
-            <div className="b-invul">
+            <div className="bl-invul">
               {stap.invul.zekerheid && (
-                <div className="b-zeker" role="group" aria-label="Hoe zeker ben je?">
+                <div className="bl-zeker" role="group" aria-label="Hoe zeker ben je?">
                   <span>Hoe zeker ben je?</span>
                   {(['zeker', 'twijfel', 'gok'] as const).map((z) => (
                     <button key={z} type="button" aria-pressed={(v.pogingen === 0 ? zeker : v.zeker) === z}
@@ -491,10 +492,10 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
                   ))}
                 </div>
               )}
-              <label htmlFor={ids.antwoord} className="b-label">{stap.invul.label}</label>
-              <div className="b-rij">
+              <label htmlFor={ids.antwoord} className="bl-label">{stap.invul.label}</label>
+              <div className="bl-rij">
                 <input
-                  id={ids.antwoord} ref={invoerRef} className="input b-input" inputMode={toetsenbordVoor(stap.invul.antwoord)} autoComplete="off"
+                  id={ids.antwoord} ref={invoerRef} className="input bl-input" inputMode={toetsenbordVoor(stap.invul.antwoord)} autoComplete="off"
                   value={v.opgelost ? (v.getoond || v.klas ? stap.invul.antwoord : v.antwoordTekst ?? '') : antwoord}
                   disabled={v.opgelost} onChange={(e) => setAntwoord(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') controleer(); }}
@@ -504,17 +505,17 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
                   <button type="button" className="btn btn-ghost" disabled={v.opgelost || v.hints >= stap.invul.hints.length} onClick={vraagHint}>Hint</button>
                 )}
               </div>
-              {v.hints > 0 && <ol className="b-hints">{stap.invul.hints.slice(0, v.hints).map((h, i) => <li key={i}>{h}</li>)}</ol>}
+              {v.hints > 0 && <ol className="bl-hints">{stap.invul.hints.slice(0, v.hints).map((h, i) => <li key={i}>{h}</li>)}</ol>}
             </div>
           )}
 
-          {stap.keuze && !klasmomentOpen && (
-            <div className={`b-keuze${stap.keuze.opties.some((o) => o.prent) ? ' b-keuze-prenten' : ''}`} ref={keuzeRef}>
-              {stap.keuze.vraag && <p className="b-vraag">{stap.keuze.vraag}</p>}
+          {stap.keuze && (
+            <div className={`bl-keuze${stap.keuze.opties.some((o) => o.prent) ? ' bl-keuze-prenten' : ''}`} ref={keuzeRef}>
+              {stap.keuze.vraag && <p className="bl-vraag">{stap.keuze.vraag}</p>}
               {stap.keuze.opties.map((o, i) => {
                 const gekozen = v.gekozen?.includes(i);
                 return (
-                  <button key={i} type="button" className={`b-optie${o.prent ? ' b-optie-prent' : ''}${gekozen ? (o.juist ? ' juist' : ' mis') : ''}`}
+                  <button key={i} type="button" className={`bl-optie${o.prent ? ' bl-optie-prent' : ''}${gekozen ? (o.juist ? ' juist' : ' mis') : ''}`}
                     disabled={v.opgelost || gekozen} onClick={() => kies(i)}>
                     {o.prent && <OptiePrent url={beeldUrl(cfg.beeldMap, o.prent)} />}
                     <span>{o.tekst}</span>
@@ -526,11 +527,11 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
 
           {/* Waaromvraag: zelf verklaren maakt een uitgewerkt voorbeeld pas sterk. */}
           {stap.waarom && (
-            <div className="b-waarom">
-              <label htmlFor={ids.waarom} className="b-vraag">{stap.waarom.vraag}</label>
+            <div className="bl-waarom">
+              <label htmlFor={ids.waarom} className="bl-vraag">{stap.waarom.vraag}</label>
               <textarea id={ids.waarom} className="textarea" rows={2} disabled={v.opgelost} placeholder="Schrijf kort je antwoord (niet verplicht)"
                 value={v.antwoordTekst ?? ''} onChange={(e) => wijzig(stap.id, (o) => ({ ...o, antwoordTekst: e.target.value }))} />
-              {v.opgelost ? <p className="b-model"><strong>Modelantwoord:</strong> {stap.waarom.modelantwoord}</p> : (
+              {v.opgelost ? <p className="bl-model"><strong>Modelantwoord:</strong> {stap.waarom.modelantwoord}</p> : (
                 <button type="button" className="btn btn-ghost" onClick={() => { wijzig(stap.id, (o) => ({ ...o, opgelost: true })); naOplossen(stap.id); }}>
                   Toon het modelantwoord
                 </button>
@@ -539,11 +540,11 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
           )}
 
           {/* De meldingsregio staat er altijd, zodat een schermlezer elke nieuwe melding voorleest. */}
-          <p className={`b-feedback ${v.feedback ? (v.feedback.goed ? 'goed' : 'fout') : ''}`} role="status" aria-live="polite">{v.feedback?.tekst ?? ''}</p>
+          <p className={`bl-feedback ${v.feedback ? (v.feedback.goed ? 'goed' : 'fout') : ''}`} role="status" aria-live="polite">{v.feedback?.tekst ?? ''}</p>
 
           {/* Instap: wie het al kan, hoeft niet te wachten (voordoen remt gevorderden). */}
           {plek.fase === -1 && instapUitslag && (
-            <div className="b-rij" ref={instapActieRef}>
+            <div className="bl-rij" ref={instapActieRef}>
               {instapUitslag === 'juist' && alleenFase >= 0 && (
                 <button type="button" className="btn btn-primary" onClick={() => gaNaar({ fase: alleenFase, stap: 0 }, true)}>Meteen naar Alleen</button>
               )}
@@ -554,7 +555,7 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
           )}
 
           {plek.fase !== -1 && (
-            <div className="b-rij b-nav">
+            <div className="bl-rij bl-nav">
               <button type="button" className="btn btn-ghost" disabled={plek.fase === 0 && plek.stap === 0} onClick={terug}>Terug</button>
               <button type="button" className="btn btn-ghost" onClick={() => { animeerRef.current = true; setTeller((t) => t + 1); }}>Nog eens</button>
               <button type="button" ref={volgendeRef} className="btn btn-primary" disabled={geblokkeerd} onClick={volgende}>
@@ -564,7 +565,7 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
           )}
 
           {cfg.woorden && cfg.woorden.length > 0 && (
-            <details className="b-woorden">
+            <details className="bl-woorden">
               <summary>Woorden</summary>
               <dl>{cfg.woorden.map((w) => <React.Fragment key={w.woord}><dt>{w.woord}</dt><dd>{w.uitleg}</dd></React.Fragment>)}</dl>
             </details>
@@ -593,7 +594,7 @@ export function BordlesEditor({ config, onChange }: EditorProps<BordlesConfig>) 
   const aantalStappen = alleStappen(config).length;
 
   return (
-    <div className="b-editor">
+    <div className="bl-editor">
       <p className="hint">
         Een bordles doet de leerstof stap voor stap voor op een schoolbord, met een hand die schrijft en tekent.
         Daarna vult de leerling zelf stappen in, zoekt een fout en werkt alleen. Deze les telt {config.fases?.length ?? 0} fases
@@ -611,11 +612,11 @@ export function BordlesEditor({ config, onChange }: EditorProps<BordlesConfig>) 
         </select>
       </Field>
 
-      <div className="b-editor-fases">
+      <div className="bl-editor-fases">
         {(config.fases ?? []).map((f) => (
           <div key={f.id} className="editor-item">
             <div className="editor-item-head"><strong>{f.titel ?? FASE_NAAM[f.soort]}</strong><span className="badge">{f.stappen.length} stappen</span></div>
-            <ol className="b-editor-stappen">
+            <ol className="bl-editor-stappen">
               {f.stappen.map((s) => (
                 <li key={s.id}>
                   {s.deeldoel && <strong>{s.deeldoel}: </strong>}{s.uitleg}
@@ -636,7 +637,7 @@ export function BordlesEditor({ config, onChange }: EditorProps<BordlesConfig>) 
         </div>
       )}
 
-      <div className="b-rij">
+      <div className="bl-rij">
         {!vervangen ? (
           <button type="button" className="btn btn-ghost" onClick={() => setVervangen(true)}>Start opnieuw van de voorbeeldles</button>
         ) : (
@@ -648,14 +649,14 @@ export function BordlesEditor({ config, onChange }: EditorProps<BordlesConfig>) 
         )}
       </div>
 
-      <details className="b-editor-json" onToggle={(e) => {
+      <details className="bl-editor-json" onToggle={(e) => {
         if (!(e.target as HTMLDetailsElement).open) return;
         const json = JSON.stringify(config, null, 2);
         setTekst(json); setBasis(json); setMelding([]);
       }}>
         <summary>Gevorderd: de les als tekst (JSON)</summary>
         <textarea className="textarea" rows={16} spellCheck={false} value={tekst} onChange={(e) => setTekst(e.target.value)} aria-label="De les als JSON" />
-        <div className="b-rij">
+        <div className="bl-rij">
           <button type="button" className="btn btn-primary" onClick={() => {
             // Niets stil overschrijven: is de les intussen in de velden hierboven aangepast, dan eerst opnieuw openen.
             if (JSON.stringify(config, null, 2) !== basis) {
@@ -672,7 +673,7 @@ export function BordlesEditor({ config, onChange }: EditorProps<BordlesConfig>) 
             }
           }}>Toepassen</button>
         </div>
-        {melding.length > 0 && <ul className="b-fouten">{melding.slice(0, 12).map((m, i) => <li key={i}>{m}</li>)}</ul>}
+        {melding.length > 0 && <ul className="bl-fouten">{melding.slice(0, 12).map((m, i) => <li key={i}>{m}</li>)}</ul>}
       </details>
     </div>
   );

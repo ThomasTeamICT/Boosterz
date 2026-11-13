@@ -31,6 +31,11 @@ describe('valideerBordles', () => {
     expect(meldingen).toMatch(/geen invulstap/);
     expect(meldingen).toMatch(/niet eerder in deze fase/);
   });
+  it('aanvaardt een lijst bij vervangt', () => {
+    const c = kopie(voorbeeldPythagoras());
+    c.fases[0].stappen[6].teken[1].vervangt = ['k-c', 'k-c2'];
+    expect(valideerBordles(c)).toEqual([]);
+  });
   it('weigert punten ver buiten het bord', () => {
     const c = kopie(voorbeeldPythagoras());
     c.fases[0].stappen[0].teken.push({ soort: 'lijn', van: [0, 0], naar: [2000, 0] });

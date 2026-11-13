@@ -127,8 +127,8 @@ export function valideerBordles(cfg: BordlesConfig): Fout[] {
           fout(ep, `"verborgenTot" wijst naar "${el.verborgenTot}", maar dat is geen invulstap.`);
         }
       }
-      if (el.vervangt && !elementIdsTotNu.has(el.vervangt)) {
-        fout(ep, `"vervangt" wijst naar "${el.vervangt}", maar dat element staat niet eerder in deze fase.`);
+      for (const v of vervangenDoor(el)) {
+        if (!elementIdsTotNu.has(v)) fout(ep, `"vervangt" wijst naar "${v}", maar dat element staat niet eerder in deze fase.`);
       }
       if (el.id) {
         if (elementIdsTotNu.has(el.id)) fout(ep, `Het element-id "${el.id}" komt twee keer voor in deze fase.`);
@@ -216,6 +216,12 @@ export function uitkomstVan(v: StapVoortgang | undefined): Uitkomst {
   if (v.getoond) return 'oplossing getoond';
   if (v.pogingen === 0 && v.hints === 0) return 'zonder hulp';
   return 'met hulp';
+}
+
+/** De id's die een element doet verdwijnen (vervangt mag één id of een lijst zijn). */
+export function vervangenDoor(el: BordElement): string[] {
+  if (!el.vervangt) return [];
+  return Array.isArray(el.vervangt) ? el.vervangt : [el.vervangt];
 }
 
 /** Alle leerplandoelen die de stappen van een les zeggen te behandelen. */

@@ -38,6 +38,7 @@ function navVan(s: BasisScherm): NavSleutel | undefined {
     case 'go':
     case 'lesplannen':
     case 'lesplan':
+    case 'aanbod':
     case 'lessenlijn':
     case 'leerplandoelen':
     case 'leerplandoel':

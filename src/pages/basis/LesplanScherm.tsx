@@ -16,6 +16,7 @@ import { GoBronvermelding } from '../../components/basis/go/GoBronvermelding';
 import { IkZinnen } from '../../components/basis/go/IkZinnen';
 import { GoBlok, GoBlokken, GoRegel, GoTekstOptiesProvider, gaNaarId, regelTekst, useGoTekstOpties, wijzerId } from '../../components/basis/go/GoTekst';
 import { foutVan, useGoIndex, useGoLeerplan, useGoLesplan, type GoLaadFout, type MetOpnieuw } from '../../components/basis/useGo';
+import { useGoAanbod } from '../../components/basis/useAanbod';
 import { ZekerheidBadge } from '../../components/basis/ZekerheidBadge';
 import { FoutBericht, LaadBericht } from '../../components/curriculum/LaadStatus';
 import { basisPad } from '../../lib/basis/basisRoutes';
@@ -28,6 +29,8 @@ import {
   leeftijdenLabel,
   meestalTekst,
 } from '../../lib/basis/go/leeftijden';
+import { dekkingZin, GO_AANBOD_SOORT_LABEL, valideerAanbod, type GoAanbodBestand, type GoAanbodOnderdeel } from '../../lib/basis/go/aanbod';
+import { FOUT_AANBOD_GEEN_VERBINDING } from '../../lib/basis/go/aanbodBron';
 import { KENNISVERWERKING_ZIN, type Cel, type GoIndex, type GoLeerplandoel, type GoLesplanBestand, type Regel, type Wijzer } from '../../lib/basis/go/types';
 import '../../styles/basis-lesplan.css';
 
@@ -88,6 +91,15 @@ export type Koppelingen =
   | { status: 'fout'; fout: string; opnieuw: () => void }
   | { status: 'klaar'; perCode: ReadonlyMap<string, GoLeerplandoel> };
 
+/**
+ * Het aanbod in Boosterz bij dit lesplan. 'geen': er is geen aanbod (404) of het laadt nog; dan staat er niets, ook geen
+ * kopje. 'fout' met `offline`: we weten niet of er aanbod is; dat staat er rustig, zonder kopje.
+ */
+export type AanbodStand =
+  | { status: 'geen' }
+  | { status: 'fout'; fout: string; offline: boolean; opnieuw: () => void }
+  | { status: 'klaar'; aanbod: GoAanbodBestand };
+
 // ── In het kort ──────────────────────────────────────────────────────────────
 
 /**
@@ -141,7 +153,7 @@ function gewoneKlik(e: MouseEvent<HTMLAnchorElement>): boolean {
 }
 
 /** `indexFout`: de index laadde niet, dus de links naar de leerplandoelen ontbreken; dat staat er dan, met 'Opnieuw proberen'. */
-function InHetKort({ lesplan, koppelingen, indexFout, doelPad }: { lesplan: GoLesplanBestand; koppelingen: Koppelingen; indexFout?: GoLaadFout; doelPad?: DoelPadFn }) {
+function InHetKort({ lesplan, koppelingen, indexFout, doelPad, aanbod }: { lesplan: GoLesplanBestand; koppelingen: Koppelingen; indexFout?: GoLaadFout; doelPad?: DoelPadFn; aanbod?: AanbodStand }) {
   const a = lesplan.afgeleid;
   const code = lesplan.code;
   const materiaal = aantalRegels(lesplan, a.materiaal);
@@ -247,7 +259,131 @@ function InHetKort({ lesplan, koppelingen, indexFout, doelPad }: { lesplan: GoLe
           )}
         </div>
       </div>
+
+      {aanbod && <AanbodInHetKort lesplan={lesplan} aanbod={aanbod} />}
     </section>
+  );
+}
+
+/** Waar een onderdeel bij hoort: de stappen (met hun naam en een link naar de stap), de activiteiten van Trainen en de vastlegging. */
+function SteuntOp({ lesplan, onderdeel }: { lesplan: GoLesplanBestand; onderdeel: GoAanbodOnderdeel }) {
+  const a = lesplan.afgeleid;
+  const delen: ReactNode[] = [];
+  for (const nr of onderdeel.steunt.stappen ?? []) {
+    const s = a.stappen.find((x) => x.nr === nr);
+    delen.push(
+      s ? (
+        <NaarPlek key={`s${nr}`} code={lesplan.code} ids={[wijzerId({ ...s.wat, regel: 0 }), wijzerId(s.wat)]} stap={nr}>
+          stap {nr} ({s.naam})
+        </NaarPlek>
+      ) : (
+        <span key={`s${nr}`}>stap {nr}</span>
+      ),
+    );
+  }
+  for (const titel of onderdeel.steunt.trainen ?? []) {
+    const t = a.trainen.find((x) => x.titel === titel);
+    delen.push(
+      t ? (
+        <NaarPlek key={`t${titel}`} code={lesplan.code} ids={plekIds(t.vanaf)}>
+          de activiteit ‘{titel}’ uit Trainen
+        </NaarPlek>
+      ) : (
+        <span key={`t${titel}`}>de activiteit ‘{titel}’ uit Trainen</span>
+      ),
+    );
+  }
+  if (onderdeel.steunt.vastlegging) delen.push(<span key="v">de vastlegging</span>);
+  if (delen.length === 0) return null;
+  return (
+    <p className="b-lp-aanbod-steunt">
+      Bij{' '}
+      {delen.map((d, i) => (
+        <span key={i}>
+          {i > 0 && (i === delen.length - 1 ? ' en ' : ', ')}
+          {d}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/**
+ * 'Aanbod in Boosterz' in 'In het kort': de onderdelen in de volgorde van het manifest, met de soort in gewone taal, waar ze
+ * bij horen, de doelcodes en bij een bordles een link 'Op het bord'. Daaronder de dekkingszin (wat niet gedekt is, staat er
+ * altijd). Is het lesplan veranderd sinds het aanbod gemaakt werd, of verwijst het aanbod naar iets wat er niet (meer) staat,
+ * dan staat dat er duidelijk boven.
+ */
+function AanbodInHetKort({ lesplan, aanbod }: { lesplan: GoLesplanBestand; aanbod: AanbodStand }) {
+  const uitkomst = useMemo(() => (aanbod.status === 'klaar' ? valideerAanbod(aanbod.aanbod, lesplan) : undefined), [aanbod, lesplan]);
+  if (aanbod.status === 'geen') return null;
+  if (aanbod.status === 'fout') {
+    return aanbod.offline ? (
+      <p className="b-lp-aanbod-stil b-lp-scherm">
+        Of er bij dit lesplan aanbod in Boosterz is, konden we niet nagaan: er is geen verbinding.{' '}
+        <button type="button" className="b-knop" onClick={aanbod.opnieuw}>
+          Opnieuw proberen<span className="sr-only"> (aanbod in Boosterz)</span>
+        </button>
+      </p>
+    ) : (
+      <div className="b-lp-scherm">
+        <FoutBericht fout={aanbod.fout} onOpnieuw={aanbod.opnieuw} naam="aanbod in Boosterz" />
+      </div>
+    );
+  }
+  if (!uitkomst) return null;
+  if (uitkomst.fouten.length > 0) console.warn('Boosterz: het aanbod past niet bij het lesplan', uitkomst.fouten.slice(0, 5));
+  const totaal = lesplan.afgeleid.leerplandoelen.length;
+  return (
+    <div className="b-lp-aanbod">
+      <h3>Aanbod in Boosterz</h3>
+      {uitkomst.naTeKijken && (
+        <p className="b-lp-aanbod-let" role="note">
+          <strong>Na te kijken:</strong> het lesplan is veranderd sinds dit aanbod gemaakt werd. Kijk na of het nog past.
+        </p>
+      )}
+      {uitkomst.fouten.length > 0 && (
+        <p className="b-lp-aanbod-let" role="note">
+          <strong>Na te kijken:</strong> een deel van dit aanbod verwijst naar iets wat niet (meer) in dit lesplan staat.
+        </p>
+      )}
+      <ol className="b-lp-lijst b-lp-aanbod-lijst">
+        {aanbod.aanbod.onderdelen.map((o) => (
+          <li key={o.id} className="b-lp-doel">
+            <p>
+              <strong className="b-lp-aanbod-titel">{o.titel}</strong>{' '}
+              <span className="b-lp-kv">{GO_AANBOD_SOORT_LABEL[o.soort]}</span>
+            </p>
+            <SteuntOp lesplan={lesplan} onderdeel={o} />
+            {o.doelen.length > 0 && (
+              <p className="b-lp-aanbod-doelen">
+                <span className="sr-only">Leerplandoelen: </span>
+                {o.doelen.map((d, i) => (
+                  <span key={d}>
+                    {i > 0 && ', '}
+                    <DoelCode code={d} />
+                  </span>
+                ))}
+              </p>
+            )}
+            {o.widget?.type === 'bordles' && (
+              <p className="b-lp-scherm">
+                <Link
+                  to={basisPad({ s: 'aanbod', code: lesplan.code, onderdeel: o.id })}
+                  className="b-knop b-lp-aanbod-bord"
+                  aria-label={`Op het bord: ${o.titel}`}
+                >
+                  Op het bord
+                </Link>
+              </p>
+            )}
+          </li>
+        ))}
+      </ol>
+      <p className={uitkomst.nietGedekt.length > 0 ? 'b-lp-aanbod-dekking b-lp-aanbod-open' : 'b-lp-aanbod-dekking'}>
+        {dekkingZin(uitkomst.nietGedekt, totaal)}
+      </p>
+    </div>
   );
 }
 
@@ -289,7 +425,7 @@ function Kruimel({ lesplan, index }: { lesplan: GoLesplanBestand; index: GoIndex
  * De pagina voor een geladen lesplan, zonder zelf iets te laden: de index (voor links) en de koppelingen komen van buiten.
  * `indexFout`: de index laadde niet; 'In het kort' zegt dat, met 'Opnieuw proberen'.
  */
-export function LesplanInhoud({ lesplan, index, koppelingen, indexFout, doelPad }: { lesplan: GoLesplanBestand; index?: GoIndex; koppelingen: Koppelingen; indexFout?: GoLaadFout; doelPad?: DoelPadFn }) {
+export function LesplanInhoud({ lesplan, index, koppelingen, indexFout, doelPad, aanbod }: { lesplan: GoLesplanBestand; index?: GoIndex; koppelingen: Koppelingen; indexFout?: GoLaadFout; doelPad?: DoelPadFn; aanbod?: AanbodStand }) {
   const a = lesplan.afgeleid;
   const doelLink = useMemo(() => maakDoelLink(index), [index]);
   const opties = useMemo(() => ({ doelLink }), [doelLink]);
@@ -335,7 +471,7 @@ export function LesplanInhoud({ lesplan, index, koppelingen, indexFout, doelPad 
             </ul>
           </nav>
 
-          <InHetKort lesplan={lesplan} koppelingen={koppelingen} indexFout={indexFout} doelPad={doelPad} />
+          <InHetKort lesplan={lesplan} koppelingen={koppelingen} indexFout={indexFout} doelPad={doelPad} aanbod={aanbod} />
 
           <p className="b-lp-grens">Hieronder het volledige lesplan van het GO!, letterlijk overgenomen.</p>
           <div className="b-lp-tekst">
@@ -361,6 +497,13 @@ export function LesplanInhoud({ lesplan, index, koppelingen, indexFout, doelPad 
 function LesplanPagina({ lesplan, stap, index }: { lesplan: GoLesplanBestand; stap?: number; index: MetOpnieuw<GoIndex> }) {
   const leerplan = useGoLeerplan(lesplan.afgeleid.vak);
   const doelPad = useDoelPad();
+  const aanbodLaden = useGoAanbod(lesplan.code);
+  const aanbod = useMemo<AanbodStand>(() => {
+    const st = aanbodLaden.stand;
+    if (st.status === 'fout') return { status: 'fout', fout: st.fout, offline: st.fout === FOUT_AANBOD_GEEN_VERBINDING, opnieuw: aanbodLaden.opnieuw };
+    if (st.status === 'klaar' && st.waarde) return { status: 'klaar', aanbod: st.waarde };
+    return { status: 'geen' };
+  }, [aanbodLaden]);
 
   const koppelingen = useMemo<Koppelingen>(() => {
     if (leerplan.stand.status === 'laden') return { status: 'laden' };
@@ -389,6 +532,7 @@ function LesplanPagina({ lesplan, stap, index }: { lesplan: GoLesplanBestand; st
       koppelingen={koppelingen}
       indexFout={foutVan(index)}
       doelPad={doelPad}
+      aanbod={aanbod}
     />
   );
 }

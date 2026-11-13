@@ -38,6 +38,7 @@ const TITELS: [string, string][] = [
   ['/basis/go', 'Leerplan en lesplannen van het GO! · Basisonderwijs'],
   ['/basis/lesplannen', 'Lesplannen · Basisonderwijs'],
   ['/basis/lesplan', 'Lesplan · Basisonderwijs'],
+  ['/basis/aanbod', 'Op het bord · Basisonderwijs'],
   ['/basis/lessenlijn', 'Lessenlijn · Basisonderwijs'],
   ['/basis/leerplandoelen', 'Leerplandoelen · Basisonderwijs'],
   ['/basis/leerplandoel', 'Leerplandoel · Basisonderwijs'],
@@ -55,6 +56,7 @@ const TITELS: [string, string][] = [
 const LESPLAN = /^\/basis\/lesplan\/lp(\d{4})([a-z]?)$/i;
 const LEERPLANDOEL = /^\/basis\/leerplandoel\/([a-z]{2})\.(\d{3,4})$/i;
 const LEERPLANDOELEN = /^\/basis\/leerplandoelen\/([a-z]{2})$/i;
+const AANBOD = /^\/basis\/aanbod\/lp(\d{4})([a-z]?)\/[a-z0-9-]+$/i;
 
 /** De titel met code voor een pad van het GO!, of undefined als het pad niet past. */
 function goLabel(pad: string): string | undefined {
@@ -64,6 +66,8 @@ function goLabel(pad: string): string | undefined {
   if (m) return `Leerplandoel ${m[1].toUpperCase()}.${m[2]} · Basisonderwijs`;
   m = LEERPLANDOELEN.exec(pad);
   if (m) return `Leerplandoelen ${m[1].toUpperCase()} · Basisonderwijs`;
+  m = AANBOD.exec(pad);
+  if (m) return `Op het bord · Lesplan LP${m[1]}${m[2].toLowerCase()} · Basisonderwijs`;
   return undefined;
 }
 

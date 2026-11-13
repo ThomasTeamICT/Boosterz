@@ -1,0 +1,936 @@
+{
+  "soort": "bordles",
+  "titel": "Dier of plant? En wat eet het?",
+  "config": {
+    "doelgroep": "kleuter",
+    "standaardSnelheid": "traag",
+    "beeldMap": "basis/aanbod/LP0065/beelden/",
+    "leerdoel": "Ik herken dieren. Ik maak groepen van planten en dieren. Ik weet wat dieren eten.",
+    "fases": [
+      {
+        "id": "kijk",
+        "soort": "kijk",
+        "titel": "Kijk en luister",
+        "stappen": [
+          {
+            "id": "k1",
+            "deeldoel": "Een dier",
+            "uitleg": "Kijk goed. Ik zie een schaap. Ik zie hier poten en een kop. Dit dier heeft vier poten. Het schaap is een dier.",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "dier-schaap",
+                "beeld": "schaap",
+                "plek": [
+                  40,
+                  100
+                ],
+                "breedte": 170,
+                "alt": "een schaap"
+              },
+              {
+                "soort": "tekst",
+                "plek": [
+                  125,
+                  315
+                ],
+                "delen": [
+                  {
+                    "tekst": "dier",
+                    "kleur": "geel"
+                  }
+                ],
+                "grootte": 34,
+                "uitlijning": "midden"
+              }
+            ],
+            "wijsNaar": [
+              125,
+              185
+            ],
+            "doelen": [
+              "WT.001"
+            ]
+          },
+          {
+            "id": "k2",
+            "deeldoel": "Een plant",
+            "uitleg": "Nu kijk ik naar iets anders. Ik zie gras. Het gras groeit in de aarde. Het gras heeft geen poten en geen kop. Het gras is een plant.",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "plant-gras",
+                "beeld": "gras",
+                "plek": [
+                  390,
+                  100
+                ],
+                "breedte": 170,
+                "alt": "gras in de aarde"
+              },
+              {
+                "soort": "tekst",
+                "id": "label-rechts",
+                "plek": [
+                  475,
+                  315
+                ],
+                "delen": [
+                  {
+                    "tekst": "plant",
+                    "kleur": "groen"
+                  }
+                ],
+                "grootte": 34,
+                "uitlijning": "midden"
+              }
+            ],
+            "wijsNaar": [
+              475,
+              185
+            ],
+            "doelen": [
+              "WT.028"
+            ]
+          },
+          {
+            "id": "k3",
+            "deeldoel": "Dier of plant?",
+            "uitleg": "Poten en een kop? Dan weet ik: dit is een dier. Groeit het in de aarde, zonder poten en zonder kop? Dan weet ik: dit is een plant.",
+            "teken": [],
+            "wijsNaar": [
+              300,
+              185
+            ],
+            "doelen": [
+              "WT.001",
+              "WT.028"
+            ]
+          },
+          {
+            "id": "k4",
+            "deeldoel": "Nog een dier",
+            "uitleg": "Kijk, nog een dier. Ik zie een kip. Ik zie een kop en twee poten. De kip heeft ook vleugels. De kip is een dier.",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "dier-kip",
+                "vervangt": "dier-schaap",
+                "beeld": "kip",
+                "plek": [
+                  40,
+                  100
+                ],
+                "breedte": 170,
+                "alt": "een kip"
+              }
+            ],
+            "wijsNaar": [
+              125,
+              185
+            ],
+            "doelen": [
+              "WT.001"
+            ]
+          },
+          {
+            "id": "k5",
+            "deeldoel": "Nog een dier",
+            "uitleg": "Ik zie een goudvis. De goudvis heeft geen poten. Maar ik zie wel een kop. En de goudvis zwemt: hij beweegt. De goudvis is een dier.",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "dier-goudvis",
+                "vervangt": "dier-kip",
+                "beeld": "goudvis",
+                "plek": [
+                  40,
+                  100
+                ],
+                "breedte": 170,
+                "alt": "een goudvis"
+              }
+            ],
+            "wijsNaar": [
+              125,
+              185
+            ],
+            "doelen": [
+              "WT.001"
+            ]
+          },
+          {
+            "id": "k6",
+            "deeldoel": "Nog een dier",
+            "uitleg": "Ik zie een mier. In het echt is de mier heel klein. Ik zie een kop en zes kleine pootjes. De mier is een dier.",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "dier-mier",
+                "vervangt": "dier-goudvis",
+                "beeld": "mier",
+                "plek": [
+                  75,
+                  135
+                ],
+                "breedte": 100,
+                "alt": "een mier"
+              }
+            ],
+            "wijsNaar": [
+              125,
+              185
+            ],
+            "doelen": [
+              "WT.001"
+            ]
+          },
+          {
+            "id": "k7",
+            "deeldoel": "Nog een dier",
+            "uitleg": "Ik zie een kat. Ik zie een kop en vier poten. De kat is een dier.",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "dier-kat",
+                "vervangt": "dier-mier",
+                "beeld": "kat",
+                "plek": [
+                  40,
+                  100
+                ],
+                "breedte": 170,
+                "alt": "een kat"
+              }
+            ],
+            "wijsNaar": [
+              125,
+              185
+            ],
+            "doelen": [
+              "WT.001"
+            ]
+          },
+          {
+            "id": "k8",
+            "deeldoel": "Wat eet een dier?",
+            "uitleg": "Dieren eten. Kijk, daar is het schaap weer. Een schaap is een dier, want het heeft een kop en vier poten. Het schaap eet gras. Gras is een plant.",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "dier-schaap-eet",
+                "vervangt": "dier-kat",
+                "beeld": "schaap",
+                "plek": [
+                  40,
+                  100
+                ],
+                "breedte": 170,
+                "alt": "een schaap"
+              },
+              {
+                "soort": "pijl",
+                "van": [
+                  380,
+                  185
+                ],
+                "naar": [
+                  220,
+                  185
+                ],
+                "kleur": "oranje"
+              },
+              {
+                "soort": "tekst",
+                "plek": [
+                  300,
+                  170
+                ],
+                "delen": [
+                  {
+                    "tekst": "eet",
+                    "kleur": "oranje"
+                  }
+                ],
+                "grootte": 30,
+                "uitlijning": "midden"
+              }
+            ],
+            "wijsNaar": [
+              300,
+              185
+            ],
+            "doelen": [
+              "WT.008"
+            ]
+          },
+          {
+            "id": "k9",
+            "deeldoel": "Wat eet een dier?",
+            "uitleg": "En de kat? De kat is ook een dier. De kat eet vlees. Sommige dieren eten planten. Andere dieren eten vlees.",
+            "teken": [
+              {
+                "soort": "prent",
+                "vervangt": "dier-schaap-eet",
+                "beeld": "kat",
+                "plek": [
+                  40,
+                  100
+                ],
+                "breedte": 170,
+                "alt": "een kat",
+                "id": "dier-kat-eet"
+              },
+              {
+                "soort": "prent",
+                "vervangt": "plant-gras",
+                "beeld": "vlees",
+                "plek": [
+                  390,
+                  100
+                ],
+                "breedte": 170,
+                "alt": "een stuk vlees",
+                "id": "plant-vlees"
+              },
+              {
+                "soort": "tekst",
+                "vervangt": "label-rechts",
+                "plek": [
+                  475,
+                  315
+                ],
+                "delen": [
+                  {
+                    "tekst": "vlees",
+                    "kleur": "roze"
+                  }
+                ],
+                "grootte": 34,
+                "uitlijning": "midden",
+                "id": "label-vlees"
+              }
+            ],
+            "wijsNaar": [
+              300,
+              185
+            ],
+            "doelen": [
+              "WT.008"
+            ]
+          },
+          {
+            "id": "k10",
+            "deeldoel": "Wat eet de kip?",
+            "doelen": [
+              "WT.008"
+            ],
+            "uitleg": "En de kip? De kip is een vogel. De kip eet graag zaadjes. Zaadjes komen van planten.",
+            "teken": [
+              {
+                "soort": "prent",
+                "beeld": "kip",
+                "plek": [
+                  40,
+                  100
+                ],
+                "breedte": 170,
+                "alt": "een kip",
+                "vervangt": "dier-kat-eet"
+              },
+              {
+                "soort": "prent",
+                "beeld": "zaadjes",
+                "plek": [
+                  390,
+                  100
+                ],
+                "breedte": 170,
+                "alt": "zaadjes",
+                "vervangt": "plant-vlees"
+              },
+              {
+                "soort": "tekst",
+                "plek": [
+                  475,
+                  315
+                ],
+                "delen": [
+                  {
+                    "tekst": "zaadjes",
+                    "kleur": "groen"
+                  }
+                ],
+                "grootte": 30,
+                "uitlijning": "midden",
+                "vervangt": "label-vlees"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "doe",
+        "soort": "doe",
+        "titel": "Samen doen",
+        "stappen": [
+          {
+            "id": "d1",
+            "deeldoel": "Twee hoepels",
+            "uitleg": "Kijk, twee hoepels. Dit is het dierenhok. Daar gaan de dieren in. Dit is de plantentuin. Daar gaan de planten in. Uit de doos komt elke keer een dier of een plant.",
+            "teken": [
+              {
+                "soort": "cirkel",
+                "midden": [
+                  150,
+                  335
+                ],
+                "straal": 135,
+                "kleur": "oranje"
+              },
+              {
+                "soort": "tekst",
+                "plek": [
+                  150,
+                  190
+                ],
+                "delen": [
+                  {
+                    "tekst": "dierenhok",
+                    "kleur": "oranje"
+                  }
+                ],
+                "grootte": 28,
+                "uitlijning": "midden"
+              },
+              {
+                "soort": "cirkel",
+                "midden": [
+                  450,
+                  335
+                ],
+                "straal": 135,
+                "kleur": "groen"
+              },
+              {
+                "soort": "tekst",
+                "plek": [
+                  450,
+                  190
+                ],
+                "delen": [
+                  {
+                    "tekst": "plantentuin",
+                    "kleur": "groen"
+                  }
+                ],
+                "grootte": 28,
+                "uitlijning": "midden"
+              }
+            ],
+            "doelen": [
+              "WT.028"
+            ]
+          },
+          {
+            "id": "d2",
+            "deeldoel": "Dier of plant?",
+            "uitleg": "Uit de doos komt een kat. Kijk goed. Zie je poten? Zie je een kop?",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "boven-kat",
+                "beeld": "kat",
+                "plek": [
+                  220,
+                  10
+                ],
+                "breedte": 160,
+                "alt": "een kat"
+              }
+            ],
+            "keuze": {
+              "vraag": "Is de kat een dier of een plant?",
+              "opties": [
+                {
+                  "tekst": "Een dier",
+                  "prent": "dierenhok",
+                  "juist": true,
+                  "uitleg": "Ja! De kat heeft poten en een kop. De kat is een dier. Ze gaat in het dierenhok."
+                },
+                {
+                  "tekst": "Een plant",
+                  "prent": "plantentuin",
+                  "uitleg": "Kijk nog eens. De kat heeft poten en een kop. Ze groeit niet in de aarde. De kat is een dier."
+                }
+              ]
+            },
+            "klasmoment": {
+              "opdracht": "Iedereen: wijs naar de hoepel waar de kat in moet."
+            },
+            "doelen": [
+              "WT.001",
+              "WT.028"
+            ]
+          },
+          {
+            "id": "d3",
+            "deeldoel": "Wat eet het?",
+            "uitleg": "De kat gaat in het dierenhok. De kat is een dier. Een dier eet. Wat eet de kat?",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "hok-kat",
+                "vervangt": "boven-kat",
+                "beeld": "kat",
+                "plek": [
+                  50,
+                  230
+                ],
+                "breedte": 90,
+                "alt": "een kat"
+              }
+            ],
+            "keuze": {
+              "vraag": "Eet de kat planten of vlees?",
+              "opties": [
+                {
+                  "tekst": "Planten",
+                  "prent": "gras",
+                  "uitleg": "Kijk nog eens. De kat eet vlees."
+                },
+                {
+                  "tekst": "Vlees",
+                  "prent": "vlees",
+                  "juist": true,
+                  "uitleg": "Ja! De kat eet vlees."
+                }
+              ]
+            },
+            "klasmoment": {
+              "opdracht": "Iedereen: wijs naar wat de kat eet. De plant of het vlees?"
+            },
+            "doelen": [
+              "WT.008"
+            ]
+          },
+          {
+            "id": "d4",
+            "deeldoel": "Wat eet het?",
+            "uitleg": "We leggen het vlees bij de kat. De kat eet vlees.",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "hok-vlees",
+                "beeld": "vlees",
+                "plek": [
+                  160,
+                  230
+                ],
+                "breedte": 90,
+                "alt": "een stuk vlees"
+              }
+            ],
+            "doelen": [
+              "WT.008"
+            ]
+          },
+          {
+            "id": "d5",
+            "deeldoel": "Dier of plant?",
+            "uitleg": "Uit de doos komt nu tuinkers. Kijk goed. Groeit het in de aarde? Zie je poten of een kop?",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "boven-tuinkers",
+                "beeld": "tuinkers",
+                "plek": [
+                  220,
+                  10
+                ],
+                "breedte": 160,
+                "alt": "tuinkers in de aarde"
+              }
+            ],
+            "keuze": {
+              "vraag": "Is de tuinkers een dier of een plant?",
+              "opties": [
+                {
+                  "tekst": "Een dier",
+                  "prent": "dierenhok",
+                  "uitleg": "Kijk nog eens. De tuinkers heeft geen poten en geen kop. Ze groeit in de aarde. De tuinkers is een plant."
+                },
+                {
+                  "tekst": "Een plant",
+                  "prent": "plantentuin",
+                  "juist": true,
+                  "uitleg": "Ja! De tuinkers groeit in de aarde. Ze heeft geen poten en geen kop. De tuinkers is een plant. Ze gaat in de plantentuin."
+                }
+              ]
+            },
+            "klasmoment": {
+              "opdracht": "Iedereen: wijs naar de hoepel waar de tuinkers in moet."
+            },
+            "doelen": [
+              "WT.028"
+            ]
+          },
+          {
+            "id": "d6",
+            "deeldoel": "In de plantentuin",
+            "uitleg": "De tuinkers is een plant. Ze gaat in de plantentuin.",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "tuin-tuinkers",
+                "vervangt": "boven-tuinkers",
+                "beeld": "tuinkers",
+                "plek": [
+                  330,
+                  275
+                ],
+                "breedte": 120,
+                "alt": "tuinkers in de aarde"
+              }
+            ],
+            "doelen": [
+              "WT.028"
+            ]
+          },
+          {
+            "id": "d7",
+            "deeldoel": "Dier of plant?",
+            "uitleg": "Uit de doos komt nu een schaap. Kijk goed. Zie je poten? Zie je een kop?",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "boven-schaap",
+                "beeld": "schaap",
+                "plek": [
+                  220,
+                  10
+                ],
+                "breedte": 160,
+                "alt": "een schaap"
+              }
+            ],
+            "keuze": {
+              "vraag": "Is het schaap een dier of een plant?",
+              "opties": [
+                {
+                  "tekst": "Een dier",
+                  "prent": "dierenhok",
+                  "juist": true,
+                  "uitleg": "Ja! Het schaap heeft poten en een kop. Het schaap is een dier. Het gaat in het dierenhok."
+                },
+                {
+                  "tekst": "Een plant",
+                  "prent": "plantentuin",
+                  "uitleg": "Kijk nog eens. Het schaap heeft poten en een kop. Het groeit niet in de aarde. Het schaap is een dier."
+                }
+              ]
+            },
+            "klasmoment": {
+              "opdracht": "Iedereen: wijs naar de hoepel waar het schaap in moet."
+            },
+            "doelen": [
+              "WT.001",
+              "WT.028"
+            ]
+          },
+          {
+            "id": "d8",
+            "deeldoel": "Wat eet het?",
+            "uitleg": "Het schaap gaat in het dierenhok. Het schaap is een dier. Wat eet het schaap?",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "hok-schaap",
+                "vervangt": "boven-schaap",
+                "beeld": "schaap",
+                "plek": [
+                  50,
+                  350
+                ],
+                "breedte": 90,
+                "alt": "een schaap"
+              }
+            ],
+            "keuze": {
+              "vraag": "Eet het schaap planten of vlees?",
+              "opties": [
+                {
+                  "tekst": "Planten",
+                  "prent": "gras",
+                  "juist": true,
+                  "uitleg": "Ja! Het schaap eet gras. Gras is een plant."
+                },
+                {
+                  "tekst": "Vlees",
+                  "prent": "vlees",
+                  "uitleg": "Kijk nog eens. Het schaap eet gras. Gras is een plant."
+                }
+              ]
+            },
+            "klasmoment": {
+              "opdracht": "Iedereen: wijs naar wat het schaap eet. De plant of het vlees?"
+            },
+            "doelen": [
+              "WT.008"
+            ]
+          },
+          {
+            "id": "d9",
+            "deeldoel": "Wat eet het?",
+            "uitleg": "We leggen het gras bij het schaap. Het schaap eet gras. Gras is een plant.",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "hok-gras",
+                "beeld": "gras",
+                "plek": [
+                  160,
+                  350
+                ],
+                "breedte": 90,
+                "alt": "gras in de aarde"
+              }
+            ],
+            "doelen": [
+              "WT.008"
+            ]
+          },
+          {
+            "id": "d10",
+            "deeldoel": "Dier of plant?",
+            "uitleg": "Uit de doos komt nu een bonenplant. Kijk goed. Groeit het in de aarde? Zie je poten of een kop?",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "boven-bonenplant",
+                "beeld": "bonenplant",
+                "plek": [
+                  220,
+                  10
+                ],
+                "breedte": 160,
+                "alt": "een bonenplant in een pot met aarde"
+              }
+            ],
+            "keuze": {
+              "vraag": "Is de bonenplant een dier of een plant?",
+              "opties": [
+                {
+                  "tekst": "Een dier",
+                  "prent": "dierenhok",
+                  "uitleg": "Kijk nog eens. De bonenplant heeft geen poten en geen kop. Ze groeit in de aarde. De bonenplant is een plant."
+                },
+                {
+                  "tekst": "Een plant",
+                  "prent": "plantentuin",
+                  "juist": true,
+                  "uitleg": "Ja! De bonenplant groeit in de aarde. Ze heeft geen poten en geen kop. De bonenplant is een plant. Ze gaat in de plantentuin."
+                }
+              ]
+            },
+            "klasmoment": {
+              "opdracht": "Iedereen: wijs naar de hoepel waar de bonenplant in moet."
+            },
+            "doelen": [
+              "WT.028"
+            ]
+          },
+          {
+            "id": "d11",
+            "deeldoel": "Klaar!",
+            "uitleg": "De bonenplant gaat in de plantentuin. Kijk: de kat en het schaap zitten in het dierenhok, met hun eten. De tuinkers en de bonenplant staan in de plantentuin. Goed gedaan!",
+            "teken": [
+              {
+                "soort": "prent",
+                "id": "tuin-bonenplant",
+                "vervangt": "boven-bonenplant",
+                "beeld": "bonenplant",
+                "plek": [
+                  450,
+                  275
+                ],
+                "breedte": 120,
+                "alt": "een bonenplant in een pot met aarde"
+              }
+            ],
+            "doelen": [
+              "WT.028"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "terugblik",
+        "soort": "kijk",
+        "titel": "Wat weten we nu?",
+        "stappen": [
+          {
+            "id": "w1",
+            "deeldoel": "Een dier",
+            "uitleg": "Wat weten we nu? Een dier heeft een kop, en een dier beweegt. Veel dieren hebben poten. De kat is een dier.",
+            "teken": [
+              {
+                "soort": "prent",
+                "beeld": "kat",
+                "plek": [
+                  40,
+                  20
+                ],
+                "breedte": 150,
+                "alt": "een kat"
+              },
+              {
+                "soort": "tekst",
+                "plek": [
+                  115,
+                  205
+                ],
+                "delen": [
+                  {
+                    "tekst": "dier",
+                    "kleur": "geel"
+                  }
+                ],
+                "grootte": 32,
+                "uitlijning": "midden"
+              }
+            ],
+            "wijsNaar": [
+              115,
+              95
+            ],
+            "doelen": [
+              "WT.001"
+            ]
+          },
+          {
+            "id": "w2",
+            "deeldoel": "Een plant",
+            "uitleg": "Een plant groeit in de aarde. De bonenplant is een plant.",
+            "teken": [
+              {
+                "soort": "prent",
+                "beeld": "bonenplant",
+                "plek": [
+                  420,
+                  150
+                ],
+                "breedte": 160,
+                "alt": "een bonenplant in een pot met aarde"
+              },
+              {
+                "soort": "tekst",
+                "plek": [
+                  500,
+                  345
+                ],
+                "delen": [
+                  {
+                    "tekst": "plant",
+                    "kleur": "groen"
+                  }
+                ],
+                "grootte": 32,
+                "uitlijning": "midden"
+              }
+            ],
+            "wijsNaar": [
+              500,
+              230
+            ],
+            "doelen": [
+              "WT.028"
+            ]
+          },
+          {
+            "id": "w3",
+            "deeldoel": "Dieren eten",
+            "uitleg": "Dieren eten. Sommige dieren eten planten. Het schaap eet gras. Gras is een plant.",
+            "teken": [
+              {
+                "soort": "prent",
+                "beeld": "schaap",
+                "plek": [
+                  40,
+                  280
+                ],
+                "breedte": 150,
+                "alt": "een schaap"
+              },
+              {
+                "soort": "prent",
+                "beeld": "gras",
+                "plek": [
+                  260,
+                  290
+                ],
+                "breedte": 140,
+                "alt": "gras in de aarde"
+              },
+              {
+                "soort": "pijl",
+                "van": [
+                  255,
+                  355
+                ],
+                "naar": [
+                  195,
+                  355
+                ],
+                "kleur": "oranje"
+              }
+            ],
+            "wijsNaar": [
+              225,
+              355
+            ],
+            "doelen": [
+              "WT.008"
+            ]
+          },
+          {
+            "id": "w4",
+            "deeldoel": "Dieren eten",
+            "uitleg": "Andere dieren eten vlees. De kat eet vlees. Nu ben jij een dierenkenner!",
+            "teken": [
+              {
+                "soort": "prent",
+                "beeld": "vlees",
+                "plek": [
+                  260,
+                  30
+                ],
+                "breedte": 140,
+                "alt": "een stuk vlees"
+              },
+              {
+                "soort": "pijl",
+                "van": [
+                  255,
+                  95
+                ],
+                "naar": [
+                  195,
+                  95
+                ],
+                "kleur": "oranje"
+              }
+            ],
+            "wijsNaar": [
+              225,
+              95
+            ],
+            "doelen": [
+              "WT.008"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

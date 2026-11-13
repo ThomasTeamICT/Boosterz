@@ -1,0 +1,39 @@
+/* ── Aanbod in Boosterz: één onderdeel op het bord (src/pages/basis/AanbodScherm.tsx) ──────────── */
+
+.b-aanbod {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.b-aanbod h1 {
+  margin: 4px 0 6px;
+  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+.b-aanbod-kop-rij {
+  margin: 0;
+}
+.b-aanbod-terug {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.b-aanbod-speler {
+  margin-top: 16px;
+  min-width: 0;
+}
+.b-aanbod-melding {
+  max-width: 62ch;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--lamp);
+  border-radius: var(--radius-m);
+  background: var(--bg-raised);
+}
+
+/* De bordles heeft een eigen voorvoegsel (bl-), zodat de klassen van het basisdeel haar niet opmaken. */
+
+@media print {
+  .b-aanbod-terug {
+    display: none;
+  }
+}

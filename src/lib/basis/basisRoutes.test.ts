@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { GoVak } from './go/types';
 import { basisPad, basisRoute, doelPad, EIND_SLUG, SOORT_SLUG, vakSlug, vakVanSlug, type BasisScherm } from './basisRoutes';
 import { PAKKET_BEGINSCHERMEN } from './pakketten';
+import { isGeldigeOnderdeelId } from './go/aanbod';
 import { INVOERINGSKALENDER, LEERJAREN_BASIS, WERKT_NAAR, type Eindmoment, type SoortBasis } from './kalender';
 
 const SOORTEN: SoortBasis[] = ['bao', 'bubao'];
@@ -35,6 +36,7 @@ function goSchermen(): BasisScherm[] {
   for (const code of ['LP0001', 'LP0014a', 'LP0014b', 'LP0065', 'LP9999z']) {
     uit.push({ s: 'lesplan', code });
     for (const stap of [1, 2, 3, 4, 5, 6]) uit.push({ s: 'lesplan', code, stap });
+    for (const onderdeel of ['dier-of-plant', 'a', 'wie-heeft-honger-2', 'a'.repeat(80)]) uit.push({ s: 'aanbod', code, onderdeel });
   }
   return uit;
 }
@@ -178,6 +180,23 @@ describe('basisRoute: wat wegvalt of onbekend is', () => {
     expect(basisRoute('pakket/lichtkamer/einde-4de', '?leerjaar=alle')).toEqual({ s: 'pakket', pakket: 'lichtkamer', eind: 'L4' });
     expect(basisRoute('oefen/lichtkamer/einde-4de', '?scherm=xyz')).toEqual({ s: 'oefen', pakket: 'lichtkamer', eind: 'L4' });
     expect(basisRoute('bord/lichtkamer/einde-4de', '?scherm=')).toEqual({ s: 'bord', pakket: 'lichtkamer', eind: 'L4' });
+  });
+
+  it('aanbod: lesplancode (rechtgezet) en de id van het onderdeel (kleine letters, cijfers, streepjes)', () => {
+    expect(basisRoute('aanbod/LP0065/dier-of-plant', '')).toEqual({ s: 'aanbod', code: 'LP0065', onderdeel: 'dier-of-plant' });
+    expect(basisRoute('aanbod/lp0014A/Dier-Of-Plant', '?x=1')).toEqual({ s: 'aanbod', code: 'LP0014a', onderdeel: 'dier-of-plant' });
+    expect(basisPad({ s: 'aanbod', code: 'LP0065', onderdeel: 'dier-of-plant' })).toBe('/basis/aanbod/LP0065/dier-of-plant');
+    const onzin = ['aanbod', 'aanbod/LP0065', 'aanbod/LP65/dier', 'aanbod/LP0065/dier/extra', 'aanbod/LP0065/dier_plant', 'aanbod/LP0065/-dier',
+      'aanbod/LP0065/dier--plant', 'aanbod/LP0065/dier of plant', 'aanbod/LP0065/..', 'aanbod/LP0065/dier.json', `aanbod/LP0065/${'a'.repeat(81)}`,
+      'aanbod/LP0065/%2e%2e', 'aanbod/LP0065/a%2Fb'];
+    for (const splat of onzin) expect(basisRoute(splat, ''), splat).toEqual({ s: 'onbekend' });
+  });
+
+  it('aanbod: dezelfde regel voor de id als het aanbodmodel', () => {
+    for (const id of ['dier-of-plant', 'a1', 'x', '-a', 'a-', 'A', 'a_b', 'a.b', '', 'a'.repeat(80), 'a'.repeat(81)]) {
+      const route = basisRoute(`aanbod/LP0065/${id}`, '');
+      expect(route.s === 'aanbod', id).toBe(isGeldigeOnderdeelId(id.toLowerCase()));
+    }
   });
 
   it('onzin geeft "onbekend", zonder fout', () => {

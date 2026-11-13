@@ -24,6 +24,8 @@ const LeerlijnenScherm = lazy(() => import('./LeerlijnScherm').then((m) => ({ de
 const LeerlijnScherm = lazy(() => import('./LeerlijnScherm').then((m) => ({ default: m.LeerlijnScherm })));
 const ZoekScherm = lazy(() => import('./ZoekScherm').then((m) => ({ default: m.ZoekScherm })));
 const LesplanScherm = lazy(() => import('./LesplanScherm').then((m) => ({ default: m.LesplanScherm })));
+// Eén onderdeel van het aanbod op het bord; de bordles-speler laadt daarin nog eens apart (eigen chunk, zoals in de registry).
+const AanbodScherm = lazy(() => import('./AanbodScherm').then((m) => ({ default: m.AanbodScherm })));
 const LesplannenScherm = lazy(() => import('./LesplannenScherm').then((m) => ({ default: m.LesplannenScherm })));
 const LessenlijnScherm = lazy(() => import('./LessenlijnScherm').then((m) => ({ default: m.LessenlijnScherm })));
 const GoScherm = lazy(() => import('./GoScherm').then((m) => ({ default: m.GoScherm })));
@@ -119,6 +121,12 @@ function kies(s: BasisScherm): ReactNode {
       return (
         <Wacht titel={`Lesplan ${s.code}`}>
           <LesplanScherm code={s.code} stap={s.stap} />
+        </Wacht>
+      );
+    case 'aanbod':
+      return (
+        <Wacht titel="Op het bord">
+          <AanbodScherm code={s.code} onderdeel={s.onderdeel} />
         </Wacht>
       );
     case 'lesplannen':

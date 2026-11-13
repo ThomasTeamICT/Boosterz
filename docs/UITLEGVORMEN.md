@@ -21,7 +21,11 @@ kunnen aanbrengen. De **bordles** is de eerste van die uitlegvormen. Het werkend
 | Bordles: AI-voorstel in de AI-studio (BL-7) | **Wacht** | hoofdsessie |
 | Voorbeeldlessen en rooktest (BL-8, BL-9) | **Wacht** | inhoudschrijver, nakijker, bouwer |
 | Richting na het uittesten (13 november 2026) | **Beslist** door de eigenaar: geen editor om van nul te starten, wel een **kant-en-klaar basispakket** op basis van de lesplannen, waarin zeker is dat de doelen voorkomen en logisch behandeld worden. (1) Eerst de GO!-lesplannen wetenschap en techniek in het basisdeel. (2) Wij maken de lessen vooraf en kijken ze na, met de mogelijkheid voor de leerkracht om eigen oefeningen toe te voegen. (3) Een les past zich aan aan klassikaal op het bord of individueel. Uitwerking in § 5 | klaar |
-| Bordles in het GO!-aanbod (§ 5) | **Wacht** op twee antwoorden van de eigenaar (beelden en startlesplan, onderaan) | eigenaar |
+| Antwoorden van de eigenaar (13 november 2026) | Beelden: **allebei** (krijttekeningen en prenten); de eigenaar maakt prenten op vraag. Starten met **LP0065**, daarna dezelfde werkwijze voor de volgende lesplannen | klaar |
+| Kleutervariant van de bordles | **Klaar** (13 november 2026): element `prent` (zonder beeld schrijft het bord de alt-tekst in krijt, zodat de les werkt voor de prenten er zijn), keuze met prenten, `doelgroep: 'kleuter'` (bordstand en vanzelf voorlezen standaard aan, geen typen), doelcodes per stap, `vervangt` met een lijst; de bordles kreeg een eigen klassevoorvoegsel `bl-` | klaar |
+| Aanbod bij het lesplan (A2-light, zie GO-LEERPLAN.md) | **Klaar** (13 november 2026): manifest `public/basis/aanbod/LP0065.json`, controle met dekking van alle leerplandoelen, sectie "Aanbod in Boosterz" op de lesplanpagina en het scherm "Op het bord" (`#/basis/aanbod/LP0065/dier-of-plant`). 'Zet in mijn oefeningen' wacht | klaar |
+| Eerste kant-en-klare les: "Dier of plant? En wat eet het?" (LP0065, stap 2, 3 en 5) | **Klaar, wacht op de prenten** (13 november 2026): `public/basis/aanbod/LP0065/dier-of-plant.json`, 25 stappen, dekt WT.001, WT.008 en WT.028. Geschreven door de inhoudschrijver, nagekeken door de nakijker tegen het lesplan; alle punten verwerkt (o.a. 'veel dieren hebben poten' in plaats van 'een dier heeft poten', de kat blijft in het dierenhok staan, de kip eet zaadjes). Beeldenlijst met prompts: `tools/basis/aanbod/LP0065-beelden.md` (12 prenten) | eigenaar (prenten) |
+| Uitproberen in de klas (A5) | **Wacht** op de prenten en een proefklas | eigenaar |
 | De andere uitlegvormen (§ 1, nummer 2 tot 4) | **Later**, na de bordles | eigenaar kiest de volgorde |
 
 ## 1. De set: welke uitlegvorm bij welk soort leerdoel
@@ -217,6 +221,4 @@ daar één soort onderdeel van ('uitleg op het bord'), naast het digibord-deel, 
 
 ## Vragen aan de eigenaar
 
-1. Beelden voor de kleuterlessen (dieren, planten, voedsel): (a) eenvoudige krijttekeningen die de hand zelf tekent (geen
-   licenties nodig), (b) prenten in één vaste stijl die de eigenaar aanlevert, zoals de handen, of (c) allebei.
-2. Starten met LP0065 'Dieren classificeren' (2,5-4 jaar), zoals al voorgesteld in GO-LEERPLAN.md?
+Geen open vragen. Wacht op de 12 prenten uit `tools/basis/aanbod/LP0065-beelden.md`.

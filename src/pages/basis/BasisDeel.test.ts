@@ -39,6 +39,7 @@ const PADEN = [
   '/basis/go',
   '/basis/lesplannen?leerjaar=K1',
   '/basis/lessenlijn/wt/biologie-van-organismen',
+  '/basis/aanbod/LP0065/dier-of-plant',
   '/basis/xyz',
 ];
 

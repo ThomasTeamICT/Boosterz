@@ -497,8 +497,8 @@ export type BordPunt = [number, number];
 interface BordElementBasis {
   /** Nodig als een later element dit element vervangt. */
   id?: string;
-  /** Id van een eerder element dat verdwijnt zodra dit element verschijnt. */
-  vervangt?: string;
+  /** Id('s) van eerdere elementen die verdwijnen zodra dit element verschijnt. */
+  vervangt?: string | string[];
   kleur?: Krijtkleur;
 }
 export type BordElement =

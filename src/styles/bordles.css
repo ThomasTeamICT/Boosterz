@@ -8,7 +8,7 @@
   src: url('../assets/fonts/patrick-hand-400-latin.woff2') format('woff2');
 }
 
-.b-les {
+.bl-les {
   /* Krijtkleuren: licht op het donkergroene bord, in beide thema's dezelfde. */
   --krijt-wit: #f4f1e8;
   --krijt-geel: #f6d365;
@@ -21,103 +21,103 @@
   margin: 0 auto;
 }
 
-.b-leerdoel { margin: 0 0 10px; color: var(--text-soft); }
+.bl-leerdoel { margin: 0 0 10px; color: var(--text-soft); }
 
-.b-fases { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.b-fases button {
+.bl-fases { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.bl-fases button {
   min-height: 44px; padding: 8px 14px; border-radius: 999px; cursor: pointer; font: inherit;
   border: 2px solid var(--line-strong); background: var(--bg-raised); color: var(--text);
 }
-.b-fases button[aria-current='step'] { border-color: var(--brand-fill); background: var(--brand-fill); color: #fff; }
+.bl-fases button[aria-current='step'] { border-color: var(--brand-fill); background: var(--brand-fill); color: #fff; }
 
-.b-raster { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr); gap: 16px; align-items: start; }
-@media (max-width: 860px) { .b-raster { grid-template-columns: minmax(0, 1fr); } }
+.bl-raster { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .bl-raster { grid-template-columns: minmax(0, 1fr); } }
 
-.b-bord {
+.bl-bord {
   background: radial-gradient(ellipse at 30% 20%, #2a4c42 0%, var(--bord) 60%, #18302a 100%);
   border: 10px solid #6b4a2f; border-radius: 14px;
   box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35), 0 4px 14px rgba(0, 0, 0, 0.15);
   cursor: pointer;
 }
-.b-bord svg { display: block; width: 100%; height: auto; }
+.bl-bord svg { display: block; width: 100%; height: auto; }
 
-.b-krijtschrift { font-family: 'Patrick Hand', 'Comic Sans MS', cursive; }
-.b-blanco { text-decoration: underline; }
-.b-oud { opacity: 0.38; transition: opacity 0.4s; }
-.b-pop { animation: b-pop 0.6s ease-out; }
-@keyframes b-pop { from { opacity: 0; } to { opacity: 1; } }
-.b-stof circle { fill: var(--krijt-wit); opacity: 0.7; animation: b-stof 0.9s ease-out forwards; }
-@keyframes b-stof { to { opacity: 0; transform: translateY(16px); } }
-.b-hand { transition: opacity 0.3s; }
+.bl-krijtschrift { font-family: 'Patrick Hand', 'Comic Sans MS', cursive; }
+.bl-blanco { text-decoration: underline; }
+.bl-oud { opacity: 0.38; transition: opacity 0.4s; }
+.bl-pop { animation: bl-pop 0.6s ease-out; }
+@keyframes bl-pop { from { opacity: 0; } to { opacity: 1; } }
+.bl-stof circle { fill: var(--krijt-wit); opacity: 0.7; animation: bl-stof 0.9s ease-out forwards; }
+@keyframes bl-stof { to { opacity: 0; transform: translateY(16px); } }
+.bl-hand { transition: opacity 0.3s; }
 
-.b-paneel {
+.bl-paneel {
   background: var(--bg-raised); border: 1px solid var(--line); border-radius: 14px; padding: 16px;
   display: flex; flex-direction: column; gap: 12px;
 }
-.b-teller { margin: 0; color: var(--text-soft); font-size: 0.9rem; }
-.b-deeldoel { margin: 0; font-weight: 700; color: var(--brand); text-transform: none; }
-.b-uitleg { margin: 0; font-size: 1.12rem; min-height: 3em; }
-.b-rij { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.b-nav .btn { min-height: 48px; }
-.b-voorlees { min-height: 44px; }
+.bl-teller { margin: 0; color: var(--text-soft); font-size: 0.9rem; }
+.bl-deeldoel { margin: 0; font-weight: 700; color: var(--brand); text-transform: none; }
+.bl-uitleg { margin: 0; font-size: 1.12rem; min-height: 3em; }
+.bl-rij { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.bl-nav .btn { min-height: 48px; }
+.bl-voorlees { min-height: 44px; }
 
-.b-snelheid { display: flex; flex-wrap: wrap; gap: 4px; }
-.b-snelheid button, .b-zeker button {
+.bl-snelheid { display: flex; flex-wrap: wrap; gap: 4px; }
+.bl-snelheid button, .bl-zeker button {
   min-height: 44px; padding: 6px 12px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 0.92rem;
   border: 2px solid var(--line-strong); background: var(--bg-raised); color: var(--text);
 }
-.b-snelheid button[aria-pressed='true'], .b-zeker button[aria-pressed='true'] { border-color: var(--brand-fill); font-weight: 700; }
-.b-schakel { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--text-soft); }
-.b-schakel input { width: 20px; height: 20px; }
+.bl-snelheid button[aria-pressed='true'], .bl-zeker button[aria-pressed='true'] { border-color: var(--brand-fill); font-weight: 700; }
+.bl-schakel { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--text-soft); }
+.bl-schakel input { width: 20px; height: 20px; }
 
-.b-invul, .b-keuze, .b-waarom, .b-klasmoment {
+.bl-invul, .bl-keuze, .bl-waarom, .bl-klasmoment {
   display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px;
   background: var(--bg-sunken); border: 1px solid var(--line);
 }
-.b-klasmoment { border-color: var(--brand-fill); }
-.b-zeker { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.b-label, .b-vraag { font-weight: 650; margin: 0; }
-.b-input { width: 10ch; font-size: 1.2rem; }
-.b-hints { margin: 0; padding-left: 1.3em; }
-.b-optie {
+.bl-klasmoment { border-color: var(--brand-fill); }
+.bl-zeker { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.bl-label, .bl-vraag { font-weight: 650; margin: 0; }
+.bl-input { width: 10ch; font-size: 1.2rem; }
+.bl-hints { margin: 0; padding-left: 1.3em; }
+.bl-optie {
   text-align: left; min-height: 48px; padding: 10px 14px; border-radius: 10px; cursor: pointer; font: inherit;
   border: 2px solid var(--line-strong); background: var(--bg-raised); color: var(--text);
 }
-.b-optie-prent { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; min-width: 140px; }
-.b-optie-prent img { width: 120px; height: 120px; object-fit: contain; }
-.b-keuze-prenten { flex-direction: row; flex-wrap: wrap; }
-.b-optie.mis { border-color: var(--err); }
-.b-optie.juist { border-color: var(--ok); }
-.b-optie:disabled { cursor: default; }
-.b-model { margin: 0; }
-.b-feedback { margin: 0; font-weight: 600; }
-.b-al-ingediend { margin: 0 0 10px; }
-.b-feedback.goed { color: var(--ok-text); }
-.b-feedback.fout { color: var(--err-text); }
+.bl-optie-prent { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; min-width: 140px; }
+.bl-optie-prent img { width: 120px; height: 120px; object-fit: contain; }
+.bl-keuze-prenten { flex-direction: row; flex-wrap: wrap; }
+.bl-optie.mis { border-color: var(--err); }
+.bl-optie.juist { border-color: var(--ok); }
+.bl-optie:disabled { cursor: default; }
+.bl-model { margin: 0; }
+.bl-feedback { margin: 0; font-weight: 600; }
+.bl-al-ingediend { margin: 0 0 10px; }
+.bl-feedback.goed { color: var(--ok-text); }
+.bl-feedback.fout { color: var(--err-text); }
 
-.b-woorden summary { cursor: pointer; font-weight: 650; min-height: 44px; display: flex; align-items: center; }
-.b-woorden dt { font-weight: 700; margin-top: 6px; }
-.b-woorden dd { margin: 0 0 0 0.6em; }
+.bl-woorden summary { cursor: pointer; font-weight: 650; min-height: 44px; display: flex; align-items: center; }
+.bl-woorden dt { font-weight: 700; margin-top: 6px; }
+.bl-woorden dd { margin: 0 0 0 0.6em; }
 
-.b-samenvatting { text-align: left; margin: 12px auto; max-width: 480px; }
+.bl-samenvatting { text-align: left; margin: 12px auto; max-width: 480px; }
 
 /* Kleuters: groter en rustiger. */
-.b-kleuter .b-uitleg { font-size: 1.3rem; }
-.b-kleuter .b-optie { font-size: 1.15rem; }
+.bl-kleuter .bl-uitleg { font-size: 1.3rem; }
+.bl-kleuter .bl-optie { font-size: 1.15rem; }
 
 /* Bordstand: het bord groot voor de klas, de bediening eronder. */
-.b-bordstand .b-raster { grid-template-columns: minmax(0, 1fr); }
-.b-bordstand .b-bord svg { max-height: 72vh; margin: 0 auto; }
-.b-bordstand .b-uitleg { font-size: 1.45rem; }
-.b-bordstand .b-deeldoel { font-size: 1.2rem; }
+.bl-bordstand .bl-raster { grid-template-columns: minmax(0, 1fr); }
+.bl-bordstand .bl-bord svg { max-height: 72vh; margin: 0 auto; }
+.bl-bordstand .bl-uitleg { font-size: 1.45rem; }
+.bl-bordstand .bl-deeldoel { font-size: 1.2rem; }
 
-.b-editor-stappen { margin: 6px 0 0; padding-left: 1.3em; }
-.b-editor-stappen li { margin: 3px 0; }
-.b-editor-json textarea { font-family: ui-monospace, monospace; font-size: 0.85rem; margin-top: 8px; }
-.b-fouten { color: var(--err-text); }
+.bl-editor-stappen { margin: 6px 0 0; padding-left: 1.3em; }
+.bl-editor-stappen li { margin: 3px 0; }
+.bl-editor-json textarea { font-family: ui-monospace, monospace; font-size: 0.85rem; margin-top: 8px; }
+.bl-fouten { color: var(--err-text); }
 
 /* Rustmodus van het leesmenu en 'minder beweging': geen krijtstof of pop. */
-.calm .b-stof, .calm .b-pop { animation: none; }
+.calm .bl-stof, .calm .bl-pop { animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  .b-stof circle, .b-pop { animation: none; }
+  .bl-stof circle, .bl-pop { animation: none; }
 }

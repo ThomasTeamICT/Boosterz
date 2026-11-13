@@ -196,6 +196,49 @@
   margin-block: -10px;
 }
 
+/* ── Aanbod in Boosterz (onder de twee kolommen van In het kort) ────────── */
+
+.b-lp-aanbod {
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.b-lp-aanbod-titel {
+  font-family: var(--font-display);
+}
+.b-lp-aanbod-steunt,
+.b-lp-aanbod-doelen {
+  color: var(--text-soft);
+}
+.b-lp-aanbod-steunt .b-lp-naarplek,
+.b-lp-aanbod-doelen .b-lp-naarplek {
+  margin-block: -10px;
+}
+.b-lp-aanbod-bord {
+  margin-top: 4px;
+}
+.b-lp-aanbod-let {
+  max-width: 72ch;
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border-left: 6px solid var(--warn);
+  border-radius: var(--radius-m);
+  background: var(--warn-soft);
+  color: var(--text);
+}
+.b-lp-aanbod-dekking {
+  max-width: 72ch;
+  margin: 8px 0 4px;
+  font-weight: 600;
+}
+.b-lp-aanbod-open {
+  color: var(--warn-text);
+}
+.b-lp-aanbod-stil {
+  max-width: 72ch;
+  margin: 12px 0 0;
+  color: var(--text-soft);
+}
+
 /* ── De volledige tekst ─────────────────────────────────────────────────── */
 
 .b-lp-tekst {

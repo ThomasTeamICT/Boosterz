@@ -33,6 +33,8 @@ export type BasisScherm =
   | { s: 'go' }
   | { s: 'lesplannen'; leerjaar?: LeerjaarBasis; alle?: true; vak?: GoVak }
   | { s: 'lesplan'; code: string; stap?: number }
+  // Eén onderdeel van het aanbod in Boosterz bij een lesplan, op het bord (pakket A2, src/lib/basis/go/aanbod.ts).
+  | { s: 'aanbod'; code: string; onderdeel: string }
   | { s: 'lessenlijn'; vak: GoVak; lijn: string; leerjaar?: LeerjaarBasis }
   | { s: 'leerplandoelen'; vak: GoVak; leerjaar?: LeerjaarBasis; alle?: true; rubriek?: string; zonder?: true }
   | { s: 'leerplandoel'; code: string }
@@ -101,6 +103,9 @@ const MAX_SLUG = 80;
 /** Het id van een rubriek in een leerplan van het GO!: 'WT-r012'. */
 const GO_RUBRIEK = /^([a-z]{2})-r(\d{3,4})$/i;
 const GO_STAP = /^[1-6]$/;
+/** De id van een onderdeel van het aanbod ('dier-of-plant'). Zelfde regel als isGeldigeOnderdeelId in go/aanbod.ts (een test
+ *  bewaakt dat), maar zonder import: zo trekt dit bestand het aanbodmodel niet mee. */
+const AANBOD_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** De lesplancode in de vorm van het bestand ('LP0014a'); undefined als het geen lesplancode is. */
 function lesplancodeVan(tekst: string | null | undefined): string | undefined {
@@ -253,6 +258,14 @@ export function basisRoute(splat: string, zoek: string): BasisScherm {
       return uit;
     }
 
+    if (wat === 'aanbod') {
+      const code = lesplancodeVan(a);
+      const onderdeel = b?.toLowerCase();
+      return code && onderdeel !== undefined && onderdeel.length <= MAX_SLUG && AANBOD_ID.test(onderdeel) && c === undefined
+        ? { s: 'aanbod', code, onderdeel }
+        : ONBEKEND;
+    }
+
     if (wat === 'lessenlijn') {
       const vak = goVakVan(a);
       const lijn = b?.toLowerCase();
@@ -356,6 +369,8 @@ export function basisPad(s: BasisScherm): string {
       ])}`;
     case 'lesplan':
       return `/basis/lesplan/${encodeURIComponent(s.code)}${query([['stap', s.stap === undefined ? undefined : String(s.stap)]])}`;
+    case 'aanbod':
+      return `/basis/aanbod/${encodeURIComponent(s.code)}/${encodeURIComponent(s.onderdeel)}`;
     case 'lessenlijn':
       return `/basis/lessenlijn/${s.vak.toLowerCase()}/${encodeURIComponent(s.lijn)}${query([['leerjaar', s.leerjaar]])}`;
     case 'leerplandoelen':

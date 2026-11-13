@@ -42,6 +42,8 @@ describe('assetUrlsToWarm', () => {
         scope + 'voorbeelden/nw/h01-01.jpg',
         scope + 'basis/go/index.json',
         scope + 'basis/go/lesplannen/LP0065.json',
+        scope + 'basis/aanbod/LP0065.json',
+        scope + 'basis/aanbod/LP0065/dier-of-plant.json',
         scope + 'leerplannen/minimumdoelen/index.json',
         scope + 'basis/go/leerplan/WT.json?v=1',
         'https://fonts.googleapis.com/css2?family=Outfit',
@@ -59,6 +61,8 @@ describe('assetUrlsToWarm', () => {
       scope + 'voorbeelden/nw/h01-01.jpg',
       scope + 'basis/go/index.json',
       scope + 'basis/go/lesplannen/LP0065.json',
+      scope + 'basis/aanbod/LP0065.json',
+      scope + 'basis/aanbod/LP0065/dier-of-plant.json',
       scope + 'leerplannen/minimumdoelen/index.json',
     ]);
   });

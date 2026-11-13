@@ -1,0 +1,19 @@
+{
+  "app": "boosterz",
+  "kind": "go-aanbod",
+  "v": 1,
+  "lesplan": {
+    "code": "LP0065",
+    "sha256": "a0ae3c36d34e80b4085a274fa286ba4e803c23a0128bc6b92dfce81664791bc0"
+  },
+  "onderdelen": [
+    {
+      "id": "dier-of-plant",
+      "soort": "uitleg",
+      "titel": "Dier of plant? En wat eet het?",
+      "steunt": { "stappen": [2, 3, 5] },
+      "doelen": ["WT.001", "WT.008", "WT.028"],
+      "widget": { "type": "bordles", "bestand": "dier-of-plant.json" }
+    }
+  ]
+}

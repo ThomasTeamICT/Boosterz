@@ -20,8 +20,10 @@ const BASIS_LIB = join(SRC, 'lib', 'basis');
 
 /** Het enige bestand dat opslag mag gebruiken. */
 const OPSLAG_BESTAND = 'basisKeuze.ts';
-/** Het enige bestand dat mag ophalen: de lader van de gegevens van het GO! (goBron.ts, zoals minimumdoelenBron.ts voor de officiële gegevens). */
+/** Het eerste bestand dat mag ophalen (het andere staat in LAAD_BESTANDEN): de lader van de gegevens van het GO! (goBron.ts, zoals minimumdoelenBron.ts voor de officiële gegevens). */
 const LAAD_BESTAND = 'lib/basis/go/goBron.ts';
+/** Het aanbod bij een lesplan (pakket A2) laadt apart, zodat het aanbodmodel niet in de chunk van elk GO!-scherm komt. */
+const LAAD_BESTANDEN = new Set([LAAD_BESTAND, 'lib/basis/go/aanbodBron.ts']);
 /** De modules die de spec noemt (de gedeelde onderdelen van de pakketten P1 tot P3 en het momentmodel). */
 const VERWACHT = ['basisRoutes.ts', 'doelBasis.ts', 'doeltekst.ts', 'kalender.ts', 'leerjaarOverzicht.ts', 'moment.ts', 'momentTeksten.ts', 'zoekBasis.ts', 'zoekwoorden.ts'];
 
@@ -83,7 +85,7 @@ describe('de zuivere modules van src/lib/basis', () => {
       for (const v of verwijzingen(code)) {
         if (/^(react|react-dom|react-router|react-router-dom|lucide-react)(\/|$)/.test(v.pad)) fouten.push(`${naam(pad)}: importeert ${v.pad}`);
       }
-      if (naam(pad) !== LAAD_BESTAND && /\bfetch\s*\(/.test(code)) fouten.push(`${naam(pad)}: fetch(`);
+      if (!LAAD_BESTANDEN.has(naam(pad)) && /\bfetch\s*\(/.test(code)) fouten.push(`${naam(pad)}: fetch(`);
       if (/\bXMLHttpRequest\b|\bnavigator\s*\./.test(code)) fouten.push(`${naam(pad)}: netwerk of navigator`);
       // niet na een '/' of '.', zodat een adres als .../document.aspx geen DOM is
       if (/(?<![\w./-])(window|document)\s*\./.test(code)) fouten.push(`${naam(pad)}: window of document`);

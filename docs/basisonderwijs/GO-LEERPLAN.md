@@ -15,8 +15,25 @@ Ontworpen op 9 november 2026, na de aanlevering door de eigenaar (Drive-map "Les
 | Safari en iPadOS 14.1 als oudste toestel (beslissing van de eigenaar, 11 november 2026) | **Klaar**: doorgelicht, 9 punten bevestigd en hersteld, bewaakt door `src/lib/safari14.test.ts`, een bouwcontrole in `vite.config.ts` en `tests/safari14.mjs`. Een proef op een echte iPad met iPadOS 14 of 15 (memory, legpuzzel, video, een pdf, de mindmap) **wacht** | eigenaar |
 | Foutenlijst voor het GO! (`docs/basisonderwijs/go-bronfouten.md`) | **Klaar**, aangevuld op 10 en 11 november 2026 (12 genummerde vragen bovenaan, leesbaar zonder extra uitleg; het adres voor een antwoord zet de afzender in de mail); doorsturen naar het GO! **wacht** | eigenaar |
 | Visieteksten, minimale materiële vereisten en kenniskaarten (bij het vak en de doelen) | **Wacht**, volgende stap | hoofdsessie |
-| Het aanbod (A1 tot A5): beelden, proefklas | **Wacht**: kan starten; vragen 8 en 9 (beelden, proefklas) nog te stellen | hoofdsessie, eigenaar |
+| Het aanbod (A1 tot A5): beelden, proefklas | **Deels klaar**: A2-light gebouwd (13 november 2026, niet gecommit, zie "Stand A2-light" hieronder); de rest van A2, A3 tot A5 en vragen 8 en 9 (beelden, proefklas) **wachten** | hoofdsessie, eigenaar |
 | 11 opmaakbesluiten (doorgehaalde spatie of punt) in `tools/basis/go/bekende-afwijkingen.json` | **Klaar** (12 november 2026): getoetst aan de pdf's van de doelensets (Word, 3 september 2026). Daar staat op geen van de elf plaatsen een doorhaling, terwijl de pdf echte doorgehaalde woorden elders weglaat (KO 2.3.8 zonder “(‘gewicht’)”, L4 2.2.24). Nieuw besluit `opmaak-weglaten`: de tekens blijven letterlijk, zonder doorhaling, zodat een doorgehaalde spatie tussen twee woorden geen streepje meer geeft (WI.386, WI.476). Weglaten kan alleen als elk doorgehaald stuk witruimte of . , ; : ! ? … is; anders stopt de import. In `public/basis/go` staat geen doorhaling meer | hoofdsessie |
+
+## Stand A2-light (13 november 2026)
+
+KORT: het aanbod bij een lesplan bestaat, met een dekkingscontrole op de leerplandoelen en een scherm om een bordles op het bord te tonen. Eerste aanbod: LP0065 met één onderdeel (de bordles ‘Dier of plant? En wat eet het?’). Nog niet gecommit.
+
+| Wat | Stand |
+|---|---|
+| Model en controle (`src/lib/basis/go/aanbod.ts`) | **Klaar.** Het type zoals in § Aanbod, met de soort `'uitleg'` (een bordles) erbij en `widget.bestand` relatief binnen `public/basis/aanbod/<code>/`. `valideerAanbod` geeft fouten (lesplancode, stap die niet bestaat, titel van Trainen die niet letterlijk klopt, doel buiten deel 2, dubbele of ongeldige id, ongeldige bestandsnaam of soort oefening, onderdeel dat nergens op steunt, uitleg zonder bordles of bordles bij een andere soort), `nietGedekt` (in de volgorde van het lesplan) en `naTeKijken` (sha256 verschilt). `controleerBordlesTegenOnderdeel`: de doelen van de stappen van een bordles zijn precies die van het onderdeel. `lichtGoAanbod` kijkt de vorm na bij het laden |
+| Laden (`aanbodBron.ts`, `src/components/basis/useAanbod.ts`) | **Klaar.** 404 = geen aanbod (geen sectie, geen fout). Geen verbinding: een rustige zin zonder kopje op de lesplanpagina. De service worker behandelt `public/basis/aanbod/` vanzelf als ‘netwerk eerst, cache als terugval’ (alle bestanden uit public/ staan in KNOWN) |
+| Uitrolpoort (`aanbodBestanden.test.ts`) | **Klaar.** Elk `public/basis/aanbod/*.json` tegenover zijn lesplan (geen fouten, niet na te kijken); elke bordles uit een manifest bestaat (anders ‘bestand ontbreekt: …’), haalt `valideerBordles` en dekt precies de doelen van haar onderdeel. Draait mee in `npx vitest run`, dus ook in de deploy-workflow |
+| Lesplanpagina | **Klaar.** In ‘In het kort’, onder de twee kolommen: ‘Aanbod in Boosterz’ (alleen als er aanbod is) met per onderdeel titel, soort in gewone taal, de stappen met naam en link (of de activiteit van Trainen, of de vastlegging), de doelcodes als link, en bij een bordles de knop ‘Op het bord’. Daaronder de dekkingszin (‘Alle 3 leerplandoelen …’ of ‘Nog niet gedekt: …’). Een melding ‘Na te kijken’ als het lesplan veranderde of als het aanbod verwijst naar iets wat er niet (meer) staat |
+| Scherm ‘Op het bord’ (`#/basis/aanbod/LP0065/dier-of-plant`, `AanbodScherm.tsx`) | **Klaar.** Eén h1 met de titel, een link terug, ‘Dit hoort bij stap 2, 3 en 5 van lesplan LP0065.’, en de bordles-speler lui (de bestaande chunk `bordles`, niet op het leerlingpad) in de voorbeeldmodus: er wordt niets bewaard. In de gewone schil van het basisdeel |
+| ‘Zet in mijn oefeningen’ (`aanbodInstalleren.ts`) en ‘Gebruik als leerplan’ (`alsLeerplan.ts`) | **Wacht** | 
+| Bij elke stap een korte verwijzing naar het aanbod (§ Aanbod) | **Wacht** |
+| Een kale bordschil voor het scherm ‘Op het bord’ (zoals het bord van de Lichtkamer) | **Wacht**: nu met de navigatie van de leerkracht erboven |
+
+Bekend: de bordles en het basisdeel gebruiken allebei het voorvoegsel `b-`. `.b-uitleg` (basis-leerjaar.css) en `.b-nav` (basis.css) botsen; `basis-aanbod.css` zet die eigenschappen terug binnen de speler. Een nette oplossing (de klassen van de bordles hernoemen) raakt de rooktest van de bordles en wacht.
 
 ## Stand na de bouw (9 november 2026)
 
@@ -1141,7 +1158,8 @@ export interface GoAanbodBestand {
   lesplan: { code: string; sha256: string };
   onderdelen: {
     id: string;
-    soort: 'digibord' | 'oefening' | 'materiaal';
+    /** 'uitleg': een bordles (docs/UITLEGVORMEN.md § 5, sinds A2-light). */
+    soort: 'uitleg' | 'digibord' | 'oefening' | 'materiaal';
     titel: string;
     /** trainen: de titel letterlijk uit deel 5. */
     steunt: { stappen?: (1 | 2 | 3 | 4 | 5 | 6)[]; trainen?: string[]; vastlegging?: true };
@@ -1149,7 +1167,7 @@ export interface GoAanbodBestand {
     doelen: string[];
     /** Zo zie je dat het lukt. */
     bewijs?: string;
-    /** Configuratie in public/basis/aanbod/<code>/<id>.json. */
+    /** Configuratie in public/basis/aanbod/<code>/<bestand>, bv. 'dier-of-plant.json' (een slug met .json, zonder map). */
     widget?: { type: WidgetTypeId; bestand: string };
   }[];
 }
