@@ -515,9 +515,26 @@ export type BordElement =
       /** Id van een invulstap: tot die opgelost is, staat hier de plaatshouder. */
       verborgenTot?: string;
       plaatshouder?: string;
+    })
+  | (BordElementBasis & {
+      /** Een prent die de hand op het bord legt (vooral voor kleuters). */
+      soort: 'prent';
+      /** Sleutel van het beeld: <beeldMap><beeld>.webp. Bestaat het bestand (nog) niet, dan schrijft het bord de alt-tekst in krijt. */
+      beeld: string;
+      /** Linkerbovenhoek en breedte op het bord; de hoogte volgt uit het beeld (vierkant als het nog ontbreekt). */
+      plek: BordPunt;
+      breedte: number;
+      /** Wat er op de prent staat, in kindertaal; ook voor schermlezers. */
+      alt: string;
     });
 
-export interface BordlesKeuzeOptie { tekst: string; juist?: boolean; uitleg: string }
+export interface BordlesKeuzeOptie {
+  tekst: string;
+  juist?: boolean;
+  uitleg: string;
+  /** Beeldsleutel: de optie wordt een grote prent om op te tikken (kleuters). */
+  prent?: string;
+}
 
 export interface BordlesStap {
   id: string;
@@ -543,6 +560,8 @@ export interface BordlesStap {
   klasmoment?: { opdracht: string };
   /** De hand wijst hierheen nadat de stap getekend is. */
   wijsNaar?: BordPunt;
+  /** Leerplandoelen (codes, bv. 'WT.028') die deze stap behandelt; nodig in het aanbod bij een lesplan. */
+  doelen?: string[];
 }
 
 export interface BordlesFase {
@@ -554,6 +573,13 @@ export interface BordlesFase {
 
 export interface BordlesConfig {
   standaardSnelheid?: BordlesSnelheid;
+  /**
+   * 'kleuter': alles wordt vanzelf voorgelezen, de bordstand staat standaard aan, antwoorden gebeurt met tikken
+   * (geen invulvelden) en het lettertype is groter. Zonder waarde: lager en secundair.
+   */
+  doelgroep?: 'kleuter';
+  /** Map van de prenten, ten opzichte van de basis van de site, bv. 'basis/aanbod/LP0065/beelden/'. */
+  beeldMap?: string;
   /** In leerlingentaal; staat bij de start. */
   leerdoel?: string;
   /** Een controlevraag vooraf: juist betekent meteen naar de fase 'alleen'. */

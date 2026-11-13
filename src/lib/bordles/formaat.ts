@@ -27,6 +27,7 @@ function puntenVan(el: BordElement): unknown[] {
     case 'veelhoek': return el.punten;
     case 'cirkel': return [el.midden];
     case 'tekst': return [el.plek];
+    case 'prent': return [el.plek];
     default: return [];
   }
 }
@@ -93,6 +94,14 @@ export function valideerBordles(cfg: BordlesConfig): Fout[] {
       if (!stap.waarom.vraag?.trim()) fout(`${pad}.waarom`, 'De waaromvraag is leeg.');
       if (!stap.waarom.modelantwoord?.trim()) fout(`${pad}.waarom`, 'De waaromvraag heeft een modelantwoord nodig.');
     }
+    if (cfg.doelgroep === 'kleuter' && stap.invul) fout(`${pad}.invul`, 'Kleuters typen niet: gebruik een keuze met prenten.');
+    for (const o of stap.keuze?.opties ?? []) {
+      if (o.prent !== undefined && !/^[a-z0-9-]+$/.test(o.prent)) fout(`${pad}.keuze`, `De prent "${o.prent}" is geen geldige beeldsleutel.`);
+      if (o.prent !== undefined && !cfg.beeldMap) fout(`${pad}.keuze`, 'Een les met prenten heeft een beeldMap nodig.');
+    }
+    for (const d of stap.doelen ?? []) {
+      if (!/^[A-Z]{1,4}\.\d{3}[a-z]?$/.test(d)) fout(`${pad}.doelen`, `"${d}" is geen code van een leerplandoel (bv. WT.028).`);
+    }
     if (stap.wijsNaar && (!punt(stap.wijsNaar) || !opBord(stap.wijsNaar))) {
       fout(`${pad}.wijsNaar`, 'De hand wijst naar een punt buiten het bord.');
     }
@@ -106,6 +115,12 @@ export function valideerBordles(cfg: BordlesConfig): Fout[] {
         if (!opBord(p)) { fout(ep, `Het punt (${p[0]}, ${p[1]}) ligt buiten het bord (600 op 500).`); break; }
       }
       if (el.soort === 'cirkel' && !(el.straal > 0)) fout(ep, 'Een cirkel heeft een straal groter dan 0 nodig.');
+      if (el.soort === 'prent') {
+        if (!el.beeld?.trim() || !/^[a-z0-9-]+$/.test(el.beeld)) fout(ep, 'Een prent heeft een beeldsleutel nodig (kleine letters, cijfers en streepjes).');
+        if (!el.alt?.trim()) fout(ep, 'Een prent heeft een alt-tekst nodig: wat staat erop?');
+        if (!(el.breedte > 0) || el.breedte > BORD_BREEDTE) fout(ep, 'Een prent heeft een breedte tussen 0 en 600 nodig.');
+        if (!cfg.beeldMap) fout(ep, 'Een les met prenten heeft een beeldMap nodig.');
+      }
       if (el.soort === 'tekst') {
         if (!Array.isArray(el.delen) || el.delen.length === 0 || el.delen.every((d) => !d.tekst)) fout(ep, 'Deze tekst is leeg.');
         if (el.verborgenTot && !invulIds.has(el.verborgenTot)) {
@@ -140,6 +155,9 @@ export function valideerBordles(cfg: BordlesConfig): Fout[] {
     f.stappen.forEach((s, si) => controleerStap(s, `${fp}.stappen[${si}]`, ids));
   });
 
+  if (cfg.beeldMap !== undefined && !/^[a-z0-9/_-]+\/$/i.test(cfg.beeldMap)) {
+    fout('beeldMap', 'De beeldMap is een map binnen de site die eindigt op een schuine streep, bv. basis/aanbod/LP0065/beelden/.');
+  }
   for (const w of cfg.woorden ?? []) {
     if (!w.woord?.trim() || !w.uitleg?.trim()) fout('woorden', 'Elk vakwoord heeft een woord en een uitleg nodig.');
   }
@@ -198,6 +216,23 @@ export function uitkomstVan(v: StapVoortgang | undefined): Uitkomst {
   if (v.getoond) return 'oplossing getoond';
   if (v.pogingen === 0 && v.hints === 0) return 'zonder hulp';
   return 'met hulp';
+}
+
+/** Alle leerplandoelen die de stappen van een les zeggen te behandelen. */
+export function doelenVan(cfg: BordlesConfig): Set<string> {
+  const uit = new Set<string>();
+  for (const { stap } of alleStappen(cfg)) for (const d of stap.doelen ?? []) uit.add(d);
+  return uit;
+}
+
+/** Alle beeldsleutels die een les gebruikt (prenten op het bord en prenten als keuze). */
+export function beeldenVan(cfg: BordlesConfig): Set<string> {
+  const uit = new Set<string>();
+  for (const { stap } of alleStappen(cfg)) {
+    for (const e of stap.teken) if (e.soort === 'prent') uit.add(e.beeld);
+    for (const o of stap.keuze?.opties ?? []) if (o.prent) uit.add(o.prent);
+  }
+  return uit;
 }
 
 /** Telt een uitkomst als eigen werk (een punt in de resultaten)? */

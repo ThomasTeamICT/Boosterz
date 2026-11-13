@@ -114,7 +114,8 @@ export function maakMotor(laag: SVGGElement, handMap: string): Motor {
   type Item =
     | { soort: 'lijn'; e: SVGPathElement; len: number }
     | { soort: 'tekst'; e: SVGTextElement; r: SVGRectElement; bb: DOMRect; tekens: number }
-    | { soort: 'vulling'; e: SVGElement };
+    | { soort: 'vulling'; e: SVGElement }
+    | { soort: 'prent'; e: SVGGraphicsElement; bb: DOMRect };
 
   /** Maakt de elementen onzichtbaar maar klaar om getekend te worden. */
   const bereid = (groep: SVGGElement): Item[] => {
@@ -137,6 +138,12 @@ export function maakMotor(laag: SVGGElement, handMap: string): Motor {
         t.setAttribute('clip-path', `url(#${id})`);
         items.push({ soort: 'tekst', e: t, r, bb, tekens: (t.textContent ?? '').length });
         afmakers.push(() => { t.removeAttribute('clip-path'); cp.remove(); });
+      } else if (soort === 'prent') {
+        const g = e as SVGGraphicsElement;
+        const bb = g.getBBox();
+        g.style.opacity = '0';
+        items.push({ soort: 'prent', e: g, bb });
+        afmakers.push(() => { g.style.opacity = ''; g.style.transform = ''; });
       } else if (soort === 'vulling') {
         e.style.opacity = '0';
         items.push({ soort: 'vulling', e });
@@ -192,6 +199,23 @@ export function maakMotor(laag: SVGGElement, handMap: string): Motor {
           zetHand(x, y); strooi(x, y);
         });
         it.e.removeAttribute('clip-path');
+        zetPose('tikken');
+        await tween(110, t, () => undefined);
+      } else if (it.soort === 'prent') {
+        // De hand neemt de prent op en legt ze op haar plaats.
+        const { bb } = it;
+        const midden: BordPunt = [bb.x + bb.width * 0.5, bb.y + bb.height * 0.5];
+        await verplaats(midden, snelheid, t);
+        zetPose('wijzen');
+        const e = it.e;
+        e.style.transformBox = 'fill-box';
+        e.style.transformOrigin = 'center';
+        await tween(snelheid === 'traag' ? 650 : snelheid === 'normaal' ? 450 : 260, t, (p) => {
+          const z = zacht(p);
+          e.style.opacity = String(z);
+          e.style.transform = `scale(${(0.85 + 0.15 * z).toFixed(3)})`;
+        });
+        e.style.opacity = ''; e.style.transform = '';
         zetPose('tikken');
         await tween(110, t, () => undefined);
       } else {

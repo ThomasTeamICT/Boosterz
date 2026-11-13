@@ -29,7 +29,7 @@ export const PIJLPUNT = 14;
  * Het pad voor een lijnvormig element (alles behalve tekst). Een pijl is de
  * steel plus twee korte lijntjes aan de punt, zodat de hand ook de punt tekent.
  */
-export function padVoor(el: Exclude<BordElement, { soort: 'tekst' }>): string {
+export function padVoor(el: Exclude<BordElement, { soort: 'tekst' | 'prent' }>): string {
   switch (el.soort) {
     case 'lijn':
       return `M${p(el.van)} L${p(el.naar)}`;

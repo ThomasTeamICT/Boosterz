@@ -28,7 +28,39 @@ const FASE_NAAM: Record<BordlesFase['soort'], string> = { kijk: 'Kijk mee', doe:
 
 // ── Bordelementen renderen ──────────────────────────────────────────────────
 
-function BordVorm({ el, opgelost, pop }: { el: BordElement; opgelost: (id: string) => boolean; pop: string | null }) {
+/** Beelden die niet laadden: niet bij elke render opnieuw proberen. */
+const ONTBREEKT = new Set<string>();
+
+function beeldUrl(map: string | undefined, sleutel: string): string {
+  return `${import.meta.env.BASE_URL}${map ?? ''}${sleutel}.webp`;
+}
+
+/**
+ * Een prent op het bord. Bestaat het beeld (nog) niet, dan tekent het bord een kader en schrijft wat erop
+ * hoort te staan: zo werkt een les ook voor de prenten er zijn.
+ */
+function Prent({ el, map }: { el: Extract<BordElement, { soort: 'prent' }>; map?: string }) {
+  const url = beeldUrl(map, el.beeld);
+  const [mis, setMis] = useState(() => ONTBREEKT.has(url));
+  const [x, y] = el.plek, b = el.breedte;
+  if (mis) {
+    return (
+      <g data-b="prent" aria-label={el.alt}>
+        <rect x={x} y={y} width={b} height={b} rx={10} fill="none" stroke={krijt('wit')} strokeWidth={2} strokeDasharray="8 6" />
+        <text className="b-krijtschrift" x={x + b / 2} y={y + b / 2 + 8} fontSize={Math.max(18, Math.min(28, b / 6))} textAnchor="middle" fill={krijt('wit')}>{el.alt}</text>
+      </g>
+    );
+  }
+  return (
+    <image
+      data-b="prent" href={url} x={x} y={y} width={b} height={b} preserveAspectRatio="xMidYMid meet"
+      aria-label={el.alt} onError={() => { ONTBREEKT.add(url); setMis(true); }}
+    />
+  );
+}
+
+function BordVorm({ el, opgelost, pop, map }: { el: BordElement; opgelost: (id: string) => boolean; pop: string | null; map?: string }) {
+  if (el.soort === 'prent') return <Prent el={el} map={map} />;
   if (el.soort === 'tekst') {
     const verborgen = el.verborgenTot && !opgelost(el.verborgenTot);
     const kleur = krijt(el.delen[0]?.kleur);
@@ -54,6 +86,13 @@ function BordVorm({ el, opgelost, pop }: { el: BordElement; opgelost: (id: strin
       {vul && <path data-b="vulling" d={vul} fill={krijt(el.kleur)} fillOpacity={0.12} stroke="none" />}
     </>
   );
+}
+
+/** Prent op een keuzeknop; ontbreekt het beeld, dan blijft alleen het woord staan. */
+function OptiePrent({ url }: { url: string }) {
+  const [mis, setMis] = useState(() => ONTBREEKT.has(url));
+  if (mis) return null;
+  return <img src={url} alt="" onError={() => { ONTBREEKT.add(url); setMis(true); }} />;
 }
 
 // ── Voortgang per stap ──────────────────────────────────────────────────────
@@ -90,6 +129,12 @@ function bordTekst(stappen: BordlesStap[], vervangen: Set<string>, opgelost: (id
   return delen.join('; ');
 }
 
+/** Wat er bij een stap voorgelezen wordt: deeldoel, uitleg en de vraag (bij prenten ook de keuzes). */
+function voorleesVoor(stap: BordlesStap): string {
+  const keuzes = stap.keuze?.opties.some((o) => o.prent) ? ` ${stap.keuze.opties.map((o) => o.tekst).join(', of ')}?` : '';
+  return `${stap.deeldoel ? `${stap.deeldoel}. ` : ''}${stap.uitleg} ${stap.keuze?.vraag ?? stap.waarom?.vraag ?? stap.invul?.label ?? ''}${keuzes}`;
+}
+
 function spreek(tekst: string) {
   if (typeof speechSynthesis === 'undefined' || !tekst.trim()) return;
   speechSynthesis.cancel();
@@ -115,7 +160,10 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
   const [plek, setPlek] = useState<Plek>(() => ({ fase: cfg.instapvraag ? -1 : 0, stap: 0 }));
   const [voortgang, setVoortgang] = useState<Record<string, Voortgang>>({});
   const [snelheid, setSnelheid] = useState<BordlesSnelheid>(() => beginSnelheid(cfg));
-  const [bordstand, setBordstand] = useState(false);
+  const kleuter = cfg.doelgroep === 'kleuter';
+  // Kleuters: de leerkracht bedient het bord en de klas antwoordt samen (docs/UITLEGVORMEN.md § 5).
+  const [bordstand, setBordstand] = useState(kleuter);
+  const [vanzelfVoorlezen, setVanzelfVoorlezen] = useState(kleuter);
   const [teller, setTeller] = useState(0);
   const [pop, setPop] = useState<string | null>(null);
   const [instapUitslag, setInstapUitslag] = useState<null | 'juist' | 'fout'>(null);
@@ -158,6 +206,13 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
   }, [teller]);
 
   useEffect(() => () => { stilte(); motorRef.current?.stop(); }, []);
+
+  // Vanzelf voorlezen bij elke nieuwe stap (standaard bij kleuters, die nog niet lezen).
+  useEffect(() => {
+    if (!vanzelfVoorlezen || !stap || klaar || !animeerRef.current) return;
+    spreek(voorleesVoor(stap));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teller, vanzelfVoorlezen]);
 
   // ── resultaten ────────────────────────────────────────────────────────────
   const dienIn = useCallback((stand: Record<string, Voortgang>) => {
@@ -358,7 +413,7 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
   const ids = { antwoord: `${uid}-antwoord`, waarom: `${uid}-waarom` };
 
   return (
-    <div className={`b-les${bordstand ? ' b-bordstand' : ''}`}>
+    <div className={`b-les${bordstand ? ' b-bordstand' : ''}${kleuter ? ' b-kleuter' : ''}`}>
       {cfg.leerdoel && <p className="b-leerdoel"><strong>Leerdoel:</strong> {cfg.leerdoel}</p>}
       {ingediend && <p className="callout b-al-ingediend" role="note">Je les is al ingediend. Wat je nu nog doet, telt niet meer mee.</p>}
       <nav className="b-fases" aria-label="Fases van de les">
@@ -380,7 +435,7 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
               {zichtbaar.map((s, i) => (
                 <g key={s.id} ref={i === plek.stap ? huidigeRef : undefined} className={i < plek.stap && dim ? 'b-oud' : undefined}>
                   {s.teken.map((e, j) => (e.id && vervangen.has(e.id) ? null
-                    : <BordVorm key={j} el={e} opgelost={isOpgelost} pop={pop} />))}
+                    : <BordVorm key={j} el={e} opgelost={isOpgelost} pop={pop} map={cfg.beeldMap} />))}
                 </g>
               ))}
             </g>
@@ -395,7 +450,7 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
           <p className="b-uitleg" aria-live="polite">{stap.uitleg}</p>
 
           <div className="b-rij">
-            <button type="button" className="btn btn-ghost b-voorlees" onClick={() => spreek(`${stap.deeldoel ? `${stap.deeldoel}. ` : ''}${stap.uitleg} ${stap.keuze?.vraag ?? stap.waarom?.vraag ?? stap.invul?.label ?? ''}`)}>
+            <button type="button" className="btn btn-ghost b-voorlees" onClick={() => spreek(voorleesVoor(stap))}>
               Voorlezen
             </button>
             <div className="b-snelheid" role="group" aria-label="Tekensnelheid">
@@ -408,6 +463,7 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
               ))}
             </div>
             <label className="b-schakel"><input type="checkbox" checked={bordstand} onChange={(e) => setBordstand(e.target.checked)} /> Bordstand</label>
+            <label className="b-schakel"><input type="checkbox" checked={vanzelfVoorlezen} onChange={(e) => setVanzelfVoorlezen(e.target.checked)} /> Vanzelf voorlezen</label>
           </div>
 
           {/* Klasmoment: in de bordstand antwoordt eerst iedereen, dan pas de oplossing. */}
@@ -453,13 +509,16 @@ export function BordlesPlayer({ widget, preview, timeUp, onComplete }: PlayerPro
           )}
 
           {stap.keuze && !klasmomentOpen && (
-            <div className="b-keuze" ref={keuzeRef}>
+            <div className={`b-keuze${stap.keuze.opties.some((o) => o.prent) ? ' b-keuze-prenten' : ''}`} ref={keuzeRef}>
               {stap.keuze.vraag && <p className="b-vraag">{stap.keuze.vraag}</p>}
               {stap.keuze.opties.map((o, i) => {
                 const gekozen = v.gekozen?.includes(i);
                 return (
-                  <button key={i} type="button" className={`b-optie${gekozen ? (o.juist ? ' juist' : ' mis') : ''}`}
-                    disabled={v.opgelost || gekozen} onClick={() => kies(i)}>{o.tekst}</button>
+                  <button key={i} type="button" className={`b-optie${o.prent ? ' b-optie-prent' : ''}${gekozen ? (o.juist ? ' juist' : ' mis') : ''}`}
+                    disabled={v.opgelost || gekozen} onClick={() => kies(i)}>
+                    {o.prent && <OptiePrent url={beeldUrl(cfg.beeldMap, o.prent)} />}
+                    <span>{o.tekst}</span>
+                  </button>
                 );
               })}
             </div>

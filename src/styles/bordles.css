@@ -83,6 +83,9 @@
   text-align: left; min-height: 48px; padding: 10px 14px; border-radius: 10px; cursor: pointer; font: inherit;
   border: 2px solid var(--line-strong); background: var(--bg-raised); color: var(--text);
 }
+.b-optie-prent { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; min-width: 140px; }
+.b-optie-prent img { width: 120px; height: 120px; object-fit: contain; }
+.b-keuze-prenten { flex-direction: row; flex-wrap: wrap; }
 .b-optie.mis { border-color: var(--err); }
 .b-optie.juist { border-color: var(--ok); }
 .b-optie:disabled { cursor: default; }
@@ -97,6 +100,10 @@
 .b-woorden dd { margin: 0 0 0 0.6em; }
 
 .b-samenvatting { text-align: left; margin: 12px auto; max-width: 480px; }
+
+/* Kleuters: groter en rustiger. */
+.b-kleuter .b-uitleg { font-size: 1.3rem; }
+.b-kleuter .b-optie { font-size: 1.15rem; }
 
 /* Bordstand: het bord groot voor de klas, de bediening eronder. */
 .b-bordstand .b-raster { grid-template-columns: minmax(0, 1fr); }
