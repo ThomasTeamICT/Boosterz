@@ -11,7 +11,8 @@ kunnen aanbrengen. De **bordles** is de eerste van die uitlegvormen. Het werkend
 |---|---|---|
 | Demo bordles (Pythagoras: kijk mee, doe mee, zoek de fout, alleen), met hand en krijt, vijf handposes en instelbare snelheid | **Klaar en goedgekeurd** (13 november 2026): "dat is een heel pak beter", "de rest van de animatie vind ik wel geslaagd" | eigenaar |
 | Handafbeeldingen in vijf poses (schrijven, lijn, opgetild, wijzen, tikken) | **Aangeleverd** door de eigenaar (13 november 2026), bewerkt in `tools/prototypes/bordles/handen/` (krijtstreep weg, mouw vervaagd, krijtpunt opgemeten in `krijtpunten.json`) | klaar |
-| Dit ontwerp: de set uitlegvormen (§ 1) en het lesgeraamte (§ 2) | **Voorstel**, wacht op akkoord van de eigenaar (vragen onderaan) | eigenaar |
+| Dit ontwerp: de set uitlegvormen (§ 1) en het lesgeraamte (§ 2) | **Aangevuld** (13 november 2026) met zeven didactische punten (§ 4), op vraag en met akkoord van de eigenaar; de set blijft vier vormen | klaar |
+| Start van de bouw (BL-1 tot BL-3) | **Wacht** op het teken van de eigenaar (vraag onderaan) | eigenaar |
 | Bordles als oefeningstype: speler (BL-1 tot BL-4) | **Wacht** op akkoord | hoofdsessie, bouwer |
 | Bordles: editor voor de leerkracht (BL-5, BL-6) | **Wacht** | bouwer |
 | Bordles: AI-voorstel in de AI-studio (BL-7) | **Wacht** | hoofdsessie |
@@ -38,17 +39,31 @@ Wat de vier gemeen hebben (de "consequente" kant):
   feedback en de bestaande hintladder.
 - **Resultaten naar het leerdoel**: "zonder hulp", "met hulp", "oplossing getoond", en de zekerheidsgraad, in de bestaande
   resultaten en de doel-heatmap.
+- **Iedereen antwoordt** in de bordstand: klasmomenten ("schrijf op je wisbordje", "duim omhoog of omlaag") vóór het bord de
+  oplossing toont, zodat niet één leerling antwoordt terwijl de rest kijkt.
+- **Van concreet naar abstract**: elke vorm laat toe om te starten bij iets concreets of een context, via een schema naar de
+  abstracte notatie (zoals gebruikelijk in het basisonderwijs). Dat is een eigenschap van elke vorm, geen aparte vorm.
+- **Taal als drempel weggenomen**: vakwoorden zijn aanklikbaar in de bestaande woordenlijst, met steuntaal en voorlezen (TAL).
 - **Toegankelijk**: minder beweging, voorlezen, toetsenbord, 44 pixels, 390 pixels breed, Safari 14.
+
+Een video of een verhaal is geen vijfde uitlegvorm: die horen bij de instap, om te tonen waarom de leerstof ertoe doet.
 
 ## 2. Het lesgeraamte: waar de uitlegvorm in een les zit
 
-Voorstel voor een vast geraamte van een les of cursussectie, met bestaande bouwstenen:
+Een standaardgeraamte voor een les of cursussectie, met bestaande bouwstenen. Het is een **standaard, geen verplichting**: de
+leerkracht kan stappen weglaten of verschuiven, anders voelt het als een keurslijf.
 
-1. **Instap**: wat ken je al? (diagnostische instap of een korte poll, bestaat).
+1. **Instap**
+   - Het leerdoel en waarom je dit leert, in leerlingentaal (feed-up; de leerdoelen bestaan al).
+   - Optioneel een context of probleem dat de vraag oproept (een korte video of een verhaal hoort hier).
+   - Een korte instaptoets: wie het al kan, gaat via de bestaande niveauroutes meteen naar zelfstandig werk of een uitdaging
+     (voordoen remt leerlingen die het al kennen).
 2. **Uitleg**: één uitlegvorm uit § 1.
-3. **Inoefenen**: bestaande oefeningen (quiz, invullen, flitskaarten), met hintladder.
+3. **Inoefenen**: bestaande oefeningen (quiz, invullen, flitskaarten), met hintladder, **gevarieerd en door elkaar** (andere
+   vormen, andere onbekende, een vraagstuk in context), niet tien keer dezelfde opgave.
 4. **Check**: een exitticket, gekoppeld aan het leerdoel (bestaat).
-5. **Herhalen**: dezelfde leerstof komt na enkele dagen terug (Leitner, bestaat voor flitskaarten).
+5. **Terugblik**: de leerling vat zelf samen, bv. de stappen in de juiste volgorde zetten of in één zin zeggen wat hij leerde.
+6. **Herhalen**: dezelfde leerstof komt na enkele dagen terug (Leitner, bestaat voor flitskaarten).
 
 De AI-cursusbouwer kan dit geraamte later per sectie invullen: per leerdoel kiest hij de uitlegvorm volgens de tabel in § 1, en
 de leerkracht keurt goed in de voorvertoning.
@@ -65,6 +80,21 @@ de leerkracht keurt goed in de voorvertoning.
 - **Alleen**: zelfstandig, met de zekerheidsvraag vóór het controleren.
 - Niet elke bordles hoeft alle vier fases te hebben; de leerkracht kiest welke.
 
+Aanvullingen na het expertadvies (13 november 2026, zie § 4):
+
+- **Waaromvragen in Kijk mee**: af en toe stopt het bord met een korte vraag ("Waarom tellen we de oppervlaktes op en niet de
+  zijden?"), met keuzes of een open antwoord. Kijken alleen geeft snel de schijn van begrip.
+- **Elke stap een deeldoel**: een kort label ("Zoek de langste zijde", "Kwadrateer") boven de uitleg, en in de tekst hardop
+  denken ("Ik kijk eerst welke zijde tegenover de rechte hoek ligt"). De labels zijn de kapstok in Doe mee: de leerling ziet
+  welk deeldoel hij nu zelf doet.
+- **Variatie tussen de voorbeelden**: een andere stand of vorm, een andere onbekende, een vraagstuk in context. Regel voor
+  de inhoudschrijver en een tip in de editor; de AI-voorstellen moeten het ook doen.
+- **Klasmoment in de bordstand**: vóór een invulstap of keuze kan het bord vragen dat iedereen antwoordt (wisbordje, duim),
+  met een knop "Toon de oplossing" voor de leerkracht.
+- **Overslaan wie het kan**: een bordles kan starten met één controlevraag; juist betekent meteen naar Alleen (de leerling kan
+  altijd terug naar Kijk mee).
+- **Woordenlijst**: vakwoorden in de uitleg verwijzen naar de bestaande woordenlijst met steuntaal.
+
 ### 3.2 Het lesformaat (voorstel voor `BordlesConfig`)
 
 Een bordles is data, geen code. Het bord is 600 op 500 eenheden; de speler schaalt mee.
@@ -73,6 +103,9 @@ Een bordles is data, geen code. Het bord is 600 op 500 eenheden; de speler schaa
 interface BordlesConfig {
   titel: string;
   standaardSnelheid?: 'traag' | 'normaal' | 'snel' | 'meteen';
+  leerdoel?: string;              // in leerlingentaal, getoond bij de start
+  instapvraag?: BordlesStap;      // juist = meteen naar de fase 'alleen'
+  woorden?: string[];             // vakwoorden die naar de woordenlijst verwijzen
   fases: BordlesFase[];
 }
 interface BordlesFase {
@@ -81,7 +114,13 @@ interface BordlesFase {
   stappen: BordlesStap[];
 }
 interface BordlesStap {
-  uitleg: string;                 // tekst naast het bord, ook voorgelezen
+  id?: string;
+  deeldoel?: string;              // kort label met het doel van de stap, bv. "Kwadrateer"
+  uitleg: string;                 // tekst naast het bord, ook voorgelezen; mag hardop denken
+  waarom?: {                      // waaromvraag in Kijk mee: keuzes of open, met uitleg erna
+    vraag: string; opties?: { tekst: string; juist?: boolean; uitleg: string }[]; modelantwoord?: string;
+  };
+  klasmoment?: { opdracht: string };   // bordstand: iedereen antwoordt eerst (wisbordje, duim)
   teken: BordElement[];           // wat de hand in deze stap tekent of schrijft
   invul?: {                       // leerling vult in (doe, alleen)
     label: string; antwoord: number | string; hints: string[];
@@ -121,18 +160,32 @@ type BordElement =
 
 | Pakket | Wat | Wie |
 |---|---|---|
-| BL-1 | Lesformaat in `src/lib/types.ts` en een validator met tests (o.a. `verborgenTot` wijst naar een bestaande invulstap) | kernbouwer |
+| BL-1 | Lesformaat in `src/lib/types.ts` en een validator met tests (o.a. `verborgenTot` wijst naar een bestaande invulstap, een waaromvraag heeft een juiste optie of een modelantwoord) | kernbouwer |
 | BL-2 | Tekenmotor als zuivere module, met tests op paden en timing | bouwer |
-| BL-3 | Speler: de vier fases, invul met hintladder en gekende fouten, keuze, zekerheid, snelheid, voorlezen, bord- en leerlingstand, resultaten | bouwer |
+| BL-3 | Speler: de vier fases, deeldoelen, waaromvragen, instapvraag met overslaan, invul met hintladder en gekende fouten, keuze, zekerheid, snelheid, voorlezen, woordenlijst, bord- en leerlingstand met klasmomenten, resultaten | bouwer |
 | BL-4 | Formules (lichte weergave, eigen chunk) | bouwer |
-| BL-5 | Editor: fases en stappen, vormen plaatsen op een raster, uitleg, invulstap, foute stap, standaardsnelheid, voorvertoning | bouwer |
+| BL-5 | Editor: fases en stappen, vormen plaatsen op een raster, deeldoel en uitleg, waaromvraag, invulstap, foute stap, klasmoment, standaardsnelheid, tip over variatie, voorvertoning | bouwer |
 | BL-6 | Sjabloon "Bordles" in de sjabloonbibliotheek, met de Pythagorasles | hoofdsessie |
 | BL-7 | AI-studio: een bordles voorstellen in dit formaat, door de validator, met voorvertoning | hoofdsessie |
-| BL-8 | Twee voorbeeldlessen (wiskunde en een ander vak), geschreven door de inhoudschrijver, nagekeken door de nakijker | inhoudschrijver, nakijker |
+| BL-8 | Twee voorbeeldlessen (wiskunde en een ander vak), met deeldoelen, waaromvragen en variatie tussen de voorbeelden, geschreven door de inhoudschrijver, nagekeken door de nakijker | inhoudschrijver, nakijker |
 | BL-9 | Rooktest `tests/bordles.mjs` en review per invalshoek (didactiek, toegankelijkheid, oude toestellen) | bouwer, reviewer, rechter |
+
+## 4. Expertadvies van 13 november 2026 (verwerkt)
+
+De eigenaar vroeg of de opzet didactisch klopt en wat er nog ontbreekt. Het oordeel: de opzet klopt en steunt op goed onderzochte
+principes (uitgewerkte voorbeelden, afbouwen, fouten laten zoeken, ophalen, gespreid herhalen); de volgorde in de demo is juist
+(het foute voorbeeld pas na de basis). Zeven aanvullingen, door de eigenaar aanvaard en hierboven verwerkt:
+
+| # | Punt | Waarom | Waar verwerkt |
+|---|---|---|---|
+| 1 | Waaromvragen in Kijk mee | kijken naar een mooie animatie geeft de schijn van begrip; zelfverklaren maakt uitgewerkte voorbeelden pas echt sterk | § 3.1, § 3.2 (`waarom`) |
+| 2 | Deeldoel per stap en hardop denken | benoemde deeldoelen helpen de aanpak meenemen naar nieuwe opgaven | § 3.1, § 3.2 (`deeldoel`) |
+| 3 | Variatie tussen de voorbeelden | dezelfde vorm en onbekende leren een truc, geen inzicht | § 2 (inoefenen), § 3.1, BL-5, BL-8 |
+| 4 | Overslaan wie het kan | voordoen helpt beginners, maar remt leerlingen die het al kennen | § 2 (instap), § 3.2 (`instapvraag`) |
+| 5 | Iedereen antwoordt in de bordstand | anders antwoordt één leerling en kijkt de rest | § 1, § 3.2 (`klasmoment`) |
+| 6 | Leerdoel en waarom bij de instap, terugblik op het einde; geraamte als standaard | feed-up en zelf samenvatten; geen keurslijf | § 2 |
+| 7 | Vakwoorden naar de woordenlijst met steuntaal | taal is een drempel, zeker voor TAL | § 1, § 3.2 (`woorden`) |
 
 ## Vragen aan de eigenaar
 
-1. Klopt de set van vier uitlegvormen in § 1, of mist er een (bv. een uitleg met video, of een verhaal)?
-2. Klopt het lesgeraamte in § 2 als vaste opbouw voor een les of cursussectie?
-3. Mag ik na je akkoord starten met BL-1 tot BL-3 (de speler), zodat je de bordles eerst in Boosterz kunt uitproberen?
+1. Mag ik starten met BL-1 tot BL-3 (lesformaat, tekenmotor en speler), zodat je de bordles in Boosterz kunt uitproberen?
